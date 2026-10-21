@@ -1,6 +1,8 @@
 #![recursion_limit = "256"]
 #[path = "../tests/support/fisheye.rs"]
 mod analytic;
+#[path = "../tests/support/ceiling_capture.rs"]
+mod ceiling_capture;
 #[path = "../tests/support/fisheye_lighting.rs"]
 mod lighting;
 // Bounded analytic and real-scene qualification. No dataset filtering or
@@ -86,11 +88,17 @@ fn main() {
     let pinhole = args.iter().any(|a| a == "--pinhole");
     let matched = args.iter().any(|a| a == "--matched");
     let rgb_only = args.iter().any(|a| a == "--rgb-only");
+    let ceiling = args.iter().any(|a| a == "--ceiling");
     let output = PathBuf::from(option("output").unwrap_or_else(|| "out/fisheye".into()));
     std::fs::create_dir_all(&output).unwrap();
-    let prior = LensSampling {
-        probability: 1.,
-        ..default()
+    let prior = if ceiling {
+        bevy_zeroverse::scene::procedural_indoor::cameras::ceiling::CeilingCameraSettings::default()
+            .lenses
+    } else {
+        LensSampling {
+            probability: 1.,
+            ..default()
+        }
     };
     let mut distribution = Vec::new();
     for seed in 400..408 {
@@ -99,6 +107,9 @@ fn main() {
         let mut settings = scene.camera_settings.clone();
         settings.lenses = Some(prior.clone());
         settings.motion_fraction = 0.;
+        if ceiling {
+            settings.ceiling_mount = Some(default());
+        }
         scene.resample_cameras(3, settings, 1.).unwrap();
         for (i, c) in scene.cameras.iter().enumerate() {
             assert_eq!(c.fisheye, prior.sample(seed, i));
@@ -141,7 +152,7 @@ fn main() {
                 }
             }
         }
-        assert!((0.23..0.27).contains(&(fish as f64 / total as f64)));
+        assert!((0.48..0.52).contains(&(fish as f64 / total as f64)));
         assert!((0.17..0.23).contains(&(circular as f64 / fish as f64)));
         std::fs::write(
             output.join("sampling-audit.json"),
@@ -176,6 +187,21 @@ fn main() {
     );
     let steps: u32 = option("steps").map(|v| v.parse().unwrap()).unwrap_or(2);
     let seed_start: u64 = option("seed").map(|v| v.parse().unwrap()).unwrap_or(400);
+    let mut camera_policy = bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings {
+        lenses: if pinhole && !matched {
+            None
+        } else {
+            Some(prior.clone())
+        },
+        ..default()
+    };
+    if ceiling {
+        let mut mount = bevy_zeroverse::scene::procedural_indoor::cameras::ceiling::CeilingCameraSettings::default();
+        if pinhole && !matched {
+            mount.lenses.probability = 0.;
+        }
+        camera_policy.ceiling_mount = Some(mount);
+    }
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         headless: true,
@@ -189,10 +215,7 @@ fn main() {
         width: size as f32,
         height: size as f32,
         indoor_seed: Some(seed_start),
-        indoor_camera: Some(
-            serde_json::json!({"lenses":if pinhole && !matched {None}else{Some(&prior)},"motion_fraction":1})
-                .to_string(),
-        ),
+        indoor_camera: Some(serde_json::to_string(&camera_policy).unwrap()),
         playback_steps: steps,
         playback_step: 0.1,
         depth_format: DepthFormat::Linear,
@@ -377,7 +400,18 @@ fn main() {
             serde_json::to_vec_pretty(&sample.indoor).unwrap(),
         )
         .unwrap();
-        timings.push(serde_json::json!({"seed":seed,"seconds":elapsed,"views":sample.views.len(),"measurements":measurements,"metadata":sample.indoor_render_metadata,"overlap":bevy_zeroverse::sample::qualification::rendered_overlap(&sample.views,config.num_cameras,sample.aabb)}));
+        let fixed_timeline =
+            ceiling.then(|| ceiling_capture::fixed_timeline(&sample.views, config.num_cameras));
+        let ceiling_visibility = if ceiling && !rgb_only && config.num_cameras > 1 {
+            Some(ceiling_capture::visibility(
+                &sample.views,
+                config.num_cameras,
+                sample.aabb,
+            ))
+        } else {
+            None
+        };
+        timings.push(serde_json::json!({"seed":seed,"seconds":elapsed,"views":sample.views.len(),"measurements":measurements,"ceiling_visibility_oracle":ceiling_visibility,"fixed_timeline":fixed_timeline,"metadata":sample.indoor_render_metadata,"overlap":bevy_zeroverse::sample::qualification::rendered_overlap(&sample.views,config.num_cameras,sample.aabb)}));
     }
     std::fs::write(output.join("protocol.json"),serde_json::to_vec_pretty(&serde_json::json!({"config":config,"provenance":bevy_zeroverse::provenance::capture_provenance(),"adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),"seeds":[seed_start,seed_start+rooms],"concurrent_training":!args.iter().any(|a|a=="--isolated"),"timing":"completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"})).unwrap()).unwrap();
     std::fs::write(

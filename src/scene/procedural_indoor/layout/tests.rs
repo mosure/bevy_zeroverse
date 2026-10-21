@@ -52,32 +52,38 @@ fn mixed_constructs_every_program_with_default_cameras_and_valid_meshes() {
 #[test]
 fn long_curly_hair_keeps_its_wave_extent_outside_worktops() {
     use super::super::{humans, objects};
-    let scene = IndoorManifest::office_regression_fixture(199, 0.7, 0, 0.7).unwrap();
+    // Retain the reported seed and test a fixed cohort: clutter can change
+    // which seated humans fit, but must never bypass the hair/worktop gate.
     let mut checked = 0;
-    for person in &scene.humans {
-        let Some(table) = person
-            .chair
-            .and_then(|id| scene.objects[id].interaction_target)
-            .map(|id| &scene.objects[id])
-        else {
-            continue;
-        };
-        let solid = objects::tables::Clearance::new(table);
-        let tf = table.transform().compute_affine().inverse() * person.transform().compute_affine();
-        let mesh = humans::build_human(person);
-        if let Some(hair) = mesh.parts.get(&humans::HumanSurface::Hair) {
-            for v in &hair.positions {
-                let p = tf.transform_point3(Vec3::from_array(*v));
-                assert!(
-                    p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.001),
-                    "person {}: hair intersects worktop at {p:?}",
-                    person.id
-                );
+    for seed in [199].into_iter().chain(0..64) {
+        let scene = IndoorManifest::office_regression_fixture(seed, 0.7, 0, 0.7).unwrap();
+        for person in &scene.humans {
+            let Some(table) = person
+                .chair
+                .and_then(|id| scene.objects[id].interaction_target)
+                .map(|id| &scene.objects[id])
+            else {
+                continue;
+            };
+            let solid = objects::tables::Clearance::new(table);
+            let tf =
+                table.transform().compute_affine().inverse() * person.transform().compute_affine();
+            let mesh = humans::build_human(person);
+            if let Some(hair) = mesh.parts.get(&humans::HumanSurface::Hair) {
+                for v in &hair.positions {
+                    let p = tf.transform_point3(Vec3::from_array(*v));
+                    assert!(
+                        p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.001),
+                        "person {}: hair intersects worktop at {p:?}",
+                        person.id
+                    );
+                }
+                checked +=
+                    usize::from(person.hairstyle == humans::hair::HairStyle::CurlyLong as u8);
             }
-            checked += usize::from(person.hairstyle == humans::hair::HairStyle::CurlyLong as u8);
         }
     }
-    assert!(checked > 0, "retain the curly-haired regression fixture");
+    assert!(checked > 0, "exercise seated long-curly hair in the cohort");
 }
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
@@ -113,8 +119,8 @@ fn contact_clothing_clears_table_edges_across_public_programs() {
                         })
                         .fold(f32::INFINITY, f32::min);
                     assert!(p.y >= table.size.y - 1e-5 || !solid.hits_capsule(p, p, 0.0001),
-                    "person={} surface={surface:?} local={local:?} table={p:?} inside={} edge_distance={distance} palms={:?}",
-                    human.id, contact.contains(local, 0.), contact.palms);
+                    "seed={seed} person={} surface={surface:?} local={local:?} table={p:?} inside={} edge_distance={distance} palms={:?} height={} joints={:?}",
+                    human.id, contact.contains(local, 0.), contact.palms, contact.height, human.joints);
                 }
             }
             checked += 1;

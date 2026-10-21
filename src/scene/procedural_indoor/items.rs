@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::Serialize;
 
+pub mod composition;
+pub mod distribution;
 pub(crate) mod sizing;
 
 pub const TASKS: [&str; 6] = [
@@ -51,18 +53,30 @@ pub fn parameters(scene: &IndoorManifest, support: &IndoorObject) -> SurfaceProg
         })
         .map_or(scene.layout, |z| z.activity);
     let favored = match activity {
-        IndoorLayout::Breakroom => 2,
+        IndoorLayout::Breakroom
+        | IndoorLayout::Kitchen
+        | IndoorLayout::Kitchenette
+        | IndoorLayout::Cafe
+        | IndoorLayout::Cafeteria => 2,
         IndoorLayout::Library | IndoorLayout::Lounge => 1,
         IndoorLayout::Workshop | IndoorLayout::Studio => 3,
-        IndoorLayout::Reception => 4,
+        IndoorLayout::Reception | IndoorLayout::ElevatorLanding => 4,
+        IndoorLayout::Classroom | IndoorLayout::LectureHall => 1,
         _ => 0,
     };
     weights[favored] *= rng.random_range(1.5..3.5);
     let sum: f32 = weights.iter().sum();
     weights.iter_mut().for_each(|w| *w /= sum);
+    // Reserve the amount draw for every surface. Changing the clutter policy
+    // must not also resample its task alignment, focal point or handedness.
+    let occupancy = 0.18 + 2.42 * rng.random_range(0.0..1.0_f32).powf(1.25);
     SurfaceProgram {
         task_weights: weights,
-        occupancy: rng.random_range(0.40..1.30),
+        occupancy: if distribution::is_table(support.kind) {
+            2.6 * scene.clutter.sample(support.seed)
+        } else {
+            occupancy
+        },
         clustering: rng.random_range(0.15..0.82),
         alignment: rng.random_range(0.0..0.95),
         focal_point: Vec2::new(rng.random_range(-0.30..0.30), rng.random_range(-0.24..0.24)),
@@ -208,11 +222,6 @@ impl SurfaceProgram {
                 rng.random_range(0.20..0.35),
                 rng.random_range(0.13..0.24),
                 rng.random_range(0.19..0.28),
-            ),
-            Bag => Vec3::new(
-                rng.random_range(0.25..0.36),
-                rng.random_range(0.20..0.31),
-                rng.random_range(0.14..0.22),
             ),
             _ => unreachable!("unsupported task item"),
         };

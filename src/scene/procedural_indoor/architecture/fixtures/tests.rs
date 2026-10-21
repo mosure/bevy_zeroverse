@@ -36,7 +36,7 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
             let a = geometry(&scene, 0, position);
             let s = super::super::fixture_half_extents(&scene, position) * 2.;
             let mut o = audit::fixture(ObjectKind::CeilingPendant, seed);
-            let (lo, hi) = a.bounds();
+            let (_, hi) = a.bounds();
             o.size = Vec3::new(
                 s.x + 0.006,
                 hi.y - (position.y - s.y * 0.5) + 0.003,
@@ -53,7 +53,14 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
                 panic!("seed={seed}, {:?} {size:?}: {e}", parameters(&scene).shape)
             });
             assert!(checked.triangles < 10_000);
-            assert!(emitter(&scene, position).y < lo.y);
+            let axis = direction(&scene, position);
+            let local_emitter =
+                rotation(&scene, position).inverse() * (emitter(&scene, position) - position);
+            assert!(
+                (local_emitter - Vec3::NEG_Y * (super::size(&scene, position).y * 0.5 + 0.006))
+                    .length()
+                    < 1e-5
+            );
             let area = emitting_area_at(&scene, position);
             let realized = super::size(&scene, position);
             assert!(area.is_finite() && area > 0.0001 && area <= realized.x * realized.z);
@@ -69,7 +76,7 @@ fn fixture_programs_fit_reservations_and_have_valid_semantic_geometry() {
                         .map(|t| {
                             let [a, b, c] = [t[0], t[1], t[2]]
                                 .map(|i| Vec3::from_array(g.positions[i as usize]));
-                            (-(b - a).cross(c - a).y).max(0.) * 0.5
+                            (b - a).cross(c - a).dot(axis).max(0.) * 0.5
                         })
                         .sum::<f32>()
                 })

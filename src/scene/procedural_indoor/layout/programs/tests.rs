@@ -157,7 +157,15 @@ fn constrained_lounge_seed_49309986_has_sufficient_primary_furniture() {
             .iter()
             .filter(|o| o.solid && !o.neighbor)
             .count()
-            >= scene.minimum_main_objects()
+            >= scene.minimum_main_objects(),
+        "required={}, objects={:?}",
+        scene.minimum_main_objects(),
+        scene
+            .objects
+            .iter()
+            .filter(|o| o.solid && !o.neighbor)
+            .map(|o| (o.id, o.kind, o.position, o.size))
+            .collect::<Vec<_>>()
     );
     validate_layout(&scene).unwrap();
     validate_geometry(&scene).unwrap();

@@ -58,7 +58,6 @@ pub fn run(
     lens: &LensCamera,
     faces: &[(Entity, Transform)],
     scale: f32,
-    size: UVec2,
     pixels: &[Vec<[f32; 4]>],
 ) -> serde_json::Value {
     // Shared handles are the public boundary. No App/World/RenderApp is accepted,
@@ -67,7 +66,9 @@ pub fn run(
     assert_eq!(pixels.len(), 5);
     let textures: Vec<_> = pixels
         .iter()
-        .map(|pixels| {
+        .enumerate()
+        .map(|(i, pixels)| {
+            let size = lens.face_regions()[i].size();
             assert_eq!(pixels.len(), (size.x * size.y) as usize);
             let extent = wgpu::Extent3d {
                 width: size.x,
@@ -156,15 +157,23 @@ pub fn run(
         compilation_options: default(),
         cache: None,
     });
-    // Production Params is 664 float32 words; zero-fill irrelevant preview fields.
-    let mut data = vec![0_f32; 664];
+    // Production Params adds the source crop rectangles after the rotations.
+    let mut data = vec![0_f32; 688];
     data[..16].copy_from_slice(bytemuck::cast_slice(&lens.calibration.shader_parameters()));
     for i in 0..6 {
         let rotation = faces.get(i).map_or(Quat::IDENTITY, |(_, t)| t.rotation);
         data[16 + i * 16..32 + i * 16]
             .copy_from_slice(&Mat4::from_quat(rotation.inverse()).to_cols_array());
     }
-    data[112] = scale;
+    for (i, r) in lens.face_regions().iter().enumerate() {
+        data[112 + i * 4..116 + i * 4].copy_from_slice(&[
+            r.min.x as f32,
+            r.min.y as f32,
+            r.max.x as f32,
+            r.max.y as f32,
+        ]);
+    }
+    data[136] = scale;
     let uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("seam parameters"),
         contents: bytemuck::cast_slice(&data),

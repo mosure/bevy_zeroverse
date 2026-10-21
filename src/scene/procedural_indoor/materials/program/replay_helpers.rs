@@ -20,6 +20,13 @@ pub(in super::super) fn legacy_sample_with_floor(
 }
 
 pub(in super::super) fn transformed(r: &MaterialRecipe, u: f32, v: f32) -> [f32; 2] {
+    // The knit domain canonicalizes whole tiles before its phase. Base-map
+    // coordinates are already canonical; this also exercises wrapped probes.
+    let (u, v) = if r.carpet.is_none() && r.textile.as_ref().is_some_and(|t| t.knit) {
+        (u.rem_euclid(1.), v.rem_euclid(1.))
+    } else {
+        (u, v)
+    };
     let (u, v) = r.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
     [
         (u + r.phase[0]).rem_euclid(1.),
@@ -60,7 +67,7 @@ pub(in super::super) fn check_maps(
     mut reference: impl FnMut(f32, f32) -> Texel,
 ) {
     let n = r.map_size(style) as usize;
-    let prepared = r.prepare_texels(style).unwrap();
+    let prepared = r.prepare_texels(style);
     let mut heights = vec![0.; n * n];
     let mut colors = Vec::with_capacity(n * n * 4);
     let mut data = Vec::with_capacity(n * n * 4);
@@ -69,7 +76,7 @@ pub(in super::super) fn check_maps(
             let u = x as f32 / n as f32;
             let v = y as f32 / n as f32;
             let t = reference(u, v);
-            same_bits(&t, &r.texel_prepared(u, v, style, Some(&prepared)));
+            same_bits(&t, &r.texel_prepared(u, v, style, prepared.as_ref()));
             heights[y * n + x] = t.height;
             let c = t.color.map(|c| (c.clamp(0., 1.) * 255.) as u8);
             colors.extend([c[0], c[1], c[2], 255]);

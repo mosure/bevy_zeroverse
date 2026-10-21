@@ -62,6 +62,8 @@ impl NumericDistribution {
 
 #[derive(Serialize)]
 pub struct CoverageReport {
+    #[serde(default)]
+    pub clutter: super::items::distribution::ClutterSettings,
     pub camera_settings: super::cameras::CameraSettings,
     pub appearance: Option<super::appearance::AppearanceSettings>,
     pub camera_overlap_policy: &'static str,
@@ -237,7 +239,39 @@ pub fn export_metrics_with_factors(
     camera_settings: &super::cameras::CameraSettings,
     appearance: Option<&super::appearance::AppearanceSettings>,
 ) -> Result<CoverageReport, String> {
+    export_metrics_with_clutter(
+        first_seed,
+        seeds,
+        cameras,
+        density,
+        layout,
+        width,
+        height,
+        directory,
+        human_density,
+        camera_settings,
+        appearance,
+        &Default::default(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn export_metrics_with_clutter(
+    first_seed: u64,
+    seeds: usize,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    width: u32,
+    height: u32,
+    directory: &Path,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+    appearance: Option<&super::appearance::AppearanceSettings>,
+    clutter: &super::items::distribution::ClutterSettings,
+) -> Result<CoverageReport, String> {
     camera_settings.validate()?;
+    clutter.validate()?;
     if seeds == 0
         || cameras == 0
         || cameras > 256
@@ -262,6 +296,7 @@ pub fn export_metrics_with_factors(
         human_density,
         camera_settings,
         appearance,
+        clutter,
     )
     .map_err(|e| e.to_string())
 }
@@ -279,6 +314,7 @@ fn export_inner(
     human_density: f32,
     camera_settings: &super::cameras::CameraSettings,
     appearance: Option<&super::appearance::AppearanceSettings>,
+    clutter: &super::items::distribution::ClutterSettings,
 ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
     let mut architecture = BufWriter::new(fs::File::create(directory.join("architecture.jsonl"))?);
@@ -320,6 +356,7 @@ fn export_inner(
         schema_version: INDOOR_METRICS_SCHEMA_VERSION,
         camera_settings: camera_settings.clone(),
         appearance: appearance.cloned(),
+        clutter: *clutter,
         camera_overlap_policy: "Proxy first-surface pixel overlap at normalized times 0,.25,.5,.75,1. Reference policy exports camera-zero edges; connected policy exports all pairs and requires a stable connected graph. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
         generator_version: GENERATOR_VERSION,
@@ -346,12 +383,13 @@ fn export_inner(
     let mut signatures = super::program_coverage::OccupancySketch::default();
     let mut numeric = super::metrics_sort::NumericCollector::new(directory)?;
     for offset in 0..seeds {
-        let mut scene = IndoorManifest::generate_with_humans(
+        let mut scene = IndoorManifest::generate_with_clutter(
             first_seed.wrapping_add(offset as u64),
             layout,
             density,
             0,
             human_density,
+            *clutter,
         )?;
         if let Some(settings) = appearance {
             scene.apply_appearance(settings.clone())?;
@@ -970,11 +1008,16 @@ fn export_inner(
             }
             if object.kind.has_table_outline() {
                 let p = super::objects::tables::parameters(object);
+                let bays = super::objects::tables::support_bay_count(object);
                 *report
                     .categories
                     .entry("table_support".into())
                     .or_default()
-                    .entry(p.support.to_string())
+                    .entry(if bays > 0 {
+                        format!("conference_bay_{}", p.bay_style)
+                    } else {
+                        p.support.to_string()
+                    })
                     .or_default() += 1;
                 for (key, value) in [
                     ("table_top_thickness_m", p.top_thickness),
@@ -985,40 +1028,55 @@ fn export_inner(
                     ("table_taper", p.taper),
                     ("table_capsule_blend", p.capsule_blend),
                     ("table_polygon_blend", p.polygon_blend),
+                    ("table_boat_blend", p.boat_blend),
+                    ("table_length_m", object.size.x.max(object.size.z)),
+                    ("table_width_m", object.size.x.min(object.size.z)),
                 ] {
                     numeric.push(key, value as f64)?;
+                }
+                if p.boat_blend > 0. {
+                    numeric.push("table_boat_end_width", p.boat_end_width as f64)?;
+                    numeric.push("table_boat_shoulder", p.boat_shoulder as f64)?;
+                }
+                if bays > 0 {
+                    numeric.push("table_support_bays", bays as f64)?;
+                    numeric.push("table_support_span_pitch_m", p.span_pitch as f64)?;
+                    numeric.push("table_end_overhang_m", p.end_overhang as f64)?;
+                    numeric.push("table_beam_depth_m", p.beam_depth as f64)?;
+                    numeric.push("table_bay_width_fraction", p.bay_width as f64)?;
+                    numeric.push("table_bay_rake_m", p.bay_rake as f64)?;
                 }
                 if p.polygon_blend > 0. {
                     numeric.push("table_polygon_sides", p.polygon_sides as f64)?;
                     numeric.push("table_polygon_rounding", p.polygon_rounding as f64)?;
                     numeric.push("table_polygon_phase_rad", p.polygon_phase as f64)?;
                 }
-                if p.support == 9 {
+                if (bays == 0 && p.support == 9) || (bays > 0 && p.bay_style == 5) {
                     numeric.push("table_pedestal_waist", p.pedestal_waist as f64)?;
                     numeric.push("table_pedestal_shoulder", p.pedestal_shoulder as f64)?;
                     numeric.push("table_pedestal_facets", p.pedestal_facets as f64)?;
                 }
-                if matches!(p.support, 2 | 7) {
+                if bays == 0 && matches!(p.support, 2 | 7) {
                     numeric.push("table_pedestal_radius_fraction", p.pedestal_radius as f64)?;
                     numeric.push(
                         "table_pedestal_base_radius_fraction",
                         p.pedestal_base_radius as f64,
                     )?;
                 }
-                if p.support == 2 {
+                if bays == 0 && p.support == 2 {
                     numeric.push("table_pedestal_base_aspect", p.pedestal_base_aspect as f64)?;
                 }
-                if p.support < 2 {
+                if bays == 0 && p.support < 2 {
                     numeric.push("table_leg_taper", p.leg_taper as f64)?;
                     numeric.push("table_leg_aspect", p.leg_aspect as f64)?;
                 }
-                if p.support == 3 || p.support == 7 {
+                if bays == 0 && (p.support == 3 || p.support == 7) {
                     numeric.push("table_frame_bend_m", p.frame_bend_m as f64)?;
                 }
-                if p.support == 6 {
+                if bays == 0 && p.support == 6 {
                     numeric.push("table_trestle_spread", p.trestle_spread as f64)?;
                 }
-                if p.support == 7 {
+                if bays == 0 && p.support == 7 {
                     numeric.push("table_spider_sweep", p.spider_sweep as f64)?;
                 }
                 *report

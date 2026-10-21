@@ -176,6 +176,7 @@ pub(crate) struct Request {
     gpu_materials: bool,
     camera: Option<String>,
     appearance: Option<String>,
+    clutter: Option<String>,
     motion: Option<String>,
     indoor_motion: Option<String>,
 }
@@ -216,6 +217,7 @@ impl Request {
             gpu_materials: args.indoor_gpu_materials,
             camera: args.indoor_camera.clone(),
             appearance: args.indoor_appearance.clone(),
+            clutter: args.indoor_clutter.clone(),
             motion: args.human_motion.clone(),
             indoor_motion: args.indoor_motion.clone(),
         }
@@ -254,12 +256,15 @@ impl Request {
         let request = self;
         let started = bevy::platform::time::Instant::now();
         let all_started = started;
-        let mut scene = IndoorManifest::generate_with_humans(
+        let mut scene = IndoorManifest::generate_with_clutter(
             request.seed,
             request.layout,
             f32::from_bits(request.density),
             0,
             f32::from_bits(request.humans),
+            super::super::items::distribution::ClutterSettings::parse(
+                request.clutter.as_deref().unwrap_or("{}"),
+            )?,
         )?;
         if let Some(json) = request.appearance {
             scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
@@ -480,6 +485,7 @@ mod tests {
         for update in [
             |a: &mut BevyZeroverseConfig| a.indoor_camera = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.indoor_appearance = Some("{}".into()),
+            |a: &mut BevyZeroverseConfig| a.indoor_clutter = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.human_motion = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.indoor_motion = Some("{}".into()),
             |a: &mut BevyZeroverseConfig| a.indoor_density *= 0.5,

@@ -113,7 +113,12 @@ fn expanded_material_programs_have_explicit_gpu_parameters_and_safe_fallback() {
                 assert_eq!(params.wall_weights, w.weights);
                 assert_eq!(
                     params.wall_counts,
-                    [w.fiber_cells[0], w.fiber_cells[1], w.bands, 1]
+                    [
+                        w.fiber_cells[0],
+                        w.fiber_cells[1],
+                        w.bands,
+                        w.print_style + 1
+                    ]
                 );
                 assert_eq!(&params.wall_tint[..3], &w.secondary_tint);
                 assert_eq!(
@@ -272,7 +277,54 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
     for seed in [0, 1, 202, 400, u64::MAX - 7] {
         for floor in [0, 1, 2] {
             let mut recipes = program::sample_with_floor(seed, floor).unwrap();
+            if seed == 0 {
+                // Every expanded process pole, not only whichever blended pole
+                // a short seed list happened to select. Reuse the same strict
+                // CPU oracle for all mip levels and all three material maps.
+                let conditioned: Vec<_> = recipes
+                    .iter()
+                    .filter(|r| {
+                        recipe::Recipe::new(r, floor).is_some()
+                            && (floor == 0 && r.surface != Surface::Floor
+                                || floor == 1 && r.surface == Surface::Floor)
+                    })
+                    .flat_map(|r| {
+                        (0..4).map(move |family| {
+                            let mut r = r.clone();
+                            let mut weights = [0.; 4];
+                            weights[family] = 1.;
+                            super::super::construction::apply(
+                                &mut r,
+                                super::super::construction::ConstructionSample {
+                                    weights,
+                                    scale: if family % 2 == 0 { 0.5 } else { 2. },
+                                    variation: 0.6,
+                                },
+                                floor,
+                            )
+                            .unwrap();
+                            r
+                        })
+                    })
+                    .collect();
+                recipes.extend(conditioned);
+            }
             if floor == 0 {
+                if seed == 0 {
+                    let parent = recipes[Surface::Accent as usize].clone();
+                    recipes.extend((0..5).map(|style| {
+                        let mut r = parent.clone();
+                        let mut w = (0..64)
+                            .find_map(|s| {
+                                super::super::wall::WallFinish::sample(s, Surface::Accent)
+                            })
+                            .unwrap();
+                        w.print_style = style;
+                        w.weights = [0., 0., 0., 1.];
+                        r.coating.as_mut().unwrap().wall = Some(w);
+                        r
+                    }));
+                }
                 recipes.push(super::super::human::knit_recipe(seed));
                 for surface in [Surface::Metal, Surface::Chrome, Surface::Plastic] {
                     let parent = recipes[surface as usize].clone();
@@ -457,7 +509,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                         }
                     }
                 }
-                report.push(serde_json::json!({"seed":seed,"floor":floor,"surface":r.surface,"rug":r.carpet.as_ref().and_then(|c|c.rug.as_ref()),"knit":r.textile.as_ref().is_some_and(|t|t.knit),"cpu_synthesis_seconds":cpu_synthesis_seconds,"gpu_bake_seconds":gpu_bake_seconds,"maps":summaries}));
+                report.push(serde_json::json!({"seed":seed,"floor":floor,"surface":r.surface,"construction":r.construction,"rug":r.carpet.as_ref().and_then(|c|c.rug.as_ref()),"knit":r.textile.as_ref().is_some_and(|t|t.knit),"cpu_synthesis_seconds":cpu_synthesis_seconds,"gpu_bake_seconds":gpu_bake_seconds,"maps":summaries}));
             }
         }
     }

@@ -144,6 +144,9 @@ struct Cli {
     /// Independent seeded material, illumination and exposure factors as JSON.
     #[arg(long)]
     indoor_appearance: Option<String>,
+    /// Per-table loose-clutter distribution JSON.
+    #[arg(long)]
+    indoor_clutter: Option<String>,
     /// Optional post-tonemapping RGB corruption ranges as JSON; annotations stay unchanged.
     #[arg(long)]
     rgb_sensor: Option<String>,
@@ -520,6 +523,9 @@ fn main() -> Result<()> {
                 if let Some(camera) = &cli.indoor_camera {
                     cmd.arg("--indoor-camera").arg(camera);
                 }
+                if let Some(clutter) = &cli.indoor_clutter {
+                    cmd.arg("--indoor-clutter").arg(clutter);
+                }
                 if let Some(appearance) = &cli.indoor_appearance {
                     cmd.arg("--indoor-appearance").arg(appearance);
                 }
@@ -647,6 +653,7 @@ fn main() -> Result<()> {
         human_motion: cli.human_motion.clone(),
         indoor_camera: cli.indoor_camera.clone(),
         indoor_appearance: cli.indoor_appearance.clone(),
+        indoor_clutter: cli.indoor_clutter.clone(),
         rgb_sensor: cli
             .rgb_sensor
             .as_deref()
@@ -734,7 +741,7 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
         let count = sample_offset
             .checked_add(cli.samples)
             .context("dataset sample count overflow")?;
-        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_factors(
+        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_clutter(
             cli.seed.context("indoor dataset seed missing")?,
             count,
             cli.cameras,
@@ -758,6 +765,10 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
                 .transpose()
                 .map_err(anyhow::Error::msg)?
                 .as_ref(),
+            &bevy_zeroverse::scene::procedural_indoor::items::distribution::ClutterSettings::parse(
+                cli.indoor_clutter.as_deref().unwrap_or("{}"),
+            )
+            .map_err(anyhow::Error::msg)?,
         )
         .map_err(anyhow::Error::msg)?;
     }
@@ -831,6 +842,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         human_motion: cli.human_motion.clone(),
         indoor_camera: cli.indoor_camera.clone(),
         indoor_appearance: cli.indoor_appearance.clone(),
+        indoor_clutter: cli.indoor_clutter.clone(),
         rgb_sensor: cli
             .rgb_sensor
             .as_deref()
@@ -888,6 +900,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "human_motion": cli.human_motion,
         "indoor_camera": cli.indoor_camera,
         "indoor_appearance": cli.indoor_appearance,
+        "indoor_clutter": cli.indoor_clutter,
         "rgb_sensor": cli.rgb_sensor.as_deref().map(bevy_zeroverse_burn::sensor::SensorSettings::parse).transpose()?,
         "annotation_glass": cli.annotation_glass,
         "quality": cli.indoor_quality.to_possible_value().unwrap().get_name(),

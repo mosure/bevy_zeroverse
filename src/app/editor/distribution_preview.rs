@@ -5,16 +5,17 @@ use crate::scene::procedural_indoor::cameras::intrinsics::IntrinsicsSettings;
 
 const BINS: usize = 24;
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum LensKind {
+pub enum DistributionKind {
     Perspective,
     Fisheye,
+    Clutter,
 }
 #[derive(Component)]
-struct LensBin(LensKind, usize);
+struct DistributionBin(DistributionKind, usize);
 #[derive(Component)]
-struct LensSummary(LensKind);
+struct DistributionSummary(DistributionKind);
 
-pub(super) fn build(world: &mut World, parent: Entity, kind: LensKind) {
+pub(super) fn build(world: &mut World, parent: Entity, kind: DistributionKind) {
     let plot = world
         .spawn((
             Node {
@@ -37,43 +38,63 @@ pub(super) fn build(world: &mut World, parent: Entity, kind: LensKind) {
                 ..default()
             },
             BackgroundColor(ACCENT),
-            LensBin(kind, index),
+            DistributionBin(kind, index),
             ChildOf(plot),
         ));
     }
     let summary = widgets::text(world, parent, "", 11.5, MUTED);
-    world.entity_mut(summary).insert(LensSummary(kind));
+    world.entity_mut(summary).insert(DistributionSummary(kind));
 }
 
 pub(super) fn synchronize(world: &mut World, state: &EditorState) {
-    if state.view.page != Page::Cameras {
+    if !matches!(state.view.page, Page::Cameras | Page::Scene) {
         return;
     }
     let perspective = serde_json::from_value::<IntrinsicsSettings>(
-        state.draft["indoor_camera"]["intrinsics"].clone(),
+        model::optics(&state.draft)["intrinsics"].clone(),
     )
     .ok()
     .filter(|lens| lens.validate().is_ok());
-    let fisheye = if state.draft["indoor_camera"]["lenses"].is_null() {
+    let fisheye = if model::optics(&state.draft)["lenses"].is_null() {
         Some(LensSampling {
             probability: 0.,
             ..default()
         })
     } else {
-        serde_json::from_value::<LensSampling>(state.draft["indoor_camera"]["lenses"].clone()).ok()
+        serde_json::from_value::<LensSampling>(model::optics(&state.draft)["lenses"].clone()).ok()
     }
     .filter(|lens| lens.validate().is_ok());
-    for kind in [LensKind::Perspective, LensKind::Fisheye] {
+    let clutter = serde_json::from_value::<
+        crate::scene::procedural_indoor::items::distribution::ClutterSettings,
+    >(state.draft["indoor_clutter"].clone())
+    .ok()
+    .filter(|p| p.validate().is_ok());
+    let kinds: &[DistributionKind] = if state.view.page == Page::Scene {
+        &[DistributionKind::Clutter]
+    } else {
+        &[DistributionKind::Perspective, DistributionKind::Fisheye]
+    };
+    for &kind in kinds {
         let mut bins = [0_u32; BINS];
         let bounds = match kind {
-            LensKind::Perspective => perspective
+            DistributionKind::Perspective => perspective
                 .as_ref()
                 .map(|p| [p.fov_y_min_degrees, p.fov_y_max_degrees]),
-            LensKind::Fisheye => fisheye.as_ref().map(|p| p.fov_degrees),
+            DistributionKind::Fisheye => fisheye.as_ref().map(|p| p.fov_degrees),
+            DistributionKind::Clutter => clutter.as_ref().map(|_| [0., 1.]),
         };
         let quantile = |q| match kind {
-            LensKind::Perspective => perspective.as_ref().unwrap().quantile(q),
-            LensKind::Fisheye => fisheye.as_ref().unwrap().fov_quantile(q),
+            DistributionKind::Perspective => perspective.as_ref().unwrap().quantile(q),
+            DistributionKind::Fisheye => fisheye.as_ref().unwrap().fov_quantile(q),
+            DistributionKind::Clutter => {
+                let p = clutter.as_ref().unwrap();
+                let probability = p.selection_probability();
+                if probability == 0. || q <= 1. - probability {
+                    0.
+                } else {
+                    p.quantile((q - (1. - probability)) / probability)
+                }
+            }
         };
         let text = if let Some([lo, hi]) = bounds {
             let range = (hi - lo).max(0.001);
@@ -82,16 +103,22 @@ pub(super) fn synchronize(world: &mut World, state: &EditorState) {
                 let index = (((degrees - lo) / range * BINS as f32) as usize).min(BINS - 1);
                 bins[index] += 1;
             }
-            format!(
+            if kind == DistributionKind::Clutter {
+                let p = clutter.as_ref().unwrap();
+                let probability = p.selection_probability();
+                format!("{:.0}% clear tables · {:.0}% selected\nSelected amount — 10%: {:.2}   Median: {:.2}   90%: {:.2}\nProposal distribution; support and clearance can reduce realized counts.",
+                    100. * (1. - probability), 100. * probability, p.quantile(0.1), p.quantile(0.5), p.quantile(0.9))
+            } else {
+                format!(
                 "{:.0}° — proposal density — {:.0}°\n10%: {:.0}°   Median: {:.0}°   90%: {:.0}°{}",
                 lo,
                 hi,
                 quantile(0.1),
                 quantile(0.5),
                 quantile(0.9),
-                if kind == LensKind::Fisheye && fisheye.as_ref().unwrap().probability == 0. {
+                if kind == DistributionKind::Fisheye && fisheye.as_ref().unwrap().probability == 0. {
                     "\nFisheye disabled; this distribution is retained for re-enabling."
-                } else if kind == LensKind::Perspective
+                } else if kind == DistributionKind::Perspective
                     && perspective
                         .as_ref()
                         .unwrap()
@@ -103,16 +130,23 @@ pub(super) fn synchronize(world: &mut World, state: &EditorState) {
                     ""
                 }
             )
+            }
         } else {
-            "Set valid FOV bounds to preview the lens distribution.".into()
+            "Set valid bounds to preview the distribution.".into()
         };
         let max = bins.iter().copied().max().unwrap_or(1).max(1) as f32;
-        for (bin, mut node) in world.query::<(&LensBin, &mut Node)>().iter_mut(world) {
+        for (bin, mut node) in world
+            .query::<(&DistributionBin, &mut Node)>()
+            .iter_mut(world)
+        {
             if bin.0 == kind {
                 node.height = px(50. * bins[bin.1] as f32 / max);
             }
         }
-        for (summary, mut value) in world.query::<(&LensSummary, &mut Text)>().iter_mut(world) {
+        for (summary, mut value) in world
+            .query::<(&DistributionSummary, &mut Text)>()
+            .iter_mut(world)
+        {
             if summary.0 == kind {
                 value.0.clone_from(&text);
             }

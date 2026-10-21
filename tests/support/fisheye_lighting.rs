@@ -31,7 +31,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn pixels(p: &CapturedImages) -> Vec<[f32; 4]> {
+fn pixels(p: &CapturedImages, source_face: bool) -> Vec<[f32; 4]> {
+    if source_face {
+        return p.planes[0]
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|b| {
+                std::array::from_fn(|c| half::f16::from_le_bytes([b[c * 2], b[c * 2 + 1]]).to_f32())
+            })
+            .collect();
+    }
     p.planes[0]
         .as_chunks::<16>()
         .0
@@ -54,14 +64,14 @@ fn save(path: &std::path::Path, size: UVec2, p: &[[f32; 4]]) {
     }
     image.save(path).unwrap();
 }
-fn sample(image: &[[f32; 4]], side: u32, uv: Vec2) -> Vec3 {
-    let p = uv * side as f32 - Vec2::splat(0.5);
+fn sample(image: &[[f32; 4]], side: u32, region: URect, uv: Vec2) -> Vec3 {
+    let p = uv * side as f32 - region.min.as_vec2() - Vec2::splat(0.5);
     let lo = p.floor().as_ivec2();
     let f = p.fract();
     let at = |x: i32, y: i32| {
         Vec3::from_array(
-            image[(y.clamp(0, side as i32 - 1) as u32 * side + x.clamp(0, side as i32 - 1) as u32)
-                as usize][..3]
+            image[(y.clamp(0, region.height() as i32 - 1) as u32 * region.width()
+                + x.clamp(0, region.width() as i32 - 1) as u32) as usize][..3]
                 .try_into()
                 .unwrap(),
         )
@@ -95,7 +105,8 @@ fn capture(app: &mut App, copiers: &[ImageCopier], id: u64) -> Vec<Vec<[f32; 4]>
     }
     packets
         .iter()
-        .map(|p| pixels(p.as_ref().unwrap()))
+        .enumerate()
+        .map(|(i, p)| pixels(p.as_ref().unwrap(), i > 0))
         .collect()
 }
 fn mesh(app: &mut App, size: Vec3, tf: Transform, material: StandardMaterial) {
@@ -390,11 +401,11 @@ pub fn run() {
         let c = ImageCopier::for_targets(
             vec![lens.faces[i].clone()],
             Extent3d {
-                width: face_size.x,
-                height: face_size.y,
+                width: lens.face_regions()[i].width(),
+                height: lens.face_regions()[i].height(),
                 depth_or_array_layers: 1,
             },
-            TextureFormat::Rgba32Float,
+            TextureFormat::Rgba16Float,
             app.world().resource::<RenderDevice>(),
         );
         // Owner keeps its output copier, so use an inert copy-only entity.
@@ -455,7 +466,7 @@ pub fn run() {
         for (i, image) in images.iter().skip(1).enumerate() {
             save(
                 &output.join(format!("{name}_face_{i}.png")),
-                face_size,
+                lens.face_regions()[i].size(),
                 image,
             );
         }
@@ -465,7 +476,6 @@ pub fn run() {
             &lens,
             &face_entities,
             scale,
-            face_size,
             &images[1..],
         );
         let mut errors = Vec::new();
@@ -494,13 +504,24 @@ pub fn run() {
                     let p = face_entities[i].1.rotation.inverse() * d;
                     Vec2::new(p.x, -p.y) / -p.z * scale * 0.5 + Vec2::splat(0.5)
                 };
-                let ca = sample(&images[a + 1], face_size.x, uv(a, ray));
-                let cb = sample(&images[b + 1], face_size.x, uv(b, ray));
+                let ca = sample(
+                    &images[a + 1],
+                    face_size.x,
+                    lens.face_regions()[a],
+                    uv(a, ray),
+                );
+                let cb = sample(
+                    &images[b + 1],
+                    face_size.x,
+                    lens.face_regions()[b],
+                    uv(b, ray),
+                );
                 errors.push((ca - cb).abs().max_element());
                 pair_errors.push((ca - cb).abs().max_element());
                 let adjacent = sample(
                     &images[a + 1],
                     face_size.x,
+                    lens.face_regions()[a],
                     uv(a, (ray + edge * 0.002).normalize()),
                 );
                 gradients.push((ca - adjacent).abs().max_element());

@@ -38,6 +38,7 @@ impl IndoorManifest {
                                 .map(|f| self.camera_settings.intrinsics.recovery(f))
                             {
                                 let still = IndoorCamera {
+                                    ceiling_mount: None,
                                     fisheye: self
                                         .camera_settings
                                         .lenses

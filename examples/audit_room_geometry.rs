@@ -32,6 +32,10 @@ struct Args {
     density: f32,
     #[arg(long, default_value_t = 0.25)]
     human_density: f32,
+    #[arg(long, value_enum, default_value_t = IndoorLayout::Mixed)]
+    layout: IndoorLayout,
+    #[arg(long, default_value_t = 0)]
+    cameras: usize,
     #[arg(long)]
     output: PathBuf,
 }
@@ -53,23 +57,67 @@ fn audit(job: &Job, args: &Args) -> Result<Value> {
     } else {
         let manifest = IndoorManifest::generate_with_humans(
             job.seed,
-            IndoorLayout::Mixed,
+            args.layout,
             args.density,
-            0,
+            args.cameras,
             args.human_density,
         )
         .map_err(anyhow::Error::msg)?;
         let hash = sha(&serde_json::to_vec(&manifest)?);
         (manifest, hash)
     };
-    validate_layout(&manifest).map_err(anyhow::Error::msg)?;
+    if let Err(error) = validate_layout(&manifest) {
+        let file = format!("rejected_{}.json", job.seed);
+        fs::write(
+            args.output.join(&file),
+            serde_json::to_vec_pretty(&manifest)?,
+        )?;
+        let blocked: Vec<_> = manifest
+            .objects
+            .iter()
+            .filter(|o| o.solid && !o.neighbor && !manifest.placement_clear(o, 0.))
+            .map(|o| (o.id, o.kind))
+            .collect();
+        anyhow::bail!("{error}; blocked={blocked:?}; manifest={file}");
+    }
     let stats = validate_geometry(&manifest).map_err(anyhow::Error::msg)?;
     let bytes = serde_json::to_vec_pretty(&stats)?;
     let file = format!("geometry_{}.json", job.seed);
     fs::write(args.output.join(&file), &bytes)?;
     Ok(json!({
         "seed": job.seed, "file": file, "sha256": sha(&bytes),
-        "manifest_sha256": hash, "success": true
+        "manifest_sha256": hash, "success": true,
+        "surface_clutter": manifest.objects.iter().filter(|o| !o.neighbor && matches!(o.kind,
+            bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Table
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Desk
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::CoffeeTable))
+            .map(|s| json!({"id":s.id,"kind":s.kind,"size":s.size,"position":s.position,"yaw":s.yaw,
+                "program":bevy_zeroverse::scene::procedural_indoor::items::composition::parameters(&manifest,s),
+                "items":manifest.objects.iter().filter(|o|o.support==Some(s.id)).collect::<Vec<_>>()})).collect::<Vec<_>>(),
+        "bags": manifest.objects.iter().filter(|o|o.kind==bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Bag)
+            .map(|o|json!({"object":o,"program":bevy_zeroverse::scene::procedural_indoor::objects::bags::parameters(o)})).collect::<Vec<_>>(),
+        "room_services": manifest.objects.iter().filter(|o| matches!(o.kind,
+            bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::FireAlarm
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::FireDetector
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::FirePullStation
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::StringLights))
+            .map(|o| json!({"id":o.id,"kind":o.kind,"seed":o.seed,"size":o.size,
+                "position":o.position,"yaw":o.yaw,
+                "program":bevy_zeroverse::scene::procedural_indoor::objects::audit::program(o)})).collect::<Vec<_>>(),
+        "meetings": manifest.assembly_diagnostics.accepted.iter()
+            .filter(|g| g.role == bevy_zeroverse::scene::procedural_indoor::layout::assemblies::AssemblyRole::Meeting)
+            .map(|g| {
+                let o = &manifest.objects[g.surface];
+                json!({"surface":o.id,"size":o.size,"position":o.position,"yaw":o.yaw,
+                    "requested":g.requested_capacity,"seats":g.seats.len(),"attempts":g.attempts,
+                    "outline":bevy_zeroverse::scene::procedural_indoor::objects::tables::outline(o),
+                    "chairs":g.seats.iter().map(|&id| {
+                        let seat = &manifest.objects[id];
+                        json!({"id":id,"position":seat.position,"yaw":seat.yaw,"size":seat.size,
+                            "occupied":manifest.humans.iter().any(|h| h.chair == Some(id))})
+                    }).collect::<Vec<_>>(),
+                    "support_bays":bevy_zeroverse::scene::procedural_indoor::objects::tables::support_bay_count(o)})
+            }).collect::<Vec<_>>()
     }))
 }
 
@@ -163,9 +211,9 @@ fn main() -> Result<()> {
             args.output.join("receipt.json"),
             serde_json::to_vec_pretty(&json!({
                 "schema_version":1,"provenance":provenance,"executable_sha256":executable_sha256,"audit_source_sha256":sha(include_bytes!("audit_room_geometry.rs")),"input":args.input,"rooms":records.len(),"failures":failures,
-                "generated":args.rooms.map(|n| json!({"seed":args.seed,"rooms":n,"density":args.density,"human_density":args.human_density,"cameras":0})),
+                "generated":args.rooms.map(|n| json!({"seed":args.seed,"rooms":n,"density":args.density,"human_density":args.human_density,"cameras":args.cameras,"layout":args.layout})),
                 "seconds":started.elapsed().as_secs_f64(),"records":records,
-                "scope":"Actual constructed mesh/envelope/topology checks. Generated population mode has no cameras; capture-input mode retains original camera and appearance settings. All failed seeds are retained."
+                "scope":"Actual constructed mesh/envelope/topology and layout/camera checks. Generated population mode uses the recorded camera count (zero by default); capture-input mode retains original camera and appearance settings. All failed seeds are retained."
             }))?,
         )?;
         println!(

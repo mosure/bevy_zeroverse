@@ -45,6 +45,11 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
                 w * r.random_range(1.12..1.55),
             )
         }
+        Bag => Vec3::new(
+            r.random_range(0.25..0.52),
+            r.random_range(0.25..0.47),
+            r.random_range(0.13..0.26),
+        ),
         Phone => {
             let w = r.random_range(0.058..0.086);
             Vec3::new(

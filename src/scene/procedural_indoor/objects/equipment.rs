@@ -2,6 +2,7 @@
 //! than inferred from an unrelated decorative shape at render time.
 mod fixtures;
 pub mod pinups;
+pub mod signals;
 pub(crate) mod wires;
 use super::*;
 

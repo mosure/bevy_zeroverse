@@ -165,6 +165,22 @@ fn deserialize_indoor_appearance<'de, D: serde::Deserializer<'de>>(
         .transpose()
 }
 
+fn deserialize_indoor_clutter<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    Option::<serde_json::Value>::deserialize(deserializer)?
+        .map(|value| {
+            let json = match value {
+                serde_json::Value::String(s) => s,
+                value => value.to_string(),
+            };
+            crate::scene::procedural_indoor::items::distribution::ClutterSettings::parse(&json)
+                .map_err(serde::de::Error::custom)?;
+            Ok(json)
+        })
+        .transpose()
+}
+
 fn default_indoor_gi_rays() -> u32 {
     256
 }
@@ -415,6 +431,12 @@ pub struct BevyZeroverseConfig {
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_appearance")]
     pub indoor_appearance: Option<String>,
+
+    /// Table clutter mixture: probability, minimum, maximum, bias and spread as JSON.
+    #[pyo3(get, set)]
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_clutter")]
+    pub indoor_clutter: Option<String>,
 
     /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
     #[pyo3(get, set)]
@@ -680,6 +702,11 @@ pub struct BevyZeroverseConfig {
     #[serde(default, deserialize_with = "deserialize_indoor_appearance")]
     pub indoor_appearance: Option<String>,
 
+    /// Table clutter mixture: probability, minimum, maximum, bias and spread as JSON.
+    #[arg(long)]
+    #[serde(default, deserialize_with = "deserialize_indoor_clutter")]
+    pub indoor_clutter: Option<String>,
+
     /// Opt-in motion policy as JSON; requires the human_motion Cargo feature.
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_human_motion")]
@@ -804,6 +831,7 @@ impl Default for BevyZeroverseConfig {
             indoor_human_density: 0.25,
             indoor_camera: None,
             indoor_appearance: None,
+            indoor_clutter: None,
             human_motion: None,
             indoor_motion: None,
             indoor_quality: crate::scene::procedural_indoor::IndoorQuality::Auto,
@@ -831,59 +859,18 @@ impl Default for BevyZeroverseConfig {
     }
 }
 
-// bevy_args 2.0 treats null Option fields as strings, which breaks ?indoor_seed=6.
-// Decode URL values as JSON scalars first, retaining the established serde enum names
-// and accepting the scene/layout spellings used by the native CLI.
+pub mod query;
+pub mod view_state;
 #[cfg(any(target_arch = "wasm32", test))]
 fn config_with_query(
     defaults: BevyZeroverseConfig,
     pairs: impl IntoIterator<Item = (String, String)>,
 ) -> Result<BevyZeroverseConfig, String> {
-    let mut json = serde_json::to_value(defaults).map_err(|e| e.to_string())?;
-    for (key, value) in pairs {
-        let key = key.replace('-', "_");
-        let field = json
-            .get_mut(&key)
-            .ok_or_else(|| format!("unknown viewer setting: {key}"))?;
-        let parsed = serde_json::from_str(&value)
-            .unwrap_or_else(|_| serde_json::Value::String(value.clone()));
-        *field = match key.as_str() {
-            "scene_type" => ZeroverseSceneType::from_str(&value, true)
-                .ok()
-                .map(serde_json::to_value)
-                .transpose()
-                .map_err(|e| e.to_string())?
-                .unwrap_or(parsed),
-            "indoor_layout" => IndoorLayout::from_str(&value, true)
-                .ok()
-                .map(serde_json::to_value)
-                .transpose()
-                .map_err(|e| e.to_string())?
-                .unwrap_or(parsed),
-            "indoor_quality" => {
-                crate::scene::procedural_indoor::IndoorQuality::from_str(&value, true)
-                    .ok()
-                    .map(serde_json::to_value)
-                    .transpose()
-                    .map_err(|e| e.to_string())?
-                    .unwrap_or(parsed)
-            }
-            "render_mode" => RenderMode::from_str(&value, true)
-                .ok()
-                .map(serde_json::to_value)
-                .transpose()
-                .map_err(|e| e.to_string())?
-                .unwrap_or(parsed),
-            _ if field.is_string() => serde_json::Value::String(value),
-            _ => parsed,
-        };
-    }
-    serde_json::from_value(json).map_err(|e| e.to_string())
+    query::parse(defaults, pairs)
 }
 
 // Presentation defaults belong to the browser entry point, not the library or
 // CLI config: dataset consumers must retain their existing scalar depth format.
-#[cfg(any(target_arch = "wasm32", feature = "viewer", test))]
 fn web_viewer_defaults() -> BevyZeroverseConfig {
     studio_lens_defaults(BevyZeroverseConfig {
         depth_format: DepthFormat::Turbo,
@@ -907,6 +894,7 @@ fn studio_lens_defaults(mut config: BevyZeroverseConfig) -> BevyZeroverseConfig 
 
 #[cfg(target_arch = "wasm32")]
 fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
+    use web_sys::js_sys;
     let defaults = web_viewer_defaults();
     let search = web_sys::window()
         .ok_or("browser window is unavailable")?
@@ -915,18 +903,17 @@ fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
         .map_err(|e| format!("URL search: {e:?}"))?;
     let params =
         web_sys::UrlSearchParams::new_with_str(&search).map_err(|e| format!("URL query: {e:?}"))?;
-    let fields = serde_json::to_value(&defaults).map_err(|e| e.to_string())?;
-    let pairs = fields
-        .as_object()
-        .unwrap()
-        .keys()
-        .filter_map(|key| {
-            params
-                .get(key)
-                .or_else(|| params.get(&key.replace('_', "-")))
-                .map(|value| (key.clone(), value))
+    let pairs = js_sys::try_iter(params.as_ref())
+        .map_err(|e| format!("URL entries: {e:?}"))?
+        .ok_or("URL entries are not iterable")?
+        .map(|entry| {
+            let pair = js_sys::Array::from(&entry.map_err(|e| format!("URL entry: {e:?}"))?);
+            Ok((
+                pair.get(0).as_string().ok_or("invalid query key")?,
+                pair.get(1).as_string().ok_or("invalid query value")?,
+            ))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     config_with_query(defaults, pairs)
 }
 

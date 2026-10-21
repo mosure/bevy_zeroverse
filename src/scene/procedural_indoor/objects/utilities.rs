@@ -184,50 +184,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     .ellipsoid(Vec3::splat(0.014), Transform::from_translation(end));
             }
         }
-        ObjectKind::Bag => {
-            let body = s.y * (0.61 + p.lid_fraction);
-            let w = s.x * 0.95;
-            let d = s.z * 0.93;
-            a.part(
-                if p.construction < 2 {
-                    Surface::Leather
-                } else {
-                    Surface::FabricAlt
-                },
-                l,
-            )
-            .housing(
-                &[
-                    (0., Vec2::new(w, d) * 0.46),
-                    (body * 0.72, Vec2::new(w, d) * 0.5),
-                    (body, Vec2::new(w, d) * 0.5 * p.taper),
-                ],
-                p.roundness,
-                Transform::IDENTITY,
-            );
-            for side in [-1., 1.] {
-                let points: Vec<_> = (0..=16)
-                    .map(|i| {
-                        let t = PI * i as f32 / 16.;
-                        Vec3::new(
-                            t.cos() * w * p.handle_span * 0.5,
-                            body + (s.y - body - 0.005) * t.sin(),
-                            side * d * 0.22,
-                        )
-                    })
-                    .collect();
-                a.part(Surface::Leather, l).tube(&points, 0.004, 8);
-            }
-            if p.construction > 1 {
-                a.box_part(
-                    Surface::Fabric,
-                    l,
-                    Vec3::new(0., body * 0.40, d * 0.48),
-                    Vec3::new(w * 0.70, body * 0.45, d * 0.045),
-                    d * 0.02,
-                );
-            }
-        }
+        ObjectKind::Bag => super::bags::build(a, o),
         _ => unreachable!(),
     }
 }

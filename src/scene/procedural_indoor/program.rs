@@ -133,7 +133,14 @@ impl IndoorProgram {
         let half = Vec2::new(size.x, size.z) * 0.5;
         let mut leaves = vec![(-half, half)];
         let mut partitions: Vec<Partition> = Vec::new();
-        let target_area = rng.random_range(14.0_f32.ln()..140.0_f32.ln()).exp();
+        // Conference programs include boardrooms as well as small meeting rooms.
+        // Preserve continuous subdivision, without always cutting the long span
+        // into office-sized leaves before a large table can be proposed.
+        let target_area = if activity == IndoorLayout::Conference {
+            rng.random_range(35.0_f32.ln()..240.0_f32.ln()).exp()
+        } else {
+            rng.random_range(14.0_f32.ln()..140.0_f32.ln()).exp()
+        };
         // Tall loft volumes reserve the long, open run needed for a real stair;
         // subdividing them first can make every mezzanine proposal impossible.
         let attempts = if size.y > 5.8 || activity.is_kitchen() || activity.is_public() {

@@ -259,8 +259,8 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     widgets::text(world, section, help, 11.5, MUTED);
                 }
                 fields::Item::Field(field) => widgets::control(world, scroll, field, state),
-                fields::Item::LensDistribution(kind) => {
-                    lens_preview::build(world, scroll, kind);
+                fields::Item::Distribution(kind) => {
+                    distribution_preview::build(world, scroll, kind);
                 }
                 fields::Item::Note(note) => {
                     widgets::text(world, scroll, note, 12., MUTED);
@@ -279,7 +279,10 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
         {
             widgets::button(world, scroll, "Geometry controls", Action::Debug, false);
         }
-        if state.view.page == Page::People {
+        if state.view.page == Page::People
+            && cfg!(feature = "human_motion")
+            && !state.draft["human_motion"].is_null()
+        {
             widgets::button(
                 world,
                 scroll,

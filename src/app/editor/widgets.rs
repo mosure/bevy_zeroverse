@@ -11,12 +11,12 @@ use bevy::{
     ui::{Checked, InteractionDisabled},
     ui_widgets::{Activate, SliderPrecision, SliderStep, SliderValue, ValueChange},
 };
-use serde_json::json;
+use serde_json::{json, Value};
 
 #[derive(Component, Clone)]
 pub struct Binding(pub Field);
 #[derive(Component, Clone, Default)]
-pub struct ChoiceCaption(pub String);
+pub struct ChoiceCaption(pub String, pub Vec<(String, Value)>);
 
 pub fn text(
     world: &mut World,
@@ -146,7 +146,7 @@ pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorSt
             world
                 .spawn_scene(bsn! {
                     @FeathersMenuButton { @caption:bsn!{
-                        Text(caption) ThemedText ChoiceCaption({field.path.clone()})
+                        Text(caption) ThemedText ChoiceCaption({field.path.clone()}, {options.clone()})
                         TextLayout {linebreak:bevy::text::LineBreak::NoWrap}
                         Node {min_width:px(0),flex_shrink:1.}
                     } }
@@ -242,34 +242,18 @@ pub fn synchronize(world: &mut World, state: &EditorState) {
             _ => {}
         }
     }
-    let captions: Vec<_> = world
-        .query::<(Entity, &ChoiceCaption)>()
-        .iter(world)
-        .map(|(e, c)| (e, c.0.clone()))
-        .collect();
-    let fields = super::fields::items(state);
-    for (e, path) in captions {
-        for item in &fields {
-            if let super::fields::Item::Field(Field {
-                path: p,
-                kind: Kind::Choice(options),
-                ..
-            }) = item
-            {
-                if *p == path {
-                    let value = super::value(state, p);
-                    let label = options
-                        .iter()
-                        .find(|(_, v)| *v == value)
-                        .map(|(l, _)| l.as_str())
-                        .unwrap_or("Custom");
-                    if let Some(mut t) = world.get_mut::<Text>(e) {
-                        if t.0 != label {
-                            t.0 = label.to_owned();
-                        }
-                    }
-                }
-            }
+    // Captions retain their options; a timeline tick does not rebuild the
+    // catalog, clone choices, or search controls unrelated to this widget.
+    for (caption, mut text) in world.query::<(&ChoiceCaption, &mut Text)>().iter_mut(world) {
+        let value = super::value(state, &caption.0);
+        let label = caption
+            .1
+            .iter()
+            .find(|(_, v)| *v == value)
+            .map(|(s, _)| s.as_str())
+            .unwrap_or("Custom");
+        if text.0 != label {
+            text.0 = label.to_owned();
         }
     }
 }

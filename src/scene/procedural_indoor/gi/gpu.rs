@@ -73,6 +73,7 @@ struct GpuMaterial {
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct GpuLight {
+    direction: [f32; 4],
     position_range: [f32; 4],
     color_candela: [f32; 4],
     spot: [u32; 4],
@@ -262,6 +263,7 @@ pub fn prepare(
         .lights
         .iter()
         .map(|l| GpuLight {
+            direction: l.direction.extend(0.).to_array(),
             position_range: l.position.extend(l.range).to_array(),
             color_candela: l.color.extend(l.candela).to_array(),
             spot: [

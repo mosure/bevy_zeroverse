@@ -9,8 +9,8 @@ use super::super::super::objects::public as geometry;
 use std::f32::consts::{FRAC_PI_2, PI};
 
 impl IndoorManifest {
-    /// Equipment and exhibits are functional contents, independent of the loose
-    /// clutter sampler. They still pass the ordinary exact support/overlap gate.
+    /// Admit functional contents through the ordinary exact support/overlap gate.
+    /// Loose table belongings also honor the shared per-table selection policy.
     pub(super) fn program_prop(
         &mut self,
         support: &IndoorObject,
@@ -29,6 +29,9 @@ impl IndoorManifest {
             support.yaw + yaw,
             rng,
         );
+        if !self.permits_table_item(support, kind) {
+            return false;
+        }
         o.solid = false;
         o.support = Some(support.id);
         o.finish_seed = support.finish_seed;

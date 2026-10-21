@@ -7,7 +7,7 @@ use bevy::{
     anti_alias::fxaa::Fxaa,
     camera::{visibility::RenderLayers, Exposure, Hdr},
     core_pipeline::{
-        prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass},
+        prepass::{DepthPrepass, NormalPrepass},
         tonemapping::{DebandDither, Tonemapping},
     },
     light::{AmbientLight, EnvironmentMapLight, ShadowFilteringMethod},
@@ -41,7 +41,6 @@ pub(super) fn install(app: &mut App) {
                 inherit::<Hdr>,
                 inherit::<DepthPrepass>,
                 inherit::<NormalPrepass>,
-                inherit::<MotionVectorPrepass>,
             ),
         )
             .before(bevy::camera::CameraUpdateSystems),

@@ -418,9 +418,20 @@ mod tests {
         let mut seen = std::collections::BTreeSet::new();
         let mut tabletop = 0;
         for seed in 0..64 {
-            let scene =
-                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.)
-                    .unwrap_or_else(|e| panic!("botanical placement seed {seed}: {e}"));
+            // Qualify botanical support admission independently of the optional
+            // empty-table mixture (qualified in the clutter distribution tests).
+            let scene = IndoorManifest::generate_with_clutter(
+                seed,
+                IndoorLayout::Mixed,
+                0.65,
+                3,
+                0.,
+                super::super::super::items::distribution::ClutterSettings {
+                    probability: 1.,
+                    ..default()
+                },
+            )
+            .unwrap_or_else(|e| panic!("botanical placement seed {seed}: {e}"));
             let plants: Vec<_> = scene
                 .objects
                 .iter()

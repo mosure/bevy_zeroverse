@@ -454,8 +454,19 @@ fn trace_triangles<const CULL_BACK: bool>(
     result
 }
 
+fn decorative_emitter_slot(label: &str) -> Option<usize> {
+    if !matches!(
+        label.split('#').next()?,
+        "exit_sign" | "fire_alarm" | "fire_detector" | "string_lights"
+    ) {
+        return None;
+    }
+    super::materials::emitters::transport_slot(label)
+}
+
 #[derive(Clone, Copy)]
 struct LocalLight {
+    direction: Vec3,
     position: Vec3,
     color: Vec3,
     candela: f32,
@@ -650,15 +661,13 @@ impl BakeScene {
             // emitters. No double-counting emissive luminaire geometry + lights.
             if matches!(
                 surface,
-                Surface::Glass
-                    | Surface::GlassInterior
-                    | Surface::ContainerGlass
-                    | Surface::Liquid
-                    | Surface::Light
-            ) {
+                Surface::Glass | Surface::GlassInterior | Surface::ContainerGlass | Surface::Liquid
+            ) || (surface == Surface::Light && decorative_emitter_slot(label).is_none())
+            {
                 continue;
             }
-            let material = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
+            let material = decorative_emitter_slot(label)
+                .or_else(|| crate::scene::procedural_indoor::materials::finish_slot(surface, label))
                 .and_then(|slot| finishes.get(&(surface, slot)))
                 .copied()
                 .unwrap_or(surface as usize);
@@ -741,7 +750,8 @@ impl BakeScene {
                 continue;
             }
             let spot = if source.spot {
-                ((direction.y - source.outer_cos) / (source.inner_cos - source.outer_cos))
+                ((-direction.dot(source.direction) - source.outer_cos)
+                    / (source.inner_cos - source.outer_cos))
                     .clamp(0.0, 1.0)
                     .powi(2)
             } else {

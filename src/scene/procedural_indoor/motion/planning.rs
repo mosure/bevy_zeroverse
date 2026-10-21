@@ -75,7 +75,10 @@ impl Tree {
                     .split('#')
                     .find(|s| s.starts_with("portal") || s.starts_with("contact_"))
                     .map(str::to_owned);
-                let floor = super::super::objects::part_label(label) == "floor";
+                let floor = matches!(
+                    super::super::objects::part_label(label),
+                    "floor" | "floormat"
+                );
                 for tri in g.indices.as_chunks::<3>().0 {
                     triangles.push(Triangle {
                         p: std::array::from_fn(|i| {
@@ -359,6 +362,9 @@ fn camera_reservations(scene: &IndoorManifest) -> Vec<Bounds> {
     use crate::camera::TrajectorySampler;
     let mut result = vec![];
     for c in &scene.cameras {
+        if let Some(mount) = &c.ceiling_mount {
+            result.push(mount.bounds());
+        }
         let mut path = c.runtime_trajectory();
         let clearance = super::super::layout::CAMERA_CLEARANCE.max(
             super::super::cameras::intrinsics::near_clearance(
@@ -600,12 +606,9 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                 }) {
                     Some("static_geometry")
                 } else if (joint.kind == MotionKind::Chair || joint.contact == Contact::Floor)
-                    && swept.iter().any(|&b| {
-                        scene
-                            .envelope
-                            .as_ref()
-                            .is_some_and(|e| !e.support_clear(b.0.with_y(tf.translation.y), b.1))
-                    })
+                    && swept
+                        .iter()
+                        .any(|&b| !scene.floor_support_clear(b.0.with_y(tf.translation.y), b.1))
                 {
                     Some("uneven_floor")
                 } else if owner.is_some_and(|id| {

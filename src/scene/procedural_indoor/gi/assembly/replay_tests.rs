@@ -60,6 +60,29 @@ fn original_from_geometry(
             .materials
             .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
     }
+    for object in &scene.objects {
+        if crate::scene::procedural_indoor::photometry::decorative_emission(object).is_none() {
+            continue;
+        }
+        for channel in 0..crate::scene::procedural_indoor::photometry::emission_channels(object) {
+            let label = format!(
+                "{}#source{}#bulb{}",
+                object.kind.class_name(),
+                object.id,
+                channel
+            );
+            let mat = materials
+                .get(&set.for_part(Surface::Light, &label))
+                .expect("decorative emitter");
+            finish_indices.insert(
+                (Surface::Light, decorative_emitter_slot(&label).unwrap()),
+                result.materials.len(),
+            );
+            result
+                .materials
+                .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
+        }
+    }
     original_add_assembly(
         &mut result,
         &geometry.architecture,
@@ -144,6 +167,7 @@ fn original_from_geometry(
         let (c, lumens) = architecture::fixture_photometry(scene, i);
         let (inner, outer) = architecture::fixture_angles(scene, i);
         result.lights.push(LocalLight {
+            direction: architecture::fixtures::direction(scene, p),
             position: architecture::fixtures::emitter(scene, p),
             color: linear(Color::srgb(c.x, c.y, c.z)),
             candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
@@ -159,9 +183,14 @@ fn original_from_geometry(
         .filter(|o| o.kind == ObjectKind::FloorLamp)
     {
         result.lights.push(LocalLight {
+            direction: Vec3::NEG_Y,
             position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
-            color: linear(Color::srgb(1.0, 0.78, 0.57)),
-            candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
+            color: {
+                let c = crate::scene::procedural_indoor::photometry::lamp(scene, lamp).color;
+                linear(Color::srgb(c.x, c.y, c.z))
+            },
+            candela: crate::scene::procedural_indoor::photometry::lamp(scene, lamp).lumens
+                / (4.0 * PI),
             range: 5.0,
             spot: false,
             inner_cos: 1.0,
@@ -177,6 +206,7 @@ fn original_from_geometry(
         let (position, color, lumens, inner, outer) =
             architecture::object_fixture_photometry(scene, lamp);
         result.lights.push(LocalLight {
+            direction: Vec3::NEG_Y,
             position,
             color: linear(Color::srgb(color.x, color.y, color.z)),
             candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
@@ -203,15 +233,13 @@ fn original_add_assembly(
         // emitters. No double-counting emissive luminaire geometry + lights.
         if matches!(
             surface,
-            Surface::Glass
-                | Surface::GlassInterior
-                | Surface::ContainerGlass
-                | Surface::Liquid
-                | Surface::Light
-        ) {
+            Surface::Glass | Surface::GlassInterior | Surface::ContainerGlass | Surface::Liquid
+        ) || (surface == Surface::Light && decorative_emitter_slot(label).is_none())
+        {
             continue;
         }
-        let material = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
+        let material = decorative_emitter_slot(label)
+            .or_else(|| crate::scene::procedural_indoor::materials::finish_slot(surface, label))
             .and_then(|slot| finishes.get(&(surface, slot)))
             .copied()
             .unwrap_or(surface as usize);
@@ -381,6 +409,7 @@ fn same_scene(a: &BakeScene, b: &BakeScene) {
     assert_eq!(a.lights.len(), b.lights.len());
     for (a, b) in a.lights.iter().zip(&b.lights) {
         assert_eq!(vec3_bits(a.position), vec3_bits(b.position));
+        assert_eq!(vec3_bits(a.direction), vec3_bits(b.direction));
         assert_eq!(vec3_bits(a.color), vec3_bits(b.color));
         assert_eq!(a.spot, b.spot);
         for (a, b) in [
@@ -563,6 +592,17 @@ fn fixture(seed: u64, occupied: bool) -> (IndoorManifest, SceneGeometry) {
         // The original emits a proxy even for an empty human part.
         human.parts.insert(HumanSurface::Brow, Geometry::default());
         humans.push(human);
+    }
+    // Exercise all decorative color channels through both transport builders.
+    for kind in [
+        ObjectKind::StringLights,
+        ObjectKind::FireAlarm,
+        ObjectKind::FireDetector,
+    ] {
+        let mut o = objects::audit::fixture(kind, seed);
+        o.id = scene.objects.len();
+        o.position = Vec3::new(1., 2., 0.);
+        scene.objects.push(o);
     }
     let objects = scene.objects.iter().map(objects::build_object).collect();
     (

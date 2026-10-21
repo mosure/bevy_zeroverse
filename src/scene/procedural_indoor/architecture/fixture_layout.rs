@@ -22,10 +22,34 @@ pub(super) fn yaw(scene: &IndoorManifest, position: Vec3) -> f32 {
     heading + item.random_range(-spread..spread)
 }
 
+pub(super) fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
+    let yaw = Quat::from_rotation_y(yaw(scene, position));
+    if scene.program.is_none() {
+        return yaw;
+    }
+    let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
+    let mut r = stream(scene.seed ^ key, 0x41494d4544464958);
+    let directional = matches!(
+        fixtures::parameters(scene).shape,
+        fixtures::FixtureShape::Downlight | fixtures::FixtureShape::Tube
+    );
+    // Pendants may be subtly tilted; adjustable downlights include aimed spots.
+    let angle = if directional && r.random_bool(0.70) {
+        r.random_range(0.08..0.62)
+    } else if r.random_bool(0.35) {
+        r.random_range(0.025..0.15)
+    } else {
+        0.
+    };
+    yaw * Quat::from_axis_angle(
+        Vec3::new(r.random::<f32>(), 0., r.random::<f32>()).normalize(),
+        angle,
+    )
+}
+
 pub(super) fn half(scene: &IndoorManifest, position: Vec3) -> Vec3 {
     let size = size(scene, position);
-    let half = super::super::placement::rotated_half(size.xz(), yaw(scene, position));
-    Vec3::new(half.x, size.y * 0.5, half.y)
+    Mat3::from_quat(rotation(scene, position)).abs() * (size * 0.5)
 }
 
 /// Realized dimensions are keyed only by x/z, so roof/drop calculation and
@@ -37,9 +61,9 @@ pub(super) fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
     }
     let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
     let mut r = stream(scene.seed ^ key, 7596);
-    let scale = r.random_range(0.70..1.30);
-    let aspect = r.random_range(0.88..1.14);
-    nominal * Vec3::new(scale * aspect, r.random_range(0.80..1.20), scale / aspect)
+    let scale = r.random_range(0.58..1.42);
+    let aspect = r.random_range(0.80..1.25);
+    nominal * Vec3::new(scale * aspect, r.random_range(0.70..1.40), scale / aspect)
 }
 
 fn field(min: Vec2, max: Vec2, spacing: Vec2, phase: Vec2, seed: u64, domain: u64) -> Vec<Vec2> {
@@ -84,7 +108,7 @@ pub(super) fn under_mezzanine(scene: &IndoorManifest) -> Vec<Vec3> {
         7595,
     ) {
         let mut position = Vec3::new(p.x, 0., p.y);
-        position.y = m.deck.height - m.thickness - (size(scene, position).y * 0.5 + 0.035);
+        position.y = m.deck.height - m.thickness - (half(scene, position).y + 0.035);
         let half = half(scene, position).xz();
         if (p - half).cmpgt(m.deck.min + Vec2::splat(0.03)).all()
             && (p + half).cmplt(m.deck.max - Vec2::splat(0.03)).all()
@@ -140,7 +164,17 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
             let drop = if fixture.shape == fixtures::FixtureShape::Downlight {
                 body_half.y + 0.008
             } else {
-                program.light_drop.max(body_half.y + 0.012)
+                let key = p.x.to_bits() as u64 | (p.y.to_bits() as u64) << 32;
+                let mut suspension = stream(scene.seed ^ key, 0x44524f5056415259);
+                (program.light_drop * suspension.random_range(0.65..1.45))
+                    .max(body_half.y + 0.012)
+                    .min(
+                        (roof
+                            - scene.envelope.as_ref().map_or(0., |e| e.floor_height(p))
+                            - 2.10
+                            - body_half.y)
+                            .max(body_half.y + 0.012),
+                    )
             };
             position.y = roof - drop;
             if obstacles.iter().any(|(lo, hi)| {

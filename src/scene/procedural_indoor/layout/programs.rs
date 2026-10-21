@@ -81,7 +81,7 @@ impl IndoorManifest {
                     );
                 }
             } else if activity == IndoorLayout::Conference && w > 3.0 && d > 3.0 {
-                self.meeting_group(&zone, zone_index, Vec2::new(w, d), center);
+                self.meeting_group(&zone, zone_index, center);
             } else {
                 let pitch_x = zone.desk_width + zone.aisle * rng.random_range(0.65..1.0);
                 let pitch_z = zone.desk_depth + 1.25 + zone.aisle * 0.5;
@@ -199,11 +199,8 @@ impl IndoorManifest {
                     }),
                     5 => (
                         ObjectKind::Bag,
-                        Vec3::new(
-                            rng.random_range(0.32..0.53),
-                            rng.random_range(0.28..0.46),
-                            transform_rng.random_range(0.16..0.29),
-                        ),
+                        super::super::items::sizing::loose(ObjectKind::Bag, &mut transform_rng)
+                            .unwrap(),
                     ),
                     6 => (
                         ObjectKind::StorageBox,

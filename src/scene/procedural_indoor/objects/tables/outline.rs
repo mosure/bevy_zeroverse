@@ -40,6 +40,33 @@ pub(super) fn sample(half: Vec2, p: &TableProgram) -> Vec<Vec2> {
                 let rounded = vertex * (1. - p.polygon_rounding) + n * radius * p.polygon_rounding;
                 v = v.lerp(rounded, p.polygon_blend);
             }
+            if p.boat_blend > 0. {
+                // Support-function blending (Minkowski sum) retains convexity,
+                // so clutter, seating and collision use this same real boundary.
+                let boat = [
+                    Vec2::new(1., -p.boat_shoulder),
+                    Vec2::new(1., p.boat_shoulder),
+                    Vec2::new(p.boat_end_width, 1.),
+                    Vec2::new(-p.boat_end_width, 1.),
+                    Vec2::new(-1., p.boat_shoulder),
+                    Vec2::new(-1., -p.boat_shoulder),
+                    Vec2::new(-p.boat_end_width, -1.),
+                    Vec2::new(p.boat_end_width, -1.),
+                ];
+                let long_x = half.x > half.y;
+                let vertex = boat
+                    .into_iter()
+                    .map(|point| {
+                        if long_x {
+                            Vec2::new(point.y, point.x) * half
+                        } else {
+                            point * half
+                        }
+                    })
+                    .max_by(|a, b| a.dot(n).total_cmp(&b.dot(n)))
+                    .unwrap();
+                v = v.lerp(vertex * 0.94 + n * radius * 0.06, p.boat_blend);
+            }
             // A projective taper preserves convexity and the original reserve.
             let k = p.taper * (1. - p.polygon_blend * 0.75);
             let w = 1. + k * v.y / half.y;

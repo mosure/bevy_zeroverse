@@ -1,5 +1,5 @@
 #import zeroverse::lens::{Lens,ray}
-struct Params { lens:Lens, views:array<mat4x4<f32>,6>, control:vec4<f32>, bounds_min:vec4<f32>,bounds_max:vec4<f32>, preview:vec4<f32>, colors:array<vec4<f32>,128>,turbo:array<vec4<f32>,6> }
+struct Params { lens:Lens, views:array<mat4x4<f32>,6>, regions:array<vec4<f32>,6>, control:vec4<f32>, bounds_min:vec4<f32>,bounds_max:vec4<f32>, preview:vec4<f32>, colors:array<vec4<f32>,128>,turbo:array<vec4<f32>,6> }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var front:texture_2d<f32>;
 @group(0) @binding(2) var right:texture_2d<f32>;
@@ -32,7 +32,7 @@ fn load_face(face:u32, pixel:vec2<i32>)->vec4<f32> {
 fn sample_face(face:u32, direction:vec3<f32>)->vec4<f32> {
     let local=(params.views[face]*vec4<f32>(direction,0.0)).xyz;
     let uv=local.xy/-local.z*vec2<f32>(0.5,-0.5)*params.control.x+0.5;
-    let position=uv*vec2<f32>(textureDimensions(front))-0.5;
+    let position=uv*vec2<f32>(textureDimensions(front))-params.regions[face].xy-0.5;
     let base=vec2<i32>(floor(position));let f=fract(position);
     let a0=mix(load_face(face,base),load_face(face,base+vec2<i32>(1,0)),f.x);
     let a1=mix(load_face(face,base+vec2<i32>(0,1)),load_face(face,base+vec2<i32>(1,1)),f.x);

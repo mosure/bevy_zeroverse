@@ -1,5 +1,78 @@
 # Calibrated fisheye capture
 
+## Ceiling-mounted CCTV rigs
+
+Set `indoor_camera` to `{"ceiling_mount":{}}`, or enable **Ceiling-mounted
+CCTV rig** in Studio's Cameras page. This opts the complete capture rig into
+fixed mounts in the primary room. The editor camera and human/furniture motion
+remain independent. Disabling the option restores the existing walkthrough
+camera and lens settings; the default library behavior is unchanged.
+
+The optical axis is perpendicular to the actual local ceiling and points inward.
+Sloping roofs use their analytic surface normal; flat soffits use a downward
+normal. A sampled in-plane rotation avoids aligning every image with the room.
+The optical center sits 0.12–0.24 m below the surface, with a 0.055 m body radius.
+Mounts avoid fixtures and their suspension, ducts, structural members, furniture,
+people and available motion reservations. Subsequent object-motion planning
+reserves the mounting body as well as the optical center. No visible camera body
+is added to the room.
+
+The mounting policy has its own calibrated lens priors:
+
+```json
+{
+  "baseline": 0.5,
+  "ceiling_mount": {
+    "standoff_m": [0.12, 0.24],
+    "body_radius_m": 0.055,
+    "wall_clearance_m": 0.35,
+    "lenses": {
+      "probability": 1.0,
+      "fov_degrees": [170.0, 200.0],
+      "circular_probability": 0.75,
+      "anisotropy": [1.0, 1.0]
+    },
+    "intrinsics": {
+      "fov_y_min_degrees": 100.0,
+      "fov_y_max_degrees": 135.0,
+      "bias": 0.0
+    }
+  }
+}
+```
+
+`lenses.probability` mixes fisheye and wide rectilinear cameras **within the
+mounted rig**. It does not mix mounting roles. The rectilinear prior applies only
+to the non-fisheye fraction. Both priors retain their continuous bias/spread
+controls. A 180° diameter fisheye sees a hemisphere, including every azimuth
+around a downward optical axis; this is the ceiling overview commonly marketed
+as a 360° panoramic camera ([Axis panoramic camera documentation](https://whitepapers.axis.com/en-us/panoramic-cameras)).
+
+Lens assignments, standoff and roll are seeded before placement retries.
+Baseline, group spread and the configured directed-overlap graph/strata remain
+admission constraints. Incompatible combinations (for example near-total overlap
+between substantially different footprints) can reject a rig; the planner does
+not change its lenses or quietly substitute walkthrough poses. Sampling is
+bounded, and a failed `resample_cameras` restores the previous camera set.
+
+Each `IndoorCamera` archives `ceiling_mount` with its surface contact, inward
+normal, rotation, standoff and body radius in room-local coordinates. Existing
+view exports retain world-space extrinsics (including world-yaw augmentation),
+full calibration, ray validity and the correct radial/axial depth convention.
+The exact same static pose drives RGB, geometry labels, flow and co-visibility.
+Use `camera_curve_clear` for mounting-aware clearance validation;
+`camera_clear(position)` remains the walkthrough proposal predicate.
+
+Native and WebGPU use the same CPU mounting planner and existing calibrated
+fisheye renderer. Qualification commands:
+
+```sh
+cargo test --lib scene::procedural_indoor::cameras::ceiling -- --nocapture
+cargo run --example validate_fisheye -- --ceiling --rooms=4 --size=256 --steps=2 --output=out/ceiling-capture
+```
+
+## Lens configuration
+
 Fisheye capture is opt-in for library, dataset CLI and Burn consumers: an omitted
 `lenses` program remains pinhole. Interactive native/WebGPU Studio starts with a
 50% per-camera fisheye preset unless an explicit camera policy is supplied.
@@ -181,6 +254,35 @@ zero-cost postprocessing warp. The disabled path allocates no face textures,
 angular BVH or temporal correspondence buffers. Qualification records resolution,
 SSAA, camera count, number of frames, geometry/annotation modes and GPU contention
 alongside timings; isolated and concurrent-training rates must not be conflated.
+
+RGB source resolution uses a conservative bound on the complete angular-to-face
+Jacobian over directions that can reach the sensor. Side views crop directions
+outside the lens cone while retaining screen-space filtering context. Their
+off-center raster projections preserve the uncropped shadow-cascade frustum;
+cropping does not narrow the calibrated lens or disable shadows. Source images
+retain Bevy's existing RGBA16Float HDR values, with manual bilinear sampling and
+an RGBA32Float final output. Numeric annotations retain their float32 precision.
+
+Angular annotation previews keep the logical view for extraction and exact ray
+intersections, skip its unused Core3d passes, and disable the auxiliary RGB
+views. Returning to color restores the original render schedule. Hidden camera
+grids also stop preview requests and resolve uploads. Trajectory updates reuse
+the source allocations and projection bounds.
+
+For a bounded continuous-view workload (distinct from whole-room generation):
+
+```sh
+cargo run --example bench_lens_preview -- --frames=40 --pinhole --output=out/lens-pinhole
+cargo run --example bench_lens_preview -- --frames=40 --captures --output=out/lens-fisheye
+cargo run --example bench_lens_preview -- --frames=10 --all-modes --captures --output=out/lens-modes
+```
+
+The control uses the same scene and admitted trajectories, changing only the
+projection. The report records static/moving views, frame distributions,
+diagnostics, source texture sizes, configuration and engine provenance. Timed
+frames exclude readback; optional inspection captures are taken afterward.
+Times synchronize the device and include diagnostic instrumentation, so they
+are not window presentation FPS. Record concurrent GPU workloads separately.
 
 ## Pipeline
 

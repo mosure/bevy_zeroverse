@@ -203,7 +203,11 @@ impl IndoorManifest {
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
         self.camera_diagnostics = default();
-        self.sample_camera_set(count, true, self.seed)?;
+        if self.camera_settings.ceiling_mount.is_some() {
+            super::ceiling::sample(self, count)?;
+        } else {
+            self.sample_camera_set(count, true, self.seed)?;
+        }
         if self.camera_settings.principal_point_jitter != Vec2::ZERO {
             let coverage = Coverage::new(self);
             for camera in &mut self.cameras {

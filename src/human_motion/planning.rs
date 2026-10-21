@@ -67,6 +67,14 @@ pub fn obstacles(
 ) -> Vec<(Vec3, Vec3)> {
     let half = scene.room_size * 0.5;
     let mut boxes = scene.camera_obstacles();
+    // ARDY routing currently assumes a single ground plane. Keep paths away
+    // from raised rug supports instead of letting footwear pass through them.
+    boxes.extend(scene.rug_supports.iter().map(|r| {
+        (
+            Vec3::new(r.min.x, r.bottom, r.min.y),
+            Vec3::new(r.max.x, r.top, r.max.y),
+        )
+    }));
     if let Some(motion) = &scene.indoor_motion {
         boxes.extend(
             motion
@@ -379,6 +387,12 @@ fn camera_path_clear(scene: &IndoorManifest, plan: &MotionPlan, stature: f32) ->
         let position = super::validation::expected_position(plan, frame).with_y(0.0);
         let t = frame as f32 / (plan.request.frames - 1) as f32;
         scene.cameras.iter().all(|camera| {
+            if let Some(mount) = &camera.ceiling_mount {
+                let (lo, hi) = mount.bounds();
+                return lo.y > scene.floor_height(position.xz()) + stature + 0.15
+                    || position.xz().cmplt(lo.xz() - Vec2::splat(0.65)).any()
+                    || position.xz().cmpgt(hi.xz() + Vec2::splat(0.65)).any();
+            }
             let p = camera.transform_at(t).translation;
             p.y > stature + 0.15 || p.with_y(0.0).distance(position) > 0.65
         })
@@ -412,7 +426,7 @@ pub fn plan(
         let Some(person) = scene.humans.iter().find(|h| h.id == explicit.actor_id) else {
             return Err(format!("motion actor {} does not exist", explicit.actor_id));
         };
-        if person.position.y.abs() > 0.01 {
+        if person.position.y.abs() > 0.002 {
             return Err(format!(
                 "motion actor {} is on a nonzero floor; stair/level motion is not supported",
                 person.id
@@ -482,7 +496,7 @@ pub fn plan(
     }
     for id in selected_actors(scene, config) {
         let person = scene.humans.iter().find(|h| h.id == id).unwrap();
-        if person.position.y.abs() > 0.01 {
+        if person.position.y.abs() > 0.002 {
             rejected.push(MotionRejection {
                 actor_id: person.id,
                 reason:

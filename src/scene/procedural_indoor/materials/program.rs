@@ -68,6 +68,10 @@ impl PaletteProgram {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialRecipe {
+    /// Resolved construction-prior provenance; numeric substrate fields remain
+    /// authoritative when replaying an archived recipe.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub construction: Option<super::construction::ConstructionSample>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manufactured: Option<super::manufactured::ManufacturedFinish>,
     /// Appearance intervention inherited by regenerated finish structures.
@@ -151,6 +155,23 @@ pub const SURFACES: [Surface; 36] = [
     Surface::Succulent,
 ];
 pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
+    let mut recipes = sample_base(seed);
+    for r in &mut recipes {
+        if r.surface == Surface::Floor {
+            // The physical floor program is resolved after its style is known.
+            r.construction = Some(super::construction::ConstructionSample::sample(r.seed));
+        } else {
+            super::construction::sample(r, 0);
+        }
+    }
+    // End grain and face grain belong to the same finished timber stock.
+    recipes[Surface::WoodEdge as usize].wood = recipes[Surface::Wood as usize].wood.clone();
+    recipes
+}
+
+// Independent, retained sampler for bounded construction qualification. This
+// also keeps unrelated RNG streams and legacy recipe generation explicit.
+pub(super) fn sample_base(seed: u64) -> Vec<MaterialRecipe> {
     let palette = PaletteProgram::sample(seed);
     let hue = palette.hue;
     let wood_saturation = palette.wood_saturation;
@@ -347,6 +368,7 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
                 rng.random_range(0.00002..0.0003)
             };
             let mut recipe = MaterialRecipe {
+                construction: None,
                 manufactured: None,
                 detail_scale: None,
                 flooring: None,
@@ -424,6 +446,14 @@ pub(super) struct Texel {
 /// Specialize the floor recipe once, before recording it in a scene manifest.
 /// Carpet needs a textile-scale repeat, not the metre-wide plank/tile domain.
 pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
+    floor_finish_base(recipes, style);
+    let r = &mut recipes[Surface::Floor as usize];
+    if r.construction.is_some() {
+        super::construction::sample(r, style);
+    }
+}
+
+pub(super) fn floor_finish_base(recipes: &mut [MaterialRecipe], style: u32) {
     let textile_color = recipes[Surface::Fabric as usize].color;
     let wood_color = recipes[Surface::Wood as usize].color;
     let r = &mut recipes[Surface::Floor as usize];
@@ -530,6 +560,12 @@ pub fn sample_with_floor(seed: u64, style: u32) -> Result<Vec<MaterialRecipe>, S
 
 impl MaterialRecipe {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(c) = &self.construction {
+            c.validate()?;
+            if super::construction::labels(self.surface, 0).is_none() {
+                return Err("construction provenance requires a supported material role".into());
+            }
+        }
         if let Some(m) = &self.manufactured {
             m.validate()?;
             if !matches!(
@@ -882,10 +918,11 @@ impl MaterialRecipe {
                     stream(w.seed, 0x46494e495348 + group as u64).random(),
                 ));
             }
-            // All re-specialized structures except timber replace relief.
-            // Preserve the intervention exactly once; timber retains the base
-            // recipe's already-scaled relief, as does every structure's contrast.
-            if !matches!(self.surface, Surface::Wood | Surface::WoodEdge) {
+            if self.construction.is_some() {
+                super::construction::sample(&mut result, 0);
+            } else if !matches!(self.surface, Surface::Wood | Surface::WoodEdge) {
+                // Legacy specialization replaces relief except on timber;
+                // construction resolution applies its own intervention once.
                 result.relief_m *= self.detail_scale.unwrap_or(1.);
             }
         }
@@ -1039,6 +1076,23 @@ impl MaterialRecipe {
         if let Some(l) = &self.leaf {
             return l.evaluate(self, [u, v]);
         }
+        // Knit crossovers can have coincident nearest yarns. Wrapping the
+        // integer tile offset before rotation/phase keeps opposite tile edges
+        // bit-identical instead of letting (1 + phase) - 1 round to a different
+        // yarn. Bake texels already lie in [0,1), so archived map bytes and the
+        // GPU bake domain remain unchanged.
+        let (u, v) = if self.carpet.is_none() && self.textile.as_ref().is_some_and(|t| t.knit) {
+            let wrap = |v: f32| {
+                if (0.0..1.).contains(&v) {
+                    v
+                } else {
+                    v.rem_euclid(1.)
+                }
+            };
+            (wrap(u), wrap(v))
+        } else {
+            (u, v)
+        };
         let (u, v) = self.layers.as_ref().map_or((u, v), |l| l.rotate(u, v));
         let u = (u + self.phase[0]).rem_euclid(1.0);
         let v = (v + self.phase[1]).rem_euclid(1.0);
@@ -1515,7 +1569,9 @@ mod tests {
                         t.herringbone,
                     ));
                     let spacing = r.period_m / t.yarns[1] as f32;
-                    assert!((0.0012..0.0035).contains(&spacing));
+                    // Fine woven yarn through coarse chenille, including the
+                    // continuously sampled physical feature-scale multiplier.
+                    assert!((0.0009..0.007).contains(&spacing));
                 }
                 if let Some(l) = &r.leather {
                     l.validate().unwrap();
@@ -1525,18 +1581,28 @@ mod tests {
                         (r.texel(0., t, 0), r.texel(1., t, 0)),
                         (r.texel(t, 0., 0), r.texel(t, 1., 0)),
                     ] {
-                        assert!(a
-                            .color
-                            .iter()
-                            .zip(b.color)
-                            .all(|(x, y)| (x - y).abs() < 0.0001));
+                        assert!(
+                            a.color
+                                .iter()
+                                .zip(b.color)
+                                .all(|(x, y)| (x - y).abs() < 0.0001),
+                            "seed {seed}, {s:?}, seam at {t}"
+                        );
                         assert!(
                             (a.height - b.height).abs() < 1e-7
                                 && (a.roughness - b.roughness).abs() < 0.0001
                         );
                         assert!(a.height.is_finite() && a.height.abs() < 0.001);
+                        // Loop-knit valleys have the existing 0.89 AO floor;
+                        // woven cloth/leather retain their stricter bound.
+                        let min_ao = if r.textile.as_ref().is_some_and(|t| t.knit) {
+                            0.89
+                        } else {
+                            0.9
+                        };
                         assert!(
-                            (0.18..=1.).contains(&a.roughness) && (0.9..=1.).contains(&a.occlusion)
+                            (0.18..=1.).contains(&a.roughness)
+                                && (min_ao..=1.).contains(&a.occlusion)
                         );
                     }
                 }
@@ -1615,7 +1681,7 @@ mod tests {
                 assert!(floor.relief_m > 0. && floor.relief_m < 0.001);
                 if style == 1 {
                     assert!((2.8..=4.2).contains(&floor.period_m));
-                    assert!(floor.roughness >= 0.88);
+                    assert!((0.85..=0.98).contains(&floor.roughness));
                 } else if floor.flooring.as_ref().unwrap().layout
                     == super::super::flooring::FloorLayout::Seamless
                 {
@@ -1631,7 +1697,7 @@ mod tests {
                         }
                     );
                     if style == 0 {
-                        assert!((0.20..=0.76).contains(&floor.roughness));
+                        assert!((0.20..=0.85).contains(&floor.roughness));
                     } else {
                         assert!((0.12..=0.95).contains(&floor.roughness));
                     }

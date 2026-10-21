@@ -27,7 +27,16 @@ fn wall_finish(uv: vec2<f32>) -> WallTerms {
     let cross=noise(p,5u,r.wall_counts.y,719u);
     let wash=cloud*0.70+noise(p,9u,11u,727u)*0.30;
     let at=unit(uv.x*f32(r.wall_counts.z)+warp);let aa=f32(r.wall_counts.z)/f32(r.header.y);
-    let stripe=smooth_curve((r.wall1.x*0.5+aa-abs(at-0.5))/(2.*aa));
+    let x=at-0.5;let y=unit(uv.y*f32(r.wall_counts.z)+warp*0.5)-0.5;
+    var distance=abs(x);
+    switch r.wall_counts.w-1u {
+        case 1u: {distance=abs(abs(x)+abs(y)-0.5);}
+        case 2u: {distance=abs(length(vec2(x*0.85,y*1.3))-0.25);}
+        case 3u: {let q=0.5-abs(y);distance=abs(abs(x)-(0.13+0.55*q*q));}
+        case 4u: {let u=x+y*0.38;distance=sqrt(u*u*5.+y*y*1.7);}
+        default: {}
+    }
+    let stripe=smooth_curve((r.wall1.x*0.5+aa-distance)/(2.*aa));
     let w=r.wall_weights;
     let woven=(longitudinal*0.65+cross*0.35)*(0.85+longitudinal*cross*0.30);
     let pigment=((wash-0.5)*w.x+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.y*r.paint2.w;

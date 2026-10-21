@@ -122,23 +122,44 @@ fn task_mixtures_are_replayable_and_cover_all_items_without_seed_identity() {
 
 #[test]
 fn amenity_placements_replay_and_keep_activity_camera_support_and_human_constraints() {
+    use crate::scene::procedural_indoor::items::distribution::ClutterSettings;
+    // This is an admitted-category coverage test, not an estimate of the
+    // default empty-table mixture. Select populated tables and use a fixed
+    // cohort large enough to exercise rarer furnishing/program combinations.
+    let clutter = ClutterSettings {
+        probability: 1.,
+        ..Default::default()
+    };
     let mut occurrence = BTreeMap::<String, usize>::new();
-    for seed in 0..128 {
-        let scene =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25).unwrap();
+    for seed in 0..256 {
+        let scene = IndoorManifest::generate_with_clutter(
+            seed,
+            IndoorLayout::Mixed,
+            0.65,
+            3,
+            0.25,
+            clutter,
+        )
+        .unwrap();
         validation::validate_layout(&scene).unwrap();
         if seed < 32 {
             validation::validate_geometry(&scene).unwrap();
         }
-        let replay =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25).unwrap();
+        let replay = IndoorManifest::generate_with_clutter(
+            seed,
+            IndoorLayout::Mixed,
+            0.65,
+            3,
+            0.25,
+            clutter,
+        )
+        .unwrap();
         assert_eq!(scene, replay);
         for object in scene.objects.iter().filter(|o| !o.neighbor) {
             *occurrence.entry(format!("{:?}", object.kind)).or_default() += 1;
         }
     }
-    // Kitchen objects are explicit activity profiles, not part of Mixed's
-    // historical distribution; their accepted coverage has a separate audit.
+    // Kitchen and public-program objects also have dedicated acceptance audits.
     for kind in ObjectKind::ALL
         .into_iter()
         .skip(36)

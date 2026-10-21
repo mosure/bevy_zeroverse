@@ -1,8 +1,17 @@
 //! Floor detail is placed after people and furniture settle, before cable routing.
 //! Low fixtures have explicit floor support, portal and occupied-volume checks.
 use super::*;
+pub mod area;
 
 pub(crate) fn detail_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
+    if scene
+        .rug_supports
+        .iter()
+        .any(|s| s.object == o.id && *s == area::RugSupport::from_object(o))
+    {
+        return scene.placement_clear_internal(o, 0.025, true)
+            && scene.floor_support_clear(o.bounds().0, o.bounds().1);
+    }
     if o.solid || o.support.is_some() || o.neighbor || !scene.placement_clear(o, 0.025) {
         return false;
     }

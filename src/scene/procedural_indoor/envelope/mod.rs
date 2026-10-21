@@ -184,7 +184,14 @@ impl EnvelopeProgram {
 
 impl IndoorManifest {
     pub fn floor_height(&self, p: Vec2) -> f32 {
-        self.envelope.as_ref().map_or(0., |e| e.floor_height(p))
+        self.rug_supports
+            .iter()
+            .filter(|r| r.contains(p))
+            .map(|r| r.top)
+            .fold(
+                self.envelope.as_ref().map_or(0., |e| e.floor_height(p)),
+                f32::max,
+            )
     }
     pub fn ceiling_height(&self, p: Vec2) -> f32 {
         self.envelope
@@ -192,8 +199,20 @@ impl IndoorManifest {
             .map_or(self.room_size.y, |e| e.ceiling_height(self.room_size, p))
     }
     pub fn floor_support_clear(&self, lo: Vec3, hi: Vec3) -> bool {
-        self.envelope
-            .as_ref()
-            .map_or(lo.y.abs() < 0.002, |e| e.support_clear(lo, hi))
+        let base = |lo: Vec3| {
+            self.envelope
+                .as_ref()
+                .map_or(lo.y.abs() < 0.002, |e| e.support_clear(lo, hi))
+        };
+        (base(lo)
+            && !self.rug_supports.iter().any(|r| {
+                lo.y < r.top - 0.001
+                    && hi.y > r.top + 0.001
+                    && lo.xz().cmplt(r.max).all()
+                    && hi.xz().cmpgt(r.min).all()
+            }))
+            || self.rug_supports.iter().any(|r| {
+                (lo.y - r.top).abs() < 0.001 && r.supports(lo, hi) && base(lo.with_y(r.bottom))
+            })
     }
 }

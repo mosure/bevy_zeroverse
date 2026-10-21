@@ -11,7 +11,18 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
         | ObjectKind::ProjectionScreen
         | ObjectKind::WallShelf
         | ObjectKind::NoticeBoard
-        | ObjectKind::WallSconce => 0.5,
+        | ObjectKind::WallSconce
+        | ObjectKind::ExitSign
+        | ObjectKind::FirePullStation => 0.5,
+        ObjectKind::StringLights if !equipment::signals::string_program(o).suspended => 0.5,
+        ObjectKind::FireAlarm => {
+            if o.variant % 4 == 3 {
+                0.46
+            } else {
+                0.5
+            }
+        }
+        ObjectKind::Speaker if !o.solid && o.support.is_none() => 0.46,
         ObjectKind::Clock => return Some(clocks::case_depth(o) * 0.5 + 0.001),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => 0.35,
         _ => return None,

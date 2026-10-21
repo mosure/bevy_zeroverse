@@ -108,7 +108,16 @@ fn wall_coverings_are_seeded_tileable_and_use_all_component_fields() {
             if surface == Surface::Paint {
                 assert_eq!(&w.weights[2..], &[0., 0.]);
             }
-            assert_eq!(Some(w.clone()), WallFinish::sample(r.seed, surface));
+            let base = program::sample_base(seed);
+            assert_eq!(
+                base[surface as usize].coating.as_ref().unwrap().wall,
+                WallFinish::sample(r.seed, surface)
+            );
+            let replay = program::sample(seed);
+            assert_eq!(
+                Some(w.clone()),
+                replay[surface as usize].coating.as_ref().unwrap().wall
+            );
             let biggest = (0..4)
                 .max_by(|&a, &b| w.weights[a].total_cmp(&w.weights[b]))
                 .unwrap();
@@ -172,4 +181,38 @@ fn covering_maps_replay_prepared_scalar_channels_and_detail_interventions() {
         let legacy: program::MaterialRecipe = serde_json::from_value(json).unwrap();
         assert!(legacy.coating.unwrap().wall.is_none());
     }
+}
+
+#[test]
+fn wallpaper_motifs_are_distinct_and_share_the_gpu_recipe_contract() {
+    let mut styles = std::collections::BTreeSet::new();
+    for seed in 0..64 {
+        let Some(w) = WallFinish::sample(seed, Surface::Accent) else {
+            continue;
+        };
+        styles.insert(w.print_style);
+        w.validate().unwrap();
+    }
+    assert_eq!(styles.len(), 5);
+    let mut r = program::sample(7)[Surface::Accent as usize].clone();
+    let mut w = (0..64)
+        .find_map(|s| WallFinish::sample(s, Surface::Accent))
+        .unwrap();
+    w.weights = [0., 0., 0., 1.];
+    w.pigment = 0.8;
+    let mut signatures = std::collections::BTreeSet::new();
+    for style in 0..5 {
+        w.print_style = style;
+        r.coating.as_mut().unwrap().wall = Some(w.clone());
+        let signature: Vec<_> = (0..16)
+            .flat_map(|y| (0..16).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                (w.evaluate(&r, [(x as f32 + 0.5) / 16., (y as f32 + 0.5) / 16.])
+                    .gain[0]
+                    * 255.) as u8
+            })
+            .collect();
+        signatures.insert(signature);
+    }
+    assert_eq!(signatures.len(), 5);
 }

@@ -24,6 +24,21 @@ pub(super) fn record_scene(
     numeric: &mut NumericCollector,
     categories: &mut Categories,
 ) -> io::Result<()> {
+    for object in scene
+        .objects
+        .iter()
+        .filter(|o| super::super::photometry::is_lamp(o.kind))
+    {
+        let source = super::super::photometry::lamp(scene, object);
+        for (key, value) in [
+            ("kelvin", source.kelvin),
+            ("tint", source.tint),
+            ("dimmer", source.dimmer),
+            ("lumens", source.lumens),
+        ] {
+            numeric.push(&format!("source_{:?}_{key}", object.kind), value as f64)?;
+        }
+    }
     let groups = &scene.assembly_diagnostics;
     numeric.push(
         "feature_wall_edges",
@@ -647,7 +662,12 @@ pub(super) fn record_object(
         o.kind,
         ObjectKind::Laptop | ObjectKind::Display | ObjectKind::Monitor | ObjectKind::Phone
     ) {
-        let p = materials::screens::parameters(finish_seed(scene, o));
+        let kind = match o.kind {
+            ObjectKind::Phone => materials::screens::DisplayKind::Phone,
+            ObjectKind::Display => materials::screens::DisplayKind::Television,
+            _ => materials::screens::DisplayKind::Desktop,
+        };
+        let p = materials::screens::parameters_for(finish_seed(scene, o), kind);
         if o.kind == ObjectKind::Display {
             category(categories, "tv_content", p.layout);
         }
@@ -657,6 +677,8 @@ pub(super) fn record_object(
             if p.dormant { 0. } else { p.luminance as f64 },
         )?;
         for (key, value) in [
+            ("screen_white_kelvin", p.white_kelvin),
+            ("screen_white_tint", p.white_tint),
             ("screen_sidebar_fraction", p.sidebar),
             ("screen_content_split", p.content_split),
             ("screen_content_density", p.density),
@@ -757,11 +779,9 @@ mod tests {
                 );
             }
             if matches!(kind, ObjectKind::WallSconce | ObjectKind::CeilingPendant) {
-                let (position, _, lumens, _, _) = equipment::fixture_photometry(&o);
-                assert_eq!(
-                    values["equipment_fixture_lumens"].mean,
-                    (lumens * 0.25) as f64
-                );
+                let (position, _, lumens, _, _) =
+                    super::super::super::architecture::object_fixture_photometry(&scene, &o);
+                assert_eq!(values["equipment_fixture_lumens"].mean, lumens as f64);
                 assert_eq!(values["equipment_emitter_room_x_m"].mean, position.x as f64);
             }
         }
@@ -797,7 +817,10 @@ mod tests {
         let actual_seed = materials::variants::screen_seed(991, materials::variants::slot(83));
         let art = materials::art::parameters(actual_seed);
         let board = materials::boards::parameters(actual_seed);
-        let screen = materials::screens::parameters(actual_seed);
+        let screen = materials::screens::parameters_for(
+            actual_seed,
+            materials::screens::DisplayKind::Television,
+        );
         let values = numeric.finish().unwrap();
         let wall_art = object(ObjectKind::WallArt);
         assert_eq!(

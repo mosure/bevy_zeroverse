@@ -82,7 +82,7 @@ impl IndoorManifest {
         );
     }
 
-    fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {
+    pub(super) fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {
         if let Some(e) = &self.envelope {
             let wall = &e.walls[rng.random_range(0..e.walls.len())];
             let a = e.footprint[wall.edge];
@@ -281,65 +281,6 @@ impl IndoorManifest {
                 continue;
             }
             self.objects.push(object);
-        }
-    }
-    pub(super) fn scatter_clutter(&mut self, _rng: &mut ChaCha8Rng) {
-        let clutter = self.domain().map_or(0.5, |d| d.clutter) * self.density;
-        let surfaces: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| {
-                o.kind.is_surface()
-                    && !o.kind.is_kitchen()
-                    && (!self.layout.is_kitchen() || o.neighbor || o.kind != ObjectKind::Table)
-            })
-            .cloned()
-            .collect();
-        for support in surfaces {
-            let program = super::super::items::parameters(self, &support);
-            let mut rng = stream(support.seed, 5510);
-            let attempts = (clutter * program.occupancy * (12.0 + 6.0 * support.size.xz().length()))
-                .clamp(0.0, 48.0) as usize;
-            for _ in 0..attempts {
-                let (kind, size) = program.item(&support, &mut rng);
-                // Large appliances are occasional service equipment, not piles
-                // of repeated identical machines on a single support.
-                if matches!(
-                    kind,
-                    ObjectKind::CoffeeMaker
-                        | ObjectKind::Kettle
-                        | ObjectKind::Printer
-                        | ObjectKind::DeskLamp
-                        | ObjectKind::DeskFan
-                ) && self
-                    .objects
-                    .iter()
-                    .any(|o| o.support == Some(support.id) && o.kind == kind)
-                {
-                    continue;
-                }
-                let (mut offset, mut yaw) = super::surfaces::scatter_proposal(
-                    &self.objects,
-                    &support,
-                    kind,
-                    size,
-                    &mut rng,
-                );
-                if rng.random_bool(program.clustering as f64) {
-                    offset = offset.lerp(
-                        Vec3::new(
-                            program.focal_point.x * support.size.x,
-                            0.,
-                            program.focal_point.y * support.size.z,
-                        ),
-                        0.35,
-                    );
-                }
-                if rng.random_bool(program.alignment as f64) {
-                    yaw = program.rotation + rng.random_range(-0.22..0.22);
-                }
-                self.prop(&support, kind, offset, size, yaw, &mut rng);
-            }
         }
     }
 }

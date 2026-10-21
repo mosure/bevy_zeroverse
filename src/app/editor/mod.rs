@@ -1,7 +1,7 @@
 //! Shared native/WebGPU scene controller built with retained Bevy Feathers widgets.
 mod delta;
+mod distribution_preview;
 mod fields;
-mod lens_preview;
 pub mod model;
 pub mod schematic;
 mod share;
@@ -117,6 +117,7 @@ fn scene_loaded(
 }
 pub fn value(state: &EditorState, path: &str) -> Value {
     match path {
+        "@ceiling_mount" => json!(!state.draft["indoor_camera"]["ceiling_mount"].is_null()),
         "@capacity_receipt" => json!(state.capacity_receipt),
         "@config" => state.draft.clone(),
         "@overlap_graph" => state.draft["indoor_camera"]["multiview"]
@@ -149,11 +150,11 @@ pub fn value(state: &EditorState, path: &str) -> Value {
                 .as_f64()
                 .unwrap_or(1.)
         ),
-        "@fisheye_probability" => state.draft["indoor_camera"]["lenses"]["probability"]
+        "@fisheye_probability" => model::optics(&state.draft)["lenses"]["probability"]
             .as_f64()
             .map_or(json!(0.), |x| json!(x)),
-        "@lens_bias" => state.draft["indoor_camera"]["intrinsics"]["bias"].clone(),
-        "@lens_spread" => state.draft["indoor_camera"]["intrinsics"]["spread"].clone(),
+        "@lens_bias" => model::optics(&state.draft)["intrinsics"]["bias"].clone(),
+        "@lens_spread" => model::optics(&state.draft)["intrinsics"]["spread"].clone(),
         "@multiview" => json!(!state.draft["indoor_camera"]["multiview"].is_null()),
         "@mixture" => json!(!state.draft["indoor_camera"]["overlap_mixture"].is_null()),
         "@handheld" => json!(!state.draft["indoor_camera"]["handheld"].is_null()),
@@ -227,6 +228,15 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
             }
             state.draft["indoor_camera"]["motion_fraction"] = json!(percent / 100.);
         }
+        "@ceiling_mount" => {
+            let enabled = v.as_bool().ok_or("Expected a checkbox value")?;
+            state.draft["indoor_camera"]["ceiling_mount"] = if enabled {
+                json!(crate::scene::procedural_indoor::cameras::ceiling::CeilingCameraSettings::default())
+            } else {
+                Value::Null
+            };
+            rebuild = true;
+        }
         "@fisheye_probability" => {
             let probability = v.as_f64().ok_or("Expected a probability")?;
             if !(0.0..=1.0).contains(&probability) {
@@ -234,14 +244,14 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
             }
             // Disabling the lens program preserves its advanced parameters.
             // A zero probability still takes the exact pinhole generation path.
-            if state.draft["indoor_camera"]["lenses"].is_null() {
-                state.draft["indoor_camera"]["lenses"] =
-                    json!(crate::camera::lens::LensSampling::default());
+            let optics = model::optics_mut(&mut state.draft);
+            if optics["lenses"].is_null() {
+                optics["lenses"] = json!(crate::camera::lens::LensSampling::default());
             }
-            state.draft["indoor_camera"]["lenses"]["probability"] = v;
+            optics["lenses"]["probability"] = v;
         }
         "@lens_bias" | "@lens_spread" => {
-            let lens = &mut state.draft["indoor_camera"]["intrinsics"];
+            let lens = &mut model::optics_mut(&mut state.draft)["intrinsics"];
             lens[if path == "@lens_bias" {
                 "bias"
             } else {
@@ -601,12 +611,12 @@ pub(super) fn update(world: &mut World) {
     }
     if !world.contains_resource::<shell::Shell>() || rebuild {
         shell::build(world, &state);
-        lens_preview::synchronize(world, &state);
+        distribution_preview::synchronize(world, &state);
         state.revision += 1;
     }
     if dirty || rebuild || state.view.page == Page::View {
         widgets::synchronize(world, &state);
-        lens_preview::synchronize(world, &state);
+        distribution_preview::synchronize(world, &state);
         shell::synchronize_evidence(world, &state);
     }
     if dirty && state.error.is_none() {

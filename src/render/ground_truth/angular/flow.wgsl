@@ -19,7 +19,14 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>) {
         if hit.index!=0xffffffffu {
             let t=triangles[hit.index];
             if t.n[0].w>0.0 && t.n[1].w>0.0 && t.n[2].w>0.0 {
-                let position=t.n[0].xyz*(1.0-hit.uv.x-hit.uv.y)+t.n[1].xyz*hit.uv.x+t.n[2].xyz*hit.uv.y;
+                // Interpolate displacement, not absolute target positions. The
+                // barycentric solve on thin/grazing triangles can lose enough
+                // precision to invent flow on a completely stationary surface.
+                // Anchor correspondence to the same source ray as geometry.
+                let displacement=(t.n[0].xyz-t.p[0].xyz)*(1.0-hit.uv.x-hit.uv.y)
+                    +(t.n[1].xyz-t.p[1].xyz)*hit.uv.x
+                    +(t.n[2].xyz-t.p[2].xyz)*hit.uv.y;
+                let position=origin+dir*hit.distance+displacement;
                 let projected=project(camera.target_lens,(camera.target_view*vec4<f32>(position,1.0)).xyz);
                 // Keep valid out-of-image flow vectors when projection is defined.
                 if projected.z>=camera.limits.z && projected.z<=camera.limits.w {

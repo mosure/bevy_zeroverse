@@ -63,11 +63,33 @@ support relationships, camera paths and optional world rotation.
 - Furniture placement blends activity priors over continuously sampled functional
   zones, partitions, spacing, object proportions and coordinated finishes.
   Supporting surfaces and circulation space constrain placement.
-- Tables vary top shape, edge profile, aprons, legs and cable details. Chairs
+- Tables blend ellipse, racetrack, rounded polygon, tapered and boat-shaped
+  outlines. Conference programs sample larger spans (up to roughly 10 m where
+  room clearance permits), with repeated T-foot, twin-column, trestle, portal,
+  panel or drum support bays joined by structural beams. Chairs follow the true
+  tabletop perimeter with continuous spacing, phase and angular variation; seat
+  capacity follows usable perimeter and occupancy rather than a fixed row count.
+  Meeting chairs retain their sampled swivel when pushed in: clearance limits
+  insertion depth instead of straightening every seat against the table edge.
+  Occupied chairs carry the person's orientation and retain body/leg clearance.
+  Assembly receipts and metrics record realized seats, dimensions and support bays.
+  Compact tables retain their independent leg, apron and pedestal programs. Chairs
   vary seat/back curves, height, headrests, arms and bases; backless stools and
   modular upholstered seating are included. Builders also cover shelving/books,
   potted plants, bins, whiteboards, displays, computers, clocks, rugs, lighting,
   storage and tabletop drinks, stationery, microphones and phones.
+  Supported belongings use area-aware count/coverage budgets, unequal task
+  clusters, independent headings and a scattered component. Loose belongings
+  avoid a sampled work patch; exact support outlines and inter-object clearance
+  remain authoritative. Conference seats have independently selected contents
+  instead of identical settings. This dressing also covers cafe/classroom
+  tables without placing office appliances on dining tables. Loose dressing
+  targets at most 56 total items and uses at most 288 proposals per surface;
+  existing functional equipment is preserved even when it exceeds that target.
+  Bags include briefcases, backpacks, totes, satchels and duffels with distinct
+  shell profiles, flat carrying straps, attached pockets, closures and material
+  regions. Dimensions, fullness, taper, handles and finish vary continuously;
+  all components retain the bag's semantic label and instance bounds.
 - Chairs sample pulled-out and pushed-in positions, including occupied seats.
   Insertion and alignment use the actual convex top and shared structural support
   program (legs, pedestal bases, braces, panels and cable trays). Seated bodies
@@ -96,10 +118,12 @@ support relationships, camera paths and optional world rotation.
   detail. Raised and sunken floors have treads and risers; mezzanines include
   supports, stairs, guards and furnishings. The courtyard cut-in remains empty.
 - Wood, flooring, fabric, paint, foliage, concrete and other surfaces have distinct
-  material roles. Generated 256² maps use mipmaps, repeating metric UVs, linear
-  normal/roughness data, and sRGB albedo. Wood uses periodic anisotropic noise;
-  flooring includes staggered boards, carpet and tile. Mesh parts are batched by
-  material and semantic class within each instance.
+  material roles and correlated construction/finish samplers. Each supported
+  substrate blends four physical process regions with continuous scale and finish
+  variation. Generated 256²/512² maps use metric UVs, linear normal/roughness data,
+  sRGB albedo and full mip chains. Flooring includes varied timber/mineral
+  installations, carpet and rug pile. Mesh parts remain batched by material and
+  semantic class within each instance, with bounded texture slots.
 - Daylight, overcast and evening vary sun direction/intensity, luminaire output,
   exposure and color temperature. Shadowed lights, transmission, a generated
   environment reflection proxy, native SSAO, FXAA and restrained bloom serve RGB.

@@ -82,6 +82,17 @@ pub fn recipe(parent: &program::MaterialRecipe, slot: usize) -> program::Materia
         .to_srgba();
         *c = [v.red, v.green, v.blue];
     }
+    if parent.construction.is_some() {
+        // Rugs keep their whole-field composition and fixed atlas count; only
+        // pile/finish construction is independently sampled for the rug slot.
+        let inherited_relief = r.relief_m;
+        super::construction::sample(&mut r, 1);
+        // Preserve direct parent relief overrides as well as material_detail.
+        // The slot's construction varies pile height without reviving flat rugs.
+        let p = r.construction.as_ref().unwrap();
+        r.relief_m = inherited_relief
+            * (0.65 + p.weights[1] * 0.55 + p.weights[2] * 0.25 + p.weights[3] * 0.85);
+    }
     r
 }
 

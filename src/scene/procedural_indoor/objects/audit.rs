@@ -80,6 +80,17 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         WallSconce => [0.20, 0.30, 0.15],
         CeilingPendant => [0.40, 0.70, 0.40],
         CeilingFan => [1.4, 0.55, 1.4],
+        ExitSign => [0.36, 0.20, 0.045],
+        FireAlarm => [0.15, 0.20, 0.06],
+        FireDetector => [0.14, 0.055, 0.14],
+        FirePullStation => [0.11, 0.15, 0.055],
+        StringLights => {
+            if seed % 2 == 1 {
+                [3.6, 0.70, 0.70]
+            } else {
+                [2.4, 0.38, 0.12]
+            }
+        }
         FloorOutlet => [0.18, 0.13, 0.16],
     };
     let mut o = IndoorObject {
@@ -184,7 +195,8 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Keyboard | Mouse => serde_json::json!(desktop::parameters(o)),
         Books | Notebook => serde_json::json!(literature::parameters(o)),
         FloorLamp => serde_json::json!(standing_lamp::parameters(o)),
-        Printer | StorageBox | Bag | CoatRack => serde_json::json!(utilities::parameters(o)),
+        Printer | StorageBox | CoatRack => serde_json::json!(utilities::parameters(o)),
+        Bag => serde_json::json!(bags::parameters(o)),
         Whiteboard => serde_json::json!(presentation::parameters(o)),
         CoffeeMaker | Kettle | Vase | Bowl => serde_json::json!(hospitality::parameters(o)),
         Mug | CoffeeCup | WaterBottle | SodaCan => {
@@ -197,6 +209,13 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             serde_json::json!(services::parameters(o))
         }
         CeilingFan => return serde_json::json!(fans::parameters(o)),
+        StringLights => return serde_json::json!(equipment::signals::string_program(o)),
+        FireAlarm | FireDetector | FirePullStation => {
+            return serde_json::json!(equipment::signals::fire::program(o))
+        }
+        ExitSign => {
+            serde_json::json!({"variant":o.variant,"dimensions_m":o.size,"emission":super::super::photometry::decorative_emission(o)})
+        }
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
         Speaker | Headphones | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | DeskFan => {
             serde_json::json!(accessories::parameters(o))
@@ -315,11 +334,20 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         ],
         Printer => &["construction", "roundness", "split", "lid_fraction"],
         Bag => &[
-            "construction",
-            "roundness",
+            "style",
+            "body_height",
             "taper",
-            "lid_fraction",
+            "roundness",
+            "fullness",
             "handle_span",
+            "handle_drop",
+            "strap_width",
+            "pocket_width",
+            "pocket_height",
+            "pocket_depth",
+            "flap",
+            "seam",
+            "finish",
         ],
         CoatRack => &["construction", "arms", "branch_height", "handle_span"],
         CoffeeMaker => &["style", "belly", "neck", "taper"],

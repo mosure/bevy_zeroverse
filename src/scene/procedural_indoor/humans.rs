@@ -821,7 +821,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
     if !person.neighbor
         && scene.envelope.as_ref().is_some_and(|e| {
             !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), 0.30)
-                || !e.support_clear(lo.with_y(person.position.y), hi)
+                || !scene.floor_support_clear(lo.with_y(person.position.y), hi)
                 || [
                     lo.xz(),
                     hi.xz(),
@@ -881,14 +881,17 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
         .collect();
     // The chest is broad across the shoulders, not equally deep front-to-back.
-    // Three overlapping longitudinal capsules bound that elliptical volume and
+    // Five overlapping longitudinal capsules bound that elliptical volume and
     // let an abdomen approach a desk edge without shrinking the lateral envelope.
     let mut table_capsules: Vec<_> = collision_capsules_inner(person, true)
         .into_iter()
         .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
         .collect();
     let (waist, chest, width) = table_capsules.remove(1);
-    let depth = (0.125 * person.build
+    // Anny's weight anchor does not shrink the chest/bust linearly with `build`.
+    // Draped cloth also bridges the chest-to-waist profile instead of following
+    // the abdomen inward. Retain an adult torso-depth floor scaled by stature.
+    let depth = (0.145 * person.build.max(person.stature / 1.75)
         + person.appearance.as_ref().map_or(0.028, |a| {
             // The fitted shell and buttons project beyond the rest body's
             // ease. Reserve that construction before admitting a seated pose.
@@ -896,8 +899,15 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         }))
     .min(width);
     let right = tf.rotation * (person.joints[9] - person.joints[5]).normalize_or(Vec3::X);
-    for offset in [-(width - depth), 0., width - depth] {
-        table_capsules.push((waist + right * offset, chest + right * offset, depth));
+    // Discrete capsule centres leave scalloped gaps between neighbouring ribs.
+    // Bound the continuous elliptical torso with the half-spacing hypotenuse,
+    // rather than admitting cuffs/abdomen into one of those small gaps at a
+    // curved or oblique tabletop. No body mesh/model is needed during placement.
+    let half_spacing = (width - depth) * 0.25;
+    let radius = depth.hypot(half_spacing);
+    for fraction in [-1., -0.5, 0., 0.5, 1.] {
+        let offset = (width - depth) * fraction;
+        table_capsules.push((waist + right * offset, chest + right * offset, radius));
     }
     // The wider circulation skeleton is not a superset of the anatomical arm
     // positions: it moves wrists sideways. Include the actual limbs at close

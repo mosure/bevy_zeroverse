@@ -144,6 +144,7 @@ fn camera_path_reservations_follow_route_instead_of_filling_its_bounding_box() {
     let a = Vec3::new(-2., 1., 2.);
     let b = Vec3::new(2., 1., -2.);
     scene.cameras.push(IndoorCamera {
+        ceiling_mount: None,
         fisheye: None,
         start: a,
         end: b,
@@ -237,6 +238,50 @@ fn coupled_rotor_leaves_are_admitted_atomically() {
     prepare(&mut scene, &mut geometry);
     assert_eq!(scene.indoor_motion.unwrap().mechanisms.len(), 1);
     assert!(geometry.architecture.joints.iter().all(|j| j.accepted));
+}
+
+#[test]
+fn ceiling_camera_mount_body_blocks_fan_even_when_lens_is_below_rotor() {
+    use super::super::super::{cameras::ceiling::CeilingCameraMount, layout::IndoorCamera};
+    let (mut scene, mut geometry) = empty();
+    let object = super::super::super::objects::audit::fixture(
+        super::super::super::layout::ObjectKind::CeilingFan,
+        4,
+    );
+    let policy = IndoorMotionConfig {
+        fan_fraction: 1.,
+        fan_turns: [20., 20.],
+        ..default()
+    };
+    geometry.architecture =
+        super::super::super::objects::build_object_with_motion(&object, Some(&policy));
+    let fan = super::super::super::objects::fans::parameters(&object);
+    let surface = Vec3::new(fan.radius_m * 0.75, fan.rotor_y + 0.10, 0.);
+    let eye = surface - Vec3::Y * 0.8;
+    scene.cameras.push(IndoorCamera {
+        ceiling_mount: Some(CeilingCameraMount {
+            surface,
+            inward_normal: Vec3::NEG_Y,
+            rotation: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+            standoff_m: 0.8,
+            body_radius_m: 0.05,
+        }),
+        fisheye: None,
+        principal_point_offset: None,
+        start: eye,
+        end: eye,
+        target: eye - Vec3::Y * 2.,
+        fov_degrees: 60.,
+        motion: None,
+    });
+    prepare(&mut scene, &mut geometry);
+    assert!(!geometry.architecture.joints[0].accepted);
+    assert_eq!(
+        scene.indoor_motion.unwrap().mechanisms[0]
+            .rejection
+            .as_deref(),
+        Some("camera_path")
+    );
 }
 #[test]
 fn arc_enclosures_contain_every_intermediate_vertex() {

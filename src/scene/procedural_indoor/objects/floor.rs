@@ -56,16 +56,11 @@ fn triangle(g: &mut Geometry, p: Vec3, q: Vec3, r: Vec3) {
     g.indices.extend([i, i + 1, i + 2]);
 }
 
-fn rug(a: &mut Assembly, o: &IndoorObject) {
-    let mut rng = stream(o.seed, 7340);
-    // Superellipse exponent spans oval, capsule-like and softly squared forms.
-    // Rotation/aspect/edge width are independent continuous parameters.
+/// Same physical contour used by geometry, support and placement.
+pub(crate) fn rug_outline(o: &IndoorObject) -> Vec<Vec2> {
     let program = parameters(o);
     let exponent = program.rug_exponent;
-    let _ = rng.random_range(2.0_f32..7.0);
-    let border = rng.random_range(0.025..0.095) / o.size.x.min(o.size.z);
-    let inset = (1. - border * 2.).clamp(0.65, 0.97);
-    let outline: Vec<_> = (0..if program.clipped_corners { 8 } else { 64 })
+    (0..if program.clipped_corners { 8 } else { 64 })
         .map(|i| {
             let angle = TAU * (i as f32 + if program.clipped_corners { 0.5 } else { 0. })
                 / if program.clipped_corners { 8. } else { 64. };
@@ -78,7 +73,17 @@ fn rug(a: &mut Assembly, o: &IndoorObject) {
                 f(angle.sin()) * o.size.z * 0.5,
             )
         })
-        .collect();
+        .collect()
+}
+
+fn rug(a: &mut Assembly, o: &IndoorObject) {
+    let mut rng = stream(o.seed, 7340);
+    // Superellipse exponent spans oval, capsule-like and softly squared forms.
+    // Rotation/aspect/edge width are independent continuous parameters.
+    let _ = rng.random_range(2.0_f32..7.0);
+    let border = rng.random_range(0.025..0.095) / o.size.x.min(o.size.z);
+    let inset = (1. - border * 2.).clamp(0.65, 0.97);
+    let outline = rug_outline(o);
     let field = Surface::FabricAlt;
     let slot = super::super::materials::rugs::slot(o.finish_seed.unwrap_or(o.seed));
     let rug_label = format!("floormat#rug{slot}");

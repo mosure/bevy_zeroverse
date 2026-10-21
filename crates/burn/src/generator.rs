@@ -63,6 +63,8 @@ pub struct GenConfig {
     pub human_motion: Option<String>,
     pub indoor_camera: Option<String>,
     pub indoor_appearance: Option<String>,
+    /// Per-table loose-clutter distribution JSON.
+    pub indoor_clutter: Option<String>,
     pub rgb_sensor: Option<crate::sensor::SensorSettings>,
     pub indoor_gi_rays: u32,
     pub annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
@@ -110,6 +112,7 @@ impl Default for GenConfig {
             human_motion: None,
             indoor_camera: None,
             indoor_appearance: None,
+            indoor_clutter: None,
             rgb_sensor: None,
             indoor_gi_rays: 256,
             annotation_glass: Default::default(),
@@ -157,6 +160,7 @@ impl GenConfig {
         scene.human_motion = self.human_motion.clone();
         scene.indoor_camera = self.indoor_camera.clone();
         scene.indoor_appearance = self.indoor_appearance.clone();
+        scene.indoor_clutter = self.indoor_clutter.clone();
         scene.indoor_gi_rays = self.indoor_gi_rays;
         scene.indoor_quality = self.indoor_quality;
         scene.annotation_glass = self.annotation_glass;
@@ -228,6 +232,14 @@ pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
 
     if let Some(json) = &config.indoor_camera {
         bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings::parse(json)
+            .map_err(anyhow::Error::msg)?;
+    }
+    if let Some(json) = &config.indoor_clutter {
+        anyhow::ensure!(
+            config.scene_type == ZeroverseSceneType::ProceduralIndoor,
+            "indoor_clutter requires procedural_indoor"
+        );
+        bevy_zeroverse::scene::procedural_indoor::items::distribution::ClutterSettings::parse(json)
             .map_err(anyhow::Error::msg)?;
     }
     if let Some(json) = &config.indoor_appearance {
@@ -646,6 +658,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         human_motion: _,
         indoor_camera: _,
         indoor_appearance: _,
+        indoor_clutter: _,
         rgb_sensor,
         indoor_gi_rays: _,
         indoor_quality: _,

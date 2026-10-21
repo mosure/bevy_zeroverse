@@ -194,6 +194,7 @@ fn alternate_reference(
         ][attempt % 8];
         let end = origin + direction * length;
         let mut camera = IndoorCamera {
+            ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,
             start: origin,
@@ -457,6 +458,7 @@ pub(super) fn complete(
                             let direction = [optical, -optical, Vec3::Y][mode - 1];
                             let end = origin + direction * length;
                             IndoorCamera {
+                                ceiling_mount: None,
                                 fisheye: None,
                                 principal_point_offset: None,
                                 start: origin,
@@ -525,6 +527,7 @@ pub(super) fn complete(
                         let end = origin + direction * length;
                         let aim = content[index % content.len()];
                         IndoorCamera {
+                            ceiling_mount: None,
                             fisheye: None,
                             principal_point_offset: None,
                             start: origin,

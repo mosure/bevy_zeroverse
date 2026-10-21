@@ -203,6 +203,15 @@ fn review(world: &mut World) {
             ));
         }
     }
+    // Review the full table distribution and its live histogram, below the room controls.
+    if review.frames == 545 {
+        for mut scroll in world
+            .query_filtered::<&mut ScrollPosition, With<bevy::ui_widgets::ScrollArea>>()
+            .iter_mut(world)
+        {
+            scroll.0.y = 780.;
+        }
+    }
     if review.frames == 710 {
         let entity = labeled(world, "Annotation");
         world.trigger(bevy::ui_widgets::Activate { entity });

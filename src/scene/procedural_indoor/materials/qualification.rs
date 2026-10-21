@@ -1,9 +1,11 @@
 //! Device-free production-map qualification. GPU/scene qualification is separate.
+mod construction;
 use super::{
     program::{self, MaterialRecipe},
     Surface,
 };
 use bevy::prelude::*;
+pub(super) use construction::{construction_study, descriptor};
 use image::{Rgb, RgbImage};
 use serde_json::json;
 use sha2::{Digest, Sha256};

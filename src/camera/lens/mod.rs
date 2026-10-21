@@ -1,6 +1,8 @@
 //! Camera-model contract and optional nonlinear rendering. A logical camera has
 //! exactly one calibration, timeline and capture index, regardless of its render
 //! views. The default pinhole path allocates no nonlinear resources.
+mod activity;
+mod raster;
 mod resolve;
 mod runtime;
 mod sampling;

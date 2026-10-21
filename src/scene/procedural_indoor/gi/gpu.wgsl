@@ -2,7 +2,7 @@ struct Params { resolution:vec4<u32>, budget:vec4<u32>, sun_direction:vec4<f32>,
 struct Triangle {a:vec4<f32>,ab:vec4<f32>,ac:vec4<f32>,uv01:vec4<f32>,uv2_material:vec4<f32>,normal:vec4<f32>}
 struct Node {lo:vec4<f32>,hi:vec4<f32>,children:vec4<u32>}
 struct Material {albedo:vec4<f32>,emission:vec4<f32>,uv_scale:vec4<f32>,tex:vec4<u32>}
-struct Light {position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
+struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> triangles:array<Triangle>;
 @group(0) @binding(2) var<storage,read> nodes:array<Node>;
@@ -67,7 +67,7 @@ fn direct(position:vec3<f32>,normal:vec3<f32>)->vec3<f32> {
         let cosine=max(dot(normal,direction),0.0);
         if cosine<=0.0 || distance>=source.position_range.w {continue;}
         var spot=1.0;
-        if source.spot.x!=0u {let s=clamp((direction.y-bitcast<f32>(source.spot.z))/(bitcast<f32>(source.spot.y)-bitcast<f32>(source.spot.z)),0.0,1.0);spot=s*s;}
+        if source.spot.x!=0u {let s=clamp((-dot(direction,source.direction.xyz)-bitcast<f32>(source.spot.z))/(bitcast<f32>(source.spot.y)-bitcast<f32>(source.spot.z)),0.0,1.0);spot=s*s;}
         if spot<=0.0 || intersect(origin,direction,max(distance-0.01,0.0),true).index!=0xffffffffu {continue;}
         let range2=source.position_range.w*source.position_range.w;let dr=d2/range2;
         let edge=max(1.0-dr*dr,0.0);let attenuation=edge*edge/max(d2,0.0001);

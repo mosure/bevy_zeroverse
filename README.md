@@ -75,7 +75,7 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   augmentation and material sampling, with Cornell cube and simple room scenes.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
   sloped and raised tray ceilings, arches, pillars, floor levels and mezzanines.
-  Acoustic panels, coffers, suspended grids, ducts, ventilation terminals, conduit,
+  Acoustic panels, coffers, suspended grids, round/square/rectangular ducts, ventilation terminals, conduit,
   sprinklers and trusses vary overhead detail.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
   exterior streets, planted courtyards and multi-storey buildings with varied
@@ -87,16 +87,18 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
   seating and circulation areas have placement and clearance constraints. Doors
   and cabinetry vary their mechanisms, hardware, materials and opening states.
-- **Procedural furnishings and appearance:** 100 item kinds, multipart furniture,
+- **Procedural furnishings and appearance:** 106 item kinds, multipart furniture,
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
   galleries, 17 plant growth habits, connected equipment and fixtures. Continuous
   construction and finish programs vary furniture supports, shaped upholstery,
   dyed yarns, timber treatments, concrete, glass and lighting. Ceiling fixtures,
   floor lamps and task lights vary their bulbs, hollow shades, articulated supports,
-  recesses and independently finished trims. Floor finishes vary
+  recesses, aim directions and independently finished trims. Mounted exit signs,
+  fire alarms, ceiling detectors, manual pull stations, speakers and suspended or
+  wall-mounted multicolored string lights add room services. Floor finishes vary
   plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
-  seamless mineral finishes, regional wear and rugs, with floor outlets and routed
-  cables. Walls mix quiet paint with washed, woven and printed feature surfaces;
+  seamless mineral finishes, regional wear and furniture-bearing area rugs, with floor outlets and routed
+  cables. Walls mix quiet paint with washed, woven and patterned wallpaper surfaces;
   metal and polymer finishes vary grain, polish, peening and roughness.
   Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow
@@ -108,6 +110,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
 - **Calibrated multi-view cameras:** configurable perspective intrinsics, including
   a 28–145° vertical FOV default distribution, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
+  Opt-in ceiling-mounted CCTV rigs use downward-facing, calibrated fisheye or
+  wide rectilinear lenses with fixture clearance and fixed poses.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional
   ARDY text/waypoint motion. Cameras and people share a capture timeline; static
   scenes do not initialize motion models. Captures include calibrated pose joints.

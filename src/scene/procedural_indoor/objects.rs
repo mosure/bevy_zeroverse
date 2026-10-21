@@ -1,5 +1,6 @@
 pub mod accessories;
 pub mod audit;
+pub mod bags;
 pub mod chairs;
 pub mod clocks;
 pub mod computers;
@@ -159,6 +160,11 @@ pub(crate) fn build_object_with_motion(
     };
     match o.kind {
         ObjectKind::CeilingFan => fans::build(&mut a, o),
+        ObjectKind::ExitSign
+        | ObjectKind::FireAlarm
+        | ObjectKind::FireDetector
+        | ObjectKind::FirePullStation
+        | ObjectKind::StringLights => equipment::signals::build(&mut a, o),
         ObjectKind::Elevator
         | ObjectKind::ServiceCounter
         | ObjectKind::DisplayCase
@@ -351,6 +357,11 @@ pub(crate) fn build_object_with_motion(
                     "{label}#finish{}",
                     super::materials::variants::object_slot(surface, o.seed, o.finish_seed)
                 )
+            } else {
+                label
+            };
+            let label = if surface == Surface::Light && super::photometry::is_emitter(o.kind) {
+                format!("{label}#source{}", o.id)
             } else {
                 label
             };

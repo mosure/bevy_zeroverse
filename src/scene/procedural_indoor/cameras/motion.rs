@@ -7,7 +7,7 @@ impl CameraSettings {
     /// Seeded Bernoulli assignment; stable when adding views or retrying placement.
     /// The fraction is a dataset probability, not a rounded count in a small rig.
     pub fn camera_moves(&self, seed: u64, index: usize) -> bool {
-        if self.motion_fraction == 0. {
+        if self.ceiling_mount.is_some() || self.motion_fraction == 0. {
             return false;
         }
         if self.motion_fraction == 1. {

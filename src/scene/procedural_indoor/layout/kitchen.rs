@@ -457,6 +457,9 @@ impl IndoorManifest {
     }
     pub(super) fn dress_kitchen_dining(&mut self, id: usize, r: &mut ChaCha8Rng) {
         let support = self.objects[id].clone();
+        if !self.clutter.active(support.seed) {
+            return;
+        }
         let mut placement_rng = stream(support.seed, 8066);
         let pattern = super::super::placement::SurfacePattern::sample(&mut placement_rng);
         for kind in [

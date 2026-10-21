@@ -70,10 +70,17 @@ pub(super) fn duct(
     seam_pitch: f32,
 ) -> Vec<Vec3> {
     let round = f.m.system == CeilingSystem::RoundDuct;
+    let mut rng = stream(f.m.seed, 0x4455435453454354);
     let radii = if round {
         Vec2::splat((f.height * 0.29).min(f.width * 0.24) * section)
     } else {
-        Vec2::new(f.height * 0.25, f.width * 0.27) * section
+        let aspect = if rng.random_bool(0.40) {
+            rng.random_range(0.93..1.07)
+        } else {
+            rng.random_range(0.45..1.85)
+        };
+        let width = (f.width * 0.27).min(f.height * 0.25 / aspect);
+        Vec2::new(width * aspect, width) * section
     };
     let scale = |t: f32| 1. - (1. - end_scale) * ((t - 0.48) / 0.24).clamp(0., 1.);
     let rings: Vec<_> = (0..=16)
@@ -107,6 +114,28 @@ pub(super) fn duct(
             .to_vec()
         };
         f.tube(a, Surface::Chrome, &outline, 0.0025, 6);
+    }
+    if round && rng.random_bool(0.75) {
+        let turns = (f.length / rng.random_range(0.18..0.40)).clamp(2., 22.);
+        let count = (turns * 18.).ceil() as usize;
+        let seam: Vec<_> = (0..=count)
+            .map(|i| {
+                let t = i as f32 / count as f32;
+                let angle = t * turns * std::f32::consts::TAU;
+                let radius = radii.x * scale(t) + 0.0005;
+                route(f, t, bend, rise) + Vec3::new(0., angle.cos() * radius, angle.sin() * radius)
+            })
+            .collect();
+        f.tube(a, Surface::Metal, &seam, 0.0012, 4);
+    } else if !round {
+        let seam: Vec<_> = (0..=16)
+            .map(|i| {
+                let t = i as f32 / 16.;
+                route(f, t, bend, rise)
+                    + Vec3::new(0., -radii.x * scale(t), radii.y * scale(t) * 0.78)
+            })
+            .collect();
+        f.tube(a, Surface::Metal, &seam, 0.0015, 4);
     }
     for i in 0..branches {
         let t = (i as f32 + 1.) / (branches as f32 + 1.);

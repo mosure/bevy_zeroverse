@@ -303,6 +303,17 @@ impl IndoorManifest {
         family: Option<u32>,
         rng: &mut ChaCha8Rng,
     ) {
+        self.chair_in_family_at_surface(pos, yaw, family, None, rng);
+    }
+
+    pub(super) fn chair_in_family_at_surface(
+        &mut self,
+        pos: Vec3,
+        yaw: f32,
+        family: Option<u32>,
+        surface: Option<usize>,
+        rng: &mut ChaCha8Rng,
+    ) {
         let height = rng.random_range(0.83..1.44);
         let yaw_jitter = if rng.random_bool(0.24) { 1.20 } else { 0.48 };
         let delta = rng.random_range(-yaw_jitter..yaw_jitter);
@@ -316,6 +327,7 @@ impl IndoorManifest {
         if let Some(family) = family {
             chair.variant = family;
         }
+        chair.interaction_target = surface;
         match chair.variant % super::super::objects::chairs::FAMILIES {
             // Tall upholstered task backs and headrests have different envelopes
             // from a dining shell or a lounge armchair.

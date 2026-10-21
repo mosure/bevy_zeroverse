@@ -1,4 +1,5 @@
 use super::*;
+use rand::seq::SliceRandom;
 
 /// Compute scene obstacles once, rather than allocating per proposal.
 pub(super) struct Reservations {
@@ -227,6 +228,9 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
         } else {
             &[CeilingSystem::SprinklerMain, CeilingSystem::Ventilation]
         };
+        let mut service_kinds = service_kinds.to_vec();
+        service_kinds.shuffle(&mut rng);
+        let lane_phase = rng.random_range(-0.18..0.18);
         for (lane, &system) in service_kinds.iter().enumerate() {
             if !rng.random_bool(if exposed { 0.85 } else { 0.65 }) {
                 continue;
@@ -247,8 +251,8 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
                     .min(extent[1 - axis] * 0.40);
             }
             let mut center = (lo + hi) * 0.5;
-            center[1 - axis] =
-                lo[1 - axis] + extent[1 - axis] * (lane as f32 + 0.5) / service_kinds.len() as f32;
+            center[1 - axis] = lo[1 - axis]
+                + extent[1 - axis] * (lane as f32 + 0.5 + lane_phase) / service_kinds.len() as f32;
             let depth = match system {
                 CeilingSystem::RoundDuct | CeilingSystem::RectangularDuct => {
                     rng.random_range(0.28..0.62)

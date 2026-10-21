@@ -340,14 +340,41 @@ pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
     positions
 }
 
+/// Actual fixture bodies and their vertical suspensions, without mesh builds.
+pub(crate) fn fixture_obstacles(scene: &IndoorManifest) -> impl Iterator<Item = (Vec3, Vec3)> + '_ {
+    fixture_positions(scene).into_iter().map(|p| {
+        let half = fixture_half_extents(scene, p) + Vec3::splat(0.015);
+        let roof = scene
+            .envelope
+            .as_ref()
+            .and_then(|e| e.mezzanine.as_ref())
+            .filter(|m| m.deck.contains(p.xz()) && p.y < m.deck.height)
+            .map_or_else(
+                || {
+                    [-1., 1.]
+                        .into_iter()
+                        .flat_map(|x| {
+                            [-1., 1.].map(|z| {
+                                scene.ceiling_height((p + half * Vec3::new(x, 0., z)).xz())
+                            })
+                        })
+                        .fold(p.y + half.y, f32::max)
+                },
+                |m| m.deck.height - m.thickness,
+            );
+        (p - half, (p + half).with_y(roof + 0.02))
+    })
+}
+
 pub fn spawn_lights(
     scene: &IndoorManifest,
     quality: super::IndoorQuality,
     root: Entity,
     commands: &mut Commands,
 ) {
-    for (i, p) in fixture_positions(scene).into_iter().enumerate() {
-        let (c, lumens) = fixture_photometry(scene, i);
+    let positions = fixture_positions(scene);
+    for (i, p) in positions.iter().copied().enumerate() {
+        let (c, lumens) = fixture_photometry_at(scene, i, &positions);
         let (inner, outer) = fixture_angles(scene, i);
         commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
@@ -371,8 +398,10 @@ pub fn spawn_lights(
                 shadow_normal_bias: SpotLight::DEFAULT_SHADOW_NORMAL_BIAS,
                 ..default()
             },
-            Transform::from_translation(fixtures::emitter(scene, p))
-                .looking_at(p - Vec3::Y, Vec3::Z),
+            Transform::from_translation(fixtures::emitter(scene, p)).looking_to(
+                fixtures::direction(scene, p),
+                fixtures::rotation(scene, p) * Vec3::Z,
+            ),
             ChildOf(root),
         ));
     }
@@ -420,8 +449,11 @@ pub fn spawn_lights(
         let mut entity = commands.spawn((
             Name::new(format!("indoor_floor_lamp_{}", lamp.id)),
             PointLight {
-                color: Color::srgb(1.0, 0.78, 0.57),
-                intensity: floor_lamp_lumens(scene, lamp.seed),
+                color: {
+                    let c = super::photometry::lamp(scene, lamp).color;
+                    Color::srgb(c.x, c.y, c.z)
+                },
+                intensity: super::photometry::lamp(scene, lamp).lumens,
                 range: 5.0,
                 radius: 0.035,
                 shadow_maps_enabled: quality.shadows(),
@@ -476,35 +508,36 @@ pub(crate) fn object_fixture_photometry(
     scene: &IndoorManifest,
     lamp: &super::layout::IndoorObject,
 ) -> (Vec3, Vec3, f32, f32, f32) {
-    let (p, c, flux, inner, outer) = if lamp.kind == ObjectKind::DeskLamp {
+    let (p, _, _, inner, outer) = if lamp.kind == ObjectKind::DeskLamp {
         super::objects::accessories::lamp_photometry(lamp)
     } else {
         super::objects::equipment::fixture_photometry(lamp)
     };
-    (
-        p,
-        c,
-        flux * scene
-            .appearance
-            .as_ref()
-            .map_or(1.0, |a| a.illumination_scale),
-        inner,
-        outer,
-    )
+    let power = super::photometry::lamp(scene, lamp);
+    (p, power.color, power.lumens, inner, outer)
 }
 
 /// Circuit-level dimming and colour temperature vary independently of placement.
 pub(crate) fn fixture_angles(scene: &IndoorManifest, index: usize) -> (f32, f32) {
-    let mut rng = stream(scene.seed, 192 + index as u64);
+    let mut rng = stream(super::photometry::lighting_seed(scene), 192 + index as u64);
     (rng.random_range(0.48..0.90), rng.random_range(1.02..1.40))
 }
 
 pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3, f32) {
-    let mut rng = stream(scene.seed, 164 + index as u64);
-    let mut kelvin = scene.light_kelvin + rng.random_range(-650.0..650.0);
-    let mut flux = fixture_lumens(scene) * rng.random_range(0.72..1.18);
+    fixture_photometry_at(scene, index, &fixture_positions(scene))
+}
+
+pub(crate) fn fixture_photometry_at(
+    scene: &IndoorManifest,
+    index: usize,
+    positions: &[Vec3],
+) -> (Vec3, f32) {
+    let mut rng = stream(super::photometry::lighting_seed(scene), 164 + index as u64);
+    let mut kelvin = scene.light_kelvin + rng.random_range(-1000.0..1000.0);
+    let mut flux =
+        fixture_lumens_for_count(scene, positions.len()) * rng.random_range(0.50_f32..1.42).sqrt();
     if let Some(d) = scene.domain() {
-        let position = fixture_positions(scene)[index];
+        let position = positions[index];
         let uv = Vec2::new(
             position.x / scene.room_size.x,
             position.z / scene.room_size.z,
@@ -519,10 +552,16 @@ pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3,
             flux *= 1.0 - d.photometry.circuit_contrast * rng.random_range(0.0..1.0);
         }
     }
-    (kelvin_rgb(kelvin.clamp(1800.0, 9000.0)), flux)
+    (
+        super::photometry::tinted_white(kelvin, rng.random_range(-0.045..0.045)),
+        flux,
+    )
 }
 
 pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {
+    fixture_lumens_for_count(scene, fixture_positions(scene).len())
+}
+fn fixture_lumens_for_count(scene: &IndoorManifest, count: usize) -> f32 {
     // Lumen-method design estimate (not a simulated lux measurement): E =
     // N*flux*utilization/area. More fixtures maintain plausible office lighting
     // as room area changes. Evening retains a slightly lower occupied level.
@@ -536,15 +575,8 @@ pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {
                     .as_ref()
                     .map_or(0., |m| (m.deck.max - m.deck.min).element_product())
         });
-    let count = (fixture_positions(scene).len() - 1) as f32;
+    let count = count.saturating_sub(1) as f32;
     (illuminance * area / (count.max(1.0) * 0.70)).clamp(0.1, 16000.0)
-}
-
-pub(crate) fn floor_lamp_lumens(scene: &IndoorManifest, seed: u64) -> f32 {
-    if scene.domain().is_none() {
-        return 800.0;
-    }
-    scene.target_lux * stream(seed, 217).random_range(0.8..2.4)
 }
 
 pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
@@ -705,8 +737,7 @@ mod lighting_tests {
             .unwrap();
         assert!(light.shadow_maps_enabled);
         assert!(Vec3::from(transform.forward()).distance(Vec3::NEG_Y) < 1e-6);
-        let (position, _, lumens, inner, outer) =
-            super::super::objects::accessories::lamp_photometry(&lamp);
+        let (position, _, lumens, inner, outer) = object_fixture_photometry(&scene, &lamp);
         assert!(transform.translation.distance(position) < 1e-6);
         assert_eq!(
             light.intensity,

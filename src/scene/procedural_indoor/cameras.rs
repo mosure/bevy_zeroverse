@@ -1,5 +1,6 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 mod baseline;
+pub mod ceiling;
 pub(crate) mod coverage;
 pub mod diagnostics;
 pub mod diversity;
@@ -21,6 +22,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
+    /// Fixed ceiling-mounted overview rig. None retains walkthrough sampling.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ceiling_mount: Option<ceiling::CeilingCameraSettings>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lenses: Option<crate::camera::lens::LensSampling>,
     pub intrinsics: intrinsics::IntrinsicsSettings,
@@ -53,6 +57,7 @@ fn principal_point_centered(v: &Vec2) -> bool {
 impl Default for CameraSettings {
     fn default() -> Self {
         Self {
+            ceiling_mount: None,
             lenses: None,
             intrinsics: default(),
             principal_point_jitter: Vec2::ZERO,
@@ -76,6 +81,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     #[derive(Deserialize)]
     #[serde(default, deny_unknown_fields)]
     struct Archived {
+        ceiling_mount: Option<ceiling::CeilingCameraSettings>,
         lenses: Option<crate::camera::lens::LensSampling>,
         intrinsics: intrinsics::IntrinsicsSettings,
         principal_point_jitter: Vec2,
@@ -95,6 +101,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         fn default() -> Self {
             let independent = CameraSettings::independent();
             Self {
+                ceiling_mount: None,
                 lenses: None,
                 intrinsics: intrinsics::IntrinsicsSettings::legacy(),
                 principal_point_jitter: Vec2::ZERO,
@@ -112,6 +119,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     }
     let archived = Archived::deserialize(deserializer)?;
     Ok(CameraSettings {
+        ceiling_mount: archived.ceiling_mount,
         lenses: archived.lenses,
         intrinsics: archived.intrinsics,
         principal_point_jitter: archived.principal_point_jitter,
@@ -148,6 +156,9 @@ impl CameraSettings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(mount) = &self.ceiling_mount {
+            mount.validate()?;
+        }
         self.intrinsics.validate()?;
         if let Some(lenses) = &self.lenses {
             lenses.validate()?;
@@ -215,6 +226,18 @@ pub struct CameraMotion {
 }
 impl IndoorCamera {
     pub fn runtime_trajectory(&self) -> TrajectorySampler {
+        if let Some(mount) = &self.ceiling_mount {
+            let pose = Transform::from_translation(self.start).with_rotation(mount.rotation);
+            return TrajectorySampler::Static {
+                start: ExtrinsicsSampler {
+                    position: ExtrinsicsSamplerType::Transform(pose),
+                    // Static sampling uses the authoritative mounted orientation,
+                    // including roll; a Y-up look-at is singular at straight down.
+                    cache: Some(pose),
+                    ..default()
+                },
+            };
+        }
         if let Some(m) = &self.motion {
             let orientation = |position, target, roll| {
                 Transform::from_translation(position)
@@ -348,6 +371,9 @@ impl IndoorManifest {
         self.primary_region().contains_projection(p.xz(), clearance)
     }
     pub fn camera_curve_clear(&self, camera: &IndoorCamera) -> bool {
+        if camera.ceiling_mount.is_some() {
+            return ceiling::mount_clear(self, camera);
+        }
         use super::layout::{segment_hits_box, CAMERA_CLEARANCE};
         let clearance = CAMERA_CLEARANCE.max(intrinsics::near_clearance(
             camera.fov_degrees,

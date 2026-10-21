@@ -120,7 +120,10 @@ impl IndoorManifest {
                 !o.neighbor
                     && matches!(
                         o.kind,
-                        ObjectKind::Sofa | ObjectKind::Desk | ObjectKind::Table
+                        ObjectKind::Sofa
+                            | ObjectKind::Desk
+                            | ObjectKind::Table
+                            | ObjectKind::CoffeeTable
                     )
             })
             .cloned()

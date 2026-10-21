@@ -109,12 +109,16 @@ impl BevyZeroverseConfig {
         }
         runtime_fields.insert("indoor_camera".into(), json!(camera));
         runtime_fields.insert("indoor_appearance".into(), json!(appearance));
+        let clutter = super::items::distribution::ClutterSettings::parse(
+            self.indoor_clutter.as_deref().unwrap_or("{}"),
+        )?;
+        runtime_fields.insert("indoor_clutter".into(), json!(clutter));
         runtime_fields.insert("human_motion".into(), json!(human_motion));
         runtime_fields.insert("indoor_motion".into(), json!(object_motion));
         let resolved = json!({
             "runtime": runtime,
             "layout":self.indoor_layout,"density":self.indoor_density,"human_density":self.indoor_human_density,
-            "camera":camera,"appearance":appearance,"human_motion":human_motion,"object_motion":object_motion,
+            "camera":camera,"appearance":appearance,"clutter":clutter,"human_motion":human_motion,"object_motion":object_motion,
             "quality":self.indoor_quality,"gpu_materials":self.indoor_gpu_materials,"gi_rays":self.indoor_gi_rays,
             "rotation_augmentation":self.rotation_augmentation,"yaw_speed":self.yaw_speed,
             "headless":self.headless,"capture":capture,"seed_policy":request.seed_policy,
@@ -297,12 +301,15 @@ pub fn generate(plan: &CapacityPlan, draw: u32) -> Result<super::layout::IndoorM
         return Err("actor-motion qualification requires completed render captures".into());
     }
     let seed = seed_at(&plan.request.seed_policy, draw);
-    let mut scene = super::layout::IndoorManifest::generate_with_humans(
+    let mut scene = super::layout::IndoorManifest::generate_with_clutter(
         seed,
         args.indoor_layout,
         args.indoor_density,
         0,
         args.indoor_human_density,
+        super::items::distribution::ClutterSettings::parse(
+            args.indoor_clutter.as_deref().unwrap_or("{}"),
+        )?,
     )?;
     if let Some(json) = args.indoor_appearance {
         scene.apply_appearance(AppearanceSettings::parse(&json)?)?;

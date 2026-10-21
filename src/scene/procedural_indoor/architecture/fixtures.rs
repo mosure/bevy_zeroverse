@@ -58,7 +58,8 @@ pub fn parameters_at(scene: &IndoorManifest, position: Vec3) -> FixtureProgram {
     let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
     let mut r = stream(scene.seed ^ key, 0x4649585441504552);
     p.opening_fraction = (p.opening_fraction + r.random_range(-0.14..0.12)).clamp(0.42, 0.93);
-    p.border_fraction *= r.random_range(0.75..1.20);
+    p.border_fraction *= r.random_range(0.65..1.35);
+    p.louver_pitch_m *= r.random_range(0.65..1.40);
     p
 }
 
@@ -106,12 +107,16 @@ fn area(p: FixtureProgram, s: Vec3) -> f32 {
 
 /// Outside the emitting aperture, shared by direct lighting and GI.
 pub fn emitter(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    position - Vec3::Y * (size(scene, position).y * 0.5 + 0.006)
+    position + direction(scene, position) * (size(scene, position).y * 0.5 + 0.006)
 }
 
 /// Seeded circuit orientation shared by mesh construction and placement audits.
 pub fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
-    Quat::from_rotation_y(super::fixture_layout::yaw(scene, position))
+    super::fixture_layout::rotation(scene, position)
+}
+
+pub fn direction(scene: &IndoorManifest, position: Vec3) -> Vec3 {
+    rotation(scene, position) * Vec3::NEG_Y
 }
 
 pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembly {
@@ -276,7 +281,7 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
         [-1., 1.].map(|sign| Vec3::X * sign * s.x * 0.32)
     };
     for offset in anchors {
-        let offset = rotation * offset;
+        let offset = rotation * (offset + Vec3::Y * s.y * 0.44);
         let roof = scene
             .envelope
             .as_ref()
@@ -287,7 +292,7 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                 |m| m.deck.height - m.thickness,
             );
         a.part(Surface::Chrome, &label).rod(
-            position + offset + Vec3::Y * s.y * 0.44,
+            position + offset,
             (position + offset).with_y(roof - 0.001),
             0.002,
         );

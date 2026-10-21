@@ -28,9 +28,15 @@ pub struct LensCamera {
     pub near: f32,
     pub far: f32,
     pub(super) face_scale: f32,
+    pub(super) regions: [URect; 6],
     pub(super) completed: Arc<AtomicU64>,
 }
 impl LensCamera {
+    /// Source rectangles in the original guarded square face raster. Useful
+    /// for diagnostics; these are not dataset intrinsics or camera indices.
+    pub fn face_regions(&self) -> &[URect; 6] {
+        &self.regions
+    }
     pub fn ready(&self, request: u64) -> bool {
         self.completed.load(Ordering::Acquire) == request
     }
@@ -43,6 +49,7 @@ impl LensCamera {
             near: 0.1,
             far: 50.,
             face_scale: 1.,
+            regions: [URect::from_corners(UVec2::ZERO, UVec2::splat(32)); 6],
             completed: Arc::default(),
         }
     }
@@ -85,6 +92,7 @@ impl Plugin for FisheyeCameraPlugin {
         );
         super::resolve::install(app);
         super::settings::install(app);
+        super::activity::install(app);
     }
 }
 
@@ -132,22 +140,10 @@ fn setup(
                     continue;
                 }
             };
-        // Bound the output angular Jacobian over the certified lens domain.
-        // Sampling only affects allocation; rendering always uses the polynomial.
-        let mut density = 1.0_f32;
-        for i in 0..=128 {
-            let t = sensor.lens.max_angle * (i as f32 / 128.);
-            let x = t * t;
-            let k = sensor.lens.coefficients;
-            let derivative =
-                1. + x * (3. * k[0] + x * (5. * k[1] + x * (7. * k[2] + x * 9. * k[3])));
-            let tangential = if t < 1e-6 {
-                1.
-            } else {
-                sensor.lens.radius(t as f64) as f32 / t.sin()
-            };
-            density = density.max(derivative).max(tangential);
-        }
+        // Bound the complete angular-to-source projection on the actual sensor.
+        // The old global angular bound omitted perspective magnification and
+        // greatly oversampled directions that never reached a full-frame sensor.
+        let density = super::raster::density(&calibration, sensor.lens);
         let requested =
             (2. * calibration.k[0][0].max(calibration.k[1][1]) * density * factor as f32).ceil();
         let limit = device
@@ -192,33 +188,39 @@ fn setup(
             continue;
         }
         let source = output.clone();
-        let mut make_face = || {
+        let face_scale = core as f32 / side as f32;
+        let regions = super::raster::regions(side, face_scale, sensor.lens.max_angle);
+        let mut make_face = |i: usize| {
             let mut image = source.clone();
             image.data = None;
             image.copy_on_resize = false;
-            image.texture_descriptor.size.width = side;
-            image.texture_descriptor.size.height = side;
+            image.texture_descriptor.size.width = regions[i].width();
+            image.texture_descriptor.size.height = regions[i].height();
+            // Bevy's HDR/postprocess chain already produces RGBA16Float. Keep
+            // those exact source values instead of expanding five intermediates
+            // to 32 bits. The calibrated resolved output remains RGBA32Float.
+            image.texture_descriptor.format = TextureFormat::Rgba16Float;
             image.texture_descriptor.usage |= TextureUsages::COPY_SRC;
             images.add(image)
         };
-        let front = make_face();
+        let front = make_face(0);
         let faces = std::array::from_fn(|i| {
             if i > 0 && i < face_count {
-                make_face()
+                make_face(i)
             } else {
                 front.clone()
             }
         });
         let (perspective, _) =
             super::super::pinhole::parameters(projection).expect("capture perspective");
-        let face_scale = core as f32 / side as f32;
-        let projection = Projection::Perspective(PerspectiveProjection {
+        let (near, far) = (perspective.near, perspective.far);
+        let perspective = PerspectiveProjection {
             fov: 2. * (1. / face_scale).atan(),
             aspect_ratio: 1.,
             near: perspective.near * face_scale / 3_f32.sqrt(),
             far: perspective.far,
             ..default()
-        });
+        };
         for (i, rotation) in orientations()
             .into_iter()
             .enumerate()
@@ -235,9 +237,15 @@ fn setup(
                 RenderTarget::Image(ImageRenderTarget::from(faces[i].clone())),
                 Hdr,
                 Exposure::INDOOR,
-                projection.clone(),
+                Projection::custom(super::raster::FaceProjection {
+                    perspective: perspective.clone(),
+                    region: regions[i],
+                    full_side: side,
+                }),
                 Transform::from_rotation(rotation),
-                bevy::core_pipeline::prepass::MotionVectorPrepass,
+                // Numeric angular flow uses exact surface correspondence. The
+                // internal RGB faces have no motion-vector consumer; temporal
+                // effects added explicitly still install their required passes.
                 crate::render::RenderMode::Color.msaa(),
                 crate::render::RenderMode::Color.tonemapping(),
                 crate::render::RenderMode::Color.dither(),
@@ -259,12 +267,13 @@ fn setup(
                 calibration,
                 output: target.handle.clone(),
                 faces: faces.clone(),
-                near: perspective.near,
-                far: perspective.far,
+                near,
+                far,
                 face_scale,
+                regions,
                 completed: Arc::default(),
             },
-            projection,
+            Projection::Perspective(perspective),
             RenderTarget::Image(ImageRenderTarget::from(faces[0].clone())),
         ));
     }
@@ -272,6 +281,7 @@ fn setup(
 
 #[allow(clippy::type_complexity)]
 fn sync(
+    mode: Res<crate::render::RenderMode>,
     parents: Query<&Camera, (With<LensCamera>, Without<LensFace>)>,
     mut faces: Query<(&LensFace, &mut Camera), Without<LensCamera>>,
     mut geometry: Query<(
@@ -281,8 +291,11 @@ fn sync(
 ) {
     for (face, mut camera) in &mut faces {
         if let Ok(parent) = parents.get(face.owner) {
-            if camera.is_active != parent.is_active {
-                camera.is_active = parent.is_active;
+            // Exact angular annotations trace their own rays from the logical
+            // view. None of the side RGB rasters contribute to these targets.
+            let active = parent.is_active && *mode == crate::render::RenderMode::Color;
+            if camera.is_active != active {
+                camera.is_active = active;
             }
             use bevy::camera::ClearColorConfig;
             let same_clear = match (camera.clear_color, parent.clear_color) {
@@ -299,9 +312,14 @@ fn sync(
         }
     }
     for (lens, mut gt) in &mut geometry {
-        gt.calibration = Some(lens.calibration.clone());
-        gt.near = lens.near;
-        gt.far = lens.far;
+        if gt.calibration.as_ref() != Some(&lens.calibration)
+            || gt.near != lens.near
+            || gt.far != lens.far
+        {
+            gt.calibration = Some(lens.calibration.clone());
+            gt.near = lens.near;
+            gt.far = lens.far;
+        }
     }
 }
 
@@ -315,6 +333,7 @@ fn preview(
     cameras: Query<(
         Entity,
         &LensCamera,
+        &Camera,
         Has<crate::render::ground_truth::GroundTruthCamera>,
         Option<&crate::io::image_copy::ImageCopier>,
     )>,
@@ -322,7 +341,7 @@ fn preview(
     mut frame: Local<u64>,
 ) {
     *frame = frame.wrapping_add(1).max(1);
-    for (entity, lens, gt, capture) in &cameras {
+    for (entity, lens, camera, gt, capture) in &cameras {
         if capture.is_some() && gt && !geometry.contains(entity) {
             continue;
         }
@@ -334,7 +353,7 @@ fn preview(
             }
             continue;
         }
-        if !gt && *mode != crate::render::RenderMode::CoVisibility {
+        if !gt && camera.is_active && *mode != crate::render::RenderMode::CoVisibility {
             let mut gt = crate::render::ground_truth::GroundTruthCamera::new(
                 &mut images,
                 UVec2::from_array(lens.calibration.image_size),
@@ -349,16 +368,59 @@ fn preview(
             commands.entity(entity).insert((gt, LensPreview));
         }
     }
-    for (entity, _, _, copier) in &cameras {
+    for (entity, _, camera, _, copier) in &cameras {
         let Ok(mut gt) = geometry.get_mut(entity) else {
             continue;
         };
-        gt.frame_id = copier.map_or(*frame, |c| c.requested_id());
+        gt.frame_id = if camera.is_active {
+            copier.map_or(*frame, |c| c.requested_id())
+        } else {
+            0
+        };
         if mode.is_flow() && gt.flow.is_none() {
             gt.enable_flow(&mut images);
         }
         if !mode.is_flow() {
             gt.flow = None;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn side_views_follow_rgb_demand_and_do_not_render_annotations_or_hidden_grids() {
+        use crate::render::RenderMode;
+        let mut app = App::new();
+        app.insert_resource(RenderMode::Color)
+            .add_systems(Update, sync);
+        let owner = app
+            .world_mut()
+            .spawn((LensCamera::test_camera(), Camera::default()))
+            .id();
+        let face = app
+            .world_mut()
+            .spawn((LensFace { owner }, Camera::default()))
+            .id();
+        for (mode, enabled, expected) in [
+            (RenderMode::Color, true, true),
+            (RenderMode::Depth, true, false),
+            (RenderMode::Normal, true, false),
+            (RenderMode::Semantic, true, false),
+            (RenderMode::Position, true, false),
+            (RenderMode::CoVisibility, true, false),
+            (RenderMode::OpticalFlow, true, false),
+            (RenderMode::Color, false, false),
+            (RenderMode::Color, true, true),
+        ] {
+            app.insert_resource(mode);
+            app.world_mut().get_mut::<Camera>(owner).unwrap().is_active = enabled;
+            app.update();
+            assert_eq!(app.world().get::<Camera>(face).unwrap().is_active, expected);
+        }
+        app.world_mut().despawn(owner);
+        app.update();
+        assert!(!app.world().get::<Camera>(face).unwrap().is_active);
     }
 }

@@ -200,9 +200,13 @@ impl Coverage {
                 label,
             })
         };
-        for (lo, hi) in scene.camera_obstacles() {
+        for (lo, hi) in scene.structural_obstacles() {
             bounds(lo, hi, "wall");
         }
+        // Fine ceiling fixtures retain their separate lens/body clearance
+        // checks. Their reservation boxes contain open rings, louvres and air
+        // around suspension wires; treating these as opaque would bias this
+        // coarse proposal oracle. Rendered overlap is measured independently.
         if scene.envelope.is_none() {
             let half = scene.room_size * 0.5;
             for axis in [0, 2] {
@@ -232,15 +236,21 @@ impl Coverage {
             bounds(lo, hi, "person");
         }
         for o in scene.objects.iter().filter(|o| !o.neighbor) {
-            if o.kind == super::super::layout::ObjectKind::Cable {
-                // A hanging lead bounds a large empty volume. Only its jacket
-                // occludes geometry; its overall AABB is not a solid object.
+            if matches!(
+                o.kind,
+                super::super::layout::ObjectKind::Cable
+                    | super::super::layout::ObjectKind::StringLights
+                    | super::super::layout::ObjectKind::CeilingFan
+            ) {
+                // Leads, suspended strands and fans contain large empty
+                // volumes. Trace their component reservations, not a solid box
+                // around the installation, especially for ceiling cameras.
                 for (lo, hi) in o.obstacle_bounds() {
                     colliders.push(Collider {
                         center: (lo + hi) * 0.5,
                         half: (hi - lo) * 0.5,
                         inverse: Quat::IDENTITY,
-                        label: "cable",
+                        label: o.kind.class_name(),
                     });
                 }
                 continue;
@@ -567,6 +577,7 @@ mod tests {
         )
         .unwrap();
         let wall_view = IndoorCamera {
+            ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,
             start: Vec3::new(0.0, 1.5, 0.0),

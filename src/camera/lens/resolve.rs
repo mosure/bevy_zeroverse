@@ -19,6 +19,7 @@ pub(crate) struct LensResolveLabel;
 struct Uniform {
     lens: [[f32; 4]; 4],
     views: [[[f32; 4]; 4]; 6],
+    regions: [[f32; 4]; 6],
     control: [f32; 4],
     bounds_min: [f32; 4],
     bounds_max: [f32; 4],
@@ -177,6 +178,9 @@ fn prepare(
         .bindings
         .retain(|key, _| jobs.0.iter().any(|j| j.lens.output.id() == *key));
     for job in &jobs.0 {
+        if !job.active {
+            continue;
+        }
         let Some(faces) = job
             .lens
             .faces
@@ -236,6 +240,14 @@ fn prepare(
         let uniform = Uniform {
             lens: calibration.shader_parameters(),
             views: orientations().map(|r| Mat4::from_quat(r.inverse()).to_cols_array_2d()),
+            regions: job.lens.regions.map(|r| {
+                [
+                    r.min.x as f32,
+                    r.min.y as f32,
+                    r.max.x as f32,
+                    r.max.y as f32,
+                ]
+            }),
             control: [
                 job.lens.face_scale,
                 job.mode as f32,

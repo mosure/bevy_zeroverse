@@ -6,6 +6,59 @@ seed streams are independent of furniture, lighting, cameras and human poses.
 These surface changes do not move vertices or change semantic labels. Relief
 remains a normal-map effect, not displaced annotation geometry.
 
+## Construction and finish sampling
+
+Each supported substrate samples four correlated construction regions with
+continuous blend weights, physical feature scale and finish variation. The
+regions guide the existing physical fields; they are not four fixed textures.
+Texture phase, pigment, weave topology, installation, cut and wear parameters
+retain their independent seeded variation.
+
+Blend concentration also varies continuously, filling the intermediate finishes
+between the poles. Selected substrate controls retain a 20% independent seeded
+residual around the prior, rather than collapsing many physical controls onto
+the mixture weights. This keeps within-process variation alongside the wider
+between-process range.
+
+| Substrate | Construction regions |
+| --- | --- |
+| Woven/knitted cloth | linen-like weave, twill, chenille pile, loop knit |
+| Leather | aniline, pebbled, nubuck, sealed hide |
+| Timber and timber floors | fine veneer/grain, open pores, limed/washed stock, dark/sealed finish |
+| Paint and ceilings | rolled film, orange peel, knockdown, trowelled plaster |
+| Accent walls | mineral wash, longitudinal fibers, woven covering, printed covering |
+| Ceramics | porcelain, speckled stoneware, reactive glaze, crazed glaze |
+| Concrete | smooth cast, board formed, trowelled, ground aggregate |
+| Mineral floors | honed stone, exposed aggregate, veined stone, polished mineral |
+| Carpet and rug pile | heather, striated pile, modular weave, dense felt |
+| Chrome/alloy | mirror polish, satin, directional brushing, bead blasting |
+| Coated metal | fine film, peened coating, directional satin, powder coat |
+| Plastic/rubber/paper | category-specific gloss, grain, grip, porosity and fiber finishes |
+| Foliage, soil, terracotta and bark | category-specific wax, bloom, venation, inclusions, pores and fissure scales |
+
+Correlations keep finishes physically plausible: leather nap suppresses coating,
+filled timber pores accompany sealed finishes, polishing reduces mineral relief,
+and leaf wax reduces transmission. Texture scale is in metres; changing it does
+not allocate a higher-resolution map. The textile sampler retains repeat lengths
+2–7, bundles 1–3, arbitrary valid over/under shifts and herringbone variation
+inside the construction regions. Rug composition, borders and palette remain
+independent of pile finish.
+
+`materials::construction::ConstructionSample` records four normalized weights,
+a scale multiplier and a variation factor. `construction::apply` validates an
+authored sample and resolves it transactionally into a `MaterialRecipe`.
+`construction::recipe_labels` describes the category-specific poles, including
+the separate rug-pile interpretation. Recipes serialize
+both this sampling provenance and the resolved fields; the resolved fields are
+authoritative for replay. Removing provenance does not change an archived
+recipe's texels. Previously archived recipes without the field retain their
+evaluators. Material-detail interventions, including zero relief, remain honored.
+
+This expansion does not alter glass optics, screen/art content, emissive
+surfaces or skin/hair programs. Their existing samplers remain separate. Four
+conditioned construction alternatives is a concrete sampling target; it does not
+establish four times the perceptual or effective training-dataset size.
+
 ## Floors
 
 Timber installations include straight lanes, broken bond, basket parquet,
@@ -63,12 +116,32 @@ changing the layout. GPU recipe uniforms grow by seven vec4 values (112 bytes);
 texture and scratch-buffer sizes do not grow. Existing serialized recipes can
 omit all new optional fields and retain their original evaluators.
 
+Construction priors resolve once into those existing fields. They add no WGSL
+branches, map resolutions, texture slots or draw calls. Lazy per-room structure
+groups, twelve object finish slots and four rug slots retain their budgets.
+
 Capture manifests contain the full recipes. Dataset metrics additionally record
 floor-installation counts, piece variation, wall component strengths and
 manufactured surface scales. Counts of parameters, seeds or exact hashes are
 not estimates of perceptual dataset size or training utility.
 
 ## Verification
+
+`cargo test --lib construction_map_qualification -- --ignored --nocapture`
+writes `out/material_expansion/study/`. It checks four conditioned map triplets
+per supported role/floor type plus rugs, every mip, exact replay and 128-seed
+descriptor distributions against the unconditioned sampler. The report states
+the descriptor, physical bin widths and sampling horizon. Exact hashes establish
+determinism; bin occupancy is a diagnostic, not a learned visual-distance metric.
+
+`review_materials` accepts `--construction=0..3` to capture each physical pole
+with identical seed, lights, geometry and camera. Combine it with
+`--surfaces=Fabric,Leather,Wood,Ceramic,Concrete,Chrome` and `--close-up` for
+production PBR inspection. Use `--floor-style=0..2` for floor treatments.
+Construction overrides cannot be combined with `--variant`, which resamples
+the structure. GPU parity qualification covers all four process poles at the
+authored physical-scale extremes, using the existing strict map/mip
+tolerances.
 
 The ignored Rust test `surface_space_qualification` writes a private report and
 gallery to `out/material_diversity/`. It validates 896 recipes across 14 roles,
@@ -77,19 +150,32 @@ for exact replay. Tests check tessellation coverage, wrapping, metric joint
 distances, legacy deserialization, scalar/prepared agreement, shader parsing,
 GPU uniform mapping, and safe unsupported-program fallback.
 
-The current CPU qualification passes 202 material, envelope, architecture,
-appearance and metrics tests, plus the map study. A 32-room wall-assignment
-check confines coverings to inward wall faces; eight of those rooms also compare
-every triangle's position, normal, UV and semantic label against the same room
-without feature-wall assignment. Strict workspace Clippy and the WASM library
-build with web/human-motion features pass. These are CPU/compiler checks, not
-hardware rendering qualification.
+The local construction qualification passes 156 material-related tests and two
+appearance tests. The map study checks 104 conditioned triplets across 26
+role/floor/rug cases, plus 26 reference triplets and 26 exact replays. A 32-room
+wall-assignment check confines coverings to inward wall faces; eight of those
+rooms also compare every triangle's position, normal, UV and semantic label
+against the same room without feature-wall assignment. Strict library/test/review
+example Clippy and the WASM library build with web/human-motion features pass.
+
+Native Vulkan qualification on an RTX PRO 6000 Blackwell compares 188 recipes
+across all base maps and mip levels against the CPU oracle: maximum error is
+three encoded byte levels and maximum per-map/mip RMSE is 0.25 byte levels.
+The paired CPU/GPU PBR minification check also passes. A separate 32-view PBR
+gallery holds geometry, camera and key/fill parameters fixed while varying
+construction, and checks finite normal exports. The production reflection
+environment responds to room surface changes; it is not a fixed external HDRI.
+These bounded native checks ran alongside training, without a renderer pool or
+additional model loading. They are not a completed-room throughput benchmark or
+a Chrome/Metal runtime qualification.
 
 Gallery rows show actual albedo, normals and roughness, followed by a fixed CPU
 GGX lighting diagnostic. That diagnostic omits scene illumination, reflections,
 clearcoat and anisotropy. It cannot establish rendered scene realism. CPU map
 timings exclude rendering, readback and training; they are not generation
-throughput measurements. Hardware GPU parity, browser runtime, rendered
-annotation equality and concurrent-training throughput require a separate
-qualification window. The WebGPU fixture exporter includes isolated wall
-components for that check. No local study artifacts are published automatically.
+throughput measurements. Browser runtime, full-room annotation equality and
+concurrent-training throughput require separate qualification. The WebGPU
+fixture exporter includes isolated wall components for that check. Texture
+budgets are unchanged, but sampling different existing substrate programs can
+change synthesis cost, particularly knitted versus woven cloth on CPU.
+No local study artifacts are published automatically.

@@ -3,6 +3,7 @@
 //! they do not bake illumination into base color. CPU and GPU evaluate once.
 use super::{periodic_noise, program::MaterialRecipe, Surface};
 use crate::scene::procedural_indoor::layout::stream;
+use bevy::prelude::Vec2;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +60,9 @@ pub(crate) fn feature_edges(
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WallFinish {
+    /// Stripes, diamond lattice, staggered oval, ogee, and leaf silhouettes.
+    #[serde(default)]
+    pub print_style: u32,
     /// Limewash, longitudinal fibers, cross weave and printed bands.
     pub weights: [f32; 4],
     pub fiber_cells: [u32; 2],
@@ -125,6 +129,7 @@ impl WallFinish {
         let tint = rng.random_range(0.40_f32..0.88);
         let warmth = rng.random_range(-0.18..0.20);
         Some(Self {
+            print_style: stream(seed, 0x57414c4c4d4f5449).random_range(0..5),
             weights,
             fiber_cells: [rng.random_range(28..=80), rng.random_range(24..=72)],
             bands: rng.random_range(2..=9),
@@ -154,6 +159,7 @@ impl WallFinish {
             .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
             || self.weights.iter().sum::<f32>() > 1.001
             || self.fiber_cells.iter().any(|n| !(4..=96).contains(n))
+            || self.print_style > 4
             || !(1..=16).contains(&self.bands)
             || !self.relief_m.is_finite()
             || !(0.0..=0.001).contains(&self.relief_m)
@@ -175,8 +181,20 @@ impl WallFinish {
         let wash = cloud * 0.70 + n(p, 9, 11, 727) * 0.30;
         let at = (uv[0] * self.bands as f32 + warp).rem_euclid(1.);
         let aa = self.bands as f32 / r.map_size(0) as f32;
-        let stripe =
-            super::field::smooth((self.band_duty * 0.5 + aa - (at - 0.5).abs()) / (2. * aa));
+        let y = (uv[1] * self.bands as f32 + warp * 0.5).rem_euclid(1.);
+        let x = at - 0.5;
+        let y = y - 0.5;
+        let distance = match self.print_style {
+            1 => ((x.abs() + y.abs()) - 0.5).abs(),
+            2 => (Vec2::new(x * 0.85, y * 1.3).length() - 0.25).abs(),
+            3 => (x.abs() - (0.13 + 0.55 * (0.5 - y.abs()).powi(2))).abs(),
+            4 => {
+                let u = x + y * 0.38;
+                (u * u * 5. + y * y * 1.7).sqrt()
+            }
+            _ => x.abs(),
+        };
+        let stripe = super::field::smooth((self.band_duty * 0.5 + aa - distance) / (2. * aa));
         let [wash_w, fiber_w, weave_w, print_w] = self.weights;
         let woven = (long * 0.65 + cross * 0.35) * (0.85 + long * cross * 0.30);
         let pigment = ((wash - 0.5) * wash_w + (long - 0.5) * fiber_w + (woven - 0.5) * weave_w)

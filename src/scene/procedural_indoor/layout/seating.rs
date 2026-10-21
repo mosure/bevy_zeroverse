@@ -6,6 +6,19 @@ use super::super::{
 };
 use super::*;
 
+/// Pair-specific clearance is symmetric, including when a later floor detail
+/// is inserted beside furniture that has already been admitted.
+pub(super) fn furniture_margin(a: &IndoorObject, b: &IndoorObject, margin: f32) -> f32 {
+    if super::super::objects::kitchen::is_island(a) || super::super::objects::kitchen::is_island(b)
+    {
+        margin.max(0.90)
+    } else if a.kind == ObjectKind::Plant || b.kind == ObjectKind::Plant {
+        margin.max(0.06)
+    } else {
+        margin
+    }
+}
+
 pub(crate) fn furniture_overlap(a: &IndoorObject, b: &IndoorObject, margin: f32) -> bool {
     let (lo, hi) = a.bounds();
     let (bl, bh) = b.bounds();
@@ -99,10 +112,19 @@ impl IndoorManifest {
             };
             let movement = delta / distance * (distance + 0.15) * depth;
             let desired_yaw = (-delta.x).atan2(-delta.z);
-            let turn = (desired_yaw - chair.yaw)
-                .sin()
-                .atan2((desired_yaw - chair.yaw).cos())
-                * rng.random_range(0.45..0.95);
+            // Meeting seats already have clearance-tested swivel variation.
+            // Pulling them toward the nearest edge must not straighten that
+            // variation away. An angled chair can stop farther from the top;
+            // the same transaction checks its occupant, screens and neighbours.
+            // Desks retain their task-oriented working posture adjustment.
+            let turn = if table.kind == ObjectKind::Table {
+                0.
+            } else {
+                (desired_yaw - chair.yaw)
+                    .sin()
+                    .atan2((desired_yaw - chair.yaw).cos())
+                    * rng.random_range(0.45..0.95)
+            };
             let screens: Vec<_> = self
                 .objects
                 .iter()

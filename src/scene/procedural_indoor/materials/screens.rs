@@ -26,8 +26,19 @@ pub fn parameters_for(seed: u64, kind: DisplayKind) -> ScreenProgram {
     device_parameters(device_seed(seed, kind), kind)
 }
 fn device_parameters(seed: u64, kind: DisplayKind) -> ScreenProgram {
-    let mut p = parameters(seed);
+    let mut p = base_parameters(seed);
     let mut rng = stream(seed, 0x4445564943455549);
+    let mut output = stream(seed, 0x444953504f555450);
+    let (lo, hi): (f32, f32) = if output.random_bool(0.80) {
+        (80., 350.)
+    } else {
+        match kind {
+            DisplayKind::Desktop => (8., 550.),
+            DisplayKind::Phone => (3., 1100.),
+            DisplayKind::Television => (12., 800.),
+        }
+    };
+    p.luminance = output.random_range(lo.ln()..hi.ln()).exp();
     if !matches!(kind, DisplayKind::Desktop) {
         p.full_bleed = rng.random_bool(match kind {
             DisplayKind::Phone => 0.24,
@@ -80,6 +91,8 @@ pub struct ScreenProgram {
     pub dark: bool,
     /// cd/m² of a white pixel. Content texture modulates this emission.
     pub luminance: f32,
+    pub white_kelvin: f32,
+    pub white_tint: f32,
     pub dormant: bool,
     pub sidebar: f32,
     pub content_split: f32,
@@ -96,6 +109,9 @@ pub struct ScreenProgram {
     pub text_scale: i32,
 }
 pub fn parameters(seed: u64) -> ScreenProgram {
+    device_parameters(seed, DisplayKind::Desktop)
+}
+fn base_parameters(seed: u64) -> ScreenProgram {
     let mut rng = stream(seed, 861);
     let mut layout = stream(seed, 0x444953504c4159);
     let chrome = layout.random_range(0..4);
@@ -112,6 +128,12 @@ pub fn parameters(seed: u64) -> ScreenProgram {
     };
     let count = layout.random_range(1..=6);
     let mut palette = stream(seed, 0x50414c45545445);
+    let mut output = stream(seed, 0x53435245454e4c54);
+    let white_kelvin = if output.random_bool(0.25) {
+        output.random_range(2700.0..5800.0)
+    } else {
+        output.random_range(5600.0..9000.0)
+    };
     ScreenProgram {
         composition: composition::Composition::sample(
             seed,
@@ -126,7 +148,12 @@ pub fn parameters(seed: u64) -> ScreenProgram {
         layout: rng.random_range(0..LAYOUTS),
         minutes: rng.random_range(0..1440),
         dark: rng.random_bool(0.55),
+        // Preserve the content RNG stream when changing only output photometry.
+        // The device output distribution resolves this field below. Keep this
+        // f32 draw here so appearance changes do not reshuffle content/dormancy.
         luminance: rng.random_range(65.0..280.0),
+        white_kelvin,
+        white_tint: output.random_range(-0.025..0.025),
         dormant: rng.random_bool(0.12),
         sidebar: rng.random_range(0.065..0.25),
         content_split: rng.random_range(0.30..0.74),
@@ -196,13 +223,13 @@ pub(super) struct PreparedScreen {
     roughness: Option<Image>,
     color: Image,
     dormant: bool,
-    luminance: f32,
+    emission: LinearRgba,
 }
 
 pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
     let seed = device_seed(seed, kind);
     let pixels = device_pixels(seed, kind);
-    let p = parameters(seed);
+    let p = device_parameters(seed, kind);
     let roughness = p.finish.prepare(seed, false, &pixels);
     let mut screen = mip_image(pixels, 256, MapType::Color);
     screen.sampler = ImageSampler::linear();
@@ -211,7 +238,11 @@ pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
         roughness,
         color: screen,
         dormant: p.dormant,
-        luminance: p.luminance,
+        emission: super::super::photometry::display_emission(
+            if p.dormant { 0. } else { p.luminance },
+            p.white_kelvin,
+            p.white_tint,
+        ),
     }
 }
 
@@ -222,8 +253,7 @@ impl PreparedScreen {
         mat.base_color = Color::WHITE;
         mat.base_color_texture = Some(texture.clone());
         mat.emissive_texture = if self.dormant { None } else { Some(texture) };
-        let brightness = if self.dormant { 0. } else { self.luminance };
-        mat.emissive = LinearRgba::new(brightness, brightness, brightness, 1.);
+        mat.emissive = self.emission;
         mat.emissive_exposure_weight = 1.;
         mat.metallic = 0.;
         mat.uv_transform = bevy::math::Affine2::IDENTITY;
@@ -884,8 +914,12 @@ mod tests {
             let mut material = StandardMaterial::default();
             apply(seed, false, &mut material, &mut images);
             assert_eq!(
-                material.emissive.red,
-                if p.dormant { 0. } else { p.luminance }
+                material.emissive,
+                super::super::super::photometry::display_emission(
+                    if p.dormant { 0. } else { p.luminance },
+                    p.white_kelvin,
+                    p.white_tint
+                )
             );
             assert_eq!(material.emissive_texture.is_none(), p.dormant);
             assert_eq!(material.metallic, 0.);
@@ -946,7 +980,14 @@ mod tests {
                     .get(mat.base_color_texture.as_ref().unwrap())
                     .unwrap();
                 assert_eq!(&image.data.as_ref().unwrap()[..256 * 256 * 4], &expected);
-                assert_eq!(mat.emissive.red, if p.dormant { 0. } else { p.luminance });
+                assert_eq!(
+                    mat.emissive,
+                    super::super::super::photometry::display_emission(
+                        if p.dormant { 0. } else { p.luminance },
+                        p.white_kelvin,
+                        p.white_tint
+                    )
+                );
                 assert_eq!(mat.clearcoat, p.finish.clearcoat);
                 assert_eq!(mat.emissive_texture.is_none(), p.dormant);
             }

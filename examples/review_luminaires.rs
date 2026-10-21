@@ -92,7 +92,8 @@ fn main() -> Result<()> {
         let mut assembly = Assembly::default();
         let mut seen = BTreeSet::new();
         for seed in 0..96 {
-            let o = audit::fixture(kind, seed);
+            let mut o = audit::fixture(kind, seed);
+            o.id = scene.objects.len();
             let shape = if kind == ObjectKind::FloorLamp {
                 objects::luminaires::parameters(seed).shape
             } else {
@@ -104,8 +105,10 @@ fn main() -> Result<()> {
             let x = (seen.len() as f32 - (count as f32 + 1.) * 0.5) * spacing;
             merge(&mut assembly, objects::build_object(&o), Vec3::X * x);
             records.push(
-                serde_json::json!({"group":group, "seed":seed, "program":audit::program(&o)}),
+                serde_json::json!({"group":group, "seed":seed, "program":audit::program(&o),
+                    "source": bevy_zeroverse::scene::procedural_indoor::photometry::lamp(&scene, &o)}),
             );
+            scene.objects.push(o);
             if seen.len() == count {
                 break;
             }
@@ -132,6 +135,8 @@ fn main() -> Result<()> {
     for (name, system) in [
         ("coffers", CeilingSystem::Coffers),
         ("vents", CeilingSystem::Ventilation),
+        ("round_ducts", CeilingSystem::RoundDuct),
+        ("square_ducts", CeilingSystem::RectangularDuct),
     ] {
         let mut a = Assembly::default();
         let mut n = 0;
@@ -191,7 +196,10 @@ fn main() -> Result<()> {
         cases.push(("tray", a, Vec3::new(0., -4.5, 7.5), Vec3::ZERO));
         break;
     }
-    ensure!(cases.len() == 6, "missing tray ceiling review");
+    ensure!(
+        cases.iter().any(|c| c.0 == "tray"),
+        "missing tray ceiling review"
+    );
     let budgets: Vec<_> = cases.iter().map(|(name,a,_,_)| serde_json::json!({
         "group":name,"triangles":a.parts.values().map(|g|g.indices.len()/3).sum::<usize>(),"material_batches":a.parts.len()
     })).collect();
@@ -344,7 +352,10 @@ fn main() -> Result<()> {
                     && values.iter().all(|x| x.is_finite()),
                 "invalid {name}/{mode}"
             );
-            let expected = if matches!(*name, "coffers" | "vents" | "tray") {
+            let expected = if matches!(
+                *name,
+                "coffers" | "vents" | "tray" | "round_ducts" | "square_ducts"
+            ) {
                 SemanticLabel::Ceiling
             } else {
                 SemanticLabel::Lamp

@@ -33,7 +33,10 @@ fn special_parts(surface: &str, row: &Value) -> Result<u64> {
         ensure!(
             matches!(
                 (surface, slot.as_str()),
-                ("Ceramic", "100" | "101" | "102") | ("Terracotta", "103") | ("Paper", "104")
+                ("Ceramic", "100" | "101" | "102")
+                    | ("Terracotta", "103")
+                    | ("Paper", "104")
+                    | ("Plastic" | "Metal", "300" | "301" | "302" | "303" | "304")
             ),
             "unregistered special finish {surface}/{slot}"
         );
@@ -442,8 +445,18 @@ mod tests {
             special_parts("Ceramic", &json!({"special_slots":{"100":2,"102":4}})).unwrap(),
             6
         );
+        assert_eq!(
+            special_parts("Plastic", &json!({"special_slots":{"300":2,"301":3}})).unwrap(),
+            5
+        );
+        assert_eq!(
+            special_parts("Metal", &json!({"special_slots":{"304":1}})).unwrap(),
+            1
+        );
         for (surface, slots) in [
             ("Metal", json!({"104":1})),
+            ("Metal", json!({"305":1})),
+            ("Wood", json!({"300":1})),
             ("Paper", json!({"100":1})),
             ("Paper", json!({"105":1})),
             ("Paper", json!({"104":0})),

@@ -177,6 +177,7 @@ mod tests {
             anisotropy: 1.1,
         };
         let camera = super::super::super::layout::IndoorCamera {
+            ceiling_mount: None,
             fisheye: Some(sensor),
             principal_point_offset: None,
             start: Vec3::ZERO,
@@ -204,6 +205,7 @@ mod tests {
         scene.camera_settings.multiview = None;
         let position = Vec3::new(0., scene.floor_height(Vec2::ZERO) + 1.4, 0.);
         scene.cameras = vec![IndoorCamera {
+            ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,
             start: position,

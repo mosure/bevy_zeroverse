@@ -1,6 +1,6 @@
 //! Small equipment with independently sampled proportions and real mechanisms.
 use super::*;
-mod lamps;
+pub(crate) mod lamps;
 pub use lamps::{lamp_parameters, TaskLampProgram};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -71,7 +71,29 @@ fn speaker(a: &mut Assembly, o: &IndoorObject, p: &AccessoryProgram) {
         p.profile_roundness,
         Transform::IDENTITY,
     );
-    if p.style < 2 {
+    if s.x > s.y * 2.0 || s.y > s.x * 2.5 {
+        let horizontal = s.x > s.y;
+        let length = if horizontal { s.x } else { s.y };
+        let diameter = if horizontal { s.y } else { s.x } * 0.64 * p.body_taper.min(1.);
+        let count = (length / (diameter * 1.5)).floor().clamp(2., 8.) as usize;
+        for i in 0..count {
+            let t = (i as f32 + 0.5) / count as f32;
+            let c = if horizontal {
+                Vec3::new((t - 0.5) * s.x * 0.84, s.y * 0.5, s.z * 0.46)
+            } else {
+                Vec3::new(0., s.y * (0.08 + t * 0.84), s.z * 0.46)
+            };
+            a.part(Surface::Rubber, label).cylinder(
+                diameter * 0.5,
+                s.z * 0.04,
+                Transform::from_translation(c).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
+            );
+            a.part(Surface::Fabric, label).ellipsoid(
+                Vec3::new(diameter * 0.40, diameter * 0.40, s.z * 0.015),
+                Transform::from_translation(c + Vec3::Z * s.z * 0.025),
+            );
+        }
+    } else if p.style < 2 {
         let clearance = s.y * 0.012;
         let centers = [s.y * 0.34, s.y * 0.78];
         let mut radii = [p.control_fraction.min(0.36), p.support_fraction.min(0.18)]

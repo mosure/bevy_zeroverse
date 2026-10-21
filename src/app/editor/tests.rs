@@ -25,6 +25,50 @@ fn decode_query(query: &str) -> impl Iterator<Item = (String, String)> + '_ {
 }
 
 #[test]
+fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..default()
+    };
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::Cameras;
+    let applied = state.applied.clone();
+    let lenses = state.draft["indoor_camera"]["lenses"].clone();
+    let intrinsics = state.draft["indoor_camera"]["intrinsics"].clone();
+    assert!(edit(&mut state, "@ceiling_mount", json!(true)).unwrap());
+    assert_eq!(value(&state, "@fisheye_probability"), json!(1.));
+    let query = share::query(&state.config().unwrap(), &state.view);
+    assert!(decode_query(&query).any(|(key, v)| key == "camera.ceiling_mount" && v == "{}"));
+    for (path, v) in [
+        ("@fisheye_probability", json!(0.8)),
+        ("@lens_bias", json!(0.3)),
+        ("/indoor_camera/ceiling_mount/standoff_m/1", json!(0.35)),
+    ] {
+        assert!(!edit(&mut state, path, v).unwrap());
+    }
+    assert_eq!(state.applied, applied);
+    assert_eq!(state.draft["indoor_camera"]["lenses"], lenses);
+    assert_eq!(state.draft["indoor_camera"]["intrinsics"], intrinsics);
+    let fields = fields::items(&state);
+    assert!(!fields
+        .iter()
+        .any(|i| matches!(i, fields::Item::Field(f) if f.path == "@camera_motion_percent")));
+    assert!(fields.iter().any(|i| matches!(i, fields::Item::Field(f) if f.path == "/indoor_camera/ceiling_mount/lenses/fov_degrees/0")));
+    let query = share::query(&state.config().unwrap(), &state.view);
+    let parsed =
+        super::super::config_with_query(BevyZeroverseConfig::default(), decode_query(&query))
+            .unwrap();
+    let p = CameraSettings::parse(parsed.indoor_camera.as_deref().unwrap()).unwrap();
+    let ceiling = p.ceiling_mount.unwrap();
+    assert_eq!(ceiling.lenses.probability, 0.8);
+    assert_eq!(ceiling.intrinsics.bias, 0.3);
+    assert_eq!(ceiling.standoff_m, [0.12, 0.35]);
+    edit(&mut state, "@ceiling_mount", json!(false)).unwrap();
+    assert_eq!(state.draft["indoor_camera"]["lenses"], lenses);
+    assert_eq!(state.draft["indoor_camera"]["intrinsics"], intrinsics);
+}
+
+#[test]
 fn supersampling_defaults_to_auto_and_shares_without_automatic_regeneration() {
     let config = BevyZeroverseConfig::default();
     assert_eq!(config.ssaa_factor, 0);
@@ -773,6 +817,13 @@ fn fisheye_shape_edit_while_disabled_keeps_it_disabled_and_does_not_rebuild() {
 
 #[test]
 fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
+    exercise_slider_drag(Page::Cameras, "@fisheye_probability");
+}
+#[test]
+fn dragging_clutter_feathers_slider_retains_entity_focus_and_scroll() {
+    exercise_slider_drag(Page::Scene, "/indoor_clutter/probability");
+}
+fn exercise_slider_drag(page: Page, path: &str) {
     use bevy::{
         asset::AssetPlugin,
         image::ImagePlugin,
@@ -802,7 +853,7 @@ fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
         ..super::super::web_viewer_defaults()
     };
     let mut state = EditorState::new(&config);
-    state.view.page = Page::Cameras;
+    state.view.page = page;
     app.insert_resource(config).insert_resource(state);
     update(app.world_mut());
     app.world_mut().flush();
@@ -810,7 +861,7 @@ fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
     let slider = world
         .query::<(Entity, &widgets::Binding)>()
         .iter(world)
-        .find(|(_, b)| b.0.path == "@fisheye_probability")
+        .find(|(_, b)| b.0.path == path)
         .unwrap()
         .0;
     let scroll = world
@@ -862,4 +913,57 @@ fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
             .y,
         0.
     );
+}
+
+#[test]
+fn clutter_controls_cover_the_typed_distribution_without_applying_drafts() {
+    use crate::scene::procedural_indoor::items::distribution::ClutterSettings;
+    let mut state = EditorState::new(&BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..default()
+    });
+    state.view.page = Page::Scene;
+    let paths: std::collections::BTreeSet<_> = fields::items(&state)
+        .into_iter()
+        .filter_map(|i| {
+            if let fields::Item::Field(f) = i {
+                Some(f.path)
+            } else {
+                None
+            }
+        })
+        .collect();
+    for name in json!(ClutterSettings::default())
+        .as_object()
+        .unwrap()
+        .keys()
+    {
+        assert!(paths.contains(&format!("/indoor_clutter/{name}")), "{name}");
+    }
+    let applied = state.applied.clone();
+    for probability in [0., 0.2, 0.8, 1.] {
+        assert!(!edit(
+            &mut state,
+            "/indoor_clutter/probability",
+            json!(probability)
+        )
+        .unwrap());
+        assert_eq!(state.applied, applied);
+        let p = ClutterSettings::parse(state.config().unwrap().indoor_clutter.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(p.probability, probability as f32);
+    }
+    for page in Page::ALL {
+        state.view.page = page;
+        let mut seen = std::collections::BTreeSet::new();
+        for item in fields::items(&state) {
+            if let fields::Item::Field(f) = item {
+                assert!(
+                    seen.insert(f.path.clone()),
+                    "duplicate {page:?}: {}",
+                    f.path
+                );
+            }
+        }
+    }
 }

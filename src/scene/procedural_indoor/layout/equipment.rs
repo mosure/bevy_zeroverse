@@ -2,6 +2,7 @@
 //! between actual ports after all supported objects have been accepted.
 mod fans;
 mod hanging;
+pub(crate) mod services;
 use super::super::architecture::facade::FacadeSide;
 use super::super::objects::equipment::{self, wires};
 use super::*;

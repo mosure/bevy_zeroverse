@@ -17,7 +17,7 @@ use bevy_zeroverse::{
         procedural_indoor::{
             geometry::Geometry,
             layout::{IndoorLayout, IndoorManifest},
-            materials::{IndoorMaterials, Surface},
+            materials::{construction, IndoorMaterials, Surface},
         },
         SceneAabbNode, ZeroverseSceneRoot, ZeroverseSceneType,
     },
@@ -27,7 +27,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const SURFACES: [Surface; 20] = [
+const SURFACES: [Surface; 23] = [
     Surface::Wood,
     Surface::Fabric,
     Surface::FabricAlt,
@@ -48,6 +48,9 @@ const SURFACES: [Surface; 20] = [
     Surface::LeafVariegated,
     Surface::Terracotta,
     Surface::Bark,
+    Surface::Rubber,
+    Surface::Paper,
+    Surface::Succulent,
 ];
 
 fn factor(name: &str) -> anyhow::Result<Option<f32>> {
@@ -75,6 +78,18 @@ fn main() -> anyhow::Result<()> {
         .map(|s| s.parse())
         .transpose()?;
     anyhow::ensure!(variant.is_none_or(|v| v < 12), "variant must be 0..12");
+    let construction: Option<usize> = std::env::args()
+        .find_map(|s| s.strip_prefix("--construction=").map(str::to_owned))
+        .map(|s| s.parse())
+        .transpose()?;
+    anyhow::ensure!(
+        construction.is_none_or(|v| v < 4),
+        "construction must be 0..3"
+    );
+    anyhow::ensure!(
+        construction.is_none() || variant.is_none(),
+        "construction overrides cannot be combined with finish-slot resampling"
+    );
     let floor_style: Option<u32> = std::env::args()
         .find_map(|s| s.strip_prefix("--floor-style=").map(str::to_owned))
         .map(|s| s.parse())
@@ -146,6 +161,7 @@ fn main() -> anyhow::Result<()> {
             "reflection_target_lux": 500, "reflection_sky_radiance": [450, 500, 600],
             "uniform_ambient": false, "ibl_only": ibl_only, "camera_fovy_degrees": 39,
             "finish_slot":variant,
+            "construction_pole":construction,
             "floor_style":floor_style,"stone_mix":stone_mix,"wall_texture":wall_texture,"wood_stain":wood_stain,
             "ceramic_gloss":ceramic_gloss,"glaze_reactive":glaze_reactive,"glaze_speckles":glaze_speckles,
             "concrete_formwork":concrete_formwork,"concrete_polish":concrete_polish,"concrete_exposure":concrete_exposure,
@@ -167,6 +183,22 @@ fn main() -> anyhow::Result<()> {
                 .clone();
     }
     for r in &mut scene.program.as_mut().unwrap().materials {
+        if let Some(family) = construction {
+            if construction::labels(r.surface, scene.floor_style).is_some() {
+                let mut weights = [0.; 4];
+                weights[family] = 1.;
+                construction::apply(
+                    r,
+                    construction::ConstructionSample {
+                        weights,
+                        scale: 1.,
+                        variation: 0.6,
+                    },
+                    scene.floor_style,
+                )
+                .map_err(anyhow::Error::msg)?;
+            }
+        }
         if let Some(w) = r.wood.as_mut() {
             if let Some(v) = wood_stain {
                 w.stain_strength = v;

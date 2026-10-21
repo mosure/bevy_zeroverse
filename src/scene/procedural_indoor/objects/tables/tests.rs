@@ -1,4 +1,49 @@
 use super::*;
+#[test]
+fn long_conference_frames_remain_bounded_grounded_and_in_the_clearance_oracle() {
+    let mut styles = std::collections::BTreeSet::new();
+    let mut counts = std::collections::BTreeSet::new();
+    for seed in 0..96 {
+        for size in [
+            Vec3::new(1.1, 0.72, 3.1),
+            Vec3::new(1.6, 0.78, 5.8),
+            Vec3::new(9.2, 0.75, 2.4),
+        ] {
+            let mut o = object(ObjectKind::Table, seed);
+            o.size = size;
+            let p = parameters(&o);
+            styles.insert(p.bay_style);
+            counts.insert(support_bay_count(&o));
+            let mesh = super::super::build_object(&o);
+            let (lo, hi) = mesh.bounds();
+            assert!(
+                lo.cmpge(Vec3::new(-size.x * 0.5, -0.001, -size.z * 0.5) - Vec3::splat(1e-6))
+                    .all(),
+                "{seed}/{size}: {lo}"
+            );
+            assert!(
+                hi.cmple(Vec3::new(size.x * 0.5, size.y + 0.004, size.z * 0.5) + Vec3::splat(1e-6))
+                    .all(),
+                "{seed}/{size}: {hi}"
+            );
+            assert!(lo.y.abs() < 1e-5, "grounded {seed}");
+            let solid = Clearance::new(&o);
+            super::super::audit::check(&o, &mesh).unwrap_or_else(|e| panic!("{seed}/{size}: {e}"));
+            for part in mesh.parts.values() {
+                for p in &part.positions {
+                    let p = Vec3::from_array(*p);
+                    assert!(
+                        solid.hits_capsule(p, p, 0.0001),
+                        "missing structure {seed}: {p}"
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(styles.len(), 6);
+    assert!(counts.len() >= 4);
+}
+
 fn object(kind: ObjectKind, seed: u64) -> IndoorObject {
     IndoorObject {
         finish_seed: None,

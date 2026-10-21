@@ -183,10 +183,24 @@ fn wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls() {
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.8, 0, 0.).unwrap();
         validate_layout(&scene).unwrap();
         for o in &scene.objects {
+            if o.kind == ObjectKind::StringLights
+                && objects::equipment::signals::string_program(o).suspended
+            {
+                // This variant is supported from the ceiling, not a wall.
+                continue;
+            }
             let Some(offset) = objects::wall::mount_offset(o) else {
                 continue;
             };
-            assert!(scene.wall_attachment_clear(o));
+            assert!(
+                match o.kind {
+                    ObjectKind::ExitSign | ObjectKind::FirePullStation =>
+                        super::super::layout::equipment::services::mounted_clear(&scene, o),
+                    _ => scene.wall_attachment_clear(o),
+                },
+                "seed={seed}, unmounted {:?}",
+                o.kind
+            );
             let (lo, hi) = objects::build_object(o).bounds();
             // Independent mesh measurement: closest rear face is 1 mm off the
             // analytic wall, and all foreground relief fits the declared box.
@@ -217,7 +231,25 @@ fn wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls() {
                 .contains("unmounted"));
         }
     }
-    assert_eq!(kinds.len(), 10);
+    for kind in [
+        "Display",
+        "Whiteboard",
+        "WallArt",
+        "Clock",
+        "WallOutlet",
+        "LightSwitch",
+        "ProjectionScreen",
+        "WallShelf",
+        "NoticeBoard",
+        "WallSconce",
+        "ExitSign",
+        "FireAlarm",
+        "FirePullStation",
+        "Speaker",
+        "StringLights",
+    ] {
+        assert!(kinds.contains(kind), "wall mount was not exercised: {kind}");
+    }
     assert!(oblique > 50, "only rectangular mounting was exercised");
 }
 
@@ -420,7 +452,12 @@ fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
     ));
     let mut scene =
         IndoorManifest::generate_with_humans(62_236_796, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-    let settings=super::super::cameras::CameraSettings::parse(r#"{"primary_room":false,"path_length_min":1.6,"path_length_max":3.0,"long_path_fraction":0.0,"multiview":{"max_baseline":6.0,"min_baseline":0.4,"min_overlap":0.15,"min_reference_baseline":0.8,"min_spread":0.25,"trajectory_variation":0.3}}"#).unwrap();
+    // A 99 m baseline cannot fit this room. Keep the error contract independent
+    // of whether improvements recover a historically rejected camera seed.
+    let settings = super::super::cameras::CameraSettings::parse(
+        r#"{"multiview":{"min_baseline":99.0,"max_baseline":100.0}}"#,
+    )
+    .unwrap();
     assert!(
         matches!(scene.resample_cameras_typed(8,settings,1.), Err(CaptureError::Rejected { rejection, retired:false }) if rejection.kind == SceneRejectionKind::CameraPlacement)
     );

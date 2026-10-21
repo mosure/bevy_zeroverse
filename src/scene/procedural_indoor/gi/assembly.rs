@@ -120,13 +120,12 @@ impl GeometryTransport {
                     .add_geometry(geometry, person.transform(), index);
             }
         }
-        for (i, p) in architecture::fixture_positions(scene)
-            .into_iter()
-            .enumerate()
-        {
-            let (c, lumens) = architecture::fixture_photometry(scene, i);
+        let fixture_positions = architecture::fixture_positions(scene);
+        for (i, p) in fixture_positions.iter().copied().enumerate() {
+            let (c, lumens) = architecture::fixture_photometry_at(scene, i, &fixture_positions);
             let (inner, outer) = architecture::fixture_angles(scene, i);
             result.scene.lights.push(LocalLight {
+                direction: architecture::fixtures::direction(scene, p),
                 position: architecture::fixtures::emitter(scene, p),
                 color: linear(Color::srgb(c.x, c.y, c.z)),
                 candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
@@ -142,9 +141,14 @@ impl GeometryTransport {
             .filter(|o| o.kind == ObjectKind::FloorLamp)
         {
             result.scene.lights.push(LocalLight {
+                direction: Vec3::NEG_Y,
                 position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
-                color: linear(Color::srgb(1.0, 0.78, 0.57)),
-                candela: architecture::floor_lamp_lumens(scene, lamp.seed) / (4.0 * PI),
+                color: {
+                    let c = crate::scene::procedural_indoor::photometry::lamp(scene, lamp).color;
+                    linear(Color::srgb(c.x, c.y, c.z))
+                },
+                candela: crate::scene::procedural_indoor::photometry::lamp(scene, lamp).lumens
+                    / (4.0 * PI),
                 range: 5.0,
                 spot: false,
                 inner_cos: 1.0,
@@ -160,6 +164,7 @@ impl GeometryTransport {
             let (position, color, lumens, inner, outer) =
                 architecture::object_fixture_photometry(scene, lamp);
             result.scene.lights.push(LocalLight {
+                direction: Vec3::NEG_Y,
                 position,
                 color: linear(Color::srgb(color.x, color.y, color.z)),
                 candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
@@ -192,17 +197,15 @@ impl GeometryTransport {
             let surface = *surface;
             if matches!(
                 surface,
-                Surface::Glass
-                    | Surface::GlassInterior
-                    | Surface::ContainerGlass
-                    | Surface::Liquid
-                    | Surface::Light
-            ) {
+                Surface::Glass | Surface::GlassInterior | Surface::ContainerGlass | Surface::Liquid
+            ) || (surface == Surface::Light && decorative_emitter_slot(label).is_none())
+            {
                 continue;
             }
             // An unsupported/missing finish resolves to its original base only
             // during binding, just as the completed material palette does.
-            let key = crate::scene::procedural_indoor::materials::finish_slot(surface, label)
+            let key = decorative_emitter_slot(label)
+                .or_else(|| crate::scene::procedural_indoor::materials::finish_slot(surface, label))
                 .map_or(MaterialKey::Surface(surface), |slot| {
                     MaterialKey::Finish(surface, slot)
                 });
@@ -241,6 +244,32 @@ impl GeometryTransport {
             self.scene
                 .materials
                 .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
+        }
+        for object in &scene.objects {
+            if super::super::photometry::decorative_emission(object).is_none() {
+                continue;
+            }
+            for channel in 0..crate::scene::procedural_indoor::photometry::emission_channels(object)
+            {
+                let label = format!(
+                    "{}#source{}#bulb{}",
+                    object.kind.class_name(),
+                    object.id,
+                    channel
+                );
+                let mat = materials
+                    .get(&set.for_part(Surface::Light, &label))
+                    .expect("decorative emitter");
+                finish_indices.insert(
+                    (Surface::Light, decorative_emitter_slot(&label).unwrap()),
+                    self.scene.materials.len(),
+                );
+                self.scene.materials.push(DiffuseMaterial::from_standard(
+                    mat,
+                    images,
+                    &set.gpu_bakes,
+                ));
+            }
         }
         let knit = scene
             .humans

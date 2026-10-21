@@ -12,12 +12,10 @@ impl ReflectionEmitters {
     pub(crate) fn new(scene: &IndoorManifest) -> Self {
         let mut triangles = Vec::new();
         let mut emission = Vec::new();
-        for (i, position) in architecture::fixture_positions(scene)
-            .into_iter()
-            .enumerate()
-        {
+        let positions = architecture::fixture_positions(scene);
+        for (i, position) in positions.iter().copied().enumerate() {
             let area = architecture::fixtures::emitting_area_at(scene, position);
-            let (color, lumens) = architecture::fixture_photometry(scene, i);
+            let (color, lumens) = architecture::fixture_photometry_at(scene, i, &positions);
             let luminance = lumens / (PI * area);
             let color = linear(Color::srgb(color.x, color.y, color.z));
             emission.push(color * luminance);

@@ -20,10 +20,16 @@ use bevy_zeroverse::{
     },
 };
 use std::time::{Duration, Instant};
+#[path = "review_furniture/bags.rs"]
+mod bags;
+#[path = "review_furniture/conference.rs"]
+mod conference;
 #[path = "review_furniture/fixtures.rs"]
 mod fixtures;
 #[path = "review_furniture/seating.rs"]
 mod seating;
+#[path = "review_furniture/services.rs"]
+mod services;
 #[path = "review_furniture/tabletop.rs"]
 mod tabletop;
 fn main() {
@@ -40,7 +46,10 @@ fn main() {
     let seating = mode.as_deref() == Some("seating");
     let plants = mode.as_deref() == Some("plants");
     let fixtures = mode.as_deref() == Some("fixtures");
-    let scene =
+    let conference = mode.as_deref() == Some("conference");
+    let services = mode.as_deref() == Some("services");
+    let bags = mode.as_deref() == Some("bags");
+    let mut scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.0).unwrap();
     let mut table = scene.objects[0].clone();
     table.kind = ObjectKind::Table;
@@ -140,6 +149,19 @@ fn main() {
     if fixtures {
         objects = fixtures::objects(&table);
     }
+    if conference {
+        objects = conference::objects(&table);
+        scene.objects = objects.clone();
+    }
+    if services {
+        objects = services::objects();
+        scene.objects = objects.clone();
+    }
+    if bags {
+        objects = bags::objects();
+        scene.objects = objects.clone();
+    }
+    let kinds: Vec<_> = objects.iter().map(|o| o.kind).collect();
     let object_count = objects.len();
     std::fs::write(
         output.join("objects.json"),
@@ -194,7 +216,15 @@ fn main() {
                     + if seating && matches!(o.kind, ObjectKind::Sofa | ObjectKind::Chair) {
                         let scale = o.size.max_element();
                         Vec3::new(scale * 0.95, scale * 0.52, -scale * 1.90)
-                    } else if tabletop || seating || fixtures {
+                    } else if conference {
+                        Vec3::new(o.size.z * 0.85, o.size.z * 0.44, -o.size.z * 0.90)
+                    } else if services && o.kind == ObjectKind::FireDetector {
+                        let scale = o.size.max_element();
+                        Vec3::new(scale * 0.75, -scale * 1.45, scale * 1.35)
+                    } else if services {
+                        let scale = o.size.max_element();
+                        Vec3::new(scale * 0.28, scale * 0.20, scale * 1.65)
+                    } else if tabletop || seating || fixtures || bags {
                         let scale = o.size.max_element();
                         Vec3::new(scale * 0.95, scale * 0.85, scale * 1.95)
                     } else if o.kind == ObjectKind::Chair {
@@ -221,7 +251,16 @@ fn main() {
                     ChildOf(root),
                 ));
             }
-            let floor = meshes.add(Cuboid::new(object_count as f32 * 9.0, 0.10, 8.0));
+            let floor_width = if conference {
+                object_count as f32 * 12. + 10.
+            } else {
+                object_count as f32 * 9.0
+            };
+            let floor = meshes.add(Cuboid::new(
+                floor_width,
+                0.10,
+                if conference { 22. } else { 8. },
+            ));
             let matte = materials.add(StandardMaterial {
                 base_color: Color::srgb(0.32, 0.34, 0.37),
                 perceptual_roughness: 0.9,
@@ -231,11 +270,21 @@ fn main() {
                 Mesh3d(floor),
                 MeshMaterial3d(matte),
                 bevy_zeroverse::render::semantic::SemanticLabel::Floor,
-                Transform::from_xyz(25.0, -0.05, 0.0),
+                Transform::from_xyz(
+                    if conference {
+                        (object_count - 1) as f32 * 6.
+                    } else if services {
+                        (object_count - 1) as f32 * 4.5
+                    } else {
+                        25.0
+                    },
+                    -0.05,
+                    0.0,
+                ),
                 ChildOf(root),
             ));
             for (p, lux) in [
-                (Vec3::new(-3.0, 6.0, -5.0), 1400.0),
+                (Vec3::new(-3.0, 6.0, if bags { 5.0 } else { -5.0 }), 1400.0),
                 (Vec3::new(5.0, 2.0, -1.0), 250.0),
             ] {
                 commands.spawn((
@@ -290,6 +339,44 @@ fn main() {
                     .save(output.join(format!("furniture_{i}.png")))
                     .unwrap();
                 assert!(!v.semantic.is_empty());
+                if services || bags {
+                    let expected = bevy_zeroverse::render::semantic::SemanticLabel::from_label(
+                        kinds[i].class_name(),
+                    )
+                    .unwrap()
+                    .color()
+                    .to_linear();
+                    let pixels: &[f32] = bytemuck::cast_slice(&v.semantic);
+                    let hits = pixels
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .filter(|p| {
+                            // Custom studio previews use the legacy render
+                            // target; full indoor captures use exact f32 IDs.
+                            (p[0] - expected.red).abs() < 0.001
+                                && (p[1] - expected.green).abs() < 0.001
+                                && (p[2] - expected.blue).abs() < 0.001
+                        })
+                        .count();
+                    let bytes = pixels
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .flat_map(|p| {
+                            p[..3].iter().map(|v| {
+                                (bevy_zeroverse::render::color::linear_to_srgb(*v).clamp(0., 1.)
+                                    * 255.)
+                                    .round() as u8
+                            })
+                        })
+                        .collect();
+                    image::RgbImage::from_raw(400, 400, bytes)
+                        .unwrap()
+                        .save(output.join(format!("semantic_{i}.png")))
+                        .unwrap();
+                    assert!(hits > 50, "missing semantic object in view {i}: {hits}, expected {expected:?}, first pixel {:?}", &pixels[..4]);
+                }
             }
             break;
         }

@@ -197,7 +197,19 @@ mod tests {
             let c = r.cuticle.as_ref().unwrap();
             c.validate().unwrap();
             assert!(r.leaf.is_none() && (0.000005..0.00005).contains(&r.relief_m));
-            assert_eq!(*c, CuticleRecipe::sample(r.seed));
+            let base = super::super::program::sample_base(seed);
+            assert_eq!(
+                *base[Surface::Succulent as usize].cuticle.as_ref().unwrap(),
+                CuticleRecipe::sample(r.seed)
+            );
+            let replay = super::super::program::sample(seed);
+            assert_eq!(
+                c,
+                replay[Surface::Succulent as usize]
+                    .cuticle
+                    .as_ref()
+                    .unwrap()
+            );
             for t in [0., 0.23, 0.57, 1.] {
                 let left = r.texel(0., t, 0);
                 let right = r.texel(1., t, 0);

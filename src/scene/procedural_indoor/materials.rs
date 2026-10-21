@@ -8,8 +8,10 @@ pub mod ceramic;
 pub mod coating;
 pub mod composition;
 pub mod concrete;
+pub mod construction;
 mod content;
 pub mod display_finish;
+pub(crate) mod emitters;
 mod environment;
 pub(crate) mod exterior;
 mod field;
@@ -36,6 +38,7 @@ mod reflections;
 pub mod rug_design;
 pub mod rugs;
 pub mod screens;
+mod signals;
 pub mod textile;
 pub mod timber;
 pub mod variants;
@@ -104,6 +107,7 @@ pub struct IndoorMaterials {
     pub hair: Handle<StandardMaterial>,
     pub knit: Handle<StandardMaterial>,
     light_variants: Vec<Handle<StandardMaterial>>,
+    object_emitters: std::collections::BTreeMap<(usize, usize), Handle<StandardMaterial>>,
     sky: Handle<StandardMaterial>,
     pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
@@ -170,6 +174,11 @@ impl IndoorMaterials {
             return material.clone();
         }
         if surface == Surface::Light {
+            if let Some(material) =
+                emitters::source_key(label).and_then(|id| self.object_emitters.get(&id))
+            {
+                return material.clone();
+            }
             if let Some(material) = label
                 .strip_prefix("lamp#")
                 .and_then(|s| s.parse::<usize>().ok())
@@ -468,12 +477,14 @@ impl IndoorMaterials {
             ..default()
         };
         // Keep the visible emitter/reference export consistent with each direct-light proxy.
-        let light_variants = super::architecture::fixture_positions(scene)
+        let fixture_positions = super::architecture::fixture_positions(scene);
+        let light_variants = fixture_positions
             .iter()
             .enumerate()
             .map(|(i, &position)| {
                 let area = super::architecture::fixtures::emitting_area_at(scene, position);
-                let (color, lumens) = super::architecture::fixture_photometry(scene, i);
+                let (color, lumens) =
+                    super::architecture::fixture_photometry_at(scene, i, &fixture_positions);
                 let c = Color::srgb(color.x, color.y, color.z).to_linear();
                 let mut material = materials
                     .get(&handles[Surface::Light as usize])
@@ -489,6 +500,7 @@ impl IndoorMaterials {
                 materials.add(material)
             })
             .collect();
+        let object_emitters = emitters::build(scene, &handles[Surface::Light as usize], materials);
         let mut variants = variants::build(
             scene,
             &handles,
@@ -513,6 +525,7 @@ impl IndoorMaterials {
             materials,
             selection.map(|s| &s.finishes),
         ));
+        variants.extend(signals::build(scene, materials, selection));
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -564,6 +577,7 @@ impl IndoorMaterials {
             gpu_bakes,
             gpu_environment: gpu,
             light_variants,
+            object_emitters,
             environment,
             cloth,
             skin,
@@ -657,6 +671,7 @@ type Definition = (Surface, [f32; 3], f32, f32, f32);
 pub(crate) fn registered_finish(surface: Surface, slot: usize) -> bool {
     (variants::supports(surface) && slot < variants::COUNT)
         || exterior::supports(surface, slot)
+        || signals::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)

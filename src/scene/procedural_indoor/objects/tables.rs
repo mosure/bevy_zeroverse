@@ -1,6 +1,7 @@
 //! Continuous convex top outlines and independent structural support programs.
 use super::*;
 mod clearance;
+mod conference;
 mod outline;
 mod structure;
 mod supports;
@@ -40,10 +41,22 @@ pub struct TableProgram {
     pub pedestal_shoulder: f32,
     pub pedestal_facets: u32,
     pub frame_surface: Surface,
+    /// Convex boat-shaped shoulders, independent of the capsule/polygon blend.
+    pub boat_blend: f32,
+    pub boat_end_width: f32,
+    pub boat_shoulder: f32,
+    /// Repeated structural bays for long conference tops (metres).
+    pub span_pitch: f32,
+    pub end_overhang: f32,
+    pub beam_depth: f32,
+    pub bay_width: f32,
+    pub bay_rake: f32,
+    pub bay_style: u8,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let mut rng = stream(o.seed, 172);
     let mut shape = stream(o.seed, 6420);
+    let mut conference = stream(o.seed, 6421);
     let exponent = if o.kind == ObjectKind::Desk {
         rng.random_range(5.0..24.0)
     } else if rng.random_bool(0.4) {
@@ -114,7 +127,29 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
                 Surface::WoodEdge,
             ][shape.random_range(0..4)]
         },
+        boat_blend: if conference.random_bool(if o.kind == ObjectKind::Table {
+            0.55
+        } else {
+            0.18
+        }) {
+            conference.random_range(0.20..0.78)
+        } else {
+            0.
+        },
+        boat_end_width: conference.random_range(0.48..0.92),
+        boat_shoulder: conference.random_range(0.28..0.70),
+        span_pitch: conference.random_range(1.25..2.10),
+        end_overhang: conference.random_range(0.40..0.70),
+        beam_depth: conference.random_range(0.035..0.060),
+        bay_width: conference.random_range(0.38..0.62),
+        bay_rake: conference.random_range(0.0..0.14),
+        bay_style: conference.random_range(0..6),
     }
+}
+
+/// Number of load-bearing stations. Zero uses the compact-table support program.
+pub fn support_bay_count(o: &IndoorObject) -> usize {
+    conference::bay_count(o, &parameters(o))
 }
 pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
     outline::sample(o.size.xz() * 0.5, &parameters(o))
@@ -180,6 +215,10 @@ fn build_structure(
     let label = o.kind.class_name();
     let underside = s.y - p.top_thickness - 0.012;
     let frame = p.frame_surface;
+    if conference::bay_count(o, p) > 0 {
+        conference::build(a, o, p, outline, underside);
+        return;
+    }
     let half = Vec2::new(s.x, s.z) * 0.5;
     let mut anchor = Vec2::new(
         (half.x - p.leg_inset).max(0.12),

@@ -80,6 +80,14 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
     }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
+    for rug in &scene.rug_supports {
+        if !scene.objects.get(rug.object).is_some_and(|o| {
+            o.kind == super::layout::ObjectKind::Rug
+                && *rug == super::layout::floor::area::RugSupport::from_object(o)
+        }) {
+            return fail("area rug support does not match its rendered contour");
+        }
+    }
     if scene.objects.is_empty() {
         return fail("empty scene");
     }
@@ -98,6 +106,22 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
                 return fail("invalid cable path, port connection or segment clearance");
             }
             continue;
+        }
+        let wall_service = matches!(
+            object.kind,
+            super::layout::ObjectKind::ExitSign
+                | super::layout::ObjectKind::FireAlarm
+                | super::layout::ObjectKind::FireDetector
+                | super::layout::ObjectKind::FirePullStation
+                | super::layout::ObjectKind::StringLights
+        ) || (object.kind == super::layout::ObjectKind::Speaker
+            && object.support.is_none()
+            && !object.solid);
+        if wall_service && !super::layout::equipment::services::mounted_clear(scene, object) {
+            return fail(&format!(
+                "room service fixture {:?}/{} lacks backing or intersects another installation",
+                object.kind, object.id
+            ));
         }
         if object.kind == super::layout::ObjectKind::FloorOutlet
             && !super::layout::floor::detail_clear(scene, object)
@@ -184,7 +208,10 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
                 return fail("furniture intersects room boundary");
             }
             if !scene.floor_support_clear(lo, hi) {
-                return fail("unsupported floor furniture");
+                return fail(&format!(
+                    "unsupported floor furniture: {:?} {}",
+                    object.kind, object.id
+                ));
             }
             if scene.entry_approach_overlaps(lo, hi) {
                 return fail("door approach blocked");
@@ -324,10 +351,20 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
                 return fail("invalid angular lens calibration");
             }
         }
-        if let Some(prior) = &scene.camera_settings.lenses {
-            if camera.fisheye != prior.sample(scene.seed, index) {
-                return fail("lens assignment differs from the seeded camera prior");
-            }
+        if (scene.camera_settings.lenses.is_some() || scene.camera_settings.ceiling_mount.is_some())
+            && camera.fisheye != scene.camera_settings.lens_for(scene.seed, index)
+        {
+            return fail("lens assignment differs from the seeded camera prior");
+        }
+        if camera.ceiling_mount.is_some() != scene.camera_settings.ceiling_mount.is_some() {
+            return fail("camera mounting differs from requested rig");
+        }
+        if camera.ceiling_mount.as_ref().is_some_and(|mount| {
+            scene.cameras[..index]
+                .iter()
+                .any(|c| c.ceiling_mount.as_ref().is_some_and(|m| mount.overlaps(m)))
+        }) {
+            return fail("ceiling camera mounting bodies intersect");
         }
         if camera
             .motion
@@ -349,7 +386,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         if !camera.target.is_finite()
             || !scene
                 .camera_settings
-                .intrinsics
+                .active_intrinsics()
                 .contains(camera.fov_degrees)
             || camera
                 .principal_point_offset
@@ -362,7 +399,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             return fail("camera path intersects geometry");
         }
         // Explicit samples guard the continuous sweep implementation independently.
-        for step in 0..=32 {
+        for step in (0..=32).filter(|_| camera.ceiling_mount.is_none()) {
             if !scene.camera_clear(camera.transform_at(step as f32 / 32.0).translation) {
                 return fail("unsafe sampled camera path");
             }

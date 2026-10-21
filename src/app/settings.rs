@@ -2,6 +2,34 @@
 //! Compare values per field: an unrelated UI edit must not reset a runtime edit.
 use super::*;
 
+/// Only these scalar settings participate in bidirectional runtime sync. Keep
+/// large motion prompts, waypoint arrays and policies out of the per-frame path.
+#[derive(Clone, PartialEq)]
+pub(super) struct SyncedSettings {
+    num_cameras: usize,
+    scene_type: ZeroverseSceneType,
+    rotation_augmentation: bool,
+    max_camera_radius: f32,
+    cuboid_only: bool,
+    playback_mode: PlaybackMode,
+    playback_speed: f32,
+    render_mode: RenderMode,
+}
+impl From<&BevyZeroverseConfig> for SyncedSettings {
+    fn from(c: &BevyZeroverseConfig) -> Self {
+        Self {
+            num_cameras: c.num_cameras,
+            scene_type: c.scene_type.clone(),
+            rotation_augmentation: c.rotation_augmentation,
+            max_camera_radius: c.max_camera_radius,
+            cuboid_only: c.cuboid_only,
+            playback_mode: c.playback_mode,
+            playback_speed: c.playback_speed,
+            render_mode: c.render_mode.clone(),
+        }
+    }
+}
+
 fn reconcile<T: Clone + PartialEq>(config: &mut T, runtime: &mut T, previous: Option<&T>) {
     if previous != Some(config) {
         if runtime != config {
@@ -20,11 +48,11 @@ pub(super) fn synchronize(
     mut render: ResMut<RenderMode>,
     mut scene: ResMut<ZeroverseSceneSettings>,
     mut semantic: ResMut<ZeroverseSemanticRoomSettings>,
-    mut previous: Local<Option<BevyZeroverseConfig>>,
+    mut previous: Local<Option<SyncedSettings>>,
 ) {
     // Bypass Bevy's change flag until a value actually changes. Otherwise every
     // frame would rebuild camera grids and annotation materials.
-    let before = args.clone();
+    let before = SyncedSettings::from(&*args);
     let config = args.bypass_change_detection();
     macro_rules! sync {
         ($field:ident, $resource:ident, $runtime:ident) => {
@@ -66,7 +94,7 @@ pub(super) fn synchronize(
         || before.playback_mode != config.playback_mode
         || before.playback_speed != config.playback_speed
         || before.render_mode != config.render_mode;
-    *previous = Some(config.clone());
+    *previous = Some(SyncedSettings::from(&*config));
     if changed {
         args.set_changed();
     }
@@ -75,6 +103,31 @@ pub(super) fn synchronize(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn idle_settings_sync_does_not_mark_render_resources_changed() {
+        let mut app = App::new();
+        app.init_resource::<BevyZeroverseConfig>()
+            .init_resource::<Playback>()
+            .init_resource::<RenderMode>()
+            .init_resource::<ZeroverseSceneSettings>()
+            .init_resource::<ZeroverseSemanticRoomSettings>()
+            .add_systems(First, synchronize);
+        app.world_mut()
+            .resource_mut::<BevyZeroverseConfig>()
+            .human_motion = Some("x".repeat(131072));
+        app.update();
+        app.world_mut().clear_trackers();
+        app.update();
+        assert!(!app
+            .world()
+            .resource_ref::<BevyZeroverseConfig>()
+            .is_changed());
+        assert!(!app.world().resource_ref::<RenderMode>().is_changed());
+        assert!(!app
+            .world()
+            .resource_ref::<ZeroverseSceneSettings>()
+            .is_changed());
+    }
     #[test]
     fn settings_edits_sync_without_regenerating() {
         let mut app = App::new();
