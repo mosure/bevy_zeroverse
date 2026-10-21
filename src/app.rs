@@ -883,12 +883,26 @@ fn config_with_query(
 
 // Presentation defaults belong to the browser entry point, not the library or
 // CLI config: dataset consumers must retain their existing scalar depth format.
-#[cfg(any(target_arch = "wasm32", test))]
+#[cfg(any(target_arch = "wasm32", feature = "viewer", test))]
 fn web_viewer_defaults() -> BevyZeroverseConfig {
-    BevyZeroverseConfig {
+    studio_lens_defaults(BevyZeroverseConfig {
         depth_format: DepthFormat::Turbo,
         ..BevyZeroverseConfig::parse_from(["viewer"])
+    })
+}
+
+// Only interactive entry points select a mixed-lens preset. Explicit camera
+// policies, library overrides and headless/dataset generation remain unchanged.
+fn studio_lens_defaults(mut config: BevyZeroverseConfig) -> BevyZeroverseConfig {
+    if config.editor && !config.headless && config.indoor_camera.is_none() {
+        config.indoor_camera = Some(
+            serde_json::json!({
+                "lenses": crate::camera::lens::LensSampling::default()
+            })
+            .to_string(),
+        );
     }
+    config
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -919,6 +933,57 @@ fn parse_web_config() -> Result<BevyZeroverseConfig, String> {
 #[cfg(test)]
 mod web_config_tests {
     use super::*;
+
+    #[test]
+    fn studio_mixed_lens_preset_does_not_change_explicit_or_dataset_policies() {
+        use crate::scene::procedural_indoor::cameras::CameraSettings;
+        assert!(BevyZeroverseConfig::default().indoor_camera.is_none());
+        assert!(CameraSettings::default().lenses.is_none());
+        assert!(BevyZeroverseConfig::parse_from(["viewer"])
+            .indoor_camera
+            .is_none());
+        for config in [
+            web_viewer_defaults(),
+            studio_lens_defaults(BevyZeroverseConfig::default()),
+        ] {
+            assert_eq!(
+                CameraSettings::parse(config.indoor_camera.as_deref().unwrap())
+                    .unwrap()
+                    .lenses
+                    .unwrap()
+                    .probability,
+                0.5
+            );
+        }
+        for args in [
+            vec!["viewer", "--headless"],
+            vec!["viewer", "--editor", "false"],
+        ] {
+            assert!(
+                studio_lens_defaults(BevyZeroverseConfig::try_parse_from(args).unwrap())
+                    .indoor_camera
+                    .is_none()
+            );
+        }
+        for policy in ["{}", r#"{"lenses":{"probability":0.1}}"#] {
+            let config = studio_lens_defaults(BevyZeroverseConfig {
+                indoor_camera: Some(policy.into()),
+                ..default()
+            });
+            assert_eq!(config.indoor_camera.as_deref(), Some(policy));
+        }
+        let explicit_pinhole = config_with_query(
+            web_viewer_defaults(),
+            [("indoor_camera".into(), "{}".into())],
+        )
+        .unwrap();
+        assert!(
+            CameraSettings::parse(explicit_pinhole.indoor_camera.as_deref().unwrap())
+                .unwrap()
+                .lenses
+                .is_none()
+        );
+    }
 
     #[test]
     fn turbo_is_only_the_web_presentation_default_and_urls_override_it() {
@@ -1029,7 +1094,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         None => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                parse_args::<BevyZeroverseConfig>()
+                studio_lens_defaults(parse_args::<BevyZeroverseConfig>())
             }
             #[cfg(target_arch = "wasm32")]
             {

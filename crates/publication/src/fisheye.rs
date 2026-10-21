@@ -267,8 +267,22 @@ pub fn build(root: &Path, stage: &Path) -> Result<()> {
         return Ok(());
     }
     let receipt = verify(&input)?;
+    let current = crate::pipeline::identity(root)?;
+    if crate::retained::retains_lens(root, &current)? {
+        // Preserve the already measured chapter byte-for-byte, including its
+        // original source labels and PDFs. Never manufacture a new receipt.
+        verify_installed(root, true)?;
+        ensure!(
+            receipt == verify(&root.join(DIRECTORY))?,
+            "retained lens gallery differs from its qualification receipt"
+        );
+        if root != stage {
+            io::copy_tree(&root.join(DIRECTORY), &stage.join(DIRECTORY))?;
+        }
+        return Ok(());
+    }
     ensure!(
-        receipt["generator_identity"] == serde_json::to_value(crate::pipeline::identity(root)?)?,
+        receipt["generator_identity"] == serde_json::to_value(current)?,
         "lens examples need current-source qualification"
     );
     let output = stage.join(DIRECTORY);
@@ -495,8 +509,8 @@ pub fn verify_published(root: &Path) -> Result<()> {
 
 /// Before a transactional rebuild, the installed chapter may describe the
 /// preceding source. Its bytes must still match its receipt and the caller's
-/// top-level attestation. build() then requires current-source inputs; final
-/// verification never permits the previous identity.
+/// top-level attestation. build() requires current-source inputs unless an
+/// explicit release/source-bound policy pins the entire original lens bundle.
 pub(crate) fn verify_installed(root: &Path, rebuilding: bool) -> Result<()> {
     let output = root.join(DIRECTORY);
     if !output.join("receipt.json").exists() {
@@ -510,9 +524,10 @@ pub(crate) fn verify_installed(root: &Path, rebuilding: bool) -> Result<()> {
     // Staged bundles do not contain generator source; their inputs are checked
     // by build() before the atomic page installation.
     if !rebuilding && root.join("Cargo.toml").exists() {
+        let current = crate::pipeline::identity(root)?;
+        let retained = crate::retained::retains_lens(root, &current)?;
         ensure!(
-            receipt["generator_identity"]
-                == serde_json::to_value(crate::pipeline::identity(root)?)?,
+            receipt["generator_identity"] == serde_json::to_value(&current)? || retained,
             "published lens cohort is stale"
         );
         let source_receipt: Value = io::read(&root.join(EVIDENCE).join("receipt.json"))?;
@@ -531,6 +546,73 @@ pub(crate) fn verify_installed(root: &Path, rebuilding: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicitly_pinned_lens_bundle_is_preserved_without_typesetting_or_relabeling() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("Cargo.toml"), "[package]\nversion=\"2.0.0\"\n").unwrap();
+        let current = crate::pipeline::identity(root).unwrap();
+        let input = root.join(EVIDENCE);
+        let gallery = root.join(DIRECTORY);
+        fs::create_dir_all(&input).unwrap();
+        fs::create_dir_all(&gallery).unwrap();
+        fs::write(input.join("image.png"), b"original pixels").unwrap();
+        let receipt = json!({"schema_version":1,"kind":"fisheye_qualification",
+            "generator_identity":{"crate_version":"1.0.0"},
+            "artifacts":{"image.png":io::hash(&input.join("image.png")).unwrap()}});
+        io::write(&input.join("receipt.json"), &receipt).unwrap();
+        io::copy_tree(&input, &gallery).unwrap();
+        fs::write(gallery.join("whitepaper.pdf"), b"original pdf bytes").unwrap();
+        io::write(
+            &gallery.join("publication.json"),
+            &io::files(&gallery, &gallery).unwrap(),
+        )
+        .unwrap();
+        let pin = crate::retained::lens_evidence_digest(root).unwrap();
+        fs::write(
+            root.join("publication.toml"),
+            format!(
+                r#"
+schema_version = 1
+captures = "out/captures"
+[capture]
+seed = 0
+audit_rooms = 4
+rendered_rooms = 4
+cameras = 4
+width = 64
+height = 64
+playback_steps = 2
+density = 0.5
+human_density = 0.25
+gi_rays = 64
+[paper]
+source = "tex/bevy_zeroverse.tex"
+[retained_evidence]
+release_version = "2.0.0"
+release_source_sha256 = "{}"
+capture_evidence_sha256 = "{}"
+lens_evidence_sha256 = "{pin}"
+reason = "Preserve measured lens cohort without GPU work"
+"#,
+                current.source_sha256,
+                "a".repeat(64)
+            ),
+        )
+        .unwrap();
+        verify_published(root).unwrap();
+        let stage = tempfile::tempdir().unwrap();
+        build(root, stage.path()).unwrap();
+        assert_eq!(
+            io::files(&gallery, &gallery).unwrap(),
+            io::files(&stage.path().join(DIRECTORY), &stage.path().join(DIRECTORY)).unwrap()
+        );
+        assert_eq!(verify(&stage.path().join(DIRECTORY)).unwrap(), receipt);
+        fs::write(input.join("image.png"), b"changed pixels").unwrap();
+        assert!(build(root, stage.path()).is_err());
+        assert!(verify_published(root).is_err());
+    }
 
     #[test]
     fn rebuild_accepts_intact_previous_chapter_but_never_tampering_or_missing_inputs() {

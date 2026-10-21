@@ -18,7 +18,7 @@ fn decode_query(query: &str) -> impl Iterator<Item = (String, String)> + '_ {
         }
         String::from_utf8(out).unwrap()
     }
-    query.split('&').map(|p| {
+    query.split('&').filter(|p| !p.is_empty()).map(|p| {
         let (k, v) = p.split_once('=').unwrap();
         (decode(k), decode(v))
     })
@@ -327,7 +327,7 @@ fn depth_visualization_is_live_and_shared_without_changing_defaults() {
     assert_eq!(config.depth_format, DepthFormat::Turbo);
     assert_eq!(config.indoor_density, 0.65);
     assert!(state.pending());
-    assert!(share::query(config, &state.view).contains("depth_format=Turbo"));
+    assert!(!share::query(config, &state.view).contains("depth_format="));
     let parsed = super::super::config_with_query(
         BevyZeroverseConfig::default(),
         [("depth_format".into(), "Turbo".into())],
@@ -425,7 +425,7 @@ fn every_available_control_has_a_defined_value_including_optional_camera_fields(
             if let fields::Item::Field(f) = item {
                 if !f.path.starts_with('@') {
                     assert!(
-                        state.draft.pointer(&f.path).is_some(),
+                        state.draft.pointer(&f.path).is_some() || !value(&state, &f.path).is_null(),
                         "undefined control {}",
                         f.path
                     );
@@ -638,7 +638,7 @@ fn fisheye_controls_preserve_disabled_parameters_and_share_without_regeneration(
     };
     let mut state = EditorState::new(&config);
     let applied = state.applied.clone();
-    edit(&mut state, "@fisheye_probability", json!(0.)).unwrap();
+    assert!(!edit(&mut state, "@fisheye_probability", json!(0.)).unwrap());
     assert_eq!(
         state.draft["indoor_camera"]["lenses"]["fov_degrees"],
         json!([150., 200.])
@@ -655,9 +655,211 @@ fn fisheye_controls_preserve_disabled_parameters_and_share_without_regeneration(
         .unwrap();
     assert_eq!(lens.probability, 0.);
     assert_eq!(lens.fov_degrees, [150., 200.]);
-    edit(&mut state, "@fisheye_probability", json!(0.8)).unwrap();
+    assert!(!edit(&mut state, "@fisheye_probability", json!(0.8)).unwrap());
     assert_eq!(
         state.draft["indoor_camera"]["lenses"]["fov_degrees"],
         json!([150., 200.])
+    );
+}
+
+#[test]
+fn browser_urls_omit_defaults_and_roundtrip_optional_programs_losslessly() {
+    let browser = super::super::web_viewer_defaults();
+    let view = model::ViewState::default();
+    assert_eq!(share::query(&browser, &view), "");
+    let mut seeded = browser.clone();
+    seeded.indoor_seed = Some(64989645);
+    assert_eq!(share::query(&seeded, &view), "indoor_seed=64989645");
+    for camera in [
+        "{}", // Explicit pinhole must override the Studio preset.
+        r#"{"lenses":{}}"#,
+        r#"{"lenses":{"probability":0}}"#,
+        r#"{"lenses":{"fov_bias":0.6,"fov_spread":0.4}}"#,
+        r#"{"handheld":{},"lenses":{},"motion_fraction":0.25}"#,
+        r#"{"intrinsics":{"ultra_wide_probability":0.7},"baseline":0.8}"#,
+    ] {
+        let config = BevyZeroverseConfig {
+            indoor_camera: Some(camera.into()),
+            indoor_motion: Some("{}".into()),
+            human_motion: Some("{}".into()),
+            ..seeded.clone()
+        };
+        let query = share::query(&config, &view);
+        assert!(!query.contains("circular_probability"));
+        assert!(!query.contains("depth_format"));
+        let parsed =
+            super::super::config_with_query(browser.clone(), decode_query(&query)).unwrap();
+        assert_eq!(
+            model::expand(&config),
+            model::expand(&parsed),
+            "{camera}: {query}"
+        );
+    }
+    let query = share::query(&BevyZeroverseConfig::default(), &view);
+    let parsed = super::super::config_with_query(browser, decode_query(&query)).unwrap();
+    assert_eq!(
+        model::expand(&BevyZeroverseConfig::default()),
+        model::expand(&parsed)
+    );
+}
+
+#[test]
+fn pending_url_is_a_nested_delta_and_preserves_active_policy() {
+    let mut state = EditorState::new(&BevyZeroverseConfig {
+        indoor_seed: Some(64989645),
+        indoor_camera: Some(r#"{"baseline":0.8,"intrinsics":{"ultra_wide_probability":0.7},"lenses":{"probability":0.25,"fov_degrees":[160,210]}}"#.into()),
+        ..super::super::web_viewer_defaults()
+    });
+    edit(&mut state, "/indoor_camera/lenses/fov_bias", json!(0.6)).unwrap();
+    edit(&mut state, "@lens_spread", json!(0.4)).unwrap();
+    let (config, view) = share::snapshot(&state).unwrap();
+    let pending = view.pending.as_ref().unwrap();
+    assert!(pending["indoor_camera"]["lenses"]
+        .get("probability")
+        .is_none());
+    assert!(pending["indoor_camera"].get("multiview").is_none());
+    assert!(pending["indoor_camera"]["intrinsics"]["ultra_wide_probability"].is_null());
+    let query = share::query(&config, &view);
+    let parsed =
+        super::super::config_with_query(super::super::web_viewer_defaults(), decode_query(&query))
+            .unwrap();
+    let restored = EditorState::new(&parsed);
+    assert!(restored.error.is_none(), "{:?}", restored.error);
+    assert_eq!(restored.applied, state.applied);
+    assert_eq!(
+        model::expand(&restored.config().unwrap()),
+        model::expand(&state.config().unwrap())
+    );
+    assert!(restored.pending());
+}
+
+#[test]
+fn fisheye_shape_edit_while_disabled_keeps_it_disabled_and_does_not_rebuild() {
+    let mut state = EditorState::new(&BevyZeroverseConfig::default());
+    state.view.page = Page::Cameras;
+    let before = fields::items(&state)
+        .into_iter()
+        .filter_map(|item| match item {
+            fields::Item::Field(f) => Some(f.path),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let applied = state.applied.clone();
+    assert!(!edit(&mut state, "/indoor_camera/lenses/fov_bias", json!(-0.6)).unwrap());
+    assert!(!edit(&mut state, "/indoor_camera/lenses/fov_spread", json!(0.3)).unwrap());
+    let policy =
+        CameraSettings::parse(state.config().unwrap().indoor_camera.as_deref().unwrap()).unwrap();
+    assert_eq!(policy.lenses.as_ref().unwrap().probability, 0.);
+    for probability in [0., 0.01, 0.25, 0.5, 1., 0.] {
+        assert!(!edit(&mut state, "@fisheye_probability", json!(probability)).unwrap());
+        assert_eq!(state.applied, applied);
+        let after = fields::items(&state)
+            .into_iter()
+            .filter_map(|item| match item {
+                fields::Item::Field(f) => Some(f.path),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            before, after,
+            "probability edits must not add/remove controls"
+        );
+    }
+    assert_eq!(
+        state.draft["indoor_camera"]["lenses"]["fov_bias"],
+        json!(-0.6)
+    );
+}
+
+#[test]
+fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
+    use bevy::{
+        asset::AssetPlugin,
+        image::ImagePlugin,
+        scene::ScenePlugin,
+        shader::Shader,
+        text::TextPlugin,
+        ui_widgets::{ScrollArea, SliderValue, ValueChange},
+    };
+    // Build the actual native/web widgets, without a window or render device.
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins,
+        AssetPlugin::default(),
+        ScenePlugin,
+        ImagePlugin::default(),
+        TextPlugin,
+    ))
+    .init_asset::<Shader>()
+    .add_plugins(FeathersPlugins)
+    .insert_resource(studio_theme())
+    .init_resource::<Actions>()
+    .init_resource::<EditorInputCapture>()
+    .init_resource::<InputFocus>()
+    .init_resource::<ButtonInput<KeyCode>>();
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..super::super::web_viewer_defaults()
+    };
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::Cameras;
+    app.insert_resource(config).insert_resource(state);
+    update(app.world_mut());
+    app.world_mut().flush();
+    let world = app.world_mut();
+    let slider = world
+        .query::<(Entity, &widgets::Binding)>()
+        .iter(world)
+        .find(|(_, b)| b.0.path == "@fisheye_probability")
+        .unwrap()
+        .0;
+    let scroll = world
+        .query_filtered::<Entity, With<ScrollArea>>()
+        .single(world)
+        .unwrap();
+    world.get_mut::<ScrollPosition>(scroll).unwrap().0.y = 700.;
+    world
+        .resource_mut::<InputFocus>()
+        .set(slider, bevy::input_focus::FocusCause::Navigated);
+    let revision = world.resource::<EditorState>().revision;
+    let applied = world.resource::<EditorState>().applied.clone();
+    for value in [0.0f32, 0.01, 0.27, 0.5, 1., 0.] {
+        world.trigger(ValueChange {
+            source: slider,
+            value,
+            is_final: false,
+        });
+        world.flush();
+        update(world);
+        assert_eq!(world.get::<SliderValue>(slider).unwrap().0, value);
+        assert_eq!(world.resource::<InputFocus>().get(), Some(slider));
+        assert_eq!(world.get::<ScrollPosition>(scroll).unwrap().0.y, 700.);
+        assert_eq!(world.resource::<EditorState>().revision, revision);
+        assert_eq!(world.resource::<EditorState>().applied, applied);
+    }
+    // Intentional same-page structural edits retain the viewport position too.
+    world
+        .resource_mut::<Actions>()
+        .0
+        .push(Action::Section("ADVANCED RIG".into()));
+    update(world);
+    let new_scroll = world
+        .query_filtered::<&ScrollPosition, With<ScrollArea>>()
+        .single(world)
+        .unwrap();
+    assert_eq!(new_scroll.0.y, 700.);
+    world
+        .resource_mut::<Actions>()
+        .0
+        .push(Action::Page(Page::Appearance));
+    update(world);
+    assert_eq!(
+        world
+            .query_filtered::<&ScrollPosition, With<ScrollArea>>()
+            .single(world)
+            .unwrap()
+            .0
+            .y,
+        0.
     );
 }

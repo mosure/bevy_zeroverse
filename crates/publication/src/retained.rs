@@ -14,6 +14,10 @@ pub struct RetainedEvidence {
     pub release_version: String,
     pub release_source_sha256: String,
     pub capture_evidence_sha256: String,
+    /// Optional immutable pin for the separately attested lens inputs AND shipped
+    /// gallery/papers. Without this pin, lens evidence must match current source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lens_evidence_sha256: Option<String>,
     pub reason: String,
 }
 
@@ -28,7 +32,10 @@ impl RetainedEvidence {
                 && !self.reason.trim().is_empty(),
             "retained evidence requires an explicit release version and reason"
         );
-        for hash in [&self.release_source_sha256, &self.capture_evidence_sha256] {
+        for hash in [&self.release_source_sha256, &self.capture_evidence_sha256]
+            .into_iter()
+            .chain(self.lens_evidence_sha256.iter())
+        {
             ensure!(
                 hash.len() == 64
                     && hash
@@ -38,6 +45,27 @@ impl RetainedEvidence {
             );
         }
         Ok(())
+    }
+
+    pub(crate) fn verify_lens_pin(
+        &self,
+        root: &std::path::Path,
+        current: &GeneratorIdentity,
+    ) -> Result<bool> {
+        let Some(pin) = &self.lens_evidence_sha256 else {
+            return Ok(false);
+        };
+        self.validate()?;
+        ensure!(
+            current.crate_version == self.release_version
+                && current.source_sha256 == self.release_source_sha256,
+            "retained lens release/source pin changed"
+        );
+        ensure!(
+            &lens_evidence_digest(root)? == pin,
+            "retained lens evidence changed"
+        );
+        Ok(true)
     }
 
     pub(crate) fn verify(
@@ -67,6 +95,32 @@ impl RetainedEvidence {
         );
         Ok(())
     }
+}
+
+/// Bind the complete original lens evidence and shipped gallery, including all
+/// PDFs and receipts. Any changed, added or removed file invalidates retention.
+pub fn lens_evidence_digest(root: &std::path::Path) -> Result<String> {
+    let mut files = BTreeMap::new();
+    for directory in [crate::fisheye::EVIDENCE, crate::fisheye::DIRECTORY] {
+        ensure!(
+            root.join(directory).join("receipt.json").is_file(),
+            "missing retained lens receipt"
+        );
+        files.extend(crate::io::files(root, &root.join(directory))?);
+    }
+    Ok(bevy_zeroverse_capture::provenance::sha(
+        &serde_json::to_vec(&("bevy_zeroverse.retained_lens_evidence.v1", files))?,
+    ))
+}
+
+pub(crate) fn retains_lens(root: &std::path::Path, current: &GeneratorIdentity) -> Result<bool> {
+    if !root.join("publication.toml").is_file() {
+        return Ok(false);
+    }
+    Config::load(root)?
+        .retained_evidence
+        .as_ref()
+        .map_or(Ok(false), |policy| policy.verify_lens_pin(root, current))
 }
 
 fn release_input(path: &str) -> bool {
@@ -162,6 +216,7 @@ mod tests {
             release_version: identity.crate_version.clone(),
             release_source_sha256: identity.source_sha256.clone(),
             capture_evidence_sha256: "b".repeat(64),
+            lens_evidence_sha256: None,
             reason: "No GPU work in this release".into(),
         };
         let attestation = Attestation {
@@ -205,6 +260,44 @@ mod tests {
         };
         policy.capture_evidence_sha256 = capture_evidence_digest(&attestation).unwrap();
         (policy, identity, attestation)
+    }
+
+    #[test]
+    fn lens_retention_requires_explicit_source_pin_and_identical_inputs_and_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let (mut policy, identity, _) = fixture();
+        assert!(!policy.verify_lens_pin(root, &identity).unwrap());
+        for directory in [crate::fisheye::EVIDENCE, crate::fisheye::DIRECTORY] {
+            std::fs::create_dir_all(root.join(directory)).unwrap();
+            std::fs::write(
+                root.join(directory).join("receipt.json"),
+                b"original identity",
+            )
+            .unwrap();
+            std::fs::write(root.join(directory).join("image.png"), b"original pixels").unwrap();
+        }
+        policy.lens_evidence_sha256 = Some(lens_evidence_digest(root).unwrap());
+        assert!(policy.verify_lens_pin(root, &identity).unwrap());
+        let mut wrong = identity.clone();
+        wrong.crate_version = "2.0.0".into();
+        assert!(policy.verify_lens_pin(root, &wrong).is_err());
+        wrong = identity.clone();
+        wrong.source_sha256 = "e".repeat(64);
+        assert!(policy.verify_lens_pin(root, &wrong).is_err());
+        for directory in [crate::fisheye::EVIDENCE, crate::fisheye::DIRECTORY] {
+            let path = root.join(directory).join("image.png");
+            std::fs::write(&path, b"different pixels").unwrap();
+            assert!(policy.verify_lens_pin(root, &identity).is_err());
+            std::fs::remove_file(&path).unwrap();
+            assert!(policy.verify_lens_pin(root, &identity).is_err());
+            std::fs::write(&path, b"original pixels").unwrap();
+            let extra = root.join(directory).join("unexpected.png");
+            std::fs::write(&extra, b"extra").unwrap();
+            assert!(policy.verify_lens_pin(root, &identity).is_err());
+            std::fs::remove_file(extra).unwrap();
+        }
+        assert!(policy.verify_lens_pin(root, &identity).unwrap());
     }
 
     #[test]

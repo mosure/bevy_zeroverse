@@ -564,10 +564,14 @@ impl IndoorManifest {
                     .filter(|(index, _)| *index != omit)
                     .map(|(_, c)| c.clone())
                     .collect();
-                // Removing a view must not change the seeded motion role of shifted indices.
+                // Removing a view must preserve both motion and the complete
+                // calibration of shifted slots, not merely their lens model.
                 if !(omit..count).all(|i| {
                     self.camera_settings.camera_moves(self.seed, i)
                         == self.camera_settings.camera_moves(self.seed, i + 1)
+                        && self.camera_settings.lenses.as_ref().is_none_or(|prior| {
+                            prior.sample(self.seed, i) == prior.sample(self.seed, i + 1)
+                        })
                 }) {
                     continue;
                 }
@@ -665,6 +669,47 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::CameraSettings, layout::IndoorLayout, validation::validate_layout,
     };
+
+    #[test]
+    fn fisheye_recovery_keeps_each_slots_calibration_and_all_admission_constraints() {
+        // Production training rejection: recovery reused a saved pinhole path
+        // for fisheye slot 2 before testing coverage and rendered overlap.
+        let mut scene =
+            IndoorManifest::generate_with_humans(64_989_645, IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        let original = scene.clone();
+        let settings = CameraSettings::parse(r#"{"primary_room":false,"path_length_min":0.8,"path_length_max":1.6,"long_path_fraction":0.0,"lenses":{"probability":0.25},"multiview":{"max_baseline":6.0,"min_baseline":0.4,"min_overlap":0.15,"min_reference_baseline":0.8,"min_spread":0.25,"trajectory_variation":0.3}}"#).unwrap();
+        scene.resample_cameras(8, settings.clone(), 1.).unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.objects, original.objects);
+        assert_eq!(scene.envelope, original.envelope);
+        assert_eq!(scene.humans, original.humans);
+        assert_eq!(scene.camera_settings, settings);
+        assert_eq!(scene.cameras.len(), 8);
+        assert!(scene.cameras[2].fisheye.is_some());
+        let policy = settings.multiview.as_ref().unwrap();
+        assert!(scene.camera_group_geometry().unwrap().accepts(policy));
+        assert!(scene
+            .camera_overlap()
+            .iter()
+            .all(|p| policy.accepts(&p.samples)));
+        let coverage = Coverage::new(&scene);
+        for (slot, camera) in scene.cameras.iter().enumerate() {
+            assert_eq!(
+                camera.fisheye,
+                settings.lenses.as_ref().unwrap().sample(scene.seed, slot)
+            );
+            assert!(settings.accepts_motion(scene.seed, slot, camera));
+            assert!(scene.camera_curve_clear(camera));
+            assert!(coverage.suitable(camera, false));
+            for step in 0..=128 {
+                assert!(scene.camera_clear(camera.transform_at(step as f32 / 128.).translation));
+            }
+        }
+        let cameras = scene.cameras.clone();
+        scene.resample_cameras(8, settings, 1.).unwrap();
+        assert_eq!(scene.cameras, cameras);
+    }
 
     #[test]
     fn rejected_training_library_recovers_eight_cameras_without_relaxation() {

@@ -160,7 +160,7 @@ impl EditorState {
             if let Some(fields) = pending.as_object() {
                 for (key, value) in fields {
                     if applied.get(key).is_some() && key != "viewer_state" {
-                        draft[key] = value.clone();
+                        super::delta::merge(&mut draft[key], value);
                     } else {
                         error = Some(format!("Unknown pending setting: {key}"));
                     }
@@ -225,7 +225,7 @@ pub fn expand(config: &BevyZeroverseConfig) -> Value {
         .as_deref()
         .and_then(|s| CameraSettings::parse(s).ok())
         .unwrap_or_default());
-    for key in ["duration_seconds", "handheld", "overlap_mixture"] {
+    for key in ["duration_seconds", "handheld", "overlap_mixture", "lenses"] {
         v["indoor_camera"]
             .as_object_mut()
             .unwrap()

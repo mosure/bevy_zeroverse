@@ -4,19 +4,18 @@ use model::{CameraPose, ViewState};
 
 pub fn query(config: &BevyZeroverseConfig, view: &ViewState) -> String {
     let current = model::expand(config);
-    let defaults = model::expand(&BevyZeroverseConfig::default());
+    // A shared link is opened by the browser entry point. Comparing against
+    // library defaults adds unmodified CLI/browser differences to every URL.
+    let defaults = model::expand(&super::super::web_viewer_defaults());
+    let serde_defaults = model::expand(&BevyZeroverseConfig::default());
     let mut pairs = Vec::new();
     for (key, value) in current.as_object().unwrap() {
-        // Native/library and CLI/browser playback/depth defaults differ. Raster
-        // policy is also explicit so links preserve Auto versus forced factors.
-        if key == "viewer_state"
-            || (!matches!(
-                key.as_str(),
-                "depth_format" | "playback_mode" | "ssaa_factor"
-            ) && value == &defaults[key])
-        {
+        if key == "viewer_state" || value == &defaults[key] {
             continue;
         }
+        // A nested query parameter replaces its whole typed policy. Compact
+        // against that type's serde defaults, not the browser's optional preset.
+        let value = compact(value, &serde_defaults[key], &format!("/{key}"));
         let value = if let Some(s) = value.as_str() {
             s.to_owned()
         } else {
@@ -24,11 +23,47 @@ pub fn query(config: &BevyZeroverseConfig, view: &ViewState) -> String {
         };
         pairs.push(format!("{}={}", encode(key), encode(&value)));
     }
-    pairs.push(format!(
-        "viewer_state={}",
-        encode(&serde_json::to_string(view).unwrap())
-    ));
+    if let Some(view) = delta::between(&json!(view), &json!(ViewState::default())) {
+        pairs.push(format!("viewer_state={}", encode(&view.to_string())));
+    }
     pairs.join("&")
+}
+
+fn compact(value: &Value, defaults: &Value, path: &str) -> Value {
+    use crate::scene::procedural_indoor::cameras::{
+        handheld::HandheldSettings, mixture::OverlapMixture,
+    };
+    // Optional programs must retain `{}` even when every parameter is default:
+    // removing the object would disable them. Explicit null still disables one.
+    let optional = defaults.is_null().then(|| match path {
+        "/indoor_camera/lenses" => json!(crate::camera::lens::LensSampling::default()),
+        "/indoor_camera/handheld" => json!(HandheldSettings::default()),
+        "/indoor_camera/overlap_mixture" => json!(OverlapMixture::default()),
+        "/human_motion" => json!(crate::human_motion::HumanMotionConfig::default()),
+        "/indoor_motion" => {
+            json!(crate::scene::procedural_indoor::motion::IndoorMotionConfig::default())
+        }
+        _ => Value::Null,
+    });
+    let defaults = optional.as_ref().unwrap_or(defaults);
+    if let (Some(object), Some(base)) = (value.as_object(), defaults.as_object()) {
+        Value::Object(
+            object
+                .iter()
+                .filter_map(|(key, value)| {
+                    let default = base.get(key).unwrap_or(&Value::Null);
+                    (value != default).then(|| {
+                        (
+                            key.clone(),
+                            compact(value, default, &format!("{path}/{key}")),
+                        )
+                    })
+                })
+                .collect(),
+        )
+    } else {
+        value.clone()
+    }
 }
 fn encode(s: &str) -> String {
     use std::fmt::Write;
@@ -46,7 +81,7 @@ fn encode(s: &str) -> String {
 pub(super) struct ShareState {
     restored: bool,
     camera_restored: bool,
-    last: String,
+    last: Option<String>,
     elapsed: f32,
 }
 #[allow(clippy::too_many_arguments)]
@@ -137,7 +172,8 @@ pub(super) fn synchronize(
         return;
     };
     let next = query(&config, &view);
-    if next == local.last {
+    // Also compact an initially all-default URL on the first synchronization.
+    if local.last.as_deref() == Some(next.as_str()) {
         return;
     }
     #[cfg(target_arch = "wasm32")]
@@ -146,7 +182,12 @@ pub(super) fn synchronize(
             let window = web_sys::window()
                 .ok_or_else(|| wasm_bindgen::JsValue::from_str("window unavailable"))?;
             let location = window.location();
-            let url = format!("{}?{}{}", location.pathname()?, next, location.hash()?);
+            let search = if next.is_empty() {
+                String::new()
+            } else {
+                format!("?{next}")
+            };
+            let url = format!("{}{}{}", location.pathname()?, search, location.hash()?);
             window
                 .history()?
                 .replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url))
@@ -156,21 +197,13 @@ pub(super) fn synchronize(
             return;
         }
     }
-    local.last = next;
+    local.last = Some(next);
 }
 
 /// Share the rendered configuration plus staged edits, so reloading never silently applies a draft.
 pub(super) fn snapshot(state: &EditorState) -> Result<(BevyZeroverseConfig, ViewState), String> {
     let config = model::validate(&state.applied)?;
     let mut view = state.view.clone();
-    let pending: serde_json::Map<String, Value> = state
-        .draft
-        .as_object()
-        .unwrap()
-        .iter()
-        .filter(|(key, value)| *value != &state.applied[*key])
-        .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-    view.pending = (!pending.is_empty()).then_some(Value::Object(pending));
+    view.pending = delta::between(&state.draft, &state.applied);
     Ok((config, view))
 }

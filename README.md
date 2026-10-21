@@ -157,10 +157,13 @@ the requested camera count. **Moving cameras (%)** selects fixed or moving views
 (default 100%); travel bounds apply to moving cameras while scene animation stays
 independent. Continuous **lens preference/spread** controls include a live PDF
 preview, separate from spatial baseline. Optional calibrated **fisheye lenses**
-add seeded per-camera frequency, angular FOV/distortion and circular coverage,
-with aligned depth, flow, semantics and co-visibility. Pinhole remains the default.
+add seeded per-camera frequency, angular FOV preference/spread, distortion and
+circular coverage, with aligned depth, flow, semantics and co-visibility.
+Studio starts at 50% fisheye; library and dataset APIs remain pinhole unless
+enabled explicitly.
 The viewport selector offers **Editor camera**, **Capture grid**,
-and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
+and **Room schematic**. Browser links omit default settings while preserving the
+active seed, preview and pending edits.
 **View & playback → Glass in annotations** selects glass surfaces (default) or
 unrefracted geometry behind glass for depth, normal, position, semantic, optical
 flow and co-visibility. RGB transmission is unchanged. The same policy is available

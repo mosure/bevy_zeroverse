@@ -56,6 +56,14 @@ rejects before starting any external commands, and `publish` never falls back
 to a GPU refresh. Remove the policy explicitly when new captures are authorized.
 The shipped page and paper keep their original capture source/version labels.
 
+The independently qualified fisheye chapter requires current-source evidence by
+default. To retain it too, explicitly set `lens_evidence_sha256` in the same
+release/source-bound policy using `lens-evidence-digest`. This pins every file in
+both `docs/evidence/fisheye` and `www/project/fisheye`, including the original
+receipts, rendered images, metrics and PDFs. Rebuild copies this chapter unchanged;
+missing, altered or additional files fail verification. It never relabels these
+measurements as evidence for the new release or recompiles their papers.
+
 The paper's capacity section contains analytical occupancy examples, generated
 automatically by `refresh`/`rebuild` from tested known probability laws. To inspect
 these formulas independently, without rendering scenes:

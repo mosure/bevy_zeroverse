@@ -1,7 +1,9 @@
 # Calibrated fisheye capture
 
-Fisheye capture is opt-in. The existing centered and shifted pinhole generators
-keep their defaults. Configure the indoor camera program, for example:
+Fisheye capture is opt-in for library, dataset CLI and Burn consumers: an omitted
+`lenses` program remains pinhole. Interactive native/WebGPU Studio starts with a
+50% per-camera fisheye preset unless an explicit camera policy is supplied.
+Configure the indoor camera program, for example:
 
 ```json
 {
@@ -9,6 +11,8 @@ keep their defaults. Configure the indoor camera program, for example:
   "lenses": {
     "probability": 0.5,
     "fov_degrees": [140.0, 210.0],
+    "fov_bias": 0.0,
+    "fov_spread": 1.0,
     "circular_probability": 0.2,
     "elliptical_probability": 0.0,
     "distortion_strength": 1.0,
@@ -19,8 +23,13 @@ keep their defaults. Configure the indoor camera program, for example:
 
 Pass this JSON through `--indoor-camera`, `BevyZeroverseConfig::indoor_camera`,
 or the corresponding Burn generator/capture configuration. Native and WebGPU
-studio controls expose the same settings under Cameras. The share URL serializes
-the camera program; regenerate explicitly to apply the new sample.
+Studio controls expose the same settings under Cameras, including independent
+perspective and fisheye distribution previews. Slider edits keep keyboard/pointer
+focus and scroll position; regenerate explicitly to apply the new sample.
+Share URLs omit browser defaults and unchanged nested policy fields, retaining
+the active seed, view state and any unapplied edits separately. An explicit
+`indoor_camera={}` selects pinhole in the browser; `{"lenses":{}}` selects the
+default 50% prior. Historical URLs with full policies remain accepted.
 
 `probability` is a Bernoulli probability for **each camera**, not a rounded
 percentage of the cameras in a small rig. It is sampled by scene seed and camera
@@ -31,7 +40,14 @@ Intrinsics stay fixed through the capture timeline; existing camera-motion and
 baseline controls still govern the poses.
 
 The two FOV bounds describe the fitted angular **diameter**, not a perspective
-vertical FOV. Sensor coverage is independent of the radial projection law:
+vertical FOV. `fov_bias` ranges from -1 (narrow) to +1 (wide); `fov_spread`
+ranges from 0 (fixed median) to 1 (full spread). Defaults of 0 and 1 preserve
+uniform angular sampling, including its original seeded random draws. The
+bounded logit distribution is evaluated in angular space so it remains valid
+above 180 degrees; it does not use a perspective tangent across its singularity.
+Its proposal median is `lo + (0.5 + 0.49*bias)*(hi-lo)`. Visibility admission
+can change the realized population, so audit accepted calibrations separately.
+Sensor coverage is independent of the radial projection law:
 
 - **Circular** fits a complete disk inside the image, around the realized
   principal point. It has equal focal axes; the sampler records anisotropy 1.

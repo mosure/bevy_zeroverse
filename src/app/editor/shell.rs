@@ -21,6 +21,8 @@ pub(super) fn synchronize_evidence(world: &mut World, state: &EditorState) {
 #[derive(Resource)]
 pub(super) struct Shell {
     root: Entity,
+    scroll: Option<Entity>,
+    page: Page,
     status: Entity,
     hint: Entity,
     summary: Entity,
@@ -61,7 +63,13 @@ fn bar(world: &mut World, root: Entity, top: bool) -> Entity {
         .id()
 }
 pub(super) fn build(world: &mut World, state: &EditorState) {
+    let mut scroll_position = ScrollPosition::default();
     if let Some(old) = world.remove_resource::<Shell>() {
+        if old.page == state.view.page {
+            if let Some(position) = old.scroll.and_then(|e| world.get::<ScrollPosition>(e)) {
+                scroll_position = position.clone();
+            }
+        }
         world.entity_mut(old.root).despawn();
     }
     let root = world
@@ -120,6 +128,7 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
     let mut summary = status;
     let mut seed = status;
     let mut error = status;
+    let mut scroll_entity = None;
     if !state.view.collapsed {
         let panel = world
             .spawn((
@@ -198,9 +207,11 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     ..default()
                 },
                 ScrollArea,
+                scroll_position,
                 ChildOf(scroll_row),
             ))
             .id();
+        scroll_entity = Some(scroll);
         world.spawn_scene(bsn!{
             @bevy::feathers::controls::FeathersScrollbar { @target:scroll, @orientation:bevy::ui_widgets::ControlOrientation::Vertical }
             Node {width:px(8),min_width:px(8),height:percent(100)}
@@ -248,8 +259,8 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     widgets::text(world, section, help, 11.5, MUTED);
                 }
                 fields::Item::Field(field) => widgets::control(world, scroll, field, state),
-                fields::Item::LensDistribution => {
-                    lens_preview::build(world, scroll);
+                fields::Item::LensDistribution(kind) => {
+                    lens_preview::build(world, scroll, kind);
                 }
                 fields::Item::Note(note) => {
                     widgets::text(world, scroll, note, 12., MUTED);
@@ -311,6 +322,8 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
     }
     world.insert_resource(Shell {
         root,
+        scroll: scroll_entity,
+        page: state.view.page,
         status,
         hint,
         summary,

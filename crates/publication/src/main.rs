@@ -30,6 +30,8 @@ enum Action {
     },
     /// Print the canonical immutable capture/paper digest for a retained-evidence policy.
     EvidenceDigest,
+    /// Print the immutable lens evidence/gallery/paper digest for explicit retention.
+    LensEvidenceDigest,
     /// Build a local current-source paper section and page fragment; does not publish.
     CapacityPaper {
         #[arg(long, required=true, num_args=1..)]
@@ -222,6 +224,12 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::LensEvidenceDigest => {
+            println!(
+                "{}",
+                bevy_zeroverse_publication::retained::lens_evidence_digest(&args.root)?
+            );
+        }
         Action::FisheyePerformance { input, output } => {
             bevy_zeroverse_publication::fisheye::performance::report(&args.root, &input, &output)?;
         }

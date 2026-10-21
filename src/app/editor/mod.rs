@@ -1,4 +1,5 @@
 //! Shared native/WebGPU scene controller built with retained Bevy Feathers widgets.
+mod delta;
 mod fields;
 mod lens_preview;
 pub mod model;
@@ -178,6 +179,14 @@ pub fn value(state: &EditorState, path: &str) -> Value {
             .map_or(45., |c| c.fov.to_degrees())),
         "@flow_interval" => json!(state.view.flow_interval),
         "@flow_scale" => json!(state.view.flow_scale),
+        _ if path.starts_with("/indoor_camera/lenses/")
+            && state.draft["indoor_camera"]["lenses"].is_null() =>
+        {
+            json!(crate::camera::lens::LensSampling::default())
+                .pointer(path.trim_start_matches("/indoor_camera/lenses"))
+                .cloned()
+                .unwrap_or(Value::Null)
+        }
         _ => state.draft.pointer(path).cloned().unwrap_or(Value::Null),
     }
 }
@@ -230,7 +239,6 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
                     json!(crate::camera::lens::LensSampling::default());
             }
             state.draft["indoor_camera"]["lenses"]["probability"] = v;
-            rebuild = true;
         }
         "@lens_bias" | "@lens_spread" => {
             let lens = &mut state.draft["indoor_camera"]["intrinsics"];
@@ -323,6 +331,14 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
             state.view.flow_scale = v.as_f64().ok_or("Expected scale")? as f32;
         }
         _ => {
+            if path.starts_with("/indoor_camera/lenses/")
+                && state.draft["indoor_camera"]["lenses"].is_null()
+            {
+                state.draft["indoor_camera"]["lenses"] = json!(crate::camera::lens::LensSampling {
+                    probability: 0.,
+                    ..default()
+                });
+            }
             // Sliders emit f32; preserve integer types in the public config contract.
             if state
                 .draft

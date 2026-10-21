@@ -704,6 +704,13 @@ pub(super) fn complete(
                             rng,
                         );
                     }
+                    // A saved trajectory may belong to another slot. Rebind
+                    // its seeded lens before every coverage/overlap decision.
+                    camera.fisheye = scene
+                        .camera_settings
+                        .lenses
+                        .as_ref()
+                        .and_then(|prior| prior.sample(scene.seed, camera_index));
                     let track = Track::new(&camera);
                     let rejection = if !scene.camera_clear(camera.start) {
                         Some(0)
