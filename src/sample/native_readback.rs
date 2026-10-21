@@ -89,10 +89,13 @@ fn copier_state(copier: &ImageCopier, epoch: u64) -> CopyState {
 }
 
 fn snapshot(world: &mut World) -> Option<Snapshot> {
-    let mut cameras = world.query_filtered::<
-        (Entity, &ImageCopier, &GlobalTransform, &Projection),
-        With<ZeroverseCamera>,
-    >();
+    let mut cameras = world.query_filtered::<(
+        Entity,
+        &ImageCopier,
+        &GlobalTransform,
+        &Projection,
+        Option<&crate::camera::lens::LensCamera>,
+    ), With<ZeroverseCamera>>();
     let args = world.get_resource::<BevyZeroverseConfig>()?;
     let sampler = world.get_resource::<SamplerState>()?;
     let capture = world.get_resource::<CaptureProgress>()?;
@@ -143,12 +146,12 @@ fn snapshot(world: &mut World) -> Option<Snapshot> {
     let sample = world.get_resource::<Sample>()?;
     let playback = world.get_resource::<Playback>()?;
     let mut copiers = Vec::with_capacity(identity.cameras.len());
-    for (entity, copier, transform, projection) in cameras.iter(world) {
+    for (entity, copier, transform, projection, lens) in cameras.iter(world) {
         let slot = identity.cameras.iter().position(|id| *id == entity)?;
         let view = sample
             .views
             .get(slot + identity.cameras.len() * sampler.step as usize)?;
-        if !camera_metadata_matches(view, transform, projection, playback.progress) {
+        if !camera_metadata_matches(view, transform, projection, playback.progress, lens) {
             return None;
         }
         copiers.push(copier.clone());

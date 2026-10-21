@@ -336,6 +336,8 @@ fn annotation_gate_detects_a_wrong_frame_or_camera() {
     let mut view = crate::sample::View {
         world_from_view: Mat4::IDENTITY.to_cols_array_2d(),
         fovy: std::f32::consts::FRAC_PI_2,
+        near: 0.1,
+        far: 50.,
         ..default()
     };
     for y in 0..n {
@@ -802,7 +804,8 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
     assert_eq!(csv.lines().count(), scenes * cameras + 1);
     for line in csv.lines().skip(1) {
         let fields: Vec<_> = line.split(',').collect();
-        assert_eq!(fields.len(), 23);
+        assert_eq!(fields.len(), 24);
+        assert_eq!(fields[23], "pinhole");
         let number = |i: usize| fields[i].parse::<f32>().unwrap();
         let mut projection = PerspectiveSampler::exact(number(12)).sample();
         projection.update(width as f32, height as f32);

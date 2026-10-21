@@ -39,6 +39,7 @@ impl CameraSettings {
         camera: &mut IndoorCamera,
         rng: &mut impl Rng,
     ) {
+        camera.fisheye = self.lenses.as_ref().and_then(|l| l.sample(seed, index));
         if !self.camera_moves(seed, index) {
             camera.end = camera.start;
             camera.motion = None;

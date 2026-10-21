@@ -44,6 +44,7 @@ mod clusters;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CameraToken {
+    lens: Option<[[u32; 4]; 4]>,
     entity: Entity,
     index: usize,
     world_from_view: [u32; 16],
@@ -295,7 +296,10 @@ fn prepare(
             &RenderTarget,
             &CameraRenderGraph,
             &ImageCopier,
-            Option<&crate::render::ssaa::SsaaCamera>,
+            (
+                Option<&crate::render::ssaa::SsaaCamera>,
+                Option<&crate::camera::lens::LensCamera>,
+            ),
             &Exposure,
             Has<Hdr>,
             Option<&bevy::light::cluster::Clusters>,
@@ -353,7 +357,7 @@ fn prepare(
         target,
         graph,
         copier,
-        ssaa,
+        (ssaa, lens),
         exposure,
         hdr,
         clusters,
@@ -409,15 +413,24 @@ fn prepare(
             return;
         }
         let copy_targets = copier.source_ids();
+        let logical_target = lens.map_or(target.handle.id(), |l| l.output.id());
+        let logical_size = lens.map_or(size, |l| {
+            UVec2::from_array(l.calibration.image_size) * ssaa.map_or(1, |s| s.factor)
+        });
         let Some(ssaa) = output_contract(
-            target.handle.id(),
-            size,
+            logical_target,
+            logical_size,
             copy_targets.first().copied(),
             ssaa,
         ) else {
             return;
         };
         tokens.push(CameraToken {
+            lens: lens.map(|l| {
+                l.calibration
+                    .shader_parameters()
+                    .map(|row| row.map(f32::to_bits))
+            }),
             entity,
             index: index.0,
             world_from_view: bits(transform.to_matrix()),
@@ -622,6 +635,7 @@ mod tests {
             progress: 0.0f32.to_bits(),
             asset_ticks: [1, 2, 3],
             cameras: vec![CameraToken {
+                lens: None,
                 entity: camera,
                 index: 0,
                 world_from_view: bits(Mat4::IDENTITY),

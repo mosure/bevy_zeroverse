@@ -203,6 +203,7 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
                 let mut camera = IndoorCamera {
+                    fisheye: None,
                     principal_point_offset: None,
                     start: p,
                     end,
@@ -336,6 +337,7 @@ impl IndoorManifest {
             };
             let end = start + radial.cross(Vec3::Y) * (distance * direction_sign);
             let mut camera = IndoorCamera {
+                fisheye: None,
                 principal_point_offset: None,
                 start,
                 end,

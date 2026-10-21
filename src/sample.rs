@@ -1,4 +1,4 @@
-mod camera_activity;
+pub(crate) mod camera_activity;
 pub mod failure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
@@ -346,17 +346,30 @@ fn camera_metadata_matches(
     transform: &GlobalTransform,
     projection: &Projection,
     time: f32,
+    lens: Option<&crate::camera::lens::LensCamera>,
 ) -> bool {
     let Some((perspective, _)) = crate::camera::pinhole::parameters(projection) else {
         return false;
     };
     view.world_from_view == transform.to_matrix().to_cols_array_2d()
-        && view.fovy == perspective.fov
-        && view.near == perspective.near
-        && view.far == perspective.far
+        && view.fovy
+            == lens.map_or(perspective.fov, |l| {
+                l.calibration.fisheye.unwrap().max_angle * 2.
+            })
+        && view.near == lens.map_or(perspective.near, |l| l.near)
+        && view.far == lens.map_or(perspective.far, |l| l.far)
         && view.calibration.as_ref().is_none_or(|c| {
-            crate::camera::pinhole::calibration(projection, c.image_size[0], c.image_size[1])
-                .is_ok_and(|expected| expected == *c)
+            lens.map_or_else(
+                || {
+                    crate::camera::pinhole::calibration(
+                        projection,
+                        c.image_size[0],
+                        c.image_size[1],
+                    )
+                },
+                |l| Ok(l.calibration.clone()),
+            )
+            .is_ok_and(|expected| expected == *c)
         })
         && view.time == time
 }
@@ -621,6 +634,7 @@ pub fn sample_stream(
         &GlobalTransform,
         &Projection,
         &ImageCopier,
+        Option<&crate::camera::lens::LensCamera>,
     )>,
     scene: Query<(Entity, &SceneAabb, Option<&GlobalTransform>), With<SceneAabbNode>>,
     object_obbs: Query<
@@ -782,7 +796,7 @@ pub fn sample_stream(
 
     let float32_geometry = cameras
         .iter()
-        .all(|(_, _, _, _, copier)| copier.attachment_count() >= 3);
+        .all(|(_, _, _, _, copier, _)| copier.attachment_count() >= 3);
     let camera_count = cameras.iter().count();
     if capture.ovoxel_wait_started.is_none() {
         if state.render_modes.is_empty() {
@@ -794,7 +808,7 @@ pub fn sample_stream(
         let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
         let co_visibility_capture = state.render_modes.contains(&RenderMode::CoVisibility);
         if (flow_capture || co_visibility_capture)
-            && cameras.iter().any(|(_, _, _, _, copier)| {
+            && cameras.iter().any(|(_, _, _, _, copier, _)| {
                 copier.attachment_count()
                     != 3 + usize::from(flow_capture) + usize::from(co_visibility_capture)
             })
@@ -816,7 +830,7 @@ pub fn sample_stream(
 
         if let Some(message) = cameras
             .iter()
-            .find_map(|(_, _, _, _, copier)| copier.failure())
+            .find_map(|(_, _, _, _, copier, _)| copier.failure())
         {
             failure.0 = Some(message);
             state.enabled = false;
@@ -827,7 +841,7 @@ pub fn sample_stream(
         ordered_cameras.sort_by_key(|(entity, index, ..)| {
             (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
         });
-        for (i, (_, _, transform, projection, _)) in ordered_cameras.iter().enumerate() {
+        for (i, (_, _, transform, projection, _, lens)) in ordered_cameras.iter().enumerate() {
             let view_idx = i + camera_count * state.step as usize;
             if let Some(view) = buffered_sample.views.get(view_idx) {
                 let captured_modality = !view.color.is_empty()
@@ -839,7 +853,13 @@ pub fn sample_stream(
                     || !view.motion_vectors.is_empty();
                 let captured_modality = captured_modality || !view.co_visibility.is_empty();
                 if (capture.pending.is_some() || captured_modality)
-                    && !camera_metadata_matches(view, transform, projection, playback.progress)
+                    && !camera_metadata_matches(
+                        view,
+                        transform,
+                        projection,
+                        playback.progress,
+                        *lens,
+                    )
                 {
                     failure.0 = Some(
                         "camera pose/projection/time changed between modalities or during readback"
@@ -964,7 +984,9 @@ pub fn sample_stream(
                 buffered_sample.human_bone_parents.clear();
             }
 
-            for (i, (_, _, camera_transform, projection, _)) in ordered_cameras.iter().enumerate() {
+            for (i, (_, _, camera_transform, projection, _, lens)) in
+                ordered_cameras.iter().enumerate()
+            {
                 let view_idx = i + camera_count * state.step as usize;
                 let view = &mut buffered_sample.views[view_idx];
                 view.time = playback.progress;
@@ -976,17 +998,21 @@ pub fn sample_stream(
 
                 let (perspective, _) = crate::camera::pinhole::parameters(projection)
                     .expect("supported capture projection");
-                view.fovy = perspective.fov;
-                view.near = perspective.near;
-                view.far = perspective.far;
-                view.calibration = Some(
-                    crate::camera::pinhole::calibration(
-                        projection,
-                        args.width as u32,
-                        args.height as u32,
+                view.fovy = lens.map_or(perspective.fov, |l| {
+                    l.calibration.fisheye.unwrap().max_angle * 2.
+                });
+                view.near = lens.map_or(perspective.near, |l| l.near);
+                view.far = lens.map_or(perspective.far, |l| l.far);
+                view.calibration = lens.map(|l| l.calibration.clone()).or_else(|| {
+                    Some(
+                        crate::camera::pinhole::calibration(
+                            projection,
+                            args.width as u32,
+                            args.height as u32,
+                        )
+                        .expect("validated capture projection"),
                     )
-                    .expect("validated capture projection"),
-                );
+                });
 
                 let world_from_view = camera_transform.to_matrix().to_cols_array_2d();
                 view.world_from_view = world_from_view;
@@ -1011,7 +1037,7 @@ pub fn sample_stream(
                 if let Some(settling) = &capture_status.settling {
                     settling.begin_capture(id);
                 }
-                for (_, _, _, _, copier) in &cameras {
+                for (_, _, _, _, copier, _) in &cameras {
                     #[cfg(not(target_arch = "wasm32"))]
                     if gpu_sink.is_some() && !copier.gpu_target_armed() {
                         failure.0 = Some(
@@ -1028,7 +1054,7 @@ pub fn sample_stream(
         };
         if !cameras
             .iter()
-            .all(|(_, _, _, _, copier)| copier.ready(request_id))
+            .all(|(_, _, _, _, copier, _)| copier.ready(request_id))
         {
             capture.waiting_updates += 1;
             return;
@@ -1044,7 +1070,7 @@ pub fn sample_stream(
             vec![state.render_modes.remove(0)]
         };
 
-        for (i, (_, _, _, _, image_copier)) in ordered_cameras.into_iter().enumerate() {
+        for (i, (_, _, _, _, image_copier, _)) in ordered_cameras.into_iter().enumerate() {
             let view_idx = i + camera_count * state.step as usize;
             let view = &mut buffered_sample.views[view_idx];
 
@@ -1754,18 +1780,26 @@ mod capture_motion_tests {
             ..default()
         };
         let projection = Projection::Perspective(perspective.clone());
-        assert!(camera_metadata_matches(&view, &transform, &projection, 0.4));
+        assert!(camera_metadata_matches(
+            &view,
+            &transform,
+            &projection,
+            0.4,
+            None
+        ));
         assert!(!camera_metadata_matches(
             &view,
             &GlobalTransform::IDENTITY,
             &projection,
-            0.4
+            0.4,
+            None
         ));
         assert!(!camera_metadata_matches(
             &view,
             &transform,
             &projection,
-            0.41
+            0.41,
+            None
         ));
         assert!(!camera_metadata_matches(
             &view,
@@ -1774,7 +1808,8 @@ mod capture_motion_tests {
                 fov: 1.2,
                 ..perspective
             }),
-            0.4
+            0.4,
+            None
         ));
     }
 }

@@ -628,3 +628,36 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     edit(&mut state, "@indoor_motion", json!(false)).unwrap();
     assert!(state.config().unwrap().indoor_motion.is_none());
 }
+
+#[test]
+fn fisheye_controls_preserve_disabled_parameters_and_share_without_regeneration() {
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_camera: Some(r#"{"lenses":{"probability":0.7,"fov_degrees":[150,200]}}"#.into()),
+        ..default()
+    };
+    let mut state = EditorState::new(&config);
+    let applied = state.applied.clone();
+    edit(&mut state, "@fisheye_probability", json!(0.)).unwrap();
+    assert_eq!(
+        state.draft["indoor_camera"]["lenses"]["fov_degrees"],
+        json!([150., 200.])
+    );
+    assert_eq!(state.applied, applied);
+    let config = state.config().unwrap();
+    let query = share::query(&config, &state.view);
+    let parsed =
+        super::super::config_with_query(BevyZeroverseConfig::default(), decode_query(&query))
+            .unwrap();
+    let lens = CameraSettings::parse(parsed.indoor_camera.as_deref().unwrap())
+        .unwrap()
+        .lenses
+        .unwrap();
+    assert_eq!(lens.probability, 0.);
+    assert_eq!(lens.fov_degrees, [150., 200.]);
+    edit(&mut state, "@fisheye_probability", json!(0.8)).unwrap();
+    assert_eq!(
+        state.draft["indoor_camera"]["lenses"]["fov_degrees"],
+        json!([150., 200.])
+    );
+}

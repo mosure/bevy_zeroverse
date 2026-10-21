@@ -31,6 +31,7 @@ use std::{
     },
 };
 
+mod angular;
 mod deformation;
 mod extract;
 pub mod flow;
@@ -54,6 +55,7 @@ pub struct AnnotationOrder(pub u64);
 #[derive(Component, Clone, ExtractComponent)]
 #[extract_app(RenderApp)]
 pub struct GroundTruthCamera {
+    pub calibration: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
     pub world_depth: Handle<Image>,
     pub normal_semantic: Handle<Image>,
     pub frame_id: u64,
@@ -107,7 +109,9 @@ impl GroundTruthCamera {
                     format,
                     usage: TextureUsages::RENDER_ATTACHMENT
                         | if copy_src {
-                            TextureUsages::COPY_SRC | TextureUsages::TEXTURE_BINDING
+                            TextureUsages::COPY_SRC
+                                | TextureUsages::TEXTURE_BINDING
+                                | TextureUsages::STORAGE_BINDING
                         } else {
                             TextureUsages::empty()
                         },
@@ -118,6 +122,7 @@ impl GroundTruthCamera {
             })
         };
         Self {
+            calibration: None,
             world_depth: image(
                 "ground_truth_world_depth_f32",
                 TextureFormat::Rgba32Float,
@@ -229,6 +234,7 @@ pub struct GroundTruthPlugin;
 
 impl Plugin for GroundTruthPlugin {
     fn build(&self, app: &mut App) {
+        angular::install(app);
         load_internal_asset!(app, SHADER, "ground_truth.wgsl", Shader::from_wgsl);
         load_internal_asset!(
             app,
@@ -255,6 +261,7 @@ impl Plugin for GroundTruthPlugin {
                 prepare_geometry,
                 prepare_cameras,
                 flow::prepare,
+                angular::prepare,
             )
                 .chain()
                 .in_set(RenderSystems::PrepareResources),
@@ -630,7 +637,11 @@ fn prepare_cameras(
 fn render_ground_truth(
     world: &World,
     mut context: RenderContext,
-    cameras: Query<(&GroundTruthCamera, &PreparedCamera)>,
+    cameras: Query<(
+        &GroundTruthCamera,
+        &PreparedCamera,
+        Option<&angular::Prepared>,
+    )>,
 ) {
     let geometry = world.resource::<ExtractedGeometry>();
     let gpu = world.resource::<GpuGeometry>();
@@ -667,13 +678,14 @@ fn render_ground_truth(
     // create neither render work nor empty GPU timestamp measurements.
     let active: Vec<_> = cameras
         .iter()
-        .filter_map(|(camera, prepared)| {
+        .filter_map(|(camera, prepared, angular)| {
             if camera.frame_id == 0 || camera.geometry_frame() == Some(camera.frame_id) {
                 return None;
             }
             Some((
                 camera,
                 prepared,
+                angular,
                 images.get(&camera.world_depth)?,
                 images.get(&camera.normal_semantic)?,
                 images.get(&camera.depth)?,
@@ -686,8 +698,16 @@ fn render_ground_truth(
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
     let time_span = diagnostics.time_span(context.command_encoder(), "indoor_ground_truth");
-    for (camera, prepared, world_depth, normal_semantic, depth) in active {
+    for (camera, prepared, angular, world_depth, normal_semantic, depth) in active {
+        if camera
+            .calibration
+            .as_ref()
+            .is_some_and(|c| c.fisheye.is_some())
         {
+            if !angular::render(world, &mut context, camera, angular) {
+                continue;
+            }
+        } else {
             let mut pass = context
                 .command_encoder()
                 .begin_render_pass(&RenderPassDescriptor {

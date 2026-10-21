@@ -232,7 +232,15 @@ impl Schematic {
                 fov_y: c.fov_degrees.to_radians(),
                 aspect: scene.camera_aspect_ratio,
                 principal_point_offset: c.principal_point_offset,
-                calibration: None,
+                calibration: c
+                    .fisheye
+                    .map(|lens| {
+                        lens.calibration(
+                            [(scene.camera_aspect_ratio * 1024.).round() as u32, 1024],
+                            c.principal_point_offset.unwrap_or_default().to_array(),
+                        )
+                    })
+                    .map(Result::unwrap),
                 path: camera_path(scene, i),
             })
             .collect();

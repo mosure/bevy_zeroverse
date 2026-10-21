@@ -26,7 +26,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.34", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.36", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run
@@ -56,6 +56,14 @@ For CUDA, enable `cuda_interop` and replace `indoor()` with `indoor_cuda()`.
 settings. `into_dataset(samples_per_epoch)` adapts either stream to Burn's
 dataset interface. If the model uses Burn fusion, also enable
 `gpu_tensor_fusion`. Static people do not initialize motion inference models.
+
+Fisheye cameras are opt-in through `indoor_camera.lenses` in the generator
+configuration. Each view exports its full calibration and versioned lens model;
+mixed rigs retain per-view pinhole Z-depth or fisheye ray range. Use calibration
+`ray`/`project`/`unproject` rather than a pinhole matrix for angular views. The
+[lens contract](../../docs/fisheye_cameras.md) describes masks, coefficients,
+co-visibility, flow and the GPU color-space conversion. Camera intrinsics stay
+fixed through a trajectory. Existing pinhole configuration remains unchanged.
 
 Set `BEVY_ASSET_ROOT` to the directory containing `assets/burn_human` for rooms
 with AnnyBody people. Missing assets return an error. CPU archives, filesystem

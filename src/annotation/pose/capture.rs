@@ -123,13 +123,13 @@ impl Sample {
                         let pixel = calibration
                             .project(local.to_array())
                             .filter(|p| p.iter().all(|v| v.is_finite()));
-                        let depth = -local.z;
+                        let depth = calibration.depth(local.to_array());
                         Ok(ProjectedJoint {
                             world_position: p.to_array(),
                             world_rotation: q,
                             view_position: local.to_array(),
                             pixel,
-                            axial_depth: depth,
+                            axial_depth: -local.z,
                             in_frustum: depth >= view.near
                                 && depth <= view.far
                                 && pixel.is_some_and(|p| calibration.in_image(p)),

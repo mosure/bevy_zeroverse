@@ -231,8 +231,9 @@ fn update_preview(
             Option<&crate::io::image_copy::ImageCopier>,
             Option<&PreviewGeometry>,
             Option<&super::ssaa::SsaaCamera>,
+            Option<&crate::camera::lens::LensCamera>,
         ),
-        With<ZeroverseCamera>,
+        Or<(With<ZeroverseCamera>, With<CaptureCameraIndex>)>,
     >,
     mut geometry: Query<&mut GroundTruthCamera>,
     mut legend: ResMut<CoVisibilityLegend>,
@@ -257,7 +258,7 @@ fn update_preview(
         legend.error = Some("Co-visibility requires unique CaptureCameraIndex values".into());
     }
     *frame = frame.wrapping_add(1).max(1);
-    for (slot, (entity, _, target, projection, copier, owned, ssaa)) in
+    for (slot, (entity, _, target, projection, copier, owned, ssaa, lens)) in
         ordered.into_iter().enumerate()
     {
         // Captures own their request stamps and attachment lifetimes. Never let
@@ -287,7 +288,10 @@ fn update_preview(
         let Some(image) = images.get(&target.handle) else {
             continue;
         };
-        let size = ssaa.map_or_else(|| image.size(), |s| s.output_size);
+        let size = lens.map_or_else(
+            || ssaa.map_or_else(|| image.size(), |s| s.output_size),
+            |l| UVec2::from_array(l.calibration.image_size),
+        );
         let configure = |gt: &mut GroundTruthCamera, images: &mut Assets<Image>| {
             if images
                 .get(&gt.world_depth)
@@ -311,9 +315,10 @@ fn update_preview(
                 output.preview = Some(images.add(preview));
             }
             gt.frame_id = *frame;
+            gt.calibration = lens.map(|l| l.calibration.clone());
             if let Some((p, _)) = crate::camera::pinhole::parameters(projection) {
-                gt.near = p.near;
-                gt.far = p.far;
+                gt.near = lens.map_or(p.near, |l| l.near);
+                gt.far = lens.map_or(p.far, |l| l.far);
             }
         };
         if let Ok(mut gt) = geometry.get_mut(entity) {

@@ -443,6 +443,10 @@ pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
 pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     m.add(
+        "CAMERA_CALIBRATION_METADATA_V2",
+        bevy_zeroverse::calibration::TENSOR_METADATA_V2,
+    )?;
+    m.add(
         "CAMERA_CALIBRATION_METADATA",
         bevy_zeroverse::calibration::TENSOR_METADATA,
     )?;

@@ -54,15 +54,28 @@ pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>,
     if !offset.is_finite() || offset.abs().cmpgt(Vec2::splat(0.5)).any() {
         return Err("invalid schematic principal point".into());
     }
-    let corners = if let Some(calibration) = &c.calibration {
+    let corners: Vec<Vec3> = if let Some(calibration) = &c.calibration {
         calibration.validate()?;
-        let k = calibration.k;
-        let [width, height] = calibration.image_size.map(|x| x as f32);
-        [[0., 0.], [width, 0.], [width, height], [0., height]].map(|[u, v]| {
-            let y = (v - k[1][2]) / k[1][1];
-            let x = (u - k[0][2] - k[0][1] * y) / k[0][0];
-            Vec3::new(x * d, -y * d, -d)
-        })
+        if calibration.fisheye.is_some() {
+            let size = calibration.image_size.map(|x| x as f32);
+            (0..=32)
+                .flat_map(|y| {
+                    (0..=32).map(move |x| [x as f32 / 32. * size[0], y as f32 / 32. * size[1]])
+                })
+                .filter_map(|p| calibration.ray(p))
+                .map(|r| Vec3::from_array(r) * d)
+                .collect()
+        } else {
+            let k = calibration.k;
+            let [width, height] = calibration.image_size.map(|x| x as f32);
+            [[0., 0.], [width, 0.], [width, height], [0., height]]
+                .map(|[u, v]| {
+                    let y = (v - k[1][2]) / k[1][1];
+                    let x = (u - k[0][2] - k[0][1] * y) / k[0][0];
+                    Vec3::new(x * d, -y * d, -d)
+                })
+                .to_vec()
+        }
     } else {
         let h = d * (c.fov_y * 0.5).tan();
         let w = h * c.aspect;
@@ -73,6 +86,7 @@ pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>,
             Vec3::new(-w, h, -d),
         ]
         .map(|p| p + Vec3::new(-2. * offset.x * w, 2. * offset.y * h, 0.))
+        .to_vec()
     };
     // Convex hull of projected optical center and the four actual image corners.
     let mut hull: Vec<_> = std::iter::once(Vec3::ZERO)

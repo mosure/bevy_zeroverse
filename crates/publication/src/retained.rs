@@ -80,7 +80,9 @@ fn release_input(path: &str) -> bool {
             | "crates/publication/templates/objects.html"
             | "www/project/static/js/objects.js"
             | "www/project/static/css/objects.css"
-    ) || path.starts_with("crates/publication/src/")
+    ) || path == "crates/publication/templates/fisheye.html"
+        || path.starts_with("docs/evidence/fisheye/")
+        || path.starts_with("crates/publication/src/")
         || path.starts_with("crates/publication/tests/")
 }
 
@@ -92,8 +94,9 @@ fn frozen_inputs(inputs: &BTreeMap<String, String>) -> BTreeMap<&String, &String
 }
 
 /// Domain-separated pin for the original scientific evidence. Presentation
-/// outputs are deliberately excluded; all images, measurements, source archives
-/// and the paper remain pinned. Struct field order and BTreeMaps are canonical.
+/// outputs and the independently attested lens chapter are excluded; original
+/// images, measurements, source archives and paper remain pinned. The top-level
+/// attestation binds the added chapter normally. Struct order/maps are canonical.
 pub fn capture_evidence_digest(attestation: &Attestation) -> Result<String> {
     #[derive(Serialize)]
     struct Evidence<'a> {
@@ -126,7 +129,7 @@ pub fn capture_evidence_digest(attestation: &Attestation) -> Result<String> {
                 !matches!(
                     name.as_str(),
                     "www/project/index.html" | "www/project/reference.html"
-                )
+                ) && !name.starts_with("www/project/fisheye/")
             })
             .collect(),
         reference_studies: &attestation.reference_studies,
@@ -216,6 +219,29 @@ mod tests {
         inputs.remove("crates/publication/src/pipeline.rs");
         policy.verify(&identity, &attestation, &inputs).unwrap();
         assert_eq!(attestation.generator_identity.crate_version, "1.0.0");
+    }
+
+    #[test]
+    fn lens_chapter_preserves_the_original_evidence_pin() {
+        let (policy, identity, mut attestation) = fixture();
+        attestation.artifacts.insert(
+            "www/project/fisheye/whitepaper.pdf".into(),
+            "separately-qualified-paper".into(),
+        );
+        attestation.publication_inputs.insert(
+            "docs/evidence/fisheye/receipt.json".into(),
+            "current-source-receipt".into(),
+        );
+        policy
+            .verify(&identity, &attestation, &attestation.publication_inputs)
+            .unwrap();
+        attestation.artifacts.insert(
+            "www/project/static/papers/bevy_zeroverse.pdf".into(),
+            "changed-original-paper".into(),
+        );
+        assert!(policy
+            .verify(&identity, &attestation, &attestation.publication_inputs)
+            .is_err());
     }
 
     #[test]

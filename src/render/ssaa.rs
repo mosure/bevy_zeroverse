@@ -207,11 +207,12 @@ fn extract(
             &Camera,
             Option<&crate::io::image_copy::ImageCopier>,
             Option<&super::ground_truth::GroundTruthCamera>,
+            Has<crate::camera::lens::LensCamera>,
         )>,
     >,
 ) {
     jobs.0.clear();
-    for (ssaa, camera, copier, gt) in &cameras {
+    for (ssaa, camera, copier, gt, angular) in &cameras {
         let source = if **mode == RenderMode::CoVisibility {
             gt.and_then(|g| g.co_visibility.as_ref())
                 .and_then(|v| v.preview.clone())
@@ -222,7 +223,7 @@ fn extract(
         jobs.0.push(Job {
             camera: ssaa.clone(),
             source,
-            factor: filter_factor(&mode, copier.is_some(), ssaa.factor),
+            factor: filter_factor(&mode, copier.is_some() || angular, ssaa.factor),
             normal: **mode == RenderMode::Normal && copier.is_none(),
             active: camera.is_active,
             request: copier.map_or(0, |c| c.requested_id()),

@@ -5,7 +5,8 @@ pub mod wire;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Plane {
     Color,
-    /// World XYZ, metric camera-Z in alpha (zero is invalid).
+    /// World XYZ; alpha is camera-Z for pinhole, ray range for angular fisheye.
+    /// Consult the per-view calibration. Zero alpha is invalid.
     WorldDepth,
     /// View normal encoded in [0,1], integral semantic ID in alpha.
     NormalSemantic,

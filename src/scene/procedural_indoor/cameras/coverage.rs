@@ -25,6 +25,7 @@ pub(crate) struct Coverage {
 
 /// Pixel-centred proxy rays over the full calibrated frustum, not just its centre.
 pub(super) struct VisibilityView {
+    lens: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
     pose: Transform,
     scale: Vec2,
     offset: Vec2,
@@ -97,24 +98,41 @@ impl Coverage {
         let pose = camera.transform_at(t);
         let scale = Vec2::new(aspect, 1.0) * (camera.fov_degrees.to_radians() * 0.5).tan();
         let offset = self.optical_center(camera);
+        let lens = self.calibration(camera);
         let mut points = Vec::with_capacity(117);
         for y in 0..9 {
             for x in 0..13 {
-                let local = Vec3::new(
-                    (2.0 * (x as f32 + 0.5) / 13.0 - 1.0 - 2. * offset.x) * scale.x,
-                    (2.0 * (y as f32 + 0.5) / 9.0 - 1.0 + 2. * offset.y) * scale.y,
-                    -1.0,
-                )
-                .normalize();
+                let local = if let Some(lens) = &lens {
+                    let pixel = [
+                        (x as f32 + 0.5) / 13. * lens.image_size[0] as f32,
+                        (8.5 - y as f32) / 9. * lens.image_size[1] as f32,
+                    ];
+                    let Some(ray) = lens.ray(pixel) else {
+                        points.push(None);
+                        continue;
+                    };
+                    Vec3::from_array(ray)
+                } else {
+                    Vec3::new(
+                        (2.0 * (x as f32 + 0.5) / 13.0 - 1.0 - 2. * offset.x) * scale.x,
+                        (2.0 * (y as f32 + 0.5) / 9.0 - 1.0 + 2. * offset.y) * scale.y,
+                        -1.0,
+                    )
+                    .normalize()
+                };
                 let ray = pose.rotation * local;
                 points.push(
                     self.first_hit(pose.translation, ray)
-                        .filter(|&d| (-local.z * d) >= 0.1 && (-local.z * d) <= 50.0)
+                        .filter(|&d| {
+                            let depth = if lens.is_some() { d } else { -local.z * d };
+                            (0.1..=50.).contains(&depth)
+                        })
                         .map(|d| pose.translation + ray * d),
                 );
             }
         }
         VisibilityView {
+            lens,
             pose,
             scale,
             offset,
@@ -130,11 +148,18 @@ impl Coverage {
         for point in source.points.iter().flatten() {
             let delta = *point - target.pose.translation;
             let local = target.pose.rotation.inverse() * delta;
-            if -local.z < 0.1
-                || -local.z > 50.0
-                || (local.x / (-local.z * target.scale.x) + 2. * target.offset.x).abs() >= 1.
-                || (local.y / (-local.z * target.scale.y) - 2. * target.offset.y).abs() >= 1.
-            {
+            if if let Some(lens) = &target.lens {
+                let depth = lens.depth(local.to_array());
+                !(0.1..=50.).contains(&depth)
+                    || !lens
+                        .project(local.to_array())
+                        .is_some_and(|p| lens.in_image(p))
+            } else {
+                -local.z < 0.1
+                    || -local.z > 50.0
+                    || (local.x / (-local.z * target.scale.x) + 2. * target.offset.x).abs() >= 1.
+                    || (local.y / (-local.z * target.scale.y) - 2. * target.offset.y).abs() >= 1.
+            } {
                 continue;
             }
             let distance = delta.length();
@@ -152,7 +177,15 @@ impl Coverage {
             }
         }
         (
-            visible as f32 / source.points.len() as f32,
+            // Circular sensor borders have no rays and must not cap the
+            // attainable overlap. Match the rendered valid-surface denominator
+            // for angular cameras; retain legacy pinhole admission exactly.
+            visible as f32
+                / if source.lens.is_some() {
+                    source.points.iter().flatten().count().max(1) as f32
+                } else {
+                    source.points.len() as f32
+                },
             angle / visible.max(1) as f32,
         )
     }
@@ -312,12 +345,25 @@ impl Coverage {
         })
     }
 
+    fn calibration(
+        &self,
+        camera: &IndoorCamera,
+    ) -> Option<bevy_zeroverse_capture::calibration::CameraCalibration> {
+        camera.fisheye.map(|lens| {
+            lens.calibration(
+                [(1000. * self.aspect).round() as u32, 1000],
+                self.optical_center(camera).to_array(),
+            )
+            .expect("validated lens prior")
+        })
+    }
     pub fn suitable(&self, camera: &IndoorCamera, require_person: bool) -> bool {
+        let lens = self.calibration(camera);
         [0.0, 0.5, 1.0].into_iter().all(|t| {
             let pose = camera.transform_at(t);
             let scale = (camera.fov_degrees.to_radians() * 0.5).tan();
             let offset = self.optical_center(camera);
-            if require_person && !self.body_visible(pose, scale, offset) {
+            if require_person && lens.is_none() && !self.body_visible(pose, scale, offset) {
                 return false;
             }
             let mut counts = BTreeMap::new();
@@ -325,15 +371,26 @@ impl Coverage {
             // policy does not rely on peripheral content just outside the frame.
             for y in 0..5 {
                 for x in 0..7 {
-                    let ray = pose.rotation
-                        * Vec3::new(
+                    let local = if let Some(lens) = &lens {
+                        let pixel = [
+                            (0.1 + x as f32 / 6. * 0.8) * lens.image_size[0] as f32,
+                            (0.9 - y as f32 / 4. * 0.8) * lens.image_size[1] as f32,
+                        ];
+                        let Some(ray) = lens.ray(pixel) else {
+                            continue;
+                        };
+                        Vec3::from_array(ray)
+                    } else {
+                        Vec3::new(
                             ((x as f32 / 6.0 - 0.5) * 1.6 * self.aspect.min(1.)
                                 - 2. * offset.x * self.aspect)
                                 * scale,
                             ((y as f32 / 4.0 - 0.5) * 1.6 + 2. * offset.y) * scale,
                             -1.0,
                         )
-                        .normalize();
+                        .normalize()
+                    };
+                    let ray = pose.rotation * local;
                     let (nearest, mut label) = self
                         .shell_hit(pose.translation, ray)
                         .unwrap_or((f32::INFINITY, "background"));
@@ -375,17 +432,55 @@ fn ray_box(origin: Vec3, direction: Vec3, half: Vec3) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fisheye_overlap_excludes_invalid_sensor_pixels_but_preserves_pinhole_policy() {
+        use crate::calibration::{Fisheye, FisheyeFit};
+        let coverage = super::Coverage {
+            seed: 0,
+            jitter: Vec2::ZERO,
+            aspect: 1.,
+            index: None,
+            body_points: vec![],
+            shell: None,
+            colliders: vec![super::Collider {
+                center: Vec3::new(0., 0., -2.05),
+                half: Vec3::new(1., 1., 0.05),
+                inverse: Quat::IDENTITY,
+                label: "wall",
+            }],
+        };
+        let mut view = super::VisibilityView {
+            lens: Some(
+                Fisheye {
+                    coefficients: [0.; 4],
+                    max_angle: 1.8,
+                }
+                .calibration([100; 2], FisheyeFit::Circular, [0.; 2], 1.)
+                .unwrap(),
+            ),
+            pose: Transform::IDENTITY,
+            scale: Vec2::ONE,
+            offset: Vec2::ZERO,
+            points: vec![Some(Vec3::new(0., 0., -2.)), None, None, None],
+        };
+        assert_eq!(coverage.shared(&view, &view).0, 1.);
+        view.lens = None;
+        assert_eq!(coverage.shared(&view, &view).0, 0.25);
+    }
+
     use super::*;
     #[test]
     fn shared_surfaces_require_visibility_and_actual_frustum() {
         let point = Vec3::new(0.0, 0.0, -4.0);
         let a = VisibilityView {
+            lens: None,
             offset: Vec2::ZERO,
             pose: Transform::IDENTITY,
             scale: Vec2::ONE,
             points: vec![Some(point)],
         };
         let mut b = VisibilityView {
+            lens: None,
             offset: Vec2::ZERO,
             pose: Transform::from_xyz(2.0, 0.0, 0.0).looking_at(point, Vec3::Y),
             scale: Vec2::ONE,
@@ -472,6 +567,7 @@ mod tests {
         )
         .unwrap();
         let wall_view = IndoorCamera {
+            fisheye: None,
             principal_point_offset: None,
             start: Vec3::new(0.0, 1.5, 0.0),
             end: Vec3::new(0.0, 1.5, 0.0),

@@ -1,0 +1,269 @@
+# Calibrated fisheye capture
+
+Fisheye capture is opt-in. The existing centered and shifted pinhole generators
+keep their defaults. Configure the indoor camera program, for example:
+
+```json
+{
+  "baseline": 0.5,
+  "lenses": {
+    "probability": 0.5,
+    "fov_degrees": [140.0, 210.0],
+    "circular_probability": 0.2,
+    "elliptical_probability": 0.0,
+    "distortion_strength": 1.0,
+    "anisotropy": [0.97, 1.03]
+  }
+}
+```
+
+Pass this JSON through `--indoor-camera`, `BevyZeroverseConfig::indoor_camera`,
+or the corresponding Burn generator/capture configuration. Native and WebGPU
+studio controls expose the same settings under Cameras. The share URL serializes
+the camera program; regenerate explicitly to apply the new sample.
+
+`probability` is a Bernoulli probability for **each camera**, not a rounded
+percentage of the cameras in a small rig. It is sampled by scene seed and camera
+index before visibility admission, independently of geometry and placement RNGs.
+Retries preserve the selected model. Increasing camera count preserves existing
+assignments. Missing `lenses` and probability zero leave every camera pinhole.
+Intrinsics stay fixed through the capture timeline; existing camera-motion and
+baseline controls still govern the poses.
+
+The two FOV bounds describe the fitted angular **diameter**, not a perspective
+vertical FOV. Sensor coverage is independent of the radial projection law:
+
+- **Circular** fits a complete disk inside the image, around the realized
+  principal point. It has equal focal axes; the sampler records anisotropy 1.
+  Custom circular sensors with unequal focal axes are rejected.
+- **Diagonal / full-frame** covers every image corner, including shifted optical
+  centers and sampled unequal focal axes. `full_frame` is a JSON alias for
+  `diagonal`. The fitted diameter spans the farthest normalized sensor corner.
+- **Elliptical** explicitly fits a complete ellipse inside the image. Its axis
+  ratio follows the sampled anisotropy. Circular and elliptical probabilities
+  are absolute masses among fisheye cameras and must sum to at most one; the
+  remaining probability selects diagonal/full-frame coverage.
+
+Principal-point jitter shrinks a contained circle/ellipse to the nearest edge;
+it does not silently clip it. Pixels outside the lens domain are invalid, rather
+than background geometry. These names follow the photographic distinction
+between [circular and full-frame fisheye lenses](https://imaging.nikon.com/imaging/information/story/0053/index.html).
+
+## Public abstraction
+
+`bevy_zeroverse_capture::calibration` owns the renderer-independent contract:
+`CameraCalibration`, `LensModel`, `Fisheye`, `FisheyeSensor` and `FisheyeFit`.
+The root crate reexports these through `calibration` and `camera::lens`.
+`project`, `unproject`, `ray`, `in_image` and `depth` use the same model that
+generates annotations. Custom calibrated cameras can set
+`ZeroverseCamera::fisheye`; procedural scenes archive the realized sensor on
+each `IndoorCamera`.
+
+`FisheyeCameraPlugin` is the Bevy integration installed by
+`ZeroverseCameraPlugin`. It keeps auxiliary face cameras separate from logical
+camera indices and dataset views. The geometry-ray implementation is owned by
+the existing ground-truth renderer. Keeping the lightweight contract in the
+capture crate avoids adding Bevy/WGPU dependencies to dataset readers, or a
+second copy of the lens model in another plugin crate.
+
+## Calibration and numeric targets
+
+The central angular model is
+
+\[
+r(\theta)=\theta(1+k_1\theta^2+k_2\theta^4+k_3\theta^6+k_4\theta^8),
+\quad \theta=\operatorname{atan2}(\sqrt{x^2+y^2},-z).
+\]
+
+K is row-major in pixel units, including skew and optical center. Image axes are
+right/down; the top-left pixel center is `(0.5,0.5)`. View axes remain Bevy's
+right/up/negative-Z. The coefficient units are radians. Calibration validation
+certifies a positive polynomial derivative over the complete angular domain,
+using interval bounds, rather than accepting a polynomial from point samples.
+The bounded inverse handles rearward rays; it does not use a pinhole matrix or
+silently clamp the inverse at 90 degrees.
+
+The coefficient order and angular polynomial match the
+[OpenCV fisheye model](https://docs.opencv.org/4.13.0/db/d58/group__calib3d__fisheye.html),
+also commonly called a four-coefficient Kannala–Brandt model. All-zero
+coefficients give an equidistant lens. This is not the Brown–Conrady radial/tangential
+distortion model. For OpenCV interoperability:
+
+- Keep `fx`, `fy` and `D=[k1,k2,k3,k4]`; subtract **0.5** from `cx,cy` when using
+  OpenCV's integer-centered pixels. Its skew parameter is `alpha=K[0][1]/fx`.
+- Convert Bevy camera coordinates `(x,y,z)` to `(x,-y,-z)` for OpenCV's
+  right/down/forward axes. Apply that basis change to extrinsics too.
+- Keep the explicit angular-domain mask and range-depth convention. A K/D pair
+  alone does not encode image-circle validity or the capture's clip range.
+- Forward-hemisphere projection is checked against OpenCV's equations. Our
+  `atan2` extension supports rearward rays; OpenCV routines based on `atan(r)`
+  must not be assumed to preserve rays beyond 90 degrees from the optical axis.
+
+| Output | Contract |
+|---|---|
+| RGB | Tone-mapped linear RGBA; existing optional sRGB GPU/CPU conversion applies once. SSAA resolves RGB in linear light. |
+| Fisheye depth | Positive Euclidean **ray range** in metres; zero marks no valid first surface. |
+| Pinhole depth | Existing positive axial `-view.z` convention. |
+| Position | The same first surface, encoded with the existing scene-AABB normalization. Exterior geometry may lie outside `[0,1]`. |
+| Normal | Existing encoded unit view-space normal of that surface. |
+| Semantic | Existing integer semantic ID internally and deterministic palette on export; never interpolate classes. |
+| Optical flow | Source-grid forward displacement in final-image pixels, with correspondence/visibility masks; both endpoints use their captured lens models. |
+| Co-visibility | Existing additive camera bitmask, excluding self. Only logical cameras have bits; face count does not consume them. |
+| Human poses | Lens-aware joint projection and model-depth frustum test; the explicitly named axial-depth joint field remains axial. |
+
+Pinhole-only archives retain calibration schema 1. A fisheye view carries schema
+2 and lens model `angular_fisheye4`, version 1, with its coefficients and maximum
+polar angle. Mixed-lens tensor archives use calibration contract 2, per-view
+`lens_model` U8 (`0=pinhole`, `1=angular_fisheye4`) and `lens_parameters` F32
+`[k1,k2,k3,k4,max_angle_radians]`, alongside K, dimensions, pose and timing.
+Pinhole entries have zero angular parameters. Readers must inspect the model;
+the legacy `fovy` tensor alone cannot describe a fisheye. Model and range
+semantics accompany direct WGPU/CUDA captures in the CPU metadata as well.
+
+The lens-domain mask can be reproduced from calibration independently of scene
+visibility. A valid ray with no surface is distinct from an invalid lens pixel.
+Geometric annotations retain final-pixel-center samples under SSAA; categorical
+IDs, depth, flow and visibility are never averaged across silhouettes. RGB
+coverage may be fractional at the lens boundary under SSAA; geometric validity
+still describes the final pixel center.
+
+## Rendering and cost
+
+RGB uses co-located perspective faces with overlapping guard bands, followed by
+a GPU angular resolve. The supported angular domain needs at most five faces;
+narrow lenses contained within the front face use one. Face texel density
+accounts for the angular mapping and SSAA. Face views share scene assets,
+lighting, exposure and time. They follow the logical camera's activity gate,
+including idle/readback intervals.
+
+Optional per-view shading settings, render layers and their removals propagate
+to every face. A native direct-draw camera keeps that policy on its auxiliary
+views. Multi-face renders add a bounded guard band for screen-space context and
+blend matching world rays only within that overlap, including three-face
+corners. Interior pixels sample one face. This removes hard selection boundaries
+without blending geometric or categorical annotations. Bloom, SSAO and finite
+shadow maps remain approximations; the compositor does not make them a globally
+path-traced lighting solution.
+
+Metric annotations trace final camera rays against the authoritative annotation
+triangles, including moving/skinned geometry and the selected glass policy.
+A deterministic balanced BVH is shared by all nonlinear views and retained
+while geometry/transforms are unchanged. Temporal flow traces the preceding
+capture's surface and carries its barycentric correspondence forward. Render
+frame frequency does not select the capture endpoints.
+
+Co-visibility projects each source surface into the target camera's actual
+angular domain, then applies the existing first-surface/tangent-plane occlusion
+test. This retains the existing nearest-target-pixel tangent-plane policy:
+finite sampling can create small holes around thin surfaces and silhouettes. It
+is not continuous visibility at unlimited image resolution. Circular masks,
+offsets, rearward rays and mixed pinhole/fisheye rigs are included in qualification. Placement overlap remains an approximate
+geometry-proxy measurement; it is not a substitute for rendered overlap.
+
+Fisheye rendering costs more than a single perspective render. It is not a
+zero-cost postprocessing warp. The disabled path allocates no face textures,
+angular BVH or temporal correspondence buffers. Qualification records resolution,
+SSAA, camera count, number of frames, geometry/annotation modes and GPU contention
+alongside timings; isolated and concurrent-training rates must not be conflated.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+    S[Scene seed + camera index] --> L[Sample lens once]
+    L --> P[Lens-aware pose admission]
+    P --> C[Logical calibrated camera + capture time]
+    C --> F[Guarded PBR face renders]
+    F --> R[Angular RGB resolve + SSAA]
+    C --> T[Final-center ray intersections]
+    G[Shared authoritative geometry BVH] --> T
+    T --> A[Range / normal / semantic / position]
+    A --> V[Target-lens co-visibility]
+    T --> M[Captured-time surface correspondence]
+    M --> O[Forward optical flow]
+    R --> E[Calibration + optional planes]
+    A --> E
+    V --> E
+    O --> E
+    E --> D[WGPU / CUDA / files / viewer]
+```
+
+## Reproducible qualification
+
+```sh
+cargo run --example validate_fisheye -- --cpu
+cargo run --example validate_fisheye -- --fixture
+cargo run --example validate_fisheye -- --fixture --narrow
+cargo run --example validate_fisheye -- --lighting-fixture
+cargo run --example validate_fisheye
+cargo run --example validate_fisheye -- --bench
+```
+
+The first command validates portable shaders and seeded room-camera sampling.
+The analytic fixture checks metric intersections, mixed-lens co-visibility and
+camera-motion flow independently of the scene generator. The room run checks
+capture completion and reprojection and saves actual RGB captures/calibration.
+The benchmark uses the same full-quality generation path at three 512×512 views.
+For a matched pinhole control, add `--pinhole --matched`: both runs then admit the
+same lens-aware trajectories, and only the capture projection is changed. The
+publication crate's `fisheye-performance` command rejects different scene
+manifests, poses, quality settings or capture-engine identities. Lighting tests
+compare identical world rays across face boundaries and execute the production
+compositor on the rendered textures to check final-image continuity.
+Results and platform qualification are recorded with the generated evidence;
+successful compilation alone is not rendered or cross-platform qualification.
+
+## Qualification status
+
+The source-bound receipt in `docs/evidence/fisheye` binds every gallery image and
+paper result to the captured generator. The current native cohort contains six
+consecutive furnished rooms (400–405), three 512×512 views and two timestamps.
+RGB, depth, normal, position, semantic, flow and co-visibility captures pass the
+pixelwise geometric checks. The twelve-camera smoke case also passes.
+
+Independent moving-occluder fixtures exercise wide and single-face narrow lenses,
+including mixed pinhole/fisheye rigs. The wide fixture has zero co-visibility
+mismatches across 48,625 relations, maximum position error 0.153 mm, maximum flow
+error 0.001818 pixels, and zero RGB core-mask mismatches. These checks exclude
+silhouette discontinuities where finite visibility sampling is ambiguous.
+
+Matched native measurements on RTX PRO 6000 Blackwell, NVIDIA 610.43.02, Vulkan:
+
+| Workload | Pinhole rooms/s | Fisheye rooms/s | Relative throughput |
+|---|---:|---:|---:|
+| RGB, one timestamp | 0.979 | 0.834 | 85.2% |
+| RGB plus six annotations, two timestamps | 0.815 | 0.517 | 63.5% |
+
+Each case uses the same six rooms and camera poses, with the first room reported
+separately and the remaining five timed. Automatic 2× SSAA, 2048 shadow maps,
+GPU materials and 256-ray GI stay enabled. Times include scene generation,
+rendering and CPU readback; startup and report-image writing are excluded.
+Training was paused. These small cohorts do not establish steady-state or
+concurrent-training throughput, and are not direct Burn/CUDA transport timings.
+All cameras in these cases are fisheye; the optional mixed prior is a different
+workload. Wide angular coverage still costs more than one perspective view.
+
+The native lighting fixture retains fixed exposure, reflection, glass,
+emissive surfaces, bloom and shadow-enabled directional/point/spot cases;
+the combined case also includes SSAO. All 6,180 production-compositor boundary
+approaches pass, with maximum linear-RGB jump 0.000301. The raw pre-composite
+right/top directional-light diagnostic still has mean error 0.025294, above
+its 0.025 limit. This failed diagnostic is retained: smooth blending does not
+establish globally identical radiance or path-traced lighting accuracy.
+
+CPU tests cover canonical sensor fits, shifted centers, aspects, an independent
+OpenCV forward-hemisphere oracle, inverse projection and invalid parameters.
+The 1,024-seed × 12-slot audit yields 3,062 angular cameras and 625 circular
+cameras, with exact replay and valid calibration. BVH equivalence tests preserve
+triangle payloads, conservative bounds and leaf membership. Shader validation,
+strict workspace Clippy, mixed-lens archives and the WebAssembly human-motion
+build pass. View-setting propagation covers edits, removals and unchanged frames.
+
+Browser/Metal/M4 runtime parity, long-run stability and direct Burn/CUDA fisheye
+consumption remain unqualified for this change. The report and paper distinguish
+these limits from the completed native checks.
+
+For downstream models, known-intrinsics rectification remains a useful baseline.
+Native fisheye training should condition on calibrated rays (and validity), not
+assume straight epipolar lines or a single perspective matrix. The broader
+roadmap and rectification tradeoffs are in [the lens roadmap](fisheye_lens_roadmap.md).

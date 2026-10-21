@@ -45,8 +45,8 @@ policy to the continuous sampler; importing it alone does not reinterpret it.
 
 These are rectilinear perspective lenses, with straight-line projection and
 `lens_model=pinhole`. At aspect 1.6, a centered 145° vertical lens covers about
-158° horizontally. A true fisheye's radial distortion is a different lens model
-and is not applied. Full per-view K, shifted principal points, depth, normals,
+158° horizontally. Fisheye distortion is a separate opt-in lens program, described below;
+these perspective controls continue to govern pinhole cameras. Full per-view K, shifted principal points, depth, normals,
 positions, flow and co-visibility use the same projection. An enlarged swept
 clearance sphere encloses the full near-plane rectangle, including optical-center
 shift; wide lenses cannot bypass room/furniture clearance. Explicit bounds also
@@ -318,12 +318,14 @@ separate `trajectory_progress` (after playback easing) from `time_seconds`. Set
 normalized camera/human trajectories; it does not claim the native timing of a
 generated human-motion clip. Direction reversal reverses poses, not this timeline.
 
-Rendering uses the versioned pinhole model, centered by default or shifted by
-the optional principal-point sampler described above. Distortion and rolling
-shutter remain unsupported. An RGB-only distortion warp would invalidate depth,
-flow and visibility correspondence. A future lens model must integrate those
-rendering paths and their oracles first. Consumers that assume centered K should
-leave principal-point jitter at zero until their calibration path supports it.
+Pinhole remains the default. Optional [calibrated fisheye cameras](fisheye_cameras.md)
+use a versioned angular polynomial, lens-aware RGB and numeric targets, mixed-lens
+flow/co-visibility, and per-view tensor model metadata. Enable them with
+`"lenses":{"probability":0.5}` in the indoor camera program. Angular depth is
+ray range; existing pinhole depth stays axial. Consumers must use the exported
+model and K rather than infer a fisheye from the legacy `fovy` field.
+Rolling shutter and rectified derived outputs remain future work in the
+[fisheye roadmap](fisheye_lens_roadmap.md).
 
 ## Independent metric handheld motion
 

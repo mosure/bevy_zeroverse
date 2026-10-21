@@ -23,6 +23,7 @@ pub(crate) struct CoVisibilityLabel;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraData {
+    lens: [[f32; 4]; 4],
     clip: [[f32; 4]; 4],
     view: [[f32; 4]; 4],
     world: [[f32; 4]; 4],
@@ -156,7 +157,9 @@ struct Atlas {
 }
 
 pub(super) fn install(app: &mut App) {
-    load_internal_asset!(app, SHADER, "visibility.wgsl", Shader::from_wgsl);
+    load_internal_asset!(app, SHADER, "visibility.wgsl", |source: &str, path| {
+        Shader::from_wgsl(crate::camera::lens::shader(source, ""), path)
+    });
     load_internal_asset!(app, PREVIEW, "preview.wgsl", Shader::from_wgsl);
     let diagnostics = app.world().resource::<CoVisibilityDiagnostics>().clone();
     let Some(render) = app.get_sub_app_mut(RenderApp) else {
@@ -249,6 +252,10 @@ fn prepare(
         let camera_view = world.inverse();
         let rgb = camera_color(i, count).map(|v| v as f32 / 255.0);
         uniform.cameras[i] = CameraData {
+            lens: c
+                .calibration
+                .as_ref()
+                .map_or([[0.; 4]; 4], |l| l.shader_parameters()),
             clip: view
                 .clip_from_world
                 .unwrap_or(view.clip_from_view * camera_view)

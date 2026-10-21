@@ -93,6 +93,20 @@ pub fn observe_rendered(
             camera_spec.principal_point_offset.unwrap_or_default().x * capture.image_size[0] as f32;
         expected_k.k[1][2] +=
             camera_spec.principal_point_offset.unwrap_or_default().y * capture.image_size[1] as f32;
+        if let Some(lens) = camera_spec.fisheye {
+            expected_k = lens.calibration(
+                capture.image_size,
+                camera_spec
+                    .principal_point_offset
+                    .unwrap_or_default()
+                    .to_array(),
+            )?;
+        }
+        if calibration.lens_model != expected_k.lens_model
+            || calibration.fisheye != expected_k.fisheye
+        {
+            return Err("rendered lens differs from accepted camera".into());
+        }
         if calibration
             .k
             .iter()

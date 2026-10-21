@@ -584,6 +584,7 @@ fn regenerate(
         commands.spawn((
             crate::camera::CaptureCameraIndex(index),
             ZeroverseCamera {
+                fisheye: camera.fisheye,
                 perspective_sampler: PerspectiveSampler::exact(camera.fov_degrees),
                 principal_point_offset: camera.principal_point_offset.unwrap_or_default(),
                 trajectory: camera.runtime_trajectory(),

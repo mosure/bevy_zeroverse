@@ -92,3 +92,62 @@ fn reject_partial_mislabeled_or_nonfinite_calibration() {
         );
     }
 }
+
+#[test]
+fn mixed_lens_models_roundtrip_in_dense_archives() {
+    use bevy_zeroverse::calibration::{Fisheye, FisheyeFit};
+    let mut angular = sample();
+    for (i, v) in angular
+        .views
+        .iter_mut()
+        .enumerate()
+        .filter(|(i, _)| i % 2 == 1)
+    {
+        v.calibration = Some(
+            Fisheye {
+                coefficients: [-0.03, 0.002, 0., 0.],
+                max_angle: 1.83,
+            }
+            .calibration(
+                [7, 5],
+                if i == 1 {
+                    FisheyeFit::Elliptical
+                } else {
+                    FisheyeFit::Diagonal
+                },
+                [0.03, -0.04],
+                1.02,
+            )
+            .unwrap(),
+        );
+    }
+    let pinhole = sample();
+    let dir = tempfile::tempdir().unwrap();
+    for (i, codec) in [ColorCodec::Raw, ColorCodec::Jpeg].into_iter().enumerate() {
+        let path = save_chunk_with_codec(
+            &[pinhole.clone(), angular.clone()],
+            dir.path(),
+            i,
+            Compression::None,
+            7,
+            5,
+            false,
+            codec,
+        )
+        .unwrap();
+        let decoded = load_chunk(path).unwrap();
+        assert_labels(&decoded[0], &pinhole);
+        assert_labels(&decoded[1], &angular);
+    }
+    let path = save_sample_to_fs(&angular, dir.path(), 7, 7, 5, false).unwrap();
+    assert_labels(&load_sample_dir(path).unwrap(), &angular);
+    angular.views[1]
+        .calibration
+        .as_mut()
+        .unwrap()
+        .fisheye
+        .as_mut()
+        .unwrap()
+        .coefficients = [-1., 0., 0., 0.];
+    assert!(save_sample_to_fs(&angular, dir.path(), 8, 7, 5, false).is_err());
+}

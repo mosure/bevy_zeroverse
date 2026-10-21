@@ -5,6 +5,44 @@ use super::super::{
 use bevy::prelude::*;
 use std::io::{self, Write};
 
+/// Report the admitted lens, not the perspective proposal used to search a pose.
+pub(super) fn optics(
+    camera: &super::super::layout::IndoorCamera,
+    width: u32,
+    height: u32,
+) -> io::Result<[f32; 6]> {
+    let offset = camera.principal_point_offset.unwrap_or_default();
+    let Some(sensor) = camera.fisheye else {
+        let fy = height as f32 / (2. * (camera.fov_degrees.to_radians() * 0.5).tan());
+        let cx = width as f32 * (0.5 + offset.x);
+        let cy = height as f32 * (0.5 + offset.y);
+        return Ok([
+            fy,
+            fy,
+            cx,
+            cy,
+            ((cx / fy).atan() + ((width as f32 - cx) / fy).atan()).to_degrees(),
+            ((cy / fy).atan() + ((height as f32 - cy) / fy).atan()).to_degrees(),
+        ]);
+    };
+    let c = sensor
+        .calibration([width, height], offset.to_array())
+        .map_err(io::Error::other)?;
+    let [fx, fy, cx, cy] = [c.k[0][0], c.k[1][1], c.k[0][2], c.k[1][2]];
+    let radius = sensor.lens.radius(sensor.lens.max_angle as f64) as f32 * (1. - 1e-6);
+    let polar = |pixel| -> io::Result<f32> {
+        let r = c
+            .ray(pixel)
+            .ok_or_else(|| io::Error::other("invalid angular section for camera metrics"))?;
+        Ok(r[0].hypot(r[1]).atan2(-r[2]))
+    };
+    let hfov = polar([(cx - fx * radius).max(0.), cy])?
+        + polar([(cx + fx * radius).min(width as f32), cy])?;
+    let vfov = polar([cx, (cy - fy * radius).max(0.)])?
+        + polar([cx, (cy + fy * radius).min(height as f32)])?;
+    Ok([fx, fy, cx, cy, hfov.to_degrees(), vfov.to_degrees()])
+}
+
 pub(super) fn record(
     scene: &IndoorManifest,
     numeric: &mut NumericCollector,
@@ -79,6 +117,21 @@ pub(super) fn record(
         }
     }
     for (i, camera) in scene.cameras.iter().enumerate() {
+        numeric.push("camera_fisheye", f64::from(camera.fisheye.is_some()))?;
+        if let Some(lens) = camera.fisheye {
+            numeric.push(
+                "camera_angular_diameter_degrees",
+                (2. * lens.lens.max_angle.to_degrees()) as f64,
+            )?;
+            numeric.push("camera_fisheye_anisotropy", lens.anisotropy as f64)?;
+            numeric.push(
+                "camera_fisheye_circular",
+                f64::from(lens.fit == crate::camera::lens::FisheyeFit::Circular),
+            )?;
+            for (i, k) in lens.lens.coefficients.iter().enumerate() {
+                numeric.push(&format!("camera_fisheye_k{}", i + 1), *k as f64)?;
+            }
+        }
         let mut path = camera.runtime_trajectory();
         let mut near_horizontal = 0usize;
         for step in 0..PATH_SAMPLES {
@@ -112,6 +165,32 @@ pub(super) fn record(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fisheye_metrics_use_actual_focal_axes_and_angles_beyond_180_degrees() {
+        use crate::calibration::{Fisheye, FisheyeFit, FisheyeSensor};
+        let sensor = FisheyeSensor {
+            lens: Fisheye {
+                coefficients: [0.; 4],
+                max_angle: 100_f32.to_radians(),
+            },
+            fit: FisheyeFit::Elliptical,
+            anisotropy: 1.1,
+        };
+        let camera = super::super::super::layout::IndoorCamera {
+            fisheye: Some(sensor),
+            principal_point_offset: None,
+            start: Vec3::ZERO,
+            end: Vec3::ZERO,
+            target: Vec3::NEG_Z,
+            fov_degrees: 60.,
+            motion: None,
+        };
+        let [fx, fy, _, _, horizontal, vertical] = super::optics(&camera, 640, 400).unwrap();
+        let c = sensor.calibration([640, 400], [0.; 2]).unwrap();
+        assert_eq!([fx, fy], [c.k[0][0], c.k[1][1]]);
+        assert!((horizontal - 200.).abs() < 0.001 && (vertical - 200.).abs() < 0.001);
+    }
+
     use super::*;
     use crate::scene::procedural_indoor::{
         cameras::CameraMotion,
@@ -125,6 +204,7 @@ mod tests {
         scene.camera_settings.multiview = None;
         let position = Vec3::new(0., scene.floor_height(Vec2::ZERO) + 1.4, 0.);
         scene.cameras = vec![IndoorCamera {
+            fisheye: None,
             principal_point_offset: None,
             start: position,
             end: position,

@@ -18,6 +18,7 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
 
 mod capture_targets;
+pub mod lens;
 pub mod pinhole;
 
 #[derive(Component)]
@@ -48,6 +49,14 @@ use crate::{
 #[derive(Component, Clone, Copy, Debug)]
 pub struct CaptureCameraIndex(pub usize);
 
+/// Ordering points for applications that finalize a calibrated sensor after
+/// allocating a logical camera and before its optional nonlinear render views.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CameraBuildSystems {
+    Logical,
+    Lens,
+}
+
 /// Capture submission policy, applied only when each camera is created.
 /// Direct draws avoid driver retention in indirect validation while preserving
 /// GPU mesh preprocessing. Interactive cameras keep Bevy's default GPU culling.
@@ -76,6 +85,7 @@ impl Plugin for ZeroverseCameraPlugin {
             },
         );
 
+        app.add_plugins(lens::FisheyeCameraPlugin);
         app.init_resource::<DefaultZeroverseCamera>();
         app.init_resource::<CaptureDrawPolicy>();
         app.init_resource::<capture_targets::CaptureTargets>();
@@ -92,7 +102,7 @@ impl Plugin for ZeroverseCameraPlugin {
             Update,
             (
                 draw_camera_gizmo,
-                insert_cameras,
+                insert_cameras.in_set(CameraBuildSystems::Logical),
                 setup_editor_camera,
                 update_camera_trajectory,
                 update_render_pipeline,
@@ -1002,6 +1012,8 @@ impl TrajectorySampler {
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct ZeroverseCamera {
+    #[reflect(ignore)]
+    pub fisheye: Option<bevy_zeroverse_capture::calibration::FisheyeSensor>,
     pub perspective_sampler: PerspectiveSampler,
     /// Optical center offset in normalized image dimensions, right/down.
     pub principal_point_offset: Vec2,
@@ -1272,7 +1284,12 @@ pub fn draw_camera_gizmo(
     args: Res<BevyZeroverseConfig>,
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
     mut cameras: Query<
-        (&GlobalTransform, &Projection, &mut ZeroverseCamera),
+        (
+            &GlobalTransform,
+            &Projection,
+            &mut ZeroverseCamera,
+            Option<&lens::LensCamera>,
+        ),
         (With<Camera>, Without<EditorCameraMarker>),
     >,
     scene: Query<&GlobalTransform, With<ZeroverseSceneRoot>>,
@@ -1290,15 +1307,51 @@ pub fn draw_camera_gizmo(
         Err(_) => Transform::default(),
     };
 
-    for (global_transform, projection, mut zeroverse_camera) in cameras.iter_mut() {
+    for (global_transform, projection, mut zeroverse_camera, angular) in cameras.iter_mut() {
         let transform = global_transform.compute_transform();
 
-        let corners = projection.get_frustum_corners(-1.5, -1.5);
-        for i in 0..4 {
-            let p = transform.transform_point(corners[i].into());
-            let next = transform.transform_point(corners[(i + 1) % 4].into());
-            gizmos.line(transform.translation, p, color);
-            gizmos.line(p, next, color);
+        if let Some(angular) = angular {
+            let c = &angular.calibration;
+            let theta = c.fisheye.unwrap().max_angle;
+            let radial = c.fisheye.unwrap().radius(theta as f64) as f32;
+            let mut points = Vec::new();
+            for i in 0..64 {
+                let phi = std::f32::consts::TAU * i as f32 / 64.;
+                let delta = Vec2::new(
+                    c.k[0][0] * phi.cos() + c.k[0][1] * phi.sin(),
+                    c.k[1][1] * phi.sin(),
+                );
+                let center = Vec2::new(c.k[0][2], c.k[1][2]);
+                let mut r = radial;
+                for axis in 0..2 {
+                    if delta[axis].abs() > 1e-6 {
+                        let boundary = if delta[axis] > 0. {
+                            c.image_size[axis] as f32 - 0.5
+                        } else {
+                            0.5
+                        };
+                        r = r.min((boundary - center[axis]) / delta[axis]);
+                    }
+                }
+                if let Some(ray) = c.ray((center + delta * r.max(0.) * 0.99999).to_array()) {
+                    let point = transform.transform_point(Vec3::from_array(ray) * 1.5);
+                    if i % 8 == 0 {
+                        gizmos.line(transform.translation, point, color);
+                    }
+                    points.push(point);
+                }
+            }
+            for i in 0..points.len() {
+                gizmos.line(points[i], points[(i + 1) % points.len()], color);
+            }
+        } else {
+            let corners = projection.get_frustum_corners(-1.5, -1.5);
+            for i in 0..4 {
+                let p = transform.transform_point(corners[i].into());
+                let next = transform.transform_point(corners[(i + 1) % 4].into());
+                gizmos.line(transform.translation, p, color);
+                gizmos.line(p, next, color);
+            }
         }
         gizmos.sphere(transform.translation, 0.1, color);
 

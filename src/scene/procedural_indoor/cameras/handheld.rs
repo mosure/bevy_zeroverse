@@ -108,6 +108,7 @@ mod tests {
     #[test]
     fn metric_stride_free_rotation_and_reversal_are_exact() {
         let mut camera = IndoorCamera {
+            fisheye: None,
             principal_point_offset: None,
             start: Vec3::ZERO,
             end: Vec3::ZERO,

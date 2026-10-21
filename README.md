@@ -156,7 +156,10 @@ Camera baseline coordinates spacing, shared surfaces and gaze variation across
 the requested camera count. **Moving cameras (%)** selects fixed or moving views
 (default 100%); travel bounds apply to moving cameras while scene animation stays
 independent. Continuous **lens preference/spread** controls include a live PDF
-preview, separate from spatial baseline. The viewport selector offers **Editor camera**, **Capture grid**,
+preview, separate from spatial baseline. Optional calibrated **fisheye lenses**
+add seeded per-camera frequency, angular FOV/distortion and circular coverage,
+with aligned depth, flow, semantics and co-visibility. Pinhole remains the default.
+The viewport selector offers **Editor camera**, **Capture grid**,
 and **Room schematic**. Browser links preserve the active scene, preview and pending edits.
 **View & playback → Glass in annotations** selects glass surfaces (default) or
 unrefracted geometry behind glass for depth, normal, position, semantic, optical

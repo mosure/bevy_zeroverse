@@ -131,7 +131,7 @@ impl CaptureSpec {
         if config.render_modes.contains(&RenderMode::Depth) {
             ensure!(
                 config.depth_format == DepthFormat::Linear && config.z_depth,
-                "GPU depth is metric camera-Z; request depth_format=Linear and z_depth=true"
+                "GPU depth uses the per-view calibration metric (pinhole Z / fisheye range); request depth_format=Linear and z_depth=true"
             );
         }
         ensure!(

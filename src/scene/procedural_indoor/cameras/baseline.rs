@@ -67,6 +67,7 @@ impl<'de> Deserialize<'de> for CameraSettings {
         #[derive(Deserialize)]
         #[serde(default, deny_unknown_fields)]
         struct Concrete {
+            lenses: Option<crate::camera::lens::LensSampling>,
             intrinsics: super::intrinsics::IntrinsicsSettings,
             principal_point_jitter: bevy::prelude::Vec2,
             duration_seconds: Option<f32>,
@@ -83,6 +84,7 @@ impl<'de> Deserialize<'de> for CameraSettings {
             fn default() -> Self {
                 let c = CameraSettings::default();
                 Self {
+                    lenses: c.lenses,
                     intrinsics: c.intrinsics,
                     principal_point_jitter: c.principal_point_jitter,
                     duration_seconds: c.duration_seconds,
@@ -99,6 +101,7 @@ impl<'de> Deserialize<'de> for CameraSettings {
         }
         let c: Concrete = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
         Ok(Self {
+            lenses: c.lenses,
             intrinsics: c.intrinsics,
             principal_point_jitter: c.principal_point_jitter,
             duration_seconds: c.duration_seconds,

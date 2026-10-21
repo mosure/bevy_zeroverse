@@ -274,7 +274,7 @@ class View:
         batch['world_from_view'] = torch.tensor(self.world_from_view, dtype=torch.float32)
         if self.calibration is not None:
             c = self.calibration
-            if c['schema_version'] != 1 or c['lens_model'] != 'pinhole' or c['lens_model_version'] != 1 or c['pixel_convention'] != 'top_left_corner_half_pixel_centers' or c['image_size'] != [self.width, self.height]:
+            if (c['schema_version'], c['lens_model']) not in ((1, 'pinhole'), (2, 'angular_fisheye4')) or c['lens_model_version'] != 1 or c['pixel_convention'] != 'top_left_corner_half_pixel_centers' or c['image_size'] != [self.width, self.height]:
                 raise ValueError('unsupported or mismatched camera calibration')
             if self.trajectory_progress is None or not 0 <= self.trajectory_progress <= 1:
                 raise ValueError('calibrated views require trajectory progress')
@@ -283,6 +283,11 @@ class View:
                 raise ValueError('invalid calibration K')
             if self.time_seconds is not None and (not np.isfinite(self.time_seconds) or self.time_seconds < 0):
                 raise ValueError('invalid physical time')
+            angular = c.get('fisheye')
+            if (angular is not None) != (c['lens_model'] == 'angular_fisheye4'):
+                raise ValueError('lens parameters do not match model')
+            batch['lens_model'] = torch.tensor([int(angular is not None)], dtype=torch.uint8)
+            batch['lens_parameters'] = torch.tensor([*angular['coefficients'], angular['max_angle']] if angular else [0.] * 5, dtype=torch.float32)
             batch['intrinsics'] = torch.tensor(c['k'], dtype=torch.float32)
             batch['image_size'] = torch.tensor(c['image_size'], dtype=torch.int64)
             batch['trajectory_progress'] = torch.tensor([self.trajectory_progress], dtype=torch.float32)
@@ -555,7 +560,11 @@ class Sample:
             numeric_flow.validate(sample)
 
         if 'intrinsics' in sample:
-            sample['camera_calibration'] = numeric_calibration.metadata_tensor()
+            mixed = bool((sample['lens_model'] != 0).any())
+            sample['camera_calibration'] = numeric_calibration.metadata_tensor(mixed)
+            if not mixed:
+                sample.pop('lens_model', None)
+                sample.pop('lens_parameters', None)
             numeric_calibration.validate(sample)
         if self.co_visibility_metadata is not None:
             sample["co_visibility_metadata"] = torch.tensor(list(self.co_visibility_metadata.encode()), dtype=torch.uint8)
@@ -991,6 +1000,18 @@ def chunk_and_save(
             pad_shape = (target - tensor.shape[0], *tensor.shape[1:])
             pad = torch.zeros(pad_shape, dtype=tensor.dtype, device=tensor.device)
             return torch.cat([tensor, pad], dim=0)
+
+        # Lift all calibrated views in a mixed chunk to the same v2 tensor
+        # contract; pinhole entries retain zero angular coefficients.
+        mixed_lenses = any('lens_model' in sample for sample in chunk_samples)
+        if mixed_lenses:
+            for sample in chunk_samples:
+                if 'intrinsics' not in sample:
+                    raise ValueError('cannot mix calibrated and legacy views')
+                prefix = sample['fovy'].shape[:-1]
+                sample.setdefault('lens_model', torch.zeros((*prefix, 1), dtype=torch.uint8))
+                sample.setdefault('lens_parameters', torch.zeros((*prefix, 5), dtype=torch.float32))
+                sample['camera_calibration'] = numeric_calibration.metadata_tensor(True)
 
         for sample_index, sample in enumerate(chunk_samples):
             numeric_flow.validate(sample)

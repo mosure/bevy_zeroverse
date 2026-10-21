@@ -452,6 +452,7 @@ pub mod image_copy {
         }
     }
     struct ExtractedCopier {
+        lens: Option<crate::camera::lens::LensCamera>,
         copier: ImageCopier,
         ssaa: Option<crate::render::ssaa::SsaaCamera>,
         #[cfg(not(target_arch = "wasm32"))]
@@ -627,6 +628,7 @@ pub mod image_copy {
             let copy = copy_images
                 .after(bevy::core_pipeline::schedule::camera_driver)
                 .after(crate::render::ssaa::SsaaResolveLabel)
+                .after(crate::camera::lens::LensResolveLabel)
                 .in_set(ImageCopyLabel)
                 .in_set(RenderGraphSystems::Render);
             #[cfg(not(target_arch = "wasm32"))]
@@ -640,17 +642,22 @@ pub mod image_copy {
         mut cameras: Query<(
             &ImageCopier,
             &Projection,
+            Option<&crate::camera::lens::LensCamera>,
             &mut crate::render::ground_truth::GroundTruthCamera,
         )>,
     ) {
-        for (copier, projection, mut gt) in &mut cameras {
+        for (copier, projection, lens, mut gt) in &mut cameras {
             let requested = copier.requested_id();
             if requested != gt.frame_id && state.as_ref().is_some_and(|s| s.enabled && s.step == 0)
             {
                 gt.flow_sequence = requested;
             }
             gt.frame_id = requested;
-            if let Some((p, _)) = crate::camera::pinhole::parameters(projection) {
+            if let Some(lens) = lens {
+                gt.near = lens.near;
+                gt.far = lens.far;
+                gt.calibration = Some(lens.calibration.clone());
+            } else if let Some((p, _)) = crate::camera::pinhole::parameters(projection) {
                 gt.near = p.near;
                 gt.far = p.far;
             }
@@ -665,27 +672,38 @@ pub mod image_copy {
                 &ImageCopier,
                 Option<&crate::render::ground_truth::GroundTruthCamera>,
                 Option<&crate::render::ssaa::SsaaCamera>,
+                Option<&crate::camera::lens::LensCamera>,
+            )>,
+        >,
+    ) {
+        copiers.0.clear();
+        copiers.0.extend(
+            cameras
+                .iter()
+                .map(|(copier, gt, ssaa, lens)| ExtractedCopier {
+                    lens: lens.cloned(),
+                    copier: copier.clone(),
+                    ground_truth: gt.cloned(),
+                    ssaa: ssaa.cloned(),
+                }),
+        );
+    }
+    #[cfg(target_arch = "wasm32")]
+    fn image_copy_extract(
+        mut copiers: ResMut<ImageCopiers>,
+        cameras: Extract<
+            Query<(
+                &ImageCopier,
+                Option<&crate::render::ssaa::SsaaCamera>,
+                Option<&crate::camera::lens::LensCamera>,
             )>,
         >,
     ) {
         copiers.0.clear();
         copiers
             .0
-            .extend(cameras.iter().map(|(copier, gt, ssaa)| ExtractedCopier {
-                copier: copier.clone(),
-                ground_truth: gt.cloned(),
-                ssaa: ssaa.cloned(),
-            }));
-    }
-    #[cfg(target_arch = "wasm32")]
-    fn image_copy_extract(
-        mut copiers: ResMut<ImageCopiers>,
-        cameras: Extract<Query<(&ImageCopier, Option<&crate::render::ssaa::SsaaCamera>)>>,
-    ) {
-        copiers.0.clear();
-        copiers
-            .0
-            .extend(cameras.iter().map(|(copier, ssaa)| ExtractedCopier {
+            .extend(cameras.iter().map(|(copier, ssaa, lens)| ExtractedCopier {
+                lens: lens.cloned(),
                 copier: copier.clone(),
                 ssaa: ssaa.cloned(),
             }));
@@ -707,6 +725,7 @@ pub mod image_copy {
                 || copiers.0.len() != count
                 || copiers.0.iter().any(|extracted| {
                     extracted.copier.requested_id() != id
+                        || extracted.lens.as_ref().is_some_and(|lens| !lens.ready(id))
                         || extracted.ssaa.as_ref().is_some_and(|ssaa| !ssaa.ready(id))
                         || extracted.ground_truth.as_ref().is_some_and(|gt| {
                             gt.rendered_frame() != Some(id) || gt.failure().is_some()
@@ -725,6 +744,9 @@ pub mod image_copy {
             let copier = &extracted.copier;
             let id = copier.requested_id();
             if id == 0 || id == copier.state.submitted.load(Ordering::Acquire) {
+                continue;
+            }
+            if extracted.lens.as_ref().is_some_and(|lens| !lens.ready(id)) {
                 continue;
             }
             if extracted.ssaa.as_ref().is_some_and(|ssaa| !ssaa.ready(id)) {

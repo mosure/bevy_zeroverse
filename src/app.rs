@@ -1458,17 +1458,19 @@ pub struct CameraGridMarker;
 struct CameraGridSource(Entity);
 
 #[cfg(feature = "viewer")]
+#[allow(clippy::type_complexity)]
 fn update_camera_grid_images(
     mode: Res<RenderMode>,
     cameras: Query<(
         &RenderTarget,
         Option<&crate::render::ground_truth::GroundTruthCamera>,
         Option<&crate::render::ssaa::SsaaCamera>,
+        Option<&crate::camera::lens::LensCamera>,
     )>,
     mut images: Query<(&CameraGridSource, &mut ImageNode)>,
 ) {
     for (source, mut image) in &mut images {
-        let Ok((RenderTarget::Image(target), gt, ssaa)) = cameras.get(source.0) else {
+        let Ok((RenderTarget::Image(target), gt, ssaa, lens)) = cameras.get(source.0) else {
             continue;
         };
         let handle = if let Some(ssaa) = ssaa {
@@ -1477,6 +1479,8 @@ fn update_camera_grid_images(
             gt.and_then(|g| g.co_visibility.as_ref())
                 .and_then(|c| c.preview.as_ref())
                 .unwrap_or(&target.handle)
+        } else if let Some(lens) = lens {
+            &lens.output
         } else {
             &target.handle
         };

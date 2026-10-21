@@ -7,19 +7,19 @@ pub(super) const SHADER: Handle<Shader> = uuid_handle!("9a1ba40c-5538-41dd-b989-
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct FlowVertex {
-    source: [f32; 3],
-    target: [f32; 3],
-    valid: f32,
+pub(super) struct FlowVertex {
+    pub(super) source: [f32; 3],
+    pub(super) target: [f32; 3],
+    pub(super) valid: f32,
 }
 
-struct Snapshot {
+pub(super) struct Snapshot {
     generation: u64,
     transforms: Vec<[[f32; 4]; 4]>,
     positions: Vec<Vec3>,
     topology: Vec<ObjectTopology>,
-    indices: Vec<u32>,
-    batches: Vec<Batch>,
+    pub(super) indices: Vec<u32>,
+    pub(super) batches: Vec<Batch>,
 }
 
 impl Snapshot {
@@ -105,14 +105,16 @@ struct FlowUniform {
 }
 
 #[derive(Clone)]
-struct ViewSnapshot {
+pub(super) struct ViewSnapshot {
+    pub(super) calibration: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
     clip: [[f32; 4]; 4],
-    view: [[f32; 4]; 4],
-    limits: [f32; 4],
+    pub(super) view: [[f32; 4]; 4],
+    pub(super) limits: [f32; 4],
 }
 
 #[derive(Resource, Default)]
 pub(super) struct FlowHistory {
+    angular: super::angular::flow::History,
     stamp: (u64, u64),
     snapshot: Option<Snapshot>,
     views: HashMap<AssetId<Image>, ViewSnapshot>,
@@ -224,7 +226,12 @@ pub(super) fn prepare(
     let cameras: Vec<_> = cameras.iter().filter(|(c, _)| c.flow.is_some()).collect();
     let Some((first, _)) = cameras.first() else {
         if history.snapshot.is_some() {
-            *history = default();
+            let mut angular = std::mem::take(&mut history.angular);
+            angular.reset();
+            *history = FlowHistory {
+                angular,
+                ..default()
+            };
         }
         return;
     };
@@ -267,8 +274,16 @@ pub(super) fn prepare(
     // No pipeline compilation or temporal buffers until flow is actually requested.
     let pipeline = pipeline.0.get_or_insert_with(|| Pipeline::new(&cache));
     if stamp.0 != history.stamp.0 {
-        *history = default();
+        let mut angular = std::mem::take(&mut history.angular);
+        angular.reset();
+        *history = FlowHistory {
+            angular,
+            ..default()
+        };
     }
+    let has_angular = cameras
+        .iter()
+        .any(|(c, _)| c.calibration.as_ref().is_some_and(|l| l.fisheye.is_some()));
     let unchanged = history
         .snapshot
         .as_ref()
@@ -276,6 +291,7 @@ pub(super) fn prepare(
     let current = (!unchanged).then(|| Snapshot::new(&geometry));
     let reuse = unchanged && history.stationary_pair;
     if !reuse {
+        history.angular.set_pair(None);
         history.vertices = None;
         history.indices = None;
         history.batches.clear();
@@ -300,7 +316,10 @@ pub(super) fn prepare(
                         usage: BufferUsages::INDEX,
                     },
                 );
+                let angular_pair = has_angular
+                    .then(|| super::angular::flow::pair(previous, &vertices, &device, &queue));
                 history.batches = previous.batches.clone();
+                history.angular.set_pair(angular_pair);
                 history.vertices = Some(vertex_buffer);
                 history.indices = Some(index_buffer);
                 let mut stats = diagnostics.0.lock().unwrap();
@@ -314,12 +333,14 @@ pub(super) fn prepare(
         diagnostics.0.lock().unwrap().flow_pair_reuses += 1;
     }
     history.stationary_pair = unchanged;
+    history.angular.clear_views();
     let mut views = HashMap::new();
     let mut prepared = HashMap::new();
     for (camera, view) in cameras {
         let target = images.get(&camera.world_depth).unwrap();
         let view_matrix = view.world_from_view.to_matrix().inverse();
         let current_view = ViewSnapshot {
+            calibration: camera.calibration.clone(),
             clip: view
                 .clip_from_world
                 .unwrap_or(view.clip_from_view * view_matrix)
@@ -333,7 +354,23 @@ pub(super) fn prepare(
             ],
         };
         let id = camera.flow.as_ref().unwrap().id();
-        if let Some(source) = history.views.get(&id) {
+        if camera
+            .calibration
+            .as_ref()
+            .is_some_and(|l| l.fisheye.is_some())
+        {
+            let history = &mut *history;
+            history.angular.prepare(
+                camera,
+                history.views.get(&id),
+                &current_view,
+                &history.batches,
+                &images,
+                &device,
+                &queue,
+                &cache,
+            );
+        } else if let Some(source) = history.views.get(&id) {
             let uniform = FlowUniform {
                 source_clip: source.clip,
                 target_clip: current_view.clip,
@@ -384,6 +421,13 @@ pub(super) fn render(
     let history = world.resource::<FlowHistory>();
     if history.stamp != (camera.flow_sequence, camera.frame_id) {
         return false;
+    }
+    if camera
+        .calibration
+        .as_ref()
+        .is_some_and(|l| l.fisheye.is_some())
+    {
+        return history.angular.render(world, context, camera);
     }
     let output = camera.flow.as_ref().unwrap();
     let images = world.resource::<RenderAssets<GpuImage>>();

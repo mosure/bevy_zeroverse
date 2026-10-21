@@ -85,11 +85,16 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
             io::hash(&root.join(input))?,
         );
     }
+    let lens_input = root.join(crate::fisheye::EVIDENCE);
+    if lens_input.join("receipt.json").exists() {
+        inputs.extend(io::files(root, &lens_input)?);
+    }
     Ok(inputs)
 }
 fn is_generated(name: &str) -> bool {
     name == "www/project/index.html"
         || name == "www/project/reference.html"
+        || name.starts_with("www/project/fisheye/")
         || name.starts_with("www/project/static/media/architecture/")
         || name.starts_with("www/project/static/media/qualification/")
         || name.starts_with("www/project/static/media/cohorts/")
@@ -116,7 +121,7 @@ fn is_generated(name: &str) -> bool {
 }
 fn artifacts(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut out = BTreeMap::new();
-    for dir in ["www/project/static", "tex/generated"] {
+    for dir in ["www/project/static", "www/project/fisheye", "tex/generated"] {
         out.extend(
             io::files(root, &root.join(dir))?
                 .into_iter()
@@ -197,15 +202,27 @@ fn verify_for_rebuild(
             "publication inputs changed: rebuild the retained page or refresh current captures"
         );
     }
+    let mut actual_artifacts = artifacts(root)?;
+    // First installation of a separately qualified lens chapter. Existing
+    // architecture/paper hashes remain exact; the lens bundle is independently
+    // checked below and becomes fully bound by the new top-level attestation.
+    if allow_page_changes
+        && !attestation
+            .artifacts
+            .keys()
+            .any(|name| name.starts_with("www/project/fisheye/"))
+    {
+        actual_artifacts.retain(|name, _| !name.starts_with("www/project/fisheye/"));
+    }
     ensure!(
-        attestation.artifacts == artifacts(root)?,
+        attestation.artifacts == actual_artifacts,
         "publication artifacts missing/changed; rebuild rather than edit generated files"
     );
     ensure!(
         attestation.reference_studies.is_empty(),
         "the current snapshot cannot include historical reference studies"
     );
-    verify_bundle(root, &config, &attestation)?;
+    verify_bundle(root, &config, &attestation, allow_page_changes)?;
     if !allow_page_changes {
         crate::objects::verify_explorer(&fs::read_to_string(root.join("www/project/index.html"))?)?;
     }
@@ -214,7 +231,13 @@ fn verify_for_rebuild(
 
 /// The exported bundle is self-contained: CI never needs out/, GPU captures,
 /// neural models, Python, plotting packages or the original machine's paths.
-fn verify_bundle(root: &Path, config: &Config, attestation: &Attestation) -> Result<()> {
+fn verify_bundle(
+    root: &Path,
+    config: &Config,
+    attestation: &Attestation,
+    rebuilding: bool,
+) -> Result<()> {
+    crate::fisheye::verify_installed(root, rebuilding)?;
     doors::verify(
         &root.join(doors::DIRECTORY),
         &attestation.generator_identity,
@@ -630,10 +653,12 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     doors::build(&door_cache, stage, &current)?;
     materials::build(&material_cache, stage, &current)?;
     crate::capacity::publication::build(&root, stage, &config.capacity_receipts, &current)?;
+    crate::fisheye::build(&root, stage)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
     paper::compile(stage, &config, &gallery)?;
+    crate::fisheye::bind_paper(stage)?;
     ensure!(
         identity(&root)? == current && publication_inputs(&root, &config)? == before,
         "sources changed during build; no artifacts installed"
@@ -650,7 +675,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         artifacts: artifacts(stage)?,
         reference_studies: Vec::new(),
     };
-    verify_bundle(stage, &config, &attestation)?;
+    verify_bundle(stage, &config, &attestation, false)?;
     io::write(&stage.join(ATTESTATION), &attestation)?;
     println!("Install fully validated bundle; attestation is the last commit marker");
     install(&root, stage, &attestation.artifacts)?;
@@ -719,16 +744,18 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         &config.capacity_receipts,
         &attestation.generator_identity,
     )?;
+    crate::fisheye::build(&root, stage)?;
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     paper::compile(stage, &config, &gallery)?;
+    crate::fisheye::bind_paper(stage)?;
     ensure!(
         identity(&root)? == attestation.generator_identity
             && publication_inputs(&root, &config)? == before,
         "source changed during release rebuild"
     );
     attestation.artifacts = artifacts(stage)?;
-    verify_bundle(stage, &config, &attestation)?;
+    verify_bundle(stage, &config, &attestation, false)?;
     io::write(&stage.join(ATTESTATION), &attestation)?;
     install(&root, stage, &attestation.artifacts)?;
     verify(&root, release_version)?;
@@ -751,6 +778,7 @@ fn rebuild_retained_page(
     io::copy_tree(&root.join("www/project"), &stage.join("www/project"))?;
     io::copy_tree(&root.join("tex"), &stage.join("tex"))?;
     let gallery = io::read(&stage.join("www/project/static/media/architecture/gallery.json"))?;
+    crate::fisheye::build(root, stage)?;
     media::page(&gallery, stage, &config.capture)?;
     attestation.artifacts = artifacts(stage)?;
     attestation.publication_inputs = inputs.clone();
@@ -763,7 +791,7 @@ fn rebuild_retained_page(
         identity(root)? == current && publication_inputs(root, config)? == inputs,
         "source changed during retained page rebuild"
     );
-    verify_bundle(stage, config, &attestation)?;
+    verify_bundle(stage, config, &attestation, false)?;
     crate::objects::verify_explorer(&fs::read_to_string(stage.join("www/project/index.html"))?)?;
     io::write(&stage.join(ATTESTATION), &attestation)?;
     install(root, stage, &attestation.artifacts)?;
@@ -811,7 +839,7 @@ pub fn install(root: &Path, stage: &Path, artifacts: &BTreeMap<String, String>) 
         .tempdir_in(root.join("out/publication"))?;
     let mut installed = Vec::<(PathBuf, Option<PathBuf>)>::new();
     let mut names: Vec<_> = artifacts.keys().cloned().map(|name| (name, true)).collect();
-    for directory in ["www/project/static", "tex/generated"] {
+    for directory in ["www/project/static", "www/project/fisheye", "tex/generated"] {
         for name in io::files(root, &root.join(directory))?.into_keys() {
             if (is_generated(&name) || snapshot::retired(&name)) && !artifacts.contains_key(&name) {
                 names.push((name, false));

@@ -44,6 +44,7 @@ fn fixed_camera_has_no_handheld_rotation_drift_or_intrinsic_change() {
         ..default()
     };
     let mut camera = IndoorCamera {
+        fisheye: None,
         start: Vec3::new(1., 2., 3.),
         end: Vec3::new(2., 3., 4.),
         target: Vec3::ZERO,

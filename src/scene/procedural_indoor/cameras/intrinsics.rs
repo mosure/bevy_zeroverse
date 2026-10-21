@@ -316,6 +316,7 @@ mod tests {
         scene.camera_aspect_ratio = 1.6;
         let p = Vec3::new(0., 1.5, 4.45);
         let mut camera = IndoorCamera {
+            fisheye: None,
             start: p,
             end: p,
             target: p - 3. * Vec3::X,

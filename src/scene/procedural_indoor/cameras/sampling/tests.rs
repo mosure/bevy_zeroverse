@@ -161,6 +161,7 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
                 let mut camera = IndoorCamera {
+                    fisheye: None,
                     principal_point_offset: None,
                     start: p,
                     end,

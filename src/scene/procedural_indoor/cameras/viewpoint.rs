@@ -196,6 +196,7 @@ mod tests {
     #[test]
     fn level_gaze_keeps_motion_and_continuous_endpoint_pitch() {
         let mut camera = IndoorCamera {
+            fisheye: None,
             principal_point_offset: None,
             start: Vec3::new(-2., 1.3, 0.),
             end: Vec3::new(-1., 1.6, 0.5),

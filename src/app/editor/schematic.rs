@@ -129,6 +129,7 @@ pub(super) fn update(
         &crate::camera::CaptureCameraIndex,
         &GlobalTransform,
         &Projection,
+        Option<&crate::camera::lens::LensCamera>,
     )>,
     roots: Query<&GlobalTransform, With<crate::scene::ZeroverseSceneRoot>>,
     humans: Query<(&IndoorHumanInstance, &crate::annotation::pose::HumanPose)>,
@@ -283,9 +284,9 @@ pub(super) fn update(
     let mut plan = preview.plan.as_ref().unwrap().clone();
     plan.trajectory_progress = playback.progress.clamp(0., 1.);
     let mut live: Vec<_> = cameras.iter().collect();
-    live.sort_by_key(|(i, _, _)| i.0);
+    live.sort_by_key(|(i, ..)| i.0);
     let planned = std::mem::take(&mut plan.cameras);
-    for (index, tf, projection) in live {
+    for (index, tf, projection, angular) in live {
         if let Some((lens, offset)) = crate::camera::pinhole::parameters(projection) {
             plan.cameras.push(PlanCamera {
                 label: format!("C{}", index.0),
@@ -293,7 +294,7 @@ pub(super) fn update(
                 fov_y: lens.fov,
                 aspect: lens.aspect_ratio,
                 principal_point_offset: Some(offset),
-                calibration: None,
+                calibration: angular.map(|l| l.calibration.clone()),
                 path: planned
                     .get(index.0)
                     .map_or_else(Vec::new, |c| c.path.clone()),

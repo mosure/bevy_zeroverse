@@ -222,3 +222,49 @@ Outputs are staged and installed atomically. Failed qualification preserves the
 previous report, and `verify-study` detects modified or missing gallery bytes.
 Study generation supports 2–256 rendered rooms and a single timestep; use
 `--recipe protocol.toml` for a smaller qualification fixture or a larger cohort.
+
+
+## Calibrated fisheye evidence
+
+The lens gallery and lens chapter have their own current-source receipt. They
+extend the project page and downloadable whitepaper without relabeling the
+architectural cohort's capture provenance. Both paper components remain bound
+by artifact hashes. Nothing is deployed by these commands.
+
+```sh
+cargo run --example validate_fisheye -- --cpu --output=out/fisheye/current
+cargo run --example validate_fisheye -- --fixture
+cargo run --example validate_fisheye -- --fixture --narrow
+cargo run --example validate_fisheye -- --bench --rooms=6 --seed=400 --output=out/fisheye/current
+cargo run -p bevy_zeroverse_publication -- fisheye-study --captures out/fisheye/current --analytic out/fisheye/analytic.json
+cargo run -p bevy_zeroverse_publication -- verify
+```
+
+The qualification recipe requires all six consecutive rooms, three views and two
+timestamps at 512×512, with full-quality RGB and aligned annotation previews.
+Set `--isolated` on the capture command only when competing GPU training has
+actually been paused. Runs outside this recipe remain local diagnostics. Renew
+the source-bound retained-evidence policy deliberately when generator source
+changes; `rebuild` refuses stale inputs and never silently recaptures or rewrites
+an old measurement.
+
+At the canonical evidence destination, `fisheye-study` invokes the transactional
+page/paper rebuild: the installed gallery and its publication attestation change
+together. A previous chapter must still pass its recorded hashes before renewal;
+the replacement must match the current generator. A custom `--output` prepares
+evidence only. `rebuild` can refresh presentation from existing qualified inputs.
+
+`fisheye-performance --input <benchmark-directory> --output <capture-directory>`
+verifies the `current`, `pinhole`, `rgb-current` and `rgb-pinhole` subdirectories
+before producing a matched throughput report. Each uses six rooms starting at
+400 and three 512×512 views; the first two use all seven modes and two timestamps,
+the RGB pair uses `--rgb-only --steps=1`. Pinhole controls require
+`--pinhole --matched`, and all four require `--isolated` only after competing GPU
+work has actually paused. This checks exact scene manifests and camera poses,
+not merely seed equality. It records first-room latency separately.
+
+The optional `lighting.json` input comes from `validate_fisheye
+--lighting-fixture`. Its final production-WGSL composite continuity checks must
+pass; raw face-boundary failures remain explicitly failed diagnostics in the
+receipt and paper. The study receipt binds both optional reports, and the
+generated lens chapter includes their measurements and limitations.

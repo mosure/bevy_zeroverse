@@ -12,6 +12,22 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Compare source-bound matched fisheye/pinhole workloads, rejecting quality or pose differences.
+    FisheyePerformance {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Verify source-bound lens captures and build the independent gallery/paper addendum.
+    FisheyeStudy {
+        #[arg(long)]
+        captures: PathBuf,
+        #[arg(long)]
+        analytic: PathBuf,
+        #[arg(long, default_value = "docs/evidence/fisheye")]
+        output: PathBuf,
+    },
     /// Print the canonical immutable capture/paper digest for a retained-evidence policy.
     EvidenceDigest,
     /// Build a local current-source paper section and page fragment; does not publish.
@@ -206,6 +222,26 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::FisheyePerformance { input, output } => {
+            bevy_zeroverse_publication::fisheye::performance::report(&args.root, &input, &output)?;
+        }
+        Action::FisheyeStudy {
+            captures,
+            analytic,
+            output,
+        } => {
+            bevy_zeroverse_publication::fisheye::prepare(
+                &args.root, &captures, &analytic, &output,
+            )?;
+            let canonical = args
+                .root
+                .join(bevy_zeroverse_publication::fisheye::EVIDENCE);
+            if canonical.exists() && output.canonicalize()? == canonical.canonicalize()? {
+                // Generate in staging and install the chapter, page and their
+                // attestation together. Never overwrite an attested gallery first.
+                bevy_zeroverse_publication::pipeline::rebuild(&args.root, None)?;
+            }
+        }
         Action::EvidenceDigest => {
             let attestation = bevy_zeroverse_publication::io::read(
                 &args.root.join("www/project/publication.json"),

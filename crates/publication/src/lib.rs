@@ -8,6 +8,7 @@ pub mod config;
 pub mod dataset;
 mod depth;
 pub mod doors;
+pub mod fisheye;
 pub mod graphics;
 pub mod io;
 pub mod materials;

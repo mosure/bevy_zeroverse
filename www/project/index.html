@@ -39,7 +39,7 @@
         <div class="actions"><a class="button primary" href="#architecture">Explore current captures ↓</a><a class="button" href="../?scene_type=procedural-indoor&amp;indoor_seed=7&amp;num_cameras=4&amp;camera_grid=true&amp;regenerate_ms=0&amp;playback_mode=Sin&amp;playback_speed=0.1">Open WebGPU viewer ↗</a></div>
         <p class="byline"><a href="https://mitchell.mosure.me">Mitchell Mosure</a> · Bevy / Rust / Burn</p></div>
     </div>
-    <figure class="hero-film architecture-hero"><a href="#architecture"><img src="static/media/architecture/hero.webp" width="1280" height="800" fetchpriority="high" alt="Four native views from the same current capture cohort, with calibrated same-room camera pairs and varied metric envelopes"></a><figcaption><strong>Actual generated geometry.</strong> Top: seed 7, cameras 0 and 3. Bottom: seed 8 camera 0, seed 13 camera 1. All at t = 0. <a href="static/papers/bevy_zeroverse.pdf">Whitepaper ↗</a></figcaption></figure>
+    <figure class="hero-film architecture-hero"><a href="#architecture"><img src="static/media/architecture/hero.webp" width="1280" height="800" fetchpriority="high" alt="Four native views from the same current capture cohort, with calibrated same-room camera pairs and varied metric envelopes"></a><figcaption><strong>Actual generated geometry.</strong> Top: seed 7, cameras 0 and 3. Bottom: seed 8 camera 0, seed 13 camera 1. All at t = 0. <a href="fisheye/whitepaper.pdf">Whitepaper ↗</a></figcaption></figure>
     <div class="capability-strip"><span><strong>Polygonal</strong> room envelopes</span><span><strong>8</strong> supported render modes</span><span><strong>Native + WebGPU</strong> viewers</span><span><strong>Seeded</strong> scene programs</span></div>
   </section>
 
@@ -122,6 +122,8 @@
 </section>
 
 
+<section class="container section" id="fisheye"><div class="section-heading"><div><div class="eyebrow">CALIBRATED ANGULAR CAMERAS</div><h2>Wide views.<br>Shared geometry.</h2></div><p>36 full-resolution camera/time captures from 6 consecutive furnished rooms. Explore RGB, range depth, normals, semantics, positions, optical flow and per-camera co-visibility.</p></div><a href="fisheye/"><img src="fisheye/room_402_view_1.png" width="512" height="512" style="width:32%;border-radius:12px" alt="Circular fisheye room capture"><img src="fisheye/room_401_view_0.png" width="512" height="512" style="width:32%;border-radius:12px" alt="Diagonal fisheye room capture"><img src="fisheye/room_402_view_1_co_visibility.png" width="512" height="512" style="width:32%;border-radius:12px" alt="Aligned additive co-visibility for the circular camera"></a><p><a class="button primary" href="fisheye/">Explore calibrated fisheye captures ↗</a> <a class="button" href="fisheye/fisheye_cameras.pdf">Lens paper addendum ↗</a> <a class="button" href="fisheye/receipt.json">Qualification receipt ↗</a></p></section>
+
 <section id="objects" class="container section" aria-labelledby="object-title">
   <div class="section-heading"><div><div class="eyebrow">PROCEDURAL GEOMETRY</div><h2 id="object-title">One category.<br>Many working parts.</h2></div><p>Browse furniture, everyday objects, doors and cabinetry in one place. Compare geometry, opening states, hardware and the available aligned annotations.</p></div>
   <div id="object-atlas" data-source="static/media/objects/atlas.json" data-assemblies="static/media/doors/atlas.json">
@@ -144,7 +146,7 @@
     <details class="material-details"><summary>Where this material appears · actual object assignments</summary><p id="material-usage-note"></p><div id="material-usage"></div><p><a href="static/media/materials/usage.json">Full object → surface → finish-slot counts ↗</a></p></details>
     <details class="material-details"><summary>Protocol, interpretation and limits</summary><p>All 36 architectural/object roles are covered, with three floor types and a dedicated rug dye/pile program shown separately. Six fixed illustration seeds (0, 1, 4, 19, 53, 101) produce 234 native PBR views. The production material factory supplies every handle and texture. CPU reference maps, metric swatches, a fixed reflection environment, indoor exposure and fixed 1,400/250 lux studio lights isolate material appearance. This is not a throughput benchmark.</p><p>Twelve finish slots reuse one to three map structures per surface per room. Rug fields share at most four dedicated dye/pile maps. Room seeds resample the recipes. Shared maps preserve coherent finishes and bound preparation cost. Molded keyboard keys and printer shells use plastic, with charcoal, warm-white and colored pigments sharing dielectric microstructure. Painted metal is dielectric; chrome is conductive. Screens and prints use dedicated content programs. Optical constants for container glass and liquids include fixed values.</p><p>Map previews show level zero: base color precedes the material tint, roughness shows the packed green channel before its multiplier, and tangent normals differ from rendered view-space normals. A swatch cannot demonstrate photographic realism or perceptual embedding volume. The separate 256-room assignment cohort excludes humans and neighboring objects; walls, ceilings and facade privacy treatments are not part of that object denominator. Skin pigmentation and groom appearance require actor-specific qualification.</p></details>
   </div>
-  <noscript><p>See all 39 rendered material grids in the <a href="static/papers/bevy_zeroverse.pdf">whitepaper</a>, or download the <a href="static/media/materials/atlas.json">material measurements</a>.</p></noscript>
+  <noscript><p>See all 39 rendered material grids in the <a href="fisheye/whitepaper.pdf">whitepaper</a>, or download the <a href="static/media/materials/atlas.json">material measurements</a>.</p></noscript>
 </section>
 
 
@@ -156,13 +158,13 @@
   </section>
 
   <section id="paper" class="paper-section" aria-labelledby="paper-title"><div class="container section paper-layout">
-    <a class="paper-preview" href="static/papers/bevy_zeroverse.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
+    <a class="paper-preview" href="fisheye/whitepaper.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
     <div>
       <div class="eyebrow">TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
       <p class="paper-author">Mitchell Mosure · October 2026 · Technical report</p>
       <p>The paper describes the generator, room envelopes, paired RGB and architectural plans, aligned annotations, and 512-room distributions. Camera-count and baseline measurements show placement, trajectories and rendered co-visibility. Object-category grids link rendered constructions to their sampled controls, measured shape coverage and geometry costs.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
-      <div class="actions"><a class="button primary" href="static/papers/bevy_zeroverse.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>LaTeX source ↓</a></div>
+      <div class="actions"><a class="button primary" href="fisheye/whitepaper.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>Architecture LaTeX ↓</a><a class="button" href="fisheye/lens-source.zip" download>Lens LaTeX ↓</a></div>
       <p class="note">The page and paper share one current-generator capture contract. Source files, exact configurations and machine-readable measurements are downloadable. No publication venue or peer-review status is implied.</p>
     </div>
   </div></section>

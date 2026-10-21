@@ -5,16 +5,20 @@ use super::{CaptureFailure, CaptureProgress, CaptureReadiness, SamplerState};
 use crate::{app::BevyZeroverseConfig, camera::ZeroverseCamera, io::image_copy::ImageCopier};
 use bevy::{camera::CameraUpdateSystems, prelude::*};
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct CaptureCameraGate;
+
 pub(super) fn configure(app: &mut App) {
     app.add_systems(
         PostUpdate,
         gate::<true>
+            .in_set(CaptureCameraGate)
             .after(super::readiness::update)
             .before(CameraUpdateSystems)
             .before(bevy::camera::visibility::VisibilitySystems::CheckVisibility)
             .before(bevy::light::SimulationLightSystems::UpdateDirectionalLightCascades),
     );
-    app.add_systems(Last, gate::<false>);
+    app.add_systems(Last, gate::<false>.in_set(CaptureCameraGate));
 }
 
 fn gate<const ALLOW_ACTIVATION: bool>(

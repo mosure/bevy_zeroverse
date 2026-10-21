@@ -117,6 +117,8 @@ fn float32_annotation_qualification_rejects_single_pixel_outliers() {
     let mut view = View {
         world_from_view: Mat4::IDENTITY.to_cols_array_2d(),
         fovy: 1.1,
+        near: 0.1,
+        far: 50.,
         calibration: Some(calibration.clone()),
         ..Default::default()
     };
@@ -148,6 +150,12 @@ fn float32_annotation_qualification_rejects_single_pixel_outliers() {
     let report = check(&view).unwrap();
     assert_eq!(report.checked_pixels, (size * size) as usize);
     assert!(report.reprojection_max_pixels < 0.001);
+    let mut clipped = view.clone();
+    clipped.far = 1.5;
+    assert_eq!(
+        check(&clipped).unwrap_err(),
+        "position outside calibrated clipping domain"
+    );
     // Both an unsampled border pixel and a sampled pixel hidden below p99
     // must fail; neither a sampling gap nor a percentile may conceal a defect.
     for pixel in [0, (2 * size + 2) as usize] {

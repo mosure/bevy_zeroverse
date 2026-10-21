@@ -38,6 +38,11 @@ impl IndoorManifest {
                                 .map(|f| self.camera_settings.intrinsics.recovery(f))
                             {
                                 let still = IndoorCamera {
+                                    fisheye: self
+                                        .camera_settings
+                                        .lenses
+                                        .as_ref()
+                                        .and_then(|l| l.sample(self.seed, 0)),
                                     principal_point_offset: None,
                                     start,
                                     end: start,

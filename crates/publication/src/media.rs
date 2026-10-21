@@ -768,6 +768,7 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
                 let report: Value=io::read(&stage.join(crate::camera_study::DIRECTORY).join("study.json"))?;
                 crate::camera_study::page(&report)?
             } else {String::new()}),
+            ("FISHEYE_STUDY", crate::fisheye::page(stage)?),
             ("GALLERY", body),
             ("FACTOR_FAMILIES", qualification["family_count"].to_string()),
             ("FACTOR_SETTINGS", qualification["cases"].as_array().context("missing factor cases")?.len().to_string()),
@@ -788,6 +789,19 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
             ),
         ]),
     )?;
+    let page = if stage
+        .join(crate::fisheye::DIRECTORY)
+        .join("whitepaper.pdf")
+        .exists()
+    {
+        page.replace("static/papers/bevy_zeroverse.pdf", "fisheye/whitepaper.pdf")
+            .replace(
+                "download>LaTeX source ↓</a>",
+                "download>Architecture LaTeX ↓</a><a class=\"button\" href=\"fisheye/lens-source.zip\" download>Lens LaTeX ↓</a>",
+            )
+    } else {
+        page
+    };
     fs::write(stage.join("www/project/index.html"), page)?;
     // Preserve existing inbound links without serving a second, stale page.
     fs::write(

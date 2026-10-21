@@ -310,7 +310,7 @@ fn export_inner(
     )?;
     writeln!(
         camera_rows,
-        "seed,layout,camera,start_x_m,start_y_m,start_z_m,end_x_m,end_y_m,end_z_m,target_x_m,target_y_m,target_z_m,vertical_fov_deg,horizontal_fov_deg,fx_pixels,fy_pixels,cx_pixels,cy_pixels,near_m,far_m,path_length_m,yaw_deg,pitch_deg"
+        "seed,layout,camera,start_x_m,start_y_m,start_z_m,end_x_m,end_y_m,end_z_m,target_x_m,target_y_m,target_z_m,vertical_fov_deg,horizontal_fov_deg,fx_pixels,fy_pixels,cx_pixels,cy_pixels,near_m,far_m,path_length_m,yaw_deg,pitch_deg,lens_model"
     )?;
     writeln!(
         scenes,
@@ -1457,12 +1457,12 @@ fn export_inner(
             }
         }
         for (i, camera) in scene.cameras.iter().enumerate() {
-            let fy = height as f32 / (2.0 * (camera.fov_degrees.to_radians() * 0.5).tan());
-            let offset = camera.principal_point_offset.unwrap_or_default();
-            let cx = width as f32 * (0.5 + offset.x);
-            let cy = height as f32 * (0.5 + offset.y);
-            let hfov = ((cx / fy).atan() + ((width as f32 - cx) / fy).atan()).to_degrees();
-            let vfov = ((cy / fy).atan() + ((height as f32 - cy) / fy).atan()).to_degrees();
+            let [fx, fy, cx, cy, hfov, vfov] = cameras::optics(camera, width, height)?;
+            let nominal_fov = if camera.fisheye.is_some() {
+                vfov
+            } else {
+                camera.fov_degrees
+            };
             let direction = camera.transform_at(0.).rotation * Vec3::NEG_Z;
             let yaw = direction.x.atan2(-direction.z).to_degrees();
             let pitch = direction.y.clamp(-1., 1.).asin().to_degrees();
@@ -1484,7 +1484,7 @@ fn export_inner(
             }
             writeln!(
                 camera_rows,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},0.1,50,{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},0.1,50,{},{},{},{}",
                 scene.seed,
                 layout_name,
                 i,
@@ -1497,21 +1497,26 @@ fn export_inner(
                 camera.target.x,
                 camera.target.y,
                 camera.target.z,
-                camera.fov_degrees,
+                nominal_fov,
                 hfov,
-                fy,
+                fx,
                 fy,
                 cx,
                 cy,
                 length,
                 yaw,
-                pitch
+                pitch,
+                if camera.fisheye.is_some() {
+                    "angular_fisheye4"
+                } else {
+                    "pinhole"
+                }
             )?;
             for (name, value) in [
-                ("vertical_fov_degrees", camera.fov_degrees),
+                ("vertical_fov_degrees", nominal_fov),
                 ("angular_vertical_fov_degrees", vfov),
                 ("horizontal_fov_degrees", hfov),
-                ("fx_pixels", fy),
+                ("fx_pixels", fx),
                 ("fy_pixels", fy),
                 ("cx_pixels", cx),
                 ("cy_pixels", cy),

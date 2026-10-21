@@ -501,7 +501,7 @@ impl Renderer {
                 "version": 2, "layout": "HWC", "dtype": "float32",
                 "color_output": self.spec.color_output(), "attachments": self.spec.plan,
                 "capture_policy": self.spec.fingerprint,
-                "source_color": "tonemapped linear RGBA", "world_depth": "world XYZ and metric camera Z depth",
+                "source_color": "tonemapped linear RGBA", "world_depth": "world XYZ; alpha is metric camera Z for pinhole or ray range for angular fisheye (per-view calibration)",
                 "normal_semantic": "view normal encoded in [0,1] and integer semantic class ID",
                 "optical_flow": "forward pixel dx/dy, source validity, target visibility",
                 "co_visibility": "camera membership bits, peer count, source validity, zero",

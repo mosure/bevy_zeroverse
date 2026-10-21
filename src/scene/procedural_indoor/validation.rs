@@ -313,6 +313,22 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         return fail("insufficient main room furniture");
     }
     for (index, camera) in scene.cameras.iter().enumerate() {
+        if let Some(lens) = camera.fisheye {
+            if lens
+                .calibration(
+                    [1024, 1024],
+                    camera.principal_point_offset.unwrap_or_default().to_array(),
+                )
+                .is_err()
+            {
+                return fail("invalid angular lens calibration");
+            }
+        }
+        if let Some(prior) = &scene.camera_settings.lenses {
+            if camera.fisheye != prior.sample(scene.seed, index) {
+                return fail("lens assignment differs from the seeded camera prior");
+            }
+        }
         if camera
             .motion
             .as_ref()
@@ -491,11 +507,12 @@ pub fn validate_annotations_with_precision(
             let p =
                 lo + Vec3::new(position[index], position[index + 1], position[index + 2]) * range;
             let v = view_from_world.transform_point3(p);
-            if -v.z < 0.1 {
-                return Err("position behind camera".into());
+            let model_depth = calibration.depth(v.to_array());
+            if model_depth < view.near - 1e-4 || model_depth > view.far + 1e-4 {
+                return Err("position outside calibrated clipping domain".into());
             }
             checked_pixels += 1;
-            let depth_error = (depth[index] + v.z).abs();
+            let depth_error = (depth[index] - model_depth).abs();
             depth_error_max = depth_error_max.max(depth_error);
             let [px, py] = calibration
                 .project(v.to_array())

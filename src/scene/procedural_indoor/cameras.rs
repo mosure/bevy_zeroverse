@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lenses: Option<crate::camera::lens::LensSampling>,
     pub intrinsics: intrinsics::IntrinsicsSettings,
     /// Maximum seedable optical-center displacement, in image width/height units.
     #[serde(skip_serializing_if = "principal_point_centered")]
@@ -51,6 +53,7 @@ fn principal_point_centered(v: &Vec2) -> bool {
 impl Default for CameraSettings {
     fn default() -> Self {
         Self {
+            lenses: None,
             intrinsics: default(),
             principal_point_jitter: Vec2::ZERO,
             duration_seconds: None,
@@ -73,6 +76,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     #[derive(Deserialize)]
     #[serde(default, deny_unknown_fields)]
     struct Archived {
+        lenses: Option<crate::camera::lens::LensSampling>,
         intrinsics: intrinsics::IntrinsicsSettings,
         principal_point_jitter: Vec2,
         duration_seconds: Option<f32>,
@@ -91,6 +95,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         fn default() -> Self {
             let independent = CameraSettings::independent();
             Self {
+                lenses: None,
                 intrinsics: intrinsics::IntrinsicsSettings::legacy(),
                 principal_point_jitter: Vec2::ZERO,
                 duration_seconds: None,
@@ -107,6 +112,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
     }
     let archived = Archived::deserialize(deserializer)?;
     Ok(CameraSettings {
+        lenses: archived.lenses,
         intrinsics: archived.intrinsics,
         principal_point_jitter: archived.principal_point_jitter,
         duration_seconds: archived.duration_seconds,
@@ -143,6 +149,9 @@ impl CameraSettings {
     }
     pub fn validate(&self) -> Result<(), String> {
         self.intrinsics.validate()?;
+        if let Some(lenses) = &self.lenses {
+            lenses.validate()?;
+        }
         if !(0.0..=1.0).contains(&self.motion_fraction) {
             return Err("indoor_camera.motion_fraction must be in [0,1]".into());
         }

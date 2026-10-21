@@ -185,9 +185,21 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             num("@lens_bias","Lens preference · narrow / wide",-1.,1.,0.01,"Continuously shifts the distribution toward narrow (−1) or wide (+1) lenses. Independent of spatial baseline. Editing uses the continuous distribution."),
             num("@lens_spread","Lens spread",0.,1.,0.01,"0 fixes every lens at the median; 1 spans the full FOV range. Continuous PDF in log focal space; placement and overlap can bias accepted lenses."),
             Item::LensDistribution,
+            num("@fisheye_probability","Fisheye camera probability",0.,1.,0.01,"0 keeps all cameras pinhole. Assignment is seeded per camera before visibility planning; lens parameters stay fixed through time."),
             num("@lens_x","Principal-point variation X",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image width. Zero keeps the centered pinhole."),
             num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
         ]);
+        if !d["indoor_camera"]["lenses"].is_null() {
+            v.extend([
+                num("/indoor_camera/lenses/fov_degrees/0","Fisheye minimum diameter FOV",40.,220.,1.,"Angular domain; diagonal or circular sensor fit. Not a perspective vertical FOV."),
+                num("/indoor_camera/lenses/fov_degrees/1","Fisheye maximum diameter FOV",40.,220.,1.,"Values above 180 degrees include rearward rays."),
+                num("/indoor_camera/lenses/circular_probability","Circular image probability",0.,1.,0.01,"Contained circular image with equal focal axes. Circular + elliptical probability must be at most one."),
+                num("/indoor_camera/lenses/elliptical_probability","Elliptical image probability",0.,1.,0.01,"Contained ellipse with sampled focal-axis scaling. Remaining probability uses full-frame / diagonal fisheye."),
+                num("/indoor_camera/lenses/distortion_strength","Angular distortion variation",0.,1.,0.01,"0 is equidistant; 1 samples a bounded monotonic polynomial family."),
+                num("/indoor_camera/lenses/anisotropy/0","Fisheye minimum aspect scaling",0.8,1.25,0.01,"Sensor focal-axis anisotropy, independent of image aspect."),
+                num("/indoor_camera/lenses/anisotropy/1","Fisheye maximum aspect scaling",0.8,1.25,0.01,"Full pixel calibration is exported."),
+            ]);
+        }
         v.extend([
             section("CAMERA MOTION","Independent of furniture/human animation and camera spacing. Intrinsics remain fixed through time."),
             choices("@path_preset","Trajectory preset",&[("Custom","custom"),("Short handheld","handheld"),("Explore the room","explore")],"Presets set travel bounds; all fields remain editable."),

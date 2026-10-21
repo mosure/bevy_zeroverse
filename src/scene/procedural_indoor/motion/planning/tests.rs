@@ -144,6 +144,7 @@ fn camera_path_reservations_follow_route_instead_of_filling_its_bounding_box() {
     let a = Vec3::new(-2., 1., 2.);
     let b = Vec3::new(2., 1., -2.);
     scene.cameras.push(IndoorCamera {
+        fisheye: None,
         start: a,
         end: b,
         target: Vec3::Y,

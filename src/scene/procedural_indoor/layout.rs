@@ -619,6 +619,8 @@ impl IndoorObject {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IndoorCamera {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fisheye: Option<bevy_zeroverse_capture::calibration::FisheyeSensor>,
     /// Optical center displacement from (0.5, 0.5), in image width/height units.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub principal_point_offset: Option<Vec2>,
@@ -1567,6 +1569,7 @@ impl IndoorManifest {
     /// Lens clearance is continuous; view suitability is checked over the path.
     pub fn camera_trajectory_clear(&self, start: Vec3, end: Vec3, target: Vec3) -> bool {
         let camera = IndoorCamera {
+            fisheye: None,
             principal_point_offset: None,
             start,
             end,

@@ -148,6 +148,9 @@ pub fn value(state: &EditorState, path: &str) -> Value {
                 .as_f64()
                 .unwrap_or(1.)
         ),
+        "@fisheye_probability" => state.draft["indoor_camera"]["lenses"]["probability"]
+            .as_f64()
+            .map_or(json!(0.), |x| json!(x)),
         "@lens_bias" => state.draft["indoor_camera"]["intrinsics"]["bias"].clone(),
         "@lens_spread" => state.draft["indoor_camera"]["intrinsics"]["spread"].clone(),
         "@multiview" => json!(!state.draft["indoor_camera"]["multiview"].is_null()),
@@ -214,6 +217,20 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
                 return Err("Moving cameras must be in [0,100]%".into());
             }
             state.draft["indoor_camera"]["motion_fraction"] = json!(percent / 100.);
+        }
+        "@fisheye_probability" => {
+            let probability = v.as_f64().ok_or("Expected a probability")?;
+            if !(0.0..=1.0).contains(&probability) {
+                return Err("Fisheye probability must be in [0,1]".into());
+            }
+            // Disabling the lens program preserves its advanced parameters.
+            // A zero probability still takes the exact pinhole generation path.
+            if state.draft["indoor_camera"]["lenses"].is_null() {
+                state.draft["indoor_camera"]["lenses"] =
+                    json!(crate::camera::lens::LensSampling::default());
+            }
+            state.draft["indoor_camera"]["lenses"]["probability"] = v;
+            rebuild = true;
         }
         "@lens_bias" | "@lens_spread" => {
             let lens = &mut state.draft["indoor_camera"]["intrinsics"];

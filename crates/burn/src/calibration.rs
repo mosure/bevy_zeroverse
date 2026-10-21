@@ -22,6 +22,8 @@ pub(crate) fn encode(
         views.len() == prefix.iter().product::<usize>(),
         "calibration view count differs from tensor shape"
     );
+    let models: Vec<_> = views.iter().map(|v| v.calibration.clone()).collect();
+    let mixed = models.iter().flatten().any(|c| c.fisheye.is_some());
     let mut k = Vec::new();
     let mut dimensions = Vec::new();
     let mut progress = Vec::new();
@@ -51,8 +53,14 @@ pub(crate) fn encode(
         valid.push(u8::from(view.time_seconds.is_some()));
     }
     let shape = |tail: &[usize]| prefix.iter().chain(tail).copied().collect::<Vec<_>>();
-    let meta = serde_json::to_vec(&metadata())?;
-    Ok(vec![
+    let meta = if mixed {
+        bevy_zeroverse::calibration::TENSOR_METADATA_V2
+            .as_bytes()
+            .to_vec()
+    } else {
+        serde_json::to_vec(&metadata())?
+    };
+    let mut tensors = vec![
         TensorData::new("camera_calibration", Dtype::U8, vec![meta.len()], meta),
         TensorData::new(
             "intrinsics",
@@ -79,7 +87,25 @@ pub(crate) fn encode(
             bytemuck::cast_slice(&seconds).to_vec(),
         ),
         TensorData::new("time_seconds_valid", Dtype::U8, shape(&[1]), valid),
-    ])
+    ];
+    if mixed {
+        let mut ids = Vec::new();
+        let mut parameters = Vec::new();
+        for c in models.iter().flatten() {
+            ids.push(u8::from(c.fisheye.is_some()));
+            let l = c.fisheye;
+            parameters.extend(l.map_or([0.; 4], |l| l.coefficients));
+            parameters.push(l.map_or(0., |l| l.max_angle));
+        }
+        tensors.push(TensorData::new("lens_model", Dtype::U8, shape(&[1]), ids));
+        tensors.push(TensorData::new(
+            "lens_parameters",
+            Dtype::F32,
+            shape(&[5]),
+            bytemuck::cast_slice(&parameters).to_vec(),
+        ));
+    }
+    Ok(tensors)
 }
 
 pub(crate) fn decode(
@@ -106,9 +132,19 @@ pub(crate) fn decode(
         meta.dtype() == Dtype::U8 && meta.shape() == [meta.data().len()],
         "invalid calibration metadata tensor"
     );
+    let contract = serde_json::from_slice::<serde_json::Value>(meta.data())?;
+    let v2: serde_json::Value =
+        serde_json::from_str(bevy_zeroverse::calibration::TENSOR_METADATA_V2)?;
     ensure!(
-        serde_json::from_slice::<serde_json::Value>(meta.data())? == metadata(),
+        contract == metadata() || contract == v2,
         "unsupported camera calibration contract"
+    );
+    let mixed = contract == v2;
+    ensure!(
+        mixed
+            || (tensors.tensor("lens_model").is_err()
+                && tensors.tensor("lens_parameters").is_err()),
+        "angular lens tensors require version 2 metadata"
     );
     let shape = |tail: &[usize]| prefix.iter().chain(tail).copied().collect::<Vec<_>>();
     for (name, dtype, tail) in [
@@ -158,6 +194,35 @@ pub(crate) fn decode(
         let mut c = CameraCalibration::centered_pinhole(size[0], size[1], 1.0, 1.0)
             .map_err(anyhow::Error::msg)?;
         c.k = std::array::from_fn(|row| std::array::from_fn(|col| k[i * 9 + row * 3 + col]));
+        if mixed {
+            let ids = tensors.tensor("lens_model")?;
+            let parameters = tensors.tensor("lens_parameters")?;
+            ensure!(
+                ids.dtype() == Dtype::U8
+                    && ids.shape() == shape(&[1])
+                    && parameters.dtype() == Dtype::F32
+                    && parameters.shape() == shape(&[5]),
+                "invalid lens tensor shapes/dtypes"
+            );
+            let p = parameters.data()[i * 20..i * 20 + 20]
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|b| f32::from_le_bytes(*b))
+                .collect::<Vec<_>>();
+            match ids.data()[i] {
+                0 => ensure!(p == [0.; 5], "pinhole must have zero angular parameters"),
+                1 => {
+                    c.schema_version = 2;
+                    c.lens_model = bevy_zeroverse::calibration::LensModel::AngularFisheye4;
+                    c.fisheye = Some(bevy_zeroverse::calibration::Fisheye {
+                        coefficients: p[..4].try_into().unwrap(),
+                        max_angle: p[4],
+                    });
+                }
+                _ => anyhow::bail!("unknown lens model"),
+            }
+        }
         c.validate().map_err(anyhow::Error::msg)?;
         ensure!(
             (0.0..=1.0).contains(&progress[i])
