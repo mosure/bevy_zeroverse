@@ -25,6 +25,8 @@ const headless = process.argv.includes('--headless');
 const chrome = spawn(process.env.CHROME ?? '/usr/bin/google-chrome', [
   ...(headless ? ['--headless=new', '--use-angle=vulkan', '--disable-vulkan-surface'] : []),
   '--no-first-run', '--no-default-browser-check', '--no-sandbox',
+  '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+  ...(process.platform === 'linux' && process.env.DISPLAY ? ['--ozone-platform=x11'] : []),
   '--disable-dev-shm-usage', '--enable-gpu', '--use-gpu-in-tests', '--enable-unsafe-webgpu',
   '--ignore-gpu-blocklist', '--use-vulkan=native', '--enable-features=Vulkan',
   '--disable-gpu-sandbox', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
@@ -72,24 +74,39 @@ try {
   const evaluate = async expression => (await command('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result.value;
   await command('Runtime.enable');
   await command('Page.enable');
+  // A desktop window manager may leave a new test window unfocused. Winit then
+  // intentionally throttles it; that measures focus policy, not render speed.
+  await command('Emulation.setFocusEmulationEnabled', { enabled: true });
   await command('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: false });
   await command('Page.addScriptToEvaluateOnNewDocument', { source: `(${probe.toString()})(${detailed})` });
   await command('Page.navigate', { url });
+  await command('Page.bringToFront');
   let ready = false;
+  let activated = false;
   while (Date.now() < deadline) {
     if (errors.length) throw Error([...messages.slice(-15), ...errors].join('\n'));
-    const state = await evaluate('window.gridProbe && ({frames: gridProbe.frames, adapters: gridProbe.adapters, quiet: performance.now()-gridProbe.lastPipeline, errors: gridProbe.errors})');
+    // Winit listens to the canvas focus, independently of the page/window.
+    const state = await evaluate('document.querySelector("canvas")?.focus(); window.gridProbe && ({frames: gridProbe.frames, adapters: gridProbe.adapters, quiet: performance.now()-gridProbe.lastPipeline, errors: gridProbe.errors})');
+    if (!activated && state?.frames >= 2) {
+      for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        await command('Input.dispatchMouseEvent', { type, x:width / 2, y:height / 2,
+          ...(type === 'mouseMoved' ? {} : { button:'left', clickCount:1 }) });
+      }
+      activated = true;
+    }
     if (state?.errors.length) throw Error(state.errors.join('\n'));
     if (state?.frames >= 80 && state.quiet > 2000 && messages.some(m => m.includes('procedural_indoor seed='))) { ready = true; break; }
     await delay(250);
   }
   if (!ready) throw Error('Viewer failed to settle before timeout');
+  if (await evaluate('document.hidden || !document.hasFocus() || document.activeElement?.tagName !== "CANVAS"')) throw Error('Presentation benchmark requires a visible tab and focused canvas');
   const adapters = await evaluate('gridProbe.adapters');
   if (!adapters.length || /swiftshader|llvmpipe|software/i.test(JSON.stringify(adapters))) throw Error(`Hardware adapter required: ${JSON.stringify(adapters)}`);
   if (process.argv.includes('--profile')) { await command('Profiler.enable'); await command('Profiler.start'); }
   await evaluate('gridProbe.times=[]; gridProbe.cpu=[]; gridProbe.draws=0; gridProbe.drawsByPass={}; gridProbe.limitQueries=0; gridProbe.passes={}; gridProbe.buffers={}; gridProbe.record=true');
   await delay(seconds * 1000);
-  const result = await evaluate('gridProbe.record=false; ({...gridProbe, userAgent:navigator.userAgent, url:location.href})');
+  const result = await evaluate('gridProbe.record=false; ({...gridProbe, userAgent:navigator.userAgent, url:location.href, visible:!document.hidden, focused:document.hasFocus() && document.activeElement?.tagName === "CANVAS"})');
+  if (!result.visible || !result.focused) throw Error('Viewer lost visibility/focus during presentation measurement');
   if (process.argv.includes('--profile')) await writeFile(output.replace(/\.json$/, '-cpu.json'), JSON.stringify(await command('Profiler.stop')));
   const layoutChecks = [];
   if (process.argv.includes('--exercise-layout')) {
@@ -115,7 +132,7 @@ try {
     median_ms: intervals[Math.floor(intervals.length/2)], p95_ms: intervals[Math.floor(intervals.length*.95)],
     mean_callback_ms: result.cpu.reduce((a,b)=>a+b,0)/result.cpu.length };
   await writeFile(output, JSON.stringify({ url, seconds, headless, detailed, viewport: {width,height,dpr}, wasmSha256, summary, layoutChecks, probe: result, messages, errors,
-    caveat:'Hardware Chrome presentation timing with GPU training active. Instrumented paired workload; not isolated generation throughput.' }, null, 2));
+    caveat:'Hardware Chrome presentation timing. Record concurrent workloads and any browser throttling separately; not whole-room generation throughput.' }, null, 2));
   console.log(JSON.stringify({ output, adapters, summary, passes: result.passes }, null, 2));
   if (errors.length || result.errors.length || intervals.length < 3) throw Error('Viewer errors or too few presented frames');
 } catch (error) {

@@ -47,7 +47,7 @@ impl LensCamera {
         self.completed.load(Ordering::Acquire) == request
     }
     #[cfg(test)]
-    pub(super) fn test_camera() -> Self {
+    pub(crate) fn test_camera() -> Self {
         Self {
             calibration: CameraCalibration::centered_pinhole(32, 32, 1., 1.).unwrap(),
             output: Handle::default(),
@@ -128,11 +128,17 @@ fn setup(
         ),
     >,
     device: Option<Res<bevy::render::renderer::RenderDevice>>,
+    policy: Option<Res<super::super::CaptureDrawPolicy>>,
 ) {
     for (entity, camera, projection, target, ssaa, direct) in &cameras {
         let Some(sensor) = camera.fisheye else {
             continue;
         };
+        // Decide after applications have finalized the logical sensor. Preserve
+        // explicit direct submission; allow the shared policy to opt back into
+        // Bevy's indirect path. WebGPU keeps its existing submission policy.
+        let direct = direct
+            || (!cfg!(target_arch = "wasm32") && policy.as_ref().is_none_or(|p| !p.indirect));
         let RenderTarget::Image(target) = target else {
             continue;
         };
@@ -291,6 +297,11 @@ fn setup(
             Projection::Perspective(perspective),
             RenderTarget::Image(ImageRenderTarget::from(faces[0].clone())),
         ));
+        if direct {
+            commands
+                .entity(entity)
+                .insert(bevy::render::view::NoIndirectDrawing);
+        }
     }
 }
 

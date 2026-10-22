@@ -141,6 +141,11 @@ the active seed, view state and any unapplied edits separately. An explicit
 `indoor_camera={}` selects pinhole in the browser; `{"lenses":{}}` selects the
 default 50% prior. Historical URLs with full policies remain accepted.
 
+The WebGPU viewer defaults to square 768×768 capture targets. Explicit `width`
+and `height` query values override this; native, CLI and library resolution
+defaults are unchanged. Automatic SSAA remains enabled below its existing
+pixel-count threshold.
+
 `probability` is a Bernoulli probability for **each camera**, not a rounded
 percentage of the cameras in a small rig. It is sampled by scene seed and camera
 index before visibility admission, independently of geometry and placement RNGs.
@@ -342,6 +347,13 @@ projection bounds and shadow-cascade coverage remain fixed. Enabling sampling or
 attaching an image copier restores full source density before camera extraction;
 headless capture never uses thumbnail density. Numeric annotations are unchanged.
 
+Native angular views use direct submission with GPU mesh preprocessing, the
+same path as default captures. This avoids repeating indirect-bin preparation
+for their auxiliary views. `CaptureDrawPolicy { indirect: true }` retains an
+explicit opt-in to Bevy's indirect path. Both paths preserve mesh geometry,
+shadows and source density. Default angular RGB faces do not allocate raster
+motion-vector attachments; angular optical flow uses exact ray correspondence.
+
 The browser release profile optimizes for execution speed: size-only optimization
 is particularly expensive in the render/ECS loops repeated for each fisheye face.
 WebGPU reuses bounded light-cluster buffers with the same CPU light assignment and
@@ -393,15 +405,21 @@ For a bounded continuous-view workload (distinct from whole-room generation):
 ```sh
 cargo run --example bench_lens_preview -- --frames=40 --pinhole --output=out/lens-pinhole
 cargo run --example bench_lens_preview -- --frames=40 --captures --output=out/lens-fisheye
+cargo run --example bench_lens_preview -- --frames=40 --fit=circular --fov=180 --output=out/lens-circular
+cargo run --example bench_lens_preview -- --frames=40 --fit=diagonal --fov=180 --output=out/lens-full-frame
+cargo run --example bench_lens_preview -- --frames=40 --fit=elliptical --anisotropy=1.15 --fov=180 --output=out/lens-elliptical
 cargo run --example bench_lens_preview -- --frames=10 --all-modes --captures --output=out/lens-modes
 ```
 
 The control uses the same scene and admitted trajectories, changing only the
 projection. The report records static/moving views, frame distributions,
-diagnostics, source texture sizes, configuration and engine provenance. Timed
+source texture sizes, configuration and engine provenance. Timed
 frames exclude readback; optional inspection captures are taken afterward.
-Times synchronize the device and include diagnostic instrumentation, so they
-are not window presentation FPS. Record concurrent GPU workloads separately.
+Times synchronize the device; they are not window presentation FPS. Optional
+`--diagnostics` adds GPU/pass instrumentation and `--profile` adds CPU schedule
+intervals (overlapping intervals are not additive). `--indirect` compares Bevy's
+indirect submission. Record concurrent CPU/GPU workloads separately. Equal
+nominal FOV does not imply equal horizontal coverage for the three sensor fits.
 
 ## Pipeline
 

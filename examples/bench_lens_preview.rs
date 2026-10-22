@@ -4,12 +4,18 @@
 use bevy::{prelude::*, render::renderer::RenderDevice};
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
-    camera::{lens::LensSampling, CameraBuildSystems, Playback, PlaybackMode, ZeroverseCamera},
+    camera::{
+        lens::{FisheyeFit, LensSampling},
+        CameraBuildSystems, Playback, PlaybackMode, ZeroverseCamera,
+    },
     headless::{create_app, setup_globals},
     render::RenderMode,
     scene::{procedural_indoor::cameras::CameraSettings, ZeroverseSceneType},
 };
 use std::{collections::BTreeMap, path::PathBuf, time::Instant};
+
+#[path = "support/lens_preview_profile.rs"]
+mod profile;
 
 fn main() {
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
@@ -24,6 +30,25 @@ fn main() {
     assert!(frames >= 10);
     let size: f32 = option("size", "512").parse().unwrap();
     let pinhole = args.iter().any(|v| v == "--pinhole");
+    let direct = args.iter().any(|v| v == "--direct");
+    let indirect = args.iter().any(|v| v == "--indirect");
+    assert!(!(direct && indirect));
+    let fit = match option("fit", "sampled").as_str() {
+        "sampled" => None,
+        "circular" => Some(FisheyeFit::Circular),
+        "diagonal" => Some(FisheyeFit::Diagonal),
+        "elliptical" => Some(FisheyeFit::Elliptical),
+        _ => panic!("fit must be sampled, circular, diagonal or elliptical"),
+    };
+    let fov: Option<f32> = args
+        .iter()
+        .find_map(|v| v.strip_prefix("--fov="))
+        .map(|v| v.parse().unwrap());
+    assert!(fov.is_none_or(|v| (40.0..=220.).contains(&v)));
+    let anisotropy: f32 = option("anisotropy", "1.15").parse().unwrap();
+    assert!((0.8..=1.25).contains(&anisotropy));
+    let warmup: usize = option("warmup", "80").parse().unwrap();
+    assert!(warmup >= 20);
     let cluster_budget: Option<u32> = args
         .iter()
         .find_map(|v| v.strip_prefix("--clusters="))
@@ -57,6 +82,23 @@ fn main() {
     };
     setup_globals(None);
     let mut app = create_app(None, Some(config.clone()), false);
+    if indirect {
+        app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy { indirect: true });
+    }
+    if direct {
+        app.add_systems(
+            Update,
+            (|mut commands: Commands, cameras: Query<Entity, Added<ZeroverseCamera>>| {
+                for entity in &cameras {
+                    commands
+                        .entity(entity)
+                        .insert(bevy::render::view::NoIndirectDrawing);
+                }
+            })
+            .after(CameraBuildSystems::Logical)
+            .before(CameraBuildSystems::Lens),
+        );
+    }
     if args.iter().any(|v| v == "--captures") {
         app.add_plugins(bevy_zeroverse::io::image_copy::ImageCopyPlugin);
     }
@@ -82,20 +124,41 @@ fn main() {
             .before(SimulationLightSystems::AssignLightsToClusters),
         );
     }
-    if pinhole {
+    if pinhole || fit.is_some() || fov.is_some() {
         // Admission and trajectories are identical to the angular workload.
         app.add_systems(
             Update,
-            (|mut cameras: Query<&mut ZeroverseCamera, Added<Camera>>| {
+            (move |mut cameras: Query<&mut ZeroverseCamera, Added<Camera>>| {
                 for mut camera in &mut cameras {
-                    camera.fisheye = None;
+                    if pinhole {
+                        camera.fisheye = None;
+                    } else if let Some(sensor) = &mut camera.fisheye {
+                        if let Some(fit) = fit {
+                            sensor.fit = fit;
+                            sensor.anisotropy = if fit == FisheyeFit::Circular {
+                                1.
+                            } else {
+                                anisotropy
+                            };
+                        }
+                        if let Some(fov) = fov {
+                            sensor.lens.max_angle = 0.5 * fov.to_radians();
+                        }
+                    }
                 }
             })
             .after(CameraBuildSystems::Logical)
             .before(CameraBuildSystems::Lens),
         );
     }
-    app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    let diagnostics = args.iter().any(|v| v == "--diagnostics");
+    if diagnostics {
+        app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    }
+    let profile = args
+        .iter()
+        .any(|v| v == "--profile")
+        .then(|| profile::install(&mut app));
     app.finish();
     app.cleanup();
     let device = app.world().resource::<RenderDevice>().clone();
@@ -124,16 +187,27 @@ fn main() {
         for moving in [false, true] {
             let mut times = Vec::new();
             let mut poses = Vec::new();
-            for frame in 0..(frames + 80) {
+            for frame in 0..(frames + warmup) {
                 app.world_mut().resource_mut::<Playback>().progress = if moving {
                     (frame % frames) as f32 / frames as f32
                 } else {
                     0.5
                 };
                 let start = Instant::now();
+                if let Some(profile) = &profile {
+                    profile.record(frame >= warmup);
+                }
                 app.update();
+                let update_ms = start.elapsed().as_secs_f64() * 1000.;
                 device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-                if frame == 79 {
+                if let Some(profile) = &profile {
+                    profile.add("app.update", update_ms);
+                    profile.add(
+                        "device.poll",
+                        start.elapsed().as_secs_f64() * 1000. - update_ms,
+                    );
+                }
+                if frame == warmup - 1 {
                     let wait = Instant::now();
                     while !app.world().resource::<bevy_zeroverse::sample::CaptureReadiness>().scene_ready()
                         || app.world().get_resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>()
@@ -152,10 +226,10 @@ fn main() {
                     .resource::<bevy_zeroverse::sample::CaptureFailure>()
                     .0
                     .is_none());
-                if frame >= 80 {
+                if frame >= warmup {
                     times.push(start.elapsed().as_secs_f64() * 1000.);
                 }
-                if frame == 80 || frame == frames + 79 {
+                if frame == warmup || frame == frames + warmup - 1 {
                     let mut cameras: Vec<_> = app
                         .world_mut()
                         .query::<(&bevy_zeroverse::camera::CaptureCameraIndex, &Transform)>()
@@ -180,9 +254,9 @@ fn main() {
                 .collect();
             let views: Vec<_> = app
                 .world_mut()
-                .query::<(&Camera, &bevy::camera::RenderTarget)>()
+                .query::<(&Camera, &bevy::camera::RenderTarget, Has<bevy::render::view::NoIndirectDrawing>, Has<bevy::core_pipeline::prepass::MotionVectorPrepass>)>()
                 .iter(app.world())
-                .map(|(c, t)| serde_json::json!({"active":c.is_active,"target":format!("{t:?}")}))
+                .map(|(c, t, direct, motion)| serde_json::json!({"active":c.is_active,"target":format!("{t:?}"),"direct":direct,"motion_prepass":motion}))
                 .collect();
             let mean = times.iter().sum::<f64>() / frames as f64;
             let side_motion_passes = app
@@ -194,13 +268,23 @@ fn main() {
                 .iter(app.world())
                 .count();
             assert_eq!(side_motion_passes, 0);
+            let angular_motion_passes = app
+                .world_mut()
+                .query_filtered::<Entity, (
+                    With<bevy_zeroverse::camera::lens::LensCamera>,
+                    With<bevy::core_pipeline::prepass::MotionVectorPrepass>,
+                )>()
+                .iter(app.world())
+                .count();
+            assert_eq!(angular_motion_passes, 0);
             println!(
                 "{mode:?} moving={moving}: mean {mean:.2} ms, median {:.2} ms, p95 {:.2} ms",
                 times[frames / 2],
                 times[frames * 95 / 100]
             );
             rows.push(serde_json::json!({"mode":mode,"moving":moving,"frames":frames,"mean_ms":mean,
-                "median_ms":times[frames/2],"p95_ms":times[frames*95/100],"times_ms":times,"diagnostics":diagnostics,"views":views,"poses":poses}));
+                "median_ms":times[frames/2],"p95_ms":times[frames*95/100],"times_ms":times,"diagnostics":diagnostics,"views":views,"poses":poses,
+                "cpu_phases":profile.as_ref().map(|p| p.take())}));
             if moving && args.iter().any(|v| v == "--captures") {
                 save_previews(&mut app, &output, &format!("{mode:?}"));
             }
@@ -223,8 +307,8 @@ fn main() {
             serde_json::json!({"size":im.size().to_array(),"format":format!("{:?}", im.texture_descriptor.format)})
         }).collect();
     std::fs::write(output.join("report.json"), serde_json::to_vec_pretty(&serde_json::json!({
-        "pinhole":pinhole,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
-        "policy":"Same scene and admitted trajectories. 80 warmup updates, device-synchronized frame wall time, no readback, concurrent training. Quality unchanged. This is not window presentation FPS.",
+        "pinhole":pinhole,"fit":fit,"fov":fov,"anisotropy":anisotropy,"warmup_frames":warmup,"render_diagnostics":diagnostics,"direct":direct,"indirect":indirect,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
+        "policy":"Same scene and admitted trajectories; only the render lens changes. Device-synchronized frame wall time, no readback. Quality unchanged. This is not window presentation FPS; record concurrent workloads separately.",
         "adapter":format!("{:?}", **app.world().resource::<bevy::render::renderer::RenderAdapterInfo>()),"images":sizes,"source_faces":sources,"rows":rows
     })).unwrap()).unwrap();
 }

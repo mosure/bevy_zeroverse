@@ -58,9 +58,11 @@ pub enum CameraBuildSystems {
     Lens,
 }
 
-/// Capture submission policy, applied only when each camera is created.
+/// Submission policy for captures and native angular views, applied at creation.
 /// Direct draws avoid driver retention in indirect validation while preserving
-/// GPU mesh preprocessing. Interactive cameras keep Bevy's default GPU culling.
+/// GPU mesh preprocessing. Multi-face views also avoid repeating indirect-bin
+/// preparation for every face. Interactive pinhole cameras keep Bevy's default
+/// GPU culling. Setting `indirect` opts both captures and angular views back in.
 #[derive(Resource, Default)]
 pub struct CaptureDrawPolicy {
     pub indirect: bool,
@@ -112,6 +114,10 @@ impl Plugin for ZeroverseCameraPlugin {
                 update_render_pipeline,
             ),
         );
+        app.add_systems(
+            Update,
+            default_motion_prepass.after(CameraBuildSystems::Lens),
+        );
     }
 }
 
@@ -136,6 +142,26 @@ fn gate_interactive_views(
 }
 fn interactive_views_needed(args: &BevyZeroverseConfig, mode: &RenderMode, sampling: bool) -> bool {
     sampling || (!args.room_schematic && (args.camera_grid || *mode == RenderMode::CoVisibility))
+}
+
+// Applications may finalize the sensor between Logical and Lens. Select the
+// default prepass only after that decision; explicitly attached components are
+// retained. Angular flow traces exact surface correspondences instead.
+#[allow(clippy::type_complexity)] // Select only newly finalized pinhole cameras.
+fn default_motion_prepass(
+    mut commands: Commands,
+    cameras: Query<
+        Entity,
+        (
+            With<ZeroverseCamera>,
+            Added<Camera>,
+            Without<lens::LensCamera>,
+        ),
+    >,
+) {
+    for camera in &cameras {
+        commands.entity(camera).insert(MotionVectorPrepass);
+    }
 }
 
 // TODO: convert to position sampler
@@ -1124,7 +1150,6 @@ fn insert_cameras(
             target,
             Hdr,
             Exposure::INDOOR,
-            MotionVectorPrepass,
             pinhole::projection(
                 zeroverse_camera.perspective_sampler.sample(),
                 zeroverse_camera.principal_point_offset,
@@ -1156,13 +1181,13 @@ fn insert_cameras(
         #[cfg(not(feature = "web"))]
         camera.insert((DepthPrepass, NormalPrepass));
 
+        #[cfg(not(target_arch = "wasm32"))]
+        if !draw_policy.indirect && args.image_copiers {
+            camera.insert(bevy::render::view::NoIndirectDrawing);
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = &draw_policy;
         if args.image_copiers {
-            #[cfg(not(target_arch = "wasm32"))]
-            if !draw_policy.indirect {
-                camera.insert(bevy::render::view::NoIndirectDrawing);
-            }
-            #[cfg(target_arch = "wasm32")]
-            let _ = &draw_policy;
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ground_truth) = targets.geometry {
                 camera.insert(ground_truth);
@@ -1365,6 +1390,37 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
     use bevy::render::view::Msaa;
     use bevy::MinimalPlugins;
+
+    #[test]
+    fn motion_prepass_follows_final_lens_and_preserves_explicit_consumers() {
+        let mut app = App::new();
+        app.add_systems(Update, default_motion_prepass);
+        let pinhole = app
+            .world_mut()
+            .spawn((Camera::default(), ZeroverseCamera::default()))
+            .id();
+        let angular = app
+            .world_mut()
+            .spawn((
+                Camera::default(),
+                ZeroverseCamera::default(),
+                lens::LensCamera::test_camera(),
+            ))
+            .id();
+        let custom = app
+            .world_mut()
+            .spawn((
+                Camera::default(),
+                ZeroverseCamera::default(),
+                lens::LensCamera::test_camera(),
+                MotionVectorPrepass,
+            ))
+            .id();
+        app.update();
+        assert!(app.world().get::<MotionVectorPrepass>(pinhole).is_some());
+        assert!(app.world().get::<MotionVectorPrepass>(angular).is_none());
+        assert!(app.world().get::<MotionVectorPrepass>(custom).is_some());
+    }
 
     #[test]
     fn sin_playback_survives_pause_speed_change_and_regeneration_phase() {

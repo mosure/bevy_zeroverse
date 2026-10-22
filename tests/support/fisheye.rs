@@ -163,7 +163,7 @@ pub fn run() {
             .unwrap(),
         if all_angular {
             angular
-                .calibration(size, FisheyeFit::Diagonal, [0.; 2], 0.98)
+                .calibration(size, FisheyeFit::Circular, [0.; 2], 1.)
                 .unwrap()
         } else {
             CameraCalibration::centered_pinhole(
@@ -220,12 +220,16 @@ pub fn run() {
                         fisheye: (i < 2 || all_angular).then_some(
                             bevy_zeroverse::calibration::FisheyeSensor {
                                 lens: angular,
-                                fit: if i == 0 {
-                                    FisheyeFit::Elliptical
-                                } else {
-                                    FisheyeFit::Diagonal
+                                fit: match i {
+                                    0 => FisheyeFit::Elliptical,
+                                    1 => FisheyeFit::Diagonal,
+                                    _ => FisheyeFit::Circular,
                                 },
-                                anisotropy: if i == 0 { 1.03 } else { 0.98 },
+                                anisotropy: match i {
+                                    0 => 1.03,
+                                    1 => 0.98,
+                                    _ => 1.,
+                                },
                             },
                         ),
                         principal_point_offset: match i {

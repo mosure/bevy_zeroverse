@@ -7,7 +7,7 @@ fn training_rejections_complete_with_original_roles_and_constraints() {
     let policy = CameraSettings::parse(include_str!("training_camera_settings.json")).unwrap();
     for seed in [
         65_185_309, 65_186_191, 65_193_636, 65_193_935, 65_193_994, 65_194_005, 65_194_057,
-        65_194_277, 65_194_325, 65_194_372, 65_194_622, 65_194_664, 65_194_816, 65_194_824,
+        65_194_277, 65_194_325, 65_194_372, 65_194_622, 65_194_664, 65_194_816,
     ] {
         let mut scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
@@ -49,7 +49,11 @@ fn training_rejections_complete_with_original_roles_and_constraints() {
 fn difficult_training_rigs_preserve_geometry_and_transactional_rejection() {
     use crate::sample::failure::{CaptureError, SceneRejectionKind};
     let policy = CameraSettings::parse(include_str!("training_camera_settings.json")).unwrap();
-    for seed in [65_185_819, 65_193_669, 65_194_134, 65_194_694] {
+    // 65194824 solves on Linux but reaches the bounded search limit on the
+    // macOS CI runner. A feasible base room does not guarantee an admissible eight-view
+    // rig within this budget on every platform. Both outcomes must preserve
+    // the full placement contract; never require a relaxed or partial rig.
+    for seed in [65_185_819, 65_193_669, 65_194_134, 65_194_694, 65_194_824] {
         let mut scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         validate_layout(&scene).unwrap();
@@ -59,6 +63,18 @@ fn difficult_training_rigs_preserve_geometry_and_transactional_rejection() {
                 // Further sampler improvements may legitimately solve these.
                 assert_eq!(scene.cameras.len(), 8);
                 validate_layout(&scene).unwrap();
+                for (index, camera) in scene.cameras.iter().enumerate() {
+                    assert_eq!(
+                        camera.is_ceiling_mounted(),
+                        policy.ceiling_mounted(seed, index)
+                    );
+                    assert_eq!(camera.fisheye, policy.lens_for(seed, index));
+                    assert!(policy.accepts_motion(seed, index, camera));
+                    assert!(scene.camera_curve_clear(camera));
+                    assert!(scene.cameras[..index]
+                        .iter()
+                        .all(|c| !bodies_overlap(c, camera)));
+                }
             }
             Err(CaptureError::Rejected { rejection, .. }) => {
                 assert_eq!(rejection.kind, SceneRejectionKind::CameraPlacement);

@@ -149,6 +149,75 @@ mod tests {
     }
 
     #[test]
+    fn all_sensor_fits_keep_compositor_reads_inside_source_crops() {
+        let rotations = super::super::super::runtime::orientations();
+        let mut checked = 0;
+        for fit in [
+            FisheyeFit::Circular,
+            FisheyeFit::Diagonal,
+            FisheyeFit::Elliptical,
+        ] {
+            for degrees in [40_f32, 90., 140., 180., 220.] {
+                for size in [[768, 768], [960, 540], [540, 960]] {
+                    for offset in [[0.; 2], [0.16, -0.13]] {
+                        let lens = Fisheye {
+                            coefficients: [-0.03, 0.002, 0.00001, 0.],
+                            max_angle: 0.5 * degrees.to_radians(),
+                        };
+                        let c = lens
+                            .calibration(
+                                size,
+                                fit,
+                                offset,
+                                if fit == FisheyeFit::Circular { 1. } else { 1.2 },
+                            )
+                            .unwrap();
+                        for side in [64, 256, 1536] {
+                            let scale = 0.96;
+                            let regions = sensor_regions(side, scale, &c);
+                            let blend_start = scale / (1. - 2. / side as f32);
+                            assert_eq!(regions[5], URect::default());
+                            for y in 0..=32 {
+                                for x in 0..=32 {
+                                    let Some(ray) = c.ray([
+                                        size[0] as f32 * x as f32 / 32.,
+                                        size[1] as f32 * y as f32 / 32.,
+                                    ]) else {
+                                        continue;
+                                    };
+                                    let ray = Vec3::from_array(ray);
+                                    let largest = ray.abs().max_element();
+                                    for (i, rotation) in rotations.iter().enumerate().take(5) {
+                                        let local = rotation.inverse() * ray;
+                                        let sampled = if degrees <= 90. {
+                                            i == 0
+                                        } else {
+                                            -local.z / largest > blend_start
+                                        };
+                                        if !sampled {
+                                            continue;
+                                        }
+                                        let p =
+                                            (local.xy() / -local.z * Vec2::new(0.5, -0.5) * scale
+                                                + Vec2::splat(0.5))
+                                                * side as f32;
+                                        let region = regions[i];
+                                        assert!(p.cmpge(region.min.as_vec2() + Vec2::ONE).all()
+                                            && p.cmple(region.max.as_vec2() - Vec2::ONE).all(),
+                                            "{fit:?} fov={degrees} size={size:?} side={side} face={i}: {p:?} {region:?}");
+                                        checked += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked > 100_000);
+    }
+
+    #[test]
     fn wide_rectangular_sensor_omits_unused_poles() {
         let lens = Fisheye {
             coefficients: [0.; 4],

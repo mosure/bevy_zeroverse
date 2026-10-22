@@ -90,8 +90,11 @@ try {
   });
   // The target URL changes before navigation commits; its first context can
   // still be about:blank, where navigator.gpu is intentionally unavailable.
+  // Chrome startup can consume the whole startup budget on shared runners.
+  // Give navigation its own bounded budget instead of failing before checking it.
+  const navigationDeadline = Date.now() + 30000;
   let loaded = false;
-  while (Date.now() < deadline && !loaded) {
+  while (Date.now() < navigationDeadline && !loaded) {
     loaded = await evaluate(`location.href === ${JSON.stringify(url)} && document.readyState === 'complete'`);
     if (!loaded) await delay(50);
   }

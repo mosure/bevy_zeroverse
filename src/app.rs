@@ -874,6 +874,8 @@ fn config_with_query(
 fn web_viewer_defaults() -> BevyZeroverseConfig {
     studio_lens_defaults(BevyZeroverseConfig {
         depth_format: DepthFormat::Turbo,
+        width: 768.,
+        height: 768.,
         ..BevyZeroverseConfig::parse_from(["viewer"])
     })
 }
@@ -970,6 +972,28 @@ mod web_config_tests {
                 .lenses
                 .is_none()
         );
+    }
+
+    #[test]
+    fn browser_resolution_is_square_and_explicit_urls_preserve_resolution() {
+        let browser = web_viewer_defaults();
+        assert_eq!((browser.width, browser.height), (768., 768.));
+        let native = BevyZeroverseConfig::parse_from(["viewer"]);
+        assert_eq!((native.width, native.height), (1920., 1080.));
+        let encoded = query::encode(&browser, &Default::default());
+        assert!(!encoded.contains("width="));
+        assert!(!encoded.contains("height="));
+        for (width, height) in [(512., 512.), (960., 540.), (768., 768.)] {
+            let config = config_with_query(
+                web_viewer_defaults(),
+                [
+                    ("width".into(), width.to_string()),
+                    ("height".into(), height.to_string()),
+                ],
+            )
+            .unwrap();
+            assert_eq!((config.width, config.height), (width, height));
+        }
     }
 
     #[test]
