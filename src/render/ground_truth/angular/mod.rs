@@ -142,7 +142,7 @@ pub(super) fn prepare(
             }
             return;
         }
-        let started = std::time::Instant::now();
+        let started = bevy::platform::time::Instant::now();
         let (triangles, nodes) = bvh::build(&geometry);
         let seconds = started.elapsed().as_secs_f64();
         {
