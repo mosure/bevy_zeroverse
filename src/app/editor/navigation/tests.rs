@@ -108,11 +108,18 @@ fn control_catalog_has_unique_groups_and_task_specific_ownership() {
     edit(&mut state, "@ceiling_mount", json!(true)).unwrap();
     assert_eq!(
         group_for(&groups(&state), "/indoor_camera/duration_seconds"),
-        "cameras.timing"
+        "cameras.motion"
     );
-    assert!(!groups(&state)
+    assert!(groups(&state)
         .iter()
-        .any(|g| matches!(g.section.id, "cameras.motion" | "cameras.handheld")));
+        .any(|g| g.section.id == "cameras.motion"));
+    assert_eq!(
+        group_for(
+            &groups(&state),
+            "/indoor_camera/ceiling_mount/motion_fraction"
+        ),
+        "cameras.mount-motion"
+    );
     state.view.page = Page::View;
     edit(&mut state, "@viewport", json!("schematic")).unwrap();
     assert!(!groups(&state).iter().any(|g| matches!(

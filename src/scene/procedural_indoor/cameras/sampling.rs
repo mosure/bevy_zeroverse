@@ -14,6 +14,16 @@ impl IndoorManifest {
         rng: &mut rand_chacha::ChaCha8Rng,
         coverage: &super::coverage::Coverage,
     ) -> Result<(), String> {
+        self.sample_independent_slots(0, count, rng, coverage)
+    }
+
+    pub(super) fn sample_independent_slots(
+        &mut self,
+        first: usize,
+        count: usize,
+        rng: &mut rand_chacha::ChaCha8Rng,
+        coverage: &super::coverage::Coverage,
+    ) -> Result<(), String> {
         let half = self.room_size * 0.5;
         self.camera_settings.validate()?;
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
@@ -26,7 +36,7 @@ impl IndoorManifest {
                     && (!self.camera_settings.primary_room || self.in_primary_room(h.position, 0.0))
             })
             .collect();
-        for index in 0..count {
+        for index in first..first + count {
             // The former fixed 0.85 m wall rail dominated accepted cameras.
             // Mix free interior proposals with continuously offset perimeter views.
             let perimeter = rng.random_bool(0.4);

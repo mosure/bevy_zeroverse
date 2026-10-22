@@ -1,12 +1,18 @@
 # Calibrated fisheye capture
 
-## Ceiling-mounted CCTV rigs
+## Mixed room and ceiling cameras
 
-Set `indoor_camera` to `{"ceiling_mount":{}}`, or enable **Ceiling-mounted
-CCTV rig** in Studio's Cameras page. This opts the complete capture rig into
-fixed mounts in the primary room. The editor camera and human/furniture motion
-remain independent. Disabling the option restores the existing walkthrough
-camera and lens settings; the default library behavior is unchanged.
+Enable **Include ceiling cameras** in Studio's Cameras page, then set the
+ceiling camera probability. The UI starts at 50%; each slot independently samples
+room or ceiling mounting. Room cameras keep their own perspective/fisheye and
+motion distributions. Ceiling cameras have separate lens and motion controls.
+This supports fixed CCTV, moving ceiling fisheyes, and moving room pinhole or
+fisheye cameras in the same rig. No cameras are added to the editor view.
+
+The API's `{"ceiling_mount":{}}` retains the all-ceiling, fixed preset for existing
+configurations. `ceiling_mount.probability=0` uses the unchanged room-only sampler;
+omitting `ceiling_mount` retains the library default. Fractions are Bernoulli
+probabilities across the dataset, not exact quotas in small rigs.
 
 The optical axis is perpendicular to the actual local ceiling and points inward.
 Sloping roofs use their analytic surface normal; flat soffits use a downward
@@ -22,7 +28,12 @@ The mounting policy has its own calibrated lens priors:
 ```json
 {
   "baseline": 0.5,
+  "motion_fraction": 1.0,
+  "lenses": {"probability": 0.5},
   "ceiling_mount": {
+    "probability": 0.5,
+    "motion_fraction": 0.5,
+    "travel_m": [0.1, 3.0],
     "standoff_m": [0.12, 0.24],
     "body_radius_m": 0.055,
     "wall_clearance_m": 0.35,
@@ -42,24 +53,37 @@ The mounting policy has its own calibrated lens priors:
 ```
 
 `lenses.probability` mixes fisheye and wide rectilinear cameras **within the
-mounted rig**. It does not mix mounting roles. The rectilinear prior applies only
+mounted subset**. `ceiling_mount.probability` controls mounting roles. The rectilinear prior applies only
 to the non-fisheye fraction. Both priors retain their continuous bias/spread
 controls. A 180° diameter fisheye sees a hemisphere, including every azimuth
 around a downward optical axis; this is the ceiling overview commonly marketed
 as a 360° panoramic camera ([Axis panoramic camera documentation](https://whitepapers.axis.com/en-us/panoramic-cameras)).
 
-Lens assignments, standoff and roll are seeded before placement retries.
-Baseline, group spread and the configured directed-overlap graph/strata remain
-admission constraints. Incompatible combinations (for example near-total overlap
-between substantially different footprints) can reject a rig; the planner does
-not change its lenses or quietly substitute walkthrough poses. Sampling is
-bounded, and a failed `resample_cameras` restores the previous camera set.
+Mounting, lens and motion assignments, standoff and roll are seeded before placement
+retries, independently of the number of cameras. Mounted motion follows a straight
+rail on one supporting plane, with constant normal offset and orientation. Travel
+is sampled log-uniformly within `travel_m`; rails can follow a sloped ceiling but
+cannot cross discontinuous soffits. The planner checks every intersected ceiling
+patch interval and the continuous swept body, near clip and optical-axis envelope,
+not just a time grid. Human and furniture planners reserve the whole rail envelope.
+Room and ceiling cameras share the same spacing/spread and visibility constraints;
+shared visibility is evaluated at five synchronized trajectory checkpoints.
+Impossible requests reject transactionally instead of silently freezing cameras.
+Very narrow baselines can be incompatible with a floor-to-ceiling height separation.
+
+Incompatible combinations (for example near-total overlap between substantially
+different footprints) can reject a rig; the planner does not change its lenses
+or quietly substitute walkthrough poses. Sampling is bounded, and a failed
+`resample_cameras` restores the previous camera set.
 
 Each `IndoorCamera` archives `ceiling_mount` with its surface contact, inward
 normal, rotation, standoff and body radius in room-local coordinates. Existing
 view exports retain world-space extrinsics (including world-yaw augmentation),
 full calibration, ray validity and the correct radial/axial depth convention.
-The exact same static pose drives RGB, geometry labels, flow and co-visibility.
+The exact same trajectory drives RGB, geometry labels, flow and co-visibility.
+`ceiling_mount` describes the initial attachment; `start`, `end`, and `motion`
+archive the rail. `runtime_trajectory()` / `transform_at(progress)` supply the
+live pose; `ceiling_sweep_bounds()` supplies the conservative mounting reservation.
 Use `camera_curve_clear` for mounting-aware clearance validation;
 `camera_clear(position)` remains the walkthrough proposal predicate.
 
@@ -70,6 +94,19 @@ fisheye renderer. Qualification commands:
 cargo test --lib scene::procedural_indoor::cameras::ceiling -- --nocapture
 cargo run --example validate_fisheye -- --ceiling --rooms=4 --size=256 --steps=2 --output=out/ceiling-capture
 ```
+
+## Editor camera gizmos
+
+Fisheye capture cameras use a calibrated spherical wireframe and an explicit
+forward-axis arrow in the editor. The border of a lens wider than 180 degrees
+legitimately extends behind the optical center; curved meridians show the forward
+hemisphere rather than a misleading backwards cone. The wireframe clips to the
+actual sensor rectangle and follows the same -Z-forward, +Y-up lens convention
+as capture. It updates after world-transform propagation, including ceiling
+rails and scene rotation. Lens geometry is cached per camera and discarded on
+despawn; camera motion only transforms the cached lines. The editor initially
+prefers a room camera in mixed rigs. All-ceiling rigs preserve the exact mounted
+orientation, avoiding the Y-up look-at singularity; editor intrinsics are retained.
 
 ## Lens configuration
 

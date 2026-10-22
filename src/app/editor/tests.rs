@@ -36,12 +36,19 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
     let lenses = state.draft["indoor_camera"]["lenses"].clone();
     let intrinsics = state.draft["indoor_camera"]["intrinsics"].clone();
     assert!(edit(&mut state, "@ceiling_mount", json!(true)).unwrap());
-    assert_eq!(value(&state, "@fisheye_probability"), json!(1.));
+    assert_eq!(state.draft["indoor_camera"]["lenses"], lenses);
     let query = share::query(&state.config().unwrap(), &state.view);
-    assert!(decode_query(&query).any(|(key, v)| key == "camera.ceiling_mount" && v == "{}"));
+    assert!(decode_query(&query)
+        .any(|(key, v)| key == "camera.ceiling_mount.probability" && v == "0.5"));
     for (path, v) in [
-        ("@fisheye_probability", json!(0.8)),
-        ("@lens_bias", json!(0.3)),
+        (
+            "/indoor_camera/ceiling_mount/lenses/probability",
+            json!(0.8),
+        ),
+        ("/indoor_camera/ceiling_mount/intrinsics/bias", json!(0.3)),
+        ("/indoor_camera/ceiling_mount/probability", json!(0.5)),
+        ("/indoor_camera/ceiling_mount/motion_fraction", json!(0.7)),
+        ("/indoor_camera/ceiling_mount/travel_m/1", json!(1.5)),
         ("/indoor_camera/ceiling_mount/standoff_m/1", json!(0.35)),
     ] {
         assert!(!edit(&mut state, path, v).unwrap());
@@ -50,7 +57,7 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
     assert_eq!(state.draft["indoor_camera"]["lenses"], lenses);
     assert_eq!(state.draft["indoor_camera"]["intrinsics"], intrinsics);
     let fields = fields::items(&state);
-    assert!(!fields
+    assert!(fields
         .iter()
         .any(|i| matches!(i, fields::Item::Field(f) if f.path == "@camera_motion_percent")));
     assert!(fields.iter().any(|i| matches!(i, fields::Item::Field(f) if f.path == "/indoor_camera/ceiling_mount/lenses/fov_degrees/0")));
@@ -63,6 +70,9 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
     assert_eq!(ceiling.lenses.probability, 0.8);
     assert_eq!(ceiling.intrinsics.bias, 0.3);
     assert_eq!(ceiling.standoff_m, [0.12, 0.35]);
+    assert_eq!(ceiling.probability, 0.5);
+    assert_eq!(ceiling.motion_fraction, 0.7);
+    assert_eq!(ceiling.travel_m, [0.1, 1.5]);
     edit(&mut state, "@ceiling_mount", json!(false)).unwrap();
     assert_eq!(state.draft["indoor_camera"]["lenses"], lenses);
     assert_eq!(state.draft["indoor_camera"]["intrinsics"], intrinsics);

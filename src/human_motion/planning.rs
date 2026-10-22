@@ -387,8 +387,7 @@ fn camera_path_clear(scene: &IndoorManifest, plan: &MotionPlan, stature: f32) ->
         let position = super::validation::expected_position(plan, frame).with_y(0.0);
         let t = frame as f32 / (plan.request.frames - 1) as f32;
         scene.cameras.iter().all(|camera| {
-            if let Some(mount) = &camera.ceiling_mount {
-                let (lo, hi) = mount.bounds();
+            if let Some((lo, hi)) = camera.ceiling_sweep_bounds() {
                 return lo.y > scene.floor_height(position.xz()) + stature + 0.15
                     || position.xz().cmplt(lo.xz() - Vec2::splat(0.65)).any()
                     || position.xz().cmpgt(hi.xz() + Vec2::splat(0.65)).any();

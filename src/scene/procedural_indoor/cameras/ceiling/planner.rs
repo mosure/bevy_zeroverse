@@ -1,12 +1,12 @@
-//! Bounded static-rig search. Reuses the calibrated first-surface and group
-//! geometry oracles, without moving-camera proposals or trajectory allocation.
+//! Joint search for mixed room/ceiling rigs. Roles and lenses are fixed before
+//! search; all cameras share synchronized geometry and visibility constraints.
 use super::placement::{surface, MountSpace};
 use super::*;
 use crate::scene::procedural_indoor::{
     cameras::{
         coverage::Coverage,
         diversity::{geometry, Track},
-        multiview::{OverlapGraph, OverlapSample},
+        multiview::{pair_samples_cached, OverlapGraph, CHECK_TIMES},
         program::ViewSummary,
     },
     layout::{stream, IndoorManifest},
@@ -19,8 +19,9 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     if count == 0 {
         return Ok(());
     }
-    let mounting = scene.camera_settings.ceiling_mount.as_ref().unwrap();
-    let policy = scene.camera_settings.multiview.as_ref();
+    let mounting = scene.camera_settings.ceiling_mount.clone().unwrap();
+    let policy = scene.camera_settings.multiview.clone();
+    let policy = policy.as_ref();
     let targets = scene
         .camera_settings
         .overlap_mixture
@@ -41,8 +42,11 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         .map(|index| {
             let mut prior = stream(scene.seed, 0x4343_0000 + index as u64);
             (
-                mounting.lenses.sample(scene.seed, index),
-                mounting.intrinsics.sample(&mut prior),
+                scene.camera_settings.lens_for(scene.seed, index),
+                scene
+                    .camera_settings
+                    .intrinsics_for(scene.seed, index)
+                    .sample(&mut prior),
                 prior.random_range(mounting.standoff_m[0]..=mounting.standoff_m[1]),
                 prior.random_range(0.0..std::f32::consts::TAU),
             )
@@ -53,7 +57,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     for _ in 0..32 {
         scene.cameras.clear();
         let mut tracks = Vec::with_capacity(count);
-        let mut views = Vec::with_capacity(count);
+        let mut views: Vec<Vec<_>> = Vec::with_capacity(count);
         let mut summaries = Vec::with_capacity(count);
         for (index, &(lens, fov, standoff, roll)) in prototypes.iter().enumerate() {
             let mut best = None;
@@ -63,51 +67,69 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                     break;
                 }
                 scene.camera_diagnostics.peer_proposals += 1;
-                let p = if let Some(policy) = policy.filter(|_| index > 0 && attempt % 3 != 0) {
-                    let a = rng.random_range(0.0..std::f32::consts::TAU);
-                    let d = rng.random_range(
-                        policy.min_baseline.max(policy.min_reference_baseline)
-                            ..=policy.max_baseline,
-                    );
-                    scene.cameras[0].start.xz() + Vec2::new(a.cos(), a.sin()) * d
+                let camera = if !scene.camera_settings.ceiling_mounted(scene.seed, index) {
+                    if scene
+                        .sample_independent_slots(index, 1, &mut rng, &coverage)
+                        .is_err()
+                    {
+                        rejected[0] += 1;
+                        continue;
+                    }
+                    scene.cameras.pop().unwrap()
                 } else {
-                    Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y))
+                    let p = if let Some(policy) = policy.filter(|_| index > 0 && attempt % 3 != 0) {
+                        let a = rng.random_range(0.0..std::f32::consts::TAU);
+                        let d = rng.random_range(
+                            policy.min_baseline.max(policy.min_reference_baseline)
+                                ..=policy.max_baseline,
+                        );
+                        scene.cameras[0].start.xz() + Vec2::new(a.cos(), a.sin()) * d
+                    } else {
+                        Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y))
+                    };
+                    if p.cmplt(lo).any() || p.cmpgt(hi).any() {
+                        continue;
+                    }
+                    let (surface, normal) = surface(scene, p);
+                    let start = surface + normal * standoff;
+                    let rotation = Transform::IDENTITY.looking_to(normal, Vec3::Z).rotation
+                        * Quat::from_rotation_z(roll);
+                    let mut camera = IndoorCamera {
+                        ceiling_mount: Some(CeilingCameraMount {
+                            surface,
+                            inward_normal: normal,
+                            rotation,
+                            standoff_m: standoff,
+                            body_radius_m: mounting.body_radius_m,
+                        }),
+                        fisheye: lens,
+                        principal_point_offset: None,
+                        start,
+                        end: start,
+                        target: start + normal * 2.,
+                        fov_degrees: fov,
+                        motion: None,
+                    };
+                    super::trajectory::propose(scene, index, &mut camera, &mut rng);
+                    if !space.clear(scene, &camera)
+                        || !scene
+                            .camera_settings
+                            .accepts_motion(scene.seed, index, &camera)
+                    {
+                        rejected[0] += 1;
+                        continue;
+                    }
+                    camera
                 };
-                if p.cmplt(lo).any() || p.cmpgt(hi).any() {
-                    continue;
-                }
-                let (surface, normal) = surface(scene, p);
-                let start = surface + normal * standoff;
-                let rotation = Transform::IDENTITY.looking_to(normal, Vec3::Z).rotation
-                    * Quat::from_rotation_z(roll);
-                let camera = IndoorCamera {
-                    ceiling_mount: Some(CeilingCameraMount {
-                        surface,
-                        inward_normal: normal,
-                        rotation,
-                        standoff_m: standoff,
-                        body_radius_m: mounting.body_radius_m,
-                    }),
-                    fisheye: lens,
-                    principal_point_offset: None,
-                    start,
-                    end: start,
-                    target: start + normal * 2.,
-                    fov_degrees: fov,
-                    motion: None,
-                };
-                if !space.clear(scene, &camera) {
+                if scene
+                    .cameras
+                    .iter()
+                    .any(|c| super::bodies_overlap(c, &camera))
+                {
                     rejected[0] += 1;
                     continue;
                 }
-                if scene.cameras.iter().any(|c| {
-                    c.ceiling_mount
-                        .as_ref()
-                        .is_some_and(|m| m.overlaps(camera.ceiling_mount.as_ref().unwrap()))
-                }) {
-                    rejected[0] += 1;
-                    continue;
-                }
+                let start = camera.start;
                 if scene.cameras.iter().any(|c| {
                     c.start.distance(start) < 0.18_f32.min(policy.map_or(0.18, |p| p.min_baseline))
                 }) {
@@ -120,40 +142,51 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                     rejected[1] += 1;
                     continue;
                 }
-                let view = coverage.view(&camera, scene.camera_aspect_ratio, 0.);
-                // Overview views legitimately contain broad continuous floors.
-                // Require distributed primary-room surfaces below the mount,
-                // rather than a walkthrough-specific semantic-class quota.
-                let mut hits = 0;
-                let mut below = 0;
-                let mut footprint_lo = Vec2::splat(f32::INFINITY);
-                let mut footprint_hi = Vec2::splat(f32::NEG_INFINITY);
-                for point in view.surfaces() {
-                    hits += 1;
-                    if point.y < start.y - 0.7 && scene.in_primary_room(point, 0.) {
-                        below += 1;
-                        footprint_lo = footprint_lo.min(point.xz());
-                        footprint_hi = footprint_hi.max(point.xz());
-                    }
-                }
-                if hits < 12
-                    || below * 2 < hits
-                    || (footprint_hi - footprint_lo).min_element() < 1.5
+                let candidate_views: Vec<_> = if camera.motion.is_none()
+                    && camera.start == camera.end
+                {
+                    vec![coverage.view(&camera, scene.camera_aspect_ratio, 0.); CHECK_TIMES.len()]
+                } else {
+                    CHECK_TIMES
+                        .into_iter()
+                        .map(|t| coverage.view(&camera, scene.camera_aspect_ratio, t))
+                        .collect()
+                };
+                // Room proposals already pass the room content predicate. Ceiling
+                // overview content is checked at every visibility checkpoint.
+                if camera.is_ceiling_mounted()
+                    && !CHECK_TIMES
+                        .into_iter()
+                        .zip(&candidate_views)
+                        .all(|(t, view)| {
+                            let mut hits = 0;
+                            let mut below = 0;
+                            let mut lo = Vec2::splat(f32::INFINITY);
+                            let mut hi = Vec2::splat(f32::NEG_INFINITY);
+                            let eye_y = camera.transform_at(t).translation.y;
+                            for point in view.surfaces() {
+                                hits += 1;
+                                if point.y < eye_y - 0.7 && scene.in_primary_room(point, 0.) {
+                                    below += 1;
+                                    lo = lo.min(point.xz());
+                                    hi = hi.max(point.xz());
+                                }
+                            }
+                            hits >= 12 && below * 2 >= hits && (hi - lo).min_element() >= 1.5
+                        })
                 {
                     rejected[2] += 1;
                     continue;
                 }
                 if let Some(policy) = policy.filter(|_| index > 0) {
                     let accepts = |parent: usize| {
-                        let (forward, angle) = coverage.shared(&views[parent], &view);
-                        let backward = coverage.shared(&view, &views[parent]).0;
-                        let samples = [OverlapSample {
-                            time: 0.,
-                            reference_to_view: forward,
-                            view_to_reference: backward,
-                            baseline_m: scene.cameras[parent].start.distance(start),
-                            mean_triangulation_degrees: angle,
-                        }];
+                        let samples = pair_samples_cached(
+                            &coverage,
+                            &scene.cameras[parent],
+                            &views[parent],
+                            &camera,
+                            &candidate_views,
+                        );
                         if policy.graph == OverlapGraph::Connected {
                             let mut edge = policy.clone();
                             edge.min_reference_baseline = 0.;
@@ -174,11 +207,11 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         continue;
                     }
                 }
-                let summary = ViewSummary::new(&camera, &view, scene);
+                let summary = ViewSummary::new(&camera, &candidate_views[0], scene);
                 let score = summary.score(&summaries, count, scene);
                 first.get_or_insert(attempt);
                 if best.as_ref().is_none_or(|(_, _, _, _, s)| score > *s) {
-                    best = Some((camera, track, view, summary, score));
+                    best = Some((camera, track, candidate_views, summary, score));
                 }
             }
             let Some((camera, track, view, summary, _)) = best else {
@@ -195,5 +228,5 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         most = most.max(scene.cameras.len());
         scene.camera_diagnostics.group_restarts += 1;
     }
-    Err(format!("seed {}: ceiling-mounted rig placed {most}/{count} cameras within the search budget; rejections mount/spacing/overview/overlap={rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
+    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections mount/spacing/overview/overlap={rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
 }

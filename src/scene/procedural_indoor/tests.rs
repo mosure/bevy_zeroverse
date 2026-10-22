@@ -1347,3 +1347,68 @@ fn indexed_capture_reset_repeats_the_requested_seed() {
         world.resource_mut::<super::IndoorSequence>().index = 1;
     }
 }
+
+#[cfg(feature = "viewer")]
+#[test]
+fn editor_prefers_room_cameras_and_preserves_ceiling_orientation() {
+    use crate::camera::{EditorCameraMarker, ProcessedEditorCameraMarker};
+    use bevy::ecs::system::RunSystemOnce;
+    let mut scene =
+        IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.4, 1, 0.).unwrap();
+    let room = scene.cameras[0].clone();
+    let mut mounted = room.clone();
+    let rotation = Transform::IDENTITY
+        .looking_to(Vec3::NEG_Y, Vec3::Z)
+        .rotation
+        * Quat::from_rotation_z(0.8);
+    mounted.ceiling_mount = Some(super::cameras::ceiling::CeilingCameraMount {
+        surface: Vec3::new(0., 3., 0.),
+        inward_normal: Vec3::NEG_Y,
+        rotation,
+        standoff_m: 0.2,
+        body_radius_m: 0.055,
+    });
+    mounted.start = Vec3::new(0., 2.8, 0.);
+    mounted.end = mounted.start;
+    mounted.target = mounted.start + Vec3::NEG_Y * 2.;
+    mounted.motion = None;
+    let mut app = App::new();
+    app.insert_resource(crate::app::BevyZeroverseConfig {
+        scene_type: crate::scene::ZeroverseSceneType::ProceduralIndoor,
+        ..default()
+    });
+    let editor = app
+        .world_mut()
+        .spawn((
+            EditorCameraMarker::default(),
+            ProcessedEditorCameraMarker,
+            bevy::camera_controller::pan_orbit_camera::prelude::PanOrbitCamera::default(),
+            Transform::IDENTITY,
+        ))
+        .id();
+    scene.world_yaw = 0.6;
+    let augmentation = Quat::from_rotation_y(scene.world_yaw);
+    scene.cameras = vec![mounted.clone(), room.clone()];
+    app.insert_resource(scene.clone());
+    app.world_mut()
+        .run_system_once(super::position_editor)
+        .unwrap();
+    assert!(
+        app.world()
+            .get::<Transform>(editor)
+            .unwrap()
+            .translation
+            .distance(augmentation * room.start)
+            < 1e-6
+    );
+    scene.cameras = vec![mounted.clone()];
+    scene.seed += 1;
+    app.insert_resource(scene);
+    app.world_mut()
+        .run_system_once(super::position_editor)
+        .unwrap();
+    let pose = app.world().get::<Transform>(editor).unwrap();
+    assert!(pose.rotation.is_finite());
+    assert!(pose.rotation.abs_diff_eq(augmentation * rotation, 1e-6));
+    assert!(pose.translation.distance(augmentation * mounted.start) < 1e-6);
+}

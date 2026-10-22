@@ -362,8 +362,8 @@ fn camera_reservations(scene: &IndoorManifest) -> Vec<Bounds> {
     use crate::camera::TrajectorySampler;
     let mut result = vec![];
     for c in &scene.cameras {
-        if let Some(mount) = &c.ceiling_mount {
-            result.push(mount.bounds());
+        if let Some(bounds) = c.ceiling_sweep_bounds() {
+            result.push(bounds);
         }
         let mut path = c.runtime_trajectory();
         let clearance = super::super::layout::CAMERA_CLEARANCE.max(

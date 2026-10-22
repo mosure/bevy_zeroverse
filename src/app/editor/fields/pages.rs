@@ -15,7 +15,7 @@ pub(super) fn base(page: Page) -> Vec<Item> {
             section("cameras.rig", "Placement & baseline","Spacing and overlap are constrained together."),
             num("/num_cameras","Capture views",0.,16.,1.,"0 uses only the editor view. Co-visibility supports up to 16 views."),
             toggle("@multiview","Coordinate views","Require shared geometry with a reference camera or a connected camera graph."),
-            toggle("@ceiling_mount","Ceiling-mounted CCTV rig","All capture cameras mount below the local ceiling, look perpendicular to it and remain fixed. Uses its own wide fisheye lens preset; walkthrough lens and motion settings are preserved."),
+            toggle("@ceiling_mount","Include ceiling cameras","Enable a per-camera ceiling probability, independent lens distribution and optional ceiling rails. Room settings stay active for the other cameras."),
 
         ],
         Page::Appearance=>vec![

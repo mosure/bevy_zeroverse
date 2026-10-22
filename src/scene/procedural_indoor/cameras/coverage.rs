@@ -24,6 +24,7 @@ pub(crate) struct Coverage {
 }
 
 /// Pixel-centred proxy rays over the full calibrated frustum, not just its centre.
+#[derive(Clone)]
 pub(super) struct VisibilityView {
     lens: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
     pose: Transform,

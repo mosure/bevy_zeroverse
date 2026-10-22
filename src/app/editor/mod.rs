@@ -240,7 +240,12 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
         "@ceiling_mount" => {
             let enabled = v.as_bool().ok_or("Expected a checkbox value")?;
             state.draft["indoor_camera"]["ceiling_mount"] = if enabled {
-                json!(crate::scene::procedural_indoor::cameras::ceiling::CeilingCameraSettings::default())
+                json!(
+                    crate::scene::procedural_indoor::cameras::ceiling::CeilingCameraSettings {
+                        probability: 0.5,
+                        ..default()
+                    }
+                )
             } else {
                 Value::Null
             };
@@ -370,6 +375,17 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
                 }
             }
             state.set(path, v)?;
+            if matches!(
+                path,
+                "/indoor_camera/ceiling_mount/intrinsics/bias"
+                    | "/indoor_camera/ceiling_mount/intrinsics/spread"
+            ) {
+                if let Some(lens) =
+                    state.draft["indoor_camera"]["ceiling_mount"]["intrinsics"].as_object_mut()
+                {
+                    lens.remove("ultra_wide_probability");
+                }
+            }
             rebuild |= path == "/scene_type";
             if path == "/scene_type"
                 && state.draft["scene_type"] == "ProceduralIndoor"

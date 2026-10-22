@@ -42,7 +42,7 @@ pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
             }
         }
         v.extend([
-            section("cameras.perspective", "Perspective lenses", "Vertical perspective FOV; wide lenses retain full calibration and annotation support."),
+            section("cameras.perspective", "Room perspective lenses", "Vertical perspective FOV; wide lenses retain full calibration and annotation support."),
             num("/indoor_camera/intrinsics/fov_y_min_degrees","Minimum vertical FOV",15.,150.,1.,"Lower bound for capture lenses. Horizontal coverage also depends on image aspect."),
             num("/indoor_camera/intrinsics/fov_y_max_degrees","Maximum vertical FOV",15.,150.,1.,"145° includes ultra-wide perspective lenses. Near-plane clearance is checked across the complete camera path."),
             num("@lens_bias","Lens preference · narrow / wide",-1.,1.,0.01,"Continuously shifts the distribution toward narrow (−1) or wide (+1) lenses. Independent of spatial baseline. Editing uses the continuous distribution."),
@@ -50,7 +50,7 @@ pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
             Item::Distribution(super::super::distribution_preview::DistributionKind::Perspective),
         ]);
         v.extend([
-                section("cameras.fisheye", "Fisheye lenses","A separate angular FOV distribution. Set probability to zero to preserve the pinhole-only path; changing these controls never regenerates the scene."),
+                section("cameras.fisheye", "Room fisheye lenses","A separate angular FOV distribution. Set probability to zero to preserve the pinhole-only path; changing these controls never regenerates the scene."),
                 num("@fisheye_probability","Fisheye camera probability",0.,1.,0.01,"Studio defaults to 50%. Assignment is seeded per camera before visibility planning; lens parameters stay fixed through time."),
                 num("/indoor_camera/lenses/fov_degrees/0","Fisheye minimum diameter FOV",40.,220.,1.,"Angular domain; diagonal or circular sensor fit. Not a perspective vertical FOV."),
                 num("/indoor_camera/lenses/fov_degrees/1","Fisheye maximum diameter FOV",40.,220.,1.,"Values above 180 degrees include rearward rays."),
@@ -71,8 +71,8 @@ pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
             num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
         ]);
         v.extend([
-            section("cameras.motion", "Trajectories & timing","Independent of furniture/human animation and camera spacing. Intrinsics remain fixed through time."),
-            num("@camera_motion_percent","Moving cameras (%)",0.,100.,1.,"0 fixes every capture pose; 100 requests a trajectory for every camera. Motion is independent of people and furnishings."),
+            section("cameras.motion", "Room trajectories & timing","Independent of furniture/human animation and camera spacing. Intrinsics remain fixed through time."),
+            num("@camera_motion_percent","Moving room cameras (%)",0.,100.,1.,"Applies to room cameras. Ceiling cameras have their own motion fraction. Intrinsics remain fixed through time."),
             choices("@path_preset","Trajectory preset",&[("Custom","custom"),("Short handheld","handheld"),("Explore the room","explore")],"Presets set travel bounds; all fields remain editable."),
             num("/indoor_camera/path_length_min","Minimum travel (m)",0.,20.,0.05,"Minimum path length for moving cameras. Use Moving cameras = 0% to freeze poses without losing travel settings."),
             num("/indoor_camera/path_length_max","Maximum travel (m)",0.,30.,0.05,"Swept collision checks always apply."),

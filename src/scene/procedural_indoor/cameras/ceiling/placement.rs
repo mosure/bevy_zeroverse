@@ -17,6 +17,51 @@ impl MountSpace {
     }
 
     pub fn clear(&self, scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
+        if camera.ceiling_mount.is_none()
+            || !camera.end.is_finite()
+            || !camera.target.is_finite()
+            || !camera.fov_degrees.is_finite()
+        {
+            return false;
+        }
+        // Fixed CCTV retains the original single-pose checks. Rail support and
+        // swept-volume allocation are paid only when motion is requested.
+        if camera.motion.is_none() && camera.start == camera.end {
+            return self.pose_clear(scene, camera);
+        }
+        if !super::trajectory::plane_clear(scene, camera) {
+            return false;
+        }
+        // Endpoint tests enforce wall/floor and optical-axis clearance. A swept
+        // AABB of the body, near pyramid and first 60 cm is conservative between
+        // them, including arbitrarily thin fixtures.
+        let mut end = camera.clone();
+        let delta = camera.end - camera.start;
+        end.start = camera.end;
+        end.end = camera.end;
+        end.target += delta;
+        end.motion = None;
+        end.ceiling_mount.as_mut().unwrap().surface += delta;
+        if !self.pose_clear(scene, camera) || !self.pose_clear(scene, &end) {
+            return false;
+        }
+        if delta == Vec3::ZERO {
+            return true;
+        }
+        let (mut lo, mut hi) = camera.ceiling_sweep_bounds().unwrap();
+        for c in [camera, &end] {
+            let (a, b) = near_bounds(scene, c);
+            let forward = c.start + c.ceiling_mount.as_ref().unwrap().inward_normal * 0.6;
+            lo = lo.min(a).min(forward);
+            hi = hi.max(b).max(forward);
+        }
+        !self
+            .obstacles
+            .iter()
+            .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())
+    }
+
+    fn pose_clear(&self, scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
         let (Some(policy), Some(mount)) =
             (&scene.camera_settings.ceiling_mount, &camera.ceiling_mount)
         else {
@@ -28,8 +73,6 @@ impl MountSpace {
             || (mount.rotation.length_squared() - 1.).abs() > 1e-5
             || !(policy.standoff_m[0]..=policy.standoff_m[1]).contains(&mount.standoff_m)
             || mount.body_radius_m != policy.body_radius_m
-            || camera.start != camera.end
-            || camera.motion.is_some()
         {
             return false;
         }
@@ -83,9 +126,9 @@ impl MountSpace {
     }
 }
 
-fn near_clear(scene: &IndoorManifest, camera: &IndoorCamera, obstacles: &[(Vec3, Vec3)]) -> bool {
+fn near_bounds(scene: &IndoorManifest, camera: &IndoorCamera) -> (Vec3, Vec3) {
     let pose = camera.transform_at(0.);
-    let (lo, hi) = if camera.fisheye.is_some() {
+    if camera.fisheye.is_some() {
         // Radial near clip: reserve the complete 10 cm sphere, including >180° rays.
         (
             camera.start - Vec3::splat(0.101),
@@ -117,7 +160,10 @@ fn near_clear(scene: &IndoorManifest, camera: &IndoorCamera, obstacles: &[(Vec3,
             }
         }
         (lo, hi)
-    };
+    }
+}
+fn near_clear(scene: &IndoorManifest, camera: &IndoorCamera, obstacles: &[(Vec3, Vec3)]) -> bool {
+    let (lo, hi) = near_bounds(scene, camera);
     !obstacles
         .iter()
         .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())

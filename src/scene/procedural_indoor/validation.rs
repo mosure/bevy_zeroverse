@@ -356,15 +356,16 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         {
             return fail("lens assignment differs from the seeded camera prior");
         }
-        if camera.ceiling_mount.is_some() != scene.camera_settings.ceiling_mount.is_some() {
+        if camera.ceiling_mount.is_some()
+            != scene.camera_settings.ceiling_mounted(scene.seed, index)
+        {
             return fail("camera mounting differs from requested rig");
         }
-        if camera.ceiling_mount.as_ref().is_some_and(|mount| {
-            scene.cameras[..index]
-                .iter()
-                .any(|c| c.ceiling_mount.as_ref().is_some_and(|m| mount.overlaps(m)))
-        }) {
-            return fail("ceiling camera mounting bodies intersect");
+        if scene.cameras[..index]
+            .iter()
+            .any(|c| super::cameras::ceiling::bodies_overlap(camera, c))
+        {
+            return fail("ceiling camera mounting body sweeps intersect");
         }
         if camera
             .motion
@@ -386,7 +387,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         if !camera.target.is_finite()
             || !scene
                 .camera_settings
-                .active_intrinsics()
+                .intrinsics_for(scene.seed, index)
                 .contains(camera.fov_degrees)
             || camera
                 .principal_point_offset

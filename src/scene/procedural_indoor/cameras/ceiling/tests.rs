@@ -224,3 +224,177 @@ fn mounting_points_hit_constructed_ceiling_triangles_and_reject_occupied_mounts(
         assert!(!scene.camera_curve_clear(&invalid));
     }
 }
+
+#[test]
+fn mixed_roles_are_independent_seeded_and_count_stable() {
+    let mut p = policy();
+    p.motion_fraction = 0.7;
+    p.lenses = Some(LensSampling {
+        probability: 0.5,
+        ..default()
+    });
+    let ceiling = p.ceiling_mount.as_mut().unwrap();
+    ceiling.probability = 0.4;
+    ceiling.motion_fraction = 0.6;
+    ceiling.lenses.probability = 0.5;
+    let mut counts = [0usize; 8];
+    for seed in 0..2048 {
+        for index in 0..12 {
+            let mounted = p.ceiling_mounted(seed, index);
+            let moving = p.camera_moves(seed, index);
+            let fisheye = p.lens_for(seed, index).is_some();
+            counts[usize::from(mounted) * 4 + usize::from(moving) * 2 + usize::from(fisheye)] += 1;
+            let mut changed = p.clone();
+            changed.ceiling_mount.as_mut().unwrap().probability = 0.8;
+            assert!(!mounted || changed.ceiling_mounted(seed, index));
+            assert_eq!(
+                p.ceiling_mounted(seed, index),
+                p.clone().ceiling_mounted(seed, index)
+            );
+        }
+    }
+    let total = counts.iter().sum::<usize>() as f32;
+    assert!((counts[4..].iter().sum::<usize>() as f32 / total - 0.4).abs() < 0.015);
+    assert!(
+        counts.iter().all(|n| *n > 1200),
+        "all fixed/moving/lens/mount combinations: {counts:?}"
+    );
+    for invalid in [
+        r#"{"probability":1.1}"#,
+        r#"{"motion_fraction":-0.1}"#,
+        r#"{"travel_m":[0,1]}"#,
+        r#"{"travel_m":[2,1]}"#,
+    ] {
+        assert!(CameraSettings::parse(&format!(r#"{{"ceiling_mount":{invalid}}}"#)).is_err());
+    }
+}
+
+#[test]
+fn mixed_ceiling_room_rails_qualify_across_rig_sizes() {
+    let started = std::time::Instant::now();
+    let mut combinations = [0usize; 8];
+    for seed in 0..8 {
+        let mut scene = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.65, 0).unwrap();
+        let mut p = policy();
+        p.motion_fraction = 0.65;
+        p.lenses = Some(LensSampling {
+            probability: 0.5,
+            ..default()
+        });
+        let c = p.ceiling_mount.as_mut().unwrap();
+        c.probability = 0.5;
+        c.motion_fraction = 0.65;
+        c.lenses.probability = 0.5;
+        for count in 1..=12 {
+            scene
+                .resample_cameras(count, p.clone(), [1., 16. / 9.][seed as usize % 2])
+                .unwrap_or_else(|e| panic!("seed={seed} count={count}: {e}"));
+            validate_layout(&scene).unwrap();
+            for (index, camera) in scene.cameras.iter().enumerate() {
+                assert_eq!(camera.is_ceiling_mounted(), p.ceiling_mounted(seed, index));
+                assert_eq!(camera.fisheye, p.lens_for(seed, index));
+                assert!(p.accepts_motion(seed, index, camera));
+                combinations[usize::from(camera.is_ceiling_mounted()) * 4
+                    + usize::from(p.camera_moves(seed, index)) * 2
+                    + usize::from(camera.fisheye.is_some())] += 1;
+                if let Some(mount) = &camera.ceiling_mount {
+                    for step in 0..=64 {
+                        let pose = camera.transform_at(step as f32 / 64.);
+                        let support = pose.translation - mount.inward_normal * mount.standoff_m;
+                        let (point, normal) = placement::surface(&scene, support.xz());
+                        assert!(point.distance(support) < 1e-4);
+                        assert!((pose.rotation * Vec3::NEG_Z).distance(normal) < 1e-5);
+                    }
+                }
+            }
+        }
+        let saved = scene.clone();
+        scene
+            .resample_cameras(12, p.clone(), scene.camera_aspect_ratio)
+            .unwrap();
+        assert_eq!(scene.cameras, saved.cameras);
+        let restored: IndoorManifest =
+            serde_json::from_slice(&serde_json::to_vec(&scene).unwrap()).unwrap();
+        assert_eq!(scene, restored);
+    }
+    assert!(
+        combinations.iter().all(|n| *n > 0),
+        "missing roles: {combinations:?}"
+    );
+    eprintln!(
+        "mixed rig qualification: 96 rigs, combinations={combinations:?}, {:.3}s",
+        started.elapsed().as_secs_f32()
+    );
+}
+
+#[test]
+fn zero_ceiling_probability_preserves_room_rig_and_impossible_rails_roll_back() {
+    let mut scene = IndoorManifest::generate(4, IndoorLayout::Mixed, 0.65, 3).unwrap();
+    let original = scene.cameras.clone();
+    let mut p = scene.camera_settings.clone();
+    p.ceiling_mount = Some(CeilingCameraSettings {
+        probability: 0.,
+        ..default()
+    });
+    scene
+        .resample_cameras(3, p, scene.camera_aspect_ratio)
+        .unwrap();
+    assert_eq!(original, scene.cameras);
+    let before = scene.clone();
+    let mut p = policy();
+    p.ceiling_mount.as_mut().unwrap().motion_fraction = 1.;
+    p.ceiling_mount.as_mut().unwrap().travel_m = [99., 100.];
+    assert!(scene.resample_cameras(1, p, 1.).is_err());
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn rails_reject_thin_between_endpoint_obstructions_and_soffit_steps() {
+    use crate::scene::procedural_indoor::architecture::ceiling::{
+        CeilingInstallation, CeilingModule, CeilingSystem,
+    };
+    let mut scene = IndoorManifest::generate(3, IndoorLayout::Mixed, 0.65, 0).unwrap();
+    let mut p = policy();
+    p.ceiling_mount.as_mut().unwrap().motion_fraction = 1.;
+    p.ceiling_mount.as_mut().unwrap().travel_m = [0.8, 1.2];
+    scene.resample_cameras(1, p, 1.).unwrap();
+    let camera = scene.cameras[0].clone();
+    assert!(scene.camera_curve_clear(&camera));
+    let halfway = camera.transform_at(0.501).translation;
+    let mut blocked = scene.clone();
+    blocked.ceiling_installation = Some(CeilingInstallation {
+        exposed_slab: true,
+        modules: vec![CeilingModule {
+            system: CeilingSystem::RectangularDuct,
+            center: halfway,
+            size: Vec3::splat(0.005),
+            support_top_m: blocked.ceiling_height(halfway.xz()),
+            pitch_m: 0.5,
+            thickness_m: 0.002,
+            seed: 0,
+            detail: None,
+        }],
+    });
+    assert!(
+        !blocked.camera_curve_clear(&camera),
+        "thin fixture between time samples"
+    );
+    let mut step = scene.clone();
+    let height = step.ceiling_height(halfway.xz()) - 0.08;
+    step.envelope.as_mut().unwrap().soffits.push(FloorPatch {
+        min: halfway.xz() - Vec2::splat(0.001),
+        max: halfway.xz() + Vec2::splat(0.001),
+        height,
+    });
+    assert!(
+        !step.camera_curve_clear(&camera),
+        "rail cannot detach from a thin ceiling step"
+    );
+    let mut bad = camera.clone();
+    bad.motion.as_mut().unwrap().control[0].x = f32::NAN;
+    assert!(!scene.camera_curve_clear(&bad));
+    let mut crossing = camera.clone();
+    std::mem::swap(&mut crossing.start, &mut crossing.end);
+    crossing.ceiling_mount.as_mut().unwrap().surface += crossing.start - camera.start;
+    assert!(bodies_overlap(&camera, &crossing));
+}

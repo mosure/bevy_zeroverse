@@ -2,6 +2,7 @@
 use super::model::{EditorState, Page};
 use serde_json::{json, Value};
 mod cameras;
+mod ceiling;
 mod furnishing;
 mod motion;
 mod pages;
@@ -142,51 +143,9 @@ pub fn items(state: &EditorState) -> Vec<Item> {
     }
     if indoor && state.view.page == Page::Cameras && !d["indoor_camera"]["ceiling_mount"].is_null()
     {
-        // Lens controls reuse the same widgets, bound to the mounting prior.
-        // Free-camera travel controls cannot affect a fixed physical mount.
-        remove_sections(&mut v, &["cameras.motion", "cameras.handheld"]);
-        v.retain(|item| match item {
-            Item::Field(f) => {
-                ![
-                    "@camera_motion_percent",
-                    "@path_preset",
-                    "@handheld",
-                    "/indoor_camera/primary_room",
-                    "/indoor_camera/path_length_min",
-                    "/indoor_camera/path_length_max",
-                    "/indoor_camera/long_path_fraction",
-                    "/indoor_camera/multiview/trajectory_variation",
-                ]
-                .contains(&f.path.as_str())
-                    && !f.path.starts_with("/indoor_camera/handheld/")
-            }
-            _ => true,
-        });
-        for item in &mut v {
-            if let Item::Field(field) = item {
-                if field.path.starts_with("/indoor_camera/intrinsics/")
-                    || field.path.starts_with("/indoor_camera/lenses/")
-                {
-                    field.path =
-                        field
-                            .path
-                            .replacen("/indoor_camera/", "/indoor_camera/ceiling_mount/", 1);
-                }
-                if field.path == "@fisheye_probability" {
-                    field.help = "Ceiling rigs default to 100% fisheye. The remaining cameras use the wide perspective distribution above.".into();
-                }
-            }
-        }
-        v.extend([
-            section("cameras.mount", "Ceiling mounting & clearance", "Fixed poses in the primary room. The optical axis follows the inward ceiling normal, including slopes and soffits. Object and human animation remain available."),
-            num("/indoor_camera/ceiling_mount/standoff_m/0", "Minimum ceiling standoff (m)", 0.08, 1., 0.01, "Optical-center distance from the supporting ceiling. Must exceed twice the body radius plus 5 mm."),
-            num("/indoor_camera/ceiling_mount/standoff_m/1", "Maximum ceiling standoff (m)", 0.08, 1., 0.01, "Sampled per camera before placement retries."),
-            num("/indoor_camera/ceiling_mount/body_radius_m", "Camera body radius (m)", 0.02, 0.20, 0.005, "Clearance reservation; no camera body is rendered into its own capture."),
-            num("/indoor_camera/ceiling_mount/wall_clearance_m", "Wall clearance (m)", 0.20, 2., 0.01, "Mounts avoid walls, light fixtures, suspension, ducts and furniture."),
-            section("cameras.timing", "Capture timing", "Physical time remains meaningful for fixed cameras observing moving people or furnishings."),
-            text("/indoor_camera/duration_seconds", "Physical duration (seconds)", "Empty leaves physical time unspecified. Positive number maps normalized progress to seconds."),
-        ]);
+        ceiling::append(&mut v);
     }
+
     if matches!(state.view.page, Page::Scene | Page::Advanced)
         && matches!(
             d["scene_type"].as_str(),

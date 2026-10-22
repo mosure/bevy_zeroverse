@@ -18,6 +18,7 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 use rand::Rng;
 
 mod capture_targets;
+mod gizmo;
 pub mod lens;
 pub mod pinhole;
 
@@ -99,9 +100,12 @@ impl Plugin for ZeroverseCameraPlugin {
         app.register_type::<Playback>();
 
         app.add_systems(
+            PostUpdate,
+            draw_camera_gizmo.after(bevy::transform::TransformSystems::Propagate),
+        );
+        app.add_systems(
             Update,
             (
-                draw_camera_gizmo,
                 insert_cameras.in_set(CameraBuildSystems::Logical),
                 setup_editor_camera,
                 update_camera_trajectory,
@@ -1285,6 +1289,7 @@ pub fn draw_camera_gizmo(
     mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
     mut cameras: Query<
         (
+            Entity,
             &GlobalTransform,
             &Projection,
             &mut ZeroverseCamera,
@@ -1293,6 +1298,9 @@ pub fn draw_camera_gizmo(
         (With<Camera>, Without<EditorCameraMarker>),
     >,
     scene: Query<&GlobalTransform, With<ZeroverseSceneRoot>>,
+    mut outlines: Local<
+        std::collections::HashMap<Entity, (lens::CameraCalibration, Vec<[Vec3; 2]>)>,
+    >,
 ) {
     if !args.gizmos {
         return;
@@ -1307,42 +1315,25 @@ pub fn draw_camera_gizmo(
         Err(_) => Transform::default(),
     };
 
-    for (global_transform, projection, mut zeroverse_camera, angular) in cameras.iter_mut() {
+    outlines.retain(|entity, _| cameras.get(*entity).is_ok());
+    for (entity, global_transform, projection, mut zeroverse_camera, angular) in cameras.iter_mut()
+    {
         let transform = global_transform.compute_transform();
 
         if let Some(angular) = angular {
             let c = &angular.calibration;
-            let theta = c.fisheye.unwrap().max_angle;
-            let radial = c.fisheye.unwrap().radius(theta as f64) as f32;
-            let mut points = Vec::new();
-            for i in 0..64 {
-                let phi = std::f32::consts::TAU * i as f32 / 64.;
-                let delta = Vec2::new(
-                    c.k[0][0] * phi.cos() + c.k[0][1] * phi.sin(),
-                    c.k[1][1] * phi.sin(),
-                );
-                let center = Vec2::new(c.k[0][2], c.k[1][2]);
-                let mut r = radial;
-                for axis in 0..2 {
-                    if delta[axis].abs() > 1e-6 {
-                        let boundary = if delta[axis] > 0. {
-                            c.image_size[axis] as f32 - 0.5
-                        } else {
-                            0.5
-                        };
-                        r = r.min((boundary - center[axis]) / delta[axis]);
-                    }
-                }
-                if let Some(ray) = c.ray((center + delta * r.max(0.) * 0.99999).to_array()) {
-                    let point = transform.transform_point(Vec3::from_array(ray) * 1.5);
-                    if i % 8 == 0 {
-                        gizmos.line(transform.translation, point, color);
-                    }
-                    points.push(point);
-                }
+            let cached = outlines
+                .entry(entity)
+                .or_insert_with(|| (c.clone(), gizmo::fisheye_lines(c)));
+            if cached.0 != *c {
+                *cached = (c.clone(), gizmo::fisheye_lines(c));
             }
-            for i in 0..points.len() {
-                gizmos.line(points[i], points[(i + 1) % points.len()], color);
+            for [a, b] in &cached.1 {
+                gizmos.line(
+                    transform.transform_point(*a * 1.5),
+                    transform.transform_point(*b * 1.5),
+                    color,
+                );
             }
         } else {
             let corners = projection.get_frustum_corners(-1.5, -1.5);
@@ -1353,6 +1344,13 @@ pub fn draw_camera_gizmo(
                 gizmos.line(p, next, color);
             }
         }
+        gizmos
+            .arrow(
+                transform.translation,
+                transform.transform_point(Vec3::NEG_Z * 1.5),
+                color,
+            )
+            .with_tip_length(0.18);
         gizmos.sphere(transform.translation, 0.1, color);
 
         zeroverse_camera

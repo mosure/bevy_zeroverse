@@ -7,19 +7,12 @@ impl CameraSettings {
     /// Seeded Bernoulli assignment; stable when adding views or retrying placement.
     /// The fraction is a dataset probability, not a rounded count in a small rig.
     pub fn camera_moves(&self, seed: u64, index: usize) -> bool {
-        if self.ceiling_mount.is_some() || self.motion_fraction == 0. {
-            return false;
-        }
-        if self.motion_fraction == 1. {
-            return true;
-        }
-        // Domain-separated SplitMix64; no consumption of the placement RNG.
-        let mut x =
-            seed ^ 0x4341_4d45_5241_4d56 ^ (index as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
-        x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-        x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-        x ^= x >> 31;
-        ((x >> 11) as f64 / (1_u64 << 53) as f64) < self.motion_fraction as f64
+        let fraction = self
+            .ceiling_mount
+            .as_ref()
+            .filter(|_| self.ceiling_mounted(seed, index))
+            .map_or(self.motion_fraction, |p| p.motion_fraction);
+        role(seed, index, 0x4341_4d45_5241_4d56, fraction)
     }
 
     pub(super) fn minimum_travel(&self, seed: u64, index: usize) -> f32 {
@@ -39,7 +32,7 @@ impl CameraSettings {
         camera: &mut IndoorCamera,
         rng: &mut impl Rng,
     ) {
-        camera.fisheye = self.lenses.as_ref().and_then(|l| l.sample(seed, index));
+        camera.fisheye = self.lens_for(seed, index);
         if !self.camera_moves(seed, index) {
             camera.end = camera.start;
             camera.motion = None;
@@ -69,9 +62,29 @@ impl CameraSettings {
             return camera.start == camera.end && camera.motion.is_none();
         }
         let length = camera.path_length();
-        length + 1e-4 >= self.path_length_min && length <= self.path_length_max + 1e-4
+        let [min, max] = self
+            .ceiling_mount
+            .as_ref()
+            .filter(|_| self.ceiling_mounted(seed, index))
+            .map_or([self.path_length_min, self.path_length_max], |p| p.travel_m);
+        length + 1e-4 >= min && length <= max + 1e-4
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+// Domain-separated SplitMix64; no consumption of the placement RNG.
+pub(super) fn role(seed: u64, index: usize, domain: u64, probability: f32) -> bool {
+    if probability == 0. {
+        return false;
+    }
+    if probability == 1. {
+        return true;
+    }
+    let mut x = seed ^ domain ^ (index as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^= x >> 31;
+    ((x >> 11) as f64 / (1_u64 << 53) as f64) < probability as f64
+}

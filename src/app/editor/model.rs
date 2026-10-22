@@ -103,19 +103,12 @@ pub fn expand(config: &BevyZeroverseConfig) -> Value {
 }
 
 pub(super) fn optics(draft: &Value) -> &Value {
-    if draft["indoor_camera"]["ceiling_mount"].is_null() {
-        &draft["indoor_camera"]
-    } else {
-        &draft["indoor_camera"]["ceiling_mount"]
-    }
+    &draft["indoor_camera"]
 }
 pub(super) fn optics_mut(draft: &mut Value) -> &mut Value {
-    if draft["indoor_camera"]["ceiling_mount"].is_null() {
-        &mut draft["indoor_camera"]
-    } else {
-        &mut draft["indoor_camera"]["ceiling_mount"]
-    }
+    &mut draft["indoor_camera"]
 }
+
 pub fn validate(draft: &Value) -> Result<BevyZeroverseConfig, String> {
     let config: BevyZeroverseConfig =
         serde_json::from_value(draft.clone()).map_err(|e| e.to_string())?;

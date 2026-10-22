@@ -750,13 +750,26 @@ fn position_editor(
     if *last_seed == Some(scene.seed) {
         return;
     }
-    let Some(view) = scene.cameras.first() else {
+    let Some(view) = scene
+        .cameras
+        .iter()
+        .find(|camera| !camera.is_ceiling_mounted())
+        .or_else(|| scene.cameras.first())
+    else {
         return;
     };
     for (mut orbit, mut tf) in &mut cameras {
         let rotation = Quat::from_rotation_y(scene.world_yaw);
         let target = rotation * view.target;
-        *tf = Transform::from_translation(rotation * view.start).looking_at(target, Vec3::Y);
+        *tf = if view.is_ceiling_mounted() {
+            // A Y-up look-at is singular when the ceiling normal is vertical.
+            // Preserve the calibrated mount orientation, including its roll.
+            let pose = view.transform_at(0.);
+            Transform::from_translation(rotation * pose.translation)
+                .with_rotation(rotation * pose.rotation)
+        } else {
+            Transform::from_translation(rotation * view.start).looking_at(target, Vec3::Y)
+        };
         let delta = rotation * (view.start - view.target);
         crate::app::orbit::reset(&mut orbit, delta.length());
         *last_seed = Some(scene.seed);

@@ -133,7 +133,7 @@ fn pair_samples(
     pair_samples_cached(coverage, reference, reference_views, camera, &camera_views)
 }
 
-fn pair_samples_cached(
+pub(super) fn pair_samples_cached(
     coverage: &Coverage,
     reference: &IndoorCamera,
     reference_views: &[VisibilityView],
@@ -203,7 +203,7 @@ impl IndoorManifest {
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
         self.camera_diagnostics = default();
-        if self.camera_settings.ceiling_mount.is_some() {
+        if (0..count).any(|i| self.camera_settings.ceiling_mounted(self.seed, i)) {
             super::ceiling::sample(self, count)?;
         } else {
             self.sample_camera_set(count, true, self.seed)?;

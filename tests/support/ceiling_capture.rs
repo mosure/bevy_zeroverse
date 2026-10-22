@@ -129,3 +129,85 @@ pub fn visibility(views: &[View], cameras: usize, aabb: [[f32; 3]; 2]) -> serde_
     assert_eq!(mismatches, 0, "ceiling co-visibility oracle mismatch");
     serde_json::json!({"interior_relations_checked":checked,"mismatches":mismatches,"scope":"rendered surface planes, excluding image boundaries and discontinuities from qualification only"})
 }
+
+/// Compare captured extrinsic increments against the archived runtime trajectory;
+/// this is invariant to scene augmentation and checks both room and ceiling slots.
+pub fn mixed_timeline(
+    views: &[View],
+    scene: &bevy_zeroverse::scene::procedural_indoor::layout::IndoorManifest,
+) -> serde_json::Value {
+    let count = scene.cameras.len();
+    let mut max_error = 0_f32;
+    let mut moving = 0;
+    for (index, camera) in scene.cameras.iter().enumerate() {
+        let first = &views[index];
+        let reference = Mat4::from_cols_array_2d(&first.world_from_view).inverse();
+        let start = camera
+            .transform_at(first.trajectory_progress.unwrap())
+            .to_matrix()
+            .inverse();
+        moving += usize::from(camera.path_length() > 0.001);
+        for frame in views.chunks_exact(count) {
+            let view = &frame[index];
+            assert_eq!(
+                view.calibration, first.calibration,
+                "intrinsics changed along path"
+            );
+            let observed = reference * Mat4::from_cols_array_2d(&view.world_from_view);
+            let expected = start
+                * camera
+                    .transform_at(view.trajectory_progress.unwrap())
+                    .to_matrix();
+            for (a, b) in observed
+                .to_cols_array()
+                .into_iter()
+                .zip(expected.to_cols_array())
+            {
+                max_error = max_error.max((a - b).abs());
+            }
+        }
+    }
+    assert!(
+        max_error < 0.0001,
+        "captured trajectory mismatch {max_error}"
+    );
+    serde_json::json!({"matrix_increment_max_error":max_error,"moving_cameras":moving,"cameras":count,"timesteps":views.len()/count})
+}
+
+/// Static scene correspondence oracle for a moving mixed rig. A source world
+/// point is projected through the next captured calibration, independent of the
+/// renderer's motion-vector implementation. This fixture enables camera motion
+/// only (human/furnishing trajectories are disabled).
+pub fn camera_flow(views: &[View], cameras: usize, aabb: [[f32; 3]; 2]) -> serde_json::Value {
+    let lo = Vec3::from_array(aabb[0]);
+    let size = Vec3::from_array(aabb[1]) - lo;
+    let mut errors = Vec::new();
+    let frames: Vec<_> = views.chunks_exact(cameras).collect();
+    for pair in frames.windows(2) {
+        for (source, target) in pair[0].iter().zip(pair[1]) {
+            let calibration = target.calibration.as_ref().unwrap();
+            let view = Mat4::from_cols_array_2d(&target.world_from_view).inverse();
+            let width = calibration.image_size[0] as usize;
+            for i in (0..source.position.len() / 16).step_by(5) {
+                let point = field(&source.position, i);
+                let flow = field(&source.optical_flow, i);
+                if point[3] < 0.5 || flow[2] < 0.5 {
+                    continue;
+                }
+                let world = lo + Vec3::new(point[0], point[1], point[2]) * size;
+                let Some(pixel) = calibration.project(view.transform_point3(world).to_array())
+                else {
+                    continue;
+                };
+                let expected = Vec2::from_array(pixel)
+                    - Vec2::new((i % width) as f32 + 0.5, (i / width) as f32 + 0.5);
+                errors.push(expected.distance(Vec2::new(flow[0], flow[1])));
+            }
+        }
+    }
+    errors.sort_by(f32::total_cmp);
+    assert!(errors.len() > 1000, "insufficient flow comparisons");
+    let p99 = errors[(errors.len() - 1) * 99 / 100];
+    assert!(p99 < 0.1, "mixed camera flow p99 error {p99} pixels");
+    serde_json::json!({"checked":errors.len(),"p99_error_pixels":p99,"maximum_error_pixels":errors.last()})
+}

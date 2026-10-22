@@ -1,19 +1,26 @@
-//! Fixed ceiling-mounted overview cameras. The mounting geometry is separate
+//! Ceiling-mounted overview cameras. The mounting geometry is separate
 //! from the calibrated lens, and all rig visibility constraints remain active.
 mod placement;
 mod planner;
 #[cfg(test)]
 mod tests;
+mod trajectory;
 use super::{intrinsics::IntrinsicsSettings, CameraSettings, IndoorCamera};
 use crate::camera::lens::LensSampling;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// Opt-in policy for a fixed ceiling-mounted capture rig. Applies to every
-/// capture view; editor cameras and object/human animation are unaffected.
+/// Independent per-view ceiling prior. Unselected views use the room camera
+/// policy. Defaults preserve the original all-mounted, fixed rig.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CeilingCameraSettings {
+    /// Seeded probability of assigning a capture slot to the ceiling.
+    pub probability: f32,
+    /// Fraction of mounted cameras traveling along a ceiling rail.
+    pub motion_fraction: f32,
+    /// Metric travel bounds, independent of room/handheld trajectories.
+    pub travel_m: [f32; 2],
     /// Optical center distance along the inward ceiling normal, in metres.
     pub standoff_m: [f32; 2],
     /// Conservative mounting-body radius, also used for fixture clearance.
@@ -27,6 +34,9 @@ pub struct CeilingCameraSettings {
 impl Default for CeilingCameraSettings {
     fn default() -> Self {
         Self {
+            probability: 1.,
+            motion_fraction: 0.,
+            travel_m: [0.1, 3.],
             standoff_m: [0.12, 0.24],
             body_radius_m: 0.055,
             wall_clearance_m: 0.35,
@@ -48,6 +58,16 @@ impl Default for CeilingCameraSettings {
 }
 impl CeilingCameraSettings {
     pub fn validate(&self) -> Result<(), String> {
+        if !(0.0..=1.).contains(&self.probability)
+            || !(0.0..=1.).contains(&self.motion_fraction)
+            || self
+                .travel_m
+                .iter()
+                .any(|v| !v.is_finite() || *v <= 0. || *v > 100.)
+            || self.travel_m[0] > self.travel_m[1]
+        {
+            return Err("ceiling_mount requires probability and motion_fraction in [0,1], and ordered travel_m in (0,100] metres".into());
+        }
         self.lenses.validate()?;
         self.intrinsics.validate()?;
         if !(0.02..=0.20).contains(&self.body_radius_m)
@@ -80,14 +100,15 @@ impl CeilingCameraMount {
         let pad = Vec3::splat(self.body_radius_m);
         (base.min(front) - pad, base.max(front) + pad)
     }
-    pub(crate) fn overlaps(&self, other: &Self) -> bool {
-        let (a, b) = self.bounds();
-        let (c, d) = other.bounds();
-        a.cmplt(d).all() && b.cmpgt(c).all()
-    }
 }
 
 impl CameraSettings {
+    /// Stable per-slot assignment, independent of retries, lenses and rig size.
+    pub fn ceiling_mounted(&self, seed: u64, index: usize) -> bool {
+        self.ceiling_mount
+            .as_ref()
+            .is_some_and(|p| super::motion::role(seed, index, 0x4345_494c_494e_4753, p.probability))
+    }
     pub(crate) fn lens_for(
         &self,
         seed: u64,
@@ -95,13 +116,15 @@ impl CameraSettings {
     ) -> Option<crate::calibration::FisheyeSensor> {
         self.ceiling_mount
             .as_ref()
+            .filter(|_| self.ceiling_mounted(seed, index))
             .map(|p| &p.lenses)
             .or(self.lenses.as_ref())
             .and_then(|p| p.sample(seed, index))
     }
-    pub(crate) fn active_intrinsics(&self) -> &IntrinsicsSettings {
+    pub(crate) fn intrinsics_for(&self, seed: u64, index: usize) -> &IntrinsicsSettings {
         self.ceiling_mount
             .as_ref()
+            .filter(|_| self.ceiling_mounted(seed, index))
             .map_or(&self.intrinsics, |p| &p.intrinsics)
     }
 }
@@ -110,7 +133,19 @@ impl IndoorCamera {
     pub fn is_ceiling_mounted(&self) -> bool {
         self.ceiling_mount.is_some()
     }
+
+    /// Conservative envelope of the attachment and body throughout its rail.
+    /// Room cameras have no mounting body. Useful to temporal scene planners.
+    pub fn ceiling_sweep_bounds(&self) -> Option<(Vec3, Vec3)> {
+        self.ceiling_mount.as_ref().map(|m| {
+            let (lo, hi) = m.bounds();
+            let delta = self.end - self.start;
+            (lo.min(lo + delta), hi.max(hi + delta))
+        })
+    }
 }
 
 pub(super) use placement::clear as mount_clear;
 pub(super) use planner::sample;
+
+pub(crate) use trajectory::bodies_overlap;

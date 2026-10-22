@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CameraSettings {
-    /// Fixed ceiling-mounted overview rig. None retains walkthrough sampling.
+    /// Optional per-view mounting mixture. None retains room-only sampling.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ceiling_mount: Option<ceiling::CeilingCameraSettings>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -227,6 +227,12 @@ pub struct CameraMotion {
 impl IndoorCamera {
     pub fn runtime_trajectory(&self) -> TrajectorySampler {
         if let Some(mount) = &self.ceiling_mount {
+            if let Some(m) = &self.motion {
+                return TrajectorySampler::CubicBezier {
+                    positions: [self.start, m.control[0], m.control[1], self.end],
+                    rotations: [mount.rotation; 2],
+                };
+            }
             let pose = Transform::from_translation(self.start).with_rotation(mount.rotation);
             return TrajectorySampler::Static {
                 start: ExtrinsicsSampler {
