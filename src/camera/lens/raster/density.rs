@@ -4,18 +4,18 @@
 use crate::calibration::{CameraCalibration, Fisheye};
 
 #[derive(Clone, Copy)]
-struct Interval {
+pub(super) struct Interval {
     lo: f64,
     hi: f64,
 }
 impl Interval {
-    fn new(lo: f64, hi: f64) -> Self {
+    pub(super) fn new(lo: f64, hi: f64) -> Self {
         Self { lo, hi }
     }
-    fn point(x: f64) -> Self {
+    pub(super) fn point(x: f64) -> Self {
         Self::new(x, x)
     }
-    fn neg(self) -> Self {
+    pub(super) fn neg(self) -> Self {
         Self::new(-self.hi, -self.lo)
     }
     fn abs_min(self) -> f64 {
@@ -45,7 +45,7 @@ impl Interval {
     }
 }
 
-fn angular_bounds(d: [Interval; 3]) -> (Interval, Interval) {
+pub(super) fn angular_bounds(d: [Interval; 3]) -> (Interval, Interval) {
     let r = Interval::new(
         d[0].abs_min().hypot(d[1].abs_min()),
         d[0].abs_max().hypot(d[1].abs_max()),
@@ -66,7 +66,7 @@ fn angular_bounds(d: [Interval; 3]) -> (Interval, Interval) {
     )
 }
 
-fn may_reach_sensor(
+pub(super) fn may_reach_sensor(
     c: &CameraCalibration,
     lens: Fisheye,
     d: [Interval; 3],

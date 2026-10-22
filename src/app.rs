@@ -1507,7 +1507,7 @@ pub struct CameraGridMarker;
 
 #[cfg(feature = "viewer")]
 #[derive(Component)]
-struct CameraGridSource(Entity);
+pub(crate) struct CameraGridSource(pub(crate) Entity);
 
 #[cfg(feature = "viewer")]
 #[allow(clippy::type_complexity)]

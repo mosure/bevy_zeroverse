@@ -746,9 +746,18 @@ pub fn sample_stream(
         state.enabled = false;
         return;
     }
-    if pipeline_readiness.as_ref().is_some_and(|ready| {
-        !ready.ready() || capture_root.is_some_and(|root| !ready.ready_for_scene(root))
-    }) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let guarded_render = capture_status
+        .settling
+        .as_ref()
+        .is_some_and(|s| s.can_capture());
+    #[cfg(target_arch = "wasm32")]
+    let guarded_render = false;
+    if !guarded_render
+        && pipeline_readiness.as_ref().is_some_and(|ready| {
+            !ready.ready() || capture_root.is_some_and(|root| !ready.ready_for_scene(root))
+        })
+    {
         // Hold the current mode until its pipelines exist; otherwise a previous
         // mode's readback can be mistaken for a completed geometric annotation.
         state.warmup_frames = state.warmup_frames.max(SamplerState::WARMUP_FRAME_DELAY);
@@ -763,11 +772,7 @@ pub fn sample_stream(
     // verifies the exact scene/views and all dependencies before copying this
     // frame; unsupported temporal paths retain ordinary settling.
     #[cfg(not(target_arch = "wasm32"))]
-    if capture_status
-        .settling
-        .as_ref()
-        .is_some_and(|settling| settling.can_capture())
-    {
+    if guarded_render {
         if state.warmup_frames != 0 || state.frames != 0 || !startup_delay.done {
             capture_status.settling.as_ref().unwrap().record_hit();
         }

@@ -3,6 +3,7 @@ mod delta;
 mod distribution_preview;
 mod fields;
 pub mod model;
+mod navigation;
 pub mod schematic;
 mod share;
 pub(super) mod shell;
@@ -32,6 +33,10 @@ pub enum Action {
     Reset,
     Collapse,
     Section(String),
+    /// Open a Studio group and bring its header into view.
+    JumpToSection(String),
+    /// Toggle all groups on the current page without recreating controls.
+    ExpandSections,
     Play,
     Rewind,
     Debug,
@@ -56,6 +61,10 @@ impl Plugin for EditorPlugin {
             .insert_resource(studio_theme())
             .add_systems(Update, (scene_loaded, update).chain())
             .add_systems(PostUpdate, shell::viewport.after(EditorCameraSetup))
+            .add_systems(
+                PostUpdate,
+                navigation::scroll_to_group.after(bevy::ui::UiSystems::Layout),
+            )
             .add_systems(Last, share::synchronize)
             .init_resource::<schematic::Preview>()
             .init_resource::<schematic::Predictions>()
@@ -538,14 +547,22 @@ pub(super) fn update(world: &mut World) {
                     }
                 }
                 Action::Page(page) => {
-                    state.view.page = page;
-                    rebuild = true;
+                    if state.view.page != page {
+                        state.view.page = page;
+                        rebuild = true;
+                    }
                 }
                 Action::Section(section) => {
-                    if !state.view.expanded.remove(&section) {
-                        state.view.expanded.insert(section);
+                    navigation::toggle(&mut state, &section);
+                }
+                Action::JumpToSection(section) => {
+                    if navigation::open(&mut state, &section) {
+                        world.init_resource::<navigation::Navigation>();
+                        world.resource_mut::<navigation::Navigation>().jump = Some(section);
                     }
-                    rebuild = true;
+                }
+                Action::ExpandSections => {
+                    navigation::toggle_all(&mut state);
                 }
                 Action::Collapse => {
                     state.view.collapsed = !state.view.collapsed;
@@ -610,9 +627,13 @@ pub(super) fn update(world: &mut World) {
         state.view.direction = p.direction;
     }
     if !world.contains_resource::<shell::Shell>() || rebuild {
+        rebuild = true;
         shell::build(world, &state);
         distribution_preview::synchronize(world, &state);
         state.revision += 1;
+    }
+    if dirty || rebuild {
+        navigation::synchronize(world, &state);
     }
     if dirty || rebuild || state.view.page == Page::View {
         widgets::synchronize(world, &state);

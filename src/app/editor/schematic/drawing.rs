@@ -256,14 +256,13 @@ pub(super) fn moving(
     }
     for (pred, cameras) in [(false, &plan.cameras), (true, &predictions.cameras)] {
         for (i, camera) in cameras.iter().enumerate() {
-            let footprint = plan::camera_footprint(camera, options.frustum_length)?;
+            let gizmo = plan::camera_gizmo(camera, options.frustum_length)?;
             let c = color(if pred {
                 "#bb297c"
             } else {
                 plan::camera_color(i)
             });
-            let m = Mat4::from_cols_array_2d(&camera.world_from_view);
-            let origin = project(m.transform_point3(Vec3::ZERO).to_array());
+            let origin = project(gizmo.origin);
             if options.camera_paths {
                 if camera.path.iter().flatten().any(|v| !v.is_finite()) {
                     return Err("non-finite schematic path".into());
@@ -278,26 +277,41 @@ pub(super) fn moving(
                     );
                 }
             }
-            let p: Vec<_> = footprint.into_iter().map(project).collect();
+            let p: Vec<_> = gizmo.footprint.iter().copied().map(project).collect();
             for j in 1..p.len().saturating_sub(1) {
                 d.triangle([p[0], p[j], p[j + 1]], c.with_alpha(0.10));
             }
             for j in 0..p.len() {
                 d.line(p[j], p[(j + 1) % p.len()], 1.4, c, pred);
             }
-            d.line(
-                origin,
-                project(
-                    m.transform_point3(Vec3::NEG_Z * options.frustum_length)
-                        .to_array(),
-                ),
-                2.5,
+            d.line(origin, project(gizmo.axis_end), 2.5, c, pred);
+            let radius = gizmo.marker_radius();
+            if gizmo.fisheye {
+                d.dot(origin, radius, Color::WHITE);
+                for j in 0..32 {
+                    if pred && j % 8 >= 5 {
+                        continue;
+                    }
+                    let angle = std::f32::consts::TAU / 32.;
+                    d.line(
+                        origin + Vec2::from_angle(j as f32 * angle) * radius,
+                        origin + Vec2::from_angle((j + 1) as f32 * angle) * radius,
+                        1.5,
+                        c,
+                        false,
+                    );
+                }
+                d.dot(origin, 2.5, c);
+            } else {
+                d.dot(origin, radius + 0.7, Color::WHITE);
+                d.dot(origin, radius, c);
+            }
+            d.annotation_label(
+                origin + Vec2::new(radius + 3., -radius - 3.),
+                &gizmo.label,
+                13.,
                 c,
-                pred,
             );
-            d.dot(origin, 5.7, Color::WHITE);
-            d.dot(origin, 5., c);
-            d.annotation_label(origin + Vec2::new(8., -8.), &camera.label, 13., c);
         }
     }
     Ok(d)
@@ -307,6 +321,49 @@ pub(super) fn moving(
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::layout::{IndoorLayout, IndoorManifest};
+    #[test]
+    fn live_gizmos_use_the_exported_lens_types_and_prediction_styles() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(400, IndoorLayout::Mixed, 0.65, 3, 0.).unwrap();
+        scene.cameras[1].fisheye = Some(crate::calibration::FisheyeSensor {
+            lens: crate::calibration::Fisheye {
+                coefficients: [0.; 4],
+                max_angle: 100_f32.to_radians(),
+            },
+            fit: crate::calibration::FisheyeFit::Circular,
+            anisotropy: 1.,
+        });
+        let mut plan = Schematic::from_manifest(&scene, 0.5).unwrap();
+        // Place labels centrally so clipping is not part of this type/style check.
+        for (i, c) in plan.cameras.iter_mut().enumerate() {
+            c.world_from_view =
+                Mat4::from_translation(Vec3::new(i as f32 - 1., 1.5, 0.)).to_cols_array_2d();
+            c.path.clear();
+        }
+        let mut predicted = plan.cameras[1].clone();
+        predicted.label = "Prediction".into();
+        let overlay = Overlay {
+            cameras: vec![predicted],
+            ..default()
+        };
+        let options = RenderOptions::default();
+        let d = moving(&plan, &options, &overlay).unwrap();
+        assert!(d.points.iter().flatten().all(|v| v.is_finite()));
+        for label in [
+            "C0 · pinhole",
+            "C1 · fisheye 200°",
+            "Prediction · fisheye 200°",
+        ] {
+            assert!(d.labels.iter().any(|l| l.text == label), "{label}");
+            assert!(plan.svg(&options, &overlay).unwrap().contains(label));
+        }
+        let predicted = d
+            .labels
+            .iter()
+            .find(|l| l.text.starts_with("Prediction"))
+            .unwrap();
+        assert_eq!(predicted.color, color("bb297c"));
+    }
     #[test]
     fn diagram_batches_cover_concave_rooms_and_reject_invalid_predictions() {
         let options = RenderOptions::default();

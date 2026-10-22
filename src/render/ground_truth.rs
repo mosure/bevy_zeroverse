@@ -80,6 +80,12 @@ struct CameraStatus {
 }
 
 impl GroundTruthCamera {
+    fn is_angular(&self) -> bool {
+        self.calibration
+            .as_ref()
+            .is_some_and(|c| c.fisheye.is_some())
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn recycled(&self) -> Self {
         Self {
@@ -219,6 +225,10 @@ pub struct GroundTruthStats {
     pub flow_uploaded_bytes: u64,
     pub instance_updates: u64,
     pub rendered_views: u64,
+    /// Exact angular geometry acceleration construction, separate from uploads.
+    pub angular_bvh_builds: u64,
+    pub angular_bvh_build_seconds: f64,
+    pub angular_uploaded_bytes: u64,
 }
 
 #[derive(Resource, Default, Clone)]
@@ -257,13 +267,10 @@ impl Plugin for GroundTruthPlugin {
         render_app.add_systems(
             Render,
             (
-                initialize_pipeline,
-                prepare_geometry,
-                prepare_cameras,
+                (initialize_pipeline, prepare_geometry, prepare_cameras).chain(),
                 flow::prepare,
                 angular::prepare,
             )
-                .chain()
                 .in_set(RenderSystems::PrepareResources),
         );
         render_app.init_resource::<GroundTruthPipelines>();
@@ -362,7 +369,7 @@ fn initialize_pipeline(
     cache: Res<PipelineCache>,
     mut pipelines: ResMut<GroundTruthPipelines>,
 ) {
-    if !cameras.is_empty() && pipelines.0.is_none() {
+    if cameras.iter().any(|c| !c.is_angular()) && pipelines.0.is_none() {
         pipelines.0 = Some(GroundTruthPipeline::new(&cache));
     }
 }
@@ -467,6 +474,7 @@ struct GpuGeometry {
 }
 
 fn prepare_geometry(
+    cameras: Query<&GroundTruthCamera>,
     geometry: Res<ExtractedGeometry>,
     pipelines: Res<GroundTruthPipelines>,
     mut gpu: ResMut<GpuGeometry>,
@@ -484,10 +492,24 @@ fn prepare_geometry(
         stats.geometry_bytes = 0;
         return;
     }
+    let mut stats = diagnostics.0.lock().unwrap();
+    stats.generation = geometry.generation;
+    stats.mesh_instances = geometry.instances.len();
+    stats.vertices = geometry.vertices.len();
+    stats.triangles = geometry.indices.len() / 3;
+    stats.draw_batches = geometry.batches.len();
+    stats.geometry_bytes = geometry.vertices.len() * std::mem::size_of::<Vertex>()
+        + geometry.indices.len() * std::mem::size_of::<u32>();
+    // Angular cameras trace the authoritative CPU geometry with their own GPU
+    // acceleration buffers. Do not also upload unused raster vertex/index data.
+    // A later pinhole camera repopulates these buffers from the current epoch.
+    if cameras.iter().all(GroundTruthCamera::is_angular) {
+        *gpu = GpuGeometry::default();
+        return;
+    }
     let Some(pipeline) = pipelines.0.as_ref() else {
         return;
     };
-    let mut stats = diagnostics.0.lock().unwrap();
     if gpu.vertices.is_none() || gpu.generation != geometry.generation {
         let partial = geometry.deformation.as_ref().filter(|update| {
             gpu.vertices.is_some()
@@ -531,13 +553,6 @@ fn prepare_geometry(
                     + geometry.indices.len() * std::mem::size_of::<u32>()) as u64;
         }
         gpu.generation = geometry.generation;
-        stats.generation = geometry.generation;
-        stats.mesh_instances = geometry.instances.len();
-        stats.vertices = geometry.vertices.len();
-        stats.triangles = geometry.indices.len() / 3;
-        stats.draw_batches = geometry.batches.len();
-        stats.geometry_bytes =
-            geometry.vertices.len() * std::mem::size_of::<Vertex>() + geometry.indices.len() * 4;
     }
     let bytes = bytemuck::cast_slice(&geometry.instances);
     if gpu.instances.is_none() || gpu.instance_bytes.len() != bytes.len() {
@@ -588,6 +603,9 @@ fn prepare_cameras(
         return;
     };
     for (entity, camera, view, prepared) in &cameras {
+        if camera.is_angular() {
+            continue;
+        }
         let Some(target) = images.get(&camera.world_depth) else {
             continue;
         };
@@ -639,7 +657,7 @@ fn render_ground_truth(
     mut context: RenderContext,
     cameras: Query<(
         &GroundTruthCamera,
-        &PreparedCamera,
+        Option<&PreparedCamera>,
         Option<&angular::Prepared>,
     )>,
 ) {
@@ -648,38 +666,42 @@ fn render_ground_truth(
     if geometry.failure.is_some() {
         return;
     }
-    let Some(pipeline) = world.resource::<GroundTruthPipelines>().0.as_ref() else {
-        return;
-    };
     let cache = world.resource::<PipelineCache>();
     let images = world.resource::<RenderAssets<GpuImage>>();
     // An empty scene is a valid background-only capture. Clear its targets
     // and complete the request without retaining or binding geometry buffers.
     // A nonempty scene still waits for its uploads and render pipelines.
-    let draw_data = if geometry.vertices.is_empty() {
-        None
-    } else {
-        let (Some(vertices), Some(indices), Some(instances)) =
-            (&gpu.vertices, &gpu.indices, &gpu.instance_bind_group)
-        else {
-            return;
+    let draw_data =
+        if geometry.vertices.is_empty() || cameras.iter().all(|(c, _, _)| c.is_angular()) {
+            None
+        } else {
+            let Some(pipeline) = world.resource::<GroundTruthPipelines>().0.as_ref() else {
+                return;
+            };
+            let (Some(vertices), Some(indices), Some(instances)) =
+                (&gpu.vertices, &gpu.indices, &gpu.instance_bind_group)
+            else {
+                return;
+            };
+            let Some(pipelines) = pipeline
+                .pipelines
+                .iter()
+                .map(|id| cache.get_render_pipeline(*id))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return;
+            };
+            Some((vertices, indices, instances, pipelines))
         };
-        let Some(pipelines) = pipeline
-            .pipelines
-            .iter()
-            .map(|id| cache.get_render_pipeline(*id))
-            .collect::<Option<Vec<_>>>()
-        else {
-            return;
-        };
-        Some((vertices, indices, instances, pipelines))
-    };
     // One stable diagnostic path covers all requested views. Idle frames
     // create neither render work nor empty GPU timestamp measurements.
     let active: Vec<_> = cameras
         .iter()
         .filter_map(|(camera, prepared, angular)| {
-            if camera.frame_id == 0 || camera.geometry_frame() == Some(camera.frame_id) {
+            if camera.frame_id == 0
+                || camera.geometry_frame() == Some(camera.frame_id)
+                || (!camera.is_angular() && prepared.is_none())
+            {
                 return None;
             }
             Some((
@@ -747,7 +769,7 @@ fn render_ground_truth(
             if let Some((vertices, indices, instances, pipelines)) = &draw_data {
                 pass.set_vertex_buffer(0, *vertices.slice(..));
                 pass.set_index_buffer(*indices.slice(..), IndexFormat::Uint32);
-                pass.set_bind_group(0, &prepared.bind_group, &[]);
+                pass.set_bind_group(0, &prepared.unwrap().bind_group, &[]);
                 pass.set_bind_group(1, *instances, &[]);
                 for batch in &geometry.batches {
                     if !camera.layers.intersects(&batch.layers) {

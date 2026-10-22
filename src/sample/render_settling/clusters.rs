@@ -63,7 +63,10 @@ fn prime(
             Option<&RenderLayers>,
             &mut Clusters,
         ),
-        With<super::ZeroverseCamera>,
+        Or<(
+            With<super::ZeroverseCamera>,
+            With<crate::camera::lens::LensFace>,
+        )>,
     >,
     objects: Query<
         (

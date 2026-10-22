@@ -1,6 +1,9 @@
-//! Deterministic median BVH over authoritative annotation triangles. The empty
-//! tree is a valid clear image. Balanced subdivision bounds GPU traversal depth.
+//! Deterministic BVH over authoritative annotation triangles. Surface-area
+//! splits near the root isolate large architectural surfaces from small props;
+//! bounded-depth median fallback limits both construction and GPU stack use.
 use super::super::*;
+mod parallel;
+mod partition;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -75,6 +78,12 @@ pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) 
     finish(triangles)
 }
 pub(super) fn finish(triangles: Vec<Triangle>) -> (Vec<Triangle>, Vec<Node>) {
+    finish_with_strategy(triangles, true)
+}
+fn finish_with_strategy(
+    triangles: Vec<Triangle>,
+    surface_area: bool,
+) -> (Vec<Triangle>, Vec<Node>) {
     // Partition compact indices rather than repeatedly moving 112-byte triangle
     // records. Cache bounds/centroid sums once; the original ordinal remains the
     // tie-breaker, preserving leaf membership and the hit tie policy.
@@ -93,7 +102,17 @@ pub(super) fn finish(triangles: Vec<Triangle>) -> (Vec<Triangle>, Vec<Node>) {
     let mut order: Vec<_> = (0..triangles.len()).collect();
     let mut nodes = Vec::with_capacity(triangles.len().div_ceil(4));
     if !triangles.is_empty() {
-        split(&mut order, &bounds, 0, &mut nodes);
+        let pool = bevy::tasks::ComputeTaskPool::try_get().filter(|p| {
+            !cfg!(target_arch = "wasm32")
+                && p.thread_num() > 1
+                && order.len() >= 65_536
+                && surface_area
+        });
+        if let Some(pool) = pool {
+            parallel::build(&mut order, &bounds, &mut nodes, pool);
+        } else {
+            split(&mut order, &bounds, 0, &mut nodes, 0, surface_area);
+        }
     }
     drop(bounds);
     let triangles = order.into_iter().map(|i| triangles[i]).collect();
@@ -105,41 +124,72 @@ struct Bounds {
     center: [f32; 3],
     ordinal: u32,
 }
-fn split(order: &mut [usize], bounds: &[Bounds], base: usize, nodes: &mut Vec<Node>) -> u32 {
-    let id = nodes.len() as u32;
-    nodes.push(Node::default());
+fn bounds_for(order: &[usize], bounds: &[Bounds]) -> (Vec3, Vec3) {
     let mut lo = Vec3::splat(f32::INFINITY);
     let mut hi = Vec3::splat(f32::NEG_INFINITY);
-    for &i in order.iter() {
+    for &i in order {
         lo = lo.min(bounds[i].lo);
         hi = hi.max(bounds[i].hi);
     }
-    // Conservative box expansion protects triangles on slab boundaries.
+    (lo, hi)
+}
+fn bounded_node(lo: Vec3, hi: Vec3, base: usize, count: usize) -> Node {
     let eps = Vec3::splat(0.00001) * (hi.abs().max(lo.abs()) + Vec3::ONE);
-    let mut node = Node {
+    Node {
         lo: (lo - eps).extend(0.).to_array(),
         hi: (hi + eps).extend(0.).to_array(),
-        info: [0, 0, base as u32, order.len() as u32],
-    };
+        info: [0, 0, base as u32, count as u32],
+    }
+}
+fn partition_order(
+    order: &mut [usize],
+    bounds: &[Bounds],
+    extent: Vec3,
+    depth: u32,
+    surface_area: bool,
+) -> usize {
+    // Spend the surface-area search on broad scene partitions. Deep per-prop
+    // searches cost several full scans per level for little traversal benefit;
+    // exact median subdivisions then bound construction and GPU stack depth.
+    (surface_area && depth < 6 && order.len() >= 64)
+        .then(|| partition::partition(order, bounds))
+        .flatten()
+        .unwrap_or_else(|| {
+            let axis = if extent.x >= extent.y && extent.x >= extent.z {
+                0
+            } else if extent.y >= extent.z {
+                1
+            } else {
+                2
+            };
+            let mid = order.len() / 2;
+            order.select_nth_unstable_by(mid, |&a, &b| {
+                bounds[a].center[axis]
+                    .total_cmp(&bounds[b].center[axis])
+                    .then(bounds[a].ordinal.cmp(&bounds[b].ordinal))
+            });
+            mid
+        })
+}
+fn split(
+    order: &mut [usize],
+    bounds: &[Bounds],
+    base: usize,
+    nodes: &mut Vec<Node>,
+    depth: u32,
+    surface_area: bool,
+) -> u32 {
+    let id = nodes.len() as u32;
+    nodes.push(Node::default());
+    let (lo, hi) = bounds_for(order, bounds);
+    // Conservative box expansion protects triangles on slab boundaries.
+    let mut node = bounded_node(lo, hi, base, order.len());
     if order.len() > 8 {
-        let d = hi - lo;
-        let axis = if d.x >= d.y && d.x >= d.z {
-            0
-        } else if d.y >= d.z {
-            1
-        } else {
-            2
-        };
-        let mid = order.len() / 2;
-        order.select_nth_unstable_by(mid, |&a, &b| {
-            bounds[a].center[axis]
-                .total_cmp(&bounds[b].center[axis])
-                .then(bounds[a].ordinal.cmp(&bounds[b].ordinal))
-        });
+        let mid = partition_order(order, bounds, hi - lo, depth, surface_area);
         let (a, b) = order.split_at_mut(mid);
         node.info = [
-            split(a, bounds, base, nodes),
-            split(b, bounds, base + mid, nodes),
+            split(a, bounds, base, nodes, depth + 1, surface_area),
+            split(b, bounds, base + mid, nodes, depth + 1, surface_area),
             0,
             0,
         ];

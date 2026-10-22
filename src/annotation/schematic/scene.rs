@@ -225,25 +225,28 @@ impl Schematic {
             .cameras
             .iter()
             .enumerate()
-            .map(|(i, c)| Camera {
-                label: format!("C{i}"),
-                world_from_view: (Mat4::from_quat(rotation) * c.transform_at(progress).to_matrix())
+            .map(|(i, c)| {
+                Ok(Camera {
+                    label: format!("C{i}"),
+                    world_from_view: (Mat4::from_quat(rotation)
+                        * c.transform_at(progress).to_matrix())
                     .to_cols_array_2d(),
-                fov_y: c.fov_degrees.to_radians(),
-                aspect: scene.camera_aspect_ratio,
-                principal_point_offset: c.principal_point_offset,
-                calibration: c
-                    .fisheye
-                    .map(|lens| {
-                        lens.calibration(
-                            [(scene.camera_aspect_ratio * 1024.).round() as u32, 1024],
-                            c.principal_point_offset.unwrap_or_default().to_array(),
-                        )
-                    })
-                    .map(Result::unwrap),
-                path: camera_path(scene, i),
+                    fov_y: c.fov_degrees.to_radians(),
+                    aspect: scene.camera_aspect_ratio,
+                    principal_point_offset: c.principal_point_offset,
+                    calibration: c
+                        .fisheye
+                        .map(|lens| {
+                            lens.calibration(
+                                [(scene.camera_aspect_ratio * 1024.).round() as u32, 1024],
+                                c.principal_point_offset.unwrap_or_default().to_array(),
+                            )
+                        })
+                        .transpose()?,
+                    path: camera_path(scene, i),
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
         let poses = scene
             .humans
             .iter()

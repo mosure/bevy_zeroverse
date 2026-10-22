@@ -823,14 +823,10 @@ fn dragging_fisheye_feathers_slider_retains_entity_focus_and_scroll() {
 fn dragging_clutter_feathers_slider_retains_entity_focus_and_scroll() {
     exercise_slider_drag(Page::Scene, "/indoor_clutter/probability");
 }
-fn exercise_slider_drag(page: Page, path: &str) {
+pub(super) fn studio_app(page: Page) -> App {
     use bevy::{
-        asset::AssetPlugin,
-        image::ImagePlugin,
-        scene::ScenePlugin,
-        shader::Shader,
+        asset::AssetPlugin, image::ImagePlugin, scene::ScenePlugin, shader::Shader,
         text::TextPlugin,
-        ui_widgets::{ScrollArea, SliderValue, ValueChange},
     };
     // Build the actual native/web widgets, without a window or render device.
     let mut app = App::new();
@@ -857,6 +853,26 @@ fn exercise_slider_drag(page: Page, path: &str) {
     app.insert_resource(config).insert_resource(state);
     update(app.world_mut());
     app.world_mut().flush();
+    app
+}
+fn exercise_slider_drag(page: Page, path: &str) {
+    use bevy::ui_widgets::{ScrollArea, SliderValue, ValueChange};
+    let mut app = studio_app(page);
+    let group = navigation::groups(app.world().resource::<EditorState>())
+        .into_iter()
+        .find(|g| {
+            g.items
+                .iter()
+                .any(|item| matches!(item, fields::Item::Field(f) if f.path == path))
+        })
+        .unwrap()
+        .section
+        .id;
+    app.world_mut()
+        .resource_mut::<Actions>()
+        .0
+        .push(Action::Section(group.into()));
+    update(app.world_mut());
     let world = app.world_mut();
     let slider = world
         .query::<(Entity, &widgets::Binding)>()
@@ -966,4 +982,26 @@ fn clutter_controls_cover_the_typed_distribution_without_applying_drafts() {
             }
         }
     }
+}
+
+#[test]
+fn studio_group_navigation_shares_compactly_without_pending_generation() {
+    let mut state = EditorState::new(&BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..super::super::web_viewer_defaults()
+    });
+    state.view.page = Page::Cameras;
+    navigation::toggle(&mut state, "cameras.rig");
+    navigation::open(&mut state, "cameras.fisheye");
+    let (config, view) = share::snapshot(&state).unwrap();
+    let query = share::query(&config, &view);
+    assert!(!query.contains("pending"));
+    let parsed =
+        super::super::config_with_query(super::super::web_viewer_defaults(), decode_query(&query))
+            .unwrap();
+    let restored = EditorState::new(&parsed);
+    assert_eq!(restored.view.expanded, state.view.expanded);
+    assert_eq!(restored.view.closed_sections, state.view.closed_sections);
+    assert_eq!(restored.applied, state.applied);
+    assert!(!restored.pending());
 }

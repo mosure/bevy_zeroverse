@@ -2,6 +2,10 @@
 //! exactly one calibration, timeline and capture index, regardless of its render
 //! views. The default pinhole path allocates no nonlinear resources.
 mod activity;
+#[cfg(feature = "viewer")]
+pub(crate) mod clusters;
+#[cfg(feature = "viewer")]
+mod preview;
 mod raster;
 mod resolve;
 mod runtime;

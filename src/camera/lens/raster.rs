@@ -5,7 +5,9 @@ use bevy::{
     math::Vec3A,
     prelude::*,
 };
+mod coverage;
 mod density;
+pub(super) use coverage::sensor_regions;
 pub(super) use density::density;
 
 /// Pixel regions of the original guarded square faces. Side views need only

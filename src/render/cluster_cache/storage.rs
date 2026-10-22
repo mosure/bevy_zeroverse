@@ -180,7 +180,10 @@ fn write(binding: BindingResource<'_>, queue: &RenderQueue, bytes: &[u8]) {
     let mut mapped = queue
         .write_buffer_with(binding.buffer, binding.offset, binding.size.unwrap())
         .expect("aligned cluster storage upload within the binding capacity");
+    #[cfg(not(target_arch = "wasm32"))]
     crate::render::upload::copy_upload(mapped.slice(..bytes.len()), bytes);
+    #[cfg(target_arch = "wasm32")]
+    mapped.slice(..bytes.len()).copy_from_slice(bytes);
     // A pooled allocation can be larger than this view's lists. Fully clear
     // the unused range: stale indices must never become lights in another view.
     let (chunks, mut tail) = mapped.slice(bytes.len()..).into_chunks::<256>();

@@ -133,12 +133,11 @@ fn main() {
                 let start = Instant::now();
                 app.update();
                 device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-                if frame == 79 && args.iter().any(|v| v == "--captures") {
+                if frame == 79 {
                     let wait = Instant::now();
-                    while !app
-                        .world()
-                        .resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>()
-                        .ready()
+                    while !app.world().resource::<bevy_zeroverse::sample::CaptureReadiness>().scene_ready()
+                        || app.world().get_resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>()
+                            .is_some_and(|r| !r.ready())
                     {
                         assert!(
                             wait.elapsed().as_secs() < 60,

@@ -164,6 +164,7 @@ struct ExtractedSettling {
     token: Option<Token>,
     cameras: Vec<Entity>,
     rendered: bool,
+    ready_before_render: bool,
 }
 
 fn bits(matrix: Mat4) -> [u32; 16] {
@@ -254,6 +255,13 @@ pub(super) fn configure(app: &mut App) {
     render.insert_resource(fence);
     render.init_resource::<ExtractedSettling>();
     render.add_systems(ExtractSchedule, extract);
+    render.add_systems(
+        RenderGraph,
+        (crate::io::image_copy::readiness::update, begin_render)
+            .chain()
+            .before(bevy::core_pipeline::schedule::camera_driver)
+            .in_set(RenderGraphSystems::Render),
+    );
     render.add_systems(
         RenderGraph,
         confirm_rendered
@@ -487,6 +495,7 @@ fn extract(
     extracted.token = None;
     extracted.cameras.clear();
     extracted.rendered = false;
+    extracted.ready_before_render = false;
     let Some(token) = &fence.prepared else {
         return;
     };
@@ -497,6 +506,20 @@ fn extract(
         extracted.cameras.push(entity.id());
     }
     extracted.token = Some(token.clone());
+}
+
+// The main world may pin intent before this scene has rendered once. Assets
+// and every queued pipeline must already exist before drawing, as well as at
+// copy time; compiling midway through a skipped draw cannot qualify that draw.
+fn begin_render(
+    readiness: Res<CapturePipelineReadiness>,
+    mut extracted: ResMut<ExtractedSettling>,
+) {
+    extracted.ready_before_render = extracted
+        .token
+        .as_ref()
+        .is_some_and(|token| readiness.ready_for_scene(token.scene))
+        && readiness.failure().is_none();
 }
 
 fn confirm_rendered(
@@ -592,6 +615,7 @@ fn accepted_token(
 ) -> Option<&Token> {
     extracted.token.as_ref().filter(|token| {
         extracted.rendered
+            && extracted.ready_before_render
             && ready_for_scene
             && !failed
             && extracted.cameras.len() == token.cameras.len()
@@ -682,6 +706,7 @@ mod tests {
             cameras: vec![original.cameras[0].entity],
             token: Some(original),
             rendered: true,
+            ready_before_render: true,
         };
         assert_ne!(accepted_token(&extracted, true, false), Some(&captured.1));
         extracted.token = Some(captured.1.clone());
@@ -706,6 +731,7 @@ mod tests {
             cameras: vec![current.cameras[0].entity],
             token: Some(current.clone()),
             rendered: true,
+            ready_before_render: true,
         };
         assert!(
             accepted_token(&extracted, false, false).is_none(),
@@ -846,6 +872,7 @@ mod tests {
             cameras: vec![token.cameras[0].entity],
             token: Some(token),
             rendered: true,
+            ready_before_render: true,
         };
         assert!(accepted_token(&extracted, true, false).is_some());
         assert!(
@@ -856,6 +883,12 @@ mod tests {
             accepted_token(&extracted, true, true).is_none(),
             "pipeline errors fail closed"
         );
+        extracted.ready_before_render = false;
+        assert!(
+            accepted_token(&extracted, true, false).is_none(),
+            "a pipeline becoming ready midway through a skipped draw cannot release it"
+        );
+        extracted.ready_before_render = true;
         extracted.rendered = false;
         assert!(accepted_token(&extracted, true, false).is_none());
         extracted.rendered = true;

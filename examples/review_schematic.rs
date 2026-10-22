@@ -12,19 +12,27 @@ use bevy_zeroverse::{
 };
 #[derive(Resource, Default)]
 struct Review {
+    lenses: bool,
     frames: u32,
     stage: usize,
     times: Vec<f64>,
     metrics: Vec<serde_json::Value>,
 }
 fn main() {
-    std::fs::create_dir_all("out/schematic/ui").unwrap();
+    let lenses = std::env::args().any(|a| a == "--lenses");
+    std::fs::create_dir_all(if lenses {
+        "out/schematic/lens-ui"
+    } else {
+        "out/schematic/ui"
+    })
+    .unwrap();
     let mut app = viewer_app(
         None,
         Some(BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::ProceduralIndoor,
-            indoor_seed: Some(47_586_113),
-            num_cameras: 4,
+            indoor_seed: Some(if lenses { 401 } else { 47_586_113 }),
+            num_cameras: if lenses { 3 } else { 4 },
+            indoor_camera: lenses.then(|| r#"{"lenses":{"probability":0.5}}"#.into()),
             width: 512.,
             height: 512.,
             playback_mode: bevy_zeroverse::camera::PlaybackMode::Loop,
@@ -42,7 +50,10 @@ fn main() {
         window.resolution.set(1360., 900.);
     }
     app.insert_resource(bevy::winit::WinitSettings::continuous())
-        .init_resource::<Review>()
+        .insert_resource(Review {
+            lenses,
+            ..default()
+        })
         .add_systems(Update, review)
         .run();
 }
@@ -64,6 +75,22 @@ fn review(world: &mut World) {
             .push(Action::Page(Page::View));
     }
     if review.frames == 180 {
+        if review.lenses {
+            assert!(
+                world
+                    .query::<&Text2d>()
+                    .iter(world)
+                    .any(|t| t.0.contains("fisheye")),
+                "live schematic must identify fisheye cameras"
+            );
+            assert!(
+                world
+                    .query::<&Text2d>()
+                    .iter(world)
+                    .any(|t| t.0.contains("pinhole")),
+                "mixed rig must identify pinhole cameras"
+            );
+        }
         let config = world.resource::<BevyZeroverseConfig>();
         let hidden = config.room_schematic || config.camera_grid;
         for (camera, orbit) in world
@@ -85,7 +112,8 @@ fn review(world: &mut World) {
         let names = ["schematic", "grid", "editor", "schematic-return"];
         let mut screenshot = world.spawn(Screenshot::primary_window());
         screenshot.observe(save_to_disk(format!(
-            "out/schematic/ui/{}.png",
+            "out/schematic/{}/{}.png",
+            if review.lenses { "lens-ui" } else { "ui" },
             names[review.stage]
         )));
         if review.stage == 0 || review.stage == 3 {
@@ -121,9 +149,13 @@ fn review(world: &mut World) {
         }
         review.stage += 1;
         review.frames = 0;
-        if review.stage == 4 {
+        if review.stage == 4 || review.lenses {
             std::fs::write(
-                "out/schematic/ui/frame_times.json",
+                if review.lenses {
+                    "out/schematic/lens-ui/frame_times.json"
+                } else {
+                    "out/schematic/ui/frame_times.json"
+                },
                 serde_json::to_vec_pretty(&review.metrics).unwrap(),
             )
             .unwrap();

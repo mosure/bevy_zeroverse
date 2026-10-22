@@ -2,7 +2,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Page {
     #[default]
@@ -29,21 +29,21 @@ impl Page {
             Self::Appearance => "Materials & light",
             Self::People => "People & motion",
             Self::View => "View & playback",
-            Self::Advanced => "Advanced",
+            Self::Advanced => "Capture & tools",
         }
     }
     pub fn intro(self) -> &'static str {
         match self {
-            Self::Scene => "Build your next scene. Apply keeps the seed; Next explores a new room.",
-            Self::Cameras => "Baseline separates views. Lenses control framing. Motion selects which cameras travel.",
+            Self::Scene => "Choose a room, then tune its furnishings and variation.",
+            Self::Cameras => "Place views, choose lenses, then plan their movement.",
             Self::Appearance => {
                 "Vary surfaces and lighting independently while preserving geometry."
             }
-            Self::People => "People, furniture and portable-item motion. Every animation is optional.",
-            Self::View => "Preview annotations, overlays and time. These controls update live.",
-            Self::Advanced => {
-                "Exact configuration and diagnostics. Invalid values never reach generation."
+            Self::People => {
+                "People, furniture and portable-item motion. Every animation is optional."
             }
+            Self::View => "Preview annotations, overlays and time. These controls update live.",
+            Self::Advanced => "Capture dimensions, export policies and configuration tools.",
         }
     }
 }
@@ -54,6 +54,9 @@ pub struct ViewState {
     pub page: Page,
     pub collapsed: bool,
     pub expanded: std::collections::BTreeSet<String>,
+    /// Explicitly closed default-open Studio groups. Empty in old links.
+    #[serde(skip_serializing_if = "std::collections::BTreeSet::is_empty")]
+    pub closed_sections: std::collections::BTreeSet<String>,
     pub progress: f32,
     pub direction: f32,
     pub flow_interval: f32,
@@ -80,6 +83,7 @@ impl Default for ViewState {
             page: Page::Scene,
             collapsed: false,
             expanded: default(),
+            closed_sections: default(),
             progress: 0.,
             direction: 1.,
             flow_interval: 0.05,

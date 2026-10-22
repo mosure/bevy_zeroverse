@@ -9,9 +9,27 @@ Scene Studio uses the same validated policies as native generation and the brows
 | Materials & light | Surface and lighting seeds, exposure, PBR detail, render quality |
 | People & motion | People population, human trajectories, articulated furniture and portable-item motion |
 | View & playback | Editor/grid/schematic, annotations, overlays, timeline |
-| Advanced | Complete policy import, capture/export settings, diagnostics and evidence |
+| Capture & tools | Image dimensions and timesteps, O-voxel, complete policy import, qualification evidence |
 
 Controls are declared in `src/app/editor/fields/`, separate from retained Feathers widgets, distribution previews, validated editor state, and URL encoding. Updating a continuous control preserves its widget identity, focus and scroll position. Human motion controls do not initialize models until an enabled policy is applied.
+
+## Navigating groups
+
+Each page starts with its primary controls open. Click a group header to expand or collapse it, use **Jump to group…** to open and scroll directly to a topic, or use **Expand all / Collapse all** to browse the whole page. Headers show the number of controls inside. Switching pages remembers each page's scroll position. Group visibility is retained in shared URLs; opening, closing or navigating groups does not apply pending settings or regenerate the scene.
+
+- **Cameras:** placement and baseline; perspective lenses; fisheye FOV; fisheye sensor shape and distortion; optical-center variation; trajectories and timing; advanced visibility, spacing and overlap sampling. Ceiling mounting exposes its own clearance controls and hides inapplicable travel controls.
+- **Materials & light:** surfaces, lighting and exposure, and rendering quality are separate groups.
+- **People & motion:** population, human trajectories, model quality, behavior sampling and custom trajectories are separate from furnishing selection, travel limits and fan speed. Model controls appear only when supported and enabled.
+- **View & playback:** viewport and annotation selection, depth and glass, overlays, playback, editor navigation, optical flow and the co-visibility legend. Schematic mode hides controls that cannot affect its drawing.
+- **Capture & tools:** capture resolution and timesteps come first; voxel export, full configuration, detailed policy JSON and qualification evidence are collapsed until needed.
+
+The navigation layer in `src/app/editor/navigation.rs` retains controls when groups fold, so slider drags, text drafts and keyboard focus do not require rebuilding the UI. Stable group keys are independent of visible titles. Older links using `ADVANCED RIG`, `PROMPT DISTRIBUTION` or `OPTICAL FLOW` remain readable. The serialized page key for **Capture & tools** remains `advanced`.
+
+For a bounded native visual review (one room, including a compact window), run:
+
+```sh
+cargo run --example review_studio -- out/studio_review --groups
+```
 
 ## Table belongings
 

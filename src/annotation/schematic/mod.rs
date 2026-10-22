@@ -6,10 +6,12 @@
 //! neighboring rooms are omitted; furniture bounds may overestimate its mesh.
 mod export;
 pub use export::Document;
+mod camera;
+pub(crate) use camera::camera_gizmo;
 mod scene;
 mod svg;
 #[cfg(feature = "viewer")]
-pub(crate) use svg::{camera_footprint, color as camera_color};
+pub(crate) use svg::color as camera_color;
 #[cfg(test)]
 mod tests;
 use bevy::prelude::*;
@@ -36,7 +38,8 @@ pub enum FootprintKind {
 }
 
 /// Camera convention matches `View::world_from_view`: column-major, -Z forward,
-/// +Y up. Lens footprints project the optical center and a finite image plane.
+/// +Y up. Pinhole footprints project a finite image plane; fisheye footprints
+/// project calibrated unit rays at a finite display range. Neither is visibility.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Camera {
     pub label: String,

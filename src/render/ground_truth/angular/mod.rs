@@ -30,6 +30,32 @@ pub(super) struct Prepared {
     targets: [TextureId; 2],
 }
 
+fn matches_stamp(
+    stamp: &Option<(u64, Vec<u8>)>,
+    geometry: &ExtractedGeometry,
+    bytes: &[u8],
+) -> bool {
+    stamp
+        .as_ref()
+        .is_some_and(|(g, b)| *g == geometry.generation && b == bytes)
+}
+
+fn advance_unchanged_skin(
+    stamp: &mut Option<(u64, Vec<u8>)>,
+    geometry: &ExtractedGeometry,
+    instance_bytes: &[u8],
+) {
+    if let Some((generation, bytes)) = stamp.as_mut() {
+        if bytes == instance_bytes
+            && geometry.deformation.as_ref().is_some_and(|update| {
+                update.base_generation == *generation && update.ranges.is_empty()
+            })
+        {
+            *generation = geometry.generation;
+        }
+    }
+}
+
 pub(super) fn install(app: &mut App) {
     flow::install(app);
     load_internal_asset!(app, SHADER, "trace.wgsl", |source: &str, path| {
@@ -58,7 +84,9 @@ pub(super) fn prepare(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     images: Res<RenderAssets<GpuImage>>,
+    diagnostics: Res<GroundTruthDiagnostics>,
 ) {
+    let instance_bytes = bytemuck::cast_slice::<_, u8>(&geometry.instances);
     if !cameras
         .iter()
         .any(|(_, c, _, _)| c.calibration.as_ref().is_some_and(|l| l.fisheye.is_some()))
@@ -101,11 +129,11 @@ pub(super) fn prepare(
         });
         state.pipeline = Some((id, cache.get_bind_group_layout(&layout)));
     }
-    let instance_bytes = bytemuck::cast_slice::<_, u8>(&geometry.instances);
-    let changed = state
-        .stamp
-        .as_ref()
-        .is_none_or(|(g, b)| *g != geometry.generation || b != instance_bytes);
+    // A new capture epoch can refresh skinning without changing any vertex.
+    // Carry the certified empty update forward, as the raster/flow paths do.
+    // Otherwise a static human rebuilds the entire room BVH at every capture.
+    advance_unchanged_skin(&mut state.stamp, &geometry, instance_bytes);
+    let changed = !matches_stamp(&state.stamp, &geometry, instance_bytes);
     if changed {
         let bytes = geometry.indices.len() / 3 * std::mem::size_of::<bvh::Triangle>();
         if bytes > device.limits().max_storage_buffer_binding_size as usize {
@@ -114,7 +142,17 @@ pub(super) fn prepare(
             }
             return;
         }
+        let started = std::time::Instant::now();
         let (triangles, nodes) = bvh::build(&geometry);
+        let seconds = started.elapsed().as_secs_f64();
+        {
+            let mut stats = diagnostics.0.lock().unwrap();
+            stats.angular_bvh_builds += 1;
+            stats.angular_bvh_build_seconds += seconds;
+            stats.angular_uploaded_bytes += (triangles.len() * std::mem::size_of::<bvh::Triangle>()
+                + nodes.len() * std::mem::size_of::<bvh::Node>())
+                as u64;
+        }
         let buffer = |label, data: &[u8]| {
             super::super::upload_buffer(
                 &device,
@@ -210,6 +248,14 @@ pub(super) fn render(
     prepared: Option<&Prepared>,
 ) -> bool {
     let state = world.resource::<State>();
+    let geometry = world.resource::<ExtractedGeometry>();
+    if !matches_stamp(
+        &state.stamp,
+        geometry,
+        bytemuck::cast_slice(&geometry.instances),
+    ) {
+        return false;
+    }
     let (Some((id, _)), Some(prepared), Some(lens)) =
         (&state.pipeline, prepared, &camera.calibration)
     else {
@@ -236,4 +282,40 @@ pub(super) fn render(
         1,
     );
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn only_an_exact_noop_skin_update_can_reuse_the_acceleration_tree() {
+        for (base, ranges, instances, reusable) in [
+            (7, vec![], vec![1_u8, 2], true),
+            (6, vec![], vec![1, 2], false),
+            (7, std::iter::once(0..3).collect(), vec![1, 2], false),
+            (7, vec![], vec![1, 3], false),
+        ] {
+            let mut stamp = Some((7, vec![1, 2]));
+            let geometry = ExtractedGeometry {
+                generation: 8,
+                deformation: Some(super::super::deformation::VertexUpdate {
+                    base_generation: base,
+                    ranges,
+                }),
+                ..default()
+            };
+            advance_unchanged_skin(&mut stamp, &geometry, &instances);
+            assert_eq!(stamp.unwrap().0, if reusable { 8 } else { 7 });
+        }
+        let mut stamp = Some((7, vec![1, 2]));
+        advance_unchanged_skin(
+            &mut stamp,
+            &ExtractedGeometry {
+                generation: 8,
+                ..default()
+            },
+            &[1, 2],
+        );
+        assert_eq!(stamp.unwrap().0, 7, "topology updates cannot reuse a tree");
+    }
 }

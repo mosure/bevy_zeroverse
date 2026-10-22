@@ -201,6 +201,7 @@ struct Jobs(Vec<Job>);
 fn extract(
     mut jobs: ResMut<Jobs>,
     mode: Extract<Res<RenderMode>>,
+    config: Extract<Res<crate::app::BevyZeroverseConfig>>,
     cameras: Extract<
         Query<(
             &SsaaCamera,
@@ -225,7 +226,11 @@ fn extract(
             source,
             factor: filter_factor(&mode, copier.is_some() || angular, ssaa.factor),
             normal: **mode == RenderMode::Normal && copier.is_none(),
-            active: camera.is_active,
+            active: crate::sample::camera_activity::render_active(
+                &config,
+                camera.is_active,
+                copier,
+            ),
             request: copier.map_or(0, |c| c.requested_id()),
         });
     }

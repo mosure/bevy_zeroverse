@@ -67,6 +67,7 @@ fn point(
 }
 pub fn run() {
     let narrow = std::env::args().any(|a| a == "--narrow");
+    let wide = std::env::args().any(|a| a == "--wide");
     let assets = tempfile::tempdir().unwrap();
     setup_globals(Some(assets.path().to_string_lossy().into_owned()));
     let mut app = create_app(
@@ -135,7 +136,7 @@ pub fn run() {
             moving_box = Some(entity);
         }
     }
-    let size = [97, 73];
+    let size = if wide { [129, 65] } else { [97, 73] };
     let dimensions = Extent3d {
         width: size[0],
         height: size[1],
@@ -143,8 +144,16 @@ pub fn run() {
     };
     let angular = Fisheye {
         coefficients: [-0.03, 0.002, 0.00001, 0.],
-        max_angle: if narrow { 45_f32 } else { 105_f32 }.to_radians(),
+        max_angle: if narrow {
+            45_f32
+        } else if wide {
+            70_f32
+        } else {
+            105_f32
+        }
+        .to_radians(),
     };
+    let all_angular = std::env::args().any(|a| a == "--all-angular");
     let calibrations = [
         angular
             .calibration(size, FisheyeFit::Elliptical, [0.03, -0.02], 1.03)
@@ -152,8 +161,19 @@ pub fn run() {
         angular
             .calibration(size, FisheyeFit::Diagonal, [-0.05, 0.04], 0.98)
             .unwrap(),
-        CameraCalibration::centered_pinhole(size[0], size[1], 1.2, size[0] as f32 / size[1] as f32)
-            .unwrap(),
+        if all_angular {
+            angular
+                .calibration(size, FisheyeFit::Diagonal, [0.; 2], 0.98)
+                .unwrap()
+        } else {
+            CameraCalibration::centered_pinhole(
+                size[0],
+                size[1],
+                1.2,
+                size[0] as f32 / size[1] as f32,
+            )
+            .unwrap()
+        },
     ];
     let mut poses = [
         Transform::IDENTITY,
@@ -197,15 +217,17 @@ pub fn run() {
                     bevy_zeroverse::render::RenderMode::Color.tonemapping(),
                     bevy_zeroverse::render::RenderMode::Color.msaa(),
                     ZeroverseCamera {
-                        fisheye: (i < 2).then_some(bevy_zeroverse::calibration::FisheyeSensor {
-                            lens: angular,
-                            fit: if i == 0 {
-                                FisheyeFit::Elliptical
-                            } else {
-                                FisheyeFit::Diagonal
+                        fisheye: (i < 2 || all_angular).then_some(
+                            bevy_zeroverse::calibration::FisheyeSensor {
+                                lens: angular,
+                                fit: if i == 0 {
+                                    FisheyeFit::Elliptical
+                                } else {
+                                    FisheyeFit::Diagonal
+                                },
+                                anisotropy: if i == 0 { 1.03 } else { 0.98 },
                             },
-                            anisotropy: if i == 0 { 1.03 } else { 0.98 },
-                        }),
+                        ),
                         principal_point_offset: match i {
                             0 => Vec2::new(0.03, -0.02),
                             1 => Vec2::new(-0.05, 0.04),
@@ -245,6 +267,17 @@ pub fn run() {
     for stamp in 1..=3 {
         for _ in 0..5 {
             app.update();
+        }
+        if wide {
+            let lens = app
+                .world()
+                .get::<bevy_zeroverse::camera::lens::LensCamera>(cameras[1])
+                .unwrap();
+            assert_eq!(
+                lens.face_regions().iter().filter(|r| r.width() > 0).count(),
+                3,
+                "the wide diagonal sensor must exercise omitted pole views"
+            );
         }
         for c in &copiers {
             c.request(stamp);
@@ -406,6 +439,23 @@ pub fn run() {
             *app.world_mut().get_mut::<Transform>(*e).unwrap() = poses[i];
         }
     }
+    let stats = app
+        .world()
+        .resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>()
+        .snapshot();
+    if all_angular {
+        assert_eq!(
+            stats.geometry_uploads, 0,
+            "no unused raster geometry uploads"
+        );
+        assert_eq!(
+            stats.flow_uploaded_bytes, 0,
+            "no unused raster correspondence uploads"
+        );
+        assert!(stats.angular_bvh_builds > 0 && stats.angular_uploaded_bytes > 0);
+    } else {
+        assert!(stats.geometry_uploads > 0 && stats.flow_uploaded_bytes > 0);
+    }
     assert!(max_position < 0.001, "position {max_position}");
     assert!(max_flow < 0.01, "flow {max_flow}");
     assert!(compared > 5000);
@@ -418,6 +468,6 @@ pub fn run() {
     assert!(cov_compared > 5000);
     assert_eq!(cov_wrong, 0, "co-visibility mismatch away from silhouettes");
     std::fs::create_dir_all("out/fisheye").unwrap();
-    std::fs::write(if narrow { "out/fisheye/analytic-narrow.json" } else { "out/fisheye/analytic.json" },serde_json::to_vec_pretty(&serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"position_max_metres":max_position,"flow_max_pixels":max_flow,"flow_correspondences":compared,"co_visibility_relations":cov_compared,"co_visibility_mismatches":cov_wrong,"mixed_lenses":true,"single_face_case":narrow,"rgb_core_pixels":rgb_compared,"rgb_core_mismatches":rgb_wrong,"rgb_foreground_pixels":rgb_foreground,"moving_occluder_metres_per_step":0.08,"size":size})).unwrap()).unwrap();
+    std::fs::write(if wide { "out/fisheye/analytic-wide.json" } else if all_angular { "out/fisheye/analytic-all-angular.json" } else if narrow { "out/fisheye/analytic-narrow.json" } else { "out/fisheye/analytic.json" },serde_json::to_vec_pretty(&serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"position_max_metres":max_position,"flow_max_pixels":max_flow,"flow_correspondences":compared,"co_visibility_relations":cov_compared,"co_visibility_mismatches":cov_wrong,"mixed_lenses":!all_angular,"geometry_work":stats,"single_face_case":narrow,"omitted_poles_case":wide,"rgb_core_pixels":rgb_compared,"rgb_core_mismatches":rgb_wrong,"rgb_foreground_pixels":rgb_foreground,"moving_occluder_metres_per_step":0.08,"size":size})).unwrap()).unwrap();
     println!("Analytic fisheye: max position {max_position:.8}m, max flow {max_flow:.6}px over {compared} correspondences; {cov_compared} co-visibility relations, {cov_wrong} mismatches");
 }

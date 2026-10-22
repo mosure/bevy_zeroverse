@@ -220,7 +220,12 @@ still describes the final pixel center.
 
 RGB uses co-located perspective faces with overlapping guard bands, followed by
 a GPU angular resolve. The supported angular domain needs at most five faces;
-narrow lenses contained within the front face use one. Face texel density
+narrow lenses contained within the front face use one. Conservative interval
+bounds omit side faces that cannot contribute to the actual calibrated sensor,
+and crop the remaining faces while preserving the original source texel lattice,
+postprocess context and directional-shadow coverage. For example, a centered
+140-degree diagonal lens on a 16:9 sensor needs three source views; a circular
+lens with the same angular diameter still needs five. Face texel density
 accounts for the angular mapping and SSAA. Face views share scene assets,
 lighting, exposure and time. They follow the logical camera's activity gate,
 including idle/readback intervals.
@@ -236,10 +241,24 @@ path-traced lighting solution.
 
 Metric annotations trace final camera rays against the authoritative annotation
 triangles, including moving/skinned geometry and the selected glass policy.
-A deterministic balanced BVH is shared by all nonlinear views and retained
-while geometry/transforms are unchanged. Temporal flow traces the preceding
-capture's surface and carries its barycentric correspondence forward. Render
-frame frequency does not select the capture endpoints.
+A deterministic BVH is shared by all nonlinear views and retained while
+geometry/transforms are unchanged. Fixed-bin surface-area splits isolate large
+walls/floors from small props; bounded median fallback protects traversal depth.
+Large native builds partition bounded subtree jobs on Bevy's existing compute
+pool, including cooperative execution for small or saturated thread budgets.
+Wasm retains serial construction. Certified empty skin updates retain the tree.
+All-fisheye rigs avoid uploading unused pinhole geometry/flow buffers; mixed rigs
+prepare both paths. Independent annotation preparation can run concurrently.
+All capture completion and exact-geometry checks remain in force.
+Temporal flow traces the preceding capture's surface and carries its barycentric
+correspondence forward. Render frame frequency does not select the endpoints.
+
+Native headless capture checks scene assets and pipelines both before drawing
+and before accepting that draw. A late pipeline compilation cannot qualify a
+skipped pass. An extraction-time submission check suppresses already-copied
+views, including their fisheye sources, when pipelined rendering finishes after
+the main-world camera activity check. The next capture epoch restores normal
+extraction. Unsupported temporal shading retains conservative settling.
 
 Co-visibility projects each source surface into the target camera's actual
 angular domain, then applies the existing first-surface/tangent-plane occlusion
@@ -268,6 +287,59 @@ intersections, skip its unused Core3d passes, and disable the auxiliary RGB
 views. Returning to color restores the original render schedule. Hidden camera
 grids also stop preview requests and resolve uploads. Trajectory updates reuse
 the source allocations and projection bounds.
+
+Interactive grid RGB sources follow the physical tile size, including display
+scale and the configured SSAA policy. This avoids rendering full-window-density
+cube faces for small thumbnails. The calibrated output dimensions, lens,
+projection bounds and shadow-cascade coverage remain fixed. Enabling sampling or
+attaching an image copier restores full source density before camera extraction;
+headless capture never uses thumbnail density. Numeric annotations are unchanged.
+
+The browser release profile optimizes for execution speed: size-only optimization
+is particularly expensive in the render/ECS loops repeated for each fisheye face.
+WebGPU reuses bounded light-cluster buffers with the same CPU light assignment and
+packing as capture. This avoids allocating and mapping two buffers per active
+source view on every frame without changing lighting or shadow quality.
+Ordinary WebGPU mesh draws also bind Bevy's existing mesh groups without querying
+all device limits for each draw. Skinning, morph targets and lightmaps use Bevy's
+original command. Draw IDs, shaders, geometry and shadow passes are preserved;
+this optimization requires no patched dependencies.
+
+Interactive fisheye grids batch compatible opaque shadow casters within each
+rigid procedural object. The batches copy the original positions, normals and
+indices exactly and keep the same parent transform. RGB still uses the original
+meshes and materials. Transparent, skinned and articulated parts remain separate.
+Batches use a private render layer; a conflicting application layer disables the
+optimization. Mesh edits and visibility changes rebuild the affected batch set,
+and memory is bounded by vertex and index budgets. Capture or annotation mode
+restores the original casters; batch meshes never enter exported geometry.
+
+The preview also budgets CPU light-cluster cells across the logical camera count
+(1,024 for one camera, down to 256 for four or more). These are conservative
+culling cells, not fewer lights or lower-quality shading. Light order, shadow
+resolution and PBR shaders stay unchanged. Custom cluster policies, capture and
+scenes with more than 64 clustered lights/probes/decals retain their original
+configuration. The policy is tested against float RGB attachments, with a
+shadow-off control to detect stale or ineffective validation captures.
+
+For Chrome grid presentation measurements, serve a built `www` directory and run:
+
+```sh
+node scripts/bench_camera_grid.mjs \
+  '--url=http://127.0.0.1:8000/?scene_type=procedural-indoor&indoor_seed=400&indoor_human_density=0&num_cameras=4&camera_grid=true&camera.lenses.probability=1&width=1280&height=720&gizmos=false&regenerate_ms=0' \
+  --wasm=www/out/viewer_bg.wasm --output=out/grid-fisheye.json
+```
+
+Repeat with lens probability `0` for the perspective control. This keeps the room
+seed but may change lens-aware pose admission; it is not an identical-pose test.
+The harness requires a hardware WebGPU adapter, warms pipelines, measures an
+eight-second presentation interval, records pass/draw/allocation counts and saves
+a screenshot. Use `--dpr=2` to check HiDPI, `--profile` for a CPU profile, and
+`playback_mode=Still` for visual comparisons. `--exercise-layout` additionally
+resizes the grid and verifies that rendering continues without WebGPU errors.
+Keep one viewer active at a time.
+Use `--timing-only` to omit per-draw instrumentation from a timing confirmation.
+Record concurrent workloads; these numbers do not measure capture throughput.
 
 For a bounded continuous-view workload (distinct from whole-room generation):
 
@@ -385,3 +457,23 @@ For downstream models, known-intrinsics rectification remains a useful baseline.
 Native fisheye training should condition on calibrated rays (and validity), not
 assume straight epipolar lines or a single perspective matrix. The broader
 roadmap and rectification tradeoffs are in [the lens roadmap](fisheye_lens_roadmap.md).
+
+
+Native completed-capture qualification uses an explicit warmup population,
+matched room geometry/poses, and full native quality:
+
+```sh
+cargo run --example validate_fisheye -- --bench --warmup=4 --rooms=4 --steps=1 --size=512 --cameras=3 --output=out/native-fisheye
+cargo run --example validate_fisheye -- --bench --warmup=4 --rooms=4 --steps=1 --size=512 --cameras=3 --pinhole --matched --output=out/native-pinhole
+```
+
+Repeat in reversed order alongside the same training workload. Add `--rgb-only`
+to isolate color generation. Timings include construction, rendering and completed
+CPU readback, excluding PNG encoding and application startup; these are not
+Burn consumer or display-FPS measurements. Reports include exact geometry counters,
+angular acceleration construction time/upload bytes, application frame counts,
+and settling-fence counts. Source views and numeric annotation targets retain
+full quality; a lower intermediate resolution is not used to claim capture parity.
+The analytic `--fixture` (mixed lenses), `--fixture --all-angular`,
+`--fixture --narrow` and `--lighting-fixture` checks cover correspondence,
+co-visibility, surface alignment and lighting independently of throughput.

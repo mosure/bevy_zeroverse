@@ -29,6 +29,12 @@ pub struct LensCamera {
     pub far: f32,
     pub(super) face_scale: f32,
     pub(super) regions: [URect; 6],
+    /// Full capture density. Interactive grid thumbnails may use smaller RGB
+    /// intermediates; calibration and final annotation targets never change.
+    #[cfg_attr(not(feature = "viewer"), allow(dead_code))]
+    pub(super) native_side: u32,
+    #[cfg_attr(not(feature = "viewer"), allow(dead_code))]
+    pub(super) native_factor: u32,
     pub(super) completed: Arc<AtomicU64>,
 }
 impl LensCamera {
@@ -50,6 +56,8 @@ impl LensCamera {
             far: 50.,
             face_scale: 1.,
             regions: [URect::from_corners(UVec2::ZERO, UVec2::splat(32)); 6],
+            native_side: 32,
+            native_factor: 1,
             completed: Arc::default(),
         }
     }
@@ -93,6 +101,10 @@ impl Plugin for FisheyeCameraPlugin {
         super::resolve::install(app);
         super::settings::install(app);
         super::activity::install(app);
+        #[cfg(feature = "viewer")]
+        super::preview::install(app);
+        #[cfg(feature = "viewer")]
+        super::clusters::install(app);
     }
 }
 
@@ -189,7 +201,7 @@ fn setup(
         }
         let source = output.clone();
         let face_scale = core as f32 / side as f32;
-        let regions = super::raster::regions(side, face_scale, sensor.lens.max_angle);
+        let regions = super::raster::sensor_regions(side, face_scale, &calibration);
         let mut make_face = |i: usize| {
             let mut image = source.clone();
             image.data = None;
@@ -205,7 +217,7 @@ fn setup(
         };
         let front = make_face(0);
         let faces = std::array::from_fn(|i| {
-            if i > 0 && i < face_count {
+            if i > 0 && regions[i].width() > 0 {
                 make_face(i)
             } else {
                 front.clone()
@@ -226,6 +238,7 @@ fn setup(
             .enumerate()
             .take(face_count)
             .skip(1)
+            .filter(|(i, _)| regions[*i].width() > 0)
         {
             let mut face = commands.spawn((
                 (
@@ -271,6 +284,8 @@ fn setup(
                 far,
                 face_scale,
                 regions,
+                native_side: side,
+                native_factor: factor,
                 completed: Arc::default(),
             },
             Projection::Perspective(perspective),

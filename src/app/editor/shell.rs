@@ -63,15 +63,26 @@ fn bar(world: &mut World, root: Entity, top: bool) -> Entity {
         .id()
 }
 pub(super) fn build(world: &mut World, state: &EditorState) {
-    let mut scroll_position = ScrollPosition::default();
+    world.init_resource::<navigation::Navigation>();
     if let Some(old) = world.remove_resource::<Shell>() {
-        if old.page == state.view.page {
-            if let Some(position) = old.scroll.and_then(|e| world.get::<ScrollPosition>(e)) {
-                scroll_position = position.clone();
-            }
+        if let Some(position) = old
+            .scroll
+            .and_then(|e| world.get::<ScrollPosition>(e))
+            .cloned()
+        {
+            world
+                .resource_mut::<navigation::Navigation>()
+                .positions
+                .insert(old.page, position);
         }
         world.entity_mut(old.root).despawn();
     }
+    let scroll_position = world
+        .resource::<navigation::Navigation>()
+        .positions
+        .get(&state.view.page)
+        .cloned()
+        .unwrap_or_default();
     let root = world
         .spawn((
             Node {
@@ -140,8 +151,8 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     width: px(PANEL),
                     max_width: percent(100),
                     flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(px(16)),
-                    row_gap: px(12),
+                    padding: UiRect::all(px(12)),
+                    row_gap: px(8),
                     border: UiRect::right(px(1)),
                     ..default()
                 },
@@ -179,7 +190,9 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                 page == state.view.page,
             );
         }
-        widgets::text(world, panel, state.view.page.intro(), 12., MUTED);
+        widgets::text(world, panel, state.view.page.intro(), 11.5, MUTED);
+        let groups = navigation::groups(state);
+        navigation::toolbar(world, panel, &groups);
         error = widgets::text(world, panel, "", 12., Color::srgb(1., 0.58, 0.4));
         let scroll_row = world
             .spawn((
@@ -202,8 +215,8 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                     min_height: px(0),
                     overflow: Overflow::scroll_y(),
                     flex_direction: FlexDirection::Column,
-                    row_gap: px(14),
-                    padding: UiRect::right(px(8)),
+                    row_gap: px(8),
+                    padding: UiRect::right(px(4)),
                     ..default()
                 },
                 ScrollArea,
@@ -217,112 +230,32 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
             Node {width:px(8),min_width:px(8),height:percent(100)}
             ChildOf(scroll_row)
         }).expect("panel scrollbar");
-        let mut hidden_section = false;
-        for item in fields::items(state) {
-            if hidden_section && !matches!(item, fields::Item::Section(..)) {
-                continue;
-            }
-            match item {
-                fields::Item::Section(title, help) => {
-                    let collapsible = matches!(
-                        title,
-                        "ADVANCED RIG" | "PROMPT DISTRIBUTION" | "OPTICAL FLOW"
-                    );
-                    hidden_section = collapsible && !state.view.expanded.contains(title);
-                    if collapsible {
-                        widgets::button(
-                            world,
-                            scroll,
-                            &format!("{}  {}", if hidden_section { ">" } else { "v" }, title),
-                            Action::Section(title.into()),
-                            false,
-                        );
+        for group in groups {
+            let body = navigation::card(world, scroll, &group, state);
+            for item in group.items {
+                match item {
+                    fields::Item::Section(_) => unreachable!("sections partitioned into groups"),
+                    fields::Item::Field(field) => widgets::control(world, body, field, state),
+                    fields::Item::Distribution(kind) => {
+                        distribution_preview::build(world, body, kind)
                     }
-                    if hidden_section {
-                        continue;
+                    fields::Item::Note(note) => {
+                        widgets::text(world, body, note, 12., MUTED);
                     }
-
-                    let section = widgets::column(world, scroll, 5.);
-                    world.entity_mut(section).insert(Node {
-                        width: percent(100),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(5),
-                        padding: UiRect::top(px(10)),
-                        border: UiRect::top(px(1)),
-                        flex_shrink: 0.,
-                        ..default()
-                    });
-                    world
-                        .entity_mut(section)
-                        .insert(BorderColor::all(Color::srgb(0.16, 0.20, 0.25)));
-                    widgets::text(world, section, title, 11., ACCENT);
-                    widgets::text(world, section, help, 11.5, MUTED);
-                }
-                fields::Item::Field(field) => widgets::control(world, scroll, field, state),
-                fields::Item::Distribution(kind) => {
-                    distribution_preview::build(world, scroll, kind);
-                }
-                fields::Item::Note(note) => {
-                    widgets::text(world, scroll, note, 12., MUTED);
-                }
-                fields::Item::CapacityEvidence => {
-                    let entity = widgets::text(world, scroll, state.capacity_status(), 12., MUTED);
-                    world.entity_mut(entity).insert(CapacityEvidence);
-                }
-            }
-        }
-        if matches!(state.view.page, Page::Scene | Page::Advanced)
-            && matches!(
-                state.draft["scene_type"].as_str(),
-                Some("Object" | "Room" | "SemanticRoom")
-            )
-        {
-            widgets::button(world, scroll, "Geometry controls", Action::Debug, false);
-        }
-        if state.view.page == Page::People
-            && cfg!(feature = "human_motion")
-            && !state.draft["human_motion"].is_null()
-        {
-            widgets::button(
-                world,
-                scroll,
-                "Play motion at model speed",
-                Action::ModelSpeed,
-                false,
-            );
-        }
-        if state.view.page == Page::View && state.draft["room_schematic"] != true {
-            if let Some(legend) =
-                world.get_resource::<crate::render::co_visibility::CoVisibilityLegend>()
-            {
-                let indices = legend.camera_indices.clone();
-                if !indices.is_empty() {
-                    widgets::text(world, scroll, "CO-VISIBILITY MEMBERSHIP", 11., ACCENT);
-                    for (bit, index) in indices.iter().enumerate().take(16) {
-                        let rgb =
-                            crate::render::co_visibility::camera_color(bit, indices.len().min(16));
-                        let row = row(world, scroll);
-                        world.spawn((
-                            Node {
-                                width: px(20),
-                                height: px(12),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb_u8(rgb[0], rgb[1], rgb[2])),
-                            ChildOf(row),
-                        ));
-                        widgets::text(
-                            world,
-                            row,
-                            format!("View {index} · bit 0x{:04X}", 1u16 << bit),
-                            12.,
-                            INK,
-                        );
+                    fields::Item::CapacityEvidence => {
+                        let entity =
+                            widgets::text(world, body, state.capacity_status(), 12., MUTED);
+                        world.entity_mut(entity).insert(CapacityEvidence);
                     }
+                    fields::Item::Action(label, action) => {
+                        widgets::button(world, body, label, action, false);
+                    }
+                    fields::Item::CoVisibilityLegend => navigation::legend(world, body),
                 }
             }
         }
     }
+
     world.insert_resource(Shell {
         root,
         scroll: scroll_entity,

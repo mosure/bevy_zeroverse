@@ -12,7 +12,10 @@ use pyo3::prelude::*;
 use crate::primitive::process_primitives;
 
 mod annotation_material;
-#[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "wasm32",
+    all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")
+))]
 mod cluster_cache;
 pub mod co_visibility;
 pub mod color;
@@ -23,11 +26,15 @@ mod material_aliases;
 pub mod normal;
 pub mod optical_flow;
 pub mod position;
+#[cfg(feature = "viewer")]
+mod preview_shadows;
 pub mod residency;
 pub mod semantic;
 pub mod ssaa;
 #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
 mod upload;
+#[cfg(any(target_arch = "wasm32", test))]
+mod webgpu_mesh;
 
 /// Upload through queue staging instead of CPU-writing a mapped device-local
 /// allocation. Large mapped-at-creation copies can stall on discrete GPUs.
@@ -154,6 +161,10 @@ impl Plugin for RenderPlugin {
 
     fn finish(&self, app: &mut App) {
         material_aliases::install(app);
+        #[cfg(feature = "viewer")]
+        preview_shadows::install(app);
+        #[cfg(target_arch = "wasm32")]
+        webgpu_mesh::install(app);
         // GPU clustering appends lights with atomics, so floating point lighting
         // accumulation can vary between identical captures. Use the same stable
         // light assignment in interactive and dataset views, including WebGPU.
@@ -167,8 +178,12 @@ impl Plugin for RenderPlugin {
         #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
         {
             upload::install(app);
-            cluster_cache::install(app);
         }
+        #[cfg(any(
+            target_arch = "wasm32",
+            all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")
+        ))]
+        cluster_cache::install(app);
     }
 }
 

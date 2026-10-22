@@ -88,6 +88,7 @@ fn main() {
     let pinhole = args.iter().any(|a| a == "--pinhole");
     let matched = args.iter().any(|a| a == "--matched");
     let rgb_only = args.iter().any(|a| a == "--rgb-only");
+    let mixed = args.iter().any(|a| a == "--mixed");
     let ceiling = args.iter().any(|a| a == "--ceiling");
     let output = PathBuf::from(option("output").unwrap_or_else(|| "out/fisheye".into()));
     std::fs::create_dir_all(&output).unwrap();
@@ -96,7 +97,7 @@ fn main() {
             .lenses
     } else {
         LensSampling {
-            probability: 1.,
+            probability: if mixed { 0.5 } else { 1. },
             ..default()
         }
     };
@@ -187,6 +188,7 @@ fn main() {
     );
     let steps: u32 = option("steps").map(|v| v.parse().unwrap()).unwrap_or(2);
     let seed_start: u64 = option("seed").map(|v| v.parse().unwrap()).unwrap_or(400);
+    let warmup: u64 = option("warmup").map(|v| v.parse().unwrap()).unwrap_or(0);
     let mut camera_policy = bevy_zeroverse::scene::procedural_indoor::cameras::CameraSettings {
         lenses: if pinhole && !matched {
             None
@@ -235,6 +237,9 @@ fn main() {
         ..default()
     };
     let mut app = create_app(None, Some(config.clone()), false);
+    if args.iter().any(|a| a == "--diagnostics") {
+        app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    }
     if pinhole && matched {
         // Both workloads sample/admit exactly the same trajectories with the
         // same lens prior. Only the capture projection changes for the control.
@@ -248,9 +253,25 @@ fn main() {
     }
     app.finish();
     app.cleanup();
+    let reference_settling = args.iter().any(|a| a == "--reference-settling");
+    if reference_settling {
+        // A full-target explicit viewport renders the same pixels but opts out
+        // of the specialized no-viewport capture fence. Preserve headless light
+        // origins, quality and activity gating; only settling becomes conservative.
+        app.add_systems(
+            PostUpdate,
+            full_target_viewports
+                .after(bevy::camera::CameraUpdateSystems)
+                .before(bevy::camera::visibility::VisibilitySystems::CheckVisibility),
+        );
+    }
     let mut timings = Vec::new();
-    for seed in seed_start..seed_start + rooms {
+    for (iteration, seed) in (seed_start..seed_start + warmup)
+        .chain(seed_start..seed_start + rooms)
+        .enumerate()
+    {
         let start = Instant::now();
+        let first_frame = app.world().resource::<bevy::diagnostic::FrameCount>().0;
         reset_indoor_sequence(app.world_mut(), seed);
         app.world_mut().write_message(RegenerateSceneEvent);
         app.update();
@@ -279,11 +300,53 @@ fn main() {
         };
         let elapsed = start.elapsed().as_secs_f64();
         println!("seed {seed}: {elapsed:.3}s");
+        if iteration < warmup as usize {
+            continue;
+        }
+        let frames = app.world().resource::<bevy::diagnostic::FrameCount>().0 - first_frame;
+        let settling_counts = [
+            "capture/settling_fence/prepared_count",
+            "capture/settling_fence/rendered_count",
+            "capture/settling_fence/hit_count",
+        ]
+        .map(|path| {
+            app.world()
+                .get_resource::<bevy::diagnostic::DiagnosticsStore>()
+                .and_then(|d| d.get(&bevy::diagnostic::DiagnosticPath::const_new(path)))
+                .and_then(|d| d.value())
+        });
+        if reference_settling {
+            assert!(
+                settling_counts.iter().all(|v| v.is_none_or(|v| v == 0.)),
+                "reference must never use the fast capture fence: {settling_counts:?}"
+            );
+        }
         let mut measurements = Vec::new();
         for (view_id, view) in sample.views.iter().enumerate() {
+            if args.iter().any(|a| a == "--raw") {
+                for (mode, bytes) in [
+                    ("rgb", &view.color),
+                    ("depth", &view.depth),
+                    ("normal", &view.normal),
+                    ("semantic", &view.semantic),
+                    ("position", &view.position),
+                    ("flow", &view.optical_flow),
+                    ("co_visibility", &view.co_visibility),
+                ] {
+                    if !bytes.is_empty() {
+                        std::fs::write(
+                            output.join(format!("room_{seed}_view_{view_id}_{mode}.rgba32f")),
+                            bytes,
+                        )
+                        .unwrap();
+                    }
+                }
+            }
             let c = view.calibration.as_ref().unwrap();
             c.validate().unwrap();
-            assert_eq!(c.fisheye.is_none(), pinhole);
+            if !mixed || pinhole {
+                assert_eq!(c.fisheye.is_none(), pinhole);
+            }
             let read = |bytes: &[u8]| {
                 bytes
                     .as_chunks::<16>()
@@ -411,9 +474,13 @@ fn main() {
         } else {
             None
         };
-        timings.push(serde_json::json!({"seed":seed,"seconds":elapsed,"views":sample.views.len(),"measurements":measurements,"ceiling_visibility_oracle":ceiling_visibility,"fixed_timeline":fixed_timeline,"metadata":sample.indoor_render_metadata,"overlap":bevy_zeroverse::sample::qualification::rendered_overlap(&sample.views,config.num_cameras,sample.aabb)}));
+        let geometry = app
+            .world()
+            .resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>()
+            .snapshot();
+        timings.push(serde_json::json!({"seed":seed,"seconds":elapsed,"frames":frames,"settling_counts":settling_counts,"views":sample.views.len(),"measurements":measurements,"ceiling_visibility_oracle":ceiling_visibility,"fixed_timeline":fixed_timeline,"geometry_work":geometry,"metadata":sample.indoor_render_metadata,"overlap":bevy_zeroverse::sample::qualification::rendered_overlap(&sample.views,config.num_cameras,sample.aabb)}));
     }
-    std::fs::write(output.join("protocol.json"),serde_json::to_vec_pretty(&serde_json::json!({"config":config,"provenance":bevy_zeroverse::provenance::capture_provenance(),"adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),"seeds":[seed_start,seed_start+rooms],"concurrent_training":!args.iter().any(|a|a=="--isolated"),"timing":"completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"})).unwrap()).unwrap();
+    std::fs::write(output.join("protocol.json"),serde_json::to_vec_pretty(&serde_json::json!({"config":config,"provenance":bevy_zeroverse::provenance::capture_provenance(),"adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),"seeds":[seed_start,seed_start+rooms],"warmup_rooms":warmup,"reference_settling":reference_settling,"concurrent_training":!args.iter().any(|a|a=="--isolated"),"timing":"completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"})).unwrap()).unwrap();
     std::fs::write(
         output.join("timings.json"),
         serde_json::to_vec_pretty(&timings).unwrap(),
@@ -433,6 +500,25 @@ fn matched_pinhole(
         if let Some(scene) = scene.as_mut() {
             for camera in &mut scene.cameras {
                 camera.fisheye = None;
+            }
+        }
+    }
+}
+
+fn full_target_viewports(
+    images: Res<Assets<Image>>,
+    mut cameras: Query<
+        (&mut Camera, &bevy::camera::RenderTarget),
+        With<bevy_zeroverse::camera::ZeroverseCamera>,
+    >,
+) {
+    for (mut camera, target) in &mut cameras {
+        if let bevy::camera::RenderTarget::Image(target) = target {
+            if let Some(image) = images.get(&target.handle) {
+                camera.viewport = Some(bevy::camera::Viewport {
+                    physical_size: image.size(),
+                    ..default()
+                });
             }
         }
     }

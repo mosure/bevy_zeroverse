@@ -689,6 +689,7 @@ pub mod image_copy {
         );
     }
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::type_complexity)]
     fn image_copy_extract(
         mut copiers: ResMut<ImageCopiers>,
         cameras: Extract<

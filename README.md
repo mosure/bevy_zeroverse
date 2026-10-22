@@ -156,6 +156,9 @@ See the [tensor contract and benchmark](docs/gpu_jit.md).
 Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
+Collapsible task groups and **Jump to group…** keep related controls together;
+each page remembers its scroll position. **Capture & tools** groups output size,
+timesteps and configuration import/export.
 Camera baseline coordinates spacing, shared surfaces and gaze variation across
 the requested camera count. **Moving cameras (%)** selects fixed or moving views
 (default 100%); travel bounds apply to moving cameras while scene animation stays
@@ -168,6 +171,8 @@ enabled explicitly.
 The viewport selector offers **Editor camera**, **Capture grid**,
 and **Room schematic**. Browser links omit default settings while preserving the
 active seed, preview and pending edits.
+Schematics distinguish pinhole and fisheye cameras, including their angular
+coverage and downward-facing ceiling mounts, in the live view and exported diagrams.
 **View & playback → Glass in annotations** selects glass surfaces (default) or
 unrefracted geometry behind glass for depth, normal, position, semantic, optical
 flow and co-visibility. RGB transmission is unchanged. The same policy is available

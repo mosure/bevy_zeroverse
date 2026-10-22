@@ -22,6 +22,20 @@ not indicate measured co-visibility or occlusion. Use the co-visibility annotati
 for that purpose. Plans generated from a manifest alone show person positions;
 captured samples and the viewer show actual skeletons.
 
+Camera labels identify **pinhole** or **fisheye** in both the live schematic and
+SVG/PNG exports. Fisheye markers use a lens ring with a central dot; their label
+also gives the calibrated angular-domain diameter (for example, `fisheye 200°`).
+This is not a pinhole horizontal/vertical FOV. Circular, full-frame and elliptical
+sensors use their actual calibration and valid rays for the curved display hull,
+including rays behind the camera for domains above 180°. Ceiling-facing optical
+axes are labeled `down` (or `up`), since their direction collapses in a top-down
+projection. Prediction overlays retain the same lens markers in dashed magenta.
+The JSON keeps the full versioned calibration and the original camera label.
+Run `cargo run --example schematic -- --lenses` for mixed-room exports and a lens
+comparison diagram. `cargo run --example review_schematic -- --lenses` checks
+the native mixed-lens schematic and saves its screenshot under
+`out/schematic/lens-ui/`.
+
 ## Dataset export
 
 ```sh
@@ -59,7 +73,7 @@ clipped to the map viewport and never expand the ground-truth metric extent.
 Coordinates use world-space metres, +Y up. The view looks down onto X/Z: +X is
 right, +Z down. Camera transforms are column-major `world_from_view`, -Z forward,
 +Y up. Optional full `CameraCalibration` takes precedence over fov/aspect when
-projecting image-plane corners. JSON includes the complete editable scene, overlays, render options and
+projecting image-plane corners or fisheye rays. JSON includes the complete editable scene, overlays, render options and
 `Projection`: `u = scale*x + offset[0]`, `v = scale*z + offset[1]`. Coordinates
 refer to pixel boundaries; pixel centers are `(i+0.5, j+0.5)`. `project` and
 `unproject` supply the exact mapping; unprojection needs an explicit world height.

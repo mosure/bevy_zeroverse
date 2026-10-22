@@ -125,6 +125,7 @@ pub(super) struct FlowHistory {
     /// Both endpoints of the retained pair are the current stationary scene.
     /// A moving -> stationary transition must build a new pair once.
     stationary_pair: bool,
+    pair_kinds: [bool; 2],
 }
 
 #[derive(Resource, Default)]
@@ -271,8 +272,9 @@ pub(super) fn prepare(
     else {
         return;
     };
-    // No pipeline compilation or temporal buffers until flow is actually requested.
-    let pipeline = pipeline.0.get_or_insert_with(|| Pipeline::new(&cache));
+    // Compile and upload only the projection paths requested by the consumer.
+    let has_raster = cameras.iter().any(|(c, _)| !c.is_angular());
+    let pipeline = has_raster.then(|| pipeline.0.get_or_insert_with(|| Pipeline::new(&cache)));
     if stamp.0 != history.stamp.0 {
         let mut angular = std::mem::take(&mut history.angular);
         angular.reset();
@@ -289,7 +291,8 @@ pub(super) fn prepare(
         .as_ref()
         .is_some_and(|snapshot| snapshot.matches(&geometry));
     let current = (!unchanged).then(|| Snapshot::new(&geometry));
-    let reuse = unchanged && history.stationary_pair;
+    let pair_kinds = [has_raster, has_angular];
+    let reuse = unchanged && history.stationary_pair && history.pair_kinds == pair_kinds;
     if !reuse {
         history.angular.set_pair(None);
         history.vertices = None;
@@ -298,41 +301,49 @@ pub(super) fn prepare(
         if let Some(previous) = &history.snapshot {
             let vertices = previous.correspondence(current.as_ref().unwrap_or(previous));
             if !vertices.is_empty() && !previous.indices.is_empty() {
-                let vertex_buffer = super::super::upload_buffer(
-                    &device,
-                    &queue,
-                    &BufferInitDescriptor {
-                        label: Some("flow_vertex_pair"),
-                        contents: bytemuck::cast_slice(&vertices),
-                        usage: BufferUsages::VERTEX,
-                    },
-                );
-                let index_buffer = super::super::upload_buffer(
-                    &device,
-                    &queue,
-                    &BufferInitDescriptor {
-                        label: Some("flow_source_indices"),
-                        contents: bytemuck::cast_slice(&previous.indices),
-                        usage: BufferUsages::INDEX,
-                    },
-                );
+                let vertex_buffer = has_raster.then(|| {
+                    super::super::upload_buffer(
+                        &device,
+                        &queue,
+                        &BufferInitDescriptor {
+                            label: Some("flow_vertex_pair"),
+                            contents: bytemuck::cast_slice(&vertices),
+                            usage: BufferUsages::VERTEX,
+                        },
+                    )
+                });
+                let index_buffer = has_raster.then(|| {
+                    super::super::upload_buffer(
+                        &device,
+                        &queue,
+                        &BufferInitDescriptor {
+                            label: Some("flow_source_indices"),
+                            contents: bytemuck::cast_slice(&previous.indices),
+                            usage: BufferUsages::INDEX,
+                        },
+                    )
+                });
                 let angular_pair = has_angular
                     .then(|| super::angular::flow::pair(previous, &vertices, &device, &queue));
                 history.batches = previous.batches.clone();
                 history.angular.set_pair(angular_pair);
-                history.vertices = Some(vertex_buffer);
-                history.indices = Some(index_buffer);
+                history.vertices = vertex_buffer;
+                history.indices = index_buffer;
                 let mut stats = diagnostics.0.lock().unwrap();
                 stats.flow_pair_uploads += 1;
-                stats.flow_uploaded_bytes += (vertices.len() * std::mem::size_of::<FlowVertex>()
-                    + history.snapshot.as_ref().unwrap().indices.len() * std::mem::size_of::<u32>())
-                    as u64;
+                if has_raster {
+                    stats.flow_uploaded_bytes +=
+                        (vertices.len() * std::mem::size_of::<FlowVertex>()
+                            + history.snapshot.as_ref().unwrap().indices.len()
+                                * std::mem::size_of::<u32>()) as u64;
+                }
             }
         }
     } else {
         diagnostics.0.lock().unwrap().flow_pair_reuses += 1;
     }
     history.stationary_pair = unchanged;
+    history.pair_kinds = pair_kinds;
     history.angular.clear_views();
     let mut views = HashMap::new();
     let mut prepared = HashMap::new();
@@ -390,7 +401,7 @@ pub(super) fn prepare(
             );
             let bindings = device.create_bind_group(
                 "forward_flow_camera",
-                &pipeline.layout,
+                &pipeline.as_ref().unwrap().layout,
                 &BindGroupEntries::sequential((buffer.as_entire_binding(), &target.texture_view)),
             );
             prepared.insert(id, (buffer, bindings));

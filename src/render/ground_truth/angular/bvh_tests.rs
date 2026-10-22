@@ -1,4 +1,59 @@
 use super::*;
+#[path = "bvh_gpu_tests.rs"]
+mod gpu;
+
+#[test]
+fn surface_area_tree_preserves_payloads_bounds_and_bounded_depth() {
+    for count in [0, 1, 8, 9, 73, 1024, 5000] {
+        for coincident in [false, true] {
+            let input = triangles(count, coincident);
+            let (mut actual, nodes) = finish(input.clone());
+            let (replay, replay_nodes) = finish(input.clone());
+            assert_eq!(
+                bytemuck::cast_slice::<_, u8>(&actual),
+                bytemuck::cast_slice::<_, u8>(&replay)
+            );
+            assert_eq!(
+                bytemuck::cast_slice::<_, u8>(&nodes),
+                bytemuck::cast_slice::<_, u8>(&replay_nodes)
+            );
+            let mut stack = if nodes.is_empty() {
+                vec![]
+            } else {
+                vec![(0, 0)]
+            };
+            let mut seen = vec![false; count];
+            while let Some((id, depth)) = stack.pop() {
+                assert!(depth < 48, "GPU traversal stack bound");
+                let n = nodes[id];
+                if n.info[3] == 0 {
+                    for child in &n.info[..2] {
+                        let child = *child as usize;
+                        assert!(child > id && child < nodes.len());
+                        stack.push((child, depth + 1));
+                    }
+                } else {
+                    assert!(n.info[3] <= 8);
+                    for i in n.info[2]..n.info[2] + n.info[3] {
+                        assert!(!seen[i as usize]);
+                        seen[i as usize] = true;
+                        for p in actual[i as usize].p {
+                            for axis in 0..3 {
+                                assert!(p[axis] >= n.lo[axis] && p[axis] <= n.hi[axis]);
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(seen.iter().all(|v| *v));
+            actual.sort_unstable_by_key(|t| t.info[3]);
+            assert_eq!(
+                bytemuck::cast_slice::<_, u8>(&actual),
+                bytemuck::cast_slice::<_, u8>(&input)
+            );
+        }
+    }
+}
 
 // Frozen triangle-partition implementation: verifies the compact-index builder
 // preserves spatial partitions, conservative bounds and all triangle payloads.
@@ -47,7 +102,7 @@ fn reference_split(triangles: &mut [Triangle], base: usize, nodes: &mut Vec<Node
     id
 }
 
-fn triangles(count: usize, coincident: bool) -> Vec<Triangle> {
+pub(super) fn triangles(count: usize, coincident: bool) -> Vec<Triangle> {
     (0..count)
         .map(|i| {
             let p = if coincident {
@@ -82,7 +137,7 @@ fn compact_builder_preserves_reference_tree_and_triangle_bits() {
             if count > 0 {
                 reference_split(&mut reference, 0, &mut expected);
             }
-            let (actual, nodes) = finish(input.clone());
+            let (actual, nodes) = finish_with_strategy(input.clone(), false);
             assert_eq!(
                 bytemuck::cast_slice::<_, u8>(&nodes),
                 bytemuck::cast_slice::<_, u8>(&expected),
@@ -103,7 +158,7 @@ fn compact_builder_preserves_reference_tree_and_triangle_bits() {
                     bytemuck::cast_slice::<_, u8>(&b)
                 );
             }
-            let (replay, _) = finish(input);
+            let (replay, _) = finish_with_strategy(input, false);
             assert_eq!(
                 bytemuck::cast_slice::<_, u8>(&actual),
                 bytemuck::cast_slice::<_, u8>(&replay)

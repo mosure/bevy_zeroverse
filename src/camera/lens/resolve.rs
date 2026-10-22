@@ -103,7 +103,11 @@ fn extract(
                 0.,
             ],
             gt: gt.cloned(),
-            active: camera.is_active,
+            active: crate::sample::camera_activity::render_active(
+                &config,
+                camera.is_active,
+                copier,
+            ),
             request: copier.map_or(0, |c| c.requested_id()),
             mode: match **mode {
                 Color => 0,

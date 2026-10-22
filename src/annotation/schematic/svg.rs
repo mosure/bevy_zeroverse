@@ -32,88 +32,7 @@ pub(crate) fn color(i: usize) -> &'static str {
         "#a350a0", "#777133", "#368487", "#9c4850", "#384ba0", "#4e7841", "#775964", "#b66b38",
     ][i % 16]
 }
-pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>, String> {
-    let m = Mat4::from_cols_array_2d(&c.world_from_view);
-    if !m.is_finite() || !(0.01..3.13).contains(&c.fov_y) || !c.aspect.is_finite() || c.aspect <= 0.
-    {
-        return Err("invalid schematic camera matrix or lens".into());
-    }
-    let rigid = Mat3::from_mat4(m);
-    let gram = rigid.transpose() * rigid;
-    if (gram - Mat3::IDENTITY)
-        .to_cols_array()
-        .iter()
-        .any(|v| v.abs() > 0.01)
-        || (rigid.determinant() - 1.).abs() > 0.01
-        || m.row(3).distance(Vec4::W) > 0.001
-    {
-        return Err("schematic cameras require rigid world_from_view matrices".into());
-    }
-    let d = length;
-    let offset = c.principal_point_offset.unwrap_or_default();
-    if !offset.is_finite() || offset.abs().cmpgt(Vec2::splat(0.5)).any() {
-        return Err("invalid schematic principal point".into());
-    }
-    let corners: Vec<Vec3> = if let Some(calibration) = &c.calibration {
-        calibration.validate()?;
-        if calibration.fisheye.is_some() {
-            let size = calibration.image_size.map(|x| x as f32);
-            (0..=32)
-                .flat_map(|y| {
-                    (0..=32).map(move |x| [x as f32 / 32. * size[0], y as f32 / 32. * size[1]])
-                })
-                .filter_map(|p| calibration.ray(p))
-                .map(|r| Vec3::from_array(r) * d)
-                .collect()
-        } else {
-            let k = calibration.k;
-            let [width, height] = calibration.image_size.map(|x| x as f32);
-            [[0., 0.], [width, 0.], [width, height], [0., height]]
-                .map(|[u, v]| {
-                    let y = (v - k[1][2]) / k[1][1];
-                    let x = (u - k[0][2] - k[0][1] * y) / k[0][0];
-                    Vec3::new(x * d, -y * d, -d)
-                })
-                .to_vec()
-        }
-    } else {
-        let h = d * (c.fov_y * 0.5).tan();
-        let w = h * c.aspect;
-        [
-            Vec3::new(-w, -h, -d),
-            Vec3::new(w, -h, -d),
-            Vec3::new(w, h, -d),
-            Vec3::new(-w, h, -d),
-        ]
-        .map(|p| p + Vec3::new(-2. * offset.x * w, 2. * offset.y * h, 0.))
-        .to_vec()
-    };
-    // Convex hull of projected optical center and the four actual image corners.
-    let mut hull: Vec<_> = std::iter::once(Vec3::ZERO)
-        .chain(corners)
-        .map(|v| m.transform_point3(v).xz())
-        .collect();
-    hull.sort_by(|a, b| a.x.total_cmp(&b.x).then(a.y.total_cmp(&b.y)));
-    hull.dedup();
-    fn chain(vertices: impl Iterator<Item = Vec2>) -> Vec<Vec2> {
-        let mut result: Vec<Vec2> = vec![];
-        for v in vertices {
-            while result.len() >= 2
-                && (result[result.len() - 1] - result[result.len() - 2])
-                    .perp_dot(v - result[result.len() - 1])
-                    <= 0.
-            {
-                result.pop();
-            }
-            result.push(v);
-        }
-        result.pop();
-        result
-    }
-    let mut poly = chain(hull.iter().copied());
-    poly.extend(chain(hull.iter().rev().copied()));
-    Ok(poly.into_iter().map(|p| [p.x, 0., p.y]).collect())
-}
+
 fn camera(
     s: &mut String,
     c: &Camera,
@@ -122,14 +41,19 @@ fn camera(
     index: usize,
     pred: bool,
 ) -> Result<(), String> {
-    let m = Mat4::from_cols_array_2d(&c.world_from_view);
-    let origin = m.transform_point3(Vec3::ZERO);
+    let gizmo = camera_gizmo(c, options.frustum_length)?;
     let rgb = if pred { "#bb297c" } else { color(index) };
     let dash = if pred {
         r##" stroke-dasharray="6 4""##
     } else {
         ""
     };
+    let _ = write!(
+        s,
+        r##"<g data-lens="{}"><title>{}</title>"##,
+        gizmo.lens_name(),
+        escape(&gizmo.label)
+    );
     if options.camera_paths && c.path.len() > 1 {
         let _ = write!(
             s,
@@ -137,26 +61,41 @@ fn camera(
             points(&c.path, p)?
         );
     }
-    let d = options.frustum_length;
-    let corners = camera_footprint(c, d)?;
     let _ = write!(
         s,
         r##"<polygon points="{}" fill="{rgb}" fill-opacity="0.10" stroke="{rgb}" stroke-width="1.4"{dash}/>"##,
-        points(&corners, p)?
+        points(&gizmo.footprint, p)?
     );
-    let end = m.transform_point3(Vec3::new(0., 0., -d));
     let _ = write!(
         s,
         r##"<polyline points="{}" fill="none" stroke="{rgb}" stroke-width="2.5"{dash}/>"##,
-        points(&[origin.to_array(), end.to_array()], p)?
+        points(&[gizmo.origin, gizmo.axis_end], p)?
     );
-    let q = p.project(origin.to_array());
+    let q = p.project(gizmo.origin);
+    let radius = gizmo.marker_radius();
+    let fill = if gizmo.fisheye { "white" } else { rgb };
+    let stroke = if gizmo.fisheye { rgb } else { "white" };
     let _ = write!(
         s,
-        r##"<circle cx="{}" cy="{}" r="5" fill="{rgb}" stroke="white" stroke-width="1.5"/>"##,
+        r##"<circle cx="{}" cy="{}" r="{radius}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"{dash}/>"##,
         q[0], q[1]
     );
-    text(s, q[0] + 8., q[1] - 8., 13, &c.label, rgb);
+    if gizmo.fisheye {
+        let _ = write!(
+            s,
+            r##"<circle cx="{}" cy="{}" r="2.5" fill="{rgb}"/>"##,
+            q[0], q[1]
+        );
+    }
+    text(
+        s,
+        q[0] + radius + 3.,
+        q[1] - radius - 3.,
+        13,
+        &gizmo.label,
+        rgb,
+    );
+    s.push_str("</g>");
     Ok(())
 }
 pub(super) fn render(

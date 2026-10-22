@@ -29,12 +29,15 @@ mod storage;
 mod tests;
 
 pub(super) fn install(app: &mut App) {
-    // Qualify the extra CPU comparison only where mapped allocation stalls were
-    // measured. Other adapters (including browsers) retain Bevy's preparation.
+    // WebGPU also pays for fresh allocations and mapped uploads per view per
+    // frame. Reuse the same bounded, order-preserving storage there. Native
+    // adapters retain the existing NVIDIA/Vulkan qualification boundary.
     let Some(adapter) = app.world().get_resource::<RenderAdapterInfo>() else {
         return;
     };
-    if adapter.vendor != 0x10de || adapter.backend != wgpu::Backend::Vulkan {
+    if !cfg!(target_arch = "wasm32")
+        && (adapter.vendor != 0x10de || adapter.backend != wgpu::Backend::Vulkan)
+    {
         return;
     }
     let Some(render) = app.get_sub_app_mut(RenderApp) else {

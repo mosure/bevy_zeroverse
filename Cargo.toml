@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.54.0"
+version = "0.55.0"
 edition = "2021"
 rust-version = "1.97.1"
 authors = ["mosure <mitchell@mosure.me>"]
@@ -224,9 +224,11 @@ lto = "thin"
 codegen-units = 1
 opt-level = 3
 
+# The viewer submits many shadow/material draws per fisheye face. Size-only
+# optimization prevents inlining in Bevy's render/ECS loops and stalls WebGPU.
 [profile.wasm-release]
 inherits = "release"
-opt-level = "z"
+opt-level = 3
 lto = "fat"
 codegen-units = 1
 

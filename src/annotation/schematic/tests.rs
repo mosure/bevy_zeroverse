@@ -9,7 +9,7 @@ fn planned_shifted_frustum_matches_full_capture_calibration() {
     scene.cameras[0].principal_point_offset = Some(Vec2::new(0.15, -0.10));
     let plan = Schematic::from_manifest(&scene, 0.).unwrap();
     let mut c = plan.cameras[0].clone();
-    let expected = super::svg::camera_footprint(&c, 1.5).unwrap();
+    let expected = super::camera::camera_footprint(&c, 1.5).unwrap();
     let projection = crate::camera::pinhole::projection(
         PerspectiveProjection {
             fov: c.fov_y,
@@ -20,7 +20,7 @@ fn planned_shifted_frustum_matches_full_capture_calibration() {
     );
     c.calibration = Some(crate::camera::pinhole::calibration(&projection, 640, 480).unwrap());
     c.principal_point_offset = None;
-    let actual = super::svg::camera_footprint(&c, 1.5).unwrap();
+    let actual = super::camera::camera_footprint(&c, 1.5).unwrap();
     assert_eq!(actual.len(), expected.len());
     assert!(actual
         .iter()
@@ -74,6 +74,19 @@ fn captured_cameras_and_pose_steps_override_planned_state() {
         }
     }
     sample.views[4].world_from_view[3][0] += 0.123;
+    sample.views[4].calibration = Some(
+        crate::calibration::Fisheye {
+            coefficients: [0.; 4],
+            max_angle: 95_f32.to_radians(),
+        }
+        .calibration(
+            [640, 480],
+            crate::calibration::FisheyeFit::Circular,
+            [0.; 2],
+            1.,
+        )
+        .unwrap(),
+    );
     sample.human_pose_steps = vec![
         vec![],
         vec![crate::sample::HumanPoseSample {
@@ -88,6 +101,13 @@ fn captured_cameras_and_pose_steps_override_planned_state() {
         sample.views[4].world_from_view
     );
     assert_eq!(plan.time_seconds, Some(5.));
+    assert_eq!(plan.cameras[1].calibration, sample.views[4].calibration);
+    let svg = plan
+        .svg(&RenderOptions::default(), &Overlay::default())
+        .unwrap();
+    assert!(svg.contains("C1 · fisheye 190°"));
+    assert_eq!(svg.matches("data-lens=\"fisheye\"").count(), 1);
+    assert_eq!(svg.matches("data-lens=\"pinhole\"").count(), 2);
     assert_eq!(
         plan.poses[0].joints,
         sample.human_pose_steps[1][0].bone_positions
@@ -95,6 +115,37 @@ fn captured_cameras_and_pose_steps_override_planned_state() {
     plan.rgba(&RenderOptions::default(), &Overlay::default())
         .unwrap();
     assert!(sample.schematic(2).is_err());
+}
+
+#[test]
+fn planned_fisheye_and_predicted_lenses_survive_document_roundtrip() {
+    let mut manifest = scene();
+    let lens = crate::calibration::FisheyeSensor {
+        lens: crate::calibration::Fisheye {
+            coefficients: [0.; 4],
+            max_angle: 100_f32.to_radians(),
+        },
+        fit: crate::calibration::FisheyeFit::Diagonal,
+        anisotropy: 1.,
+    };
+    manifest.cameras[0].fisheye = Some(lens);
+    let plan = Schematic::from_manifest(&manifest, 0.5).unwrap();
+    let mut predicted = plan.cameras[0].clone();
+    predicted.label = "Predicted <C0>".into();
+    let overlay = Overlay {
+        cameras: vec![predicted],
+        ..default()
+    };
+    let options = RenderOptions::default();
+    let doc = plan.document(options, overlay.clone()).unwrap();
+    let restored: Document = serde_json::from_str(&serde_json::to_string(&doc).unwrap()).unwrap();
+    assert_eq!(restored, doc);
+    let svg = plan.svg(&options, &overlay).unwrap();
+    assert_eq!(svg.matches("data-lens=\"fisheye\"").count(), 2);
+    assert!(svg.contains("Predicted &lt;C0&gt; · fisheye 200°"));
+    assert!(svg.contains("stroke-dasharray=\"6 4\""));
+    manifest.cameras[0].fisheye.as_mut().unwrap().lens.max_angle = f32::NAN;
+    assert!(Schematic::from_manifest(&manifest, 0.).is_err());
 }
 #[test]
 fn invalid_lenses_and_poses_fail_without_panics() {
