@@ -2,7 +2,7 @@
 import { motion_digest, motion_part, motion_read } from './snippets/burn_human_inference-a0bfaedebe22c27f/inline1.js';
 import * as import1 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
 import * as import2 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
-import * as import3 from "./snippets/bevy_zeroverse-ed83ea96e12167a0/inline0.js"
+import * as import3 from "./snippets/bevy_zeroverse-7f3714ebcd1cc0d3/inline0.js"
 
 
 /**
@@ -2176,7 +2176,7 @@ function __wbg_get_imports() {
         "./viewer_bg.js": import0,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import1,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import2,
-        "./snippets/bevy_zeroverse-ed83ea96e12167a0/inline0.js": import3,
+        "./snippets/bevy_zeroverse-7f3714ebcd1cc0d3/inline0.js": import3,
     };
 }
 
