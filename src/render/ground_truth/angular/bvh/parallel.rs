@@ -7,11 +7,11 @@ struct Job<'a> {
     root: usize,
     base: usize,
     depth: u32,
-    order: &'a mut [usize],
+    order: &'a mut [Primitive],
 }
 
 pub(super) fn build(
-    order: &mut [usize],
+    order: &mut [Primitive],
     bounds: &[Bounds],
     nodes: &mut Vec<Node>,
     pool: &TaskPool,
@@ -49,7 +49,7 @@ pub(super) fn build(
 }
 
 fn frontier<'a>(
-    order: &'a mut [usize],
+    order: &'a mut [Primitive],
     bounds: &[Bounds],
     base: usize,
     depth: u32,
@@ -95,12 +95,14 @@ mod tests {
                 Bounds {
                     lo: p[0].min(p[1]).min(p[2]),
                     hi: p[0].max(p[1]).max(p[2]),
-                    center: std::array::from_fn(|a| t.p.iter().map(|p| p[a]).sum()),
-                    ordinal: t.info[3],
                 }
             })
             .collect();
-        let mut serial: Vec<_> = (0..input.len()).collect();
+        let mut serial: Vec<_> = input
+            .iter()
+            .enumerate()
+            .map(|(i, b)| Primitive::new(i, b))
+            .collect();
         let mut expected = Vec::new();
         split(&mut serial, &bounds, 0, &mut expected, 0, true);
         for threads in [2, 4] {
@@ -109,9 +111,13 @@ mod tests {
                 .build();
             let results = pool.scope(|scope| {
                 for _ in 0..threads {
-                    let (pool, bounds) = (&pool, &bounds);
+                    let (pool, bounds, input) = (&pool, &bounds, &input);
                     scope.spawn(async move {
-                        let mut order: Vec<_> = (0..bounds.len()).collect();
+                        let mut order: Vec<_> = input
+                            .iter()
+                            .enumerate()
+                            .map(|(i, b)| Primitive::new(i, b))
+                            .collect();
                         let mut nodes = Vec::new();
                         build(&mut order, bounds, &mut nodes, pool);
                         (order, nodes)

@@ -223,7 +223,10 @@ a GPU angular resolve. The supported angular domain needs at most five faces;
 narrow lenses contained within the front face use one. Conservative interval
 bounds omit side faces that cannot contribute to the actual calibrated sensor,
 and crop the remaining faces while preserving the original source texel lattice,
-postprocess context and directional-shadow coverage. For example, a centered
+postprocess context and directional-shadow coverage. Adaptive interval refinement
+tightens peripheral bounds without evaluating a dense fine grid: cells already
+inside the accumulated rectangle cannot extend it. No point-sampled visibility
+heuristic, reduced source density or smaller shadow frustum is used. For example, a centered
 140-degree diagonal lens on a 16:9 sensor needs three source views; a circular
 lens with the same angular diameter still needs five. Face texel density
 accounts for the angular mapping and SSAA. Face views share scene assets,
@@ -244,8 +247,15 @@ triangles, including moving/skinned geometry and the selected glass policy.
 A deterministic BVH is shared by all nonlinear views and retained while
 geometry/transforms are unchanged. Fixed-bin surface-area splits isolate large
 walls/floors from small props; bounded median fallback protects traversal depth.
-Large native builds partition bounded subtree jobs on Bevy's existing compute
-pool, including cooperative execution for small or saturated thread budgets.
+Large native builds run vertex transforms, triangle expansion, bounds generation,
+subtree construction and final triangle ordering on Bevy's existing compute pool.
+Linear passes initialize disjoint output slices once in their original order,
+using at most eight jobs, including cooperative execution for small or saturated
+thread budgets. Checked completion prevents observing partially initialized data.
+Surface-area binning scans bounds once for all three axes, preserving split costs
+and deterministic ties while reducing repeated memory traffic. Compact partition
+records carry their comparison keys, avoiding random bounds reads during median
+selection; full triangle payloads remain immutable until the final ordered copy.
 Wasm retains serial construction. Certified empty skin updates retain the tree.
 All-fisheye rigs avoid uploading unused pinhole geometry/flow buffers; mixed rigs
 prepare both paths. Independent annotation preparation can run concurrently.

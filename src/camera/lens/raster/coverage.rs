@@ -12,6 +12,14 @@ pub(in crate::camera::lens) fn sensor_regions(
     scale: f32,
     c: &CameraCalibration,
 ) -> [URect; 6] {
+    refined_regions::<4>(side, scale, c)
+}
+
+fn refined_regions<const REFINEMENT: u32>(
+    side: u32,
+    scale: f32,
+    c: &CameraCalibration,
+) -> [URect; 6] {
     let lens = c.fisheye.expect("angular source coverage");
     let mut result = super::regions(side, scale, lens.max_angle);
     result[5] = URect::default();
@@ -19,33 +27,37 @@ pub(in crate::camera::lens) fn sensor_regions(
         result[1..].fill(URect::default());
         return result;
     }
-    const CELLS: u32 = 32;
+    let cells = 32 * REFINEMENT;
     // Identical context to the existing cone crop. Include complete bilinear
     // footprints and align postprocess mip texel phases to the original image.
     let context = (side as f64 / 16.).ceil().max(32.);
     for (face, region) in result.iter_mut().enumerate().take(5).skip(1) {
-        let mut lo = UVec2::splat(CELLS);
+        let mut lo = UVec2::splat(cells);
         let mut hi = UVec2::ZERO;
-        for y in 0..CELLS {
-            for x in 0..CELLS {
-                let axis = |i| {
-                    Interval::new(
-                        (2. * i as f64 / CELLS as f64 - 1.) / scale as f64,
-                        (2. * (i + 1) as f64 / CELLS as f64 - 1.) / scale as f64,
-                    )
-                };
-                let (u, v, one) = (axis(x), axis(y).neg(), Interval::point(1.));
-                let d = match face {
-                    1 => [one, v, u],
-                    2 => [one.neg(), v, u.neg()],
-                    3 => [u, one, v],
-                    _ => [u, one.neg(), v.neg()],
-                };
-                let (r, theta) = angular_bounds(d);
-                if may_reach_sensor(c, lens, d, r, theta) {
-                    lo = lo.min(UVec2::new(x, y));
-                    hi = hi.max(UVec2::new(x + 1, y + 1));
-                }
+        let reaches = |min: UVec2, size: u32| {
+            let axis = |i| {
+                Interval::new(
+                    (2. * i as f64 / cells as f64 - 1.) / scale as f64,
+                    (2. * (i + size) as f64 / cells as f64 - 1.) / scale as f64,
+                )
+            };
+            let (u, v, one) = (axis(min.x), axis(min.y).neg(), Interval::point(1.));
+            let d = match face {
+                1 => [one, v, u],
+                2 => [one.neg(), v, u.neg()],
+                3 => [u, one, v],
+                _ => [u, one.neg(), v.neg()],
+            };
+            let (r, theta) = angular_bounds(d);
+            may_reach_sensor(c, lens, d, r, theta)
+        };
+        // Refine only cells that can extend the rectangle. A uniform fine grid
+        // costs 16x as many interval evaluations; interior cells cannot change
+        // a bounding rectangle and need no evaluation at all. Bounds are still
+        // interval proofs over complete cells, never point-sampled visibility.
+        for y in (0..cells).step_by(REFINEMENT as usize) {
+            for x in (0..cells).step_by(REFINEMENT as usize) {
+                extend(UVec2::new(x, y), REFINEMENT, &mut lo, &mut hi, &reaches);
             }
         }
         if hi == UVec2::ZERO {
@@ -53,14 +65,14 @@ pub(in crate::camera::lens) fn sensor_regions(
             continue;
         }
         let min = lo.to_array().map(|v| {
-            ((v as f64 * side as f64 / CELLS as f64 - context)
+            ((v as f64 * side as f64 / cells as f64 - context)
                 .floor()
                 .max(0.) as u32
                 / 16)
                 * 16
         });
         let max = hi.to_array().map(|v| {
-            ((v as f64 * side as f64 / CELLS as f64 + context).ceil() as u32)
+            ((v as f64 * side as f64 / cells as f64 + context).ceil() as u32)
                 .div_ceil(16)
                 .saturating_mul(16)
                 .min(side)
@@ -74,10 +86,67 @@ pub(in crate::camera::lens) fn sensor_regions(
     result
 }
 
+fn extend(
+    min: UVec2,
+    size: u32,
+    lo: &mut UVec2,
+    hi: &mut UVec2,
+    reaches: &impl Fn(UVec2, u32) -> bool,
+) {
+    let max = min + UVec2::splat(size);
+    if (min.cmpge(*lo).all() && max.cmple(*hi).all()) || !reaches(min, size) {
+        return;
+    }
+    if size == 1 {
+        *lo = (*lo).min(min);
+        *hi = (*hi).max(max);
+        return;
+    }
+    let half = size / 2;
+    for offset in [UVec2::ZERO, UVec2::X, UVec2::Y, UVec2::ONE] {
+        extend(min + offset * half, half, lo, hi, reaches);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::calibration::{Fisheye, FisheyeFit};
+
+    #[test]
+    fn adaptive_rectangle_matches_exhaustive_cell_union() {
+        // Independent brute-force oracle for pruning and subdivision, including
+        // disjoint lobes and domains crossing the source-square boundary.
+        for center in [Vec2::ZERO, Vec2::new(31., 67.), Vec2::new(120., 95.)] {
+            for radius in [1., 19., 80., 190.] {
+                let reaches = |min: UVec2, size: u32| {
+                    let a = min.as_vec2();
+                    let b = a + Vec2::splat(size as f32);
+                    center.distance(center.clamp(a, b)) <= radius
+                        || (center + Vec2::splat(40.))
+                            .distance((center + Vec2::splat(40.)).clamp(a, b))
+                            <= radius
+                };
+                let (mut lo, mut hi) = (UVec2::splat(128), UVec2::ZERO);
+                for y in (0..128).step_by(4) {
+                    for x in (0..128).step_by(4) {
+                        extend(UVec2::new(x, y), 4, &mut lo, &mut hi, &reaches);
+                    }
+                }
+                let (mut expected_lo, mut expected_hi) = (UVec2::splat(128), UVec2::ZERO);
+                for y in 0..128 {
+                    for x in 0..128 {
+                        let p = UVec2::new(x, y);
+                        if reaches(p, 1) {
+                            expected_lo = expected_lo.min(p);
+                            expected_hi = expected_hi.max(p + UVec2::ONE);
+                        }
+                    }
+                }
+                assert_eq!((lo, hi), (expected_lo, expected_hi));
+            }
+        }
+    }
 
     #[test]
     fn wide_rectangular_sensor_omits_unused_poles() {
@@ -99,6 +168,40 @@ mod tests {
         };
         assert_eq!(count(&diagonal), 3);
         assert_eq!(count(&circular), 5);
+    }
+
+    #[test]
+    fn refined_coverage_reduces_source_pixels_without_changing_lenses() {
+        let prior = crate::camera::lens::LensSampling {
+            probability: 1.,
+            ..default()
+        };
+        let mut pixels = [0_u64; 2];
+        for seed in 0..96 {
+            let sensor = prior.sample(seed, 0).unwrap();
+            for size in [[512, 512], [960, 540]] {
+                let c = sensor.calibration(size, [0.16, -0.13]).unwrap();
+                let coarse = refined_regions::<1>(1536, 0.96, &c);
+                let refined = sensor_regions(1536, 0.96, &c);
+                for (a, b) in coarse.into_iter().zip(refined) {
+                    assert!(
+                        b.width() == 0 || (b.min.cmpge(a.min).all() && b.max.cmple(a.max).all())
+                    );
+                    pixels[0] += a.width() as u64 * a.height() as u64;
+                    pixels[1] += b.width() as u64 * b.height() as u64;
+                }
+            }
+        }
+        assert!(
+            pixels[1] < pixels[0],
+            "coverage refinement must remove redundant pixels"
+        );
+        println!(
+            "source pixels: coarse={} refined={} saved={:.3}%",
+            pixels[0],
+            pixels[1],
+            100. * (1. - pixels[1] as f64 / pixels[0] as f64)
+        );
     }
 
     #[test]

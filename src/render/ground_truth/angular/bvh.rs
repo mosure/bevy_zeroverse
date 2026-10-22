@@ -2,11 +2,12 @@
 //! splits near the root isolate large architectural surfaces from small props;
 //! bounded-depth median fallback limits both construction and GPU stack use.
 use super::super::*;
+mod bulk;
 mod parallel;
 mod partition;
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct Triangle {
     pub p: [[f32; 4]; 3],
     pub n: [[f32; 4]; 3],
@@ -21,6 +22,7 @@ pub(super) struct Node {
 }
 
 pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) {
+    let pool = bulk::pool(geometry.vertices.len().max(geometry.indices.len() / 3));
     let matrices: Vec<_> = geometry
         .instances
         .iter()
@@ -33,36 +35,32 @@ pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) 
         .collect();
     // Indexed vertices are shared by many triangles. Transform/normalize each
     // once, preserving exactly the same operations as the triangle expansion.
-    let vertices: Vec<_> = geometry
-        .vertices
-        .iter()
-        .map(|vertex| {
-            let (world, normal) = matrices[vertex.instance as usize];
-            (
-                world
-                    .transform_point3(Vec3::from_array(vertex.position))
-                    .extend(0.)
-                    .to_array(),
-                normal
-                    .transform_vector3(Vec3::from_array(vertex.normal))
-                    .normalize_or_zero()
-                    .extend(0.)
-                    .to_array(),
-            )
-        })
-        .collect();
-    let mut triangles = Vec::with_capacity(geometry.indices.len() / 3);
+    let vertices = bulk::collect(geometry.vertices.len(), pool, |i| {
+        let vertex = &geometry.vertices[i];
+        let (world, normal) = matrices[vertex.instance as usize];
+        (
+            world
+                .transform_point3(Vec3::from_array(vertex.position))
+                .extend(0.)
+                .to_array(),
+            normal
+                .transform_vector3(Vec3::from_array(vertex.normal))
+                .normalize_or_zero()
+                .extend(0.)
+                .to_array(),
+        )
+    });
+    let count = geometry.batches.iter().map(|b| b.indices.len() / 3).sum();
+    let mut triangles = bulk::Output::new(count);
     for (batch_id, batch) in geometry.batches.iter().enumerate() {
-        for (j, indices) in geometry.indices
-            [batch.indices.start as usize..batch.indices.end as usize]
+        let indices = geometry.indices[batch.indices.start as usize..batch.indices.end as usize]
             .as_chunks::<3>()
-            .0
-            .iter()
-            .enumerate()
-        {
+            .0;
+        triangles.extend_with(indices.len(), pool, |j| {
+            let indices = indices[j];
             let p = indices.map(|i| vertices[i as usize].0);
             let n = indices.map(|i| vertices[i as usize].1);
-            triangles.push(Triangle {
+            Triangle {
                 p,
                 n,
                 info: [
@@ -72,10 +70,10 @@ pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) 
                     batch_id as u32,
                     batch.indices.start / 3 + j as u32,
                 ],
-            });
-        }
+            }
+        });
     }
-    finish(triangles)
+    finish(triangles.finish())
 }
 pub(super) fn finish(triangles: Vec<Triangle>) -> (Vec<Triangle>, Vec<Node>) {
     finish_with_strategy(triangles, true)
@@ -87,47 +85,56 @@ fn finish_with_strategy(
     // Partition compact indices rather than repeatedly moving 112-byte triangle
     // records. Cache bounds/centroid sums once; the original ordinal remains the
     // tie-breaker, preserving leaf membership and the hit tie policy.
-    let bounds: Vec<_> = triangles
-        .iter()
-        .map(|t| {
-            let p = t.p.map(|p| Vec3::from_array([p[0], p[1], p[2]]));
-            Bounds {
-                lo: p[0].min(p[1]).min(p[2]),
-                hi: p[0].max(p[1]).max(p[2]),
-                center: std::array::from_fn(|axis| t.p.iter().map(|p| p[axis]).sum::<f32>()),
-                ordinal: t.info[3],
-            }
-        })
-        .collect();
-    let mut order: Vec<_> = (0..triangles.len()).collect();
+    let pool = bulk::pool(triangles.len());
+    let bounds = bulk::collect(triangles.len(), pool, |i| {
+        let t = &triangles[i];
+        let p = t.p.map(|p| Vec3::from_array([p[0], p[1], p[2]]));
+        Bounds {
+            lo: p[0].min(p[1]).min(p[2]),
+            hi: p[0].max(p[1]).max(p[2]),
+        }
+    });
+    let mut order = bulk::collect(triangles.len(), pool, |i| Primitive::new(i, &triangles[i]));
     let mut nodes = Vec::with_capacity(triangles.len().div_ceil(4));
     if !triangles.is_empty() {
-        let pool = bevy::tasks::ComputeTaskPool::try_get().filter(|p| {
-            !cfg!(target_arch = "wasm32")
-                && p.thread_num() > 1
-                && order.len() >= 65_536
-                && surface_area
-        });
-        if let Some(pool) = pool {
+        if let Some(pool) = pool.filter(|_| surface_area) {
             parallel::build(&mut order, &bounds, &mut nodes, pool);
         } else {
             split(&mut order, &bounds, 0, &mut nodes, 0, surface_area);
         }
     }
     drop(bounds);
-    let triangles = order.into_iter().map(|i| triangles[i]).collect();
+    let triangles = bulk::collect(order.len(), pool, |i| triangles[order[i].index as usize]);
     (triangles, nodes)
 }
+#[derive(Clone, Copy, Default)]
 struct Bounds {
     lo: Vec3,
     hi: Vec3,
+}
+/// Keep median/SAH keys beside the partition index. Comparing two keys no
+/// longer performs two random reads into a room-sized bounds allocation. The
+/// payload and full bounds stay immutable; only these compact records move.
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+struct Primitive {
+    index: u32,
     center: [f32; 3],
     ordinal: u32,
 }
-fn bounds_for(order: &[usize], bounds: &[Bounds]) -> (Vec3, Vec3) {
+impl Primitive {
+    fn new(index: usize, triangle: &Triangle) -> Self {
+        Self {
+            index: index as u32,
+            center: std::array::from_fn(|axis| triangle.p.iter().map(|p| p[axis]).sum::<f32>()),
+            ordinal: triangle.info[3],
+        }
+    }
+}
+fn bounds_for(order: &[Primitive], bounds: &[Bounds]) -> (Vec3, Vec3) {
     let mut lo = Vec3::splat(f32::INFINITY);
     let mut hi = Vec3::splat(f32::NEG_INFINITY);
-    for &i in order {
+    for p in order {
+        let i = p.index as usize;
         lo = lo.min(bounds[i].lo);
         hi = hi.max(bounds[i].hi);
     }
@@ -142,7 +149,7 @@ fn bounded_node(lo: Vec3, hi: Vec3, base: usize, count: usize) -> Node {
     }
 }
 fn partition_order(
-    order: &mut [usize],
+    order: &mut [Primitive],
     bounds: &[Bounds],
     extent: Vec3,
     depth: u32,
@@ -163,16 +170,16 @@ fn partition_order(
                 2
             };
             let mid = order.len() / 2;
-            order.select_nth_unstable_by(mid, |&a, &b| {
-                bounds[a].center[axis]
-                    .total_cmp(&bounds[b].center[axis])
-                    .then(bounds[a].ordinal.cmp(&bounds[b].ordinal))
+            order.select_nth_unstable_by(mid, |a, b| {
+                a.center[axis]
+                    .total_cmp(&b.center[axis])
+                    .then(a.ordinal.cmp(&b.ordinal))
             });
             mid
         })
 }
 fn split(
-    order: &mut [usize],
+    order: &mut [Primitive],
     bounds: &[Bounds],
     base: usize,
     nodes: &mut Vec<Node>,
