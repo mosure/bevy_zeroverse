@@ -1610,7 +1610,13 @@ impl IndoorManifest {
     }
 
     pub(crate) fn structural_obstacles(&self) -> Vec<(Vec3, Vec3)> {
-        let mut obstacles = self.columns();
+        self.structural_obstacles_with_ceiling(true)
+    }
+
+    /// Visibility may replace ceiling-installation reserves with their actual
+    /// triangles. Collision queries always include the full reserves.
+    pub(crate) fn structural_obstacles_with_ceiling(&self, ceiling: bool) -> Vec<(Vec3, Vec3)> {
+        let mut obstacles = self.column_obstacles(ceiling);
         if let Some(program) = &self.program {
             for p in &program.partitions {
                 obstacles.extend(p.portal_obstacles(self.room_size.y));
@@ -1620,6 +1626,10 @@ impl IndoorManifest {
     }
 
     pub(super) fn columns(&self) -> Vec<(Vec3, Vec3)> {
+        self.column_obstacles(true)
+    }
+
+    fn column_obstacles(&self, ceiling: bool) -> Vec<(Vec3, Vec3)> {
         if let Some(envelope) = &self.envelope {
             let mut boxes = envelope.structural_boxes(self.room_size);
             boxes.extend(
@@ -1631,8 +1641,8 @@ impl IndoorManifest {
                     }),
             );
             boxes.extend(super::floorplan::obstacles(self));
-            if let Some(ceiling) = &self.ceiling_installation {
-                boxes.extend(ceiling.modules.iter().map(|m| m.bounds()));
+            if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
+                boxes.extend(installation.modules.iter().map(|m| m.bounds()));
             }
             return boxes;
         }

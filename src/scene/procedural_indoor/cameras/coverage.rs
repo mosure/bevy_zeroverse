@@ -5,8 +5,10 @@ use crate::scene::procedural_indoor::layout::{IndoorCamera, IndoorManifest};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
 mod index;
+mod triangles;
 
 struct Collider {
+    triangle: Option<[Vec3; 3]>,
     center: Vec3,
     half: Vec3,
     inverse: Quat,
@@ -88,7 +90,7 @@ impl Coverage {
             .enumerate()
             .filter(|(_, c)| !skip_people || c.label != "person")
             .filter_map(|(i, c)| {
-                ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half)
+                c.hit(origin, ray)
                     .filter(|&distance| distance < limit)
                     .map(|distance| (i, distance))
             })
@@ -192,22 +194,35 @@ impl Coverage {
     }
 
     pub fn new(scene: &IndoorManifest) -> Self {
+        Self::build(
+            scene,
+            scene.cameras.iter().any(IndoorCamera::is_ceiling_mounted),
+        )
+    }
+
+    pub(super) fn for_ceiling_search(scene: &IndoorManifest) -> Self {
+        Self::build(scene, true)
+    }
+
+    fn build(scene: &IndoorManifest, detailed_ceiling: bool) -> Self {
         let mut colliders = Vec::new();
         let mut bounds = |lo: Vec3, hi: Vec3, label| {
             colliders.push(Collider {
+                triangle: None,
                 center: (lo + hi) * 0.5,
                 half: (hi - lo) * 0.5,
                 inverse: Quat::IDENTITY,
                 label,
             })
         };
-        for (lo, hi) in scene.structural_obstacles() {
+        // Only mixed/mounted requests need exact ceiling occlusion. Keep the
+        // room-only sampler and its cost unchanged.
+        for (lo, hi) in scene.structural_obstacles_with_ceiling(!detailed_ceiling) {
             bounds(lo, hi, "wall");
         }
-        // Fine ceiling fixtures retain their separate lens/body clearance
-        // checks. Their reservation boxes contain open rings, louvres and air
-        // around suspension wires; treating these as opaque would bias this
-        // coarse proposal oracle. Rendered overlap is measured independently.
+        // Ceiling installation reservations include empty suspension volume.
+        // Use their rendered triangles for visibility; full conservative boxes
+        // still protect mount bodies and the entire rail sweep.
         if scene.envelope.is_none() {
             let half = scene.room_size * 0.5;
             for axis in [0, 2] {
@@ -248,6 +263,7 @@ impl Coverage {
                 // around the installation, especially for ceiling cameras.
                 for (lo, hi) in o.obstacle_bounds() {
                     colliders.push(Collider {
+                        triangle: None,
                         center: (lo + hi) * 0.5,
                         half: (hi - lo) * 0.5,
                         inverse: Quat::IDENTITY,
@@ -286,6 +302,7 @@ impl Coverage {
                 }
                 for (center, half) in parts {
                     colliders.push(Collider {
+                        triangle: None,
                         center: o.transform().transform_point(center),
                         half,
                         inverse: Quat::from_rotation_y(-o.yaw),
@@ -295,11 +312,15 @@ impl Coverage {
                 continue;
             }
             colliders.push(Collider {
+                triangle: None,
                 center: o.position + Vec3::Y * o.size.y * 0.5,
                 half: o.size * 0.5,
                 inverse: Quat::from_rotation_y(-o.yaw),
                 label: o.kind.class_name(),
             });
+        }
+        if detailed_ceiling {
+            triangles::append_ceiling(scene, &mut colliders);
         }
         let body_points = scene
             .humans
@@ -454,6 +475,7 @@ mod tests {
             body_points: vec![],
             shell: None,
             colliders: vec![super::Collider {
+                triangle: None,
                 center: Vec3::new(0., 0., -2.05),
                 half: Vec3::new(1., 1., 0.05),
                 inverse: Quat::IDENTITY,
@@ -503,6 +525,7 @@ mod tests {
             aspect: 1.,
             index: None,
             colliders: vec![Collider {
+                triangle: None,
                 center: point - Vec3::Z * 0.01,
                 half: Vec3::new(10.0, 10.0, 0.01),
                 inverse: Quat::IDENTITY,
@@ -515,6 +538,7 @@ mod tests {
         assert_eq!(fraction, 1.0);
         assert!((angle - 26.56505).abs() < 0.001);
         coverage.colliders.push(Collider {
+            triangle: None,
             center: Vec3::new(1.0, 0.0, -2.0),
             half: Vec3::splat(0.2),
             inverse: Quat::IDENTITY,
@@ -543,6 +567,7 @@ mod tests {
             aspect: 1.,
             index: None,
             colliders: vec![Collider {
+                triangle: None,
                 center: Vec3::new(0.0, 1.0, -2.0),
                 half: Vec3::new(2.0, 2.0, 0.01),
                 inverse: Quat::IDENTITY,

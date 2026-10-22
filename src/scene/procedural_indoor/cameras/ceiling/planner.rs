@@ -4,14 +4,22 @@ use super::placement::{surface, MountSpace};
 use super::*;
 use crate::scene::procedural_indoor::{
     cameras::{
-        coverage::Coverage,
+        coverage::{Coverage, VisibilityView},
         diversity::{geometry, Track},
         multiview::{pair_samples_cached, OverlapGraph, CHECK_TIMES},
         program::ViewSummary,
     },
     layout::{stream, IndoorManifest},
 };
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
+
+struct Candidate {
+    camera: IndoorCamera,
+    track: Track,
+    views: Vec<VisibilityView>,
+    summary: ViewSummary,
+    score: f32,
+}
 
 pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), String> {
     scene.camera_settings.validate()?;
@@ -27,7 +35,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         .overlap_mixture
         .as_ref()
         .map_or_else(Vec::new, |m| m.targets(scene.seed, count));
-    let coverage = Coverage::new(scene);
+    let coverage = Coverage::for_ceiling_search(scene);
     let space = MountSpace::new(scene);
     let (lo, hi) = scene.primary_room_bounds();
     let lo = lo + Vec2::splat(mounting.wall_clearance_m);
@@ -52,20 +60,40 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             )
         })
         .collect();
+    // Keep camera zero as the reference, then place constrained mounts before
+    // free room paths. Slot identities remain fixed; restore export order below.
     let mut most = 0;
     let mut rejected = [0usize; 4];
-    for _ in 0..32 {
+    for restart in 0..32 {
+        let mut order: Vec<_> = (0..count).collect();
+        // Different constrained slots can block each other. Retry order, never
+        // the roles or lens assignments, with an independent deterministic RNG.
+        if restart % 4 >= 2 {
+            order[1..].shuffle(&mut stream(scene.seed, 0x4f52_4445 + restart));
+        }
+        if restart % 2 == 0 {
+            order[1..].sort_by_key(|&i| !scene.camera_settings.ceiling_mounted(scene.seed, i));
+        }
         scene.cameras.clear();
         let mut tracks = Vec::with_capacity(count);
         let mut views: Vec<Vec<_>> = Vec::with_capacity(count);
         let mut summaries = Vec::with_capacity(count);
-        for (index, &(lens, fov, standoff, roll)) in prototypes.iter().enumerate() {
-            let mut best = None;
+        // Retain a few feasible alternatives per prefix. A late constrained
+        // slot can replace its predecessor rather than discard a good anchor.
+        // All attempts share the original worst-case per-restart budget.
+        let mut alternatives: Vec<Vec<Candidate>> = Vec::with_capacity(count);
+        let mut proposals = 0;
+        while scene.cameras.len() < count && proposals < 384 * count {
+            let stage = scene.cameras.len();
+            let index = order[stage];
+            let (lens, fov, standoff, roll) = prototypes[index];
+            let mut pool: Vec<Candidate> = Vec::with_capacity(4);
             let mut first = None;
             for attempt in 0..384 {
-                if first.is_some_and(|a| attempt >= a + 12) {
+                if proposals >= 384 * count || first.is_some_and(|a| attempt >= a + 12) {
                     break;
                 }
+                proposals += 1;
                 scene.camera_diagnostics.peer_proposals += 1;
                 let camera = if !scene.camera_settings.ceiling_mounted(scene.seed, index) {
                     if scene
@@ -136,9 +164,17 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                     continue;
                 }
                 let track = Track::new(&camera);
-                if policy
-                    .is_some_and(|p| geometry(&tracks, Some(&track)).is_some_and(|g| !g.accepts(p)))
-                {
+                if policy.is_some_and(|p| {
+                    geometry(&tracks, Some(&track)).is_some_and(|mut g| {
+                        // Spread is not monotonic: a collinear prefix can grow
+                        // into a well-spread rig. Enforce it on the complete rig;
+                        // pairwise distance/motion constraints still apply now.
+                        if stage + 1 < count {
+                            g.min_horizontal_spread = None;
+                        }
+                        !g.accepts(p)
+                    })
+                }) {
                     rejected[1] += 1;
                     continue;
                 }
@@ -199,7 +235,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         }
                     };
                     if !(if policy.graph == OverlapGraph::Connected {
-                        (0..index).any(accepts)
+                        (0..stage).any(accepts)
                     } else {
                         accepts(0)
                     }) {
@@ -210,19 +246,54 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                 let summary = ViewSummary::new(&camera, &candidate_views[0], scene);
                 let score = summary.score(&summaries, count, scene);
                 first.get_or_insert(attempt);
-                if best.as_ref().is_none_or(|(_, _, _, _, s)| score > *s) {
-                    best = Some((camera, track, candidate_views, summary, score));
-                }
+                let candidate = Candidate {
+                    camera,
+                    track,
+                    views: candidate_views,
+                    summary,
+                    score,
+                };
+                // Descending stable ordering keeps the first proposal on ties.
+                let position = pool.partition_point(|c| c.score >= score);
+                pool.insert(position, candidate);
+                pool.truncate(4);
             }
-            let Some((camera, track, view, summary, _)) = best else {
+            let selected = if pool.is_empty() {
+                most = most.max(scene.cameras.len());
+                let mut selected = None;
+                while let Some(mut previous) = alternatives.pop() {
+                    scene.cameras.pop();
+                    tracks.pop();
+                    views.pop();
+                    summaries.pop();
+                    if !previous.is_empty() {
+                        selected = Some(previous.remove(0));
+                        alternatives.push(previous);
+                        scene.camera_diagnostics.prefix_backtracks += 1;
+                        break;
+                    }
+                }
+                selected
+            } else {
+                let selected = pool.remove(0);
+                alternatives.push(pool);
+                Some(selected)
+            };
+            let Some(candidate) = selected else {
                 break;
             };
-            scene.cameras.push(camera);
-            tracks.push(track);
-            views.push(view);
-            summaries.push(summary);
+            scene.cameras.push(candidate.camera);
+            tracks.push(candidate.track);
+            views.push(candidate.views);
+            summaries.push(candidate.summary);
         }
         if scene.cameras.len() == count {
+            let mut ordered: Vec<_> = std::mem::take(&mut scene.cameras)
+                .into_iter()
+                .zip(&order)
+                .collect();
+            ordered.sort_by_key(|(_, index)| **index);
+            scene.cameras = ordered.into_iter().map(|(camera, _)| camera).collect();
             return Ok(());
         }
         most = most.max(scene.cameras.len());

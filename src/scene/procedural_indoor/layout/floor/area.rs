@@ -3,6 +3,10 @@
 use super::*;
 use crate::scene::procedural_indoor::{envelope::polygon, objects};
 
+/// Ceiling fixtures are admitted before these floor supports. Reserve this
+/// possible floor rise so a later rug cannot invalidate their headroom.
+pub(crate) const MAX_THICKNESS_M: f32 = 0.009;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RugSupport {
     pub object: usize,
@@ -96,7 +100,7 @@ impl IndoorManifest {
                 let span = group_hi - group_lo;
                 let size = Vec3::new(
                     (span.x + extra * 2.).min(7.5),
-                    r.random_range(0.004..0.009),
+                    r.random_range(0.004..MAX_THICKNESS_M),
                     (span.y + extra * 2.).min(6.5),
                 );
                 let local = (group_lo + group_hi) * 0.5;
@@ -205,7 +209,7 @@ impl IndoorManifest {
             for _ in 0..12 {
                 let size = Vec3::new(
                     r.random_range(1.8..3.6),
-                    r.random_range(0.004..0.009),
+                    r.random_range(0.004..MAX_THICKNESS_M),
                     r.random_range(1.6..2.8),
                 );
                 let side = if r.random_bool(0.5) { 1. } else { -1. };

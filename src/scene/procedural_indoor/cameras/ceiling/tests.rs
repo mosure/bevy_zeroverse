@@ -1,3 +1,4 @@
+mod rejections;
 use super::*;
 use crate::scene::procedural_indoor::{
     cameras::multiview::{MultiViewSettings, OverlapGraph},

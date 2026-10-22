@@ -112,10 +112,29 @@ let control = CaptureControl::new().with_rejection_policy(RejectionPolicy::Conti
 ```
 
 Supported categories are missing required program equipment, insufficient usable
-program capacity, and exhausted camera placement search under valid constraints.
+program capacity, generated placement-clearance conflicts, and exhausted camera
+placement search under valid constraints.
 `MissingProgramAnchor` includes a kitchen whose bounded service-run search could
 not admit its required equipment. Every manifest integrity check runs before
 that decision; partial or malformed kitchen assemblies remain fatal errors.
+`PlacementClearance` includes a ceiling fan whose mount or swept rotor clearance
+fails after construction. Fan identity/support, nonfinite transforms and all
+other manifest integrity checks remain fatal and take precedence over recovery.
+Fan admission reserves the maximum possible area-rug thickness before the rugs
+are placed, preserving the full 2.1 m headroom when later floor supports appear.
+This sampling change is identified by generator revision 67; replay requires
+the recorded generator identity, not just the seed. It does not change the
+retirement protocol or opt consumers into skipping rejected rooms.
+Mixed ceiling/room camera search separates optical visibility from physical
+clearance. Ceiling installation triangles participate in visibility; conservative
+installation reservations still protect mounting bodies and rail sweeps. The
+bounded search retains alternative prefixes and varies placement order without
+changing assigned camera indices, lenses, mount roles or motion requirements.
+Group spread is checked on the complete rig; pairwise distance and motion checks
+also apply during search. `camera_diagnostics.prefix_backtracks` records reuse of
+an alternate prefix. Exhausted searches remain typed `CameraPlacement` rejections;
+no incomplete camera set is published and no constraints are silently relaxed.
+
 Configuration, manifest integrity, device, shader, readback, annotation, archive,
 and unclassified failures remain fatal. No error-text matching is used.
 

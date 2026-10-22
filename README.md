@@ -110,8 +110,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
 - **Calibrated multi-view cameras:** configurable perspective intrinsics, including
   a 28–145° vertical FOV default distribution, primary-room placement,
   collision-checked trajectories and adjustable baselines with shared-view constraints.
-  Opt-in ceiling-mounted CCTV rigs use downward-facing, calibrated fisheye or
-  wide rectilinear lenses with fixture clearance and fixed poses.
+  Ceiling-mounted CCTV cameras can mix with room cameras, using downward-facing,
+  calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
+  trajectories preserve body and swept-path clearance around fixtures.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional
   ARDY text/waypoint motion. Cameras and people share a capture timeline; static
   scenes do not initialize motion models. Captures include calibrated pose joints.

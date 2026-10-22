@@ -1,6 +1,6 @@
 //! Conservative broad phase only: camera decisions retain the scalar OBB test,
 //! original collider order for ties, and the complete candidate/ray population.
-use super::{ray_box, Collider};
+use super::Collider;
 use bevy::prelude::*;
 
 struct Bounds {
@@ -140,12 +140,7 @@ impl Index {
                     if self.skip_people && c.label == "person" {
                         continue;
                     }
-                    if let Some(distance) = ray_box(
-                        c.inverse * (self.origin - c.center),
-                        c.inverse * self.ray,
-                        c.half,
-                    )
-                    .filter(|&d| d < self.limit)
+                    if let Some(distance) = c.hit(self.origin, self.ray).filter(|&d| d < self.limit)
                     {
                         if self.best.is_none_or(|(old, d)| {
                             distance.total_cmp(&d).then(id.cmp(&old)).is_lt()
@@ -182,6 +177,7 @@ mod tests {
         let mut rng = crate::scene::procedural_indoor::layout::stream(202, 999);
         let mut colliders: Vec<_> = (0..256)
             .map(|i| Collider {
+                triangle: None,
                 center: Vec3::new(
                     rng.random_range(-12.0..12.0),
                     rng.random_range(0.0..4.0),
@@ -200,6 +196,7 @@ mod tests {
             .collect();
         for _ in 0..16 {
             colliders.push(Collider {
+                triangle: None,
                 center: Vec3::ZERO,
                 half: Vec3::ONE,
                 inverse: Quat::IDENTITY,
@@ -236,9 +233,7 @@ mod tests {
                         .enumerate()
                         .filter(|(_, c)| !skip_people || c.label != "person")
                         .filter_map(|(i, c)| {
-                            ray_box(c.inverse * (origin - c.center), c.inverse * ray, c.half)
-                                .filter(|&d| d < limit)
-                                .map(|d| (i, d))
+                            c.hit(origin, ray).filter(|&d| d < limit).map(|d| (i, d))
                         })
                         .min_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
                     assert_eq!(

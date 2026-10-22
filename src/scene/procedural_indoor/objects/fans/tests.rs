@@ -104,6 +104,46 @@ fn adjacent_fan_clearance_and_identity_survive_population_changes() {
 }
 
 #[test]
+fn reported_fan_headroom_survives_later_rug_placement() {
+    use crate::scene::procedural_indoor::layout::equipment::fan_clear;
+    for people in [0., 0.5, 1.] {
+        let scene =
+            IndoorManifest::generate_with_humans(65_158_972, IndoorLayout::Mixed, 0.65, 0, people)
+                .unwrap();
+        validation::validate_layout(&scene).unwrap();
+        let fans: Vec<_> = scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::CeilingFan)
+            .collect();
+        assert_eq!(
+            fans.len(),
+            2,
+            "reserve headroom rather than removing the fans"
+        );
+        for fan in fans {
+            assert!(fan_clear(&scene, fan));
+            audit::check(fan, &build_object(fan)).unwrap();
+            // Check the maximum possible rug rise across the full sweep,
+            // including rugs entirely between the reservation's corners.
+            let (lo, hi) = fan.obstacle_bounds().next().unwrap();
+            let floor = scene
+                .rug_supports
+                .iter()
+                .filter(|rug| rug.min.cmplt(hi.xz()).all() && rug.max.cmpgt(lo.xz()).all())
+                .map(|rug| rug.top)
+                .fold(0., f32::max);
+            assert!(lo.y >= floor + 2.1);
+        }
+    }
+    for seed in [65_158_970, 65_158_971, 65_158_973, 65_158_974] {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        validation::validate_layout(&scene).unwrap();
+    }
+}
+
+#[test]
 fn ceiling_fan_motion_is_opt_in_and_zero_speed_is_static() {
     let o = audit::fixture(ObjectKind::CeilingFan, 5);
     for policy in [

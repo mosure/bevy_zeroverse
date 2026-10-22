@@ -8,6 +8,9 @@ pub struct CameraSamplingDiagnostics {
     pub short_reference_recoveries: usize,
     pub reference_rejections: [usize; 5],
     pub group_restarts: usize,
+    /// Bounded mixed-rig search reused another feasible prefix candidate.
+    #[serde(default)]
+    pub prefix_backtracks: usize,
     /// Connected search may use the stricter reference-star search to complete
     /// a cramped rig. This is recorded; no overlap or spacing bound is relaxed.
     #[serde(default)]

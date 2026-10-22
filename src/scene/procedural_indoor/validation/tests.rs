@@ -538,3 +538,44 @@ fn generated_floor_placement_rejects_without_reclassifying_integrity_failure() {
         Err(CaptureError::Failed(_))
     ));
 }
+
+#[test]
+fn generated_fan_clearance_rejects_only_after_integrity_validation() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let mut scene =
+        IndoorManifest::generate_with_humans(65_158_972, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    super::validate_prepared_layout(&scene).unwrap();
+    // Construction now reserves late rug headroom. Keep a deterministic failed
+    // mount to exercise recovery even after the reported placement is repaired.
+    let index = scene
+        .objects
+        .iter()
+        .position(|o| o.kind == ObjectKind::CeilingFan)
+        .unwrap();
+    scene.objects[index].position.x += scene.room_size.x * 2.;
+    assert!(matches!(super::validate_prepared_layout(&scene),
+        Err(CaptureError::Rejected { rejection, retired: false })
+        if rejection.seed == scene.seed
+            && rejection.kind == SceneRejectionKind::PlacementClearance
+            && rejection.reason.ends_with("ceiling fan is unmounted or its rotor intersects occupied space")));
+    for fault in 0..8 {
+        let mut corrupt = scene.clone();
+        match fault {
+            0 => corrupt.room_size.x = f32::NAN,
+            1 => corrupt.objects.last_mut().unwrap().id = usize::MAX,
+            2 => corrupt.objects[index].solid = true,
+            3 => corrupt.objects[index].neighbor = true,
+            4 => corrupt.objects[index].support = Some(usize::MAX),
+            5 => corrupt.objects[index].size.y = f32::NAN,
+            6 => corrupt.objects[index].size.x = -1.,
+            _ => corrupt.objects.last_mut().unwrap().yaw = f32::INFINITY,
+        }
+        assert!(
+            matches!(
+                super::validate_prepared_layout(&corrupt),
+                Err(CaptureError::Failed(_))
+            ),
+            "placement rejection must not mask integrity fault {fault}"
+        );
+    }
+}

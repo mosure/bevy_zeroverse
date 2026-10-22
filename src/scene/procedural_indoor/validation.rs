@@ -136,10 +136,20 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         {
             return fail("ceiling pendant is unmounted or intersects architecture or furniture");
         }
-        if object.kind == super::layout::ObjectKind::CeilingFan
-            && !super::layout::equipment::fan_clear(scene, object)
-        {
-            return fail("ceiling fan is unmounted or its rotor intersects occupied space");
+        if object.kind == super::layout::ObjectKind::CeilingFan {
+            // A generated placement failure rejects the whole scene, but must
+            // never mask malformed identity/support or later integrity errors.
+            if object.solid || object.neighbor || object.support.is_some() {
+                return fail("invalid ceiling fan identity or support");
+            }
+            if !super::layout::equipment::fan_clear(scene, object) {
+                placement_rejection.get_or_insert_with(|| {
+                    format!(
+                        "seed {}: ceiling fan is unmounted or its rotor intersects occupied space",
+                        scene.seed
+                    )
+                });
+            }
         }
         if let Some(target) = object.interaction_target {
             let other = scene
