@@ -124,6 +124,8 @@ impl IndoorManifest {
                             | ObjectKind::Desk
                             | ObjectKind::Table
                             | ObjectKind::CoffeeTable
+                            | ObjectKind::KitchenCounter
+                            | ObjectKind::KitchenSink
                     )
             })
             .cloned()
@@ -145,6 +147,17 @@ impl IndoorManifest {
                     ),
                 ),
             ] {
+                // Kitchen work areas need a nearby waste bin, not a lounge side
+                // table. Keep the anchor's supported floor elevation and route
+                // every proposal through the ordinary clearance checks.
+                if kind == ObjectKind::SideTable
+                    && matches!(
+                        anchor.kind,
+                        ObjectKind::KitchenCounter | ObjectKind::KitchenSink
+                    )
+                {
+                    continue;
+                }
                 if self.main_furniture_count() >= self.minimum_main_objects() {
                     return;
                 }

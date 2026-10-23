@@ -231,3 +231,43 @@ fn constrained_library_seed_49981871_preserves_density_population_and_camera_con
         }
     }
 }
+
+#[test]
+fn raised_kitchenette_65286812_completes_supported_waste_storage() {
+    for density in [0., 0.35, 0.65, 1.] {
+        for human_density in [0., 0.25, 1.] {
+            let scene = IndoorManifest::generate_with_humans(
+                65_286_812,
+                IndoorLayout::Mixed,
+                density,
+                0,
+                human_density,
+            )
+            .unwrap();
+            assert_eq!(scene.layout, IndoorLayout::Kitchenette);
+            validate_layout(&scene).unwrap_or_else(|e| panic!("{density} {human_density}: {e}"));
+            validate_geometry(&scene).unwrap();
+            let mut replay = scene.clone();
+            replay.complete_underfilled_activity_groups();
+            assert_eq!(scene, replay, "accepted rooms must not be refurnished");
+            if density == 0.65 {
+                let sink = scene
+                    .objects
+                    .iter()
+                    .find(|o| !o.neighbor && o.kind == ObjectKind::KitchenSink)
+                    .unwrap();
+                assert!(sink.position.y > 0.1, "exercise a raised kitchen floor");
+                assert!(
+                    scene.objects.iter().any(|o| !o.neighbor
+                        && o.kind == ObjectKind::TrashCan
+                        && (o.position.y - sink.position.y).abs() < 0.001
+                        && o.position.distance(sink.position) < 2.0),
+                    "the completed storage must serve the kitchen on its supported floor"
+                );
+            }
+        }
+    }
+    let a = IndoorManifest::generate(65_286_812, IndoorLayout::Mixed, 0.65, 0).unwrap();
+    let b = IndoorManifest::generate(65_286_812, IndoorLayout::Mixed, 0.65, 0).unwrap();
+    assert_eq!(a, b, "the repair must preserve deterministic replay");
+}
