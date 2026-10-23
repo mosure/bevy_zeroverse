@@ -69,7 +69,9 @@ metric elevations and exact clipped triangles. Bounds are only an acceleration
 structure: the ground surface excludes tier patches, while an overhead deck
 can overlap a lower floor in X/Z. Capture metadata exports these relationships
 for functional scenes; ordinary scene preparation does not construct this
-reporting triangulation.
+reporting triangulation. These are architectural surfaces; furniture rugs retain
+their exact contours and elevations separately in `IndoorManifest::rug_supports`.
+The live `floor_height()` query includes those rug overlays for placement.
 
 The semantic taxonomy includes elevator, control panel, display case, tray return,
 queue barrier, lectern, locker, plinth, sculpture, information stand and

@@ -1,7 +1,9 @@
 //! Ceiling-mounted overview cameras. The mounting geometry is separate
 //! from the calibrated lens, and all rig visibility constraints remain active.
+mod overview;
 mod placement;
 mod planner;
+mod room;
 #[cfg(test)]
 mod tests;
 mod trajectory;

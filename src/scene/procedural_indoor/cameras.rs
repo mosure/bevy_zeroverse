@@ -40,7 +40,7 @@ pub struct CameraSettings {
     /// Seeded reference-edge strata, selected before placement retries.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlap_mixture: Option<mixture::OverlapMixture>,
-    /// Keep every capture in the largest furnished room, including its full path.
+    /// Keep every capture in the largest usable floor region, including its full path.
     pub primary_room: bool,
     /// Probability that each camera moves through time. Zero fixes every pose;
     /// intrinsics are fixed for every camera regardless of this setting.
@@ -358,21 +358,6 @@ impl IndoorManifest {
         Ok(())
     }
 
-    pub fn primary_room_bounds(&self) -> (Vec2, Vec2) {
-        self.program
-            .as_ref()
-            .and_then(|p| {
-                p.zones.iter().max_by(|a, b| {
-                    ((a.max - a.min).element_product())
-                        .total_cmp(&(b.max - b.min).element_product())
-                })
-            })
-            .map(|z| (z.min, z.max))
-            .unwrap_or_else(|| {
-                let half = Vec2::new(self.room_size.x, self.room_size.z) * 0.5;
-                (-half, half)
-            })
-    }
     pub fn in_primary_room(&self, p: Vec3, clearance: f32) -> bool {
         self.primary_region().contains_projection(p.xz(), clearance)
     }

@@ -1,3 +1,6 @@
+mod catalog;
+mod routing;
+pub use catalog::{ObjectFamily, ObjectKind};
 pub mod accessories;
 pub mod audit;
 pub mod bags;
@@ -25,7 +28,7 @@ pub mod vessels;
 pub mod wall;
 use super::{
     geometry::Geometry,
-    layout::{stream, IndoorObject, ObjectKind},
+    layout::{stream, IndoorObject},
     materials::{IndoorMaterials, Surface},
 };
 use crate::{
@@ -158,104 +161,7 @@ pub(crate) fn build_object_with_motion(
         motion_policy: policy.cloned(),
         ..default()
     };
-    match o.kind {
-        ObjectKind::CeilingFan => fans::build(&mut a, o),
-        ObjectKind::ExitSign
-        | ObjectKind::FireAlarm
-        | ObjectKind::FireDetector
-        | ObjectKind::FirePullStation
-        | ObjectKind::StringLights => equipment::signals::build(&mut a, o),
-        ObjectKind::Elevator
-        | ObjectKind::ServiceCounter
-        | ObjectKind::DisplayCase
-        | ObjectKind::TrayReturn
-        | ObjectKind::DrinkDispenser
-        | ObjectKind::QueueBarrier
-        | ObjectKind::Lectern
-        | ObjectKind::Locker
-        | ObjectKind::TeachingBoard
-        | ObjectKind::ExhibitPlinth
-        | ObjectKind::Sculpture
-        | ObjectKind::InformationStand
-        | ObjectKind::ExhibitionPanel
-        | ObjectKind::ExtractionHood
-        | ObjectKind::Banquette => public::build(&mut a, o),
-        ObjectKind::KitchenCounter
-        | ObjectKind::KitchenSink
-        | ObjectKind::KitchenCupboard
-        | ObjectKind::Pantry
-        | ObjectKind::Cooktop
-        | ObjectKind::Range
-        | ObjectKind::Oven
-        | ObjectKind::Microwave
-        | ObjectKind::Dishwasher
-        | ObjectKind::Refrigerator
-        | ObjectKind::DryingRack
-        | ObjectKind::SoapDispenser
-        | ObjectKind::Sponge
-        | ObjectKind::KnifeBlock
-        | ObjectKind::UtensilHolder
-        | ObjectKind::PaperTowel
-        | ObjectKind::KitchenTowel
-        | ObjectKind::Dishware
-        | ObjectKind::CuttingBoard
-        | ObjectKind::FruitBowl
-        | ObjectKind::Bread => kitchen::build(&mut a, o),
-        ObjectKind::Projector
-        | ObjectKind::ProjectionScreen
-        | ObjectKind::PowerStrip
-        | ObjectKind::Cable
-        | ObjectKind::WallShelf
-        | ObjectKind::NoticeBoard
-        | ObjectKind::WallSconce
-        | ObjectKind::CeilingPendant => equipment::build(&mut a, o),
-        ObjectKind::Printer | ObjectKind::StorageBox | ObjectKind::CoatRack | ObjectKind::Bag => {
-            utilities::build(&mut a, o)
-        }
-        ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable | ObjectKind::SideTable => {
-            tables::build(&mut a, o)
-        }
-        ObjectKind::MobileCart
-        | ObjectKind::DrawerUnit
-        | ObjectKind::Bench
-        | ObjectKind::Ottoman
-        | ObjectKind::RoomDivider => services::build(&mut a, o),
-        ObjectKind::DeskLamp
-        | ObjectKind::Speaker
-        | ObjectKind::Headphones
-        | ObjectKind::Stapler
-        | ObjectKind::TapeDispenser
-        | ObjectKind::DocumentTray
-        | ObjectKind::DeskOrganizer
-        | ObjectKind::TissueBox
-        | ObjectKind::DeskFan => accessories::build(&mut a, o),
-        ObjectKind::CoffeeMaker | ObjectKind::Kettle | ObjectKind::Vase | ObjectKind::Bowl => {
-            hospitality::build(&mut a, o)
-        }
-        ObjectKind::Chair => chairs::build(&mut a, o),
-        ObjectKind::Sofa => seating::build(&mut a, o),
-        ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(&mut a, o),
-        ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(&mut a, o),
-        ObjectKind::Keyboard | ObjectKind::Mouse => desktop::build(&mut a, o),
-        ObjectKind::WaterBottle
-        | ObjectKind::Mug
-        | ObjectKind::CoffeeCup
-        | ObjectKind::SodaCan
-        | ObjectKind::Notepad
-        | ObjectKind::Pencil
-        | ObjectKind::Microphone
-        | ObjectKind::Phone
-        | ObjectKind::PenHolder => super::clutter::build(&mut a, o),
-        ObjectKind::Plant => super::plants::build(&mut a, o),
-        ObjectKind::TrashCan => containers::bin(&mut a, o),
-        ObjectKind::Display | ObjectKind::Monitor => computers::display(&mut a, o),
-        ObjectKind::Laptop => computers::laptop(&mut a, o),
-        ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(&mut a, o),
-        ObjectKind::Notebook | ObjectKind::Books => literature::build(&mut a, o),
-        ObjectKind::Clock => clocks::build(&mut a, o),
-        ObjectKind::FloorLamp => standing_lamp::build(&mut a, o),
-        ObjectKind::Rug | ObjectKind::FloorOutlet => floor::build(&mut a, o),
-    }
+    routing::build(&mut a, o);
     if matches!(o.kind, ObjectKind::CoffeeMaker | ObjectKind::DrinkDispenser) {
         a.box_part(
             Surface::Rubber,
@@ -495,3 +401,6 @@ mod coplanar_tests;
 mod display_tests;
 #[cfg(test)]
 mod review_tests;
+
+#[cfg(test)]
+mod routing_tests;

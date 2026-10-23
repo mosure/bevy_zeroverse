@@ -27,6 +27,7 @@ pub mod normal;
 pub mod optical_flow;
 pub mod position;
 mod preview_shadows;
+mod raster_order;
 pub mod residency;
 pub mod semantic;
 pub mod ssaa;
@@ -165,6 +166,7 @@ impl Plugin for RenderPlugin {
     fn finish(&self, app: &mut App) {
         material_aliases::install(app);
         preview_shadows::install(app);
+        raster_order::install(app);
         #[cfg(target_arch = "wasm32")]
         webgpu_mesh::install(app);
         // GPU clustering appends lights with atomics, so floating point lighting

@@ -16,6 +16,23 @@ emitted stem segments. Planters vary their neck, belly, rounded base, shoulder,
 faceting, fluting and saucer proportions. Plant selection is constrained by the
 available height and canopy width, for both floor and supported placements.
 
+Canopy envelopes correlate height and width with the growth habit. Ferns,
+shrubs and compact nursery plants sample broad forms; snake plants, bamboo and
+canes retain upright growth. Ficus and shrubs use connected secondary branches,
+rubber plants carry broad alternate leaves, and umbrella plants bear compound
+leaf clusters along multiple leaders. Leaf pitch varies independently of stem
+direction within the available vertical clearance. ZZ-style rachises carry
+paired and terminal leaflets. Fern fronds sample age-related arching and droop;
+vines can climb or cascade beyond the pot rim without crossing its walls.
+Palmate leaves join their basal web, with pleated veins and separated outer tips.
+Leaf cuticles retain nonmetallic PBR shading with restrained wax highlights.
+
+Growth, leaf tessellation, woody crowns, vines, species-conditioned sizing and
+planters live in separate `plants/` modules. Fixed-size leaf buffers avoid
+temporary heap allocations for each lamina. Geometry stays in the admitted
+envelope; leaves are opaque, double-sided geometry with blade-aligned UVs, not
+alpha cards. Assemblies retain the plant semantic class and instance identity.
+
 Chairs combine tension mesh, spindles, shaped shells, two/three-part upholstery
 backs and horizontal slats with independently chosen seat, back and frame
 substrates. Shells have continuously varied waist and crest contours, with
@@ -65,3 +82,38 @@ SigLIP volume, photographic realism or downstream learning capacity.
 Contact sheets are flat-shaded CPU geometry previews. CPU construction timings
 are not rendered throughput. GPU appearance, browser runtime and concurrent
 training throughput require a separate qualification window.
+
+## Botanical appearance qualification
+
+The following command writes a
+272-object audit to `out/plant_quality/audit.json`: all 17 habits, 16 seeds each,
+fixed habit dimensions and finish. The report measures actual leaf surface
+area, orthographic leaf coverage in the reserved canopy rectangle, shape
+coverage and diagnostic CPU build times. It does not normalize a tiny crown to
+fill the frame. Leafless cactus stems and closed succulent leaves are excluded
+from the lamina coverage metric. These are geometric diagnostics, not claims
+about perceptual independence or photographic realism.
+
+```sh
+cargo test --lib plant_quality_receipt -- --ignored --nocapture
+```
+
+This renders six recorded geometry representatives per habit using fixed PBR
+studio lighting:
+
+```sh
+cargo run --example review_objects -- \
+  --audit out/plant_quality/audit.json --output out/plant_quality/final
+```
+
+RGB, normal and semantic captures
+share the same views; the renderer checks finite pixels and annotation counts.
+Use the same source revision to create the audit and render its gallery.
+
+Ordinary botanical tests cover 2,176 species-conditioned floor/tabletop
+envelopes, 1,020 fixed/extreme-envelope builds, attached leaf bases, pot and floor
+clearance for cascading leaves, finite attributes, deterministic replay and the
+20,000-triangle budget. The 64-room sweep also checks emitted plant meshes,
+support containment, circulation and coverage of all 17 habits. Native captures
+qualify rendered appearance; a WASM compile check does not qualify browser frame
+rate or device-specific appearance.

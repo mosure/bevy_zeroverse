@@ -201,9 +201,11 @@ impl Fisheye {
         };
         let focal = (radius / self.radius(self.max_angle as f64)) as f32;
         let c = CameraCalibration {
-            schema_version: 2,
+            schema_version: LensModel::AngularFisheye4
+                .contract()
+                .calibration_schema_version,
             lens_model: LensModel::AngularFisheye4,
-            lens_model_version: 1,
+            lens_model_version: LensModel::AngularFisheye4.contract().model_version,
             pixel_convention: PixelConvention::TopLeftCornerHalfPixelCenters,
             image_size: size,
             k: [

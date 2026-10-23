@@ -2,6 +2,9 @@
 //! Original meshes still render RGB and all annotations. Shadow-only batches
 //! are excluded from ground truth and ovoxels. Parts keep their exact local
 //! vertices and parent transform; no geometry simplification or rebaking occurs.
+//! Direct capture uses stable color/prepass ordering to resolve depth ties at
+//! contact edges independently of proxy allocation. Indirect capture retains
+//! original casters until its separate multidraw ordering is qualified.
 use crate::scene::procedural_indoor::{motion::AnimatedPart, objects::IndoorSurface};
 use bevy::{
     asset::RenderAssetUsages,
@@ -38,6 +41,7 @@ struct Key {
 #[derive(Clone, PartialEq, Eq)]
 struct Input {
     entity: Entity,
+    order: Option<u64>,
     mesh: AssetId<Mesh>,
     material: Handle<StandardMaterial>,
     key: Key,
@@ -63,6 +67,7 @@ pub(super) fn install(app: &mut App) {
         PostUpdate,
         update
             .after(crate::sample::CaptureReadinessUpdate)
+            .after(crate::sample::camera_activity::CaptureCameraGate)
             .after(bevy::transform::TransformSystems::Propagate)
             .after(VisibilitySystems::VisibilityPropagate)
             .before(VisibilitySystems::CheckVisibility)
@@ -84,10 +89,40 @@ fn requested(world: &mut World) -> bool {
     {
         return false;
     }
-    world
-        .query_filtered::<&Camera, With<crate::camera::lens::LensCamera>>()
-        .iter(world)
-        .any(|c| c.is_active)
+    let configured_capture = config.headless || config.image_copiers;
+    // Bevy's indirect bins have a separate, allocator-dependent ordering.
+    // Only direct camera bins currently have our stable scene-part ordering.
+    // Include copiers attached through the library API, not only CLI settings.
+    let mut copiers = world.query_filtered::<
+        (Has<Camera>, Has<bevy::render::view::NoIndirectDrawing>),
+        With<crate::io::image_copy::ImageCopier>,
+    >();
+    let mut has_copier = false;
+    let mut direct = true;
+    for (camera, direct_draw) in copiers.iter(world) {
+        has_copier = true;
+        direct &= camera && direct_draw;
+    }
+    if (configured_capture || has_copier)
+        && (!has_copier || !direct || cfg!(target_arch = "wasm32"))
+    {
+        return false;
+    }
+    let mut cameras = world.query_filtered::<&Camera, With<crate::camera::lens::LensCamera>>();
+    let mut has_rig = false;
+    let mut active = false;
+    for camera in cameras.iter(world) {
+        has_rig = true;
+        active |= camera.is_active;
+    }
+    // Inactivity is not a geometry change. Keep an already built rig's batches
+    // while its cameras are hidden/idle, instead of reallocating meshes and
+    // moving every original caster between ECS archetypes on reactivation.
+    active
+        || (has_rig
+            && world
+                .get_resource::<State>()
+                .is_some_and(|state| !state.inputs.is_empty()))
 }
 
 fn clear(world: &mut World) {
@@ -148,13 +183,14 @@ fn update(
         Has<NotShadowCaster>,
         Has<ShadowSource>,
         Option<&RenderLayers>,
+        Option<&crate::render::ground_truth::AnnotationOrder>,
     ), (
         With<IndoorSurface>,
         Without<AnimatedPart>,
         Without<bevy::mesh::skinning::SkinnedMesh>,
     )>();
     let materials = world.resource::<Assets<StandardMaterial>>();
-    for (entity, mesh, material, parent, local, global, visible, skipped, owned, layers) in
+    for (entity, mesh, material, parent, local, global, visible, skipped, owned, layers, order) in
         query.iter(world)
     {
         if (skipped && !owned)
@@ -183,6 +219,7 @@ fn update(
         };
         let input = Input {
             entity,
+            order: order.map(|order| order.0),
             mesh: mesh.id(),
             material: material_handle,
             key: key.clone(),
@@ -204,6 +241,14 @@ fn update(
         clear(world);
         let mut vertices = 0;
         let mut index_count = 0;
+        // Entity IDs and query/archetype order change when a room is replayed.
+        // Stable scene-part order fixes both triangle/material selection within
+        // a batch and admission under the total mesh budget across batches.
+        let mut groups: Vec<_> = groups.into_iter().collect();
+        for (_, (_, parts)) in &mut groups {
+            parts.sort_by_key(Input::sort_key);
+        }
+        groups.sort_by_key(|(_, (_, parts))| parts[0].sort_key());
         for (key, (global, parts)) in groups {
             if parts.len() < 2 {
                 continue;
@@ -254,6 +299,14 @@ fn update(
             }
         }
         world.resource_mut::<State>().inputs = inputs;
+    }
+}
+
+impl Input {
+    fn sort_key(&self) -> (bool, u64, Entity) {
+        // Legacy/custom parts without an annotation order retain an entity
+        // fallback. Generated scene parts always carry a unique stable order.
+        (self.order.is_none(), self.order.unwrap_or(0), self.entity)
     }
 }
 

@@ -38,29 +38,6 @@ impl BotanyProgram {
     }
 }
 
-fn size(variant: u32, tabletop: bool, rng: &mut ChaCha8Rng) -> Vec3 {
-    let (width, height) = if tabletop {
-        (
-            rng.random_range(0.14..0.33),
-            match variant {
-                7 => rng.random_range(0.16..0.26),
-                8 | 9 => rng.random_range(0.23..0.41),
-                4 | 13 | 16 => rng.random_range(0.22..0.40),
-                _ => rng.random_range(0.25..0.55),
-            },
-        )
-    } else {
-        match variant {
-            7 => (rng.random_range(0.30..0.54), rng.random_range(0.29..0.52)),
-            8 | 9 => (rng.random_range(0.39..0.65), rng.random_range(0.55..1.28)),
-            4 | 13 | 16 => (rng.random_range(0.51..0.87), rng.random_range(0.63..1.14)),
-            15 => (rng.random_range(0.60..0.95), rng.random_range(0.90..1.80)),
-            _ => (rng.random_range(0.47..0.95), rng.random_range(1.00..2.12)),
-        }
-    };
-    Vec3::new(width, height, width * rng.random_range(0.86..1.12))
-}
-
 /// Preserve useful aisles already present after furniture placement. The floor
 /// abundance program is decorative: it must not consume the room's longest
 /// human-clear travel spaces. This bounded coarse probe runs once, rather than
@@ -227,7 +204,7 @@ impl IndoorManifest {
         let mut cluster: Option<Vec3> = None;
         for _ in 0..budget {
             let variant = program.species(&mut rng);
-            let size = size(variant, false, &mut rng);
+            let size = super::super::plants::sample_size(variant, false, &mut rng);
             for _ in 0..16 {
                 let position = if let Some(centre) =
                     cluster.filter(|_| rng.random_bool(program.clustering as f64))
@@ -297,8 +274,8 @@ impl IndoorManifest {
             if !rng.random_bool((program.tabletop_fraction * program.abundance) as f64) {
                 continue;
             }
-            let variant = [2, 4, 7, 8, 9, 11, 13][rng.random_range(0..7)];
-            let size = size(variant, true, &mut rng);
+            let variant = [0, 2, 3, 4, 7, 8, 9, 11, 12, 13, 16][rng.random_range(0..11)];
+            let size = super::super::plants::sample_size(variant, true, &mut rng);
             for _ in 0..8 {
                 let side = if rng.random_bool(0.5) { -1. } else { 1. };
                 let offset = Vec3::new(
@@ -440,6 +417,11 @@ mod tests {
             floor_counts.insert(plants.iter().filter(|o| o.support.is_none()).count());
             for plant in plants {
                 seen.insert(plant.variant);
+                // Validate the actual emitted canopy, not just the admitted
+                // envelope. Generic and species-first proposals both occur here.
+                let assembly = super::super::super::objects::build_object(plant);
+                super::super::super::objects::audit::check(plant, &assembly)
+                    .unwrap_or_else(|e| panic!("room {seed}, plant {}: {e}", plant.id));
                 if let Some(id) = plant.support {
                     tabletop += 1;
                     let support = scene.objects.iter().find(|o| o.id == id).unwrap();

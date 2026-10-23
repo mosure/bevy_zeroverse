@@ -15,6 +15,7 @@ These guides describe the current generator and export contracts.
 | Export shared camera visibility | [Co-visibility](co_visibility.md) |
 | Export primary-room surface voxels | [O-voxel](ovoxel_indoor.md) |
 | Measure embedding-space diversity | [SigLIP2 audit](embedding_audit.md) |
+| Extend object, material or camera families | [Module ownership and compatibility contracts](code_organization.md) |
 
 The [architectural evaluation](architecture_v22.md) contains the latest
 512-room structural audit and 256-view rendered evaluation, including complete

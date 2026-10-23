@@ -9,6 +9,30 @@ pub struct PrimaryRegion<'a> {
     pub max: Vec2,
 }
 impl IndoorManifest {
+    /// Largest usable floor region, not its unclipped rectangular allocation.
+    /// Cameras, schematic ownership and O-voxel cropping share this selection.
+    pub fn primary_room_bounds(&self) -> (Vec2, Vec2) {
+        self.program
+            .as_ref()
+            .and_then(|p| {
+                p.zones
+                    .iter()
+                    .map(|z| {
+                        let area = self.envelope.as_ref().map_or_else(
+                            || (z.max - z.min).element_product() as f64,
+                            |e| clipped_area(&e.footprint, z.min, z.max),
+                        );
+                        (z, area)
+                    })
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+            })
+            .map(|(z, _)| (z.min, z.max))
+            .unwrap_or_else(|| {
+                let half = self.room_size.xz() * 0.5;
+                (-half, half)
+            })
+    }
+
     pub fn primary_region(&self) -> PrimaryRegion<'_> {
         let (min, max) = self.primary_room_bounds();
         PrimaryRegion {
@@ -18,7 +42,70 @@ impl IndoorManifest {
         }
     }
 }
+
+/// Integrate clipped signed fan triangles. Oppositely oriented pieces cancel
+/// outside a concave outline, including disconnected intersections. Unlike
+/// clipping a convex hull, this cannot fill a notch. Fixed scratch storage keeps
+/// primary-domain queries allocation-free in camera clearance hot loops.
+fn clipped_area(outline: &[Vec2], lo: Vec2, hi: Vec2) -> f64 {
+    let Some(origin) = outline.first() else {
+        return 0.;
+    };
+    let mut area = 0.;
+    for edge in outline[1..].windows(2) {
+        let mut points = [bevy::math::DVec2::ZERO; 12];
+        points[..3].copy_from_slice(&[origin.as_dvec2(), edge[0].as_dvec2(), edge[1].as_dvec2()]);
+        let mut length = 3;
+        for (axis, boundary, sign) in [(0, lo.x, 1.), (0, hi.x, -1.), (1, lo.y, 1.), (1, hi.y, -1.)]
+        {
+            let mut next = [bevy::math::DVec2::ZERO; 12];
+            let mut count = 0;
+            for i in 0..length {
+                let a = points[i];
+                let b = points[(i + 1) % length];
+                let da = (a[axis] - f64::from(boundary)) * sign;
+                let db = (b[axis] - f64::from(boundary)) * sign;
+                if da >= 0. {
+                    next[count] = a;
+                    count += 1;
+                }
+                if (da >= 0.) != (db >= 0.) {
+                    next[count] = a + (b - a) * (da / (da - db));
+                    count += 1;
+                }
+            }
+            points = next;
+            length = count;
+        }
+        for i in 1..length.saturating_sub(1) {
+            area += (points[i] - points[0]).perp_dot(points[i + 1] - points[0]) * 0.5;
+        }
+    }
+    area.abs()
+}
 impl PrimaryRegion<'_> {
+    /// Ray/surface intersections can land just outside a boundary through f32
+    /// roundoff. This is for surface ownership only, never body/path clearance.
+    pub(crate) fn contains_projection_with_tolerance(&self, p: Vec2, tolerance: f32) -> bool {
+        if !p.is_finite()
+            || !tolerance.is_finite()
+            || tolerance < 0.
+            || p.cmplt(self.min - Vec2::splat(tolerance)).any()
+            || p.cmpgt(self.max + Vec2::splat(tolerance)).any()
+        {
+            return false;
+        }
+        self.scene.envelope.as_ref().is_none_or(|e| {
+            polygon::contains(&e.footprint, p, 0.)
+                || polygon::edges(&e.footprint).any(|(a, b)| {
+                    let d = b - a;
+                    let closest =
+                        a + d * ((p - a).dot(d) / d.length_squared().max(1e-12)).clamp(0., 1.);
+                    p.distance_squared(closest) <= tolerance * tolerance
+                })
+        })
+    }
+
     /// X/Z ownership only. Does not invent floor in a concave notch.
     pub fn contains_projection(&self, p: Vec2, clearance: f32) -> bool {
         p.is_finite()
@@ -69,6 +156,88 @@ impl PrimaryRegion<'_> {
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::layout::IndoorLayout;
+    #[test]
+    fn primary_room_uses_clipped_floor_area_and_matches_topology() {
+        let scene =
+            IndoorManifest::generate_with_humans(65_332_074, IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        let topology = scene.room_topology();
+        let largest = topology
+            .regions
+            .iter()
+            .max_by(|a, b| a.area_m2.total_cmp(&b.area_m2))
+            .unwrap();
+        assert_eq!(
+            largest.zone, 1,
+            "zone zero's bounding rectangle extends outside the slanted envelope"
+        );
+        assert!(largest.primary);
+        let zone = &scene.program.as_ref().unwrap().zones[largest.zone];
+        assert_eq!(scene.primary_room_bounds(), (zone.min, zone.max));
+    }
+
+    #[test]
+    fn allocation_free_clipping_matches_triangulated_concave_oracle() {
+        let mut polygon = vec![
+            Vec2::ZERO,
+            Vec2::new(6., 0.),
+            Vec2::new(6., 6.),
+            Vec2::new(4., 6.),
+            Vec2::new(4., 2.),
+            Vec2::new(2., 2.),
+            Vec2::new(2., 6.),
+            Vec2::new(0., 6.),
+        ];
+        for _ in 0..2 {
+            let triangles = polygon::triangles(&polygon);
+            for x in -1..7 {
+                for y in -1..7 {
+                    let lo = Vec2::new(x as f32, y as f32);
+                    for size in [Vec2::splat(2.5), Vec2::new(0.00001, 3.), Vec2::splat(8.)] {
+                        let hi = lo + size;
+                        let expected: f64 = triangles
+                            .iter()
+                            .map(|t| polygon::area(&polygon::clip_box(t, lo, hi)).abs() as f64)
+                            .sum();
+                        assert!((clipped_area(&polygon, lo, hi) - expected).abs() < 1e-5);
+                    }
+                }
+            }
+            polygon.reverse();
+        }
+        assert!(clipped_area(&polygon, Vec2::new(2.1, 3.), Vec2::new(3.9, 5.)) < 1e-12);
+        assert_eq!(clipped_area(&[], Vec2::ZERO, Vec2::ONE), 0.);
+    }
+
+    #[test]
+    fn surface_roundoff_tolerance_does_not_change_clearance_or_admit_context() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(3, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        scene.program = None;
+        scene.room_size = Vec3::new(6., 3., 6.);
+        scene.envelope.as_mut().unwrap().footprint = vec![
+            Vec2::new(-3., -3.),
+            Vec2::new(3., -3.),
+            Vec2::new(3., 0.),
+            Vec2::ZERO,
+            Vec2::new(0., 3.),
+            Vec2::new(-3., 3.),
+        ];
+        let r = scene.primary_region();
+        for point in [Vec2::new(-3.00001, 0.), Vec2::new(0.00001, 1.)] {
+            assert!(!r.contains_projection(point, 0.));
+            assert!(r.contains_projection_with_tolerance(point, 1e-4));
+        }
+        for point in [
+            Vec2::new(-3.01, 0.),
+            Vec2::new(0.01, 1.),
+            Vec2::splat(2.),
+            Vec2::splat(f32::NAN),
+        ] {
+            assert!(!r.contains_projection_with_tolerance(point, 1e-4));
+        }
+        assert!(!r.contains_projection(Vec2::new(-2.99, 0.), 0.1));
+    }
     #[test]
     fn membership_uses_local_floor_roof_and_excludes_context() {
         for seed in 0..32 {

@@ -18,6 +18,10 @@ pub struct RetainedEvidence {
     /// gallery/papers. Without this pin, lens evidence must match current source.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lens_evidence_sha256: Option<String>,
+    /// Explicit pins for updated capture tools. Retained measurements keep the
+    /// original tool hashes in their attestation; these tools are not rerun.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub current_tool_sha256: BTreeMap<String, String>,
     pub reason: String,
 }
 
@@ -35,6 +39,7 @@ impl RetainedEvidence {
         for hash in [&self.release_source_sha256, &self.capture_evidence_sha256]
             .into_iter()
             .chain(self.lens_evidence_sha256.iter())
+            .chain(self.current_tool_sha256.values())
         {
             ensure!(
                 hash.len() == 64
@@ -44,7 +49,31 @@ impl RetainedEvidence {
                 "retained evidence requires lowercase SHA-256 pins"
             );
         }
+        for path in self.current_tool_sha256.keys() {
+            ensure!(
+                crate::objects::TOOLS.contains(&path.as_str())
+                    || crate::materials::TOOLS.contains(&path.as_str())
+                    || path == crate::doors::TOOL,
+                "retained tool pin must identify a registered capture tool"
+            );
+        }
         Ok(())
+    }
+
+    pub(crate) fn tool_hash(
+        &self,
+        path: &str,
+        current: String,
+        original: Option<&String>,
+    ) -> Result<String> {
+        let Some(pin) = self.current_tool_sha256.get(path) else {
+            return Ok(current);
+        };
+        self.validate()?;
+        ensure!(&current == pin, "retained capture tool changed: {path}");
+        original
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("missing original capture tool: {path}"))
     }
 
     pub(crate) fn verify_lens_pin(
@@ -217,6 +246,7 @@ mod tests {
             release_source_sha256: identity.source_sha256.clone(),
             capture_evidence_sha256: "b".repeat(64),
             lens_evidence_sha256: None,
+            current_tool_sha256: BTreeMap::new(),
             reason: "No GPU work in this release".into(),
         };
         let attestation = Attestation {
@@ -260,6 +290,40 @@ mod tests {
         };
         policy.capture_evidence_sha256 = capture_evidence_digest(&attestation).unwrap();
         (policy, identity, attestation)
+    }
+
+    #[test]
+    fn updated_tools_require_explicit_pins_and_preserve_original_evidence() {
+        let (mut policy, identity, mut attestation) = fixture();
+        let path = "examples/review_objects.rs";
+        let original = "1".repeat(64);
+        let current = "2".repeat(64);
+        attestation
+            .publication_inputs
+            .insert(path.into(), original.clone());
+        policy.capture_evidence_sha256 = capture_evidence_digest(&attestation).unwrap();
+        policy
+            .current_tool_sha256
+            .insert(path.into(), current.clone());
+        let mut inputs = attestation.publication_inputs.clone();
+        inputs.insert(
+            path.into(),
+            policy
+                .tool_hash(path, current.clone(), Some(&original))
+                .unwrap(),
+        );
+        policy.verify(&identity, &attestation, &inputs).unwrap();
+        assert_eq!(inputs[path], original);
+        assert!(policy
+            .tool_hash(path, "3".repeat(64), Some(&original))
+            .is_err());
+        assert!(policy.tool_hash(path, current.clone(), None).is_err());
+        inputs.insert(path.into(), current);
+        assert!(policy.verify(&identity, &attestation, &inputs).is_err());
+        policy
+            .current_tool_sha256
+            .insert("tex/bevy_zeroverse.tex".into(), "4".repeat(64));
+        assert!(policy.validate().is_err());
     }
 
     #[test]

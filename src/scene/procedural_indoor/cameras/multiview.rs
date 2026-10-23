@@ -598,7 +598,7 @@ fn restore_camera_order(cameras: &mut Vec<IndoorCamera>, placement_order: &[usiz
     *cameras = indexed.into_iter().map(|(_, camera)| camera).collect();
 }
 
-fn propose(
+pub(super) fn propose(
     reference: &IndoorCamera,
     extent: f32,
     reachable: f32,

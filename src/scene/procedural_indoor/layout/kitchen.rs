@@ -314,6 +314,12 @@ impl IndoorManifest {
     }
     fn dress_kitchen_counter(&mut self, id: usize, r: &mut ChaCha8Rng) {
         let support = self.objects[id].clone();
+        // Some worktops are tea/coffee stations; others retain preparation and
+        // washing tasks. Islands use the same supported furnishing contract.
+        if stream(support.seed, 8066).random_bool(0.28) {
+            self.dress_refreshment_counter(&support, None);
+            return;
+        }
         let mut placement_rng = stream(support.seed, 8065);
         let pattern = super::super::placement::SurfacePattern::sample(&mut placement_rng);
         let mut choices = vec![

@@ -138,6 +138,9 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
 pub fn program(o: &IndoorObject) -> serde_json::Value {
     use ObjectKind::*;
     match o.kind {
+        Locker => return serde_json::json!(public::education::parameters(o)),
+        Banquette => return serde_json::json!(public::banquette::parameters(o)),
+        Bookcase => return serde_json::json!(storage::bookcase::parameters(o)),
         ServiceCounter => return serde_json::json!(public::service::counter_parameters(o)),
         ExtractionHood => return serde_json::json!(public::service::hood_parameters(o)),
         Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),
@@ -145,6 +148,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             return serde_json::json!(public::casework::parameters(o))
         }
         DrinkDispenser => return serde_json::json!(public::dispenser::parameters(o)),
+        CoffeeMaker => return serde_json::json!(hospitality::coffee::parameters(o)),
         QueueBarrier => return serde_json::json!(public::barrier::parameters(o)),
         Vase | Bowl => return serde_json::json!(vessels::parameters(o)),
         Mug | CoffeeCup | WaterBottle | SodaCan => {

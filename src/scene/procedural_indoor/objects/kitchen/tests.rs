@@ -30,7 +30,9 @@ fn island_mesh_has_a_raised_continuous_worktop_and_freestanding_base() {
                 .flat_map(|(_, g)| g.positions.iter().map(|p| Vec3::from_array(*p)))
                 .collect();
             assert!(cabinet_positions.iter().any(|p| p.y < 0.002));
-            assert!(cabinet_positions.iter().any(|p| p.y > height - 0.05));
+            assert!(cabinet_positions
+                .iter()
+                .any(|v| v.y > height - p.slab_thickness - 0.03));
             // End panels stop inside the slab, giving a visible horizontal lip.
             assert!(cabinet_positions
                 .iter()
@@ -38,6 +40,37 @@ fn island_mesh_has_a_raised_continuous_worktop_and_freestanding_base() {
             assert!(a.parts.values().map(|g| g.indices.len() / 3).sum::<usize>() < 10_000);
         }
     }
+}
+
+#[test]
+fn island_construction_varies_bases_bay_proportions_and_fronts() {
+    let mut bases = std::collections::BTreeSet::new();
+    let mut fronts = std::collections::BTreeSet::new();
+    for seed in 0..128 {
+        let mut o = super::super::audit::fixture(ObjectKind::KitchenCounter, seed);
+        configure_island(&mut o);
+        let p = island_parameters(&o).unwrap();
+        bases.insert((p.raised_base, p.waterfall_ends));
+        fronts.insert(
+            (0..p.bays)
+                .map(|i| island::is_drawer_bank(&o, i))
+                .collect::<Vec<_>>(),
+        );
+        let sum = p.bay_weights.iter().sum::<f32>();
+        let width = o.size.x - 2. * p.end_overhang;
+        assert!(p.bay_weights.iter().all(|v| width * v / sum > 0.23));
+        assert!(p
+            .bay_weights
+            .windows(2)
+            .any(|v| (v[0] - v[1]).abs() > 0.001));
+        let a = super::super::build_object(&o);
+        super::super::audit::check(&o, &a).unwrap();
+    }
+    assert_eq!(bases.len(), 4);
+    assert!(
+        fronts.len() >= 15,
+        "cabinet banks collapse into repeated alternating fronts"
+    );
 }
 
 #[test]

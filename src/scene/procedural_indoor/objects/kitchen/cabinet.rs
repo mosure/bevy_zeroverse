@@ -196,10 +196,22 @@ pub(super) fn handle(
             tf,
         );
     } else if style == 1 {
-        a.part(s, label).ellipsoid(
-            Vec3::new(0.012, 0.012, 0.015),
-            Transform::from_translation(tf.transform_point(Vec3::new(x, y, 0.033)))
-                .with_rotation(tf.rotation),
+        // A turned knob has a supported neck, unlike a floating ellipsoid.
+        // Six profile spans also cost less than a full sphere per tiny handle.
+        a.part(s, label).lathe(
+            &[
+                (0., 0.),
+                (0.005, 0.),
+                (0.005, 0.008),
+                (0.010, 0.014),
+                (0.012, 0.022),
+                (0.009, 0.030),
+                (0., 0.034),
+            ],
+            16,
+            tf.mul_transform(
+                Transform::from_xyz(x, y, 0.011).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
+            ),
         );
     } else {
         let delta =
@@ -610,13 +622,19 @@ fn shelves(
 
 /// Cabinet fields occupy an actual aperture; raised/fluted fields never overlay
 /// a coplanar full-size slab. Appliance glazing retains its appliance class.
-fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, label: &str) {
+pub(super) fn front_panel(
+    a: &mut Assembly,
+    size: Vec2,
+    tf: Transform,
+    p: &KitchenProgram,
+    label: &str,
+) {
     if p.door_style == 1 {
         panel(a, size, tf, p.finish, label, true);
         return;
     }
     if p.front_profile == 0 {
-        box_at(
+        front_sheet(
             a,
             p.finish,
             label,
@@ -628,7 +646,7 @@ fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, 
     }
     let edge = (size.min_element() * 0.13).clamp(0.018, 0.055);
     for side in [-1., 1.] {
-        box_at(
+        front_sheet(
             a,
             p.finish,
             label,
@@ -636,7 +654,7 @@ fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, 
             Vec3::new(edge, size.y, 0.022),
             tf,
         );
-        box_at(
+        front_sheet(
             a,
             p.finish,
             label,
@@ -647,7 +665,7 @@ fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, 
     }
     let inner = size - Vec2::splat(2. * edge + 0.002);
     let t = if p.front_profile == 2 { 0.028 } else { 0.009 };
-    box_at(
+    front_sheet(
         a,
         p.finish,
         label,
@@ -656,9 +674,9 @@ fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, 
         tf,
     );
     if p.front_profile == 3 {
-        let n = (inner.x / 0.028).floor().max(2.) as usize;
+        let n = (inner.x / 0.042).floor().max(2.) as usize;
         for i in 0..n {
-            box_at(
+            front_sheet(
                 a,
                 p.finish,
                 label,
@@ -672,4 +690,30 @@ fn front_panel(a: &mut Assembly, size: Vec2, tf: Transform, p: &KitchenProgram, 
             );
         }
     }
+}
+
+/// Bevelled sheet goods use extruded rectangular profiles (32 triangles), not
+/// 108-triangle rounded solids for every frame member and narrow flute.
+fn front_sheet(
+    a: &mut Assembly,
+    surface: Surface,
+    label: &str,
+    center: Vec3,
+    size: Vec3,
+    tf: Transform,
+) {
+    let h = size.xy() * 0.5;
+    a.part(surface, label).profile_slab(
+        &[
+            Vec2::new(-h.x, -h.y),
+            Vec2::new(h.x, -h.y),
+            Vec2::new(h.x, h.y),
+            Vec2::new(-h.x, h.y),
+        ],
+        size.z,
+        size.min_element().min(0.008) * 0.20,
+        tf.mul_transform(
+            Transform::from_translation(center).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
+        ),
+    );
 }

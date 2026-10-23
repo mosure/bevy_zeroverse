@@ -7,7 +7,10 @@ pub struct CounterProgram {
     pub structure: u8,
     pub toe_height: f32,
     pub body_depth: f32,
+    pub body_width: f32,
     pub slab_thickness: f32,
+    pub leg_width: f32,
+    pub shelf_height: f32,
     pub taper: f32,
     pub bay_weights: Vec<f32>,
     pub slats: usize,
@@ -22,16 +25,19 @@ pub fn counter_parameters(o: &IndoorObject) -> CounterProgram {
     let n = (o.size.x / r.random_range(0.40..0.72))
         .round()
         .clamp(2., 6.) as usize;
-    let structure = r.random_range(0..4);
+    let structure = r.random_range(0..6);
     CounterProgram {
         structure,
         toe_height: r.random_range(0.075..0.18),
         body_depth: r.random_range(0.67..0.87),
+        body_width: r.random_range(0.82..0.94),
         slab_thickness: r.random_range(0.026..0.064),
+        leg_width: r.random_range(0.028..0.060),
+        shelf_height: r.random_range(0.14..0.35),
         taper: r.random_range(0.66..0.94),
         bay_weights: (0..n).map(|_| r.random_range(0.65..1.45)).collect(),
         slats: r.random_range(8..=22),
-        footrail: r.random_bool(0.42) && structure != 1,
+        footrail: r.random_bool(0.42) && !matches!(structure, 1 | 5),
         finish: [Surface::Wood, Surface::Paint, Surface::Metal][f.random_range(0..3)],
         top: [
             Surface::Wood,
@@ -47,7 +53,7 @@ pub(super) fn counter(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let label = o.kind.class_name();
     let upper = s.y - p.slab_thickness;
-    let width = s.x * 0.91;
+    let width = s.x * p.body_width;
     let depth = s.z * p.body_depth;
     let t = 0.018;
     if p.structure == 1 {
@@ -58,7 +64,7 @@ pub(super) fn counter(a: &mut Assembly, o: &IndoorObject) {
                     p.finish,
                     label,
                     Vec3::new(x * width, upper * 0.5, z * depth),
-                    Vec3::new(0.035, upper, 0.035),
+                    Vec3::new(p.leg_width, upper, p.leg_width),
                     0.004,
                 );
             }
@@ -66,7 +72,7 @@ pub(super) fn counter(a: &mut Assembly, o: &IndoorObject) {
         a.box_part(
             p.finish,
             label,
-            Vec3::Y * p.toe_height,
+            Vec3::Y * (upper * p.shelf_height),
             Vec3::new(width, 0.025, depth),
             0.003,
         );
@@ -76,6 +82,40 @@ pub(super) fn counter(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(0., upper - 0.07, depth * 0.46),
             Vec3::new(width, 0.14, t),
             0.003,
+        );
+    } else if p.structure == 5 {
+        // Trestle preparation bench: two braced frames rather than a solid
+        // cabinet hidden beneath every beverage station.
+        for side in [-1., 1.] {
+            let x = side * width * 0.36;
+            for z in [-1., 1.] {
+                a.box_part(
+                    Surface::Rubber,
+                    label,
+                    Vec3::new(x, p.leg_width * 0.25, z * depth * 0.42),
+                    Vec3::new(p.leg_width * 1.1, p.leg_width * 0.5, p.leg_width * 1.1),
+                    0.002,
+                );
+                a.part(p.finish, label).rod(
+                    Vec3::new(x, p.leg_width * 0.5, z * depth * 0.42),
+                    Vec3::new(x, upper - p.leg_width * 0.5, z * depth * 0.26),
+                    p.leg_width * 0.5,
+                );
+            }
+            a.box_part(
+                p.finish,
+                label,
+                Vec3::new(x, upper - p.leg_width * 0.5, 0.),
+                Vec3::new(p.leg_width, p.leg_width, depth * 0.90),
+                0.003,
+            );
+        }
+        a.box_part(
+            p.finish,
+            label,
+            Vec3::Y * (upper * p.shelf_height),
+            Vec3::new(width * 0.80, p.leg_width, depth * 0.44),
+            0.004,
         );
     } else if p.structure == 3 {
         // Curved/tapered bar carcass underneath a rectangular supported worktop.
@@ -137,6 +177,20 @@ pub(super) fn counter(a: &mut Assembly, o: &IndoorObject) {
                         depth * 0.5 + 0.007,
                     ),
                     Vec3::new(pitch * 0.64, upper - p.toe_height - 0.012, 0.020),
+                    0.003,
+                );
+            }
+        }
+        if p.structure == 4 {
+            // Continuous stone/timber returns, with daylight between the
+            // returns and the narrower storage carcass.
+            let thickness = (s.x - width) * 0.32;
+            for side in [-1., 1.] {
+                a.box_part(
+                    p.top,
+                    label,
+                    Vec3::new(side * (s.x - thickness) * 0.5, upper * 0.5, 0.),
+                    Vec3::new(thickness, upper, s.z),
                     0.003,
                 );
             }

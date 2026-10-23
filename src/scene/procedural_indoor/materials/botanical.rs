@@ -82,8 +82,10 @@ impl LeafRecipe {
     }
     pub(super) fn apply(&self, mat: &mut bevy::prelude::StandardMaterial) {
         mat.diffuse_transmission = self.transmission;
-        mat.clearcoat = self.wax * 0.25;
-        mat.clearcoat_perceptual_roughness = 0.18 + (1. - self.wax) * 0.20;
+        // A leaf cuticle gives a broad dielectric highlight, not a polished
+        // clearcoat layer that turns whole fern fronds silver at grazing angles.
+        mat.clearcoat = self.wax * 0.10;
+        mat.clearcoat_perceptual_roughness = 0.30 + (1. - self.wax) * 0.22;
         mat.reflectance = 0.45;
     }
     pub(super) fn evaluate(&self, r: &MaterialRecipe, [u, v]: [f32; 2]) -> Texel {
@@ -187,6 +189,30 @@ impl CuticleRecipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn leaf_cuticle_stays_dielectric_with_bounded_wax_and_transmission() {
+        for seed in 0..32 {
+            let recipes = super::super::program::sample_base(seed);
+            for surface in [Surface::Leaf, Surface::LeafLight, Surface::LeafVariegated] {
+                let r = &recipes[surface as usize];
+                let leaf = r.leaf.as_ref().unwrap();
+                leaf.validate().unwrap();
+                let mut material = bevy::prelude::StandardMaterial::default();
+                leaf.apply(&mut material);
+                assert_eq!(material.metallic, 0.);
+                assert!(material.clearcoat <= 0.08);
+                assert!((0.015..=0.09).contains(&material.diffuse_transmission));
+                for uv in [[0.1, 0.2], [0.5, 0.5], [0.8, 0.9]] {
+                    let texel = leaf.evaluate(r, uv);
+                    assert!((0.43..=0.85).contains(&texel.roughness));
+                    assert!(texel
+                        .color
+                        .iter()
+                        .all(|v| v.is_finite() && (0.0..=1.).contains(v)));
+                }
+            }
+        }
+    }
     #[test]
     fn succulent_cuticle_is_metric_tileable_seeded_and_has_no_leaf_atlas() {
         let mut wax_bins = std::collections::BTreeSet::new();

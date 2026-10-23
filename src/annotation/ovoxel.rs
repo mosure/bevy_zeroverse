@@ -1841,6 +1841,7 @@ mod tests {
     use std::{
         sync::{Mutex, OnceLock},
         thread,
+        time::{Duration, Instant},
     };
 
     static GPU_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -1862,29 +1863,37 @@ mod tests {
     }
 
     fn wait_for_volume(app: &mut App, root: Entity) -> OvoxelVolume {
-        wait_for_volume_with_limit(app, root, 300)
+        wait_for_volume_with_timeout(app, root, Duration::from_secs(10))
     }
 
-    fn wait_for_volume_with_limit(app: &mut App, root: Entity, limit: usize) -> OvoxelVolume {
-        for _ in 0..limit {
+    fn wait_for_volume_with_timeout(
+        app: &mut App,
+        root: Entity,
+        timeout: Duration,
+    ) -> OvoxelVolume {
+        let start = Instant::now();
+        while start.elapsed() < timeout {
             app.update();
             if let Some(v) = app.world().entity(root).get::<OvoxelVolume>() {
                 return v.clone();
             }
-            thread::yield_now();
+            // Async voxel work needs elapsed worker time, not a fixed number
+            // of tight ECS polls. This also avoids starving its worker pool.
+            thread::sleep(Duration::from_millis(1));
         }
-        panic!("volume should be attached after {limit} updates");
+        panic!("volume should be attached within {timeout:?}");
     }
 
     fn wait_for_cache_version(app: &mut App, root: Entity, min_version: u64) -> OvoxelCache {
-        for _ in 0..300 {
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_secs(10) {
             app.update();
             if let Some(cache) = app.world().entity(root).get::<OvoxelCache>() {
                 if cache.version >= min_version {
                     return cache.clone();
                 }
             }
-            thread::yield_now();
+            thread::sleep(Duration::from_millis(1));
         }
         panic!("cache version did not reach {min_version}");
     }
@@ -2652,7 +2661,7 @@ mod tests {
 
         app.world_mut().entity_mut(root).add_child(child);
 
-        let volume = wait_for_volume_with_limit(&mut app, root, 500);
+        let volume = wait_for_volume_with_timeout(&mut app, root, Duration::from_secs(20));
 
         assert!(!volume.coords.is_empty());
         assert_eq!(volume.coords.len(), volume.semantics.len());

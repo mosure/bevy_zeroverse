@@ -12,7 +12,7 @@ fn banquette_back_height_does_not_change_the_adult_seating_datum() {
             let seat = a
                 .parts
                 .iter()
-                .filter(|((surface, _), _)| *surface == Surface::Fabric)
+                .filter(|((surface, _), _)| *surface == banquette::parameters(&o).upholstery)
                 .flat_map(|(_, g)| &g.positions)
                 .filter(|p| p[2] > 0.)
                 .map(|p| p[1])

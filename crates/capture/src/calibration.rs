@@ -4,20 +4,15 @@
 use serde::{Deserialize, Serialize};
 
 mod fisheye;
+mod model;
 pub use fisheye::{Fisheye, FisheyeFit, FisheyeSensor};
+pub use model::{DepthConvention, LensContract, LensModel};
 
 /// Shared verbatim by Rust and Python tensor writers/readers.
 pub const TENSOR_METADATA: &str = r#"{"schema_version":1,"lens_model":"pinhole","lens_model_version":1,"pixel_convention":"top_left_corner_half_pixel_centers","intrinsics":"row-major K; image x right, y down","world_from_view":"column-major; view x right, y up, -Z forward; metres","time":"normalized playback progress; legacy field retained","trajectory_progress":"trajectory parameter after playback easing","time_seconds":"explicit capture timeline; unspecified when time_seconds_valid is zero"}"#;
 
 /// Mixed-lens tensors carry per-view model IDs and coefficients with explicit depth semantics.
 pub const TENSOR_METADATA_V2: &str = r#"{"schema_version":2,"lens_model_versions":{"0":1,"1":1},"intrinsics":"row-major K; image x right, y down","image_size":"width,height; final output pixels","time":"normalized playback progress; legacy field retained","trajectory_progress":"trajectory parameter after playback easing","time_seconds":"explicit capture timeline; unspecified when time_seconds_valid is zero","models":"lens_model U8 (0=pinhole,1=angular_fisheye4); lens_parameters F32 [k1,k2,k3,k4,max_angle_radians]","pixel_convention":"top_left_corner_half_pixel_centers","depth":"pinhole: camera_z_metres; angular_fisheye4: ray_range_metres; zero is invalid","world_from_view":"column-major; view x right, y up, -Z forward; metres"}"#;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LensModel {
-    Pinhole,
-    AngularFisheye4,
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,9 +54,9 @@ impl CameraCalibration {
         let tan = (fovy * 0.5).tan();
         let result = Self {
             fisheye: None,
-            schema_version: 1,
+            schema_version: LensModel::Pinhole.contract().calibration_schema_version,
             lens_model: LensModel::Pinhole,
-            lens_model_version: 1,
+            lens_model_version: LensModel::Pinhole.contract().model_version,
             pixel_convention: PixelConvention::TopLeftCornerHalfPixelCenters,
             image_size: [width, height],
             k: [
@@ -75,12 +70,14 @@ impl CameraCalibration {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        let contract = self.lens_model.contract();
         let supported = match self.lens_model {
-            LensModel::Pinhole => self.schema_version == 1 && self.fisheye.is_none(),
-            LensModel::AngularFisheye4 => self.schema_version == 2 && self.fisheye.is_some(),
+            LensModel::Pinhole => self.fisheye.is_none(),
+            LensModel::AngularFisheye4 => self.fisheye.is_some(),
         };
         if !supported
-            || self.lens_model_version != 1
+            || self.schema_version != contract.calibration_schema_version
+            || self.lens_model_version != contract.model_version
             || self.image_size.contains(&0)
             || self.k.iter().flatten().any(|v| !v.is_finite())
             || self.k[0][0] <= 0.0

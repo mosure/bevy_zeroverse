@@ -48,38 +48,15 @@ impl IndoorManifest {
         {
             return;
         }
-        let kind = if rng.random_bool(0.55) {
-            ObjectKind::CoffeeMaker
-        } else {
-            ObjectKind::Kettle
-        };
-        let size = if kind == ObjectKind::CoffeeMaker {
-            Vec3::new(
-                rng.random_range(0.24..0.31),
-                rng.random_range(0.29..0.41),
-                (support.size.z * 0.69).clamp(0.27, 0.38),
-            )
-        } else {
-            Vec3::new(0.18, rng.random_range(0.20..0.27), 0.25)
-        };
-        let side = if rng.random_bool(0.5) { -1. } else { 1. };
-        self.prop(
-            support,
-            kind,
-            Vec3::new(side * support.size.x * 0.16, 0., -support.size.z * 0.03),
-            size,
-            rng.random_range(-0.06..0.06),
-            &mut rng,
-        );
-        let (drink, size) = drink(&mut rng);
-        self.prop(
-            support,
-            drink,
-            Vec3::new(-side * support.size.x * 0.28, 0., support.size.z * 0.16),
-            size,
-            rng.random_range(-0.8..0.8),
-            &mut rng,
-        );
+        // Preserve the domain's optional-clutter thinning when choosing the
+        // assembly. Functional kitchen/cafe stations use a separate entry point.
+        if self
+            .domain()
+            .is_some_and(|d| !rng.random_bool((0.12 + 0.88 * d.clutter) as f64))
+        {
+            return;
+        }
+        self.dress_refreshment_counter(support, None);
     }
 
     pub(super) fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {

@@ -43,6 +43,7 @@ struct Materials(IndoorMaterials);
 #[derive(Resource)]
 struct Batch {
     objects: Vec<IndoorObject>,
+    attachments: Vec<IndoorObject>,
     install: bool,
 }
 #[derive(Component)]
@@ -70,6 +71,9 @@ fn install(
             Visibility::default(),
         ))
         .id();
+    for o in &batch.attachments {
+        objects::spawn_object(o, root, &mut commands, &mut meshes, &materials.0);
+    }
     for (i, o) in batch.objects.iter().enumerate() {
         objects::spawn_object(o, root, &mut commands, &mut meshes, &materials.0);
         let target = o.position + Vec3::Y * o.size.y * 0.48;
@@ -167,7 +171,36 @@ fn main() -> Result<()> {
                 o
             })
             .collect();
-        groups.push((name.to_string(), objects, rows));
+        // Assembly audits may include supported appliances/props. Remap both
+        // instance IDs and support links, keeping each camera on its own unit.
+        let mut attachments = Vec::new();
+        for (i, row) in rows.iter().enumerate() {
+            let original: IndoorObject = serde_json::from_value(row["object"].clone())?;
+            let children: Vec<IndoorObject> = row
+                .get("attachments")
+                .map(|v| serde_json::from_value(v.clone()))
+                .transpose()?
+                .unwrap_or_default();
+            let mut ids = std::collections::BTreeMap::from([(original.id, i)]);
+            for (j, child) in children.iter().enumerate() {
+                ensure!(!ids.contains_key(&child.id), "duplicate assembly instance");
+                ids.insert(child.id, objects.len() + attachments.len() + j);
+            }
+            for mut child in children {
+                child.id = ids[&child.id];
+                child.support = child
+                    .support
+                    .map(|id| {
+                        ids.get(&id)
+                            .copied()
+                            .ok_or_else(|| anyhow::anyhow!("missing support {id}"))
+                    })
+                    .transpose()?;
+                child.position += objects[i].position - original.position;
+                attachments.push(child);
+            }
+        }
+        groups.push((name.to_string(), objects, attachments, rows));
     }
     ensure!(!groups.is_empty(), "no matching category");
     let mut app = create_app(
@@ -230,16 +263,18 @@ fn main() -> Result<()> {
     );
     app.insert_resource(Batch {
         objects: groups[0].1.clone(),
+        attachments: groups[0].2.clone(),
         install: true,
     });
     app.add_systems(PreUpdate, install);
     app.finish();
     app.cleanup();
     let mut manifest = Vec::new();
-    for (index, (name, objects, rows)) in groups.iter().enumerate() {
+    for (index, (name, objects, attachments, rows)) in groups.iter().enumerate() {
         if index > 0 {
             *app.world_mut().resource_mut::<Batch>() = Batch {
                 objects: objects.clone(),
+                attachments: attachments.clone(),
                 install: true,
             };
         }
@@ -257,11 +292,16 @@ fn main() -> Result<()> {
                 .try_recv()
             {
                 ensure!(
-                    sample.views.len() == 6 && sample.object_obbs.len() == 6,
+                    sample.views.len() == 6
+                        && sample.object_obbs.len() == objects.len() + attachments.len(),
                     "incomplete object batch {name}"
                 );
                 for (i, v) in sample.views.iter().enumerate() {
-                    for (mode, data) in [("color", &v.color), ("normal", &v.normal)] {
+                    for (mode, data) in [
+                        ("color", &v.color),
+                        ("normal", &v.normal),
+                        ("semantic", &v.semantic),
+                    ] {
                         ensure!(data.len() == 320 * 320 * 16, "invalid {mode} length");
                         let floats: &[f32] = bytemuck::cast_slice(data);
                         let mut bytes = Vec::with_capacity(320 * 320 * 3);

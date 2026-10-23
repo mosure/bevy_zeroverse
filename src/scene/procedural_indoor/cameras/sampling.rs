@@ -24,6 +24,19 @@ impl IndoorManifest {
         rng: &mut rand_chacha::ChaCha8Rng,
         coverage: &super::coverage::Coverage,
     ) -> Result<(), String> {
+        self.sample_slots_with_budget(first, count, rng, coverage, 2048)
+    }
+
+    /// A joint rig search already has an outer retry budget. It must not pay a
+    /// complete 2048-proposal independent search for every rejected peer.
+    pub(super) fn sample_slots_with_budget(
+        &mut self,
+        first: usize,
+        count: usize,
+        rng: &mut rand_chacha::ChaCha8Rng,
+        coverage: &super::coverage::Coverage,
+        attempts: usize,
+    ) -> Result<(), String> {
         let half = self.room_size * 0.5;
         self.camera_settings.validate()?;
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
@@ -49,18 +62,25 @@ impl IndoorManifest {
             let require_person = index == 0 && !people.is_empty();
             let mut found = None;
             let mut rejected = [0usize; 5];
-            for attempt in 0..2048 {
+            for attempt in 0..attempts {
                 self.camera_diagnostics.reference_proposals += 1;
+                // Mounted views are in the primary room. A mixed rig's room
+                // proposals should usually start there too, rather than exhaust
+                // a shared-visibility search in disconnected neighboring zones.
+                // Retain unrestricted proposals; the requested policy and the
+                // complete clearance/content/overlap tests do not change.
+                let primary =
+                    self.camera_settings.primary_room || (attempts < 2048 && rng.random_bool(0.8));
                 let mut p = Vec3::new(
                     rng.random_range(-half.x + 0.65..half.x - 0.65),
                     0.,
                     rng.random_range(-half.z + 0.65..half.z - 0.65),
                 );
-                if self.camera_settings.primary_room {
+                if primary {
                     p.x = rng.random_range(primary_lo.x + 0.50..primary_hi.x - 0.50);
                     p.z = rng.random_range(primary_lo.y + 0.50..primary_hi.y - 0.50);
                 }
-                if perimeter && attempt < 256 && !self.camera_settings.primary_room {
+                if perimeter && attempt < 256 && !primary {
                     let inset = rng.random_range(0.65..1.8);
                     match edge {
                         0 => p.z = half.z - inset,
@@ -71,7 +91,22 @@ impl IndoorManifest {
                 }
                 // Propose relative to the actual local floor and slanted roof.
                 // A room-seeded continuous mixture replaces seed%5 height bands.
-                let floor = self.floor_height(p.xz());
+                let mut floor = self.floor_height(p.xz());
+                // A joint rig may need an upper-level corridor. The world-space
+                // 3.25 m cap otherwise excludes every eye position on a mezzanine.
+                // Keep both supporting levels in the proposal distribution.
+                if attempts < 2048 {
+                    if let Some(deck) = self
+                        .envelope
+                        .as_ref()
+                        .and_then(|e| e.mezzanine.as_ref())
+                        .map(|m| &m.deck)
+                    {
+                        if deck.contains(p.xz()) && rng.random_bool(0.5) {
+                            floor = deck.height;
+                        }
+                    }
+                }
                 let upper = (self.ceiling_height(p.xz())
                     - self
                         .program
@@ -80,7 +115,7 @@ impl IndoorManifest {
                     - 0.04
                     - CAMERA_CLEARANCE
                     - 0.04)
-                    .min(3.25)
+                    .min(if attempts < 2048 { floor + 3.25 } else { 3.25 })
                     .min(floor + 3.25);
                 let Some(height) = viewpoint.height(floor, upper, rng) else {
                     rejected[0] += 1;
@@ -260,7 +295,7 @@ impl IndoorManifest {
                 found = Some(camera);
                 break;
             }
-            if found.is_none() && require_person {
+            if found.is_none() && require_person && attempts >= 2048 {
                 found = self.person_camera_fallback(&people, rng, coverage);
             }
             for (total, n) in self

@@ -17,6 +17,16 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
             let d = r.random_range(0.065..0.23);
             Vec3::new(d, d * r.random_range(0.65..2.8), d)
         }
+        Plant => {
+            // Generic supported proposals choose their compatible species
+            // afterward. Include compact broad crowns as well as upright pots.
+            let d = r.random_range(0.17..0.34);
+            Vec3::new(
+                d,
+                d * r.random_range(0.65..1.80),
+                d * r.random_range(0.94..1.06),
+            )
+        }
         CoffeeCup => {
             let d = r.random_range(0.060..0.100);
             Vec3::new(d, d * r.random_range(1.12..1.90), d)

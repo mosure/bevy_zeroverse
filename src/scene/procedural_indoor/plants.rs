@@ -2,9 +2,16 @@
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
 mod broadleaf;
+mod leaf;
+use leaf::{blade, incline};
 mod habits;
+mod palm;
 mod pots;
+mod sampling;
+mod vines;
+mod woody;
 pub use pots::PotProfile;
+pub(super) use sampling::{sample_size, sample_species};
 
 use super::{
     layout::{stream, IndoorObject},
@@ -39,48 +46,6 @@ pub fn species_name(variant: u32) -> &'static str {
     ][(variant % SPECIES) as usize]
 }
 
-/// Existing floor/tabletop plant proposals also need a compatible growth habit:
-/// a two-metre narrow reserve must not turn into a vertically stretched rosette.
-pub(super) fn sample_species(size: Vec3, rng: &mut impl Rng) -> u32 {
-    let ratio = size.y / size.x.min(size.z);
-    let ranges = [
-        (1.1, 6.0),
-        (1.2, 5.5),
-        (1.3, 8.0),
-        (0.7, 3.0),
-        (0.65, 1.9),
-        (1.6, 7.0),
-        (1.3, 6.0),
-        (0.30, 1.7),
-        (0.75, 6.0),
-        (0.70, 4.0),
-        (1.8, 8.0),
-        (0.70, 4.0),
-        (1.2, 5.0),
-        (0.70, 3.0),
-        (1.20, 5.0),
-        (1.00, 4.0),
-        (0.65, 3.5),
-    ];
-    let mut choices = [0u32; SPECIES as usize];
-    let mut count = 0;
-    for (i, (min, max)) in ranges.into_iter().enumerate() {
-        if (min..=max).contains(&ratio) && (i != 7 || size.y <= 0.70 || ratio <= 1.1) {
-            choices[count] = i as u32;
-            count += 1;
-        }
-    }
-    if count == 0 {
-        if ratio < 1. {
-            7
-        } else {
-            2
-        }
-    } else {
-        choices[rng.random_range(0..count)]
-    }
-}
-
 /// Independent morphology controls; species constrains growth habit, not a mesh.
 #[derive(Debug, Clone, serde::Serialize)]
 pub(super) struct Growth {
@@ -102,6 +67,12 @@ pub(super) struct Growth {
     pub leaf_curl: f32,
     pub leaf_lobes: f32,
     pub leaf_tip_exponent: f32,
+    /// Height of the first woody branch, as a fraction of the live stem.
+    pub crown_base: f32,
+    /// Continuous rounded versus conical crown profile.
+    pub crown_roundness: f32,
+    /// Lower shoots splay farther; upper growth stays more upright.
+    pub shoot_splay: f32,
 }
 impl Growth {
     pub fn sample(seed: u64) -> Self {
@@ -116,11 +87,11 @@ impl Growth {
             pot_taper: rng.random_range(0.60..0.94),
             density: rng.random_range(0.78..1.08),
             phyllotaxis: rng.random_range(2.18..2.62),
-            leaf_aspect: rng.random_range(0.72..1.28),
+            leaf_aspect: rng.random_range(0.88..1.28),
             crown_skew: rng.random_range(-0.16..0.16),
             droop: rng.random_range(0.08..0.42),
             branching: rng.random_range(0.38..0.92),
-            crown_spread: crown.random_range(0.84..1.0),
+            crown_spread: crown.random_range(0.90..1.0),
             shoot_phase: crown.random_range(0.0..TAU),
             internode_exponent: crown.random_range(0.65..1.65),
             angular_irregularity: crown.random_range(0.04..0.38),
@@ -128,6 +99,9 @@ impl Growth {
             leaf_curl: crown.random_range(0.12..0.38),
             leaf_lobes: crown.random_range(3.0..6.0),
             leaf_tip_exponent: crown.random_range(0.60..1.25),
+            crown_base: crown.random_range(0.18..0.34),
+            crown_roundness: crown.random_range(0.35..0.85),
+            shoot_splay: crown.random_range(0.36..0.72),
         };
         // Age drives connected leader/leaf occupancy jointly. Mature plants
         // should not independently draw both sparse foliage and weak branching.
@@ -144,7 +118,8 @@ impl Growth {
             + self.angular_irregularity * (index as f32 * 2.37).sin()
     }
     fn node(&self, index: usize, count: usize) -> f32 {
-        (index as f32 / count as f32).powf(self.internode_exponent)
+        let t = index as f32 / count as f32;
+        t * 0.35 + t.powf(self.internode_exponent) * 0.65
     }
 }
 
@@ -208,101 +183,6 @@ fn stem(a: &mut Assembly, points: &[Vec3], radius: f32) {
     }
 }
 
-/// Each blade owns its UV domain: the central vein follows the midrib, even on
-/// a twisted leaf. Area-weighted mesh normals follow the actual curved surface.
-fn blade(
-    a: &mut Assembly,
-    base: Vec3,
-    delta: Vec3,
-    half_width: f32,
-    shape: u32,
-    seed: u64,
-    morphology: &Growth,
-) {
-    let axis = delta.normalize();
-    let side = axis.cross(Vec3::Y).try_normalize().unwrap_or(Vec3::X);
-    let up = side.cross(axis).normalize();
-    let mut rng = stream(seed, 91);
-    let half_width = half_width * morphology.leaf_aspect;
-    let bend = rng.random_range(0.18..0.50);
-    let twist = rng.random_range(-0.30..0.30);
-    let asymmetry = rng.random_range(-0.13..0.13);
-    let exponent = if shape == 2 {
-        rng.random_range(0.25..0.6)
-    } else {
-        morphology.leaf_tip_exponent * rng.random_range(0.90..1.06)
-    };
-    let surface = if shape == 2 {
-        Surface::LeafVariegated
-    } else if ((seed % 1000) as f32) < 80. + (1. - morphology.maturity) * 220. {
-        Surface::LeafLight
-    } else {
-        Surface::Leaf
-    };
-    let g = a.part(surface, "other_prop");
-    let first = g.positions.len() as u32;
-    let mut positions = vec![base];
-    let mut uvs = vec![[0.5, 0.0]];
-    for row in 1..8 {
-        let t = row as f32 / 8.0;
-        let envelope = (PI * t).sin().powf(exponent)
-            * if shape == 4 {
-                (1.30 - t).clamp(0.35, 1.0)
-            } else {
-                1.0
-            };
-        let lobes = if shape == 3 {
-            0.48 + 0.52 * (t * PI * morphology.leaf_lobes).cos().abs()
-        } else if shape == 5 {
-            0.88 + 0.12 * (t * PI * 12.0).cos().abs()
-        } else {
-            1.0
-        };
-        let mid =
-            base + delta * t + up * half_width * (bend * (PI * t).sin() - morphology.droop * t * t);
-        for sign in [-1.0, 0.0, 1.0] {
-            let w = half_width * envelope * lobes * sign * (1.0 + sign * asymmetry);
-            positions.push(mid + side * w + up * (w * twist * t - w.abs() * morphology.leaf_curl));
-            uvs.push([0.5 + sign * envelope * lobes * 0.5, t]);
-        }
-    }
-    positions.push(base + delta - up * half_width * morphology.droop);
-    uvs.push([0.5, 1.0]);
-    let mut indices = vec![0, 2, 1, 0, 3, 2];
-    for row in 0..6 {
-        let k = 1 + row * 3;
-        indices.extend([
-            k,
-            k + 1,
-            k + 3,
-            k + 1,
-            k + 4,
-            k + 3,
-            k + 1,
-            k + 2,
-            k + 4,
-            k + 2,
-            k + 5,
-            k + 4,
-        ]);
-    }
-    indices.extend([19, 20, 22, 20, 21, 22]);
-    let mut normals = vec![Vec3::ZERO; positions.len()];
-    for tri in indices.as_chunks::<3>().0 {
-        let [i, j, k] = [tri[0] as usize, tri[1] as usize, tri[2] as usize];
-        let n = (positions[j] - positions[i]).cross(positions[k] - positions[i]);
-        for index in [i, j, k] {
-            normals[index] += n;
-        }
-    }
-    g.positions
-        .extend(positions.into_iter().map(|p| p.to_array()));
-    g.normals
-        .extend(normals.into_iter().map(|n| n.normalize().to_array()));
-    g.uvs.extend(uvs);
-    g.indices.extend(indices.into_iter().map(|i| first + i));
-}
-
 pub fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 5);
     let h = o.size.y;
@@ -335,6 +215,14 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
     let spread = spread.min((h - soil) * 0.80) * growth.crown_spread;
+    if matches!(o.variant % SPECIES, 0 | 6 | 12 | 13) {
+        woody::build(a, o, &growth, base, spread);
+        return;
+    }
+    if o.variant % SPECIES == 11 {
+        vines::build(a, o, &growth, base, spread, soil_radius);
+        return;
+    }
     if o.variant % SPECIES >= 14 {
         broadleaf::build(a, o, &growth, base, spread, soil_radius);
         return;
@@ -344,70 +232,38 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         return;
     }
     match o.variant % SPECIES {
-        0 => {
-            // Rubber plant: alternate broad leaves on several branching leaders.
-            for leader in 0..growth.leader_count {
-                let angle = growth.angle(leader) + rng.random_range(0.0..0.4);
-                let top = base
-                    + Vec3::Y * ((h - soil) * rng.random_range(0.64..0.84))
-                    + radial(angle) * spread * 0.20;
-                let leader = [
-                    base,
-                    base.lerp(top, 0.40) - radial(angle) * spread * 0.05,
-                    top,
-                ];
-                stem(a, &leader, h * 0.009);
-                for j in 0..growth.count(9) {
-                    let p = along(&leader, 0.20 + growth.node(j, growth.count(9)) * 0.75);
-                    let d = radial(angle + growth.angle(j));
-                    let petiole = p + d * spread * 0.12 + Vec3::Y * h * 0.025;
-                    stem(a, &[p, petiole], h * 0.0025);
-                    blade(
-                        a,
-                        petiole,
-                        d * spread * rng.random_range(0.42..0.66)
-                            + Vec3::Y * h * rng.random_range(-0.04..0.055),
-                        spread * 0.19,
-                        0,
-                        rng.random(),
-                        &growth,
-                    );
-                }
-                // The growing tip also carries foliage; avoid bare poles above
-                // a set of low leaves when internodes concentrate near the base.
-                for j in 0..2 {
-                    let dir = radial(angle + j as f32 * PI);
-                    blade(
-                        a,
-                        top,
-                        dir * spread * 0.44 - Vec3::Y * h * 0.015,
-                        spread * 0.17,
-                        0,
-                        rng.random(),
-                        &growth,
-                    );
-                }
-            }
-        }
         1 | 4 => {
             // Palm / fern: arching rachises with paired, tapered pinnae.
             let palm = o.variant % SPECIES == 1;
             // Keep the existing <20k-triangle per-plant budget at the lush tail.
             for frond in 0..growth.count(if palm { 14 } else { 16 }).min(16) {
                 let dir = radial(growth.angle(frond));
-                let reach = spread * rng.random_range(0.76..0.95);
-                let rise =
-                    (h - soil) * rng.random_range(0.64..0.94) * if palm { 1.0 } else { 0.55 };
+                let outward = rng.random_range(0.0..1.0);
+                let reach = spread * (0.65 + outward * 0.31);
+                let rise = (h - soil)
+                    * if palm {
+                        rng.random_range(0.55..0.92)
+                    } else {
+                        0.70 - outward * 0.25
+                    };
+                // Older outer fronds arch and descend; new central growth
+                // stands higher. Avoid a flat bowl of identical radial ribs.
+                let sag = if palm {
+                    rng.random_range(1.05..1.35)
+                } else {
+                    1.18 + outward * 0.50
+                };
                 let points: Vec<_> = (0..9)
                     .map(|i| {
                         let t = i as f32 / 8.0;
-                        base + dir * reach * t + Vec3::Y * rise * (1.9 * t - 1.12 * t * t)
+                        base + dir * reach * t + Vec3::Y * rise * (1.9 * t - sag * t * t)
                     })
                     .collect();
                 stem(a, &points, h * 0.0027);
                 let side = Vec3::Y.cross(dir);
-                for j in 2..16 {
-                    let t = j as f32 / 17.0;
+                let pinnae = rng.random_range(12..=15);
+                for j in 2..pinnae {
+                    let t = j as f32 / (pinnae + 1) as f32 + rng.random_range(-0.008..0.008);
                     let p = along(&points, t);
                     let length = spread * (if palm { 0.56 } else { 0.48 }) * (PI * t).sin();
                     for sign in [-1.0, 1.0] {
@@ -415,7 +271,12 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                             a,
                             p,
                             side * sign * length + dir * length * 0.32 - Vec3::Y * length * 0.15,
-                            length * if palm { 0.13 } else { 0.22 },
+                            length
+                                * if palm {
+                                    0.13
+                                } else {
+                                    rng.random_range(0.22..0.27)
+                                },
                             1,
                             rng.random(),
                             &growth,
@@ -505,136 +366,4 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::scene::procedural_indoor::layout::ObjectKind;
-    #[test]
-    fn habit_selection_does_not_stretch_compact_plants_into_tall_floor_envelopes() {
-        let mut tall = std::collections::BTreeSet::new();
-        let mut compact = std::collections::BTreeSet::new();
-        for seed in 0..256 {
-            let mut rng = stream(seed, 6280);
-            tall.insert(sample_species(Vec3::new(0.75, 1.80, 0.75), &mut rng));
-            compact.insert(sample_species(Vec3::new(0.26, 0.22, 0.26), &mut rng));
-        }
-        assert!(!tall.contains(&7) && !tall.contains(&4));
-        assert!(tall.len() >= 8 && compact.contains(&7) && compact.contains(&4));
-        assert!(!compact.contains(&2) && !compact.contains(&5));
-    }
-    #[test]
-    fn all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopies() {
-        for variant in 0..SPECIES {
-            let mut topology_counts = std::collections::BTreeSet::new();
-            for seed in 0..12 {
-                let o = IndoorObject {
-                    finish_seed: None,
-                    id: 0,
-                    kind: ObjectKind::Plant,
-                    position: Vec3::ZERO,
-                    size: Vec3::new(0.9, 1.7, 0.9),
-                    yaw: 0.0,
-                    variant,
-                    seed,
-                    solid: true,
-                    support: None,
-                    neighbor: false,
-                    interaction_target: None,
-                    cable_path: None,
-                    cable_target: None,
-                };
-                let mut a = Assembly::default();
-                build(&mut a, &o);
-                let (lo, hi) = a.bounds();
-                assert!(
-                    lo.y >= -0.001
-                        && hi.y <= o.size.y
-                        && lo.x >= -0.45
-                        && hi.x <= 0.45
-                        && lo.z >= -0.45
-                        && hi.z <= 0.45,
-                    "species {variant}: {lo:?} {hi:?}"
-                );
-                let mut triangles = 0;
-                for g in a.parts.values() {
-                    assert!(g
-                        .normals
-                        .iter()
-                        .all(|n| (Vec3::from_array(*n).length() - 1.0).abs() < 0.001));
-                    for t in g.indices.as_chunks::<3>().0 {
-                        let p = t
-                            .iter()
-                            .map(|i| Vec3::from_array(g.positions[*i as usize]))
-                            .collect::<Vec<_>>();
-                        assert!((p[1] - p[0]).cross(p[2] - p[0]).length_squared() > 1e-18);
-                    }
-                    triangles += g.indices.len() / 3;
-                }
-                assert!(
-                    (1000..20000).contains(&triangles),
-                    "species {variant}: {triangles} triangles"
-                );
-                topology_counts.insert(triangles);
-            }
-            assert!(
-                topology_counts.len() >= 4,
-                "plant growth did not diversify topology: {variant}"
-            );
-        }
-    }
-
-    #[test]
-    fn compact_and_wide_botanical_canopies_keep_actual_vertices_in_reserved_bounds() {
-        for dimensions in [
-            Vec3::new(0.18, 0.23, 0.16),
-            Vec3::new(0.95, 2.12, 1.064),
-            Vec3::new(0.45, 2.30, 0.45),
-            Vec3::new(0.75, 0.40, 0.70),
-        ] {
-            for variant in 0..SPECIES {
-                for seed in 0..12 {
-                    let o = IndoorObject {
-                        finish_seed: None,
-                        id: 0,
-                        kind: ObjectKind::Plant,
-                        position: Vec3::ZERO,
-                        size: dimensions,
-                        yaw: 0.,
-                        variant,
-                        seed,
-                        solid: true,
-                        support: None,
-                        neighbor: false,
-                        interaction_target: None,
-                        cable_path: None,
-                        cable_target: None,
-                    };
-                    let mut a = Assembly::default();
-                    let growth = Growth::sample(o.seed);
-                    let (radius, height) = pot_dimensions(&o, &growth);
-                    assert_eq!((radius, height), pot_dimensions(&o, &growth));
-                    assert!(height / (2. * radius) <= 1.65);
-                    assert!(radius * 1.10 <= dimensions.x.min(dimensions.z) * 0.5);
-                    if dimensions.y > 2.2 && dimensions.x < 0.5 {
-                        assert!(radius * 2. >= 0.25, "insufficient tall-plant root volume");
-                    }
-                    build(&mut a, &o);
-                    let (lo, hi) = a.bounds();
-                    assert!(
-                        lo.y >= -0.0001
-                            && hi.y <= dimensions.y + 0.0001
-                            && lo.x >= -dimensions.x * 0.5
-                            && hi.x <= dimensions.x * 0.5
-                            && lo.z >= -dimensions.z * 0.5
-                            && hi.z <= dimensions.z * 0.5,
-                        "{} seed {seed} size {dimensions:?}: {lo:?} {hi:?}",
-                        species_name(variant)
-                    );
-                    for g in a.parts.values() {
-                        assert!(g.normals.iter().all(|n| n.iter().all(|v| v.is_finite())
-                            && (Vec3::from_array(*n).length() - 1.).abs() < 0.001));
-                    }
-                }
-            }
-        }
-    }
-}
+mod tests;

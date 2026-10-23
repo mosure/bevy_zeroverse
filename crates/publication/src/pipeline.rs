@@ -57,12 +57,30 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     for name in ["publication.toml", "tex/arxiv.sty", "tex/references.bib"] {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
+    let original: Option<Attestation> = config
+        .retained_evidence
+        .as_ref()
+        .filter(|policy| !policy.current_tool_sha256.is_empty())
+        .map(|_| io::read(&root.join(ATTESTATION)))
+        .transpose()?;
     for name in objects::TOOLS
         .into_iter()
         .chain(materials::TOOLS)
         .chain([doors::TOOL])
     {
-        inputs.insert(name.into(), io::hash(&root.join(name))?);
+        let current = io::hash(&root.join(name))?;
+        let hash = if let Some(policy) = &config.retained_evidence {
+            policy.tool_hash(
+                name,
+                current,
+                original
+                    .as_ref()
+                    .and_then(|a| a.publication_inputs.get(name)),
+            )?
+        } else {
+            current
+        };
+        inputs.insert(name.into(), hash);
     }
     for dir in ["www/project/static", "tex/generated"] {
         for (name, value) in io::files(root, &root.join(dir))? {

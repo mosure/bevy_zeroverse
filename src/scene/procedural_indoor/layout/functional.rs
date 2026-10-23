@@ -132,8 +132,9 @@ impl ProgramAssembly {
             .count()
     }
 }
-/// A named support surface can overlap another one in X/Z (e.g. a mezzanine).
+/// A named architectural support surface can overlap another one in X/Z (e.g. a mezzanine).
 /// Elevation is authoritative; this is an export view of the construction model.
+/// Furniture overlays retain their separate `IndoorManifest::rug_supports` contours.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SupportRegion {
     pub name: String,

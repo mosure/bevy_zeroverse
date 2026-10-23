@@ -78,16 +78,31 @@ space is recalculated when appliance height changes. Islands reserve additional
 circulation space. This is static state sampling, not a door animation or
 continuous door-sweep simulation.
 
-Islands have a dedicated freestanding cabinet construction: 1.50–2.35 m wide,
-0.92–1.18 m deep, with the shared 0.86–0.94 m worktop height. A continuous
-28–47 mm slab overhangs the end panels and fronts; some samples add a deeper
-rear breakfast overhang. Two to four drawer/door bays, finished rear panels
-and a recessed plinth give the island a complete base from every viewpoint.
+Islands have a dedicated freestanding cabinet construction: 1.30–2.70 m wide,
+0.82–1.28 m deep, with the shared 0.86–0.94 m worktop height. A continuous
+22–64 mm slab overhangs the end panels and fronts; some samples add a deeper
+rear breakfast overhang or waterfall ends. Two to four independently sized
+drawer/door bays, varied front profiles, finished rear panels and either raised
+legs or a recessed plinth give the island a complete base from every viewpoint.
 The collision envelope includes the slab, and prop support uses its actual
 footprint. Islands remain on the service run's floor level, with 0.90 m of
 level circulation clearance around the full envelope. Bounded nearby placement
 attempts may recover a position; an incompatible floor recess or step rejects
 the optional island rather than lowering the cabinet into it.
+
+Refreshment counters sample a required activity appliance and independently
+optional coffee machines, dispensers, kettles and serving supplies. Café and
+cafeteria programs retain their required coffee machine or dispenser, but do
+not require the same pair. Kitchen worktops can also become beverage stations.
+Counter-local proposals vary position, orientation, occupied area and accessory
+count; barista controls face the staff aisle and self-service taps face guests.
+Every item retains its support relationship and the ordinary clearance gate.
+Brewers have espresso, capsule, automatic and filter constructions with separate
+metric dimensions, shell profiles, controls, drip trays and carafes. Service
+counter bases include storage, slats, open shelves, tapered bodies, waterfall
+returns and braced trestles. The optional local `refreshment_geometry_and_assembly_receipt`
+test records fixed-envelope shape coverage and generates inputs for the
+`review_objects` PBR/normal/semantic gallery; its outputs live under `out/refreshments`.
 
 Worktop items use the normal support and peer-clearance checks. Bread on a board
 has a nested support relationship. Internal contents use shelf/basin/holder

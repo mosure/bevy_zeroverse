@@ -92,7 +92,7 @@ pub(crate) fn encode(
         let mut ids = Vec::new();
         let mut parameters = Vec::new();
         for c in models.iter().flatten() {
-            ids.push(u8::from(c.fisheye.is_some()));
+            ids.push(c.lens_model.contract().tensor_id);
             let l = c.fisheye;
             parameters.extend(l.map_or([0.; 4], |l| l.coefficients));
             parameters.push(l.map_or(0., |l| l.max_angle));
@@ -210,17 +210,22 @@ pub(crate) fn decode(
                 .iter()
                 .map(|b| f32::from_le_bytes(*b))
                 .collect::<Vec<_>>();
-            match ids.data()[i] {
-                0 => ensure!(p == [0.; 5], "pinhole must have zero angular parameters"),
-                1 => {
-                    c.schema_version = 2;
-                    c.lens_model = bevy_zeroverse::calibration::LensModel::AngularFisheye4;
+            use bevy_zeroverse::calibration::LensModel;
+            let model = LensModel::from_tensor_id(ids.data()[i])
+                .ok_or_else(|| anyhow::anyhow!("unknown lens model"))?;
+            match model {
+                LensModel::Pinhole => {
+                    ensure!(p == [0.; 5], "pinhole must have zero angular parameters")
+                }
+                LensModel::AngularFisheye4 => {
+                    c.schema_version = model.contract().calibration_schema_version;
+                    c.lens_model_version = model.contract().model_version;
+                    c.lens_model = model;
                     c.fisheye = Some(bevy_zeroverse::calibration::Fisheye {
                         coefficients: p[..4].try_into().unwrap(),
                         max_angle: p[4],
                     });
                 }
-                _ => anyhow::bail!("unknown lens model"),
             }
         }
         c.validate().map_err(anyhow::Error::msg)?;

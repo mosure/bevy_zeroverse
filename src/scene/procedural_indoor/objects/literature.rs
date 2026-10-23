@@ -83,7 +83,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             part(
                 cover,
                 Vec3::new(-width * 0.5 + t * 0.5, h * 0.5, 0.),
-                Vec3::new(t, h, depth),
+                // The spine butts between the covers. Extending it through
+                // both covers creates competing coplanar top/bottom faces.
+                Vec3::new(t, h - t * 2., depth),
                 t * 0.2,
             );
         } else {

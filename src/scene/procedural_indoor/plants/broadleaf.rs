@@ -45,36 +45,29 @@ pub(super) fn build(
                     + dir * spread * r.random_range(0.25..0.37)
                     + Vec3::Y * height * r.random_range(0.18..0.32);
                 stem(a, &[crown, crown.lerp(tip, 0.55), tip], o.size.y * 0.0035);
-                let side = Vec3::Y.cross(dir);
-                let fingers = r.random_range(7..=11);
-                let fan = r.random_range(0.76..1.16);
-                for k in 0..fingers {
-                    let angle = (k as f32 / (fingers - 1) as f32 * 2. - 1.) * fan;
-                    let d = (dir * 0.70 + Vec3::Y * 0.55) * angle.cos() + side * angle.sin();
-                    blade(
-                        a,
-                        tip,
-                        d * spread * r.random_range(0.52..0.60),
-                        spread * 0.055,
-                        1,
-                        r.random(),
-                        g,
-                    );
-                }
+                let radius =
+                    (spread * r.random_range(0.66..0.84)).min((o.size.y - tip.y) * 0.95 / 0.90);
+                palm::fan(a, tip, dir, radius, r.random_range(1.20..1.55), r.random());
             }
         }
         _ => {
-            for j in 0..g.count(8) {
+            for j in 0..g.count(9) {
                 let dir = radial(g.angle(j));
-                let start = base + dir * soil_radius * 0.45;
+                let start = base + dir * soil_radius * 0.30;
                 let tip = base
-                    + dir * spread * r.random_range(0.30..0.45)
-                    + Vec3::Y * height * r.random_range(0.62..0.91);
+                    + dir * spread * (0.25 + g.shoot_splay * 0.48)
+                    + Vec3::Y
+                        * height
+                        * if j == 0 {
+                            0.90
+                        } else {
+                            r.random_range(0.45..0.83)
+                        };
                 let leader = [start, start.lerp(tip, 0.42) - dir * spread * 0.06, tip];
                 stem(a, &leader, o.size.y * 0.005);
                 let pairs = r.random_range(5..=8);
                 for k in 0..pairs {
-                    let t = 0.26 + g.node(k, pairs) * 0.69;
+                    let t = 0.22 + g.node(k, pairs - 1) * 0.78;
                     let p = along(&leader, t);
                     for side in [-1., 1.] {
                         let d = (Vec3::Y.cross(dir) * side + dir * 0.35).normalize();
@@ -83,14 +76,32 @@ pub(super) fn build(
                         blade(
                             a,
                             root,
-                            d * spread * (0.36 - t * 0.13) + Vec3::Y * height * 0.025,
-                            spread * 0.075,
+                            incline(
+                                d,
+                                spread * (0.43 - t * 0.14),
+                                -0.30 + t * 0.65 + r.random_range(-0.18..0.18),
+                                root.y,
+                                base.y,
+                                o.size.y,
+                            ),
+                            spread * r.random_range(0.10..0.13),
                             0,
                             r.random(),
                             g,
                         );
                     }
                 }
+                // A terminal leaflet closes the rachis, rather than leaving
+                // the tip as another bare length of stalk above paired leaves.
+                blade(
+                    a,
+                    tip,
+                    incline(dir, spread * 0.30, 0.60, tip.y, base.y, o.size.y),
+                    spread * 0.115,
+                    0,
+                    r.random(),
+                    g,
+                );
             }
         }
     }

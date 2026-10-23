@@ -1,5 +1,6 @@
 //! Refreshment equipment and hollow vessels; no opaque caps across vessel mouths.
 use super::*;
+pub mod coffee;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct HospitalityProgram {
@@ -27,118 +28,11 @@ pub fn parameters(o: &IndoorObject) -> HospitalityProgram {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
     match o.kind {
-        ObjectKind::CoffeeMaker => coffee(a, o, &p),
-        ObjectKind::Kettle => kettle(a, o, &p),
+        ObjectKind::CoffeeMaker => coffee::build(a, o),
+        ObjectKind::Kettle => kettle(a, o, &parameters(o)),
         ObjectKind::Vase | ObjectKind::Bowl => super::vessels::build(a, o),
         _ => unreachable!("non-hospitality object"),
-    }
-}
-
-fn coffee(a: &mut Assembly, o: &IndoorObject, p: &HospitalityProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    a.box_part(
-        Surface::Rubber,
-        label,
-        Vec3::Y * s.y * 0.04,
-        Vec3::new(s.x, s.y * 0.08, s.z),
-        0.006,
-    );
-    a.box_part(
-        p.finish,
-        label,
-        Vec3::new(0., s.y * 0.51, -s.z * 0.19),
-        Vec3::new(
-            s.x * p.belly,
-            s.y * (0.78 + p.neck * 0.24),
-            s.z * (0.44 + p.taper * 0.16),
-        ),
-        0.013,
-    );
-    a.box_part(
-        Surface::Metal,
-        label,
-        Vec3::new(0., s.y * (0.63 + p.neck * 0.14), s.z * 0.12),
-        Vec3::new(
-            s.x * p.belly * 0.91,
-            s.y * (0.18 + p.neck * 0.28),
-            s.z * 0.14,
-        ),
-        0.008,
-    );
-    a.box_part(
-        Surface::Ink,
-        label,
-        Vec3::new(-s.x * 0.16, s.y * 0.78, s.z * 0.195),
-        Vec3::new(s.x * 0.28, s.y * 0.08, 0.001),
-        0.001,
-    );
-    for x in [0.05, 0.28] {
-        a.part(Surface::Chrome, label).cylinder(
-            s.x * 0.035,
-            0.004,
-            Transform::from_xyz(s.x * x, s.y * 0.77, s.z * 0.195)
-                .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        );
-    }
-    a.box_part(
-        Surface::Metal,
-        label,
-        Vec3::new(0., s.y * 0.12, s.z * 0.24),
-        Vec3::new(s.x * 0.84, s.y * 0.055, s.z * 0.38),
-        0.005,
-    );
-    for i in 0..7 {
-        a.box_part(
-            Surface::Ink,
-            label,
-            Vec3::new((i as f32 - 3.) * s.x * 0.1, s.y * 0.149, s.z * 0.24),
-            Vec3::new(s.x * 0.025, 0.001, s.z * 0.30),
-            0.0,
-        );
-    }
-    if p.style < 2 {
-        a.part(Surface::Chrome, label).cylinder(
-            s.x * 0.10,
-            s.y * 0.08,
-            Transform::from_xyz(0., s.y * 0.48, s.z * 0.18),
-        );
-        a.part(Surface::Rubber, label).rod(
-            Vec3::new(0., s.y * 0.51, s.z * 0.20),
-            Vec3::new(s.x * 0.33, s.y * 0.51, s.z * 0.32),
-            0.009,
-        );
-        a.part(Surface::Chrome, label).rod(
-            Vec3::new(-s.x * 0.34, s.y * 0.52, s.z * 0.12),
-            Vec3::new(-s.x * 0.30, s.y * 0.30, s.z * 0.23),
-            0.004,
-        );
-    } else {
-        let r = (s.x * 0.27).min(s.z * 0.20);
-        a.part(Surface::ContainerGlass, label).lathe(
-            &[
-                (0., 0.),
-                (r * 0.76, 0.),
-                (r, s.y * 0.13),
-                (r * 0.94, s.y * 0.28),
-                (r * 0.70, s.y * 0.29),
-                (r * 0.65, s.y * 0.28),
-                (r * 0.89, s.y * 0.13),
-                (r * 0.70, 0.012),
-                (0., 0.012),
-            ],
-            24,
-            Transform::from_xyz(0., s.y * 0.15, s.z * 0.24),
-        );
-        a.box_part(
-            Surface::Plastic,
-            label,
-            Vec3::new(s.x * 0.28, s.y * 0.30, s.z * 0.24),
-            Vec3::new(s.x * 0.10, s.y * 0.22, s.z * 0.16),
-            0.008,
-        );
     }
 }
 

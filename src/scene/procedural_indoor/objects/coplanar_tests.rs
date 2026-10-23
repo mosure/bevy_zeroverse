@@ -24,6 +24,9 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
             (ObjectKind::WallOutlet, Vec3::new(0.225, 0.115, 0.018)),
             (ObjectKind::LightSwitch, Vec3::new(0.15, 0.115, 0.018)),
             (ObjectKind::Bookcase, Vec3::new(0.80, 1.65, 0.32)),
+            (ObjectKind::Books, Vec3::new(0.24, 0.10, 0.28)),
+            (ObjectKind::Locker, Vec3::new(1.4, 1.8, 0.5)),
+            (ObjectKind::Banquette, Vec3::new(2., 1.1, 0.75)),
             (ObjectKind::Cabinet, Vec3::new(0.9, 1.1, 0.42)),
             (ObjectKind::Whiteboard, Vec3::new(1.5, 0.9, 0.04)),
             (ObjectKind::Phone, Vec3::new(0.074, 0.009, 0.16)),
@@ -63,7 +66,7 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
                 for (i, (a, la)) in triangles.iter().enumerate() {
                     for (b, lb) in &triangles[i + 1..] {
                         let area = intersection_area(*a, *b);
-                        assert!(area < 0.00001, "{kind:?} seed {seed} plane {plane:?}: {la}/{lb} compete over {area} square metres: {a:?} / {b:?}; program={:?}", storage::parameters(&o));
+                        assert!(area < 0.00001, "{kind:?} seed {seed} plane {plane:?}: {la}/{lb} compete over {area} square metres: {a:?} / {b:?}; program={:?}", audit::program(&o));
                     }
                 }
             }

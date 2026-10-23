@@ -212,7 +212,7 @@ impl SurfaceProgram {
                 rng.random_range(0.27..0.42),
                 rng.random_range(0.15..0.23),
             ),
-            Plant => Vec3::new(0.25, rng.random_range(0.23..0.49), 0.25),
+            Plant => sizing::loose(Plant, rng).expect("plant sizing"),
             Printer => Vec3::new(
                 rng.random_range(0.36..0.53),
                 rng.random_range(0.19..0.29),

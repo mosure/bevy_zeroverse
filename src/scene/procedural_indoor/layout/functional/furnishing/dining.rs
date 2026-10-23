@@ -64,59 +64,12 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for counter in counters {
-            let appliances = if communal {
-                [
-                    (0.24, ObjectKind::DrinkDispenser),
-                    (-0.23, ObjectKind::CoffeeMaker),
-                ]
+            let required = if communal {
+                ObjectKind::DrinkDispenser
             } else {
-                [
-                    (-0.23, ObjectKind::CoffeeMaker),
-                    (0.24, ObjectKind::DrinkDispenser),
-                ]
+                ObjectKind::CoffeeMaker
             };
-            // Required service equipment gets the clear worktop first; an optional
-            // companion must not consume the only feasible footprint.
-            for (offset, kind) in appliances {
-                let size = if kind == ObjectKind::CoffeeMaker {
-                    Vec3::new(
-                        r.random_range(0.29..0.44),
-                        r.random_range(0.34..0.53),
-                        r.random_range(0.32..0.47),
-                    )
-                } else {
-                    geometry::dimensions(kind, r.random())
-                };
-                use crate::scene::procedural_indoor::placement::SurfacePattern;
-                let pattern = SurfacePattern::sample(r);
-                let half = counter.size.xz() * 0.5;
-                for attempt in 0..16 {
-                    let yaw = r.random_range(-0.18..0.18);
-                    let position = if attempt == 0 {
-                        Vec2::new(
-                            counter.size.x * (offset + r.random_range(-0.045..0.045)),
-                            counter.size.z * r.random_range(-0.12..0.12),
-                        )
-                    } else {
-                        let Some(proposal) =
-                            pattern.propose((-half, half), size.xz(), yaw, 0.02, r)
-                        else {
-                            continue;
-                        };
-                        proposal.center
-                    };
-                    if self.program_prop(
-                        &counter,
-                        kind,
-                        Vec3::new(position.x, 0., position.y),
-                        size,
-                        yaw,
-                        r,
-                    ) {
-                        break;
-                    }
-                }
-            }
+            self.dress_refreshment_counter(&counter, Some(required));
         }
     }
     pub(super) fn dining_table(

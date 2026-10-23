@@ -96,14 +96,12 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                 proposals += 1;
                 scene.camera_diagnostics.peer_proposals += 1;
                 let camera = if !scene.camera_settings.ceiling_mounted(scene.seed, index) {
-                    if scene
-                        .sample_independent_slots(index, 1, &mut rng, &coverage)
-                        .is_err()
-                    {
+                    let Some(camera) = super::room::propose(scene, index, &mut rng, &coverage)
+                    else {
                         rejected[0] += 1;
                         continue;
-                    }
-                    scene.cameras.pop().unwrap()
+                    };
+                    camera
                 } else {
                     let p = if let Some(policy) = policy.filter(|_| index > 0 && attempt % 3 != 0) {
                         let a = rng.random_range(0.0..std::f32::consts::TAU);
@@ -188,28 +186,11 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         .map(|t| coverage.view(&camera, scene.camera_aspect_ratio, t))
                         .collect()
                 };
-                // Room proposals already pass the room content predicate. Ceiling
-                // overview content is checked at every visibility checkpoint.
+                // Qualify the downward overview independently of peripheral
+                // ceiling context in >180-degree lenses. Pair visibility below
+                // still uses the complete calibrated sensor at every time.
                 if camera.is_ceiling_mounted()
-                    && !CHECK_TIMES
-                        .into_iter()
-                        .zip(&candidate_views)
-                        .all(|(t, view)| {
-                            let mut hits = 0;
-                            let mut below = 0;
-                            let mut lo = Vec2::splat(f32::INFINITY);
-                            let mut hi = Vec2::splat(f32::NEG_INFINITY);
-                            let eye_y = camera.transform_at(t).translation.y;
-                            for point in view.surfaces() {
-                                hits += 1;
-                                if point.y < eye_y - 0.7 && scene.in_primary_room(point, 0.) {
-                                    below += 1;
-                                    lo = lo.min(point.xz());
-                                    hi = hi.max(point.xz());
-                                }
-                            }
-                            hits >= 12 && below * 2 >= hits && (hi - lo).min_element() >= 1.5
-                        })
+                    && !super::overview::suitable(scene, &camera, &candidate_views)
                 {
                     rejected[2] += 1;
                     continue;
@@ -299,5 +280,5 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         most = most.max(scene.cameras.len());
         scene.camera_diagnostics.group_restarts += 1;
     }
-    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections mount/spacing/overview/overlap={rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
+    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections proposal_or_clearance/spacing/overview/overlap={rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
 }

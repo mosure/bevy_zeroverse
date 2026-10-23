@@ -15,6 +15,9 @@ pub struct IslandProgram {
     pub plinth_height: f32,
     pub plinth_recess: f32,
     pub bays: u32,
+    pub bay_weights: Vec<f32>,
+    pub raised_base: bool,
+    pub waterfall_ends: bool,
 }
 
 pub fn is_island(o: &IndoorObject) -> bool {
@@ -22,7 +25,7 @@ pub fn is_island(o: &IndoorObject) -> bool {
 }
 
 pub(super) fn is_drawer_bank(o: &IndoorObject, bay: u32) -> bool {
-    (o.seed.wrapping_add(bay as u64)).is_multiple_of(2)
+    stream(o.seed, 8083 + bay as u64).random_bool(0.48)
 }
 
 /// Establish the island's complete envelope before placement or prop sampling.
@@ -30,8 +33,8 @@ pub fn configure_island(o: &mut IndoorObject) {
     assert_eq!(o.kind, ObjectKind::KitchenCounter);
     o.variant = ISLAND_VARIANT;
     let mut r = stream(o.seed, 8081);
-    o.size.x = r.random_range(1.50..2.35);
-    o.size.z = r.random_range(0.92..1.18);
+    o.size.x = r.random_range(1.30..2.70);
+    o.size.z = r.random_range(0.82..1.28);
 }
 
 pub fn island_parameters(o: &IndoorObject) -> Option<IslandProgram> {
@@ -39,8 +42,12 @@ pub fn island_parameters(o: &IndoorObject) -> Option<IslandProgram> {
         return None;
     }
     let mut r = stream(o.seed, 8082);
+    let bays = (o.size.x / r.random_range(0.48..0.76))
+        .round()
+        .clamp(2., 4.) as u32;
+    let raised_base = r.random_bool(0.32);
     Some(IslandProgram {
-        slab_thickness: r.random_range(0.028..0.047),
+        slab_thickness: r.random_range(0.022..0.064),
         end_overhang: r.random_range(0.025..0.045),
         // Includes the front's 22 mm panels and projecting handles.
         front_overhang: r.random_range(0.060..0.075),
@@ -49,11 +56,16 @@ pub fn island_parameters(o: &IndoorObject) -> Option<IslandProgram> {
         } else {
             r.random_range(0.035..0.055)
         },
-        plinth_height: r.random_range(0.085..0.12),
+        plinth_height: if raised_base {
+            r.random_range(0.15..0.24)
+        } else {
+            r.random_range(0.065..0.14)
+        },
         plinth_recess: r.random_range(0.045..0.065),
-        bays: (o.size.x / r.random_range(0.52..0.68))
-            .round()
-            .clamp(2., 4.) as u32,
+        bays,
+        bay_weights: (0..bays).map(|_| r.random_range(0.82..1.30)).collect(),
+        raised_base,
+        waterfall_ends: r.random_bool(0.28),
     })
 }
 
@@ -64,17 +76,35 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
     let z = (p.rear_overhang - p.front_overhang) * 0.5;
     let top = o.size.y - p.slab_thickness;
     let h = top - p.plinth_height;
-    a.box_part(
-        finish.finish,
-        "cabinet",
-        Vec3::new(0., p.plinth_height * 0.5, z),
-        Vec3::new(
-            w - 2. * p.plinth_recess,
-            p.plinth_height,
-            d - 2. * p.plinth_recess,
-        ),
-        0.002,
-    );
+    if p.raised_base {
+        for x in [-1., 1.] {
+            for side in [-1., 1.] {
+                a.box_part(
+                    finish.hardware,
+                    "cabinet",
+                    Vec3::new(
+                        x * (w * 0.5 - 0.065),
+                        p.plinth_height * 0.5,
+                        z + side * (d * 0.5 - 0.065),
+                    ),
+                    Vec3::new(0.042, p.plinth_height, 0.042),
+                    0.004,
+                );
+            }
+        }
+    } else {
+        a.box_part(
+            finish.finish,
+            "cabinet",
+            Vec3::new(0., p.plinth_height * 0.5, z),
+            Vec3::new(
+                w - 2. * p.plinth_recess,
+                p.plinth_height,
+                d - 2. * p.plinth_recess,
+            ),
+            0.002,
+        );
+    }
     cabinet::shell(
         a,
         Vec3::new(w, h, d),
@@ -90,14 +120,35 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
         Vec3::new(o.size.x, p.slab_thickness, o.size.z),
         0.004,
     );
-    let bay = w / p.bays as f32;
+    if p.waterfall_ends {
+        // Vertical worktop returns terminate against the underside of the
+        // slab. Their inside faces remain outside the cabinet side panels.
+        let thickness = (p.end_overhang * 0.78).min(p.slab_thickness);
+        for side in [-1., 1.] {
+            a.box_part(
+                finish.top,
+                "counter",
+                Vec3::new(side * (o.size.x - thickness) * 0.5, top * 0.5, 0.),
+                Vec3::new(thickness, top, o.size.z),
+                0.002,
+            );
+        }
+    }
+    let total = p.bay_weights.iter().sum::<f32>();
+    let mut cursor = -w * 0.5;
     for i in 0..p.bays {
-        let x = -w * 0.5 + bay * (i as f32 + 0.5);
+        let bay = w * p.bay_weights[i as usize] / total;
+        let x = cursor + bay * 0.5;
+        cursor += bay;
         // Drawer banks and door bays use real panel gaps, never a giant single
         // drawer stretched across a two-metre island.
         let drawers = is_drawer_bank(o, i);
         let rows = if drawers { 3 } else { 2 };
-        let upper = if drawers { h / 3. } else { h * 0.25 };
+        let upper = if drawers {
+            h / 3.
+        } else {
+            h * stream(o.seed, 8090 + i as u64).random_range(0.18..0.32)
+        };
         let mut bottom = p.plinth_height;
         if i > 0 {
             a.box_part(
@@ -146,13 +197,22 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
                     joint
                 },
                 |a| {
-                    cabinet::panel(
+                    // Drawer fronts are opaque; paneled doors can be glazed.
+                    let mut panel_finish = finish.clone();
+                    if drawer {
+                        panel_finish.door_style = 0;
+                    }
+                    // Fluted lower fields pair with clean utility drawers;
+                    // avoid repeating dense reeds on every shallow front.
+                    if row > 0 && panel_finish.front_profile == 3 {
+                        panel_finish.front_profile = 0;
+                    }
+                    cabinet::front_panel(
                         a,
                         Vec2::new(bay - 0.006, rh - 0.006),
                         tf,
-                        finish.finish,
+                        &panel_finish,
                         "cabinet",
-                        false,
                     );
                     if drawer {
                         cabinet::drawer_tray(a, bay - 0.006, rh - 0.006, d, tf, "cabinet");

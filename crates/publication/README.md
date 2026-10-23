@@ -178,6 +178,12 @@ LaTeX packages) and Poppler's `pdftoppm`. LaTeX is the document typesetter; Rust
 owns source generation, dependency closure, warnings, provenance and staging.
 The publisher does not estimate photographic realism or downstream utility.
 
+An explicit retained-evidence release can pin updated capture tools in
+`retained_evidence.current_tool_sha256`. Only registered capture-tool paths are
+accepted. Their current bytes must match the pin; the original tool hashes,
+measurements, images and paper stay bound to the original capture attestation.
+This does not qualify the updated tool or generator using older captures.
+
 `publish --package <name>` prepares the latest page/paper before calling Cargo.
 Under the default policy it refreshes stale inputs or rebuilds an already-current shipped bundle, verifies
 the installed result, then invokes `cargo publish --locked`. `--dry-run` never

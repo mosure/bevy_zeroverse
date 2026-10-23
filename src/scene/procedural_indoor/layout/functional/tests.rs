@@ -89,17 +89,41 @@ fn support_region_triangles_are_exact_and_level_aware() {
             assert!((area - expected).abs() < 0.001);
             for r in regions.iter().filter(|r| !r.overhead) {
                 for t in &r.triangles {
+                    // These regions describe architecture. The live support
+                    // query also includes separately exported furniture rugs.
                     assert!(
-                        (s.floor_height((t[0] + t[1] + t[2]) / 3.) - r.elevation_metres).abs()
+                        (envelope.floor_height((t[0] + t[1] + t[2]) / 3.) - r.elevation_metres)
+                            .abs()
                             < 1e-5,
                         "{profile:?} seed={seed} region={} level={} actual={} triangle={t:?}",
                         r.name,
                         r.elevation_metres,
-                        s.floor_height((t[0] + t[1] + t[2]) / 3.)
+                        envelope.floor_height((t[0] + t[1] + t[2]) / 3.)
                     );
                 }
             }
         }
+    }
+}
+
+#[test]
+fn architectural_support_regions_preserve_the_floor_beneath_rugs() {
+    use crate::scene::procedural_indoor::envelope::polygon;
+    let scene = IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    assert!(!scene.rug_supports.is_empty());
+    let regions = support_regions(&scene);
+    for rug in &scene.rug_supports {
+        let p = (rug.min + rug.max) * 0.5;
+        assert!(rug.contains(p));
+        assert_eq!(scene.floor_height(p), rug.top);
+        let region = regions
+            .iter()
+            .find(|region| {
+                !region.overhead && region.triangles.iter().any(|t| polygon::contains(t, p, 0.))
+            })
+            .unwrap();
+        assert!((region.elevation_metres - rug.bottom).abs() < 1e-5);
+        assert!(region.elevation_metres < scene.floor_height(p));
     }
 }
 

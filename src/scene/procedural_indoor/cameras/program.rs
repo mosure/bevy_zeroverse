@@ -13,20 +13,26 @@ pub(super) struct ViewSummary {
 impl ViewSummary {
     pub fn new(camera: &IndoorCamera, view: &VisibilityView, scene: &IndoorManifest) -> Self {
         let pose = camera.transform_at(0.0);
-        let (lo, hi) = scene.primary_room_bounds();
-        let cell = ((hi - lo).length() / 24.).max(0.15);
+        let region = scene.primary_region();
+        let cell = ((region.max - region.min).length() / 24.).max(0.15);
         Self {
             origin: pose.translation,
             forward: pose.rotation * Vec3::NEG_Z,
             cells: view
                 .surfaces()
-                .filter(|p| scene.in_primary_room(*p, 0.))
+                .filter(|p| region.contains_projection_with_tolerance(p.xz(), 1e-4))
                 .map(|p| (p / cell).floor().as_ivec3().to_array())
                 .collect(),
         }
     }
 
     pub fn score(&self, peers: &[Self], count: usize, scene: &IndoorManifest) -> f32 {
+        // With no peers, distance/angle/novelty all saturated to the same score.
+        // Prefer anchors exposing more distinct primary-room surfaces instead
+        // of an arbitrary first view into a disconnected neighboring room.
+        if peers.is_empty() {
+            return self.cells.len() as f32;
+        }
         let (lo, hi) = scene.primary_room_bounds();
         let spacing = ((hi - lo).length() / (count.max(2) as f32).sqrt()).max(0.5);
         let nearest = peers
@@ -62,9 +68,10 @@ pub(super) fn retarget(
     if !rng.random_bool(probability as f64) {
         return;
     }
+    let region = scene.primary_region();
     let points: Vec<_> = reference_views[0]
         .surfaces()
-        .filter(|p| scene.in_primary_room(*p, 0.) && p.distance(camera.start) >= 1.6)
+        .filter(|p| region.contains_projection(p.xz(), 0.) && p.distance(camera.start) >= 1.6)
         .collect();
     if points.is_empty() {
         return;
@@ -111,9 +118,10 @@ mod tests {
         let diverse = ViewSummary {
             origin: Vec3::X * 3.,
             forward: Vec3::X,
-            cells: BTreeSet::from([[4, 0, 0]]),
+            cells: BTreeSet::from([[4, 0, 0], [5, 1, 0]]),
         };
         assert!(diverse.score(&peers, 12, &scene) > repeat.score(&peers, 12, &scene) + 0.5);
+        assert!(diverse.score(&[], 8, &scene) > repeat.score(&[], 8, &scene));
         assert_eq!(pool_size(0., 12), 1);
         assert!(pool_size(1., 12) > pool_size(1., 2));
     }

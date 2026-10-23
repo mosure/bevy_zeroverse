@@ -1,15 +1,18 @@
 //! Bounded, multipart public-space assemblies. All parameters are sampled before
 //! admission; construction, collision envelopes and catalog receipts share them.
+pub mod banquette;
 pub mod barrier;
 pub mod casework;
 pub mod dispenser;
 #[cfg(test)]
 mod diversity_tests;
-mod education;
+pub mod education;
 pub mod elevator;
 mod exhibits;
 pub mod furnishing;
 mod hospitality;
+#[cfg(test)]
+mod repetition_tests;
 pub mod sculpture;
 pub mod service;
 pub mod signage;
@@ -89,8 +92,8 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::DrinkDispenser => dispenser::build(a, o),
         ObjectKind::ServiceCounter => service::counter(a, o),
         ObjectKind::ExtractionHood => service::hood(a, o),
-        ObjectKind::Banquette => hospitality::build(a, o, &parameters(o)),
-        ObjectKind::Locker => education::build(a, o, &parameters(o)),
+        ObjectKind::Banquette => banquette::build(a, o),
+        ObjectKind::Locker => education::build(a, o),
         ObjectKind::Lectern | ObjectKind::TeachingBoard => furnishing::build(a, o),
         ObjectKind::Sculpture | ObjectKind::InformationStand | ObjectKind::ExhibitionPanel => {
             exhibits::build(a, o)

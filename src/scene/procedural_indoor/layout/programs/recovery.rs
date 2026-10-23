@@ -29,6 +29,7 @@ impl IndoorManifest {
         &mut self,
     ) {
         self.complete_library_storage();
+        self.complete_kitchen_waste();
         // Service pieces can meet the population minimum while every work or
         // coffee surface was rejected. Complete that activity independently of
         // the count, using the same supported-floor and collision checks.
@@ -39,6 +40,65 @@ impl IndoorManifest {
             self.add_lounge_side_pieces();
             self.add_work_area_side_pieces();
             self.add_activity_side_storage();
+        }
+    }
+
+    // Extra kitchen units must not turn off waste storage simply by satisfying
+    // the global furniture count. The washing task needs a nearby bin on its
+    // own supported level, independently of dining chairs and islands.
+    fn complete_kitchen_waste(&mut self) {
+        let sinks: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| !o.neighbor && o.kind == ObjectKind::KitchenSink)
+            .cloned()
+            .collect();
+        for sink in sinks {
+            if self.objects.iter().any(|o| {
+                !o.neighbor
+                    && o.kind == ObjectKind::TrashCan
+                    && (o.position.y - sink.position.y).abs() < 0.001
+                    && o.position.distance(sink.position) < 2.0
+            }) {
+                continue;
+            }
+            let rejected = self.rejected_placements;
+            let count = self.objects.len();
+            let mut r = stream(sink.seed, 0x4b49_5443_4845_4e42);
+            let diameter = r.random_range(0.25..0.35);
+            let size = Vec3::new(diameter, r.random_range(0.40..0.64), diameter);
+            let phase = r.random_range(0.0..std::f32::consts::TAU);
+            'search: for band in 0..3 {
+                for sector in 0..16 {
+                    let angle = phase
+                        + std::f32::consts::TAU * sector as f32 / 16.
+                        + r.random_range(-0.10..0.10);
+                    let offset = Vec2::from_angle(angle)
+                        * (sink.size.xz() * 0.5
+                            + size.xz() * 0.5
+                            + Vec2::splat(0.12 + band as f32 * 0.14));
+                    let position = sink
+                        .transform()
+                        .transform_point(Vec3::new(offset.x, 0., offset.y));
+                    if position.distance(sink.position) < 1.9
+                        && self
+                            .add(
+                                ObjectKind::TrashCan,
+                                position,
+                                size,
+                                sink.yaw + angle,
+                                &mut r,
+                            )
+                            .is_some()
+                    {
+                        break 'search;
+                    }
+                }
+            }
+            // Rechecking a spatially constrained kitchen is idempotent.
+            if self.objects.len() == count {
+                self.rejected_placements = rejected;
+            }
         }
     }
 

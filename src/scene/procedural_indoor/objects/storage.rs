@@ -1,5 +1,6 @@
 //! Dimensioned shelf bays with independently sized upright books and flat stacks.
 use super::*;
+pub mod bookcase;
 
 #[derive(Debug, serde::Serialize)]
 pub struct ShelfProgram {
@@ -51,6 +52,10 @@ pub fn parameters(o: &IndoorObject) -> ShelfProgram {
     program
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if o.kind == ObjectKind::Bookcase {
+        bookcase::build(a, o);
+        return;
+    }
     let p = parameters(o);
     let mut s = o.size;
     s.z -= 2. * (s.x / p.columns as f32) * p.opening_radians.sin();
