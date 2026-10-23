@@ -11,21 +11,35 @@ fn storage_preserves_offsets_classifications_and_missing_probe_slots() {
     let rendered = world.spawn_empty().id();
     let mut objects = objects();
     objects.entity_to_index.insert(rendered, 17);
-    let input = InputKey(vec![
-        Record::Counts([1, 0, 0, 1, 1, 0]),
-        Record::Object(
-            main,
-            Some(rendered),
-            [true, false, false, true, true, false],
-        ),
-        Record::Counts([0; 6]),
-        Record::Counts([0, 0, 0, 0, 0, 1]),
-        Record::Object(
-            main,
-            Some(rendered),
-            [false, false, false, false, false, true],
-        ),
-    ]);
+    let input = InputKey {
+        clusters: vec![
+            Cluster {
+                counts: [1, 0, 0, 1, 1, 0],
+                end: 1,
+            },
+            Cluster {
+                counts: [0; 6],
+                end: 1,
+            },
+            Cluster {
+                counts: [0, 0, 0, 0, 0, 1],
+                end: 2,
+            },
+        ],
+        members: vec![0, 1],
+        objects: vec![
+            Object {
+                main,
+                render: Some(rendered),
+                flags: [true, false, false, true, true, false],
+            },
+            Object {
+                main,
+                render: Some(rendered),
+                flags: [false, false, false, false, false, true],
+            },
+        ],
+    };
     assert_eq!(
         pack(&input, &objects, None, None).unwrap(),
         Packed {
@@ -41,10 +55,18 @@ fn storage_preserves_offsets_classifications_and_missing_probe_slots() {
     // for an existing render entity must fall back to Bevy's diagnostic path.
     objects.entity_to_index.clear();
     assert!(pack(&input, &objects, None, None).is_none());
-    let unrendered = InputKey(vec![
-        Record::Counts([1, 0, 0, 0, 0, 0]),
-        Record::Object(main, None, [true, false, false, false, false, false]),
-    ]);
+    let unrendered = InputKey {
+        clusters: vec![Cluster {
+            counts: [1, 0, 0, 0, 0, 0],
+            end: 1,
+        }],
+        members: vec![0],
+        objects: vec![Object {
+            main,
+            render: None,
+            flags: [true, false, false, false, false, false],
+        }],
+    };
     assert!(pack(&unrendered, &objects, None, None).is_none());
 }
 
@@ -54,6 +76,25 @@ fn capacity_requires_both_independent_storage_buffers() {
     assert!(fits([64, 256], [64, 256]));
     assert!(!fits([64, 256], [68, 32]));
     assert!(!fits([64, 256], [4, 288]));
+}
+
+#[test]
+fn malformed_palette_and_cluster_ranges_fall_back_without_panicking() {
+    let mut input = InputKey {
+        clusters: vec![Cluster {
+            counts: [0; 6],
+            end: 1,
+        }],
+        members: vec![0],
+        objects: vec![],
+    };
+    assert!(pack(&input, &objects(), None, None).is_none());
+    input.members.clear();
+    assert!(pack(&input, &objects(), None, None).is_none());
+    input.clusters[0].end = 0;
+    assert!(pack(&input, &objects(), None, None).is_some());
+    input.members.push(0);
+    assert!(pack(&input, &objects(), None, None).is_none());
 }
 
 /// Use Bevy's unmodified extractor/preparer as an independent GPU packing oracle.
@@ -117,7 +158,7 @@ fn gpu_storage_matches_bevy_and_recycles_across_despawn_and_capacity_changes() {
             .get_mut::<Clusters>(h.camera)
             .unwrap()
             .clusterable_objects = ClusterableObjects::Cpu(vec![cluster; count]);
-        let input = InputKey(h.extract().unwrap());
+        let input = h.extract().unwrap();
         let mut main = bevy::render::MainWorld::default();
         std::mem::swap(&mut h.main, &mut *main);
         h.render.insert_resource(main);
@@ -141,43 +182,50 @@ fn gpu_storage_matches_bevy_and_recycles_across_despawn_and_capacity_changes() {
             .render
             .remove_resource::<GlobalClusterableObjectMeta>()
             .unwrap();
-        let actual_entity = h.render.spawn_empty().id();
+        let actual_entities: Vec<_> = (0..3).map(|_| h.render.spawn_empty().id()).collect();
         h.render.resource_scope(|world, mut pool: Mut<Pool>| {
             let mut commands = world.commands();
-            assert!(update(
-                actual_entity,
-                &input,
-                &meta,
-                None,
-                None,
-                None,
-                &device,
-                &queue,
-                &mut pool,
-                &mut commands
-            ));
+            let mut uploads = Uploads::default();
+            for &actual_entity in &actual_entities {
+                assert!(update(
+                    actual_entity,
+                    &input,
+                    &meta,
+                    None,
+                    None,
+                    None,
+                    &device,
+                    &queue,
+                    &mut pool,
+                    &mut uploads,
+                    &mut commands
+                ));
+            }
+            uploads.submit(&device, &queue);
         });
         h.render.flush();
-        let actual = h.render.get::<ViewClusterBindings>(actual_entity).unwrap();
-        for (expected, actual) in [
-            (
-                expected.clusterable_object_index_lists_binding().unwrap(),
-                actual.clusterable_object_index_lists_binding().unwrap(),
-            ),
-            (
-                expected.offsets_and_counts_binding().unwrap(),
-                actual.offsets_and_counts_binding().unwrap(),
-            ),
-        ] {
-            let BindingResource::Buffer(ref actual_buffer) = actual else {
-                unreachable!()
-            };
-            let extended_size = actual_buffer.size.unwrap().get();
-            let expected = read_storage(&device, &queue, expected, extended_size);
-            let actual = read_storage(&device, &queue, actual, extended_size);
-            assert_eq!(&actual[..expected.len()], expected, "cluster count {count}");
+        for &actual_entity in &actual_entities {
+            let actual = h.render.get::<ViewClusterBindings>(actual_entity).unwrap();
+            for (expected, actual) in [
+                (
+                    expected.clusterable_object_index_lists_binding().unwrap(),
+                    actual.clusterable_object_index_lists_binding().unwrap(),
+                ),
+                (
+                    expected.offsets_and_counts_binding().unwrap(),
+                    actual.offsets_and_counts_binding().unwrap(),
+                ),
+            ] {
+                let BindingResource::Buffer(ref actual_buffer) = actual else {
+                    unreachable!()
+                };
+                let extended_size = actual_buffer.size.unwrap().get();
+                let expected = read_storage(&device, &queue, expected, extended_size);
+                let actual = read_storage(&device, &queue, actual, extended_size);
+                assert_eq!(&actual[..expected.len()], expected, "cluster count {count}");
+            }
+            h.render.despawn(actual_entity);
         }
-        h.render.despawn(actual_entity);
         let pool = h.render.resource::<Pool>();
         assert!(!pool.available.is_empty());
         assert!(pool.bytes <= MAX_POOLED_BYTES);

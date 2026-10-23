@@ -14,6 +14,11 @@ pub mod qualification;
 mod readiness;
 pub use readiness::{CaptureBlocker, CaptureReadiness};
 
+/// Consumers of the scene preparation barrier must observe this frame's state,
+/// including a regeneration that invalidated the preceding scene's readiness.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CaptureReadinessUpdate;
+
 use bevy::prelude::*;
 
 use crate::{
@@ -33,7 +38,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct View {
-    /// Actual captured pinhole calibration. Absent in legacy archives.
+    /// Actual captured sensor calibration (pinhole or angular fisheye).
+    /// Absent in legacy archives.
     #[serde(default)]
     pub calibration: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
     /// Capture timeline in seconds only when an explicit clip duration is assigned.
@@ -59,6 +65,8 @@ pub struct View {
     /// Visible geometry outside the reconstruction region can be outside [0, 1].
     pub position: Vec<u8>,
     pub world_from_view: [[f32; 4]; 4],
+    /// Vertical pinhole FOV, or fisheye angular diameter, in radians. Use
+    /// `calibration` for projection; the latter is not a perspective FOV.
     pub fovy: f32,
     pub near: f32,
     pub far: f32,
@@ -594,7 +602,12 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
             .after(crate::annotation::obb::compute_object_obbs),
     );
     app.add_systems(PostUpdate, restore_sampling_motion.after(sample_stream));
-    app.add_systems(PostUpdate, readiness::update.before(sample_stream));
+    app.add_systems(
+        PostUpdate,
+        readiness::update
+            .in_set(CaptureReadinessUpdate)
+            .before(sample_stream),
+    );
     camera_activity::configure(app);
     #[cfg(not(target_arch = "wasm32"))]
     render_settling::configure(app);

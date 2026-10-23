@@ -50,16 +50,14 @@ impl Extraction {
         }
     }
 
-    pub(super) fn extract(&mut self) -> Option<Vec<Record>> {
+    pub(super) fn extract(&mut self) -> Option<InputKey> {
         let mut main = MainWorld::default();
         std::mem::swap(&mut self.main, &mut *main);
         self.render.insert_resource(main);
         self.schedule.run(&mut self.render);
         let mut main = self.render.remove_resource::<MainWorld>().unwrap();
         std::mem::swap(&mut self.main, &mut *main);
-        self.render
-            .get::<InputKey>(self.view)
-            .map(|key| key.0.clone())
+        self.render.get::<InputKey>(self.view).cloned()
     }
 }
 
@@ -84,6 +82,25 @@ fn extraction_tracks_membership_classification_and_entity_remapping() {
     // A stale membership must not mask Bevy's missing-object diagnostics.
     h.main.despawn(h.light);
     assert!(h.extract().is_none());
+}
+
+#[test]
+fn repeated_members_share_a_palette_without_changing_cluster_order() {
+    let mut h = Extraction::new();
+    let mut cluster = ObjectsInClusterCpu::default();
+    cluster.add_point_light(h.light);
+    h.main
+        .get_mut::<Clusters>(h.camera)
+        .unwrap()
+        .clusterable_objects = ClusterableObjects::Cpu(vec![cluster; 4096]);
+    let key = h.extract().unwrap();
+    assert_eq!(key.objects.len(), 1);
+    assert_eq!(key.members, vec![0; 4096]);
+    assert_eq!(key.clusters.len(), 4096);
+    for (i, cluster) in key.clusters.iter().enumerate() {
+        assert_eq!(cluster.counts, [1, 0, 0, 0, 0, 0]);
+        assert_eq!(cluster.end, i + 1);
+    }
 }
 
 #[test]

@@ -28,6 +28,12 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+struct ClusterPreparation;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+struct ClusterBufferUpload;
+
 pub(super) fn install(app: &mut App) {
     // WebGPU also pays for fresh allocations and mapped uploads per view per
     // frame. Reuse the same bounded, order-preserving storage there. Native
@@ -44,6 +50,7 @@ pub(super) fn install(app: &mut App) {
         return;
     };
     render.init_resource::<storage::Pool>();
+    render.init_resource::<storage::Uploads>();
     // A component hook does not allocate an observer entity. Adding a render
     // entity here can change equal-depth draw/light ordering after regeneration.
     render
@@ -58,22 +65,43 @@ pub(super) fn install(app: &mut App) {
         Render,
         reuse_unchanged
             .in_set(RenderSystems::PrepareResources)
+            .in_set(ClusterPreparation)
             .before(prepare_clusters_for_cpu_clustering),
+    );
+    render.add_systems(
+        Render,
+        storage::flush
+            .in_set(RenderSystems::PrepareResources)
+            .in_set(ClusterBufferUpload)
+            .after(ClusterPreparation),
     );
 }
 
+/// One palette entry per distinct object, rather than repeating ECS lookups and
+/// resolving the same GPU index in every cluster in every view.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum Record {
-    Counts([u32; 6]),
-    Object(Entity, Option<Entity>, [bool; 6]),
+struct Object {
+    main: Entity,
+    render: Option<Entity>,
+    flags: [bool; 6],
 }
 
-#[derive(Component)]
-struct InputKey(Vec<Record>);
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Cluster {
+    counts: [u32; 6],
+    end: usize,
+}
+
+#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+struct InputKey {
+    clusters: Vec<Cluster>,
+    members: Vec<u32>,
+    objects: Vec<Object>,
+}
 
 #[derive(Component, Debug, PartialEq, Eq)]
 struct UploadedKey {
-    records: Vec<Record>,
+    input: InputKey,
     indices: Vec<(Entity, usize)>,
     reflection: Vec<(MainEntity, u32)>,
     irradiance: Vec<(MainEntity, u32)>,
@@ -95,6 +123,7 @@ fn extract_key(
     views: Extract<Query<(RenderEntity, &Clusters, &Camera)>>,
     objects: Extract<Query<(Option<&RenderEntity>, ObjectFlags)>>,
 ) {
+    let mut extracted = bevy::ecs::entity::EntityHashMap::default();
     for (view, clusters, camera) in &views {
         let ClusterableObjects::Cpu(clusters) = &clusters.clusterable_objects else {
             commands.entity(view).remove::<(InputKey, UploadedKey)>();
@@ -104,41 +133,57 @@ fn extract_key(
             commands.entity(view).remove::<(InputKey, UploadedKey)>();
             continue;
         }
-        let mut records = Vec::with_capacity(clusters.len() * 2);
+        let mut input = InputKey {
+            clusters: Vec::with_capacity(clusters.len()),
+            ..default()
+        };
+        let mut slots = bevy::ecs::entity::EntityHashMap::default();
         let mut valid = true;
         for cluster in clusters {
-            let c = cluster.counts;
-            records.push(Record::Counts([
-                c.point_lights,
-                c.spot_lights,
-                c.rect_lights,
-                c.reflection_probes,
-                c.irradiance_volumes,
-                c.decals,
-            ]));
             for &entity in cluster.iter() {
-                let Ok((render, (a, b, c, d, e, f))) = objects.get(entity) else {
-                    valid = false;
-                    break;
+                let slot = if let Some(&slot) = slots.get(&entity) {
+                    slot
+                } else {
+                    let object = extracted.entry(entity).or_insert_with(|| {
+                        let (render, (a, b, c, d, e, f)) = objects.get(entity).ok()?;
+                        (a || b || c || d || e || f).then_some(Object {
+                            main: entity,
+                            render: render.map(|e| **e),
+                            flags: [a, b, c, d, e, f],
+                        })
+                    });
+                    let Some(object) = object else {
+                        valid = false;
+                        break;
+                    };
+                    let Ok(slot) = u32::try_from(input.objects.len()) else {
+                        valid = false;
+                        break;
+                    };
+                    input.objects.push(object.clone());
+                    slots.insert(entity, slot);
+                    slot
                 };
-                // Match every classification read by Bevy's extractor. Unknown
-                // objects fall back to Bevy, including its own diagnostics.
-                if !(a || b || c || d || e || f) {
-                    valid = false;
-                    break;
-                }
-                records.push(Record::Object(
-                    entity,
-                    render.map(|e| **e),
-                    [a, b, c, d, e, f],
-                ));
+                input.members.push(slot);
             }
             if !valid {
                 break;
             }
+            let c = cluster.counts;
+            input.clusters.push(Cluster {
+                counts: [
+                    c.point_lights,
+                    c.spot_lights,
+                    c.rect_lights,
+                    c.reflection_probes,
+                    c.irradiance_volumes,
+                    c.decals,
+                ],
+                end: input.members.len(),
+            });
         }
         if valid {
-            commands.entity(view).insert(InputKey(records));
+            commands.entity(view).insert(input);
         } else {
             commands.entity(view).remove::<(InputKey, UploadedKey)>();
         }
@@ -162,6 +207,7 @@ fn reuse_unchanged(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut pool: ResMut<storage::Pool>,
+    mut uploads: ResMut<storage::Uploads>,
     views: Query<
         (
             Entity,
@@ -186,7 +232,7 @@ fn reuse_unchanged(
     indices.sort_unstable_by_key(|(e, _)| e.to_bits());
     for (entity, input, previous, bindings, reflection, irradiance, managed) in &views {
         let key = UploadedKey {
-            records: input.0.clone(),
+            input: input.clone(),
             indices: indices.clone(),
             reflection: probe_indices(
                 reflection.map(|p| &p.main_entity_to_render_light_probe_index),
@@ -209,6 +255,7 @@ fn reuse_unchanged(
                 &device,
                 &queue,
                 &mut pool,
+                &mut uploads,
                 &mut commands,
             );
         if unchanged || updated {
@@ -216,8 +263,12 @@ fn reuse_unchanged(
             // resources still update, including shadows and probe textures.
             commands
                 .entity(entity)
-                .remove::<ExtractedClusterableObjects>();
+                .remove::<ExtractedClusterableObjects>()
+                .insert(key);
+        } else {
+            // A fallback is not a successfully uploaded key. In particular, a
+            // missing render index must be retried when Bevy extracts it later.
+            commands.entity(entity).remove::<UploadedKey>();
         }
-        commands.entity(entity).insert(key);
     }
 }

@@ -26,14 +26,17 @@ mod material_aliases;
 pub mod normal;
 pub mod optical_flow;
 pub mod position;
-#[cfg(feature = "viewer")]
 mod preview_shadows;
 pub mod residency;
 pub mod semantic;
 pub mod ssaa;
 #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
 mod upload;
-#[cfg(any(target_arch = "wasm32", test))]
+#[cfg(any(
+    target_arch = "wasm32",
+    test,
+    all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")
+))]
 mod webgpu_mesh;
 
 /// Upload through queue staging instead of CPU-writing a mapped device-local
@@ -161,7 +164,6 @@ impl Plugin for RenderPlugin {
 
     fn finish(&self, app: &mut App) {
         material_aliases::install(app);
-        #[cfg(feature = "viewer")]
         preview_shadows::install(app);
         #[cfg(target_arch = "wasm32")]
         webgpu_mesh::install(app);
@@ -178,6 +180,13 @@ impl Plugin for RenderPlugin {
         #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
         {
             upload::install(app);
+            if app
+                .world()
+                .get_resource::<bevy::render::renderer::RenderAdapterInfo>()
+                .is_some_and(|a| a.vendor == 0x10de && a.backend == wgpu::Backend::Vulkan)
+            {
+                webgpu_mesh::install(app);
+            }
         }
         #[cfg(any(
             target_arch = "wasm32",

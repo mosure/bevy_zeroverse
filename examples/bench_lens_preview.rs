@@ -14,6 +14,8 @@ use bevy_zeroverse::{
 };
 use std::{collections::BTreeMap, path::PathBuf, time::Instant};
 
+#[path = "support/lens_preview_clusters.rs"]
+mod clusters;
 #[path = "support/lens_preview_profile.rs"]
 mod profile;
 
@@ -47,6 +49,13 @@ fn main() {
     assert!(fov.is_none_or(|v| (40.0..=220.).contains(&v)));
     let anisotropy: f32 = option("anisotropy", "1.15").parse().unwrap();
     assert!((0.8..=1.25).contains(&anisotropy));
+    let motion = option("motion", "both");
+    let movement: &[bool] = match motion.as_str() {
+        "static" => &[false],
+        "moving" => &[true],
+        "both" => &[false, true],
+        _ => panic!("motion must be static, moving or both"),
+    };
     let warmup: usize = option("warmup", "80").parse().unwrap();
     assert!(warmup >= 20);
     let cluster_budget: Option<u32> = args
@@ -66,22 +75,33 @@ fn main() {
         width: size,
         height: size,
         indoor_seed: Some(option("seed", "400").parse().unwrap()),
-        indoor_human_density: 0.,
+        indoor_human_density: option("human-density", "0").parse().unwrap(),
         playback_mode: PlaybackMode::Still,
         indoor_camera: Some(
-            serde_json::to_string(&CameraSettings {
-                lenses: Some(LensSampling {
-                    probability: 1.,
+            if let Some(path) = args.iter().find_map(|v| v.strip_prefix("--camera-config=")) {
+                let json = std::fs::read_to_string(path).unwrap();
+                CameraSettings::parse(&json).expect("valid benchmark camera policy");
+                json
+            } else {
+                serde_json::to_string(&CameraSettings {
+                    lenses: Some(LensSampling {
+                        probability: 1.,
+                        ..default()
+                    }),
                     ..default()
-                }),
-                ..default()
-            })
-            .unwrap(),
+                })
+                .unwrap()
+            },
         ),
         ..default()
     };
     setup_globals(None);
     let mut app = create_app(None, Some(config.clone()), false);
+    // Wall-clock latency must not change the animation/flow visualization
+    // inputs being compared. Timing below still uses the real Instant clock.
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+        std::time::Duration::from_secs_f64(1. / 60.),
+    ));
     if indirect {
         app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy { indirect: true });
     }
@@ -99,30 +119,11 @@ fn main() {
             .before(CameraBuildSystems::Lens),
         );
     }
-    if args.iter().any(|v| v == "--captures") {
-        app.add_plugins(bevy_zeroverse::io::image_copy::ImageCopyPlugin);
-    }
+    // Readiness includes uploads and material/pipeline preparation even when
+    // the timed workload does not request readback. No copier is spawned here.
+    app.add_plugins(bevy_zeroverse::io::image_copy::ImageCopyPlugin);
     if let Some(total) = cluster_budget {
-        assert!((1..=4096).contains(&total));
-        use bevy::light::{cluster::ClusterConfig, SimulationLightSystems};
-        app.add_systems(
-            PostUpdate,
-            (move |mut views: Query<&mut ClusterConfig, Added<Camera3d>>| {
-                for mut config in &mut views {
-                    *config = if total == 1 {
-                        ClusterConfig::Single
-                    } else {
-                        ClusterConfig::FixedZ {
-                            total,
-                            z_slices: total.min(8),
-                            z_config: default(),
-                            dynamic_resizing: true,
-                        }
-                    };
-                }
-            })
-            .before(SimulationLightSystems::AssignLightsToClusters),
-        );
+        clusters::install(&mut app, total);
     }
     if pinhole || fit.is_some() || fov.is_some() {
         // Admission and trajectories are identical to the angular workload.
@@ -160,6 +161,34 @@ fn main() {
         .any(|v| v == "--profile")
         .then(|| profile::install(&mut app));
     app.finish();
+    profile::FrameFence::install(&mut app);
+    let serial_views = args.iter().any(|v| v == "--serial-views");
+    let serial_render = args.iter().any(|v| v == "--serial-render");
+    if serial_views || serial_render {
+        use bevy::{
+            ecs::schedule::SingleThreadedExecutor,
+            render::{Render, RenderApp},
+        };
+        let mut schedules = app
+            .sub_app_mut(RenderApp)
+            .world_mut()
+            .resource_mut::<Schedules>();
+        if serial_views {
+            schedules
+                .get_mut(bevy::core_pipeline::schedule::Core3d)
+                .unwrap()
+                .set_executor(SingleThreadedExecutor::new());
+        }
+        if serial_render {
+            schedules
+                .get_mut(Render)
+                .unwrap()
+                .set_executor(SingleThreadedExecutor::new());
+        }
+    }
+    if let Some(profile) = &profile {
+        profile::instrument_resources(&mut app, profile);
+    }
     app.cleanup();
     let device = app.world().resource::<RenderDevice>().clone();
     let mut rows = Vec::new();
@@ -184,7 +213,7 @@ fn main() {
         app.world_mut()
             .resource_mut::<BevyZeroverseConfig>()
             .render_mode = mode.clone();
-        for moving in [false, true] {
+        for &moving in movement {
             let mut times = Vec::new();
             let mut poses = Vec::new();
             for frame in 0..(frames + warmup) {
@@ -197,7 +226,7 @@ fn main() {
                 if let Some(profile) = &profile {
                     profile.record(frame >= warmup);
                 }
-                app.update();
+                profile::FrameFence::update(&mut app);
                 let update_ms = start.elapsed().as_secs_f64() * 1000.;
                 device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
                 if let Some(profile) = &profile {
@@ -217,7 +246,7 @@ fn main() {
                             wait.elapsed().as_secs() < 60,
                             "preview pipelines did not become ready"
                         );
-                        app.update();
+                        profile::FrameFence::update(&mut app);
                         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
                     }
                 }
@@ -258,7 +287,42 @@ fn main() {
                 .iter(app.world())
                 .map(|(c, t, direct, motion)| serde_json::json!({"active":c.is_active,"target":format!("{t:?}"),"direct":direct,"motion_prepass":motion}))
                 .collect();
+            let shadow_batches = app
+                .world_mut()
+                .query::<&Name>()
+                .iter(app.world())
+                .filter(|n| n.as_str() == "procedural_shadow_batch")
+                .count();
+            let clustered_objects = app
+                .world_mut()
+                .query_filtered::<Entity, Or<(
+                    With<PointLight>,
+                    With<SpotLight>,
+                    With<bevy::light::RectLight>,
+                    With<bevy::light::LightProbe>,
+                    With<bevy::light::ClusteredDecal>,
+                )>>()
+                .iter(app.world())
+                .count();
             let mean = times.iter().sum::<f64>() / frames as f64;
+            let point_shadows = app
+                .world_mut()
+                .query::<&PointLight>()
+                .iter(app.world())
+                .filter(|l| l.shadow_maps_enabled)
+                .count();
+            let spot_shadows = app
+                .world_mut()
+                .query::<&SpotLight>()
+                .iter(app.world())
+                .filter(|l| l.shadow_maps_enabled)
+                .count();
+            let directional_shadows = app
+                .world_mut()
+                .query::<&DirectionalLight>()
+                .iter(app.world())
+                .filter(|l| l.shadow_maps_enabled)
+                .count();
             let side_motion_passes = app
                 .world_mut()
                 .query_filtered::<Entity, (
@@ -284,7 +348,15 @@ fn main() {
             );
             rows.push(serde_json::json!({"mode":mode,"moving":moving,"frames":frames,"mean_ms":mean,
                 "median_ms":times[frames/2],"p95_ms":times[frames*95/100],"times_ms":times,"diagnostics":diagnostics,"views":views,"poses":poses,
-                "cpu_phases":profile.as_ref().map(|p| p.take())}));
+                "cpu_phases":profile.as_ref().map(|p| p.take()),"cluster_views":clusters::snapshot(&mut app),"shadow_batches":shadow_batches,"clustered_objects":clustered_objects,
+                "shadow_maps_enabled":[point_shadows,spot_shadows,directional_shadows]}));
+            // Preserve completed phases if a bounded diagnostic is interrupted.
+            // This file deliberately does not masquerade as a complete report.
+            std::fs::write(
+                output.join("partial.json"),
+                serde_json::to_vec_pretty(&rows).unwrap(),
+            )
+            .unwrap();
             if moving && args.iter().any(|v| v == "--captures") {
                 save_previews(&mut app, &output, &format!("{mode:?}"));
             }
@@ -307,7 +379,7 @@ fn main() {
             serde_json::json!({"size":im.size().to_array(),"format":format!("{:?}", im.texture_descriptor.format)})
         }).collect();
     std::fs::write(output.join("report.json"), serde_json::to_vec_pretty(&serde_json::json!({
-        "pinhole":pinhole,"fit":fit,"fov":fov,"anisotropy":anisotropy,"warmup_frames":warmup,"render_diagnostics":diagnostics,"direct":direct,"indirect":indirect,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
+        "simulation_timestep_seconds":1./60.,"serial_views":serial_views,"serial_render":serial_render,"pinhole":pinhole,"fit":fit,"fov":fov,"anisotropy":anisotropy,"warmup_frames":warmup,"render_diagnostics":diagnostics,"direct":direct,"indirect":indirect,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
         "policy":"Same scene and admitted trajectories; only the render lens changes. Device-synchronized frame wall time, no readback. Quality unchanged. This is not window presentation FPS; record concurrent workloads separately.",
         "adapter":format!("{:?}", **app.world().resource::<bevy::render::renderer::RenderAdapterInfo>()),"images":sizes,"source_faces":sources,"rows":rows
     })).unwrap()).unwrap();
@@ -321,7 +393,7 @@ fn save_previews(app: &mut App, output: &std::path::Path, mode: &str) {
     app.world_mut().resource_mut::<Playback>().progress = 0.5;
     let device = app.world().resource::<RenderDevice>().clone();
     for _ in 0..6 {
-        app.update();
+        profile::FrameFence::update(app);
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     }
     let mut targets: Vec<_> = app
@@ -361,7 +433,7 @@ fn save_previews(app: &mut App, output: &std::path::Path, mode: &str) {
         copier.request(1);
         let start = Instant::now();
         let pixels = loop {
-            app.update();
+            profile::FrameFence::update(app);
             device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
             assert!(copier.failure().is_none(), "{:?}", copier.failure());
             if let Some(capture) = copier.take(1) {

@@ -276,9 +276,9 @@ fn main() -> Result<()> {
         use bevy::light::{cluster::ClusterConfig, SimulationLightSystems};
         app.add_systems(
             PostUpdate,
-            (move |mut views: Query<&mut ClusterConfig, With<Camera3d>>| {
-                for mut grid in &mut views {
-                    *grid = if total == 1 {
+            (move |mut commands: Commands, views: Query<Entity, With<Camera3d>>| {
+                for entity in &views {
+                    let grid = if total == 1 {
                         ClusterConfig::Single
                     } else {
                         ClusterConfig::FixedZ {
@@ -288,6 +288,7 @@ fn main() -> Result<()> {
                             dynamic_resizing: true,
                         }
                     };
+                    commands.entity(entity).insert(grid);
                 }
             })
             .before(SimulationLightSystems::AssignLightsToClusters),

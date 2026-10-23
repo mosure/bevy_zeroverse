@@ -1,8 +1,9 @@
-//! Avoid querying every WebGPU device limit for every ordinary mesh draw.
+//! Avoid querying immutable device limits for every ordinary mesh draw.
 //!
 //! Bevy 0.20's SetMeshBindGroup asks `device.limits()` whether skin uniforms
 //! require dynamic offsets, even on unskinned meshes. On WebGPU this crosses
-//! the JS boundary for dozens of immutable properties per draw. Fisheye shadow
+//! the JS boundary for dozens of immutable properties per draw; native Vulkan
+//! also performs the repeated device lookup. Fisheye shadow
 //! cascades magnify it. Bind ordinary meshes using the existing Bevy bind group;
 //! delegate skinning, morph targets and lightmaps to Bevy unchanged. No shaders,
 //! geometry, draw ordering, shadow coverage or dependency patches are changed.
@@ -78,6 +79,22 @@ where
     let command = RenderCommandState::<P, New>::new(world);
     // Retain the original id, including references already held by materials.
     world.resource::<DrawFunctions<P>>().write().draw_functions[id.0 as usize] = Box::new(command);
+}
+
+#[cfg(test)]
+fn restore_bevy_commands(app: &mut App) {
+    let world = app.sub_app_mut(RenderApp).world_mut();
+    replace::<Opaque3d, DrawMaterial, DrawMaterial>(world);
+    replace::<AlphaMask3d, DrawMaterial, DrawMaterial>(world);
+    replace::<Transmissive3d, DrawMaterial, DrawMaterial>(world);
+    replace::<Transparent3d, DrawMaterial, DrawMaterial>(world);
+    replace::<Opaque3dPrepass, DrawPrepass, DrawPrepass>(world);
+    replace::<AlphaMask3dPrepass, DrawPrepass, DrawPrepass>(world);
+    replace::<Opaque3dDeferred, DrawPrepass, DrawPrepass>(world);
+    replace::<AlphaMask3dDeferred, DrawPrepass, DrawPrepass>(world);
+    replace::<Opaque3dPrepass, DrawDepthOnlyPrepass, DrawDepthOnlyPrepass>(world);
+    replace::<Shadow, DrawPrepass, DrawPrepass>(world);
+    replace::<Shadow, DrawDepthOnlyPrepass, DrawDepthOnlyPrepass>(world);
 }
 
 struct OrdinaryMeshBindings<const I: usize>;

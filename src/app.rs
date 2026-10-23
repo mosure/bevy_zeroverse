@@ -1210,10 +1210,11 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         })
         .set(ImagePlugin::default_nearest())
         .set(RenderPlugin {
-            // Dataset workers can exit immediately after their last capture.
+            // Offscreen applications can exit immediately after their last frame.
             // Finish compilation on the render thread so asynchronous compiler
             // tasks cannot retain Vulkan devices beyond application teardown.
-            synchronous_pipeline_compilation: !cfg!(target_arch = "wasm32") && args.image_copiers,
+            synchronous_pipeline_compilation: !cfg!(target_arch = "wasm32")
+                && (args.image_copiers || args.headless),
             render_creation: RenderCreation::Automatic(Box::new(WgpuSettings {
                 memory_hints: if args.image_copiers {
                     wgpu::MemoryHints::MemoryUsage

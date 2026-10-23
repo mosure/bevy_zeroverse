@@ -6,11 +6,17 @@ use super::*;
 #[ignore = "requires a native GPU; full PBR and shadow command parity"]
 fn ordinary_bindings_preserve_rendered_fisheye_and_pinhole_pixels() {
     for probability in [0., 1.] {
-        qualify(probability);
+        qualify(probability, 400, 1, 128.);
     }
 }
 
-fn qualify(probability: f32) {
+#[test]
+#[ignore = "requires a native GPU; multi-view shadow batching regression"]
+fn batching_preserves_seed401_with_independent_bevy_draw_commands() {
+    qualify(1., 401, 3, 512.);
+}
+
+fn qualify(probability: f32, seed: u64, cameras: usize, size: f32) {
     use crate::{
         app::BevyZeroverseConfig,
         camera::{lens::LensSampling, Playback, PlaybackMode},
@@ -20,15 +26,15 @@ fn qualify(probability: f32) {
     setup_globals(None);
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
-        indoor_seed: Some(400),
+        indoor_seed: Some(seed),
         indoor_human_density: 0.,
         headless: true,
         editor: false,
         gizmos: false,
         image_copiers: false,
-        num_cameras: 1,
-        width: 128.,
-        height: 128.,
+        num_cameras: cameras,
+        width: size,
+        height: size,
         ssaa_factor: 2,
         playback_mode: PlaybackMode::Still,
         indoor_camera: Some(
@@ -46,6 +52,14 @@ fn qualify(probability: f32) {
     let mut app = create_app(None, Some(config), false);
     app.add_plugins(crate::io::image_copy::ImageCopyPlugin);
     app.finish();
+    // Native installs the ordinary-mesh fast path too. Keep Bevy's commands as
+    // the independent control instead of accidentally comparing fast vs fast.
+    restore_bevy_commands(&mut app);
+    super::super::preview_shadows::force_for_test(&mut app, false);
+    // This same-world oracle changes draw functions between captures. Retain
+    // direct access to RenderApp instead of moving it into the render worker.
+    // The end-to-end benchmark separately exercises the pipelined production path.
+    app.remove_sub_app(bevy::render::pipelined_rendering::RenderExtractApp);
     app.cleanup();
     let device = app
         .world()
@@ -83,6 +97,12 @@ fn qualify(probability: f32) {
         .resource::<crate::sample::CaptureReadiness>()
         .scene_ready());
     let before = capture(&mut app);
+    let original_grids: Vec<_> = app
+        .world_mut()
+        .query_filtered::<(Entity, Option<&bevy::light::cluster::ClusterConfig>), With<Camera3d>>()
+        .iter(app.world())
+        .map(|(e, c)| (e, c.copied()))
+        .collect();
     let enabled = app
         .world_mut()
         .query::<&SpotLight>()
@@ -92,11 +112,12 @@ fn qualify(probability: f32) {
     println!("enabled spot shadows: {enabled}");
     assert!(enabled > 0);
     install(&mut app);
-    #[cfg(feature = "viewer")]
+    let fast_only = capture(&mut app);
+    let fast_error = maximum_error(&before, &fast_only);
+    println!("seed {seed}: fast bindings alone max error {fast_error}");
+    assert!(fast_error <= 1e-6, "ordinary bindings changed pixels");
     super::super::preview_shadows::force_for_test(&mut app, true);
-    // Exercise the densest-preview policy as well, while capture defaults stay
-    // untouched in the production path.
-    #[cfg(feature = "viewer")]
+    // Exercise the densest light grid together with exact shadow batching.
     {
         let cameras: Vec<_> = app
             .world_mut()
@@ -110,7 +131,11 @@ fn qualify(probability: f32) {
         }
     }
     let after = capture(&mut app);
-    #[cfg(feature = "viewer")]
+    assert_proxies_absent_from_camera_queues(&mut app, cameras);
+    println!(
+        "seed {seed}: batching max error {}",
+        maximum_error(&before, &after)
+    );
     {
         let batches = super::super::preview_shadows::active_batches(app.world_mut());
         println!("active compatible shadow batches: {batches}");
@@ -119,15 +144,14 @@ fn qualify(probability: f32) {
             "the test must exercise the batched rendering path"
         );
         super::super::preview_shadows::force_for_test(&mut app, false);
-        let cameras: Vec<_> = app
-            .world_mut()
-            .query_filtered::<Entity, With<Camera3d>>()
-            .iter(app.world())
-            .collect();
-        for entity in cameras {
-            app.world_mut()
-                .entity_mut(entity)
-                .remove::<bevy::light::cluster::ClusterConfig>();
+        for (entity, original) in original_grids {
+            if let Some(config) = original {
+                app.world_mut().entity_mut(entity).insert(config);
+            } else {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .remove::<bevy::light::cluster::ClusterConfig>();
+            }
         }
         let restored = capture(&mut app);
         assert_eq!(
@@ -170,7 +194,7 @@ fn qualify(probability: f32) {
         println!("maximum shadow contribution: {shadow_effect}");
         assert!(shadow_effect > 1e-4, "the fixture must see shadows");
     }
-    assert_eq!(before.len(), 1);
+    assert_eq!(before.len(), cameras);
     for (index, (before, after)) in before.iter().zip(&after).enumerate() {
         let (low, high) = before
             .as_chunks::<4>()
@@ -194,6 +218,52 @@ fn qualify(probability: f32) {
         println!("view {index}: max linear RGBA error {error}");
         assert!(error <= 1e-6, "view {index} changed by {error}");
     }
+}
+
+fn maximum_error(a: &[Vec<f32>], b: &[Vec<f32>]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b).fold(0., |error, (a, b)| {
+        assert_eq!(a.len(), b.len());
+        a.iter().zip(b).fold(error, |error, (a, b)| {
+            assert!(a.is_finite() && b.is_finite());
+            error.max((a - b).abs())
+        })
+    })
+}
+
+fn assert_proxies_absent_from_camera_queues(app: &mut App, camera_count: usize) {
+    use bevy::render::{
+        camera::ExtractedCamera, sync_world::MainEntity, view::RenderVisibleEntities,
+    };
+    let proxies: std::collections::HashSet<_> = app
+        .world_mut()
+        .query::<(Entity, &Name)>()
+        .iter(app.world())
+        .filter(|(_, name)| name.as_str() == "procedural_shadow_batch")
+        .map(|(entity, _)| MainEntity::from(entity))
+        .collect();
+    assert!(!proxies.is_empty());
+    let world = app.sub_app_mut(RenderApp).world_mut();
+    let mut views = 0;
+    let mut leaked = 0;
+    for visible in world
+        .query_filtered::<&RenderVisibleEntities, With<ExtractedCamera>>()
+        .iter(world)
+    {
+        views += 1;
+        if let Some(meshes) = visible.get::<Mesh3d>() {
+            leaked += meshes
+                .iter_visible()
+                .filter(|(_, main)| proxies.contains(main))
+                .count();
+        }
+    }
+    println!(
+        "actual render-world camera queues: {views}, proxies: {}, leaked: {leaked}",
+        proxies.len()
+    );
+    assert!(views >= camera_count);
+    assert_eq!(leaked, 0, "shadow proxies entered camera render queues");
 }
 
 fn capture(app: &mut App) -> Vec<Vec<f32>> {

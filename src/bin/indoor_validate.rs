@@ -27,6 +27,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "indoor_validate/calibration.rs"]
+mod calibration;
 #[path = "indoor_validate/co_visibility.rs"]
 mod co_visibility;
 #[path = "motion_validate/flow.rs"]
@@ -789,10 +791,11 @@ fn save_sample(
             .zip(Mat4::from_cols_array_2d(&view.world_from_view).to_cols_array())
             .map(|(a, b)| (a - b).abs())
             .fold(0.0f32, f32::max);
-        ensure!(pose_error < 0.0002 && (view.time-time).abs() < 0.00001 &&
-            (view.fovy-camera.fov_degrees.to_radians()).abs() < 0.00001 &&
-            (view.near-0.1).abs() < 0.00001 && (view.far-50.0).abs() < 0.00001,
+        ensure!(view.world_from_view.iter().flatten().all(|v| v.is_finite())
+            && pose_error < 0.0002 && (view.time-time).abs() < 0.00001,
             "camera calibration/trajectory mismatch at camera {camera_index} step {step_index}: pose error {pose_error}, time {} expected {time}", view.time);
+        let intrinsics = calibration::validate(view, camera, [args.width, args.height])
+            .with_context(|| format!("camera {camera_index} step {step_index}"))?;
         let mut semantic_colors = 0;
         let mut semantic_pixel_counts = std::collections::BTreeMap::new();
         let semantic_palette = semantic_palette();
@@ -888,7 +891,6 @@ fn save_sample(
             std > 0.0001 && mean > 0.000001 && clipped < 0.995,
             "degenerate RGB image: mean={mean} std={std} dark={dark} clipped={clipped}"
         );
-        let focal_length = args.height as f32 / (2.0 * (view.fovy * 0.5).tan());
         let co_visibility = if args.co_visibility {
             Some(co_visibility::save(
                 view,
@@ -910,8 +912,8 @@ fn save_sample(
             step_index,
             time,
             pose_max_absolute_error: pose_error,
-            fx_pixels: focal_length,
-            fy_pixels: focal_length,
+            fx_pixels: intrinsics.k[0][0],
+            fy_pixels: intrinsics.k[1][1],
             world_from_view: view.world_from_view,
             fov_y: view.fovy,
             near: view.near,

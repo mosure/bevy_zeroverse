@@ -5,6 +5,9 @@
 use super::*;
 use bevy::render::render_resource::BindingResource;
 
+mod uploads;
+pub(super) use uploads::{flush, Uploads};
+
 const STORAGE: BufferBindingType = BufferBindingType::Storage { read_only: true };
 const MAX_POOLED_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_POOLED_VIEWS: usize = 64;
@@ -103,64 +106,75 @@ fn pack(
         indices: Vec::new(),
         offsets: Vec::new(),
     };
-    let mut expected_indices = 0usize;
-    for record in &input.0 {
-        match *record {
-            Record::Counts([point, spot, rect, reflection, irradiance, decals]) => {
-                if packed.indices.len() != expected_indices {
-                    return None;
-                }
-                expected_indices = [point, spot, rect, reflection, irradiance, decals]
-                    .into_iter()
-                    .try_fold(expected_indices, |n, count| n.checked_add(count as usize))?;
-                packed.offsets.push([
-                    u32::try_from(packed.indices.len()).ok()?,
-                    point,
-                    spot,
-                    rect,
-                    reflection,
-                    irradiance,
-                    decals,
-                    0,
-                ]);
+    // A view usually has thousands of clusters but only dozens of distinct
+    // lights/probes. Resolve each object once; retain Bevy's exact list order.
+    let resolved = input
+        .objects
+        .iter()
+        .map(|object| {
+            let Object {
+                main,
+                render,
+                flags: [point, spot, rect, probe, volume, decal],
+            } = *object;
+            let mut values = [0; 3];
+            let mut len = 0;
+            if let Some(render) = render.filter(|_| point || spot || rect || decal) {
+                values[len] = *objects.entity_to_index.get(&render)? as u32;
+                len += 1;
             }
-            Record::Object(main, render, [point, spot, rect, probe, volume, decal]) => {
-                // Match the extractor's precedence and its independent probe
-                // branches, including an entity with multiple classifications.
-                if let Some(render) = render.filter(|_| point || spot || rect || decal) {
-                    packed
-                        .indices
-                        .push(*objects.entity_to_index.get(&render)? as u32);
-                }
-                if probe {
-                    packed.indices.push(
-                        reflection
-                            .and_then(|p| {
-                                p.main_entity_to_render_light_probe_index
-                                    .get(&MainEntity::from(main))
-                            })
-                            .copied()
-                            .unwrap_or(u32::MAX),
-                    );
-                }
-                if volume {
-                    packed.indices.push(
-                        irradiance
-                            .and_then(|p| {
-                                p.main_entity_to_render_light_probe_index
-                                    .get(&MainEntity::from(main))
-                            })
-                            .copied()
-                            .unwrap_or(u32::MAX),
-                    );
-                }
+            if probe {
+                values[len] = reflection
+                    .and_then(|p| {
+                        p.main_entity_to_render_light_probe_index
+                            .get(&MainEntity::from(main))
+                    })
+                    .copied()
+                    .unwrap_or(u32::MAX);
+                len += 1;
             }
+            if volume {
+                values[len] = irradiance
+                    .and_then(|p| {
+                        p.main_entity_to_render_light_probe_index
+                            .get(&MainEntity::from(main))
+                    })
+                    .copied()
+                    .unwrap_or(u32::MAX);
+                len += 1;
+            }
+            Some((values, len))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let mut start = 0;
+    for cluster in &input.clusters {
+        let [point, spot, rect, reflection, irradiance, decals] = cluster.counts;
+        let offset = packed.indices.len();
+        let expected = cluster
+            .counts
+            .into_iter()
+            .try_fold(offset, |n, count| n.checked_add(count as usize))?;
+        packed.offsets.push([
+            u32::try_from(offset).ok()?,
+            point,
+            spot,
+            rect,
+            reflection,
+            irradiance,
+            decals,
+            0,
+        ]);
+        for &slot in input.members.get(start..cluster.end)? {
+            let (values, len) = resolved.get(slot as usize)?;
+            packed.indices.extend_from_slice(&values[..*len]);
         }
+        if packed.indices.len() != expected {
+            // Preserve Bevy's diagnostics for not-yet-extracted objects.
+            return None;
+        }
+        start = cluster.end;
     }
-    if packed.indices.len() != expected_indices {
-        // Bevy may still be extracting an object whose render entity is not
-        // ready. Preserve its preparation/diagnostics for inconsistent lists,
-        // instead of letting padding become additional valid light indices.
+    if start != input.members.len() {
         return None;
     }
     // Encase writes one zero element for an empty runtime-sized array.
@@ -204,6 +218,7 @@ pub(super) fn update(
     device: &RenderDevice,
     queue: &RenderQueue,
     pool: &mut Pool,
+    uploads: &mut Uploads,
     commands: &mut Commands,
 ) -> bool {
     let Some(packed) = pack(input, objects, reflection, irradiance) else {
@@ -231,16 +246,11 @@ pub(super) fn update(
             }));
             allocated.as_ref().unwrap()
         };
-    write(
+    uploads.push(
         bindings.clusterable_object_index_lists_binding().unwrap(),
-        queue,
         indices,
     );
-    write(
-        bindings.offsets_and_counts_binding().unwrap(),
-        queue,
-        offsets,
-    );
+    uploads.push(bindings.offsets_and_counts_binding().unwrap(), offsets);
     if let Some(allocated) = allocated {
         commands.entity(entity).insert((allocated, Managed));
     }

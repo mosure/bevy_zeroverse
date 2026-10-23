@@ -103,7 +103,6 @@ impl Plugin for FisheyeCameraPlugin {
         super::activity::install(app);
         #[cfg(feature = "viewer")]
         super::preview::install(app);
-        #[cfg(feature = "viewer")]
         super::clusters::install(app);
     }
 }

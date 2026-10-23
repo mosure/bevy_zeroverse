@@ -48,6 +48,7 @@ struct Binding {
     key: Vec<TextureId>,
     group: BindGroup,
     uniform: Buffer,
+    contents: Uniform,
 }
 pub(super) fn install(app: &mut App) {
     load_internal_asset!(app, SHADER, "resolve.wgsl", |source: &str, path| {
@@ -234,13 +235,6 @@ fn prepare(
                 output.texture_descriptor.size.height,
             ];
         }
-        let mut colors = [[0.; 4]; 128];
-        for label in crate::render::semantic::SemanticLabel::ALL {
-            let id = crate::render::ground_truth::semantic_id(label) as usize;
-            if id < 128 {
-                colors[id] = label.color().to_linear().to_f32_array();
-            }
-        }
         let uniform = Uniform {
             lens: calibration.shader_parameters(),
             views: orientations().map(|r| Mat4::from_quat(r.inverse()).to_cols_array_2d()),
@@ -260,10 +254,10 @@ fn prepare(
             ],
             bounds_min: job.bounds[0].extend(0.).to_array(),
             bounds_max: job.bounds[1].extend(0.).to_array(),
-            preview: job.preview,
+            preview: preview_parameters(job.mode, job.preview),
             turbo: bevy_zeroverse_capture::depth::TURBO_COEFFICIENTS
                 .map(|c| [c[0], c[1], c[2], 0.]),
-            colors,
+            colors: *semantic_colors(),
         };
         if state
             .bindings
@@ -297,17 +291,46 @@ fn prepare(
                     key,
                     uniform: buffer,
                     group,
+                    contents: uniform,
                 },
             );
         } else {
-            queue.write_buffer(
-                &state.bindings[&job.lens.output.id()].uniform,
-                0,
-                bytemuck::bytes_of(&uniform),
-            );
+            let binding = state.bindings.get_mut(&job.lens.output.id()).unwrap();
+            // Camera/world motion changes the rendered faces, not the lens
+            // projection. Keep its calibration buffer resident across frames.
+            // Byte equality also preserves signed zero and NaN payloads.
+            if bytemuck::bytes_of(&binding.contents) != bytemuck::bytes_of(&uniform) {
+                queue.write_buffer(&binding.uniform, 0, bytemuck::bytes_of(&uniform));
+                binding.contents = uniform;
+            }
         }
     }
 }
+
+fn preview_parameters(mode: u32, preview: [f32; 4]) -> [f32; 4] {
+    match mode {
+        1 => [preview[0], 0., 0., 0.],
+        6 => [0., preview[1], preview[2], 0.],
+        // Frame duration is only a flow visualization input. It must not force
+        // RGB/geometry/semantic uniform uploads as presentation FPS changes.
+        _ => [0.; 4],
+    }
+}
+
+fn semantic_colors() -> &'static [[f32; 4]; 128] {
+    static COLORS: std::sync::OnceLock<[[f32; 4]; 128]> = std::sync::OnceLock::new();
+    COLORS.get_or_init(|| {
+        let mut colors = [[0.; 4]; 128];
+        for label in crate::render::semantic::SemanticLabel::ALL {
+            let id = crate::render::ground_truth::semantic_id(label) as usize;
+            if id < 128 {
+                colors[id] = label.color().to_linear().to_f32_array();
+            }
+        }
+        colors
+    })
+}
+
 fn resolve(
     world: &World,
     mut context: RenderContext,
@@ -400,5 +423,35 @@ fn resolve(
             pass.draw(0..3, 0..1);
         }
         job.lens.completed.store(job.request, Ordering::Release);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preview_uniforms_track_only_the_selected_modes_inputs() {
+        let first = [2., 0.5, 64., 0.];
+        let changed = [3., 1.5, 128., 0.];
+        for mode in [0, 2, 3, 4, 5] {
+            assert_eq!(preview_parameters(mode, first), [0.; 4]);
+            assert_eq!(preview_parameters(mode, changed), [0.; 4]);
+        }
+        assert_eq!(preview_parameters(1, first), [2., 0., 0., 0.]);
+        assert_eq!(preview_parameters(1, changed), [3., 0., 0., 0.]);
+        assert_eq!(preview_parameters(6, first), [0., 0.5, 64., 0.]);
+        assert_eq!(preview_parameters(6, changed), [0., 1.5, 128., 0.]);
+    }
+
+    #[test]
+    fn cached_palette_matches_exported_semantics() {
+        for label in crate::render::semantic::SemanticLabel::ALL {
+            let id = crate::render::ground_truth::semantic_id(label) as usize;
+            assert_eq!(
+                semantic_colors()[id],
+                label.color().to_linear().to_f32_array()
+            );
+        }
     }
 }

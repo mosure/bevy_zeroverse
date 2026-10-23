@@ -364,22 +364,31 @@ all device limits for each draw. Skinning, morph targets and lightmaps use Bevy'
 original command. Draw IDs, shaders, geometry and shadow passes are preserved;
 this optimization requires no patched dependencies.
 
-Interactive fisheye grids batch compatible opaque shadow casters within each
-rigid procedural object. The batches copy the original positions, normals and
-indices exactly and keep the same parent transform. RGB still uses the original
-meshes and materials. Transparent, skinned and articulated parts remain separate.
-Batches use a private render layer; a conflicting application layer disables the
-optimization. Mesh edits and visibility changes rebuild the affected batch set,
-and memory is bounded by vertex and index budgets. Capture or annotation mode
-restores the original casters; batch meshes never enter exported geometry.
+Native capture and interactive fisheye grids batch compatible opaque shadow
+casters within each rigid procedural object. The batches copy the original
+positions, normals and indices exactly and keep the same parent transform. RGB
+still uses the original meshes and materials. Transparent, skinned and
+articulated parts remain separate. Batching starts only after the current room's
+geometry, material baking and lighting are ready. Empty camera visibility classes
+keep proxies out of RGB/prepass queues without modifying application light layers.
+Mesh edits and visibility changes rebuild the batch set; vertex/index budgets
+bound memory. Annotation modes restore the original casters. Proxies never enter
+exported geometry, semantic labels or O-voxels.
 
-The preview also budgets CPU light-cluster cells across the logical camera count
-(1,024 for one camera, down to 256 for four or more). These are conservative
-culling cells, not fewer lights or lower-quality shading. Light order, shadow
-resolution and PBR shaders stay unchanged. Custom cluster policies, capture and
+CPU light-cluster cells are budgeted across the logical angular rig: 128 for one
+camera, 64 for two, and 32 per source view for three or more. These are conservative
+culling cells. Every intersecting light/probe/decal remains present; light order,
+shadow resolution and PBR shaders stay unchanged. Custom cluster policies and
 scenes with more than 64 clustered lights/probes/decals retain their original
-configuration. The policy is tested against float RGB attachments, with a
-shadow-off control to detect stale or ineffective validation captures.
+configuration. Native NVIDIA/Vulkan and WebGPU reuse bounded cluster allocations
+and upload changed storage data together. Unchanged resolve uniforms avoid
+redundant uploads. Other native adapters retain Bevy's buffer preparation.
+
+Validation compares float RGB and all six numeric/semantic attachments at exact
+camera poses, including startup, moving views, render-mode transitions and a
+shadow-off control. The same-world draw-command oracle checks actual render
+camera queues, exact restoration, and visible shadow contribution. GPU-dependent
+tests are ignored in ordinary `cargo test`; run them explicitly on an idle GPU.
 
 For Chrome grid presentation measurements, serve a built `www` directory and run:
 
@@ -467,6 +476,34 @@ compare identical world rays across face boundaries and execute the production
 compositor on the rendered textures to check final-image continuity.
 Results and platform qualification are recorded with the generated evidence;
 successful compilation alone is not rendered or cross-platform qualification.
+
+## Completed-frame latency
+
+A bounded native comparison of three 512×512 views on RTX PRO 6000 Blackwell
+(Vulkan, NVIDIA 610.43.02) measures these completed-frame times:
+
+| Projection | Mean | p95 |
+|---|---:|---:|
+| Default pinhole | 38.1 ms | 43.0 ms |
+| Circular fisheye | 37.1 ms | 42.5 ms |
+| Diagonal fisheye | 40.0 ms | 43.2 ms |
+| Elliptical fisheye | 37.6 ms | 40.8 ms |
+| Pinhole with an explicit 256-cell cluster grid | 28.2 ms | 30.2 ms |
+
+This is one furnished room (seed 400), 30 completed moving frames after 20 warmup
+frames and scene/pipeline readiness, with fixed 1/60-second simulation steps.
+Angular FOV is 180 degrees. The pinhole control preserves the admitted poses and
+its sampled rectilinear intrinsics. Full PBR, shadows, GI, automatic 2× SSAA and
+source sampling density remain enabled. Timing fences both render submission
+and GPU completion; image readback is outside the timed interval. No training or
+compiler runs alongside the timing sample.
+
+The default paths are close in this case; this does not establish universal
+parity. The explicit pinhole grid remains faster, and angular views cover more
+geometry. These are frame latencies, not room-generation or Burn/CUDA training
+throughput. The local qualification receipts also compare three seeds and all
+three angular fits against fixed float-image controls, checking six annotations
+and RGB separately. Browser timings require their own hardware measurement.
 
 ## Qualification status
 

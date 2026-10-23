@@ -1,6 +1,6 @@
-//! Bound light-clustering CPU work for multi-face interactive thumbnails.
+//! Bound light-clustering CPU work for multi-face angular views.
 //! Cluster cells are a conservative acceleration structure, not light samples.
-//! Keep Bevy's stable CPU assignment and full capture/custom configurations.
+//! Keep Bevy's stable CPU assignment and preserve explicit custom configurations.
 use super::{LensCamera, LensFace};
 use bevy::{
     light::{
@@ -36,7 +36,11 @@ fn default_grid(config: Option<&ClusterConfig>) -> bool {
 
 pub(crate) fn grid(camera_count: usize) -> ClusterConfig {
     ClusterConfig::FixedZ {
-        total: 1024 / camera_count.clamp(1, 4) as u32,
+        // A logical angular camera fans out into up to five raster views.
+        // Bound the rig's CPU clustering/upload work rather than assigning
+        // each face the budget of a standalone pinhole camera. Cluster cells
+        // remain conservative and keep every intersecting light/probe/decal.
+        total: 128 / camera_count.clamp(1, 4).next_power_of_two() as u32,
         z_slices: 8,
         z_config: ClusterZConfig::default(),
         dynamic_resizing: true,
@@ -48,8 +52,6 @@ fn select(
     mut commands: Commands,
     config: Res<crate::app::BevyZeroverseConfig>,
     mode: Res<crate::render::RenderMode>,
-    sampler: Option<Res<crate::sample::SamplerState>>,
-    copiers: Query<(), With<crate::io::image_copy::ImageCopier>>,
     objects: Query<
         (),
         Or<(
@@ -65,12 +67,10 @@ fn select(
         Or<(With<LensCamera>, With<LensFace>)>,
     >,
 ) {
-    let active = config.editor && !config.headless && config.camera_grid
-        && !config.room_schematic && !config.image_copiers
+    let active = !config.room_schematic
         && *mode == crate::render::RenderMode::Color
-        && !sampler.is_some_and(|s| s.enabled) && copiers.is_empty()
-        // Avoid pushing high-complexity custom scenes towards long per-pixel
-        // light/probe lists. No light is ever dropped by this policy.
+        // Bound fragment work in high-light-complexity custom scenes. Cells
+        // remain conservative: no light, probe, or decal is dropped.
         && objects.iter().take(65).count() <= 64;
     for (entity, current, saved) in &mut views {
         if !active {
@@ -95,7 +95,7 @@ fn select(
 mod tests {
     use super::*;
     #[test]
-    fn preview_restores_capture_and_preserves_custom_grids() {
+    fn angular_capture_preserves_custom_grids_and_restores_annotation_modes() {
         let mut app = App::new();
         app.insert_resource(crate::app::BevyZeroverseConfig {
             camera_grid: true,
@@ -113,7 +113,7 @@ mod tests {
         assert!(matches!(
             app.world().get::<ClusterConfig>(view),
             Some(ClusterConfig::FixedZ {
-                total: 256,
+                total: 32,
                 z_slices: 8,
                 ..
             })
@@ -122,13 +122,19 @@ mod tests {
             app.world().get::<ClusterConfig>(custom),
             Some(ClusterConfig::Single)
         ));
+        app.world_mut()
+            .resource_mut::<crate::app::BevyZeroverseConfig>()
+            .headless = true;
         let copier = app
             .world_mut()
             .spawn(crate::io::image_copy::ImageCopier::test_idle())
             .id();
         app.update();
-        assert!(app.world().get::<ClusterConfig>(view).is_none());
-        assert!(app.world().get::<Saved>(view).is_none());
+        assert!(matches!(
+            app.world().get::<ClusterConfig>(view),
+            Some(ClusterConfig::FixedZ { total: 32, .. })
+        ));
+        assert!(app.world().get::<Saved>(view).is_some());
         app.world_mut().despawn(copier);
         app.update();
         assert!(app.world().get::<Saved>(view).is_some());

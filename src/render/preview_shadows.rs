@@ -1,13 +1,13 @@
-//! Batch only compatible, rigid, opaque procedural parts for interactive shadows.
-//! Original meshes still render RGB and all annotations. Capture restores the
-//! original casters before visibility extraction. Parts keep their exact local
+//! Batch compatible, rigid, opaque procedural parts for multi-view shadows.
+//! Original meshes still render RGB and all annotations. Shadow-only batches
+//! are excluded from ground truth and ovoxels. Parts keep their exact local
 //! vertices and parent transform; no geometry simplification or rebaking occurs.
 use crate::scene::procedural_indoor::{motion::AnimatedPart, objects::IndoorSurface};
 use bevy::{
     asset::RenderAssetUsages,
     camera::{
         primitives::Aabb,
-        visibility::{RenderLayers, VisibilitySystems},
+        visibility::{RenderLayers, VisibilityClass, VisibilitySystems},
     },
     light::{NotShadowCaster, SimulationLightSystems},
     mesh::{Indices, VertexAttributeValues},
@@ -16,23 +16,17 @@ use bevy::{
 };
 use std::collections::BTreeMap;
 
-// Reserved only while unused by the application. A conflict disables batching.
-const LAYER: usize = 31;
 const MAX_VERTICES: usize = 500_000;
 const MAX_INDICES: usize = 3_000_000;
 #[derive(Component)]
 struct ShadowBatch;
 #[derive(Component)]
 struct ShadowSource;
-#[derive(Component)]
-struct ShadowLight {
-    had_layers: bool,
-}
 #[derive(Resource, Default)]
 struct State {
     inputs: Vec<Input>,
     #[cfg(test)]
-    force: bool,
+    force: Option<bool>,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Key {
@@ -45,6 +39,7 @@ struct Key {
 struct Input {
     entity: Entity,
     mesh: AssetId<Mesh>,
+    material: Handle<StandardMaterial>,
     key: Key,
 }
 
@@ -53,7 +48,7 @@ pub(super) fn force_for_test(app: &mut App, enabled: bool) {
     if !app.world().contains_resource::<State>() {
         install(app);
     }
-    app.world_mut().resource_mut::<State>().force = enabled;
+    app.world_mut().resource_mut::<State>().force = Some(enabled);
 }
 #[cfg(test)]
 pub(super) fn active_batches(world: &mut World) -> usize {
@@ -67,6 +62,7 @@ pub(super) fn install(app: &mut App) {
     app.add_systems(
         PostUpdate,
         update
+            .after(crate::sample::CaptureReadinessUpdate)
             .after(bevy::transform::TransformSystems::Propagate)
             .after(VisibilitySystems::VisibilityPropagate)
             .before(VisibilitySystems::CheckVisibility)
@@ -78,20 +74,13 @@ fn requested(world: &mut World) -> bool {
     let Some(config) = world.get_resource::<crate::app::BevyZeroverseConfig>() else {
         return false;
     };
-    if config.headless
-        || !config.editor
-        || !config.camera_grid
-        || config.room_schematic
-        || config.image_copiers
+    if config.room_schematic
         || world.get_resource::<super::RenderMode>() != Some(&super::RenderMode::Color)
+        // Source geometry, material baking and lighting publication must finish
+        // before introducing additional render meshes that reference them.
         || world
-            .get_resource::<crate::sample::SamplerState>()
-            .is_some_and(|s| s.enabled)
-        || world
-            .query::<&crate::io::image_copy::ImageCopier>()
-            .iter(world)
-            .next()
-            .is_some()
+            .get_resource::<crate::sample::CaptureReadiness>()
+            .is_some_and(|ready| !ready.scene_ready())
     {
         return false;
     }
@@ -118,26 +107,6 @@ fn clear(world: &mut World) {
     for entity in batches {
         world.despawn(entity);
     }
-    let lights: Vec<_> = world
-        .query::<(Entity, &ShadowLight, Option<&RenderLayers>)>()
-        .iter(world)
-        .map(|(e, owned, layers)| {
-            (
-                e,
-                owned.had_layers,
-                layers.cloned().unwrap_or_default().without(LAYER),
-            )
-        })
-        .collect();
-    for (entity, had, layers) in lights {
-        let mut entity = world.entity_mut(entity);
-        entity.remove::<ShadowLight>();
-        if !had && layers == RenderLayers::default() {
-            entity.remove::<RenderLayers>();
-        } else {
-            entity.insert(layers);
-        }
-    }
     world.resource_mut::<State>().inputs.clear();
 }
 
@@ -146,12 +115,11 @@ fn update(
     world: &mut World,
     mut events: Local<bevy::ecs::message::MessageCursor<AssetEvent<Mesh>>>,
 ) {
+    let enabled = requested(world);
     #[cfg(test)]
-    let force = world.resource::<State>().force;
-    #[cfg(not(test))]
-    let force = false;
-    // Headless generation and non-grid views do not scan geometry or assets.
-    if !force && !requested(world) {
+    let enabled = world.resource::<State>().force.unwrap_or(enabled);
+    // Non-angular and annotation-only views do not scan geometry or assets.
+    if !enabled {
         if !world.resource::<State>().inputs.is_empty() {
             clear(world);
         }
@@ -167,16 +135,6 @@ fn update(
             }
         })
         .collect();
-    let conflict = world
-        .query_filtered::<&RenderLayers, (Without<ShadowBatch>, Without<ShadowLight>)>()
-        .iter(world)
-        .any(|layers| layers.intersects(&RenderLayers::layer(LAYER)));
-    if conflict {
-        if !world.resource::<State>().inputs.is_empty() {
-            clear(world);
-        }
-        return;
-    }
     let mut inputs = Vec::new();
     let mut groups = BTreeMap::<Key, (GlobalTransform, Vec<Input>)>::new();
     let mut query = world.query_filtered::<(
@@ -206,7 +164,8 @@ fn update(
         {
             continue;
         }
-        let Some(material) = materials.get(&material.0) else {
+        let material_handle = material.0.clone();
+        let Some(material) = materials.get(&material_handle) else {
             continue;
         };
         if material.alpha_mode != AlphaMode::Opaque {
@@ -225,6 +184,7 @@ fn update(
         let input = Input {
             entity,
             mesh: mesh.id(),
+            material: material_handle,
             key: key.clone(),
         };
         inputs.push(input.clone());
@@ -262,33 +222,31 @@ fn update(
             vertices += count;
             index_count += mesh.indices().unwrap().len();
             let mesh = world.resource_mut::<Assets<Mesh>>().add(mesh);
-            let material = world
-                .resource_mut::<Assets<StandardMaterial>>()
-                .add(StandardMaterial {
-                    cull_mode: match key.cull {
-                        1 => Some(Face::Front),
-                        2 => Some(Face::Back),
-                        _ => None,
-                    },
-                    double_sided: key.double_sided,
-                    depth_bias: f32::from_bits(key.depth_bias),
-                    ..default()
-                });
-            world.spawn((
-                ShadowBatch,
-                super::RenderOnlyOverlay,
-                Mesh3d(mesh),
-                MeshMaterial3d(material),
-                RenderLayers::layer(LAYER),
-                Transform::IDENTITY,
-                global,
-                Visibility::Inherited,
-                InheritedVisibility::VISIBLE,
-                ViewVisibility::default(),
-                bounds,
-                ChildOf(key.parent),
-                Name::new("interactive_shadow_batch"),
-            ));
+            // Reuse a compatible source material. Opaque shadow passes depend
+            // on the cull/bias key, not albedo, and need no duplicate bindless
+            // material allocations merely to combine vertices.
+            let material = parts[0].material.clone();
+            let batch = world
+                .spawn((
+                    ShadowBatch,
+                    super::RenderOnlyOverlay,
+                    Mesh3d(mesh),
+                    MeshMaterial3d(material),
+                    Transform::IDENTITY,
+                    global,
+                    Visibility::Inherited,
+                    InheritedVisibility::VISIBLE,
+                    ViewVisibility::default(),
+                    bounds,
+                    ChildOf(key.parent),
+                    Name::new("procedural_shadow_batch"),
+                ))
+                .id();
+            // Camera draw queues use visibility classes; Bevy's shadow queues
+            // collect Mesh3d casters independently. Clear this AFTER Mesh3d's
+            // add hook, so proxies never enter camera RGB/prepass queues. Keep
+            // original light layers and source material bindings untouched.
+            world.entity_mut(batch).insert(VisibilityClass::default());
             for part in parts {
                 world
                     .entity_mut(part.entity)
@@ -296,40 +254,6 @@ fn update(
             }
         }
         world.resource_mut::<State>().inputs = inputs;
-    }
-    if world
-        .query_filtered::<Entity, With<ShadowBatch>>()
-        .iter(world)
-        .next()
-        .is_none()
-    {
-        return;
-    }
-    // New lights also need the private caster layer, without rebuilding meshes.
-    let lights: Vec<_> = world
-        .query_filtered::<(Entity, Option<&RenderLayers>, Has<ShadowLight>),
-            Or<(With<PointLight>, With<SpotLight>, With<DirectionalLight>)>>()
-        .iter(world)
-        .map(|(e, l, owned)| (e, l.cloned(), owned))
-        .collect();
-    for (entity, layers, owned) in lights {
-        let mask = layers.clone().unwrap_or_default();
-        let receives = mask.intersects(&RenderLayers::default());
-        if receives {
-            if !owned {
-                world.entity_mut(entity).insert(ShadowLight {
-                    had_layers: layers.is_some(),
-                });
-            }
-            if !mask.intersects(&RenderLayers::layer(LAYER)) {
-                world.entity_mut(entity).insert(mask.with(LAYER));
-            }
-        } else if owned {
-            world
-                .entity_mut(entity)
-                .remove::<ShadowLight>()
-                .insert(mask.without(LAYER));
-        }
     }
 }
 
