@@ -2,7 +2,7 @@
 import { motion_digest, motion_part, motion_read } from './snippets/burn_human_inference-a0bfaedebe22c27f/inline1.js';
 import * as import1 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
 import * as import2 from "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js"
-import * as import3 from "./snippets/bevy_zeroverse-b61ca396ad87fff3/inline0.js"
+import * as import3 from "./snippets/bevy_zeroverse-5fb7d23e66ba6290/inline0.js"
 
 
 /**
@@ -2067,7 +2067,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Array<any>"), NamedExternref("ResizeObserver")], shim_idx: 22983, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Array<any>"), NamedExternref("ResizeObserver")], shim_idx: 22989, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_42e0f84fe7f4a5f1___convert__closures_____invoke___js_sys_3181ba6525758684___Function_fn_wasm_bindgen_42e0f84fe7f4a5f1___JsValue_____wasm_bindgen_42e0f84fe7f4a5f1___sys__Undefined___js_sys_3181ba6525758684___Function_fn_wasm_bindgen_42e0f84fe7f4a5f1___JsValue_____wasm_bindgen_42e0f84fe7f4a5f1___sys__Undefined_______true_);
             return ret;
         },
@@ -2137,12 +2137,12 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000011: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Option(NamedExternref("Blob"))], shim_idx: 23981, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Option(NamedExternref("Blob"))], shim_idx: 23987, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_42e0f84fe7f4a5f1___convert__closures_____invoke___core_516c4fd58981d8f6___option__Option_web_sys_9d11f156808494f___features__gen_Blob__Blob_______true_);
             return ret;
         },
         __wbindgen_generic_0000000000000012: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 23986, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 23992, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_42e0f84fe7f4a5f1___convert__closures_____invoke_______true_);
             return ret;
         },
@@ -2176,7 +2176,7 @@ function __wbg_get_imports() {
         "./viewer_bg.js": import0,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import1,
         "./snippets/burn_human_inference-a0bfaedebe22c27f/inline0.js": import2,
-        "./snippets/bevy_zeroverse-b61ca396ad87fff3/inline0.js": import3,
+        "./snippets/bevy_zeroverse-5fb7d23e66ba6290/inline0.js": import3,
     };
 }
 
