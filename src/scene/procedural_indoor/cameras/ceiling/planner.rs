@@ -104,6 +104,23 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         if restart % 2 == 0 {
             order[1..].sort_by_key(|&i| !scene.camera_settings.ceiling_mounted(scene.seed, i));
         }
+        if contract.is_some() && restart % 4 == 1 {
+            // Place the most constrained optics before broad views consume the
+            // useful paths. Slot identities/calibrations remain fixed, and the
+            // original order is still tried first for already-feasible rigs.
+            let angle = |i: usize| {
+                prototypes[i]
+                    .0
+                    .map_or(prototypes[i].1, |l| 2. * l.lens.max_angle.to_degrees())
+            };
+            order[1..].sort_by(|&a, &b| {
+                scene
+                    .camera_settings
+                    .ceiling_mounted(scene.seed, b)
+                    .cmp(&scene.camera_settings.ceiling_mounted(scene.seed, a))
+                    .then_with(|| angle(a).total_cmp(&angle(b)))
+            });
+        }
         scene.cameras.clear();
         let mut tracks = Vec::with_capacity(count);
         let mut views: Vec<Vec<_>> = Vec::with_capacity(count);
@@ -138,16 +155,22 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                             &mut rng,
                         )
                     } else {
-                        super::room::propose(scene, index, &mut rng, &coverage)
+                        super::room::propose(
+                            scene,
+                            index,
+                            &mut rng,
+                            &coverage,
+                            contract.filter(|_| index != 0).map(|_| fov),
+                        )
                     };
                     let Some(mut camera) = proposed else {
                         rejected[0] += 1;
                         continue;
                     };
                     if let Some(contract) = contract {
-                        if index != 0 {
-                            camera.fov_degrees = fov;
-                        }
+                        // Every proposal must be qualified with its assigned
+                        // calibration, not accepted wide and narrowed afterwards.
+                        debug_assert!(index == 0 || camera.fov_degrees == fov);
                         if stage == 0
                             && mounted
                             && scene.camera_settings.handheld.is_none()
@@ -178,7 +201,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         // only after many broad views have already been placed.
                         // Later proposals retain unrestricted anchor recovery;
                         // this is a search preference, not an admission rule.
-                        if contract.baseline < 0.5
+                        if (contract.baseline < 0.5 || restart > 0)
                             && attempt < 128
                             && scene.cameras.iter().all(IndoorCamera::is_ceiling_mounted)
                         {

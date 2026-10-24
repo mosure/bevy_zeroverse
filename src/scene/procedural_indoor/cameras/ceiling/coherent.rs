@@ -183,10 +183,19 @@ pub(super) fn room(
             rng,
         );
         camera.fov_degrees = fov;
-        if (a.fisheye != scene.camera_settings.lens_for(scene.seed, index)
-            || (a.fov_degrees - fov).abs() > 12.)
-            && rng.random_bool(0.5)
-        {
+        // Retarget recovery is for narrower peers. Re-aiming a broader lens
+        // merely because its calibration differs discards a shared landmark,
+        // often selecting a nearby surface that fails path clearance/overlap.
+        // This only guides proposals; actual calibrated visibility is checked
+        // at every admission time, including mixed projection types.
+        let anchor_fov = a
+            .fisheye
+            .map_or(a.fov_degrees, |l| 2. * l.lens.max_angle.to_degrees());
+        let peer_fov = scene
+            .camera_settings
+            .lens_for(scene.seed, index)
+            .map_or(fov, |l| 2. * l.lens.max_angle.to_degrees());
+        if anchor_fov > peer_fov + 12. && rng.random_bool(0.5) {
             // A narrow peer aimed at the broad anchor's center may see only a
             // blank wall or one furniture surface. Sample another reference-
             // visible landmark instead of resampling that slot's calibration.

@@ -140,7 +140,11 @@ FOV bounds, including required human visibility. Peer pinhole draws and every
 fisheye assignment remain fixed during search; narrow peers can aim at other
 reference-visible landmarks. A new reference calibration invalidates footprint
 caches. Accepted intrinsics can therefore vary with baseline and scene content;
-the manifest always records the actual calibration.
+the manifest always records the actual calibration. Fixed peer FOVs participate
+in proposal screening before clearance and content checks. Recovery re-aims
+narrower lenses when needed; broader peers retain the shared landmark. Bounded
+retries can place constrained lenses earlier without changing exported camera
+IDs, geometry, lens assignments or the overlap and motion acceptance rules.
 
 Narrow rigs propose coordinated paths inside the requested travel intervals.
 Moving/static roles, lens assignments and swept collision checks remain intact.

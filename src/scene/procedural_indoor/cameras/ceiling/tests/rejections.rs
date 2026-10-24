@@ -3,6 +3,96 @@
 use super::*;
 
 #[test]
+fn production_65540002_mixed_baseline() {
+    qualify_mixed_training_replay(65_540_002);
+}
+
+#[test]
+fn production_65538610_mixed_baseline() {
+    qualify_mixed_training_replay(65_538_610);
+}
+
+#[test]
+fn production_65547454_mixed_baseline() {
+    qualify_mixed_training_replay(65_547_454);
+}
+
+#[test]
+fn production_65547441_mixed_baseline() {
+    qualify_mixed_training_replay(65_547_441);
+}
+
+fn qualify_mixed_training_replay(seed: u64) {
+    let scene = qualify_mixed_training_seed(seed);
+    // Deterministic work bounds, not wall-clock assertions on shared CI machines.
+    assert!(scene.camera_diagnostics.peer_proposals < 8_192);
+    assert!(scene.camera_diagnostics.reference_proposals < 32_768);
+    let mut replay = scene.clone();
+    replay
+        .resample_cameras(8, scene.camera_settings.clone(), 1.)
+        .unwrap();
+    assert_eq!(replay, scene);
+    crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+}
+
+// Includes reported outliers plus adjacent scenes, without rendering or
+// models. Kept explicit so the ordinary regression suite remains small.
+#[test]
+#[ignore = "96-room CPU placement/latency qualification"]
+fn mixed_training_neighbor_cohort() {
+    for seed in (65_538_592..65_538_624)
+        .chain(65_539_984..65_540_016)
+        .chain(65_547_424..65_547_456)
+    {
+        qualify_mixed_training_seed(seed);
+    }
+}
+
+fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
+    let policy =
+        CameraSettings::parse(include_str!("mixed_training_camera_settings.json")).unwrap();
+    let mut scene =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let before = scene.clone();
+    let started = std::time::Instant::now();
+    scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+    eprintln!(
+        "MIXED {seed} seconds={:.4} diagnostics={:?}",
+        started.elapsed().as_secs_f64(),
+        scene.camera_diagnostics
+    );
+    validate_layout(&scene).unwrap();
+    assert_eq!(scene.cameras.len(), 8);
+    for (slot, camera) in scene.cameras.iter().enumerate() {
+        assert_eq!(
+            camera.is_ceiling_mounted(),
+            policy.ceiling_mounted(seed, slot)
+        );
+        assert_eq!(camera.fisheye, policy.lens_for(seed, slot));
+        assert!(policy.accepts_motion(seed, slot, camera));
+        assert!(scene.camera_curve_clear(camera));
+        if slot > 0 && scene.mixed_rig_contract().is_some() {
+            let mut prior =
+                crate::scene::procedural_indoor::layout::stream(seed, 0x4343_0000 + slot as u64);
+            assert_eq!(
+                camera.fov_degrees,
+                policy.intrinsics_for(seed, slot).sample(&mut prior)
+            );
+        }
+    }
+    let mut geometry = scene.clone();
+    geometry.cameras = before.cameras.clone();
+    geometry.camera_diagnostics = before.camera_diagnostics.clone();
+    geometry.camera_settings = before.camera_settings.clone();
+    geometry.camera_aspect_ratio = before.camera_aspect_ratio;
+    assert_eq!(
+        geometry, before,
+        "camera search must not change geometry or appearance"
+    );
+    scene
+}
+
+#[test]
 fn rejected_training_rooms_build_valid_meshes() {
     for seed in [
         65341346, 65341171, 65340887, 65348959, 65348197, 65339328, 65333746, 65325411, 65332074,

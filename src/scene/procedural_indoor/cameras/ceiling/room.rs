@@ -1,5 +1,8 @@
 //! Room-camera proposals for a joint mounted/walkthrough rig. Local proposals
 //! reuse navigable paths, not accepted camera identities or admission decisions.
+//! A fixed slot FOV must participate in clearance and content screening. Applying
+//! it only after this search would preferentially return invalid wide-lens poses
+//! for narrow slots, repeatedly exhausting the outer rig's placement budget.
 use super::*;
 use crate::scene::procedural_indoor::{
     cameras::{coverage::Coverage, multiview},
@@ -12,6 +15,7 @@ pub(super) fn propose(
     index: usize,
     rng: &mut rand_chacha::ChaCha8Rng,
     coverage: &Coverage,
+    fixed_fov: Option<f32>,
 ) -> Option<IndoorCamera> {
     if let Some(policy) = scene
         .camera_settings
@@ -48,6 +52,9 @@ pub(super) fn propose(
                 &scene.camera_settings.intrinsics,
                 rng,
             );
+            if let Some(fov) = fixed_fov {
+                camera.fov_degrees = fov;
+            }
             scene
                 .camera_settings
                 .prepare_motion(scene.seed, index, &mut camera, rng);
@@ -61,7 +68,7 @@ pub(super) fn propose(
         }
     }
     scene
-        .sample_slots_with_budget(index, 1, rng, coverage, 32)
+        .sample_slots_with_budget(index, 1, rng, coverage, 32, fixed_fov)
         .ok()?;
     scene.cameras.pop()
 }

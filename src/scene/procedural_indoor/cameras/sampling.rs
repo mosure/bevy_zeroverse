@@ -35,11 +35,13 @@ impl IndoorManifest {
         rng: &mut rand_chacha::ChaCha8Rng,
         coverage: &super::coverage::Coverage,
     ) -> Result<(), String> {
-        self.sample_slots_with_budget(first, count, rng, coverage, 2048)
+        self.sample_slots_with_budget(first, count, rng, coverage, 2048, None)
     }
 
     /// A joint rig search already has an outer retry budget. It must not pay a
     /// complete 2048-proposal independent search for every rejected peer.
+    /// `fixed_fov` preserves a joint rig's preassigned calibration during every
+    /// content/clearance test; independent cameras retain intrinsic sampling.
     pub(super) fn sample_slots_with_budget(
         &mut self,
         first: usize,
@@ -47,6 +49,7 @@ impl IndoorManifest {
         rng: &mut rand_chacha::ChaCha8Rng,
         coverage: &super::coverage::Coverage,
         attempts: usize,
+        fixed_fov: Option<f32>,
     ) -> Result<(), String> {
         let half = self.room_size * 0.5;
         self.camera_settings.validate()?;
@@ -265,7 +268,8 @@ impl IndoorManifest {
                     start: p,
                     end,
                     target,
-                    fov_degrees: self.camera_settings.intrinsics.sample(rng),
+                    fov_degrees: fixed_fov
+                        .unwrap_or_else(|| self.camera_settings.intrinsics.sample(rng)),
                     motion: (distance > 0.0).then_some(super::CameraMotion {
                         orientations: None,
                         route,
