@@ -28,6 +28,7 @@ impl IndoorManifest {
     pub(in crate::scene::procedural_indoor::layout) fn complete_underfilled_activity_groups(
         &mut self,
     ) {
+        self.complete_empty_primary_work_area();
         self.complete_library_storage();
         self.complete_kitchen_waste();
         // Service pieces can meet the population minimum while every work or

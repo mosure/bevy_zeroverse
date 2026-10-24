@@ -109,6 +109,58 @@ fn raised_floor_inside_a_module_footprint_counts_toward_headroom() {
 }
 
 #[test]
+fn ceiling_headroom_counts_decks_and_rugs_without_corner_samples() {
+    use crate::scene::procedural_indoor::{
+        envelope::{FloorPatch, Mezzanine},
+        layout::floor::area::RugSupport,
+    };
+    let mut scene =
+        IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    scene.rug_supports.clear();
+    let envelope = scene.envelope.as_mut().unwrap();
+    envelope.floor_patches.clear();
+    envelope.mezzanine = Some(Mezzanine {
+        deck: FloorPatch {
+            min: Vec2::splat(-0.3),
+            max: Vec2::splat(0.3),
+            height: 2.8,
+        },
+        thickness: 0.2,
+        // Keep the stairs outside the query to isolate the deck contribution.
+        stair_min: Vec2::splat(2.),
+        stair_max: Vec2::splat(3.),
+        stair_axis: 0,
+        steps: 16,
+        rail_height: 1.1,
+    });
+    let (lo, hi) = (Vec2::splat(-1.), Vec2::splat(1.));
+    assert_eq!(
+        scene.floor_height(Vec2::ZERO),
+        0.,
+        "lower storey stays usable"
+    );
+    assert_eq!(sampling::highest_floor(&scene, lo, hi), 2.8);
+    scene.rug_supports.push(RugSupport {
+        object: 0,
+        outline: vec![
+            Vec2::new(-0.2, -0.2),
+            Vec2::new(0.2, -0.2),
+            Vec2::new(0.2, 0.2),
+            Vec2::new(-0.2, 0.2),
+        ],
+        min: Vec2::splat(-0.2),
+        max: Vec2::splat(0.2),
+        bottom: 2.8,
+        top: 2.809,
+    });
+    assert_eq!(sampling::highest_floor(&scene, lo, hi), 2.809);
+    // Partial overlaps count, but a disjoint footprint must not inherit the
+    // upper storey's height. Neither query touches the separate stair flight.
+    assert_eq!(sampling::highest_floor(&scene, Vec2::splat(0.1), hi), 2.809);
+    assert_eq!(sampling::highest_floor(&scene, Vec2::splat(0.4), hi), 0.);
+}
+
+#[test]
 fn ceiling_shapes_have_finite_wound_faces_and_bounded_complexity() {
     let mut scene =
         IndoorManifest::generate_with_humans(2, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();

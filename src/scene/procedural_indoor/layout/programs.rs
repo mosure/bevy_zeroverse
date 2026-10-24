@@ -1,5 +1,6 @@
 //! Compose sized furniture groups into the leaves of the spatial program.
 use super::*;
+mod primary;
 mod recovery;
 #[cfg(test)]
 mod tests;

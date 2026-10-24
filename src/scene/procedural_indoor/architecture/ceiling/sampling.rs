@@ -59,6 +59,14 @@ pub(crate) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
         .into_iter()
         .map(|p| scene.floor_height(p))
         .fold(f32::NEG_INFINITY, f32::max);
+    // A rug can lie entirely between the query's corners. Its footprint is a
+    // conservative reserve, consistent with fixture and furniture bounds.
+    let h = scene
+        .rug_supports
+        .iter()
+        .filter(|rug| lo.cmplt(rug.max).all() && hi.cmpgt(rug.min).all())
+        .map(|rug| rug.top)
+        .fold(h, f32::max);
     scene.envelope.as_ref().map_or(h, |e| {
         let h = e
             .floor_patches
@@ -70,6 +78,14 @@ pub(crate) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
         // flight can pass entirely inside this footprint without any corner
         // sampling its upper treads. Compute their maximum without allocating.
         e.mezzanine.as_ref().map_or(h, |m| {
+            // floor_height intentionally queries the lower floor so objects
+            // may occupy both storeys. Ceiling headroom needs the upper deck,
+            // even before furniture or a rug is placed there (seed 65412811).
+            let h = if m.deck.overlaps(lo, hi) {
+                h.max(m.deck.height)
+            } else {
+                h
+            };
             if lo.cmplt(m.stair_max).all() && hi.cmpgt(m.stair_min).all() {
                 let axis = m.stair_axis;
                 let tread = (m.stair_max[axis] - m.stair_min[axis]) / m.steps as f32;

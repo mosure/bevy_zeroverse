@@ -59,7 +59,11 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
     // Metric product ranges, not one XYZ multiplier for unrelated categories.
     // Sample before admission: support areas, navigation and labels see these sizes.
     let (x, y, z) = match kind {
-        Elevator => ((2.05, 2.90), (2.50, 2.95), (1.50, 2.20)),
+        Elevator => (
+            (elevator::MIN_FOOTPRINT.x, 2.90),
+            (2.50, 2.95),
+            (elevator::MIN_FOOTPRINT.y, 2.20),
+        ),
         ServiceCounter => ((1.45, 3.0), (0.82, 1.10), (0.60, 0.90)),
         DisplayCase => ((0.80, 1.95), (0.88, 1.92), (0.48, 0.84)),
         TrayReturn => ((0.65, 1.25), (0.86, 1.55), (0.46, 0.76)),

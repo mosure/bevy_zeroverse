@@ -151,11 +151,15 @@ fn public_motion_plans_use_level_floor_and_leave_static_people_supported() {
 }
 
 #[test]
-fn rejected_training_elevator_landing_recovers_beside_low_duct() {
+fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
     use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
-    for density in [0., 0.65, 1.] {
+    for (seed, density, people) in [63_069_510, 65_437_985].into_iter().flat_map(|seed| {
+        [0., 0.65, 1.]
+            .into_iter()
+            .flat_map(move |density| [0., 0.5, 1.].map(move |people| (seed, density, people)))
+    }) {
         let scene =
-            IndoorManifest::generate_with_humans(63_069_510, IndoorLayout::Mixed, density, 0, 0.)
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
                 .unwrap();
         assert_eq!(scene.layout, IndoorLayout::ElevatorLanding);
         validate_layout(&scene).unwrap();
@@ -176,6 +180,7 @@ fn rejected_training_elevator_landing_recovers_beside_low_duct() {
                     >= 2.50,
                 "retain full-height car geometry"
             );
+            assert!(elevator.size.x >= 2.05 && elevator.size.z >= 1.50);
             assert!(scene.placement_clear(elevator, 0.035));
             let front = elevator
                 .transform()
@@ -187,8 +192,20 @@ fn rejected_training_elevator_landing_recovers_beside_low_duct() {
                     && front.cmple(route.max).all()
             }));
         }
+        assert!(
+            program.rejected_candidates < 20_000,
+            "bounded recovery budget"
+        );
+        if seed == 65_437_985 {
+            use crate::scene::procedural_indoor::architecture::ceiling::CeilingSystem;
+            let modules = &scene.ceiling_installation.as_ref().unwrap().modules;
+            assert!(modules.iter().any(|m| m.system == CeilingSystem::Truss));
+            assert!(modules
+                .iter()
+                .any(|m| m.system == CeilingSystem::RectangularDuct));
+        }
         let replay =
-            IndoorManifest::generate_with_humans(63_069_510, IndoorLayout::Mixed, density, 0, 0.)
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
                 .unwrap();
         assert_eq!(scene, replay);
     }

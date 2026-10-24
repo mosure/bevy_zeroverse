@@ -2,6 +2,78 @@ use super::*;
 use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
 
 #[test]
+fn rejected_mixed_rig_seed_has_a_furnished_primary_room() {
+    for density in [0., 0.65, 1.] {
+        let scene =
+            IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, density, 0, 0.)
+                .unwrap();
+        validate_layout(&scene).unwrap();
+        validate_geometry(&scene).unwrap();
+        let desk = scene
+            .objects
+            .iter()
+            .find(|o| {
+                o.kind == ObjectKind::Desk && !o.neighbor && scene.in_primary_room(o.position, 0.)
+            })
+            .expect("other partitions must not satisfy an empty primary work area");
+        let chair = scene
+            .objects
+            .iter()
+            .find(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(desk.id))
+            .expect("the repair must include usable seating");
+        for o in [desk, chair] {
+            assert!(scene.in_primary_room(o.position, 0.));
+            // Final chairs may be pushed in using the existing 14 mm seating
+            // clearance; the initial 60 mm furnishing margin no longer applies.
+            assert!(scene.placement_clear(o, 0.));
+            assert!((scene.floor_height(o.position.xz()) - o.position.y).abs() < 1e-5);
+        }
+        assert!(!seating::furniture_overlap(desk, chair, 0.014));
+        assert!((desk.position.y - chair.position.y).abs() < 1e-5);
+        assert!(scene.assembly_diagnostics.proposed_workstations < 2000);
+        let mut recovered = scene.clone();
+        recovered.complete_empty_primary_work_area();
+        assert_eq!(
+            recovered, scene,
+            "a complete primary group must be untouched"
+        );
+        let replay =
+            IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, density, 0, 0.)
+                .unwrap();
+        assert_eq!(scene, replay);
+    }
+}
+
+#[test]
+fn impossible_primary_work_area_repair_leaves_no_partial_group() {
+    use crate::scene::procedural_indoor::envelope::FloorPatch;
+    let mut scene =
+        IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    scene.objects.clear();
+    scene.rug_supports.clear();
+    scene.assembly_diagnostics = default();
+    let (lo, hi) = scene.primary_room_bounds();
+    // Every desk/chair footprint spans multiple risers. No supported pair can
+    // fit, even though the primary zone's bounding rectangle is large enough.
+    scene.envelope.as_mut().unwrap().floor_patches = (0..64)
+        .filter(|i| i % 2 == 0)
+        .map(|i| FloorPatch {
+            min: Vec2::new(lo.x + (hi.x - lo.x) * i as f32 / 64., lo.y),
+            max: Vec2::new(lo.x + (hi.x - lo.x) * (i + 1) as f32 / 64., hi.y),
+            height: 0.12,
+        })
+        .collect();
+    let before = scene.clone();
+    for _ in 0..2 {
+        scene.complete_empty_primary_work_area();
+        assert_eq!(
+            scene, before,
+            "exhaustion must not leave furniture or receipts"
+        );
+    }
+}
+
+#[test]
 fn constrained_activity_seed_20053_has_a_usable_primary_surface() {
     for density in [0., 0.35, 0.65, 1.] {
         for human_density in [0., 0.25, 1.] {

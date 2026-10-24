@@ -73,6 +73,49 @@ impl IndoorManifest {
                 }
             }
         }
+        // Position/orientation changes cannot fit an oversized product into a
+        // narrow bay between a truss and the aisle (reported seed 65437985).
+        // Only after exhausting the original size, try progressively smaller
+        // catalog sizes. Keep a full-height car and its masonry enclosure; all
+        // candidates still pass public_fit, including door-approach clearance.
+        // This bounded search costs nothing for normally admitted anchors.
+        let minimum = Vec3::new(
+            geometry::elevator::MIN_FOOTPRINT.x,
+            geometry::elevator::MIN_CORE_HEIGHT,
+            geometry::elevator::MIN_FOOTPRINT.y,
+        );
+        for fraction in [0.35, 0.70, 1.] {
+            let compact = size.max(minimum).lerp(minimum, fraction).max(minimum);
+            for yaw in [0., FRAC_PI_2, -FRAC_PI_2, PI] {
+                let extent = if yaw.abs() == FRAC_PI_2 {
+                    Vec2::new(compact.z, compact.x)
+                } else {
+                    compact.xz()
+                };
+                let span = p.max - p.min - extent - Vec2::splat(0.04);
+                if span.min_element() < 0. {
+                    continue;
+                }
+                // Stratified, shuffled positions avoid introducing a fixed
+                // grid/corner preference in recovered room samples.
+                for uv in variation::recovery_points(6, rng) {
+                    let point = p.min + extent * 0.5 + Vec2::splat(0.02) + span * uv;
+                    if self
+                        .public_fit(
+                            index,
+                            ObjectKind::Elevator,
+                            Vec3::new(point.x, 0., point.y),
+                            compact,
+                            yaw,
+                            rng,
+                        )
+                        .is_some()
+                    {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn transit_program(&mut self, index: usize, r: &mut ChaCha8Rng) {

@@ -92,7 +92,7 @@ fn qualify_production_seed(seed: u64) {
         started.elapsed().as_secs_f64(),
         scene.camera_diagnostics.peer_proposals
     );
-    if [65_341_346, 65_333_746, 65_185_309, 65_194_325].contains(&seed) {
+    if [65_341_346, 65_333_746, 65_185_309, 65_194_325, 65_459_150].contains(&seed) {
         let cameras = scene.cameras.clone();
         scene.resample_cameras(8, policy, 1.).unwrap();
         assert_eq!(
@@ -121,6 +121,7 @@ macro_rules! production_cases {
     };
 }
 production_cases! {
+    production_65459150: 65459150,
     production_65304870: 65304870,
     production_65305524: 65305524,
     production_65305576: 65305576,

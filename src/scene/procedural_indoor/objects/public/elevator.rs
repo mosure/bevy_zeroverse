@@ -1,6 +1,10 @@
 //! Sliding door banks with fitted pockets, a bounded car, and separate finishes.
 use super::*;
 
+pub(crate) const MIN_FOOTPRINT: Vec2 = Vec2::new(2.05, 1.50);
+/// Preserve a 2.50 m car plus the enclosing core's roof structure.
+pub(crate) const MIN_CORE_HEIGHT: f32 = 2.66;
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ElevatorProgram {
     pub centered: bool,

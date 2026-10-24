@@ -278,7 +278,7 @@ impl IndoorManifest {
                     o.variant = 20;
                     // A low soffit may prevent the full-height shaft, but the
                     // fallback still needs a masonry enclosure and car headroom.
-                    o.size.y = o.size.y.max(2.66);
+                    o.size.y = o.size.y.max(geometry::elevator::MIN_CORE_HEIGHT);
                 }
                 if kind == ObjectKind::Elevator && pass == 0 {
                     let (lo, hi) = o.bounds();

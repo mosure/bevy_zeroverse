@@ -105,10 +105,34 @@ large false occlusions that a raw depth difference causes on sloping surfaces.
 
 This is raster visibility at the chosen resolution. Silhouettes, thin objects,
 small curved surfaces and nearby surfaces within the tolerance can be ambiguous.
-Glass is treated as the first opaque geometric surface, consistently with the
-other geometry annotations; the mask does not describe refracted/reflected RGB
+Glass follows `annotation_glass`, consistently with depth, position, normal,
+semantic and flow exports. `surface` stops at glass; `through` skips transmitting
+glass along an unrefracted ray. Neither policy describes reflected/refracted RGB
 content or translucency. Membership need not be symmetric between individual
 pixels because projected points can fall between target pixel centers.
+
+RGB with SSAA averages the pixel footprint, while numeric geometry and membership
+use the final pixel-center ray. Mixed RGB pixels at silhouettes therefore do not
+have a binary appearance-visibility interpretation. Fisheye RGB also resamples
+its source rasters; its geometry and co-visibility use the exported angular
+calibration directly. Interior geometry, projection and camera timestamps must
+agree across these paths.
+
+### Downstream visibility checks
+
+Use the exported integer mask when comparing with Zeroverse co-visibility:
+`(target_mask & (1 << reference_bit)) != 0`, with the bit resolved from the
+sample's camera legend. The mask is in **target image coordinates**, not reference
+coordinates. RGB similarity is not the visibility test: illumination, view
+direction, reflections and magnification can differ substantially.
+
+A downstream depth/cycle threshold defines a different annotation. In particular,
+`max(0.02 m, 1% depth)` can admit different nearby surfaces; a fixed reciprocal
+pixel-distance threshold can reject valid samples under strong foreshortening.
+Do not label such a recomputed mask as the exported Zeroverse mask. Check the
+actual camera calibration (including lens model and principal point), capture
+time and glass policy before interpreting a disagreement. Preserve source
+validity separately from a valid pixel with no reference support.
 
 Work scales as `O(pixels * cameras²)`. There is one geometry raster per camera,
 not one per camera pair. World positions, normals and memberships use reused GPU

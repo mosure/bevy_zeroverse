@@ -144,6 +144,48 @@ fn reported_fan_headroom_survives_later_rug_placement() {
 }
 
 #[test]
+fn reported_mezzanine_fan_seed_reserves_upper_storey_headroom() {
+    use crate::scene::procedural_indoor::layout::equipment::fan_clear;
+    for people in [0., 0.5, 1.] {
+        let scene =
+            IndoorManifest::generate_with_humans(65_412_811, IndoorLayout::Mixed, 0.65, 0, people)
+                .unwrap();
+        validation::validate_layout(&scene).unwrap();
+        let deck = &scene
+            .envelope
+            .as_ref()
+            .unwrap()
+            .mezzanine
+            .as_ref()
+            .unwrap()
+            .deck;
+        let fans: Vec<_> = scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::CeilingFan)
+            .collect();
+        assert!(
+            !fans.is_empty(),
+            "retry the placement rather than removing fans"
+        );
+        for fan in fans {
+            assert!(fan_clear(&scene, fan));
+            audit::check(fan, &build_object(fan)).unwrap();
+            for (lo, hi) in fan.obstacle_bounds() {
+                if deck.overlaps(lo.xz(), hi.xz()) {
+                    assert!(lo.y >= deck.height + 2.1);
+                }
+                for rug in &scene.rug_supports {
+                    if lo.xz().cmplt(rug.max).all() && hi.xz().cmpgt(rug.min).all() {
+                        assert!(lo.y >= rug.top + 2.1);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn ceiling_fan_motion_is_opt_in_and_zero_speed_is_static() {
     let o = audit::fixture(ObjectKind::CeilingFan, 5);
     for policy in [
