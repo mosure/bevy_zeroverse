@@ -94,6 +94,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     // The baseline program uses informed proposals. Keep failures bounded rather
     // than spending the legacy exact-policy budget on an infeasible mixed rig.
     let restarts = if contract.is_some() { 8 } else { 32 };
+    let mut recovered = false;
     for restart in 0..restarts {
         let mut order: Vec<_> = (0..count).collect();
         // Different constrained slots can block each other. Retry order, never
@@ -137,14 +138,19 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             let mut pool: Vec<Candidate> = Vec::with_capacity(4);
             let mut first = None;
             for attempt in 0..384 {
-                if proposals >= 384 * count || first.is_some_and(|a| attempt >= a + 12) {
+                if proposals >= 384 * count
+                    || (!recovered
+                        && contract.is_some()
+                        && scene.camera_diagnostics.reference_proposals >= 8192)
+                    || first.is_some_and(|a| attempt >= a + 12)
+                {
                     break;
                 }
                 proposals += 1;
                 scene.camera_diagnostics.peer_proposals += 1;
                 let camera = if !scene.camera_settings.ceiling_mounted(scene.seed, index) {
                     let proposed = if let Some(contract) =
-                        contract.filter(|_| stage > 0 && attempt % 4 != 3)
+                        contract.filter(|_| stage > 0 && attempt < 64 && attempt % 4 != 3)
                     {
                         super::coherent::room(
                             scene,
@@ -161,6 +167,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                             &mut rng,
                             &coverage,
                             contract.filter(|_| index != 0).map(|_| fov),
+                            contract.is_some() && stage > 0 && attempt >= 64,
                         )
                     };
                     let Some(mut camera) = proposed else {
@@ -403,6 +410,25 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                 pool.truncate(4);
             }
             let selected = if pool.is_empty() {
+                if let Some(contract) = contract.filter(|_| {
+                    !recovered
+                        && targets.is_empty()
+                        && policy.is_some_and(|p| p.graph == OverlapGraph::Reference)
+                }) {
+                    recovered = true;
+                    let prefix = scene.cameras.clone();
+                    if super::recovery::sample(
+                        scene,
+                        &coverage,
+                        &space,
+                        &prototypes,
+                        &order,
+                        contract,
+                    ) {
+                        return Ok(());
+                    }
+                    scene.cameras = prefix;
+                }
                 most = most.max(scene.cameras.len());
                 let mut selected = None;
                 while let Some(mut previous) = alternatives.pop() {

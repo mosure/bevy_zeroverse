@@ -787,6 +787,34 @@ fn validate_population(metrics: &Value, protocol: &Protocol) -> Result<()> {
     }
     Ok(())
 }
+fn primary_zone(manifest: &Value) -> Result<Option<&Value>> {
+    let zones = manifest["program"]["zones"].as_array();
+    if !manifest["program"]["primary_zone"].is_null() {
+        let index = manifest["program"]["primary_zone"]
+            .as_u64()
+            .and_then(|i| usize::try_from(i).ok())
+            .context("invalid primary zone index")?;
+        return Ok(Some(
+            zones
+                .and_then(|z| z.get(index))
+                .context("primary zone index out of bounds")?,
+        ));
+    }
+    // Retain the existing report interpretation for historical manifests.
+    Ok(zones.and_then(|z| {
+        z.iter()
+            .enumerate()
+            .max_by(|(ai, a), (bi, b)| {
+                let area = |v: &Value| {
+                    (number(&v["max"][0]) - number(&v["min"][0]))
+                        * (number(&v["max"][1]) - number(&v["min"][1]))
+                };
+                area(a).total_cmp(&area(b)).then(ai.cmp(bi))
+            })
+            .map(|(_, z)| z)
+    }))
+}
+
 fn summarize(rows: &[Value], scenes: &[Scene], metrics: &Value) -> Result<Value> {
     let mut counts = BTreeMap::<String, u64>::new();
     let mut signatures = BTreeSet::new();
@@ -826,21 +854,9 @@ fn summarize(rows: &[Value], scenes: &[Scene], metrics: &Value) -> Result<Value>
             .as_array()
             .context("missing human manifest")?;
         let people: Vec<_> = people.iter().filter(|p| p["neighbor"] == false).collect();
-        let zones = scene.manifest["program"]["zones"].as_array();
-        let largest = zones.and_then(|z| {
-            z.iter()
-                .enumerate()
-                .max_by(|(ai, a), (bi, b)| {
-                    let area = |v: &Value| {
-                        (number(&v["max"][0]) - number(&v["min"][0]))
-                            * (number(&v["max"][1]) - number(&v["min"][1]))
-                    };
-                    area(a).total_cmp(&area(b)).then(ai.cmp(bi))
-                })
-                .map(|(_, z)| z)
-        });
+        let primary_zone = primary_zone(&scene.manifest)?;
         let has_primary = people.iter().any(|p| {
-            largest.is_none_or(|z| {
+            primary_zone.is_none_or(|z| {
                 [0usize, 1].iter().all(|&i| {
                     let q = number(&p["position"][i * 2]);
                     number(&z["min"][i]) <= q && q <= number(&z["max"][i])
@@ -908,4 +924,31 @@ fn summarize(rows: &[Value], scenes: &[Scene], metrics: &Value) -> Result<Value>
             "architecture_numeric":metrics["numeric"].as_object().unwrap().iter().filter(|(k,_)|k.starts_with("envelope_")||k.starts_with("mezzanine_")||k.starts_with("exterior_")).collect::<BTreeMap<_,_>>()
         }),
     )
+}
+
+#[cfg(test)]
+mod primary_zone_tests {
+    use super::*;
+
+    #[test]
+    fn human_metrics_use_recorded_primary_zone_and_validate_indices() {
+        let mut manifest = json!({"program":{"primary_zone":1,"zones":[
+            {"min":[0,0],"max":[10,10]}, {"min":[10,0],"max":[14,4]}
+        ]}});
+        assert_eq!(
+            primary_zone(&manifest).unwrap().unwrap()["min"],
+            json!([10, 0])
+        );
+        manifest["program"]["primary_zone"] = json!(7);
+        assert!(primary_zone(&manifest).is_err());
+        manifest["program"]
+            .as_object_mut()
+            .unwrap()
+            .remove("primary_zone");
+        assert_eq!(
+            primary_zone(&manifest).unwrap().unwrap()["min"],
+            json!([0, 0])
+        );
+        assert!(primary_zone(&json!({})).unwrap().is_none());
+    }
 }

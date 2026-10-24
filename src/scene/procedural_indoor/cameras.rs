@@ -41,7 +41,7 @@ pub struct CameraSettings {
     /// Seeded reference-edge strata, selected before placement retries.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overlap_mixture: Option<mixture::OverlapMixture>,
-    /// Keep every capture in the largest usable floor region, including its full path.
+    /// Keep every capture in the recorded primary reconstruction room, including its full path.
     pub primary_room: bool,
     /// Probability that each camera moves through time. Zero fixes every pose;
     /// intrinsics are fixed for every camera regardless of this setting.
@@ -367,13 +367,19 @@ impl IndoorManifest {
             return ceiling::mount_clear(self, camera);
         }
         use super::layout::{segment_hits_box, CAMERA_CLEARANCE};
-        let clearance = CAMERA_CLEARANCE.max(intrinsics::near_clearance(
-            camera.fov_degrees,
-            self.camera_aspect_ratio,
-            camera
-                .principal_point_offset
-                .unwrap_or(self.camera_settings.principal_point_jitter),
-        ));
+        // Fisheye clips radially at 10 cm. Its independent pinhole FOV draw is
+        // not its projection, and must not inflate the swept lens volume.
+        let clearance = CAMERA_CLEARANCE.max(if camera.fisheye.is_some() {
+            0.101
+        } else {
+            intrinsics::near_clearance(
+                camera.fov_degrees,
+                self.camera_aspect_ratio,
+                camera
+                    .principal_point_offset
+                    .unwrap_or(self.camera_settings.principal_point_jitter),
+            )
+        });
         if !clearance.is_finite() {
             return false;
         }

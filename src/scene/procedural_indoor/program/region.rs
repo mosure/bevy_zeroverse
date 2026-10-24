@@ -9,9 +9,17 @@ pub struct PrimaryRegion<'a> {
     pub max: Vec2,
 }
 impl IndoorManifest {
-    /// Largest usable floor region, not its unclipped rectangular allocation.
+    /// Stable reconstruction region selected after furnishing. Older archives
+    /// without a recorded selection retain the largest clipped floor region.
     /// Cameras, schematic ownership and O-voxel cropping share this selection.
     pub fn primary_room_bounds(&self) -> (Vec2, Vec2) {
+        if let Some(zone) = self
+            .program
+            .as_ref()
+            .and_then(|p| p.primary_zone.and_then(|i| p.zones.get(i)))
+        {
+            return (zone.min, zone.max);
+        }
         self.program
             .as_ref()
             .and_then(|p| {
@@ -31,6 +39,45 @@ impl IndoorManifest {
                 let half = self.room_size.xz() * 0.5;
                 (-half, half)
             })
+    }
+
+    /// Choose once, before people/cameras, and archive the result. Area alone
+    /// can select an empty allocation after furniture clearance rejected its
+    /// contents, stranding CCTV in a different room from useful walkthroughs.
+    /// Prefer the largest region with several substantial furnishings from at
+    /// least two semantic classes; preserve the area fallback for sparse scenes.
+    pub(crate) fn select_primary_room(&mut self) {
+        let Some(program) = &self.program else { return };
+        let selected = program
+            .zones
+            .iter()
+            .enumerate()
+            .map(|(index, zone)| {
+                let mut classes = std::collections::BTreeSet::new();
+                let mut objects = 0;
+                for object in &self.objects {
+                    let p = object.position.xz();
+                    if !object.neighbor
+                        && object.solid
+                        && object.support.is_none()
+                        && object.size.element_product() >= 0.02
+                        && p.cmpgt(zone.min).all()
+                        && p.cmplt(zone.max).all()
+                    {
+                        objects += 1;
+                        classes.insert(object.kind.class_name());
+                    }
+                }
+                let furnished = objects >= 3 && classes.len() >= 2;
+                let area = self.envelope.as_ref().map_or_else(
+                    || (zone.max - zone.min).element_product() as f64,
+                    |e| clipped_area(&e.footprint, zone.min, zone.max),
+                );
+                (index, furnished, area)
+            })
+            .max_by(|a, b| a.1.cmp(&b.1).then_with(|| a.2.total_cmp(&b.2)))
+            .map(|v| v.0);
+        self.program.as_mut().unwrap().primary_zone = selected;
     }
 
     pub fn primary_region(&self) -> PrimaryRegion<'_> {
@@ -156,6 +203,52 @@ impl PrimaryRegion<'_> {
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::layout::IndoorLayout;
+    #[test]
+    fn primary_selection_uses_furnishings_is_archived_and_stays_fixed() {
+        for (seed, expected, legacy) in [(65574761, 1, 0), (65575086, 0, 3), (65575252, 2, 1)] {
+            let mut scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
+                    .unwrap();
+            let program = scene.program.as_ref().unwrap();
+            assert_eq!(program.primary_zone, Some(expected));
+            let bounds = (program.zones[expected].min, program.zones[expected].max);
+            assert_eq!(scene.primary_room_bounds(), bounds);
+            let bytes = serde_json::to_vec(&scene).unwrap();
+            let replay: IndoorManifest = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(replay.primary_room_bounds(), bounds);
+            let topology = scene.room_topology();
+            assert!(topology
+                .regions
+                .iter()
+                .any(|r| r.zone == expected && r.primary));
+            // Moving/removing furniture cannot silently change a captured ROI.
+            scene.objects.clear();
+            assert_eq!(scene.primary_room_bounds(), bounds);
+            let mut archived: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            archived["program"]
+                .as_object_mut()
+                .unwrap()
+                .remove("primary_zone");
+            let archived: IndoorManifest = serde_json::from_value(archived).unwrap();
+            let zone = &archived.program.as_ref().unwrap().zones[legacy];
+            assert_eq!(archived.primary_room_bounds(), (zone.min, zone.max));
+            // An invalid archived index is a validation error, never a panic.
+            scene.program.as_mut().unwrap().primary_zone = Some(usize::MAX);
+            assert!(scene.program.as_ref().unwrap().validate(&scene).is_err());
+        }
+    }
+
+    #[test]
+    fn empty_scenes_keep_the_clipped_area_fallback() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(65575086, IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        for object in &mut scene.objects {
+            object.neighbor = true;
+        }
+        scene.select_primary_room();
+        assert_eq!(scene.program.as_ref().unwrap().primary_zone, Some(3));
+    }
     #[test]
     fn primary_room_uses_clipped_floor_area_and_matches_topology() {
         let scene =

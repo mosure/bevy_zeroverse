@@ -604,6 +604,8 @@ impl IndoorManifest {
         // Ceiling fixtures belong to the static furnishing stream. Place them
         // before occupancy-dependent seating, floor details and cable routes so
         // toggling people cannot renumber or resample an unrelated fixture.
+        // Pin the reconstruction room before its fixtures and occupants use it.
+        scene.select_primary_room();
         scene.furnish_ceiling_fans();
         scene.furnish_room_services();
         scene.furnish_area_rugs();

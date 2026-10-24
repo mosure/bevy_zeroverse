@@ -1,7 +1,12 @@
 # Indoor O-voxel export
 
 O-voxel annotations for `procedural-indoor` describe the **primary reconstruction
-room**, using the same largest program zone as camera placement. Shared floors,
+room**, using the same recorded program zone as camera placement. Generation
+selects the largest usable zone with several substantial furnishings from at
+least two semantic classes, falling back to floor area for sparse scenes. This
+selection is stored in `program.primary_zone` before ceiling fixtures and people
+are placed; it remains fixed through motion and camera resampling. Older
+archives without this field retain their original area-based selection. Shared floors,
 ceilings, walls, trim and glazing are clipped to this room in scene-local
 coordinates before applying the room's world rotation. The crop includes a
 20 cm horizontal structural shell, the floor slab down to -20 cm, and the ceiling

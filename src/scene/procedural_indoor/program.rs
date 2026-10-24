@@ -114,6 +114,10 @@ impl Partition {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndoorProgram {
+    /// Reconstruction room selected after furnishing. Missing in older archives,
+    /// which retain their original largest-floor-area selection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_zone: Option<usize>,
     #[serde(default)]
     pub domain: Option<super::domain::SceneDomain>,
     pub zones: Vec<Zone>,
@@ -240,6 +244,7 @@ impl IndoorProgram {
             })
             .collect();
         Self {
+            primary_zone: None,
             zones,
             partitions,
             light_spacing: Vec2::new(rng.random_range(2.1..5.3), rng.random_range(2.1..5.3)),
@@ -294,7 +299,10 @@ impl IndoorProgram {
         if let Some(domain) = &self.domain {
             domain.validate()?;
         }
-        if self.zones.is_empty()
+        if self
+            .primary_zone
+            .is_some_and(|index| index >= self.zones.len())
+            || self.zones.is_empty()
             || self.zones.len() > 16
             || if scene.envelope.is_some() {
                 self.partitions.len() >= self.zones.len()

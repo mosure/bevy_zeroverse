@@ -4,6 +4,7 @@ mod coherent;
 mod overview;
 mod placement;
 mod planner;
+mod recovery;
 mod room;
 #[cfg(test)]
 mod tests;

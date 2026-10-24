@@ -64,6 +64,17 @@ impl IndoorManifest {
             })
             .collect();
         for index in first..first + count {
+            // Keep narrow fixed lenses aimed at their content across the path.
+            // A half-metre bend/target drift can span most of a narrow sensor's
+            // image, rejecting an otherwise clear path at its temporal midpoint.
+            // Fisheye ignores the auxiliary pinhole FOV, as in rendering.
+            let frame_scale = if self.camera_settings.lens_for(self.seed, index).is_some() {
+                1.
+            } else {
+                fixed_fov.map_or(1., |fov| {
+                    ((0.5 * fov.to_radians()).tan() / (22.5_f32.to_radians()).tan()).min(1.)
+                })
+            };
             // The former fixed 0.85 m wall rail dominated accepted cameras.
             // Mix free interior proposals with continuously offset perimeter views.
             let perimeter = rng.random_bool(0.4);
@@ -260,7 +271,7 @@ impl IndoorManifest {
                 } else {
                     Vec::new()
                 };
-                let bend = right * rng.random_range(-0.60..0.60) * distance;
+                let bend = right * rng.random_range(-0.60..0.60) * distance * frame_scale;
                 let mut camera = IndoorCamera {
                     ceiling_mount: None,
                     fisheye: None,
@@ -275,11 +286,12 @@ impl IndoorManifest {
                         route,
                         control: [p.lerp(end, 0.33) + bend, p.lerp(end, 0.67) + bend],
                         target_end: target
-                            + Vec3::new(
-                                rng.random_range(-0.25..0.25),
-                                rng.random_range(-0.12..0.12),
-                                rng.random_range(-0.25..0.25),
-                            ),
+                            + frame_scale
+                                * Vec3::new(
+                                    rng.random_range(-0.25..0.25),
+                                    rng.random_range(-0.12..0.12),
+                                    rng.random_range(-0.25..0.25),
+                                ),
                         roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
                     }),
                 };

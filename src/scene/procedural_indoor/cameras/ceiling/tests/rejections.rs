@@ -22,6 +22,41 @@ fn production_65547441_mixed_baseline() {
     qualify_mixed_training_replay(65_547_441);
 }
 
+#[test]
+fn production_65573964_mixed_baseline() {
+    qualify_mixed_training_replay(65_573_964);
+}
+
+#[test]
+fn production_65573956_mixed_baseline() {
+    qualify_mixed_training_replay(65_573_956);
+}
+
+#[test]
+fn production_65565210_mixed_baseline() {
+    qualify_mixed_training_replay(65_565_210);
+}
+
+#[test]
+fn production_65575252_mixed_baseline() {
+    qualify_mixed_training_replay(65575252);
+}
+
+#[test]
+fn production_65575086_mixed_baseline() {
+    qualify_mixed_training_replay(65575086);
+}
+
+#[test]
+fn production_65574761_mixed_baseline() {
+    qualify_mixed_training_replay(65574761);
+}
+
+#[test]
+fn production_65566556_mixed_baseline() {
+    qualify_mixed_training_replay(65566556);
+}
+
 fn qualify_mixed_training_replay(seed: u64) {
     let scene = qualify_mixed_training_seed(seed);
     // Deterministic work bounds, not wall-clock assertions on shared CI machines.
@@ -38,11 +73,13 @@ fn qualify_mixed_training_replay(seed: u64) {
 // Includes reported outliers plus adjacent scenes, without rendering or
 // models. Kept explicit so the ordinary regression suite remains small.
 #[test]
-#[ignore = "96-room CPU placement/latency qualification"]
+#[ignore = "160-room CPU placement/latency qualification"]
 fn mixed_training_neighbor_cohort() {
     for seed in (65_538_592..65_538_624)
         .chain(65_539_984..65_540_016)
         .chain(65_547_424..65_547_456)
+        .chain(65_565_200..65_565_232)
+        .chain(65_573_944..65_573_976)
     {
         qualify_mixed_training_seed(seed);
     }
@@ -96,11 +133,16 @@ fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
 fn rejected_training_rooms_build_valid_meshes() {
     for seed in [
         65341346, 65341171, 65340887, 65348959, 65348197, 65339328, 65333746, 65325411, 65332074,
+        65573964, 65573956, 65565210, 65575252, 65575086, 65574761, 65566556,
     ] {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-        crate::scene::procedural_indoor::validation::validate_geometry(&scene)
+        let report = crate::scene::procedural_indoor::validation::validate_geometry(&scene)
             .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        eprintln!(
+            "GEOMETRY {seed}: triangles={} degenerate_triangles={} object_envelopes_checked={}",
+            report.triangles, report.degenerate_triangles, report.object_envelopes_checked
+        );
     }
 }
 

@@ -16,12 +16,13 @@ pub(super) fn propose(
     rng: &mut rand_chacha::ChaCha8Rng,
     coverage: &Coverage,
     fixed_fov: Option<f32>,
+    independent: bool,
 ) -> Option<IndoorCamera> {
     if let Some(policy) = scene
         .camera_settings
         .multiview
         .as_ref()
-        .filter(|_| rng.random_bool(0.5))
+        .filter(|_| !independent && rng.random_bool(0.5))
     {
         let reference = scene
             .cameras

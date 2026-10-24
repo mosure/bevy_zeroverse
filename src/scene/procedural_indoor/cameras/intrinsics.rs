@@ -329,6 +329,23 @@ mod tests {
         assert!(scene.camera_curve_clear(&camera));
         camera.fov_degrees = 150.;
         assert!(!scene.camera_curve_clear(&camera));
+        // The same unused pinhole draw must not enlarge a radial fisheye clip.
+        camera.fisheye = crate::scene::procedural_indoor::cameras::CameraSettings::parse(
+            r#"{"lenses":{"probability":1.0}}"#,
+        )
+        .unwrap()
+        .lens_for(0, 0);
+        assert!(camera.fisheye.is_some());
+        for fov in [28., 60., 108., 150.] {
+            camera.fov_degrees = fov;
+            assert!(scene.camera_curve_clear(&camera));
+        }
+        camera.start.z = 4.8;
+        camera.end = camera.start;
+        assert!(
+            !scene.camera_curve_clear(&camera),
+            "radial clipping still needs physical wall clearance"
+        );
     }
 
     #[test]
