@@ -20,7 +20,9 @@ pub fn validate<'a>(
             && (view.near - 0.1).abs() < 0.00001
             && (view.far - 50.).abs() < 0.00001,
         "sensor FOV/clipping mismatch: fovy={} expected={expected_fov}, near={} expected=0.1, far={} expected=50",
-        view.fovy, view.near, view.far
+        view.fovy,
+        view.near,
+        view.far
     );
     let offset = camera.principal_point_offset.unwrap_or_default();
     let projection = pinhole::projection(
@@ -50,16 +52,39 @@ pub fn validate<'a>(
                 .iter()
                 .flatten()
                 .zip(expected.k.iter().flatten())
-                .all(|(a, b)| (a - b).abs() < 0.0001),
+                .all(|(a, b)| calibration_scalar_matches(*a, *b)),
         "sensor calibration mismatch: actual={actual:?}, expected={expected:?}"
     );
     Ok(actual)
+}
+
+fn calibration_scalar_matches(actual: f32, expected: f32) -> bool {
+    // Matrix extraction and SSAA rescaling may round independently. At a focal
+    // length of 900 pixels, two f32 ULPs already exceed the former fixed 1e-4
+    // tolerance. Bound float arithmetic error relative to the coefficient;
+    // keep schema, sensor dimensions, lens model and distortion checks exact.
+    actual.is_finite()
+        && expected.is_finite()
+        && (actual - expected).abs() <= 4. * f32::EPSILON * actual.abs().max(expected.abs()).max(1.)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use bevy::prelude::{Vec2, Vec3};
+
+    #[test]
+    fn projection_roundoff_is_not_a_calibration_failure() {
+        for focal in [256.0_f32, 881.0401, 917.3916, 1944., 8192.] {
+            let two_ulps_lower = f32::from_bits(focal.to_bits() - 2);
+            assert!(calibration_scalar_matches(two_ulps_lower, focal));
+            assert!(!calibration_scalar_matches(focal + 0.01, focal));
+        }
+        assert!(!calibration_scalar_matches(f32::NAN, 1.));
+        assert!(!calibration_scalar_matches(f32::INFINITY, f32::INFINITY));
+        assert!(!calibration_scalar_matches(0.00001, 0.));
+        assert!(!calibration_scalar_matches(256.5, 256.));
+    }
 
     #[test]
     fn mixed_lens_export_checks_the_sensor_and_rejects_corrupted_labels() {

@@ -52,7 +52,7 @@ fn horizontal_spread(points: impl Iterator<Item = Vec3>) -> f32 {
     ((xx * zz - xz * xz).max(0.0).sqrt() / major.max(1e-12)).clamp(0.0, 1.0)
 }
 
-fn relative_motion(a: &Track, b: &Track) -> Option<f32> {
+pub(super) fn relative_motion(a: &Track, b: &Track) -> Option<f32> {
     let (mut residual, mut travel_a, mut travel_b) = (0.0, 0.0, 0.0);
     for (pa, pb) in a.0.iter().zip(b.0) {
         let da = *pa - a.0[0];

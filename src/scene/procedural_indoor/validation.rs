@@ -416,11 +416,8 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             }
         }
     }
-    if let Some(policy) = &scene.camera_settings.multiview {
-        if scene
-            .camera_group_geometry()
-            .is_some_and(|g| !g.accepts(policy))
-        {
+    if scene.camera_settings.multiview.is_some() {
+        if !scene.accepts_camera_geometry() {
             return fail(
                 "multi-view camera spacing, group spread or trajectory variation constraint violated",
             );

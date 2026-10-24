@@ -5,9 +5,10 @@ use super::*;
 use crate::scene::procedural_indoor::{
     cameras::{
         coverage::{Coverage, VisibilityView},
-        diversity::{geometry, Track},
+        diversity::Track,
         multiview::{pair_samples_cached, OverlapGraph, CHECK_TIMES},
         program::ViewSummary,
+        rig::{self, MixedRigContract},
     },
     layout::{stream, IndoorManifest},
 };
@@ -27,15 +28,27 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     if count == 0 {
         return Ok(());
     }
-    let mounting = scene.camera_settings.ceiling_mount.clone().unwrap();
+    let mounting = scene
+        .camera_settings
+        .ceiling_mount
+        .clone()
+        .unwrap_or_default();
     let policy = scene.camera_settings.multiview.clone();
     let policy = policy.as_ref();
+    let contract = policy
+        .and_then(MixedRigContract::new)
+        .filter(|_| count > 1 && scene.camera_settings.overlap_mixture.is_none());
     let targets = scene
         .camera_settings
         .overlap_mixture
         .as_ref()
         .map_or_else(Vec::new, |m| m.targets(scene.seed, count));
-    let coverage = Coverage::for_ceiling_search(scene);
+    let mounted = (0..count).any(|i| scene.camera_settings.ceiling_mounted(scene.seed, i));
+    let coverage = if mounted {
+        Coverage::for_ceiling_search(scene)
+    } else {
+        Coverage::new(scene)
+    };
     let space = MountSpace::new(scene);
     let (lo, hi) = scene.primary_room_bounds();
     let lo = lo + Vec2::splat(mounting.wall_clearance_m);
@@ -44,8 +57,10 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         return Err("ceiling camera wall clearance leaves no mounting area".into());
     }
     let mut rng = stream(scene.seed, 0x4343_5456);
-    // Fix lens, standoff and roll per slot, before placement rejection. Neither
-    // a failed anchor nor a larger camera count changes these assignments.
+    // Fix fisheye lens, standoff and roll per slot before placement rejection.
+    // The pinhole reference retains the content-conditioned intrinsic sampler:
+    // a narrow fixed draw may not frame a person plus the required room content.
+    // Peers keep their draws; their gaze can change to find rich shared content.
     let prototypes: Vec<_> = (0..count)
         .map(|index| {
             let mut prior = stream(scene.seed, 0x4343_0000 + index as u64);
@@ -60,11 +75,26 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             )
         })
         .collect();
+    let narrowest_room_fov = prototypes
+        .iter()
+        .enumerate()
+        .filter(|(i, (lens, ..))| {
+            *i > 0 && lens.is_none() && !scene.camera_settings.ceiling_mounted(scene.seed, *i)
+        })
+        .map(|(_, (_, fov, ..))| *fov)
+        .min_by(f32::total_cmp);
     // Keep camera zero as the reference, then place constrained mounts before
     // free room paths. Slot identities remain fixed; restore export order below.
     let mut most = 0;
     let mut rejected = [0usize; 4];
-    for restart in 0..32 {
+    let mut room_rejected = [0usize; 3];
+    // Peer intrinsics are fixed per slot. Caps do not depend on positions;
+    // changing the content-conditioned reference invalidates the cache below.
+    let mut overlap_floors = vec![vec![None; count]; count];
+    // The baseline program uses informed proposals. Keep failures bounded rather
+    // than spending the legacy exact-policy budget on an infeasible mixed rig.
+    let restarts = if contract.is_some() { 8 } else { 32 };
+    for restart in 0..restarts {
         let mut order: Vec<_> = (0..count).collect();
         // Different constrained slots can block each other. Retry order, never
         // the roles or lens assignments, with an independent deterministic RNG.
@@ -96,14 +126,99 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                 proposals += 1;
                 scene.camera_diagnostics.peer_proposals += 1;
                 let camera = if !scene.camera_settings.ceiling_mounted(scene.seed, index) {
-                    let Some(camera) = super::room::propose(scene, index, &mut rng, &coverage)
-                    else {
+                    let proposed = if let Some(contract) =
+                        contract.filter(|_| stage > 0 && attempt % 4 != 3)
+                    {
+                        super::coherent::room(
+                            scene,
+                            index,
+                            fov,
+                            views.first().and_then(|v| v.first()),
+                            contract,
+                            &mut rng,
+                        )
+                    } else {
+                        super::room::propose(scene, index, &mut rng, &coverage)
+                    };
+                    let Some(mut camera) = proposed else {
                         rejected[0] += 1;
                         continue;
                     };
+                    if let Some(contract) = contract {
+                        if index != 0 {
+                            camera.fov_degrees = fov;
+                        }
+                        if stage == 0
+                            && mounted
+                            && scene.camera_settings.handheld.is_none()
+                            && rng.random_bool((0.65 * (1.0 - contract.baseline)) as f64)
+                        {
+                            // A room anchor aimed at upper walls cannot share
+                            // much content with a downward overview. Propose a
+                            // lower furnished target before visibility admission.
+                            let old = camera.target.y;
+                            camera.target.y = scene.floor_height(camera.target.xz())
+                                + rng.random_range(0.2..=1.0);
+                            if let Some(motion) = &mut camera.motion {
+                                motion.target_end.y += camera.target.y - old;
+                            }
+                        }
+                        if mounted && contract.baseline < 0.5 {
+                            super::coherent::motion(
+                                scene,
+                                index,
+                                count,
+                                &mut camera,
+                                contract,
+                                &mut rng,
+                            );
+                        }
+                        // Qualify a rich anchor before spending a whole prefix
+                        // on it. Small lenses otherwise discover a blank patch
+                        // only after many broad views have already been placed.
+                        // Later proposals retain unrestricted anchor recovery;
+                        // this is a search preference, not an admission rule.
+                        if contract.baseline < 0.5
+                            && attempt < 128
+                            && scene.cameras.iter().all(IndoorCamera::is_ceiling_mounted)
+                        {
+                            if let Some(fov) = narrowest_room_fov.filter(|f| *f < 60.) {
+                                let mut probe = camera.clone();
+                                probe.fisheye = None;
+                                probe.fov_degrees = fov;
+                                if !coverage.suitable(&probe, false) {
+                                    rejected[0] += 1;
+                                    room_rejected[2] += 1;
+                                    continue;
+                                }
+                            }
+                        }
+                        let require_person = super::super::sampling::requires_person(scene, index);
+                        let reason = if !scene
+                            .camera_settings
+                            .accepts_motion(scene.seed, index, &camera)
+                        {
+                            Some(0)
+                        } else if !scene.camera_curve_clear(&camera) {
+                            Some(1)
+                        } else if !coverage.suitable(&camera, require_person) {
+                            Some(2)
+                        } else {
+                            None
+                        };
+                        if let Some(reason) = reason {
+                            room_rejected[reason] += 1;
+                            rejected[0] += 1;
+                            continue;
+                        }
+                    }
                     camera
                 } else {
-                    let p = if let Some(policy) = policy.filter(|_| index > 0 && attempt % 3 != 0) {
+                    let p = if let Some(contract) =
+                        contract.filter(|_| stage > 0 && attempt % 4 != 3)
+                    {
+                        super::coherent::point(scene, true, contract, &mut rng).unwrap()
+                    } else if let Some(policy) = policy.filter(|_| index > 0 && attempt % 3 != 0) {
                         let a = rng.random_range(0.0..std::f32::consts::TAU);
                         let d = rng.random_range(
                             policy.min_baseline.max(policy.min_reference_baseline)
@@ -137,6 +252,16 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         motion: None,
                     };
                     super::trajectory::propose(scene, index, &mut camera, &mut rng);
+                    if let Some(contract) = contract {
+                        super::coherent::motion(
+                            scene,
+                            index,
+                            count,
+                            &mut camera,
+                            contract,
+                            &mut rng,
+                        );
+                    }
                     if !space.clear(scene, &camera)
                         || !scene
                             .camera_settings
@@ -163,15 +288,14 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                 }
                 let track = Track::new(&camera);
                 if policy.is_some_and(|p| {
-                    geometry(&tracks, Some(&track)).is_some_and(|mut g| {
-                        // Spread is not monotonic: a collinear prefix can grow
-                        // into a well-spread rig. Enforce it on the complete rig;
-                        // pairwise distance/motion constraints still apply now.
-                        if stage + 1 < count {
-                            g.min_horizontal_spread = None;
-                        }
-                        !g.accepts(p)
-                    })
+                    !rig::accepts_geometry(
+                        p,
+                        contract,
+                        &scene.cameras,
+                        &tracks,
+                        Some((&camera, &track)),
+                        stage + 1 == count,
+                    )
                 }) {
                     rejected[1] += 1;
                     continue;
@@ -196,7 +320,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                     continue;
                 }
                 if let Some(policy) = policy.filter(|_| index > 0) {
-                    let accepts = |parent: usize| {
+                    let mut accepts = |parent: usize| {
                         let samples = pair_samples_cached(
                             &coverage,
                             &scene.cameras[parent],
@@ -204,7 +328,23 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                             &camera,
                             &candidate_views,
                         );
-                        if policy.graph == OverlapGraph::Connected {
+                        if let Some(contract) = contract.filter(|_| targets.is_empty()) {
+                            let floor =
+                                *overlap_floors[order[parent]][index].get_or_insert_with(|| {
+                                    contract.pair_overlap_floor(
+                                        &scene.cameras[parent],
+                                        &camera,
+                                        scene.camera_aspect_ratio,
+                                    )
+                                });
+                            contract.accepts_visibility(
+                                policy,
+                                &scene.cameras[parent],
+                                &camera,
+                                &samples,
+                                floor,
+                            )
+                        } else if policy.graph == OverlapGraph::Connected {
                             let mut edge = policy.clone();
                             edge.min_reference_baseline = 0.;
                             edge.accepts(&samples)
@@ -263,6 +403,13 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             let Some(candidate) = selected else {
                 break;
             };
+            if scene.cameras.is_empty() {
+                // An alternate reference may have a different admitted pinhole
+                // focal length. Never reuse caps from the previous calibration.
+                for row in &mut overlap_floors {
+                    row.fill(None);
+                }
+            }
             scene.cameras.push(candidate.camera);
             tracks.push(candidate.track);
             views.push(candidate.views);
@@ -280,5 +427,5 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
         most = most.max(scene.cameras.len());
         scene.camera_diagnostics.group_restarts += 1;
     }
-    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections proposal_or_clearance/spacing/overview/overlap={rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
+    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections proposal_or_clearance/spacing/overview/overlap={rejected:?}, room_motion/clearance/content={room_rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
 }

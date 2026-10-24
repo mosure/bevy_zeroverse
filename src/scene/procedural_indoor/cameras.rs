@@ -11,6 +11,7 @@ mod motion;
 pub mod multiview;
 mod navigation;
 mod program;
+pub mod rig;
 mod sampling;
 pub mod viewpoint;
 use super::layout::{IndoorCamera, IndoorManifest};

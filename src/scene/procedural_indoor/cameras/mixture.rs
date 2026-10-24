@@ -120,7 +120,30 @@ impl IndoorManifest {
             .iter()
             .find(|t| t.camera == pair.camera)
             .map_or_else(
-                || policy.accepts(&pair.samples),
+                || {
+                    if let Some(contract) = self.mixed_rig_contract() {
+                        let (Some(a), Some(b)) = (
+                            self.cameras.get(pair.reference),
+                            self.cameras.get(pair.camera),
+                        ) else {
+                            return false;
+                        };
+                        let tracks = [
+                            super::diversity::Track::new(a),
+                            super::diversity::Track::new(b),
+                        ];
+                        contract.accepts_geometry(policy, &[a, b], &[&tracks[0], &tracks[1]], false)
+                            && contract.accepts_visibility(
+                                policy,
+                                a,
+                                b,
+                                &pair.samples,
+                                contract.pair_overlap_floor(a, b, self.camera_aspect_ratio),
+                            )
+                    } else {
+                        policy.accepts(&pair.samples)
+                    }
+                },
                 |t| t.accepts(policy, &pair.samples),
             )
     }

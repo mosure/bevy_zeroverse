@@ -90,8 +90,8 @@ configuration:
 ```
 
 The continuous control runs from **0 (very narrow)** to **1 (very wide)**.
-It expands into the following concrete `multiview` constraints. Distances are
-metres; camera 0 is the reference.
+For room-only pinhole rigs it expands into the following concrete `multiview`
+constraints. Distances are metres; camera 0 is the reference.
 
 | Advanced parameter | Program for baseline b | Default b = 0.5 |
 | --- | --- | --- |
@@ -103,6 +103,61 @@ metres; camera 0 is the reference.
 | Independent path variation | b | 0.5 |
 | Visible-region target variation | b | 0.5 |
 
+### Mixed mounting and lens coverage
+
+The baseline preset also writes `multiview.mixed_rig: true`. When a rig contains
+ceiling or fisheye cameras, its versioned mixed-rig program accounts for mounting-height
+separation and unequal sensor coverage:
+
+| Constraint | Program for baseline b |
+| --- | --- |
+| Maximum horizontal reference separation across mounting roles | 0.80 + 9.20 b metres |
+| Minimum horizontal reference separation across mounting roles | ordinary minimum reference distance |
+| Maximum 3D diameter within either mounting group | twice the ordinary maximum reference distance |
+| Maximum 3D distance to camera 0 for its own mounting group | ordinary maximum reference distance |
+| Nominal minimum shared fraction in each direction | 0.05 − 0.03 b |
+| Minimum larger directed overlap, room ↔ ceiling | 0.45 − 0.25 b |
+| Minimum larger directed overlap, same mounting role | ordinary minimum overlap |
+
+All-pair physical minimum separation, minimum 3D reference distance, horizontal
+spread and relative-motion diversity remain required. A ceiling overview and a
+narrow room image can therefore share useful content without claiming that
+most pixels of the much wider image lie in the narrow one. No directed overlap
+or metric baseline export is rescaled. Use the measured rendered view graph to
+select training pairs; these coarse placement bounds are not pixel guarantees.
+
+The nominal directional floor is capped by half the aligned, centered sensor
+footprint overlap, with a nonzero lower bound of 0.005. This is exact for
+rectilinear footprints and sampled on a 17×17 valid-ray grid for fisheye pairs.
+For example, a centered 45° perspective image occupies only about 2.3% of a
+140° image at the same pose; imposing a fixed 5% floor would make that useful
+nested pair impossible. `MixedRigContract::pair_overlap_floor` exposes the
+effective floor. Footprints are cached by immutable lens slot during search;
+actual first-surface occlusion is still tested at every temporal checkpoint.
+
+The pinhole reference uses content-conditioned sampling within the configured
+FOV bounds, including required human visibility. Peer pinhole draws and every
+fisheye assignment remain fixed during search; narrow peers can aim at other
+reference-visible landmarks. A new reference calibration invalidates footprint
+caches. Accepted intrinsics can therefore vary with baseline and scene content;
+the manifest always records the actual calibration.
+
+Narrow rigs propose coordinated paths inside the requested travel intervals.
+Moving/static roles, lens assignments and swept collision checks remain intact.
+Wider baselines permit larger positional and trajectory differences. Rejection
+can still occur where a requested rig, motion range or mounting clearance does
+not fit the actual scene; the sampler never returns a partial rig.
+
+`IndoorManifest::mixed_rig_contract()` exposes the effective numeric bounds and
+program version. `accepts_camera_geometry()` checks this contract; the existing
+`camera_group_geometry()` still reports physical 3D measurements. The CPU camera
+audit exports both. Single-camera and room-only pinhole rigs retain their existing policy.
+
+Older/explicit policies omitting `mixed_rig` remain exact. Turning **Mount-aware
+baseline** off, editing any advanced baseline value, choosing Connected graph,
+or enabling explicit overlap strata retains exact Euclidean/bidirectional
+constraints. This prevents a stored custom policy from being silently relaxed.
+
 These constrain a stochastic sampler, rather than determining exact camera
 positions. Room dimensions, furniture, camera intrinsics and visibility rejection
 shape the realized spacing and overlap. The [current camera study](evidence/camera_counts/study.json)
@@ -112,7 +167,7 @@ pixels for viewpoint variation; they do not guarantee a training-quality optimum
 With positive target variation, peers can aim at different first-surface proxy
 hits visible to the reference camera. The probability of proposing a new target
 increases with camera count; the aim interpolates by the selected variation.
-Every candidate still passes bidirectional overlap, semantic-content, complete
+Every candidate still passes its declared overlap contract, semantic-content, complete
 path and group-geometry gates. Feasible candidates are ranked for nearest-peer
 spacing, nearest optical-axis angle and additional primary-room surface cells.
 Preferred spacing scales with room diagonal divided by the square root of camera

@@ -7,6 +7,17 @@ mod fallback;
 mod tests;
 
 const PERSON_FALLBACK_PROPOSALS: usize = 1536;
+
+/// A primary-room rig must not be required to see a person in a different room.
+/// Shared by ordinary, mixed and recovered proposals before content admission.
+pub(super) fn requires_person(scene: &IndoorManifest, index: usize) -> bool {
+    index == 0
+        && scene.humans.iter().any(|h| {
+            !h.neighbor
+                && (!scene.camera_settings.primary_room || scene.in_primary_room(h.position, 0.))
+        })
+}
+
 impl IndoorManifest {
     pub(super) fn sample_independent_cameras(
         &mut self,
@@ -59,7 +70,7 @@ impl IndoorManifest {
                 && self.camera_settings.handheld.is_none();
             self.camera_diagnostics.long_reference_requests += usize::from(long_path);
             let edge = rng.random_range(0..4);
-            let require_person = index == 0 && !people.is_empty();
+            let require_person = requires_person(self, index);
             let mut found = None;
             let mut rejected = [0usize; 5];
             for attempt in 0..attempts {

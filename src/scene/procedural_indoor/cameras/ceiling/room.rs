@@ -51,7 +51,7 @@ pub(super) fn propose(
             scene
                 .camera_settings
                 .prepare_motion(scene.seed, index, &mut camera, rng);
-            let require_person = index == 0 && scene.humans.iter().any(|h| !h.neighbor);
+            let require_person = super::super::sampling::requires_person(scene, index);
             return (scene
                 .camera_settings
                 .accepts_motion(scene.seed, index, &camera)

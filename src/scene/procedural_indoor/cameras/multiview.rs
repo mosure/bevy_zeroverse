@@ -30,6 +30,12 @@ const VIEW_ATTEMPTS: usize = 384;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct MultiViewSettings {
+    /// Enable the versioned mount/lens-aware baseline program for mixed rigs.
+    /// Only active while the other controls match `from_baseline`; editing an
+    /// advanced constraint restores exact Euclidean/bidirectional admission.
+    /// Omitted in older or explicit JSON policies: those remain exact.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub mixed_rig: bool,
     /// Reference preserves archived rigs. Connected requires a stable spanning
     /// graph of bidirectionally overlapping pairs, not visibility to camera zero.
     #[serde(default, skip_serializing_if = "OverlapGraph::is_reference")]
@@ -203,7 +209,16 @@ impl IndoorManifest {
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
         self.camera_diagnostics = default();
-        if (0..count).any(|i| self.camera_settings.ceiling_mounted(self.seed, i)) {
+        if (0..count).any(|i| self.camera_settings.ceiling_mounted(self.seed, i))
+            || (count > 1
+                && self.camera_settings.overlap_mixture.is_none()
+                && self
+                    .camera_settings
+                    .multiview
+                    .as_ref()
+                    .is_some_and(|p| p.mixed_rig_baseline().is_some())
+                && (0..count).any(|i| self.camera_settings.lens_for(self.seed, i).is_some()))
+        {
             super::ceiling::sample(self, count)?;
         } else {
             self.sample_camera_set(count, true, self.seed)?;

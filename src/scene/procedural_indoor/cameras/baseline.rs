@@ -11,6 +11,7 @@ impl MultiViewSettings {
             return Err("camera baseline must be finite and in [0,1]".into());
         }
         Ok(Self {
+            mixed_rig: true,
             graph: Default::default(),
             min_overlap: 0.65 - 0.50 * baseline.powf(0.7),
             min_baseline: 0.04 + 0.46 * baseline,
@@ -42,6 +43,12 @@ impl MultiViewSettings {
         .iter()
         .all(|d| d.abs() < 1e-5)
         .then_some(value)
+    }
+
+    /// Explicit opt-in plus an unchanged baseline program. Numeric coincidence
+    /// with a preset never changes the meaning of an archived/custom policy.
+    pub fn mixed_rig_baseline(&self) -> Option<f32> {
+        self.mixed_rig.then(|| self.baseline()).flatten()
     }
 }
 

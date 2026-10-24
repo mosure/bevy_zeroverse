@@ -6,9 +6,10 @@ pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
         let mut advanced = Vec::new();
         if !d["indoor_camera"]["multiview"].is_null() {
             v.push(
-                num("@baseline","Camera baseline",0.,1.,0.01,"0 = close stereo; 1 = wider spacing and more varied visible targets. Accounts for camera count; overlap and clearance remain required. Replaces advanced values below."));
+                num("@baseline","Camera baseline",0.,1.,0.01,"0 = close within each mounting group; 1 = room-spanning. Mixed room/ceiling rigs bound horizontal separation across heights and retain shared content despite different lens coverage. Replaces advanced values below."));
             advanced.extend([
                 section("cameras.overlap", "Visibility connections","Custom constraints override the baseline program. Impossible requests report an error."),
+                toggle("/indoor_camera/multiview/mixed_rig","Mount-aware baseline","Use the mixed mounting/lens program while advanced values match the baseline preset. Turn off for exact Euclidean distances and symmetric overlap. Advanced edits and explicit overlap strata always retain exact constraints."),
                 choices("@overlap_graph","Visibility connections",&[("Reference camera","reference"),("Connected graph","connected")],"A connected graph allows overlap through intermediate cameras. The same spanning edges must pass along the paths. Explicit overlap strata require Reference camera."),
                 num("/indoor_camera/multiview/min_overlap","Minimum proxy overlap",0.,1.,0.01,"Placement estimate; measured rendered overlap may differ."),
                 section("cameras.spacing", "Spacing & coverage limits", "Advanced metric constraints. Adjusting these overrides the baseline preset."),

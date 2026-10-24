@@ -39,6 +39,17 @@ struct Args {
     baselines: Vec<f32>,
     #[arg(long, default_value_t = 12)]
     max_cameras: usize,
+    /// Audit specific rig sizes instead of every count through --max-cameras.
+    #[arg(long, value_delimiter = ',')]
+    counts: Vec<usize>,
+    /// Camera policy JSON. The sweep replaces only its multiview baseline program.
+    /// Lens/mounting/motion priors remain fixed across baseline values.
+    #[arg(long)]
+    indoor_camera: Option<String>,
+    /// For supervised per-cell audits whose parent hashes the executable once.
+    /// The receipt records a null executable hash rather than claiming a hash.
+    #[arg(long)]
+    omit_executable_hash: bool,
     /// Require a stable connected visibility graph instead of a camera-zero star.
     #[arg(long)]
     connected: bool,
@@ -66,14 +77,18 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
     let original = serde_json::to_value(&scene)?;
     let mut groups = Vec::new();
     for &baseline in &args.baselines {
-        let mut settings = CameraSettings::parse(&format!(r#"{{"baseline":{baseline}}}"#))
-            .map_err(anyhow::Error::msg)?;
+        let mut settings = args.settings()?;
+        settings.multiview = Some(
+            bevy_zeroverse::scene::procedural_indoor::cameras::multiview::MultiViewSettings::from_baseline(baseline)
+                .map_err(anyhow::Error::msg)?,
+        );
         settings.principal_point_jitter = bevy::prelude::Vec2::splat(args.principal_point_jitter);
         if args.connected {
             settings.multiview.as_mut().unwrap().graph = bevy_zeroverse::scene::procedural_indoor::cameras::multiview::OverlapGraph::Connected;
         }
         settings.validate().map_err(anyhow::Error::msg)?;
-        for count in 1..=args.max_cameras {
+        for count in args.counts() {
+            let started = Instant::now();
             let result = scene
                 .resample_cameras(count, settings.clone(), args.aspect)
                 .and_then(|()| validate_layout(&scene));
@@ -86,6 +101,17 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
                 policy: json!(settings),
                 geometry: Value::Null,
                 reference_overlap: Value::Null,
+                diagnostics: if error.is_none() {
+                    json!(scene.camera_diagnostics)
+                } else {
+                    Value::Null
+                },
+                mixed_rig_contract: if error.is_none() {
+                    json!(scene.mixed_rig_contract())
+                } else {
+                    Value::Null
+                },
+                elapsed_seconds: started.elapsed().as_secs_f64(),
                 error,
             };
             if group.error.is_none() {
@@ -122,6 +148,8 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
                         target: camera.target.to_array().map(f64::from),
                         fov_degrees: camera.fov_degrees as f64,
                         length_m: camera.path_length() as f64,
+                        fisheye: json!(camera.fisheye),
+                        ceiling_mounted: camera.is_ceiling_mounted(),
                     });
                 }
                 ensure!(
@@ -145,6 +173,51 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
     ))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_counts_and_explicit_subset_are_reproducible() {
+        let args = Args::try_parse_from(["audit", "--output", "unused"]).unwrap();
+        assert_eq!(args.counts(), (1..=12).collect::<Vec<_>>());
+        assert_eq!(args.settings().unwrap(), CameraSettings::default());
+        let args = Args::try_parse_from([
+            "audit",
+            "--output",
+            "unused",
+            "--counts",
+            "1,3,8,12",
+            "--indoor-camera",
+            r#"{"lenses":{"probability":0.5},"ceiling_mount":{"probability":0.2}}"#,
+        ])
+        .unwrap();
+        assert_eq!(args.counts(), [1, 3, 8, 12]);
+        let settings = args.settings().unwrap();
+        assert_eq!(settings.lenses.unwrap().probability, 0.5);
+        assert_eq!(settings.ceiling_mount.unwrap().probability, 0.2);
+    }
+}
+
+impl Args {
+    fn counts(&self) -> Vec<usize> {
+        if self.counts.is_empty() {
+            (1..=self.max_cameras).collect()
+        } else {
+            self.counts.clone()
+        }
+    }
+
+    fn settings(&self) -> Result<CameraSettings> {
+        self.indoor_camera
+            .as_deref()
+            .map(CameraSettings::parse)
+            .transpose()
+            .map_err(anyhow::Error::msg)
+            .map(Option::unwrap_or_default)
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
     ensure!(
@@ -155,6 +228,17 @@ fn main() -> Result<()> {
         (1..=12).contains(&args.max_cameras) && !args.baselines.is_empty(),
         "invalid camera count / baseline list"
     );
+    let counts = args.counts();
+    ensure!(
+        counts.iter().all(|n| (1..=12).contains(n))
+            && counts
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == counts.len(),
+        "counts must be unique and in 1..=12"
+    );
+    let settings = args.settings()?;
     ensure!(
         args.seed.checked_add(args.rooms as u64).is_some(),
         "seed range overflow"
@@ -176,7 +260,7 @@ fn main() -> Result<()> {
         "audit output already exists; use a new directory"
     );
     fs::create_dir_all(&args.output)?;
-    let recipe = json!({"schema_version":1,"seed":args.seed,"rooms":args.rooms,"density":args.density,"human_density":args.human_density,"aspect":args.aspect,"baselines":args.baselines,"camera_counts":(1..=args.max_cameras).collect::<Vec<_>>(),"times":(0..TIMES).map(|i|i as f64/32.).collect::<Vec<_>>(),"path_settings":"CameraSettings::default; explicit baseline/count/aspect/graph/optical-center controls", "connected":args.connected, "principal_point_jitter":args.principal_point_jitter,"similar_pose":"RMS synchronized center distance <0.15m and RMS optical-axis angle <5deg","similar_moving_shape":"normalized RMS displacement residual <0.25; static pairs excluded"});
+    let recipe = json!({"schema_version":1,"seed":args.seed,"rooms":args.rooms,"density":args.density,"human_density":args.human_density,"aspect":args.aspect,"baselines":args.baselines,"camera_counts":counts,"times":(0..TIMES).map(|i|i as f64/32.).collect::<Vec<_>>(),"path_settings":settings, "connected":args.connected, "principal_point_jitter":args.principal_point_jitter,"similar_pose":"RMS synchronized center distance <0.15m and RMS optical-axis angle <5deg","similar_moving_shape":"normalized RMS displacement residual <0.25; static pairs excluded"});
     fs::write(
         args.output.join("recipe.json"),
         serde_json::to_vec_pretty(&recipe)?,
@@ -247,7 +331,12 @@ fn main() -> Result<()> {
         "{:x}",
         Sha256::digest(include_bytes!("audit_cameras/wire.rs"))
     );
-    let receipt = json!({"schema_version":1,"camera_pose_schema_version":1,"kind":"cpu_camera_sampler_audit","generator_identity":identity,"provenance":provenance,"executable_sha256":sha(&std::env::current_exe()?)?,"audit_source_sha256":audit_source_sha256,"wire_source_sha256":wire_source_sha256,"recipe":recipe,"completed_rooms":rooms.len(),"room_failures":failures,"requested_groups":args.rooms*args.baselines.len()*args.max_cameras,"completed_groups":groups.len(),"rejected_groups":groups.iter().filter(|g|g.error.is_some()).count(),"wall_seconds":start.elapsed().as_secs_f64(),"artifacts":artifacts});
+    let executable_sha256 = if args.omit_executable_hash {
+        None
+    } else {
+        Some(sha(&std::env::current_exe()?)?)
+    };
+    let receipt = json!({"schema_version":1,"camera_pose_schema_version":1,"kind":"cpu_camera_sampler_audit","generator_identity":identity,"provenance":provenance,"executable_sha256":executable_sha256,"audit_source_sha256":audit_source_sha256,"wire_source_sha256":wire_source_sha256,"recipe":recipe,"completed_rooms":rooms.len(),"room_failures":failures,"requested_groups":args.rooms*args.baselines.len()*args.counts().len(),"completed_groups":groups.len(),"rejected_groups":groups.iter().filter(|g|g.error.is_some()).count(),"wall_seconds":start.elapsed().as_secs_f64(),"artifacts":artifacts});
     fs::write(
         args.output.join("receipt.json"),
         serde_json::to_vec_pretty(&receipt)?,

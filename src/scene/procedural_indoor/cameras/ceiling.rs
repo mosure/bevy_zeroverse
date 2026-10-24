@@ -1,5 +1,6 @@
 //! Ceiling-mounted overview cameras. The mounting geometry is separate
 //! from the calibrated lens, and all rig visibility constraints remain active.
+mod coherent;
 mod overview;
 mod placement;
 mod planner;

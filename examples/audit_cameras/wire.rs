@@ -10,6 +10,8 @@ pub struct Path {
     pub target: [f64; 3],
     pub fov_degrees: f64,
     pub length_m: f64,
+    pub fisheye: Value,
+    pub ceiling_mounted: bool,
 }
 #[derive(Serialize)]
 pub struct Group {
@@ -21,4 +23,7 @@ pub struct Group {
     pub policy: Value,
     pub geometry: Value,
     pub reference_overlap: Value,
+    pub diagnostics: Value,
+    pub mixed_rig_contract: Value,
+    pub elapsed_seconds: f64,
 }

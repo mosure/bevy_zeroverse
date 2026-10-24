@@ -113,6 +113,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   Ceiling-mounted CCTV cameras can mix with room cameras, using downward-facing,
   calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
   trajectories preserve body and swept-path clearance around fixtures.
+  The baseline preset accounts for mounting height and unequal lens coverage;
+  directed co-visibility and physical camera separation remain explicit in exports.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional
   ARDY text/waypoint motion. Cameras and people share a capture timeline; static
   scenes do not initialize motion models. Captures include calibrated pose joints.
