@@ -2,11 +2,41 @@ use super::*;
 impl IndoorManifest {
     pub(super) fn dining_program(&mut self, index: usize, r: &mut ChaCha8Rng) {
         let p = self.assembly_diagnostics.programs[index].clone();
-        let center = (p.min + p.max) * 0.5;
         let communal = p.activity == IndoorLayout::Cafeteria;
         // Service circulation is a first-class relationship. Reserve it before
         // seating; adding it afterward almost always loses to occupied furniture.
         self.serving_queue(index, r);
+        let table_rows = communal
+            && p.parameters.table_rows.cafeteria_rows
+            && self.table_row_program(index, true, r) > 0;
+        if !table_rows {
+            self.dining_clusters(index, communal, r);
+        }
+        let counters: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| {
+                o.kind == ObjectKind::ServiceCounter
+                    && o.position.x >= p.min.x
+                    && o.position.x <= p.max.x
+                    && o.position.z >= p.min.y
+                    && o.position.z <= p.max.y
+            })
+            .cloned()
+            .collect();
+        for counter in counters {
+            let required = if communal {
+                ObjectKind::DrinkDispenser
+            } else {
+                ObjectKind::CoffeeMaker
+            };
+            self.dress_refreshment_counter(&counter, Some(required));
+        }
+    }
+
+    fn dining_clusters(&mut self, index: usize, communal: bool, r: &mut ChaCha8Rng) {
+        let p = self.assembly_diagnostics.programs[index].clone();
+        let center = (p.min + p.max) * 0.5;
         let pitch = r.random_range(2.55..3.15);
         let stagger = r.random_range(-0.45..0.45);
         let setback = r.random_range(3.15..3.65);
@@ -50,26 +80,6 @@ impl IndoorManifest {
                 FRAC_PI_2,
                 r,
             );
-        }
-        let counters: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| {
-                o.kind == ObjectKind::ServiceCounter
-                    && o.position.x >= p.min.x
-                    && o.position.x <= p.max.x
-                    && o.position.z >= p.min.y
-                    && o.position.z <= p.max.y
-            })
-            .cloned()
-            .collect();
-        for counter in counters {
-            let required = if communal {
-                ObjectKind::DrinkDispenser
-            } else {
-                ObjectKind::CoffeeMaker
-            };
-            self.dress_refreshment_counter(&counter, Some(required));
         }
     }
     pub(super) fn dining_table(

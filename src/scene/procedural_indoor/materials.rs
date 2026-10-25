@@ -61,8 +61,8 @@ mod defaults;
 mod mipmaps;
 mod surface;
 mod synthesis;
-pub use bindings::IndoorMaterials;
-pub(crate) use bindings::{finish_slot, registered_finish, MaterialSelection};
+pub(crate) use bindings::{finish_slot, MaterialSelection};
+pub use bindings::{registered_finish, IndoorMaterials};
 use defaults::{definitions, Definition};
 use mipmaps::*;
 pub use surface::Surface;
@@ -93,3 +93,6 @@ mod mipmap_replay_tests;
 #[cfg(test)]
 #[path = "materials/map_replay_tests.rs"]
 mod map_replay_tests;
+
+#[cfg(test)]
+mod content_diversity_tests;

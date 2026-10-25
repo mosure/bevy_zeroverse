@@ -2,7 +2,11 @@
 //! mixture. Geometry, reserved routes, support levels and receipts share one plan.
 mod architecture;
 mod furnishing;
+mod seating;
 mod services;
+mod table_rows;
+pub use seating::LectureSeating;
+pub use table_rows::TableRowSeating;
 mod validation;
 pub use services::MountedUnit;
 #[cfg(test)]
@@ -62,6 +66,10 @@ pub struct ServiceConnection {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProgramParameters {
+    #[serde(default)]
+    pub lecture_seating: LectureSeating,
+    #[serde(default)]
+    pub table_rows: TableRowSeating,
     pub aisle_metres: f32,
     pub row_pitch_metres: f32,
     pub seat_pitch_metres: f32,
@@ -77,6 +85,8 @@ impl ProgramParameters {
     pub fn sample(seed: u64, zone: usize, density: f32) -> Self {
         let mut r = stream(seed, 8230 + zone as u64);
         Self {
+            lecture_seating: LectureSeating::sample(seed, zone),
+            table_rows: TableRowSeating::sample(seed, zone),
             aisle_metres: r.random_range(1.10..1.50),
             row_pitch_metres: r.random_range(1.32..1.65),
             seat_pitch_metres: r.random_range(0.84..1.07),
@@ -88,6 +98,21 @@ impl ProgramParameters {
             service_length_metres: r.random_range(1.7..2.7),
             occupancy: 0.60 + 0.40 * density,
         }
+    }
+
+    pub(super) fn lecture_rows(&self, start: f32, end: f32) -> Vec<[f32; 2]> {
+        if !self.table_rows.lecture_tables {
+            return self.lecture_seating.rows(start, end, self.row_pitch_metres);
+        }
+        // A writing top, a full chair envelope, and a passage behind each row.
+        // The surplus varies continuously; even the shortest tier fits the group.
+        let minimum = self.table_rows.lecture_depth_metres + 1.02 + self.table_rows.aisle_metres;
+        self.lecture_seating.rows_with_clearance(
+            start,
+            end,
+            minimum + self.row_pitch_metres - 1.15,
+            minimum,
+        )
     }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

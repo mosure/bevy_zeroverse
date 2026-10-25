@@ -12,8 +12,8 @@ impl WallComposition {
     ) -> Vec<(ObjectKind, Vec2, Vec3)> {
         let aligned = rng.random_bool(self.aligned_fraction as f64);
         let columns = rng
-            .random_range(1..=5)
-            .min(((width + gap) / (0.32 + gap)).floor() as usize)
+            .random_range(1..=8)
+            .min(((width + gap) / (0.28 + gap)).floor() as usize)
             .max(1);
         let stacked = !aligned && rng.random_bool(self.stacked_fraction as f64);
         let weights: Vec<f32> = (0..columns)
@@ -27,15 +27,15 @@ impl WallComposition {
             })
             .collect();
         let sum = weights.iter().sum::<f32>();
-        let available = width - gap * (columns - 1) as f32 - 0.24 * columns as f32;
+        let available = width - gap * (columns - 1) as f32 - 0.20 * columns as f32;
         let aspect = self.picture_aspect * rng.random_range(-0.40_f32..0.40).exp();
         let slope = rng.random_range(-0.18..0.18) * self.asymmetry;
         let mut panels = Vec::with_capacity(columns * if stacked { 2 } else { 1 });
         let mut left = -width * 0.5;
         for (column, weight) in weights.into_iter().enumerate() {
-            let strip = 0.24 + available * weight / sum;
+            let strip = 0.20 + available * weight / sum;
             let rows = if stacked && (column == 0 || rng.random_bool(0.70)) {
-                2
+                rng.random_range(2..=3)
             } else {
                 1
             };
@@ -47,15 +47,15 @@ impl WallComposition {
                     } else {
                         rng.random_range(0.65..1.0)
                     })
-                .clamp(0.22, 2.5);
+                .clamp(0.18, 3.0);
                 let a = if aligned {
                     aspect
                 } else {
-                    (aspect * rng.random_range(-1.10_f32..1.10).exp()).clamp(0.38, 2.7)
+                    (aspect * rng.random_range(-1.10_f32..1.10).exp()).clamp(0.30, 3.6)
                 };
                 sizes.push(Vec3::new(
                     w,
-                    (w / a).clamp(0.22, if rows == 2 { 0.78 } else { 1.55 }),
+                    (w / a).clamp(0.22, if rows > 1 { 0.82 } else { 1.85 }),
                     rng.random_range(0.024..0.060),
                 ));
             }

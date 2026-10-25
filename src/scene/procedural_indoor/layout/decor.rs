@@ -166,7 +166,7 @@ impl IndoorManifest {
     }
     pub(super) fn wall_decorations(&mut self, rng: &mut ChaCha8Rng) {
         let h = self.room_size.y;
-        let count = rng.random_range(2..=9);
+        let count = rng.random_range(1..=13);
         for _ in 0..count {
             let (tf, span) = self.attachment_wall(rng);
             let mut choice = rng.random_range(0..5);
@@ -186,34 +186,16 @@ impl IndoorManifest {
             let (kind, size) = match choice {
                 0 => (
                     ObjectKind::Display,
-                    Vec3::new(
-                        rng.random_range(0.85..2.1),
-                        rng.random_range(0.55..1.18),
-                        0.07,
-                    ),
+                    super::wall_composition::standalone_size(ObjectKind::Display, rng),
                 ),
                 1 | 2 => (
                     ObjectKind::Whiteboard,
-                    Vec3::new(
-                        rng.random_range(0.7..2.3),
-                        rng.random_range(0.65..1.35),
-                        rng.random_range(0.12..0.18),
-                    ),
+                    super::wall_composition::standalone_size(ObjectKind::Whiteboard, rng),
                 ),
-                3 => {
-                    // Sample area and aspect independently: portraits, square
-                    // works and panoramas at both small and large print sizes.
-                    let scale = rng.random_range(0.38..1.05);
-                    let aspect = rng.random_range(0.42_f32.ln()..2.6_f32.ln()).exp().sqrt();
-                    (
-                        ObjectKind::WallArt,
-                        Vec3::new(
-                            scale * aspect,
-                            scale / aspect,
-                            rng.random_range(0.024..0.060),
-                        ),
-                    )
-                }
+                3 => (
+                    ObjectKind::WallArt,
+                    super::wall_composition::standalone_size(ObjectKind::WallArt, rng),
+                ),
                 _ => (
                     ObjectKind::Clock,
                     Vec3::splat(rng.random_range(0.22..0.43)).with_z(0.045),

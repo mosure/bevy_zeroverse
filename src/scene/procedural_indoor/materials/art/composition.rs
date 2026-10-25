@@ -3,6 +3,7 @@ use super::*;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ArtComposition {
+    pub field: FieldProgram,
     pub regions: super::super::composition::Composition,
     pub palette: [[u8; 3]; 5],
     pub focal: [f32; 2],
@@ -49,31 +50,25 @@ impl ArtComposition {
             .to_srgba();
             [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
         });
-        let count = if rng.random_bool(0.78) {
+        let count = if rng.random_bool(0.64) {
             1
         } else {
-            rng.random_range(2..=4)
+            rng.random_range(2..=7)
         };
-        let margin = rng.random_range(0.0..0.11);
+        let margins: [f32; 4] = std::array::from_fn(|_| rng.random_range(0.0..0.16));
+        let [left, top, right, bottom] = margins;
+        let bounds = [left, top, 1. - left - right, 1. - top - bottom];
         Self {
+            field: FieldProgram::sample(seed),
             regions: if count > 1 && rng.random_bool(0.5) {
-                super::super::composition::Composition::scattered(
-                    seed,
-                    count,
-                    [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
-                )
+                super::super::composition::Composition::clusters(seed, count, bounds)
             } else {
-                super::super::composition::Composition::sample(
-                    seed,
-                    count,
-                    [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
-                    0.55,
-                )
+                super::super::composition::Composition::editorial(seed, count, bounds, 0.55)
             },
             palette,
             focal: [rng.random_range(0.12..0.88), rng.random_range(0.12..0.88)],
             rotation: rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
-            shape_count: rng.random_range(3..=24),
+            shape_count: rng.random_range(3..=42),
             negative_space: rng.random_range(0.04..0.77),
             curvature: rng.random_range(0.02..0.95),
             asymmetry: rng.random_range(-0.35..0.35),
@@ -103,15 +98,20 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
         let [fx, fy] = art.focal;
         let point = |u: f32, v: f32| [x as f32 + u * w as f32, y as f32 + v * h as f32];
         let palette = art.palette;
-        let subject = (p.subject + rng.random_range(0..3)) % 10;
+        let subject = if rng.random_bool(0.8) {
+            p.subject
+        } else {
+            rng.random_range(0..14)
+        };
         canvas.clipped([x, y, w, h], |c| match subject {
+            10..=13 => fields::paint(c, [x, y, w, h], region.seed, art, subject - 10),
             0 => {
                 // Cropped terrain/sea silhouettes with independently sampled control points.
                 c.rect(x, y, w, h, palette[4]);
                 let horizon = p.horizon;
                 for layer in 0..rng.random_range(3..=7) {
                     let mut points = vec![point(-0.05, 1.1)];
-                    let mut level = horizon + layer as f32 * 0.09;
+                    let mut level = horizon + layer as f32 * rng.random_range(0.035..0.14);
                     for i in 0..=14 {
                         level = (level + rng.random_range(-p.relief..p.relief)).clamp(0.12, 0.97);
                         points.push(point(i as f32 / 14., level));
@@ -119,7 +119,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                     points.push(point(1.05, 1.1));
                     c.polygon(&points, palette[1 + layer % 4]);
                 }
-                if rng.random_bool(0.65) {
+                if rng.random_bool(0.4) {
                     let radius = w.min(h) as f32 * rng.random_range(0.025..0.12);
                     c.ellipse(point(p.sun[0], p.sun[1]), [radius; 2], palette[0]);
                 }
@@ -252,38 +252,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                     elevation += rng.random_range(0.025..0.09);
                 }
             }
-            8 => {
-                // Exhibition/event poster: image field, type hierarchy and
-                // negative space are sampled together rather than a fixed title strip.
-                let margin = rng.random_range(0.04..0.15);
-                let split = rng.random_range(0.28..0.70);
-                let image_top = rng.random_bool(0.5);
-                let (iy, ih, ty) = if image_top {
-                    (margin, split - margin, split + margin)
-                } else {
-                    (split, 1. - split - margin, margin)
-                };
-                c.polygon(
-                    &[
-                        point(margin, iy),
-                        point(1. - margin, iy),
-                        point(1. - margin, iy + ih),
-                        point(margin, iy + ih),
-                    ],
-                    palette[2],
-                );
-                c.ellipse(
-                    point(fx.clamp(margin + 0.1, 0.9 - margin), iy + ih * 0.5),
-                    [w as f32 * 0.11, h as f32 * ih * 0.35],
-                    palette[3],
-                );
-                let title =
-                    content::phrase(&mut rng, ((w as f32 * (1. - 2. * margin)) / 8.) as usize);
-                let pos = point(margin, ty);
-                c.text(&title, pos[0] as i32, pos[1] as i32, 2, palette[1]);
-                let subtitle = content::phrase(&mut rng, (w / 5) as usize);
-                c.text(&subtitle, pos[0] as i32, pos[1] as i32 + 18, 1, palette[1]);
-            }
+            8 => poster::paint(c, region.seed, [x, y, w, h], art),
             9 => {
                 // Overlapping paper-cut silhouettes with varied contour vertices.
                 for i in 0..art.shape_count {

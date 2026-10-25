@@ -1,22 +1,110 @@
 //! Composable document primitives. Each panel has an independent data/content seed.
 use super::{
     raster::Canvas,
-    screens::{chart, map, palette, parameters, participants},
+    screens::{base_parameters, chart, map, palette, participants},
 };
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
+mod diagrams;
+pub(super) const KINDS: u32 = 19;
 
-pub(super) const WORDS: [&str; 48] = [
-    "PROJECT", "REVIEW", "DESIGN", "SYSTEM", "NOTES", "MODEL", "STUDY", "DATA", "PLAN", "TEAM",
-    "FIELD", "TIME", "TASK", "IDEA", "SAMPLE", "GROUP", "RESULT", "METHOD", "VALUE", "PHASE",
-    "EVENT", "INPUT", "OUTPUT", "TEST", "PROCESS", "TARGET", "DETAIL", "CHANGE", "REPORT",
-    "BUDGET", "STATUS", "MAP", "ROOM", "LEVEL", "AREA", "ROUTE", "TREND", "RATE", "TOTAL", "INDEX",
-    "ENERGY", "COST", "WEEK", "MONTH", "YEAR", "SERIES", "OPTION", "STAGE",
+pub(super) const WORDS: &[&str] = &[
+    "PROJECT",
+    "REVIEW",
+    "DESIGN",
+    "SYSTEM",
+    "NOTES",
+    "MODEL",
+    "STUDY",
+    "DATA",
+    "PLAN",
+    "TEAM",
+    "FIELD",
+    "TIME",
+    "TASK",
+    "IDEA",
+    "SAMPLE",
+    "GROUP",
+    "RESULT",
+    "METHOD",
+    "VALUE",
+    "PHASE",
+    "EVENT",
+    "INPUT",
+    "OUTPUT",
+    "TEST",
+    "PROCESS",
+    "TARGET",
+    "DETAIL",
+    "CHANGE",
+    "REPORT",
+    "BUDGET",
+    "STATUS",
+    "MAP",
+    "ROOM",
+    "LEVEL",
+    "AREA",
+    "ROUTE",
+    "TREND",
+    "RATE",
+    "TOTAL",
+    "INDEX",
+    "ENERGY",
+    "COST",
+    "WEEK",
+    "MONTH",
+    "YEAR",
+    "SERIES",
+    "OPTION",
+    "STAGE",
+    "STUDIO",
+    "OPEN",
+    "STORIES",
+    "MOTION",
+    "LAND",
+    "LIGHT",
+    "NATURE",
+    "CITY",
+    "MATERIAL",
+    "WORKSHOP",
+    "EXHIBIT",
+    "SPACE",
+    "COMMON",
+    "GARDEN",
+    "FORM",
+    "LINE",
+    "LAYER",
+    "VOLUME",
+    "RESEARCH",
+    "SKETCH",
+    "NOTES",
+    "DRAFT",
+    "NETWORK",
+    "CONTROL",
+    "MEASURE",
+    "OBJECT",
+    "SCHEDULE",
+    "DELIVERY",
+    "VISIT",
+    "COFFEE",
+    "WATER",
+    "LUNCH",
+    "MENU",
+    "DAILY",
+    "STOCK",
+    "QUALITY",
+    "SUMMER",
+    "WINTER",
+    "EVENING",
+    "FUTURE",
+    "HISTORY",
+    "ARCHIVE",
+    "COLLECTION",
 ];
 
 pub(super) fn phrase(rng: &mut impl Rng, letters: usize) -> String {
     let mut text = String::new();
-    while text.len() + 5 < letters {
+    while text.len() + 2 < letters {
         let word = WORDS[rng.random_range(0..WORDS.len())];
         if text.len() + word.len() + 1 > letters {
             break;
@@ -32,34 +120,44 @@ pub(super) fn phrase(rng: &mut impl Rng, letters: usize) -> String {
 pub(super) fn paragraph(c: &mut Canvas, seed: u64, bounds: [i32; 4], color: [u8; 3], density: f32) {
     let mut rng = stream(seed, 9021);
     let [x, y, w, h] = bounds;
-    let spacing = rng.random_range(8..12);
+    let scale = if w > 80 && h > 45 && rng.random_bool(0.23) {
+        2
+    } else {
+        1
+    };
+    let spacing = scale * 5 + rng.random_range(3..9);
     for row in 0..h / spacing {
         if rng.random_bool((0.45 + density * 0.5) as f64) {
-            let length = (w as f32 * rng.random_range(0.4..1.)) as usize / 4;
+            let length = (w as f32 * rng.random_range(0.4..1.)) as usize / (4 * scale) as usize;
             let text = phrase(&mut rng, length);
-            c.text(&text, x, y + row * spacing, 1, color);
+            c.text(&text, x, y + row * spacing, scale, color);
         }
     }
 }
 
 /// All drawing stays within the supplied clip. Bounded counts and no external fonts/media.
 pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark: bool) {
-    let mut p = parameters(seed);
+    let mut p = base_parameters(seed);
     p.dark = dark;
     let colors = palette(&p);
     let mut rng = stream(seed, 9022);
     let [x, y, w, h] = bounds;
     c.clipped(bounds, |c| {
         c.rect(x, y, w, h, colors.panel);
-        let margin = ((w.min(h) as f32 * rng.random_range(0.025..0.09)) as i32).clamp(2, 10);
-        let header = if rng.random_bool(0.65) {
-            rng.random_range(12..23)
+        let margin = ((w.min(h) as f32 * rng.random_range(0.012..0.15)) as i32).clamp(1, 23);
+        let scale = if w > 90 && h > 55 && rng.random_bool(0.35) {
+            2
+        } else {
+            1
+        };
+        let header = if h > 30 && rng.random_bool(0.65) {
+            scale * 5 + rng.random_range(3..18)
         } else {
             0
         };
         if header > 0 {
-            let title = phrase(&mut rng, ((w - 2 * margin) / 4).max(5) as usize);
-            c.text(&title, x + margin, y + margin, 1, colors.ink);
+            let title = phrase(&mut rng, ((w - 2 * margin) / (4 * scale)).max(5) as usize);
+            c.text(&title, x + margin, y + margin, scale, colors.ink);
         }
         let b = [
             x + margin,
@@ -68,7 +166,7 @@ pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark
             (h - 2 * margin - header).max(6),
         ];
         let [x, y, w, h] = b;
-        c.clipped(b, |c| match kind % 13 {
+        c.clipped(b, |c| match kind % KINDS {
             0 => paragraph(c, seed, b, colors.ink, p.density),
             1 => chart(c, seed, &p, b, colors, rng.random_range(0..6)),
             2 => {
@@ -261,6 +359,7 @@ pub(super) fn panel(c: &mut Canvas, seed: u64, bounds: [i32; 4], kind: u32, dark
                     }
                 }
             }
+            13..=18 => diagrams::draw(c, seed, b, kind, colors),
             _ => {
                 // Full-bleed image/photo artwork, with no fixed terrain palette.
                 let image = super::art::illustration(seed);

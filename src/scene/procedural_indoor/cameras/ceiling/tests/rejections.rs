@@ -3,6 +3,48 @@
 use super::*;
 
 #[test]
+fn production_65716664_mixed_baseline() {
+    qualify_training_replay(65716664, 32_768);
+}
+
+#[test]
+fn production_65721965_mixed_baseline() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let seed = 65721965;
+    let policy =
+        CameraSettings::parse(include_str!("mixed_training_camera_settings.json")).unwrap();
+    let mut scene =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let before = scene.clone();
+    // This sparse primary room still exhausts the fixed 34--39 degree peers'
+    // mixed-mount search. A future valid solution is welcome; weakening the
+    // lens assignments, motion, overlap or geometry to force one is not.
+    match scene.resample_cameras_typed(8, policy.clone(), 1.) {
+        Ok(()) => {
+            assert_eq!(scene.cameras.len(), 8);
+            assert_eq!(scene.camera_settings, policy);
+            validate_layout(&scene).unwrap();
+        }
+        Err(CaptureError::Rejected { rejection, .. }) => {
+            eprintln!("BOUNDED {seed}: {}", rejection.reason);
+            assert_eq!(rejection.kind, SceneRejectionKind::CameraPlacement);
+            assert_eq!(rejection.seed, seed);
+            assert_eq!(
+                scene, before,
+                "no partial rig or modified policy may escape"
+            );
+        }
+        Err(error) => panic!("unexpected failure for {seed}: {error}"),
+    }
+    crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+}
+
+#[test]
+fn production_65697418_mixed_baseline() {
+    qualify_training_replay(65697418, 32_768);
+}
+
+#[test]
 fn production_65540002_mixed_baseline() {
     qualify_mixed_training_replay(65_540_002);
 }
@@ -58,9 +100,15 @@ fn production_65566556_mixed_baseline() {
 }
 
 fn qualify_mixed_training_replay(seed: u64) {
+    qualify_training_replay(seed, 8_192);
+}
+
+fn qualify_training_replay(seed: u64, peer_budget: usize) {
     let scene = qualify_mixed_training_seed(seed);
-    // Deterministic work bounds, not wall-clock assertions on shared CI machines.
-    assert!(scene.camera_diagnostics.peer_proposals < 8_192);
+    // Ordinary rigs have 64 anchor attempts; joint mixed rigs use a different
+    // bounded search. Assert their proposal counters rather than wall-clock time
+    // on shared CI machines. Recovery also has a fixed per-view budget.
+    assert!(scene.camera_diagnostics.peer_proposals < peer_budget);
     assert!(scene.camera_diagnostics.reference_proposals < 32_768);
     let mut replay = scene.clone();
     replay
@@ -80,6 +128,18 @@ fn mixed_training_neighbor_cohort() {
         .chain(65_547_424..65_547_456)
         .chain(65_565_200..65_565_232)
         .chain(65_573_944..65_573_976)
+    {
+        qualify_mixed_training_seed(seed);
+    }
+}
+
+#[test]
+#[ignore = "12-room CPU qualification around the October production rejections"]
+fn reported_training_neighbor_cohort() {
+    for seed in (65716662..65716666)
+        .chain(65721963..65721967)
+        .chain(65697416..65697420)
+        .filter(|s| *s != 65721965)
     {
         qualify_mixed_training_seed(seed);
     }

@@ -462,7 +462,14 @@ impl IndoorManifest {
                     // cover the complete paths, including route segments/curves.
                     let rejection = if !self.camera_clear(candidate.start) {
                         Some(0)
-                    } else if !geometry(&tracks, Some(&track)).unwrap().accepts(&policy) {
+                    } else if !super::rig::accepts_geometry(
+                        &policy,
+                        None,
+                        &self.cameras,
+                        &tracks,
+                        Some((&candidate, &track)),
+                        self.cameras.len() + 1 == count,
+                    ) {
                         Some(1)
                     } else if !self.camera_settings.accepts_motion(
                         self.seed,

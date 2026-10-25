@@ -66,18 +66,12 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
     let zone = scene.program.as_ref().unwrap().zones[0].clone();
     let (lo, hi) = usable_region(scene, &zone);
     let p = ProgramParameters::sample(scene.seed, 0, scene.density);
-    let rows = ((hi.y - lo.y - 4.0) / p.row_pitch_metres)
-        .floor()
-        .clamp(2., 7.) as usize;
-    let start = lo.y + 3.0;
+    let rows = p.lecture_rows(lo.y + 3., hi.y - 1.);
     let half_aisle = p.aisle_metres * 0.5;
     let center = (lo.x + hi.x) * 0.5;
     let e = scene.envelope.as_mut().unwrap();
-    for row in 1..rows {
-        let front = start + row as f32 * p.row_pitch_metres;
-        // Use the same arithmetic as the following row's front. Accumulating
-        // pitch introduced one-ULP cracks with ambiguous support ownership.
-        let back = start + (row + 1) as f32 * p.row_pitch_metres;
+    for (row, &[front, back]) in rows.iter().enumerate().skip(1) {
+        // The shared plan reuses each boundary exactly, avoiding one-ULP cracks.
         let height = row as f32 * p.tier_rise_metres;
         for (x0, x1) in [(lo.x, center - half_aisle), (center + half_aisle, hi.x)] {
             e.floor_patches.push(FloorPatch {

@@ -228,7 +228,7 @@ pub fn display_parameters(o: &IndoorObject) -> DisplayProgram {
     // landscape-only aspect silently shrank every portrait display.
     let envelope_aspect = o.size.x / (o.size.y * if wall { 1. } else { 1. - lift_fraction });
     DisplayProgram {
-        aspect: (envelope_aspect * rng.random_range(0.90..1.12)).clamp(0.60, 3.25),
+        aspect: (envelope_aspect * rng.random_range(0.90..1.12)).clamp(0.45, 3.6),
         bezel_m: rng.random_range(0.003..0.032),
         panel_m: rng.random_range(0.009..0.060),
         stand: rng.random_range(0..4),

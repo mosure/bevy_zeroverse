@@ -2,7 +2,10 @@ use super::Category;
 use anyhow::{ensure, Result};
 use bevy_zeroverse::scene::procedural_indoor::{
     layout::{IndoorLayout, IndoorManifest, ObjectKind},
-    materials::{art, boards, glass::GlassRecipe, program, rugs, screens, variants, Surface},
+    materials::{
+        art, boards, glass::GlassRecipe, program, registered_finish, rugs, screens, variants,
+        Surface,
+    },
     objects,
 };
 use serde_json::{json, Value};
@@ -11,16 +14,6 @@ use std::{
     fs,
     path::Path,
 };
-
-// Role-specific food bindings from materials/kitchen.rs intentionally use a
-// separate namespace from the twelve generic object-finish slots.
-fn food_finish(surface: Surface, label: &str, slot: usize) -> bool {
-    label.starts_with("food#finish")
-        && matches!(
-            (surface, slot),
-            (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)
-        )
-}
 
 pub fn recipe(category: &Category, seed: u64) -> program::MaterialRecipe {
     let recipes = program::sample_with_floor(seed, category.floor).unwrap();
@@ -79,10 +72,12 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                 part_count += 1;
                 let slot = label
                     .rsplit_once("#finish")
-                    .map(|(_, s)| s.parse::<usize>())
+                    .map(|(_, s)| s.split('#').next().unwrap().parse::<usize>())
                     .transpose()?;
                 let rug_slot = rugs::key(&label).map(|(slot, _)| slot);
-                let food_slot = slot.filter(|&slot| food_finish(surface, &label, slot));
+                let specialized_slot = slot.filter(|&slot| {
+                    slot >= variants::count(surface) && registered_finish(surface, slot)
+                });
                 if let Some(slot) = rug_slot {
                     ensure!(
                         o.kind == ObjectKind::Rug
@@ -92,24 +87,19 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                     );
                 }
                 ensure!(
-                    slot.is_none_or(|i| i < variants::COUNT) || food_slot.is_some(),
-                    "invalid finish slot {label}"
+                    slot.is_none_or(
+                        |i| i < variants::count(surface) || registered_finish(surface, i)
+                    ),
+                    "invalid finish slot {surface:?}/{label} on {:?}, room {seed}",
+                    o.kind
                 );
                 ensure!(
                     !variants::supports(surface) || slot.is_some() || rug_slot.is_some(),
                     "missing object finish {surface:?}/{label}"
                 );
-                // Books on storage furniture intentionally select independent cover slots.
-                if variants::supports(surface)
-                    && !label.starts_with("books#")
-                    && rug_slot.is_none()
-                    && food_slot.is_none()
-                {
-                    ensure!(
-                        slot == Some(variants::object_slot(surface, o.seed, o.finish_seed)),
-                        "object finish seed not honored"
-                    );
-                }
+                // Nested books, storage boxes and accessory content deliberately
+                // have independent finish streams. Audit the assembled binding,
+                // not an assumed one-finish-per-parent policy.
                 let name = if rug_slot.is_some() {
                     "Rug".into()
                 } else if surface == Surface::Floor {
@@ -118,12 +108,12 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                     format!("{surface:?}")
                 };
                 let row = usage.entry(format!("{:?}", o.kind)).or_default().entry(name.clone())
-                    .or_insert_with(|| json!({"parts":0,"objects":0,"slots":vec![0u64;variants::COUNT],"special_slots":{},"base_parts":0}));
+                    .or_insert_with(|| json!({"parts":0,"objects":0,"slots":vec![0u64;variants::count(surface)],"special_slots":{},"base_parts":0}));
                 row["parts"] = json!(row["parts"].as_u64().unwrap() + 1);
                 if object_surfaces.insert(name) {
                     row["objects"] = json!(row["objects"].as_u64().unwrap() + 1);
                 }
-                if let Some(slot) = food_slot {
+                if let Some(slot) = specialized_slot {
                     let key = slot.to_string();
                     let count = row["special_slots"][&key].as_u64().unwrap_or(0);
                     row["special_slots"][&key] = json!(count + 1);
@@ -147,7 +137,7 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
             ensure!(r == recipe(c, seed), "recipe replay failed");
         }
         rows.push(json!({"name":c.name,"surface":c.surface,"floor_style":c.floor,
-            "structure_count":if c.name == "Rug" { rugs::COUNT } else { variants::structure_count(c.surface) },"finish_slots":if c.name == "Rug" { rugs::COUNT } else if variants::supports(c.surface){variants::COUNT}else{1},
+            "structure_count":if c.name == "Rug" { rugs::COUNT } else { variants::structure_count(c.surface) },"finish_slots":if c.name == "Rug" { rugs::COUNT } else if variants::supports(c.surface){variants::count(c.surface)}else{1},
             "samples":records}));
     }
     fs::write(

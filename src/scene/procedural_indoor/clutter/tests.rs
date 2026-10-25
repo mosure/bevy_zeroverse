@@ -53,9 +53,14 @@ fn tabletop_meshes_fit_support_envelopes_and_keep_semantics() {
 #[test]
 fn new_props_are_sampled_on_valid_supports_across_room_programs() {
     let mut observed = BTreeSet::new();
-    for seed in 0..64 {
-        let scene =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.85, 0, 0.).unwrap();
+    // Mixed includes many programs without meeting tables. Explicit conference
+    // strata exercise rarer task-conditioned props (e.g. table microphones)
+    // without making catalogue coverage depend on 64 mixed-profile draws.
+    for (layout, seed) in [IndoorLayout::Mixed, IndoorLayout::Conference]
+        .into_iter()
+        .flat_map(|layout| (0..64).map(move |seed| (layout, seed)))
+    {
+        let scene = IndoorManifest::generate_with_humans(seed, layout, 0.85, 0, 0.).unwrap();
         validation::validate_layout(&scene).unwrap();
         for o in &scene.objects {
             if matches!(
@@ -74,7 +79,11 @@ fn new_props_are_sampled_on_valid_supports_across_room_programs() {
             }
         }
     }
-    assert_eq!(observed.len(), 6);
+    assert_eq!(
+        observed.len(),
+        6,
+        "sampled tabletop categories: {observed:?}"
+    );
 }
 
 #[test]

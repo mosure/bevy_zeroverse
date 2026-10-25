@@ -25,6 +25,40 @@ fn camera(position: Vec3, mounted: bool) -> IndoorCamera {
 }
 
 #[test]
+fn partial_group_spread_can_improve_without_weakening_pair_constraints() {
+    let policy = MultiViewSettings::from_baseline(0.5).unwrap();
+    let cameras = [0., 2., 4.].map(|x| camera(Vec3::new(x, 1.5, 0.), false));
+    let tracks = cameras.each_ref().map(Track::new);
+    // Collinear prefixes are valid search states, but not completed rigs.
+    assert!(accepts_geometry(
+        &policy, None, &cameras, &tracks, None, false
+    ));
+    assert!(!accepts_geometry(
+        &policy, None, &cameras, &tracks, None, true
+    ));
+    let lateral = camera(Vec3::new(2., 1.5, 3.), false);
+    let track = Track::new(&lateral);
+    assert!(accepts_geometry(
+        &policy,
+        None,
+        &cameras,
+        &tracks,
+        Some((&lateral, &track)),
+        true
+    ));
+    let close = camera(cameras[1].start + Vec3::X * 0.01, false);
+    let track = Track::new(&close);
+    assert!(!accepts_geometry(
+        &policy,
+        None,
+        &cameras,
+        &tracks,
+        Some((&close, &track)),
+        false
+    ));
+}
+
+#[test]
 fn reference_content_eligibility_is_restricted_to_the_requested_room() {
     let mut scene =
         IndoorManifest::generate_with_humans(5, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();

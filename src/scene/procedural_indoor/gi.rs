@@ -142,10 +142,23 @@ impl GiPrefetch {
                 scene.world_yaw = super::layout::stream(input.seed, 11).random_range(0.0..TAU);
             }
             let transport = {
+                // Content has a larger namespace than furniture finishes. Use
+                // the same consumed-slot selection as on-demand preparation;
+                // baking the full compatibility palette would waste maps here.
+                let (geometry, _) = super::preparation::SceneGeometry::build(&scene).await;
+                let selection = geometry.material_selection(&scene);
                 let mut images = Assets::default();
                 let mut materials = Assets::default();
-                let set = IndoorMaterials::build(&scene, &mut images, &mut materials);
-                BakeScene::from_manifest(&scene, &set, &materials, &images)
+                let set = IndoorMaterials::build_async_with_selection(
+                    &scene,
+                    super::IndoorQuality::Auto,
+                    &mut images,
+                    &mut materials,
+                    Some(&selection),
+                    false,
+                )
+                .await;
+                BakeScene::from_geometry(&scene, &set, &materials, &images, &[], &geometry)
             };
             Ok(transport.bake(input.settings, input.seed))
         });

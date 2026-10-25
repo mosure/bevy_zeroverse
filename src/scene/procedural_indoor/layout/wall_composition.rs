@@ -3,7 +3,9 @@
 use super::super::architecture::facade::FacadeSide;
 use super::*;
 mod art;
+mod presentation;
 pub(crate) use art::{mounted_art_walls, ArtWallStats};
+pub(super) use presentation::standalone_size;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct WallComposition {
@@ -43,9 +45,9 @@ impl WallComposition {
         let sum = weights.iter().sum::<f32>();
         Self {
             weights: weights.map(|w| w / sum),
-            coverage: rng.random_range(0.20..0.72),
-            picture_aspect: rng.random_range(0.50_f32.ln()..2.1_f32.ln()).exp(),
-            spacing_m: rng.random_range(0.065..0.24),
+            coverage: rng.random_range(0.16..0.88),
+            picture_aspect: rng.random_range(0.35_f32.ln()..3.2_f32.ln()).exp(),
+            spacing_m: rng.random_range(0.055..0.32),
             eye_height_m: rng.random_range(1.35..1.85),
             asymmetry: rng.random_range(0.15..1.0),
             size_variation: rng.random_range(0.40..1.20),
@@ -75,7 +77,7 @@ impl WallComposition {
         rng: &mut ChaCha8Rng,
     ) -> Vec<(ObjectKind, Vec2, Vec3)> {
         let width = (span * self.coverage * rng.random_range(0.65..1.25))
-            .clamp(0.80, 4.6)
+            .clamp(0.80, 5.8)
             .min(span - 0.24);
         if width < 0.65 {
             return Vec::new();
@@ -85,27 +87,28 @@ impl WallComposition {
         if family == 0 {
             return self.art_panels(width, gap, rng);
         } else {
-            let aspect = rng.random_range(1.55..1.90);
-            let screen_width = if family == 2 {
-                width * 0.60
-            } else {
-                width.min(2.5)
-            };
-            let height = (screen_width / aspect).clamp(0.50, 1.40);
-            let x = if family == 2 {
-                -(width - screen_width) * 0.5
-            } else {
-                0.
-            };
             let kind = if rng.random_bool(0.58) {
                 ObjectKind::Whiteboard
             } else {
                 ObjectKind::Display
             };
+            let aspect = presentation::aspect(kind, rng);
+            let screen_width = if family == 2 {
+                width * rng.random_range(0.42..0.82)
+            } else {
+                width * rng.random_range(0.65..1.0)
+            };
+            let screen_width = screen_width.min(aspect * rng.random_range(1.20..1.90));
+            let height = screen_width / aspect;
+            let x = if family == 2 {
+                -(width - screen_width) * 0.5
+            } else {
+                0.
+            };
             panels.push((
                 kind,
                 Vec2::new(x, -height * 0.5),
-                Vec3::new(screen_width, height, 0.07),
+                Vec3::new(screen_width, height, rng.random_range(0.045..0.115)),
             ));
             if family == 2 {
                 let side_width = width - screen_width - gap;
@@ -114,11 +117,13 @@ impl WallComposition {
                     // both small works to the screen height made them clones.
                     let stack_height = (height * rng.random_range(0.85..1.35)).clamp(0.65, 1.70);
                     let side_gap = gap.min(stack_height * 0.20);
-                    let split = rng.random_range(0.25..0.75);
-                    let heights = [
-                        (stack_height - side_gap) * split,
-                        (stack_height - side_gap) * (1. - split),
-                    ];
+                    let count = rng.random_range(1..=3);
+                    let weights: Vec<f32> =
+                        (0..count).map(|_| rng.random_range(0.4..1.6)).collect();
+                    let sum = weights.iter().sum::<f32>();
+                    let heights = weights
+                        .into_iter()
+                        .map(|v| v / sum * (stack_height - side_gap * (count - 1) as f32));
                     let mut y = -stack_height * 0.5 + rng.random_range(-0.20..0.20);
                     for side_height in heights {
                         let pane_width =
@@ -145,7 +150,7 @@ impl IndoorManifest {
     pub(super) fn compose_wall_groups(&mut self) {
         let program = WallComposition::sample(self);
         let mut rng = stream(self.seed, 5811);
-        let groups = (rng.random_range(1.0..3.8) * (0.45 + self.density)).round() as usize;
+        let groups = (rng.random_range(0.5..5.5) * (0.40 + self.density)).round() as usize;
         let walls: Vec<_> = if let Some(e) = &self.envelope {
             e.walls
                 .iter()

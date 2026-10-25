@@ -1,12 +1,17 @@
 //! Asset-free marker compositions with independent occupied/erased regions.
 mod composition;
 mod handwriting;
+mod sketches;
 use super::{raster::Canvas, *};
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoardProgram {
+    pub letter_height: f32,
+    pub line_spacing: f32,
+    pub heading_scale: f32,
+    pub heading_probability: f32,
     pub regions: super::composition::Composition,
     pub scattered: bool,
     pub inks: [[u8; 3]; 4],
@@ -34,7 +39,7 @@ pub fn parameters(seed: u64) -> BoardProgram {
     let count = if layout.random_bool(0.25) {
         1
     } else {
-        layout.random_range(2..=6)
+        layout.random_range(2..=11)
     };
     let finish = display_finish::DisplayFinish::sample(seed, true);
     let mut arrangement = stream(seed, 0x424f415244535459);
@@ -50,16 +55,20 @@ pub fn parameters(seed: u64) -> BoardProgram {
         [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
     });
     BoardProgram {
+        letter_height: arrangement.random_range(4.0..11.0),
+        line_spacing: arrangement.random_range(1.25..2.2),
+        heading_scale: arrangement.random_range(1.05..2.1),
+        heading_probability: arrangement.random_range(0.15..0.90),
         scattered,
         inks,
         regions: if scattered {
-            super::composition::Composition::scattered(
+            super::composition::Composition::clusters(
                 seed,
                 count,
                 [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
             )
         } else {
-            super::composition::Composition::sample(
+            super::composition::Composition::editorial(
                 seed,
                 count,
                 [margin, margin, 1. - 2. * margin, 1. - 2. * margin],
@@ -67,7 +76,7 @@ pub fn parameters(seed: u64) -> BoardProgram {
             )
         },
         blank: layout.random_bool(0.045),
-        composed: layout.random_bool(0.85),
+        composed: layout.random_bool(0.97),
         roughness: finish.roughness,
         finish,
         layout: rng.random_range(0..10),

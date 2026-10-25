@@ -4,13 +4,16 @@
 //! abstract print has meaningful large-scale structure, while canvas/ink
 //! relief and roughness remain small, non-emissive PBR effects.
 mod composition;
+mod fields;
 mod finish;
+mod poster;
 use super::{
     raster::{Canvas, N},
     *,
 };
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 pub use composition::ArtComposition;
+pub use fields::FieldProgram;
 pub use finish::ArtFinish;
 use rand::Rng;
 
@@ -88,9 +91,9 @@ pub fn parameters(seed: u64) -> ArtProgram {
         composition: ArtComposition::sample(seed),
         canvas: finish.canvas > 0.,
         finish,
-        composed: stream(seed, 0x4152544d4958).random_bool(0.85),
-        subject: rng.random_range(0..10),
-        horizon: rng.random_range(0.28..0.72),
+        composed: stream(seed, 0x4152544d4958).random_bool(0.96),
+        subject: rng.random_range(0..14),
+        horizon: rng.random_range(0.14..0.86),
         relief: rng.random_range(0.045..0.22),
         viewpoint: rng.random_range(0.05..0.95),
         hue: rng.random_range(-0.12..0.13),
@@ -490,15 +493,15 @@ mod tests {
     fn compositions_replay_and_cover_subjects_without_pixel_noise() {
         let mut subjects = std::collections::BTreeSet::new();
         let mut images = std::collections::BTreeSet::new();
-        for seed in 0..64 {
+        for seed in 0..128 {
             subjects.insert(parameters(seed).subject);
             let image = pixels(seed);
             assert_eq!(image.len(), 256 * 256 * 4);
             assert!(image.as_chunks::<4>().0.iter().all(|pixel| pixel[3] == 255));
             images.insert(image);
         }
-        assert_eq!(subjects.len(), 10);
-        assert_eq!(images.len(), 64);
+        assert_eq!(subjects.len(), 14);
+        assert_eq!(images.len(), 128);
         assert_eq!(pixels(299), pixels(299));
     }
     #[test]

@@ -140,6 +140,8 @@ pub(super) fn accepts_geometry(
     }
     geometry(tracks, extra.map(|e| e.1)).is_none_or(|mut g| {
         if !complete {
+            // Adding a view can increase or decrease group covariance spread.
+            // It cannot reject a prefix; pair spacing and relative motion can.
             g.min_horizontal_spread = None;
         }
         g.accepts(policy)

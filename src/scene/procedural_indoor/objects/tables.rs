@@ -9,6 +9,9 @@ mod supports;
 mod tests;
 pub(crate) use clearance::Clearance;
 use structure::{PartSink, StructureSink};
+/// Shared lecture/dining rows need usable work surface across their full bank.
+/// Keep broad catalogue shapes for freestanding tables and desks.
+pub(crate) const SHARED_ROW_VARIANT: u32 = 30;
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TableProgram {
     pub top_thickness: f32,
@@ -64,7 +67,7 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
     } else {
         rng.random_range(2.2..24.0)
     };
-    TableProgram {
+    let mut program = TableProgram {
         top_thickness: rng.random_range(0.026..0.052),
         edge_bevel: rng.random_range(0.003..0.012),
         leg_radius: rng.random_range(0.018..0.036),
@@ -144,7 +147,16 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         bay_width: conference.random_range(0.38..0.62),
         bay_rake: conference.random_range(0.0..0.14),
         bay_style: conference.random_range(0..6),
+    };
+    if o.variant == SHARED_ROW_VARIANT {
+        let mut row = stream(o.seed, 0x524f57544f50);
+        program.outline_exponent = row.random_range(6.0..24.0);
+        program.taper = row.random_range(-0.06..0.06);
+        program.capsule_blend = row.random_range(0.0..0.22);
+        program.polygon_blend = 0.;
+        program.boat_blend = row.random_range(0.0..0.12);
     }
+    program
 }
 
 /// Number of load-bearing stations. Zero uses the compact-table support program.

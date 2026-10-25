@@ -1,12 +1,21 @@
 use super::*;
 mod dining;
 mod exhibition;
+mod lecture;
 mod queue;
+mod table_rows;
 mod teaching;
 mod transit;
 mod variation;
 use super::super::super::objects::public as geometry;
 use std::f32::consts::{FRAC_PI_2, PI};
+
+struct FloorProposal {
+    kind: ObjectKind,
+    position: Vec3,
+    size: Vec3,
+    yaw: f32,
+}
 
 impl IndoorManifest {
     /// Admit functional contents through the ordinary exact support/overlap gate.
@@ -265,6 +274,34 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) -> Option<usize> {
+        self.public_fit_with(
+            index,
+            FloorProposal {
+                kind,
+                position: pos,
+                size,
+                yaw,
+            },
+            rng,
+            |_| true,
+        )
+    }
+
+    /// Prepare paired furniture before clearance, and constrain local recovery
+    /// to its row/support domain. Admission still uses the shared placement gate.
+    fn public_fit_with(
+        &mut self,
+        index: usize,
+        proposal: FloorProposal,
+        rng: &mut ChaCha8Rng,
+        prepare: impl Fn(&mut IndoorObject) -> bool,
+    ) -> Option<usize> {
+        let FloorProposal {
+            kind,
+            position: pos,
+            size,
+            yaw,
+        } = proposal;
         // Deterministic local alternatives, all subject to the same floor/portal,
         // physical-occupancy and circulation constraints as the rest of the engine.
         let core_passes = if kind == ObjectKind::Elevator { 2 } else { 1 };
@@ -274,6 +311,10 @@ impl IndoorManifest {
                 let p = pos + Vec3::new(delta.x, 0., delta.y);
                 let mut o = self.floor_candidate(kind, p, size, yaw, rng);
                 o.finish_seed = Some(self.seed.wrapping_add(index as u64));
+                if !prepare(&mut o) {
+                    self.assembly_diagnostics.programs[index].rejected_candidates += 1;
+                    continue;
+                }
                 if kind == ObjectKind::Elevator {
                     o.variant = 20;
                     // A low soffit may prevent the full-height shaft, but the

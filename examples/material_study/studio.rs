@@ -351,9 +351,60 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
                 rug.finish_seed = Some(seed);
                 scene.objects.push(rug);
             }
-            let palette = IndoorMaterials::build(&scene, &mut images, &mut materials);
+            let labels: Vec<_> = categories
+                .iter()
+                .filter(|c| c.floor == floor_style)
+                .map(|c| {
+                    let label = if c.name == "Rug" {
+                        format!("floormat#rug{}", rugs::slot(seed))
+                    } else {
+                        format!("swatch#finish{}", variants::slot(seed))
+                    };
+                    (c.surface, label)
+                })
+                .collect();
+            let palette = IndoorMaterials::build_for_parts(
+                &scene,
+                &mut images,
+                &mut materials,
+                labels.iter().map(|(s, l)| (*s, l.as_str())),
+            );
             if environment.is_none() {
-                environment = Some(palette.environment.clone());
+                // The palette's environment handles are placeholders until the
+                // room probe bake runs. A studio uses a fixed calibrated cube.
+                use bevy::{
+                    asset::RenderAssetUsages,
+                    render::render_resource::{
+                        Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor,
+                        TextureViewDimension,
+                    },
+                };
+                let bytes: Vec<u8> = [0.35_f32, 0.35, 0.35, 1.]
+                    .into_iter()
+                    .flat_map(|v| half::f16::from_f32(v).to_le_bytes())
+                    .collect();
+                let mut cube = Image::new_fill(
+                    Extent3d {
+                        width: 1,
+                        height: 1,
+                        depth_or_array_layers: 6,
+                    },
+                    TextureDimension::D2,
+                    &bytes,
+                    TextureFormat::Rgba16Float,
+                    RenderAssetUsages::default(),
+                );
+                cube.texture_view_descriptor = Some(TextureViewDescriptor {
+                    dimension: Some(TextureViewDimension::Cube),
+                    ..default()
+                });
+                let cube = images.add(cube);
+                environment = Some(EnvironmentMapLight {
+                    diffuse_map: cube.clone(),
+                    specular_map: cube,
+                    intensity: 1.,
+                    ..default()
+                });
             }
             for c in categories.iter().filter(|c| c.floor == floor_style) {
                 let label = if c.name == "Rug" {
@@ -475,7 +526,7 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
         "build_provenance":bevy_zeroverse::provenance::capture_provenance(),"tool_sources":super::tool_sources(),
         "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),
         "selected_seeds":SEEDS,"image_size":[RESOLUTION,RESOLUTION],
-        "map_baker":"production CPU reference maps; native Bevy PBR rendering", "rig":"fixed 1400/250 lux directional lights, shadows, seed-0 procedural reflection environment, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
+        "map_baker":"production CPU reference maps; native Bevy PBR rendering", "rig":"fixed 1400/250 lux directional lights, shadows, neutral 0.35 cd/m2 reflection cube, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
         "records":records}))?,
     )?;
     galleries(output, categories)?;

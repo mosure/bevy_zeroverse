@@ -21,6 +21,84 @@ pub struct Composition {
     pub regions: Vec<Region>,
 }
 impl Composition {
+    /// Responsive document/print partitions. Independent edge margins, broad
+    /// split ratios and heterogeneous gutters avoid a small catalogue of grids.
+    /// The requested count is bounded by readable region sizes, not forced.
+    pub fn editorial(seed: u64, count: usize, bounds: [f32; 4], vertical_bias: f32) -> Self {
+        let mut rng = stream(seed, 0x454449544f524941);
+        let gutter = rng.random_range(0.008..0.035);
+        let mut regions = vec![Region {
+            bounds,
+            seed: rng.random(),
+        }];
+        for _ in 1..count.clamp(1, 12) {
+            let candidate = regions
+                .iter()
+                .enumerate()
+                .filter_map(|(i, r)| {
+                    let [_, _, w, h] = r.bounds;
+                    (w > 0.27 || h > 0.23).then(|| (i, w * h * rng.random_range(0.3..1.7)))
+                })
+                .max_by(|a, b| a.1.total_cmp(&b.1));
+            let Some((i, _)) = candidate else { break };
+            let [x, y, w, h] = regions.remove(i).bounds;
+            let vertical =
+                w > 0.27 && (h <= 0.23 || rng.random_bool(vertical_bias.clamp(0., 1.) as f64));
+            let gap = gutter * rng.random_range(0.6..1.4);
+            let length = if vertical { w } else { h };
+            let min = if vertical { 0.11 } else { 0.09 };
+            // A transformed uniform draw makes dominant panes and small side
+            // notes possible without concentrating at clamped boundaries.
+            let a = min + (length - gap - 2. * min) * rng.random_range(0.0..1.0);
+            let pair = if vertical {
+                [[x, y, a, h], [x + a + gap, y, w - a - gap, h]]
+            } else {
+                [[x, y, w, a], [x, y + a + gap, w, h - a - gap]]
+            };
+            regions.extend(pair.map(|bounds| Region {
+                bounds,
+                seed: rng.random(),
+            }));
+        }
+        Self { gutter, regions }
+    }
+
+    /// Irregular, non-overlapping annotation clusters. Counts control the scale
+    /// distribution, so asking for more notes does not just exhaust rejection.
+    pub fn clusters(seed: u64, count: usize, bounds: [f32; 4]) -> Self {
+        let mut rng = stream(seed, 0x434c555354455253);
+        let count = count.clamp(1, 12);
+        let [x, y, w, h] = bounds;
+        let gutter = rng.random_range(0.008..0.03);
+        let mut regions: Vec<Region> = Vec::with_capacity(count);
+        let scale = (count as f32).sqrt().recip();
+        for _ in 0..128 {
+            if regions.len() == count {
+                break;
+            }
+            let rw =
+                (w * scale * rng.random_range(0.52..1.18)).clamp(0.12_f32.min(w * 0.5), w * 0.94);
+            let rh =
+                (h * scale * rng.random_range(0.38..1.05)).clamp(0.10_f32.min(h * 0.5), h * 0.94);
+            let xx = x + rng.random_range(0.0..w - rw);
+            let yy = y + rng.random_range(0.0..h - rh);
+            if regions.iter().any(|r| {
+                let [a, b, c, d] = r.bounds;
+                xx < a + c + gutter
+                    && xx + rw + gutter > a
+                    && yy < b + d + gutter
+                    && yy + rh + gutter > b
+            }) {
+                continue;
+            }
+            regions.push(Region {
+                bounds: [xx, yy, rw, rh],
+                seed: rng.random(),
+            });
+        }
+        Self { gutter, regions }
+    }
+
     /// Free placements for pinups, handwritten clusters and collage subjects.
     /// A bounded rejection budget preserves empty space without grid anchors.
     pub fn scattered(seed: u64, count: usize, bounds: [f32; 4]) -> Self {

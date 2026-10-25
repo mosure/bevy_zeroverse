@@ -44,14 +44,35 @@ pub(super) fn text(
     let mut x = at[0];
     let mut drift = 0.0_f32;
     for letter in text.bytes() {
-        if !letter.is_ascii_alphabetic() {
-            x += scale * 3.;
-            continue;
-        }
+        let glyph = match letter {
+            b'A'..=b'Z' => GLYPHS[(letter - b'A') as usize],
+            b'a'..=b'z' => GLYPHS[(letter - b'a') as usize],
+            b'0' => "204044462606040020",
+            b'1' => "02202026 0646",
+            b'2' => "00204042240646",
+            b'3' => "0020404424462606 2444",
+            b'4' => "400434 4046",
+            b'5' => "4000042444462606",
+            b'6' => "402000062646442404",
+            b'7' => "00402026",
+            b'8' => "2000022440422000 240426464424",
+            b'9' => "442404002040462606",
+            b'+' => "0444 2026",
+            b'-' => "0444",
+            b'=' => "0242 0545",
+            b'^' => "042042",
+            b'/' => "4006",
+            b'(' => "4020042046",
+            b')' => "0020442006",
+            _ => {
+                x += scale * 3.;
+                continue;
+            }
+        };
         drift = (drift + rng.random_range(-0.16..0.16)).clamp(-0.6, 0.6);
         let stretch = rng.random_range(0.85..1.12);
         let opacity = rng.random_range(0.76..1.);
-        for path in GLYPHS[(letter.to_ascii_uppercase() - b'A') as usize].split(' ') {
+        for path in glyph.split(' ') {
             let points: Vec<_> = path
                 .as_bytes()
                 .as_chunks::<2>()

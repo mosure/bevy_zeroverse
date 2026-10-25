@@ -1,4 +1,5 @@
 //! Seeded compositional software and media displays; generated once per palette.
+mod chrome;
 mod tv;
 mod workspace;
 use super::{
@@ -6,6 +7,7 @@ use super::{
     *,
 };
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
+pub use chrome::ChromeProgram;
 use rand::Rng;
 
 pub const LAYOUTS: u32 = 12;
@@ -40,42 +42,13 @@ fn device_parameters(seed: u64, kind: DisplayKind) -> ScreenProgram {
     };
     p.luminance = output.random_range(lo.ln()..hi.ln()).exp();
     if !matches!(kind, DisplayKind::Desktop) {
-        p.full_bleed = rng.random_bool(match kind {
-            DisplayKind::Phone => 0.24,
-            _ => 0.48,
+        p.full_bleed = rng.random_bool(if matches!(kind, DisplayKind::Phone) {
+            0.24
+        } else {
+            0.48
         });
     }
-    match kind {
-        DisplayKind::Desktop => {}
-        DisplayKind::Phone => {
-            // Portrait apps stack regions and reserve status/navigation bars.
-            p.chrome = 1;
-            let margin = rng.random_range(0.035..0.075);
-            p.composition = composition::Composition::sample(
-                seed,
-                rng.random_range(1..=4),
-                [margin, 0.10, 1. - 2. * margin, 0.84],
-                0.,
-            );
-        }
-        DisplayKind::Television => {
-            // Presentations/media have no desktop sidebar or taskbar.
-            p.chrome = u32::from(rng.random_bool(0.3));
-            let margin = rng.random_range(0.015..0.065);
-            let top = if p.chrome == 0 { margin } else { 0.11 };
-            let count = if rng.random_bool(0.35) {
-                1
-            } else {
-                rng.random_range(2..=4)
-            };
-            p.composition = composition::Composition::sample(
-                seed,
-                count,
-                [margin, top, 1. - 2. * margin, 1. - top - margin],
-                0.63,
-            );
-        }
-    }
+    chrome::arrange(seed, kind, &mut p);
     p
 }
 #[derive(Clone, Debug, serde::Serialize)]
@@ -85,6 +58,7 @@ pub struct ScreenProgram {
     pub composed: bool,
     pub full_bleed: bool,
     pub chrome: u32,
+    pub chrome_geometry: ChromeProgram,
     pub finish: display_finish::DisplayFinish,
     pub layout: u32,
     pub minutes: u32,
@@ -111,22 +85,10 @@ pub struct ScreenProgram {
 pub fn parameters(seed: u64) -> ScreenProgram {
     device_parameters(seed, DisplayKind::Desktop)
 }
-fn base_parameters(seed: u64) -> ScreenProgram {
+pub(super) fn base_parameters(seed: u64) -> ScreenProgram {
     let mut rng = stream(seed, 861);
     let mut layout = stream(seed, 0x444953504c4159);
     let chrome = layout.random_range(0..4);
-    let margin = layout.random_range(0.02..0.055);
-    let top = if chrome == 0 {
-        margin
-    } else {
-        layout.random_range(0.09..0.17)
-    };
-    let left = if chrome == 2 {
-        layout.random_range(0.14..0.28)
-    } else {
-        margin
-    };
-    let count = layout.random_range(1..=6);
     let mut palette = stream(seed, 0x50414c45545445);
     let mut output = stream(seed, 0x53435245454e4c54);
     let white_kelvin = if output.random_bool(0.25) {
@@ -135,15 +97,14 @@ fn base_parameters(seed: u64) -> ScreenProgram {
         output.random_range(5600.0..9000.0)
     };
     ScreenProgram {
-        composition: composition::Composition::sample(
-            seed,
-            count,
-            [left, top, 1. - left - margin, 1. - top - margin],
-            layout.random_range(0.25..0.75),
-        ),
-        composed: layout.random_bool(0.82),
+        composition: composition::Composition {
+            gutter: 0.,
+            regions: Vec::new(),
+        },
+        composed: layout.random_bool(0.96),
         full_bleed: stream(seed, 0x46554c4c424c4545).random_bool(0.12),
         chrome,
+        chrome_geometry: ChromeProgram::sample(seed),
         finish: display_finish::DisplayFinish::sample(seed, false),
         layout: rng.random_range(0..LAYOUTS),
         minutes: rng.random_range(0..1440),
@@ -314,13 +275,21 @@ pub(super) fn palette(p: &ScreenProgram) -> Palette {
     }
 }
 fn dormant_canvas(seed: u64) -> Canvas {
+    // An unlit panel retains a dark, low-frequency coating tint. It is still
+    // dormant (no emissive map); don't invent active content just to be unique.
+    let mut rng = stream(seed, 0x434f4154494e47);
+    let tint: [f32; 3] = std::array::from_fn(|_| rng.random_range(2.0..7.));
+    let angle: f32 = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
+    let center = rng.random_range(-0.35..0.35);
+    let width = rng.random_range(0.25..0.85);
+    let strength = rng.random_range(1.0..7.);
+    let (sn, cs) = angle.sin_cos();
     let mut c = Canvas::new([4, 5, 7]);
-    // Weak broad ambient reflection on unlit coated glass, not visible emission.
     for y in 0..N {
         for x in 0..N {
-            let f = ((x as f32 * 0.65 + y as f32 * 0.35) / 256. - 0.5).abs();
-            let shade = (6. + (0.5 - f) * 10. + (seed % 7) as f32 * 0.4) as u8;
-            c.rect(x, y, 1, 1, [shade, shade + 1, shade + 3]);
+            let d = ((x as f32 / 256. - 0.5) * cs + (y as f32 / 256. - 0.5) * sn - center) / width;
+            let sheen = strength * (1. - d * d).max(0.).powi(2);
+            c.rect(x, y, 1, 1, tint.map(|t| (t + sheen) as u8));
         }
     }
     c

@@ -717,7 +717,14 @@ pub(super) fn complete(
                     let track = Track::new(&camera);
                     let rejection = if !scene.camera_clear(camera.start) {
                         Some(0)
-                    } else if !geometry(&tracks, Some(&track)).unwrap().accepts(policy) {
+                    } else if !super::super::rig::accepts_geometry(
+                        policy,
+                        None,
+                        &scene.cameras,
+                        &tracks,
+                        Some((&camera, &track)),
+                        scene.cameras.len() + 1 == count,
+                    ) {
                         Some(1)
                     } else if !scene.camera_settings.accepts_motion(
                         scene.seed,

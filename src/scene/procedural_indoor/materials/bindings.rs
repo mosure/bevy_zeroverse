@@ -59,6 +59,41 @@ impl MaterialSelection {
 }
 
 impl IndoorMaterials {
+    /// Build just the material programs referenced by `(surface, part label)`.
+    /// Useful for object/material studies. Whole-scene generation already uses
+    /// the equivalent selection from its prepared geometry, including people.
+    /// Handles for unused base surfaces remain addressable but have no maps.
+    pub fn build_for_parts<'a>(
+        scene: &IndoorManifest,
+        images: &mut impl super::super::preparation::AssetStore<Image>,
+        materials: &mut impl super::super::preparation::AssetStore<StandardMaterial>,
+        parts: impl IntoIterator<Item = (Surface, &'a str)>,
+    ) -> Self {
+        let mut selection = MaterialSelection {
+            surfaces: Default::default(),
+            finishes: Default::default(),
+            direct_surfaces: Default::default(),
+        };
+        for (surface, label) in parts {
+            selection.surfaces.insert(surface);
+            if let Some(slot) =
+                finish_slot(surface, label).filter(|&slot| registered_finish(surface, slot))
+            {
+                selection.finishes.insert((surface, slot));
+            } else {
+                selection.direct_surfaces.insert(surface);
+            }
+        }
+        Self::build_with_selection(
+            scene,
+            super::super::IndoorQuality::Auto,
+            images,
+            materials,
+            Some(&selection),
+            false,
+        )
+    }
+
     pub fn get(&self, surface: Surface) -> Handle<StandardMaterial> {
         self.handles[surface as usize].clone()
     }
@@ -572,10 +607,11 @@ impl IndoorMaterials {
     }
 }
 
-/// Finish programs which can replace a base binding. Shared with consumed-map
-/// selection so specialized kitchen slots survive preparation and transport.
-pub(crate) fn registered_finish(surface: Surface, slot: usize) -> bool {
-    (variants::supports(surface) && slot < variants::COUNT)
+/// Whether a numbered finish is supported for a surface, including dedicated
+/// kitchen, exterior and safety-sign bindings. This is the same registry used
+/// by consumed-map selection and transport; callers need not duplicate limits.
+pub fn registered_finish(surface: Surface, slot: usize) -> bool {
+    (variants::supports(surface) && slot < variants::count(surface))
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
         || matches!(

@@ -68,7 +68,7 @@ pub(super) fn queue(
     ]
     .into_iter()
     .flat_map(|surface| {
-        (0..COUNT)
+        (0..count(surface))
             .filter(move |&slot| used.is_none_or(|keys| keys.contains(&(surface, slot))))
             .map(move |slot| ((surface, slot), screen_seed(seed, slot)))
     })
@@ -162,7 +162,7 @@ mod tests {
             let used = surfaces
                 .into_iter()
                 .enumerate()
-                .map(|(i, s)| (s, i))
+                .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1][i]))
                 .collect();
             let mut jobs = queue(seed, Some(&used));
             assert_eq!(jobs.len(), surfaces.len());

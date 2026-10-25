@@ -16,6 +16,9 @@ struct Args {
     output: PathBuf,
     #[arg(long, default_value_t = 256)]
     samples: usize,
+    /// Comma-separated diagnostic subset; all categories remain the default.
+    #[arg(long, value_delimiter = ',')]
+    categories: Vec<String>,
 }
 
 fn percentile(mut values: Vec<f64>, p: f64) -> f64 {
@@ -52,6 +55,9 @@ fn main() -> Result<()> {
     let mut reports = Vec::new();
     let mut html = String::from("<!doctype html><meta charset=utf-8><title>Procedural surface audit</title><style>body{background:#171b23;color:#eef0f5;font:16px system-ui;margin:32px;max-width:1400px}img{max-width:100%}a{color:#a5ceff}section{margin:40px 0}p{max-width:85ch}</style><h1>Procedural surface audit</h1><p>Consecutive seeds. Color maps are diagnostic, not PBR renders. Blank and dormant samples remain in every denominator. <a href=report.json>Measurements and parameters</a></p>");
     for category in ["screen", "phone", "television", "whiteboard", "rug", "art"] {
+        if !args.categories.is_empty() && !args.categories.iter().any(|c| c == category) {
+            continue;
+        }
         let mut hashes = BTreeSet::new();
         let mut thumbs = Vec::new();
         let mut structures = Vec::new();
@@ -160,6 +166,7 @@ fn main() -> Result<()> {
         );
     }
     fs::write(args.output.join("index.html"), html)?;
+    ensure!(!reports.is_empty(), "no recognized content categories");
     fs::write(
         args.output.join("report.json"),
         serde_json::to_vec_pretty(&json!({

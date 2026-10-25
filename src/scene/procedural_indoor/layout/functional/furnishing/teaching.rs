@@ -4,6 +4,10 @@ impl IndoorManifest {
         let p = self.assembly_diagnostics.programs[index].clone();
         let center = (p.min + p.max) * 0.5;
         let lecture = p.activity == IndoorLayout::LectureHall;
+        if lecture {
+            self.lecture_program(index, r);
+            return;
+        }
         let tablet_fraction =
             stream(self.seed, 0x5441424c4554 + index as u64).random_range(0.15..0.55);
         let collection = variation::Collection::sample(self.seed, index);

@@ -85,7 +85,10 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   panes, transom counts, sash sections, seals and projecting sill materials.
 - **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
   classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
-  seating and circulation areas have placement and clearance constraints. Doors
+  seating and circulation areas have placement and clearance constraints. Lecture
+  halls mix chair-only seating with tiered shared desks; cafeterias mix small
+  dining groups with tables seating multiple people on both sides. Row spacing,
+  seat position, rotation and vacancies vary while preserving clear passages. Doors
   and cabinetry vary their mechanisms, hardware, materials and opening states.
 - **Procedural furnishings and appearance:** 106 item kinds, multipart furniture,
   task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
@@ -105,6 +108,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   collision-checked gravity curves, including floor contact. Daylight-aware
   exposure and native soft sun shadows retain surface detail in bright rooms.
   Supported PBR recipes bake once on the GPU by default, with CPU fallback.
+  Screens, whiteboards and artwork sample content independently of shared furniture
+  finishes, with varied composition, typography, color, physical aspect and placement.
   Finite, separately labelled sky geometry closes window views without changing
   primary-room reconstruction bounds. RGB exposure is adjustable in Scene Studio.
 - **Calibrated multi-view cameras:** configurable perspective intrinsics, including

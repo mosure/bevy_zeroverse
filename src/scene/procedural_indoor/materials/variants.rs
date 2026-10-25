@@ -7,6 +7,26 @@ use std::collections::BTreeMap;
 pub(super) mod content;
 
 pub const COUNT: usize = 12;
+/// Documents are independent of coordinated furniture finishes. Only slots
+/// consumed by scene geometry are synthesized in the generation hot path.
+pub const CONTENT_COUNT: usize = 120;
+pub fn is_content(surface: Surface) -> bool {
+    matches!(
+        surface,
+        Surface::Screen
+            | Surface::PhoneScreen
+            | Surface::Television
+            | Surface::Whiteboard
+            | Surface::Art
+    )
+}
+pub fn count(surface: Surface) -> usize {
+    if is_content(surface) {
+        CONTENT_COUNT
+    } else {
+        COUNT
+    }
+}
 pub const SURFACES: [Surface; 19] = [
     Surface::Ceramic,
     Surface::Metal,
@@ -54,22 +74,15 @@ pub fn slot(seed: u64) -> usize {
     rng.random_range(0..COUNT)
 }
 /// Matching chassis/desk finishes do not imply matching displayed documents.
-/// Content stays bounded by the same slots but uses an independent object stream.
+/// Content has its own bounded capacity and an independent object stream.
 pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>) -> usize {
     let finish = finish_seed.unwrap_or(object_seed);
-    if matches!(
-        surface,
-        Surface::Screen
-            | Surface::PhoneScreen
-            | Surface::Television
-            | Surface::Whiteboard
-            | Surface::Art
-    ) {
+    if is_content(surface) {
         stream(
             object_seed ^ finish.rotate_left(17),
             0x434f4e54454e54 + surface as u64,
         )
-        .random_range(0..COUNT)
+        .random_range(0..CONTENT_COUNT)
     } else {
         slot(finish)
     }
@@ -96,11 +109,18 @@ pub(super) async fn build(
     let structures = structures(scene, images, used, gpu, requests, cooperative).await;
     let mut result = BTreeMap::new();
     for surface in SURFACES {
-        for index in 0..COUNT {
+        for index in 0..count(surface) {
             if used.is_some_and(|keys| !keys.contains(&(surface, index))) {
                 continue;
             }
-            let mut rng = stream(seed, 1100 + surface as u64 * COUNT as u64 + index as u64);
+            let mut rng = stream(
+                seed,
+                if is_content(surface) {
+                    0x434f4e54494e54 + surface as u64 * CONTENT_COUNT as u64 + index as u64
+                } else {
+                    1100 + surface as u64 * COUNT as u64 + index as u64
+                },
+            );
             let mut mat = materials.get(&base[surface as usize]).unwrap().clone();
             if let Some((recipe, maps)) =
                 structures.get(&(surface, index % structure_count(surface)))
@@ -263,10 +283,10 @@ mod tests {
             Surface::Whiteboard,
             Surface::Art,
         ] {
-            let slots: std::collections::BTreeSet<_> = (0..128)
+            let slots: std::collections::BTreeSet<_> = (0..4096)
                 .map(|seed| object_slot(surface, seed, Some(3)))
                 .collect();
-            assert_eq!(slots.len(), COUNT);
+            assert_eq!(slots.len(), CONTENT_COUNT);
             for seed in 0..128 {
                 assert_eq!(
                     object_slot(surface, seed, Some(3)),
