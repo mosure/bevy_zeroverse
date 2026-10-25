@@ -117,6 +117,7 @@ pub fn metadata(
             "split_bucket_10000":crate::scene::procedural_indoor::layout::stream(scene.seed,347).random_range(0u32..10000),
             "rule":"group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits"},
         "requested_pairs":scene.camera_pair_targets(),
+        "camera_coherence_policy":scene.camera_coherence_policy(),
         "placement_estimate":(views.iter().any(|v| !v.co_visibility.is_empty()) || scene.camera_settings.overlap_mixture.is_some()).then(|| scene.camera_overlap()),
         "placement_denominator":"all 13x9 source proxy rays, including misses; at five normalized trajectory parameters; not measured for RGB-only captures without overlap_mixture",
         "rendered_overlap":rendered_overlap(views,cameras,aabb),

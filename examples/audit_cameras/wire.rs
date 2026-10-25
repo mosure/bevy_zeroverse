@@ -23,7 +23,9 @@ pub struct Group {
     pub policy: Value,
     pub geometry: Value,
     pub reference_overlap: Value,
+    pub all_pair_overlap: Value,
     pub diagnostics: Value,
     pub mixed_rig_contract: Value,
+    pub coherence_policy: Value,
     pub elapsed_seconds: f64,
 }

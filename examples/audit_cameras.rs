@@ -101,6 +101,7 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
                 policy: json!(settings),
                 geometry: Value::Null,
                 reference_overlap: Value::Null,
+                all_pair_overlap: Value::Null,
                 diagnostics: if error.is_none() {
                     json!(scene.camera_diagnostics)
                 } else {
@@ -108,6 +109,11 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
                 },
                 mixed_rig_contract: if error.is_none() {
                     json!(scene.mixed_rig_contract())
+                } else {
+                    Value::Null
+                },
+                coherence_policy: if error.is_none() {
+                    json!(scene.camera_coherence_policy())
                 } else {
                     Value::Null
                 },
@@ -131,6 +137,7 @@ fn audit_room(args: &Args, seed: u64) -> Result<(Value, Vec<Group>)> {
                 );
                 group.geometry = json!(scene.camera_group_geometry());
                 group.reference_overlap = json!(scene.camera_overlap());
+                group.all_pair_overlap = json!(scene.camera_pair_overlaps());
                 for camera in &scene.cameras {
                     let mut trajectory = camera.runtime_trajectory();
                     let transforms: Vec<_> = (0..TIMES)

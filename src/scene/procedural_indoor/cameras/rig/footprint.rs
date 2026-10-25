@@ -24,7 +24,11 @@ fn calibration(camera: &IndoorCamera, aspect: f32) -> Option<CameraCalibration> 
         .ok()
 }
 
-pub(super) fn overlap(a: &IndoorCamera, b: &IndoorCamera, aspect: f32) -> Option<f32> {
+pub(in crate::scene::procedural_indoor::cameras) fn overlap(
+    a: &IndoorCamera,
+    b: &IndoorCamera,
+    aspect: f32,
+) -> Option<f32> {
     let (a, b) = (calibration(a, aspect)?, calibration(b, aspect)?);
     // Exact for centered rectilinear sensors. This also resolves footprints
     // smaller than one cell of the visibility proposal grid.

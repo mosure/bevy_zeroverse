@@ -245,14 +245,15 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         }
         if object.solid {
             let (lo, hi) = object.bounds();
+            let ceiling = scene.minimum_ceiling_height(lo.xz(), hi.xz());
             if (object.neighbor && lo.y.abs() > 1e-5)
                 || (!object.neighbor && !scene.floor_support_clear(lo, hi))
-                || hi.y > scene.ceiling_height(object.position.xz()) - object.overhead_clearance()
+                || hi.y > ceiling - object.overhead_clearance()
             {
                 placement_rejection.get_or_insert_with(|| {
                     format!(
-                        "seed {}: floor furniture floats, sinks or intersects ceiling fixtures",
-                        scene.seed
+                        "seed {}: floor furniture floats, sinks or intersects ceiling fixtures: {:?} {}, base={:.4}m, top={:.4}m, ceiling={ceiling:.4}m, overhead={:.4}m",
+                        scene.seed, object.kind, object.id, lo.y, hi.y, object.overhead_clearance()
                     )
                 });
             }

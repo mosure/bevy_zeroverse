@@ -22,7 +22,7 @@ struct Candidate {
     score: f32,
 }
 
-pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), String> {
+pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> Result<(), String> {
     scene.camera_settings.validate()?;
     scene.cameras.clear();
     if count == 0 {
@@ -38,6 +38,9 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     let contract = policy
         .and_then(MixedRigContract::new)
         .filter(|_| count > 1 && scene.camera_settings.overlap_mixture.is_none());
+    let coherence = peers
+        .then(|| super::super::coherence::CameraCoherencePolicy::new(&scene.camera_settings, count))
+        .flatten();
     let targets = scene
         .camera_settings
         .overlap_mixture
@@ -91,11 +94,24 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
     // Peer intrinsics are fixed per slot. Caps do not depend on positions;
     // changing the content-conditioned reference invalidates the cache below.
     let mut overlap_floors = vec![vec![None; count]; count];
+    let mut peer_floors = vec![vec![None; count]; count];
     // The baseline program uses informed proposals. Keep failures bounded rather
     // than spending the legacy exact-policy budget on an infeasible mixed rig.
-    let restarts = if contract.is_some() { 8 } else { 32 };
+    let restarts = if peers {
+        2
+    } else if contract.is_some() {
+        8
+    } else {
+        32
+    };
     let mut recovered = false;
     for restart in 0..restarts {
+        if peers
+            && (scene.camera_diagnostics.peer_proposals >= 1536
+                || scene.camera_diagnostics.reference_proposals >= 8192)
+        {
+            break;
+        }
         let mut order: Vec<_> = (0..count).collect();
         // Different constrained slots can block each other. Retry order, never
         // the roles or lens assignments, with an independent deterministic RNG.
@@ -139,6 +155,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             let mut first = None;
             for attempt in 0..384 {
                 if proposals >= 384 * count
+                    || (peers && scene.camera_diagnostics.peer_proposals >= 1536)
                     || (!recovered
                         && contract.is_some()
                         && scene.camera_diagnostics.reference_proposals >= 8192)
@@ -394,6 +411,21 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
                         continue;
                     }
                 }
+                if let Some(coherence) = coherence {
+                    if !(1..stage).all(|parent| {
+                        let floor = *peer_floors[order[parent]][index].get_or_insert_with(|| {
+                            coherence.preferred_floor(
+                                &scene.cameras[parent],
+                                &camera,
+                                scene.camera_aspect_ratio,
+                            )
+                        });
+                        coherence.supports(&coverage, &views[parent], &candidate_views, floor)
+                    }) {
+                        rejected[3] += 1;
+                        continue;
+                    }
+                }
                 let summary = ViewSummary::new(&camera, &candidate_views[0], scene);
                 let score = summary.score(&summaries, count, scene);
                 first.get_or_insert(attempt);
@@ -411,7 +443,8 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize) -> Result<(), Str
             }
             let selected = if pool.is_empty() {
                 if let Some(contract) = contract.filter(|_| {
-                    !recovered
+                    !peers
+                        && !recovered
                         && targets.is_empty()
                         && policy.is_some_and(|p| p.graph == OverlapGraph::Reference)
                 }) {

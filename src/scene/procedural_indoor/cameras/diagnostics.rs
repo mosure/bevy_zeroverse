@@ -18,4 +18,23 @@ pub struct CameraSamplingDiagnostics {
     pub peer_proposals: usize,
     pub peer_rejections: [usize; 6],
     pub endpoint_adjustments: usize,
+    /// A bounded peer-aware placement attempt succeeded without fallback.
+    #[serde(default)]
+    pub peer_search_succeeded: bool,
+    #[serde(default)]
+    pub peer_search_fallbacks: usize,
+    /// Additional discarded work before the ordinary sampler's counters above.
+    #[serde(default)]
+    pub peer_search_discarded_proposals: usize,
+    #[serde(default)]
+    pub peer_search_discarded_reference_proposals: usize,
+    /// Gaze-only refinement of already-valid rigs; never placement retries.
+    #[serde(default)]
+    pub peer_framing_candidates: usize,
+    #[serde(default)]
+    pub peer_framing_updates: usize,
+    #[serde(default)]
+    pub peer_weak_pairs_before: usize,
+    #[serde(default)]
+    pub peer_weak_pairs_after: usize,
 }

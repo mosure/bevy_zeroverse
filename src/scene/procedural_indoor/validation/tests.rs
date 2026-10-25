@@ -5,6 +5,60 @@ use crate::scene::procedural_indoor::{
 };
 
 #[test]
+fn reported_65824532_furniture_clearance() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(65_824_532, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    let policy = super::super::cameras::CameraSettings::parse(include_str!(
+        "../cameras/ceiling/tests/mixed_training_camera_settings.json"
+    ))
+    .unwrap();
+    let started = std::time::Instant::now();
+    scene.resample_cameras(8, policy, 1.).unwrap();
+    eprintln!(
+        "seed {}: eight-view placement in {:.4}s",
+        scene.seed,
+        started.elapsed().as_secs_f64()
+    );
+    validate_layout(&scene).unwrap();
+    let mut replay = scene.clone();
+    replay
+        .resample_cameras(8, scene.camera_settings.clone(), 1.)
+        .unwrap();
+    assert_eq!(replay, scene);
+}
+
+#[test]
+fn reported_65824532_neighbors_and_density_variants_keep_clearance() {
+    let started = std::time::Instant::now();
+    for seed in 65_824_524..65_824_540 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        validate_layout(&scene).unwrap();
+        validate_geometry(&scene).unwrap();
+    }
+    for density in [0.15, 0.65, 1.] {
+        for people in [0., 0.35] {
+            let scene = IndoorManifest::generate_with_humans(
+                65_824_532,
+                IndoorLayout::Mixed,
+                density,
+                0,
+                people,
+            )
+            .unwrap();
+            validate_layout(&scene).unwrap();
+            validate_geometry(&scene).unwrap();
+        }
+    }
+    eprintln!(
+        "22 layout/mesh configurations in {:.4}s (camera placement excluded)",
+        started.elapsed().as_secs_f64()
+    );
+}
+
+#[test]
 fn small_valid_captures_reject_insufficient_pixels_without_panicking() {
     use crate::sample::{AnnotationPrecision, View};
     for [width, height] in [[1, 1], [1, 8], [8, 1], [4, 256], [256, 4]] {
@@ -339,6 +393,47 @@ fn tall_supported_props_must_fit_beneath_the_entire_sloped_roof() {
         assert!(scene.prop_clear(&prop, &support, 0.012));
         prop.size.y = 0.7;
     }
+}
+
+#[test]
+fn supported_props_respect_soffits_between_corners_and_centre() {
+    use crate::scene::procedural_indoor::envelope::FloorPatch;
+    let mut scene =
+        IndoorManifest::generate_with_humans(202, IndoorLayout::Mixed, 0.6, 0, 0.).unwrap();
+    scene.ceiling_installation = None;
+    scene.room_size.y = 4.;
+    let envelope = scene.envelope.as_mut().unwrap();
+    envelope.ceiling_drop = Vec2::ZERO;
+    envelope.soffits = vec![FloorPatch {
+        min: Vec2::new(0.1, -1.),
+        max: Vec2::new(0.15, 1.),
+        height: 2.6,
+    }];
+    let mut support = scene.objects[0].clone();
+    support.id = 0;
+    support.kind = ObjectKind::Cabinet;
+    support.size = Vec3::new(1., 1.8, 1.);
+    support.position = Vec3::ZERO;
+    support.yaw = 0.;
+    support.neighbor = false;
+    support.support = None;
+    scene.objects = vec![support.clone()];
+    let mut prop = support.clone();
+    prop.id = 1;
+    prop.kind = ObjectKind::Plant;
+    prop.support = Some(0);
+    prop.solid = false;
+    prop.position = Vec3::Y * support.size.y;
+    prop.size = Vec3::new(0.6, 0.75, 0.6);
+    assert_eq!(scene.ceiling_height(prop.position.xz()), 4.);
+    for x in [-0.3, 0.3] {
+        for z in [-0.3, 0.3] {
+            assert_eq!(scene.ceiling_height(Vec2::new(x, z)), 4.);
+        }
+    }
+    assert!(!scene.prop_clear(&prop, &support, 0.012));
+    prop.size.y = 0.6;
+    assert!(scene.prop_clear(&prop, &support, 0.012));
 }
 
 #[test]

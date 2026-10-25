@@ -1,6 +1,7 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 mod baseline;
 pub mod ceiling;
+pub mod coherence;
 pub(crate) mod coverage;
 pub mod diagnostics;
 pub mod diversity;

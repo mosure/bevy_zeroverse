@@ -732,15 +732,8 @@ impl IndoorManifest {
         if self.envelope.as_ref().is_some_and(|e| {
             !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), wall_clearance)
                 || !self.floor_support_clear(lo, hi)
-                || [
-                    lo.xz(),
-                    hi.xz(),
-                    Vec2::new(lo.x, hi.z),
-                    Vec2::new(hi.x, lo.z),
-                ]
-                .into_iter()
-                .any(|p| hi.y > e.ceiling_height(self.room_size, p) - object.overhead_clearance())
-        }) {
+        }) || hi.y > self.minimum_ceiling_height(lo.xz(), hi.xz()) - object.overhead_clearance()
+        {
             return false;
         }
         if lo.x < -half.x + wall_clearance
@@ -1007,8 +1000,8 @@ impl IndoorManifest {
             return object.support == Some(support.id)
                 && equipment::cable_route_clear(self, object);
         }
-        // Surface containment alone does not protect a tall prop from a sloped
-        // ceiling. Check the complete transformed box, including its top.
+        // Surface containment alone does not protect a tall prop from sloping
+        // roofs or narrow soffits. Check its complete transformed footprint.
         let (world_lo, world_hi) = object.bounds();
         // Tables can fit below mounted artwork while taller belongings cannot.
         // Check installed attachments as well as peers on this support; use
@@ -1026,21 +1019,7 @@ impl IndoorManifest {
         }) {
             return false;
         }
-        if [
-            world_lo.xz(),
-            world_hi.xz(),
-            Vec2::new(world_lo.x, world_hi.z),
-            Vec2::new(world_hi.x, world_lo.z),
-        ]
-        .into_iter()
-        .any(|p| {
-            world_hi.y
-                > if object.neighbor {
-                    self.room_size.y
-                } else {
-                    self.ceiling_height(p)
-                } - 0.08
-        }) {
+        if world_hi.y > self.minimum_ceiling_height(world_lo.xz(), world_hi.xz()) - 0.08 {
             return false;
         }
         if !object.neighbor

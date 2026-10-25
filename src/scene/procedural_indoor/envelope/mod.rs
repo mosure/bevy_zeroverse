@@ -124,6 +124,20 @@ impl EnvelopeProgram {
                 height.min(patch.height)
             })
     }
+    /// Lowest ceiling over a closed footprint. A soffit can cross the interior
+    /// without containing any corner (or the centre), so point samples alone
+    /// cannot establish furniture clearance. The sloping roof is monotone on
+    /// each axis; its minimum is attained at a corner.
+    pub(crate) fn minimum_ceiling_height(&self, size: Vec3, lo: Vec2, hi: Vec2) -> f32 {
+        let roof = [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
+            .into_iter()
+            .map(|p| self.roof_height(size, p))
+            .fold(f32::INFINITY, f32::min);
+        self.soffits
+            .iter()
+            .filter(|patch| lo.cmple(patch.max).all() && hi.cmpge(patch.min).all())
+            .fold(roof, |height, patch| height.min(patch.height))
+    }
     pub fn roof_height(&self, size: Vec3, p: Vec2) -> f32 {
         let uv = (p / size.xz() + Vec2::splat(0.5)).clamp(Vec2::ZERO, Vec2::ONE);
         size.y
@@ -197,6 +211,11 @@ impl IndoorManifest {
         self.envelope
             .as_ref()
             .map_or(self.room_size.y, |e| e.ceiling_height(self.room_size, p))
+    }
+    pub(crate) fn minimum_ceiling_height(&self, lo: Vec2, hi: Vec2) -> f32 {
+        self.envelope.as_ref().map_or(self.room_size.y, |e| {
+            e.minimum_ceiling_height(self.room_size, lo, hi)
+        })
     }
     pub fn floor_support_clear(&self, lo: Vec3, hi: Vec3) -> bool {
         let base = |lo: Vec3| {

@@ -146,13 +146,25 @@ pub(super) fn pair_samples_cached(
     camera: &IndoorCamera,
     camera_views: &[VisibilityView],
 ) -> Vec<OverlapSample> {
+    let static_pair = [reference, camera]
+        .iter()
+        .all(|c| c.motion.is_none() && c.start == c.end);
+    let mut static_measurement = None;
     CHECK_TIMES
         .into_iter()
         .zip(reference_views)
         .zip(camera_views)
         .map(|((time, a), b)| {
-            let (ab, angle_a) = coverage.shared(a, b);
-            let (ba, angle_b) = coverage.shared(b, a);
+            let measure = || {
+                let (ab, angle_a) = coverage.shared(a, b);
+                let (ba, angle_b) = coverage.shared(b, a);
+                (ab, ba, (angle_a + angle_b) * 0.5)
+            };
+            let (ab, ba, angle) = if static_pair {
+                *static_measurement.get_or_insert_with(measure)
+            } else {
+                measure()
+            };
             OverlapSample {
                 time,
                 reference_to_view: ab,
@@ -161,13 +173,23 @@ pub(super) fn pair_samples_cached(
                     .transform_at(time)
                     .translation
                     .distance(camera.transform_at(time).translation),
-                mean_triangulation_degrees: (angle_a + angle_b) * 0.5,
+                mean_triangulation_degrees: angle,
             }
         })
         .collect()
 }
 
 impl IndoorManifest {
+    /// First-surface proxy overlap for all unordered pairs, with both directed
+    /// fractions at synchronized times. This O(cameras²) audit includes peer
+    /// pairs; rendered co-visibility remains the pixel-level oracle.
+    pub fn camera_pair_overlaps(&self) -> Vec<CameraPairOverlap> {
+        if self.cameras.len() < 2 {
+            return Vec::new();
+        }
+        connected::all_pairs(self)
+    }
+
     /// O(cameras) reference edges, including when the placement policy is off.
     pub fn camera_overlap(&self) -> Vec<CameraPairOverlap> {
         let Some(reference) = self.cameras.first() else {
@@ -208,6 +230,35 @@ impl IndoorManifest {
     }
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
+        if super::coherence::CameraCoherencePolicy::new(&self.camera_settings, count).is_some()
+            && (1..count).any(|i| !self.camera_settings.ceiling_mounted(self.seed, i))
+        {
+            if self.sample_camera_placement_with_peers(count, true).is_ok() {
+                self.camera_diagnostics.peer_search_succeeded = true;
+                return Ok(());
+            }
+            let failed = self.camera_diagnostics.clone();
+            self.sample_camera_placement(count)?;
+            self.camera_diagnostics.peer_search_fallbacks = 1;
+            self.camera_diagnostics.peer_search_discarded_proposals = failed.peer_proposals;
+            self.camera_diagnostics
+                .peer_search_discarded_reference_proposals = failed.reference_proposals;
+        } else {
+            self.sample_camera_placement(count)?;
+        }
+        super::coherence::refine(self);
+        Ok(())
+    }
+
+    pub(super) fn sample_camera_placement(&mut self, count: usize) -> Result<(), String> {
+        self.sample_camera_placement_with_peers(count, false)
+    }
+
+    fn sample_camera_placement_with_peers(
+        &mut self,
+        count: usize,
+        peers: bool,
+    ) -> Result<(), String> {
         self.camera_diagnostics = default();
         if (0..count).any(|i| self.camera_settings.ceiling_mounted(self.seed, i))
             || (count > 1
@@ -219,9 +270,9 @@ impl IndoorManifest {
                     .is_some_and(|p| p.mixed_rig_baseline().is_some())
                 && (0..count).any(|i| self.camera_settings.lens_for(self.seed, i).is_some()))
         {
-            super::ceiling::sample(self, count)?;
+            super::ceiling::sample(self, count, peers)?;
         } else {
-            self.sample_camera_set(count, true, self.seed)?;
+            self.sample_camera_set(count, true, self.seed, peers)?;
         }
         if self.camera_settings.principal_point_jitter != Vec2::ZERO {
             let coverage = Coverage::new(self);
@@ -237,6 +288,7 @@ impl IndoorManifest {
         count: usize,
         allow_overcomplete: bool,
         proposal_seed: u64,
+        peers: bool,
     ) -> Result<(), String> {
         self.camera_settings.validate()?;
         let mut rng = stream(proposal_seed, 3);
@@ -255,7 +307,8 @@ impl IndoorManifest {
                     self.camera_diagnostics.connected_reference_recoveries += 1;
                     self.camera_settings.multiview.as_mut().unwrap().graph =
                         OverlapGraph::Reference;
-                    let result = self.sample_camera_set(count, allow_overcomplete, proposal_seed);
+                    let result =
+                        self.sample_camera_set(count, allow_overcomplete, proposal_seed, false);
                     self.camera_settings.multiview.as_mut().unwrap().graph =
                         OverlapGraph::Connected;
                     result.map_err(|e| format!("{connected_error}; reference recovery: {e}"))
@@ -272,13 +325,22 @@ impl IndoorManifest {
         // Reserve constrained shared-content views before placing negatives.
         // Class assignments and final camera indices remain fixed for this seed.
         let placement_order = super::mixture::placement_order(&targets, count);
+        let coherence = peers
+            .then(|| super::coherence::CameraCoherencePolicy::new(&self.camera_settings, count))
+            .flatten();
         // Retry the whole set if an anchor lies in a cramped cul-de-sac. The
         // budget is bounded and thresholds are never silently relaxed.
         let mut most_placed = 0;
         let mut rejected = [0usize; 6];
         let mut partial_groups = Vec::new();
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
-        for _ in 0..GROUP_ATTEMPTS {
+        for _ in 0..if peers { 2 } else { GROUP_ATTEMPTS } {
+            if peers
+                && (self.camera_diagnostics.peer_proposals >= 1536
+                    || self.camera_diagnostics.reference_proposals >= 8192)
+            {
+                break;
+            }
             self.cameras.clear();
             if self
                 .sample_independent_cameras(1, &mut rng, &coverage)
@@ -321,6 +383,11 @@ impl IndoorManifest {
                 .into_iter()
                 .map(|t| coverage.view(&reference, self.camera_aspect_ratio, t))
                 .collect();
+            let mut peer_views = if peers {
+                vec![views.clone()]
+            } else {
+                Vec::new()
+            };
             let mut summaries = vec![super::program::ViewSummary::new(
                 &reference, &views[0], self,
             )];
@@ -331,6 +398,12 @@ impl IndoorManifest {
                 let mut accepted = 0;
                 let pool = super::program::pool_size(policy.target_variation, count);
                 for attempt in 0..VIEW_ATTEMPTS {
+                    if peers
+                        && (self.camera_diagnostics.peer_proposals >= 1536
+                            || self.camera_diagnostics.reference_proposals >= 8192)
+                    {
+                        break;
+                    }
                     self.camera_diagnostics.peer_proposals += 1;
                     if first_valid.is_some_and(|first| attempt >= first + 12) || accepted >= pool {
                         break;
@@ -503,14 +576,30 @@ impl IndoorManifest {
                     if target.map_or_else(
                         || policy.accepts(&samples),
                         |t| t.accepts(&policy, &samples),
-                    ) {
+                    ) && coherence.is_none_or(|c| {
+                        self.cameras
+                            .iter()
+                            .zip(&peer_views)
+                            .skip(1)
+                            .all(|(peer, views)| {
+                                c.supports(
+                                    &coverage,
+                                    views,
+                                    &candidate_views,
+                                    c.preferred_floor(peer, &candidate, self.camera_aspect_ratio),
+                                )
+                            })
+                    }) {
                         let summary =
                             super::program::ViewSummary::new(&candidate, &candidate_views[0], self);
                         let score = summary.score(&summaries, count, self);
                         accepted += 1;
                         first_valid.get_or_insert(attempt);
-                        if found.as_ref().is_none_or(|(_, _, _, best)| score > *best) {
-                            found = Some((candidate, track, summary, score));
+                        if found
+                            .as_ref()
+                            .is_none_or(|(_, _, _, best, _)| score > *best)
+                        {
+                            found = Some((candidate, track, summary, score, candidate_views));
                         }
                         if pool == 1 || score >= 0.85 {
                             break;
@@ -520,10 +609,13 @@ impl IndoorManifest {
                     rejected[5] += 1;
                     self.camera_diagnostics.peer_rejections[5] += 1;
                 }
-                if let Some((camera, track, summary, _)) = found {
+                if let Some((camera, track, summary, _, views)) = found {
                     self.cameras.push(camera);
                     tracks.push(track);
                     summaries.push(summary);
+                    if peers {
+                        peer_views.push(views);
+                    }
                 } else {
                     break;
                 }
@@ -540,6 +632,9 @@ impl IndoorManifest {
             recovery::retain_diverse(&mut partial_groups, &self.cameras);
             most_placed = most_placed.max(self.cameras.len());
             self.camera_diagnostics.group_restarts += 1;
+        }
+        if peers {
+            return Err("bounded peer-coherent placement exhausted".into());
         }
         let recovered = recovery::complete(
             self,
@@ -568,7 +663,7 @@ impl IndoorManifest {
             && (5..12).contains(&count)
             && policy.target_variation == 0.
         {
-            return self.sample_camera_set(count, false, self.seed.wrapping_add(2));
+            return self.sample_camera_set(count, false, self.seed.wrapping_add(2), false);
         }
         // Greedy packing is not monotonic in camera count. One bounded
         // overcomplete search can expose a feasible set missed by the requested
@@ -579,7 +674,7 @@ impl IndoorManifest {
             && targets.is_empty()
             && (2..12).contains(&count)
             && self
-                .sample_camera_set(count + 1, false, proposal_seed)
+                .sample_camera_set(count + 1, false, proposal_seed, false)
                 .is_ok()
         {
             let complete = self.cameras.clone();

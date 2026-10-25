@@ -282,7 +282,9 @@ impl IndoorManifest {
                             && hi.z > a.z - 0.025
                     });
                 let blocked_door = self.entry_approach_overlaps(lo, hi);
-                if !collision && !blocked_door {
+                let ceiling_clear = hi.y
+                    <= self.minimum_ceiling_height(lo.xz(), hi.xz()) - obj.overhead_clearance();
+                if !collision && !blocked_door && ceiling_clear {
                     self.objects.push(obj);
                     break;
                 }

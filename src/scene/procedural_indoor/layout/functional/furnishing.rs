@@ -323,15 +323,7 @@ impl IndoorManifest {
                 }
                 if kind == ObjectKind::Elevator && pass == 0 {
                     let (lo, hi) = o.bounds();
-                    let roof = [
-                        lo.xz(),
-                        hi.xz(),
-                        Vec2::new(lo.x, hi.z),
-                        Vec2::new(hi.x, lo.z),
-                    ]
-                    .into_iter()
-                    .map(|p| self.ceiling_height(p))
-                    .fold(f32::INFINITY, f32::min);
+                    let roof = self.minimum_ceiling_height(lo.xz(), hi.xz());
                     o.size.y = roof - o.position.y - 0.012;
                     o.variant = 20;
                     if o.size.y < 2.70 {
@@ -344,7 +336,7 @@ impl IndoorManifest {
                     || b.x > program.max.x
                     || a.z < program.min.y
                     || b.z > program.max.y
-                    || b.y > self.ceiling_height(o.position.xz()) - o.overhead_clearance()
+                    || b.y > self.minimum_ceiling_height(a.xz(), b.xz()) - o.overhead_clearance()
                     || !self.placement_clear(&o, 0.035)
                 {
                     self.assembly_diagnostics.programs[index].rejected_candidates += 1;

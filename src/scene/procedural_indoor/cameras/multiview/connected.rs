@@ -9,6 +9,9 @@ pub(super) fn all_pairs(scene: &IndoorManifest) -> Vec<CameraPairOverlap> {
         .cameras
         .iter()
         .map(|c| {
+            if c.motion.is_none() && c.start == c.end {
+                return vec![coverage.view(c, scene.camera_aspect_ratio, 0.); CHECK_TIMES.len()];
+            }
             CHECK_TIMES
                 .into_iter()
                 .map(|t| coverage.view(c, scene.camera_aspect_ratio, t))

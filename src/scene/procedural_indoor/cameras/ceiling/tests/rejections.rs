@@ -3,6 +3,16 @@
 use super::*;
 
 #[test]
+fn production_65783461_mixed_baseline() {
+    qualify_training_replay(65783461, 32_768);
+}
+
+#[test]
+fn production_65783100_mixed_baseline() {
+    qualify_training_replay(65783100, 32_768);
+}
+
+#[test]
 fn production_65716664_mixed_baseline() {
     qualify_training_replay(65716664, 32_768);
 }

@@ -8,7 +8,7 @@ use super::{
 };
 use bevy::prelude::*;
 use serde::Serialize;
-mod footprint;
+pub(super) mod footprint;
 #[cfg(test)]
 mod tests;
 

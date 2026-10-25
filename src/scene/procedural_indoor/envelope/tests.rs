@@ -2,6 +2,33 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, validation};
 
 #[test]
+fn furniture_ceiling_minimum_includes_soffits_between_point_samples() {
+    let scene = IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut envelope = scene.envelope.unwrap();
+    let size = Vec3::new(8., 4., 10.);
+    let lo = Vec2::splat(-1.);
+    let hi = Vec2::ONE;
+    envelope.ceiling_drop = Vec2::ZERO;
+    // Cross the middle; miss both corners and centre; fit wholly inside the
+    // footprint; touch its boundary; miss it; lie above the structural roof.
+    for (min, max, height, expected) in [
+        (Vec2::new(-0.08, -2.), Vec2::new(0.08, 2.), 2.6, 2.6),
+        (Vec2::new(0.3, -2.), Vec2::new(0.5, 2.), 2.6, 2.6),
+        (Vec2::splat(0.1), Vec2::splat(0.2), 2.3, 2.3),
+        (Vec2::new(1., -0.5), Vec2::new(1.2, 0.5), 2.7, 2.7),
+        (Vec2::splat(2.), Vec2::splat(3.), 2.3, 4.),
+        (Vec2::splat(-2.), Vec2::splat(2.), 5., 4.),
+    ] {
+        envelope.soffits = vec![FloorPatch { min, max, height }];
+        assert_eq!(envelope.minimum_ceiling_height(size, lo, hi), expected);
+    }
+    envelope.soffits.clear();
+    envelope.ceiling_drop = Vec2::new(1., -0.5);
+    let minimum = envelope.minimum_ceiling_height(size, Vec2::new(-1., 2.), Vec2::new(2., 3.));
+    assert!((minimum - 3.1).abs() < 1e-6, "{minimum}");
+}
+
+#[test]
 fn thin_polygons_preserve_area_at_different_scales_and_windings() {
     // The former 1e-7/1e-6 predicates disagree on the h=2^-23 rectangle.
     // Include concave slivers, not just a convex fan-triangulation shortcut.

@@ -155,7 +155,55 @@ not fit the actual scene; the sampler never returns a partial rig.
 `IndoorManifest::mixed_rig_contract()` exposes the effective numeric bounds and
 program version. `accepts_camera_geometry()` checks this contract; the existing
 `camera_group_geometry()` still reports physical 3D measurements. The CPU camera
-audit exports both. Single-camera and room-only pinhole rigs retain their existing policy.
+audit exports both. Single-camera rigs retain their existing policy.
+
+### Peer overlap for reconstruction
+
+Sharing geometry with camera zero does not ensure that peers share geometry with
+each other, especially beneath a broad ceiling/fisheye anchor. The baseline preset
+first attempts a **peer-aware rig** using the same lens/mount assignments, spacing,
+trajectory and collision checks, with these additional placement targets across
+five synchronized trajectory times:
+
+| Preferred peer target | Baseline b | b = 0.5 |
+| --- | --- | --- |
+| Minimum in each direction | 0.05 − 0.04 b | 0.03 |
+| Minimum larger directed overlap | 0.10 − 0.08 b | 0.06 |
+
+The directional target is capped by half the calibrated aligned sensor footprint
+(minimum 0.005), allowing useful narrow views within wide sensors. Work is bounded
+by two anchor/order attempts, 1,536 peer proposals and an 8,192 reference-proposal
+checkpoint (at most one inner proposal can cross that checkpoint). A failed
+preferred search falls back to the original sampler with the **unchanged requested
+configuration**, never a partial rig or reduced clearance. The failed attempt's
+work is recorded separately; feasible rooms do not become new rejection cases.
+
+Fallback rigs get bounded gaze refinement: only room-camera look targets can
+change, by at most 60 degrees from their original orientation. Positions, paths,
+calibration, mounting roles and camera zero remain fixed during this refinement.
+It reduces the worst-time deficit against stronger soft targets of
+`0.10 - 0.06*b` in each direction and `0.40 - 0.30*b` in the larger direction.
+No previously supported peer pair may lose support or become essentially
+disjoint. Original reference visibility, rich content, required human visibility
+and swept camera clearance are rechecked. Independent aims and sampled visible
+surfaces avoid making every optical axis intersect one room-centre point.
+
+Refinement considers at most `min(12 * camera_count, 144)` framings. Midpoint
+bounds prune impossible improvements before full trajectory evaluation. First-hit
+rays and lens targets are cached. Single/two-view, all-mounted, explicit handheld,
+custom policy, Connected-graph and explicit overlap-mixture requests retain their
+existing placement contracts. Sampling diagnostics distinguish preferred-search
+success, fallback/discarded work and framing candidates/updates. Weak pair counts
+in those diagnostics are populated only when fallback framing is evaluated.
+
+`IndoorManifest::camera_coherence_policy()` exports versioned targets and work
+limits. `camera_pair_overlaps()` audits every unordered pair with both directed
+fractions; `camera_overlap()` retains its reference-edge/connected-graph API.
+The CPU audit exports `all_pair_overlap` and `coherence_policy`. These are
+first-surface placement estimates, **not rendered overlap guarantees**. Rare
+fallback pairs can remain weak. Use captured co-visibility annotations to assess
+valid-pixel overlap, particularly through glass and around thin geometry; no
+placement proxy proves downstream learning utility.
 
 Older/explicit policies omitting `mixed_rig` remain exact. Turning **Mount-aware
 baseline** off, editing any advanced baseline value, choosing Connected graph,
