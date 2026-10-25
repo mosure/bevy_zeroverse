@@ -157,6 +157,14 @@ above exports them under `producer_timings`:
 - Captured storage bytes and annotation geometry/flow upload counters expose
   transfer volume; padding is included. These are not PCIe traffic counters.
 
+`updates` and `waiting_updates` count application scheduling, not rendered
+frames. WGPU and CUDA share the native capture camera/readiness gates: submitted
+views stop drawing, idle light-view schedules are suspended, and qualified
+captures do not draw while the current asset/pipeline barrier is unready.
+Uploads and preparation continue during these updates. See
+[capture scheduling](capture_admission.md) for render-work counters and the
+remaining temporal/annotation-only qualifications.
+
 Reading the timings adds no GPU synchronization or image readback. WGPU's
 producer duration ends after submission, whereas CUDA includes its existing
 transfer fence. Compare completed consumer/training work for throughput; do not

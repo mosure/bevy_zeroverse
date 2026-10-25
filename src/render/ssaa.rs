@@ -334,6 +334,10 @@ fn prepare(
 }
 
 fn resolve(world: &World, mut context: RenderContext) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::sample::render_settling::defer_camera_render(world) {
+        return;
+    }
     let jobs = world.resource::<Jobs>();
     if jobs.0.is_empty() {
         return;

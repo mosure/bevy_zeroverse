@@ -661,6 +661,10 @@ fn render_ground_truth(
         Option<&angular::Prepared>,
     )>,
 ) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::sample::render_settling::defer_camera_render(world) {
+        return;
+    }
     let geometry = world.resource::<ExtractedGeometry>();
     let gpu = world.resource::<GpuGeometry>();
     if geometry.failure.is_some() {

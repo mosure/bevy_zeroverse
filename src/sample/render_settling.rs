@@ -167,6 +167,17 @@ struct ExtractedSettling {
     ready_before_render: bool,
 }
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct CaptureRenderReadiness;
+
+/// Only a qualified, non-temporal capture may skip an unready draw. Its asset
+/// uploads and pipeline preparation continue in the ordinary render schedule.
+pub(crate) fn defer_camera_render(world: &World) -> bool {
+    world
+        .get_resource::<ExtractedSettling>()
+        .is_some_and(|state| state.token.is_some() && !state.ready_before_render)
+}
+
 fn bits(matrix: Mat4) -> [u32; 16] {
     matrix.to_cols_array().map(f32::to_bits)
 }
@@ -259,6 +270,7 @@ pub(super) fn configure(app: &mut App) {
         RenderGraph,
         (crate::io::image_copy::readiness::update, begin_render)
             .chain()
+            .in_set(CaptureRenderReadiness)
             .before(bevy::core_pipeline::schedule::camera_driver)
             .in_set(RenderGraphSystems::Render),
     );
@@ -526,6 +538,9 @@ fn confirm_rendered(
     mut extracted: ResMut<ExtractedSettling>,
     cameras: Query<(&ExtractedCamera, &ExtractedView, &ViewTarget)>,
 ) {
+    if !extracted.ready_before_render {
+        return;
+    }
     let Some(token) = &extracted.token else {
         return;
     };
@@ -681,6 +696,20 @@ mod tests {
             acknowledged: Arc::new(Mutex::new(Some(token))),
             ..default()
         }
+    }
+
+    #[test]
+    fn only_qualified_unready_capture_draws_may_be_deferred() {
+        let mut world = World::new();
+        assert!(!defer_camera_render(&world));
+        world.init_resource::<ExtractedSettling>();
+        assert!(!defer_camera_render(&world), "fallback warmup is retained");
+        world.resource_mut::<ExtractedSettling>().token = Some(token());
+        assert!(defer_camera_render(&world));
+        world
+            .resource_mut::<ExtractedSettling>()
+            .ready_before_render = true;
+        assert!(!defer_camera_render(&world));
     }
 
     #[test]

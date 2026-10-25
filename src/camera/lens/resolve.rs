@@ -340,6 +340,10 @@ fn resolve(
         &bevy::render::view::ViewTarget,
     )>,
 ) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::sample::render_settling::defer_camera_render(world) {
+        return;
+    }
     let state = world.resource::<State>();
     let Some((id, _)) = &state.pipeline else {
         return;

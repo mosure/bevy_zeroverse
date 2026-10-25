@@ -1,6 +1,6 @@
 [package]
 name = "bevy_zeroverse_burn"
-version = "0.41.2"
+version = "0.41.3"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT OR Apache-2.0"
@@ -39,7 +39,7 @@ bincode = { version = "2.0", features = ["serde"] }
 burn = { version = "=0.22.0", default-features = false, features = ["std", "dataset"] }
 bevy = { version = "=0.20.0", default-features = false, optional = true }
 cubecl = { version = "=0.11.0", default-features = false, features = ["std"], optional = true }
-bevy_zeroverse_capture = { path = "../capture", version = "=0.6.8", features = ["provenance"] }
+bevy_zeroverse_capture = { path = "../capture", version = "=0.6.9", features = ["provenance"] }
 burn-cubecl = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
 burn-fusion = { version = "=0.22.0", default-features = false, features = ["std"], optional = true }
 clap = { version = "4.5", features = ["derive"] }
@@ -56,7 +56,7 @@ crossterm = "0.29"
 ndarray = { version = "0.16", default-features = false, features = ["std"] }
 ndarray-npy = { version = "0.9", features = ["npz"] }
 
-bevy_zeroverse = { path = "../..", version = "0.57.2", default-features = true }
+bevy_zeroverse = { path = "../..", version = "0.57.3", default-features = true }
 
 # Native CUDA interoperability uses published APIs only. These dependencies and
 # their features never enter the default or WebGPU/WASM dependency graph.

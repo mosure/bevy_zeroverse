@@ -24,6 +24,37 @@ the next update. This preserves complete per-view cascades when individual
 views finish their copies at different times, while still suppressing duplicate
 draws during readback.
 
+Native headless captures also suspend Bevy's independent point/spot shadow
+root schedules when no extracted camera is active. Disabling a camera alone
+does not suspend these retained light views: they otherwise continue dispatching
+mesh preprocessing while scene preparation or readback is pending. The gate
+restores the roots immediately after the camera driver, preserving their GPU
+resources and full shadows for the next capture. Asset uploads, shader
+preparation, material synthesis, GI, annotation and copy systems remain enabled.
+Interactive renderers and unrelated auxiliary render schedules are unaffected.
+For captures qualified by the exact render fence, an unready asset/pipeline
+barrier also suspends the RGB driver, geometric pass and lens/SSAA resolves for
+that update. Nothing from that update could pass the existing copy barrier.
+The prepared views and their ordering are retained; the next ready update draws
+normally. Temporal/fallback warmup is preserved.
+
+Application updates are not rendered frames. For stable native indoor captures,
+one requested timestep normally needs one RGB render per pinhole camera, one
+shared geometric-annotation pass per view, and an SSAA resolve when configured.
+Depth, normal, position and semantics share the geometric pass. Co-visibility
+uses those results; it does not render each camera pair separately. Fisheye RGB
+uses its angular source views and resolve, so one logical camera is not one
+raster view. Temporal effects outside the qualified capture path may still need
+settling. `indoor_bench --gpu-timings` records actual render-pass spans separately
+from application updates. The `capture/work` diagnostics count driver frames,
+scheduled camera views (including fisheye source views),
+`unready_camera_frames_skipped`, and `idle_auxiliary_views_skipped`. These
+cumulative counts require neither GPU timestamps nor synchronization; they are
+scheduling counts, not GPU durations or
+draw calls. Annotation-only requests currently retain the ordinary camera path;
+the one-frame qualification is not a claim that every possible output/effect
+combination executes the theoretical minimum number of GPU passes.
+
 GPU material baking records one recipe per command encoder and submits the
 finished buffers in recipe order. The shared scratch workspace, every PBR map
 and every mip level are preserved. This bounds the size of each native command

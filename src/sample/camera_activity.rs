@@ -9,6 +9,8 @@ use bevy::{camera::CameraUpdateSystems, prelude::*};
 pub(crate) struct CaptureCameraGate;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod auxiliary;
+#[cfg(not(target_arch = "wasm32"))]
 mod submitted;
 
 /// Read the shared submission stamp at extraction time, not the earlier main
@@ -28,7 +30,10 @@ pub(crate) fn render_active(
 
 pub(super) fn configure(app: &mut App) {
     #[cfg(not(target_arch = "wasm32"))]
-    submitted::install(app);
+    {
+        submitted::install(app);
+        auxiliary::install(app);
+    }
     app.add_systems(
         PostUpdate,
         gate::<true>
