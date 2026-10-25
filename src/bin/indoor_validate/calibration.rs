@@ -59,13 +59,13 @@ pub fn validate<'a>(
 }
 
 fn calibration_scalar_matches(actual: f32, expected: f32) -> bool {
-    // Matrix extraction and SSAA rescaling may round independently. At a focal
-    // length of 900 pixels, two f32 ULPs already exceed the former fixed 1e-4
-    // tolerance. Bound float arithmetic error relative to the coefficient;
+    // FOV conversion, matrix extraction and SSAA rescaling round independently.
+    // The wide-FOV 320x200 case takes five f32 ULPs, slightly more than a
+    // four-epsilon relative bound. Bound accumulated float arithmetic error;
     // keep schema, sensor dimensions, lens model and distortion checks exact.
     actual.is_finite()
         && expected.is_finite()
-        && (actual - expected).abs() <= 4. * f32::EPSILON * actual.abs().max(expected.abs()).max(1.)
+        && (actual - expected).abs() <= 8. * f32::EPSILON * actual.abs().max(expected.abs()).max(1.)
 }
 
 #[cfg(test)]
@@ -75,6 +75,9 @@ mod tests {
 
     #[test]
     fn projection_roundoff_is_not_a_calibration_failure() {
+        // Seed 1, baseline 1, 8/12 views at 320x200: the render matrix and the
+        // manifest's FOV-to-K oracle differ by five representable f32 values.
+        assert!(calibration_scalar_matches(39.799427, 39.799446));
         for focal in [256.0_f32, 881.0401, 917.3916, 1944., 8192.] {
             let two_ulps_lower = f32::from_bits(focal.to_bits() - 2);
             assert!(calibration_scalar_matches(two_ulps_lower, focal));
@@ -84,6 +87,31 @@ mod tests {
         assert!(!calibration_scalar_matches(f32::INFINITY, f32::INFINITY));
         assert!(!calibration_scalar_matches(0.00001, 0.));
         assert!(!calibration_scalar_matches(256.5, 256.));
+    }
+
+    #[test]
+    fn accepted_wide_fov_roundoff_preserves_projected_pixels() {
+        let mut expected = lens::CameraCalibration::centered_pinhole(320, 200, 1., 1.6).unwrap();
+        expected.k[0][0] = 39.799446;
+        expected.k[1][1] = 39.799446;
+        let mut actual = expected.clone();
+        actual.k[0][0] = 39.799427;
+        actual.k[1][1] = 39.79943;
+        for pixel in [[0.5, 0.5], [319.5, 199.5], [160.5, 100.5]] {
+            let world = actual.unproject(pixel, 3.).unwrap();
+            let projected = expected.project(world).unwrap();
+            assert!((projected[0] - pixel[0]).abs() < 0.001);
+            assert!((projected[1] - pixel[1]).abs() < 0.001);
+        }
+        // A meaningful focal or center displacement is still rejected.
+        assert!(!calibration_scalar_matches(
+            actual.k[0][0] + 0.01,
+            expected.k[0][0]
+        ));
+        assert!(!calibration_scalar_matches(
+            actual.k[0][2] + 0.01,
+            expected.k[0][2]
+        ));
     }
 
     #[test]
