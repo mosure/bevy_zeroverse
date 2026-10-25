@@ -82,6 +82,59 @@ fn validate_group(group: &Group) -> Result<()> {
     Ok(())
 }
 
+/// Raw five-time traces remain in the audit cache. Publish complete population
+/// summaries so a 64-room/12-camera report does not require an enormous JSON
+/// download just to draw its interactive figures.
+fn compact_diagnostics(group: &Group) -> Result<Value> {
+    let mut metadata = group.metadata.clone();
+    if let Some(Value::Array(pairs)) = metadata.remove("all_pair_overlap") {
+        let mut directed = Vec::new();
+        let mut peers = Vec::new();
+        let mut baselines = Vec::new();
+        let mut angles = Vec::new();
+        for pair in &pairs {
+            let peer = pair["reference"]
+                .as_u64()
+                .context("proxy reference index")?
+                != 0
+                && pair["camera"].as_u64().context("proxy camera index")? != 0;
+            for sample in pair["samples"].as_array().context("proxy samples")? {
+                for field in ["reference_to_view", "view_to_reference"] {
+                    let value = sample[field].as_f64().context("directed proxy overlap")?;
+                    ensure!(
+                        (0.0..=1.0).contains(&value),
+                        "invalid directed proxy overlap"
+                    );
+                    directed.push(value);
+                    if peer {
+                        peers.push(value);
+                    }
+                }
+                for (field, values) in [
+                    ("baseline_m", &mut baselines),
+                    ("mean_triangulation_degrees", &mut angles),
+                ] {
+                    let value = sample[field].as_f64().context("proxy geometry")?;
+                    ensure!(value.is_finite() && value >= 0., "invalid proxy geometry");
+                    values.push(value);
+                }
+            }
+        }
+        let summary = |values: Vec<f64>| {
+            json!({
+                "below_001": values.iter().filter(|&&v|v < 0.01).count(),
+                "below_010": values.iter().filter(|&&v|v < 0.1).count(),
+                "distribution": distribution(values),
+            })
+        };
+        metadata.insert("all_pair_proxy".into(), json!({"pairs":pairs.len(),
+            "directed":summary(directed), "nonreference_directed":summary(peers),
+            "baseline_m":distribution(baselines),"triangulation_degrees":distribution(angles),
+            "scope":"all sampled directed pair/time placement proxies; distinct from rendered pixel overlap"}));
+    }
+    Ok(json!(metadata))
+}
+
 /// Produce a portable report from a completed CPU audit and optional native
 /// qualification. Inputs are checksum-verified before any statistics are used.
 pub fn prepare(input: &Path, output: &Path, rendered: Option<&Path>) -> Result<()> {
@@ -191,7 +244,7 @@ pub fn prepare(input: &Path, output: &Path, rendered: Option<&Path>) -> Result<(
             for group in &selected {
                 if let Some(error) = &group.error {
                     failures.push(json!({"seed":group.seed,"error":error}));
-                    records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":false,"error":error,"policy":group.policy,"diagnostics":group.metadata}));
+                    records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":false,"error":error,"policy":group.policy,"diagnostics":compact_diagnostics(group)?}));
                     continue;
                 }
                 accepted += 1;
@@ -305,7 +358,7 @@ pub fn prepare(input: &Path, output: &Path, rendered: Option<&Path>) -> Result<(
                         .collect();
                     compact[field] = distribution(values);
                 }
-                records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":true,"metrics":compact,"geometry":group.geometry,"policy":group.policy,"diagnostics":group.metadata,"reference_proxy_overlap":distribution(proxy)}));
+                records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":true,"metrics":compact,"geometry":group.geometry,"policy":group.policy,"diagnostics":compact_diagnostics(group)?,"reference_proxy_overlap":distribution(proxy)}));
                 if group.seed == example_seed {
                     examples.push(json!({"baseline":b,"camera_count":n,"cameras":group.cameras}));
                 }
@@ -807,6 +860,29 @@ $b$ & Cameras & Pair (\%) & Any peer (\%) & Min ref. (\%) & Components \\
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compact_peer_diagnostics_keep_every_direction_and_low_overlap_observation() {
+        let pair = |reference, camera, a, b| {
+            json!({"reference":reference,"camera":camera,
+            "samples":[{"reference_to_view":a,"view_to_reference":b,"baseline_m":2.,"mean_triangulation_degrees":30.}]})
+        };
+        let mut group: Group = serde_json::from_value(json!({"seed":0,"baseline":0.5,"camera_count":3,
+            "error":null,"cameras":[],"policy":{},"geometry":{},"reference_overlap":[],
+            "coherence_policy":{"version":1},"all_pair_overlap":[pair(0,1,0.,0.2),pair(0,2,0.5,0.5),pair(1,2,0.05,0.)]})).unwrap();
+        let compact = compact_diagnostics(&group).unwrap();
+        assert!(compact["all_pair_overlap"].is_null());
+        assert_eq!(compact["coherence_policy"]["version"], 1);
+        let all = &compact["all_pair_proxy"];
+        assert_eq!(all["pairs"], 3);
+        assert_eq!(all["directed"]["distribution"]["count"], 6);
+        assert_eq!(all["directed"]["below_001"], 2);
+        assert_eq!(all["directed"]["below_010"], 3);
+        assert_eq!(all["nonreference_directed"]["distribution"]["count"], 2);
+        assert_eq!(all["nonreference_directed"]["below_010"], 2);
+        group.metadata.get_mut("all_pair_overlap").unwrap()[0]["samples"][0]["reference_to_view"] =
+            json!(2.);
+        assert!(compact_diagnostics(&group).is_err());
+    }
     #[test]
     fn malformed_and_rejected_sets_cannot_become_accepted_pose_measurements() {
         let mut group = Group {
