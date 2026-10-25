@@ -21,16 +21,14 @@ use bevy_zeroverse::{
 };
 use clap::Parser;
 use serde::Serialize;
-use std::{
-    fs,
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{fs, path::PathBuf, time::Instant};
 
 #[path = "indoor_validate/calibration.rs"]
 mod calibration;
 #[path = "indoor_validate/co_visibility.rs"]
 mod co_visibility;
+#[path = "indoor_validate/deadline.rs"]
+mod deadline;
 #[path = "motion_validate/flow.rs"]
 mod flow;
 #[path = "indoor_validate/reconstruction.rs"]
@@ -524,6 +522,12 @@ fn run(args: &Args) -> Result<()> {
     );
     app.finish();
     app.cleanup();
+    let adapter = app
+        .world()
+        .get_resource::<bevy::render::renderer::RenderAdapterInfo>()
+        .map(|adapter| adapter.device_type);
+    let preparation_timeout = deadline::for_adapter(adapter, 60);
+    let capture_timeout = deadline::for_adapter(adapter, 180);
     for _ in 0..4 {
         app.update();
     }
@@ -558,8 +562,11 @@ fn run(args: &Args) -> Result<()> {
                 break;
             }
             ensure!(
-                start.elapsed() < Duration::from_secs(60),
-                "scene preparation timeout for seed {seed}"
+                start.elapsed() < preparation_timeout,
+                "scene preparation timeout for seed {seed} after {:?}; readiness: {:?}",
+                preparation_timeout,
+                app.world()
+                    .resource::<bevy_zeroverse::sample::CaptureReadiness>()
             );
         }
         let manifest = app
@@ -579,6 +586,7 @@ fn run(args: &Args) -> Result<()> {
                 .collect(),
             ..default()
         });
+        let capture_started = Instant::now();
         let sample = loop {
             app.update();
             ensure!(
@@ -600,8 +608,11 @@ fn run(args: &Args) -> Result<()> {
                 break sample;
             }
             ensure!(
-                start.elapsed() < Duration::from_secs(180),
-                "capture timeout for seed {seed}"
+                capture_started.elapsed() < capture_timeout,
+                "capture timeout for seed {seed} after {:?}; readiness: {:?}",
+                capture_timeout,
+                app.world()
+                    .resource::<bevy_zeroverse::sample::CaptureReadiness>()
             );
         };
         ensure!(
@@ -716,6 +727,7 @@ fn run(args: &Args) -> Result<()> {
             image_size: [args.width, args.height],
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
             capabilities: serde_json::json!({ "quality": args.quality, "sampling": sample.sampling, "ssaa_configured_factor": args.ssaa_factor, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
+                "phase_timeouts_seconds": {"preparation": preparation_timeout.as_secs(), "capture": capture_timeout.as_secs()},
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(),
                 "sun_shadow_filter": if args.quality.shadows() && !args.no_shadows { "pcss_non_temporal" } else { "disabled" },
