@@ -50,6 +50,21 @@ fn valid_lighting_report(value: &Value) -> bool {
     })
 }
 
+/// Raw perspective-face parity is diagnostic; final production-composite
+/// continuity is the qualification gate. Preserve raw failures in the report.
+pub(crate) fn read_lighting_report(path: &Path, source_sha256: &str) -> Result<Value> {
+    let value: Value = io::read(path)?;
+    ensure!(
+        value["provenance"]["source_sha256"] == source_sha256,
+        "stale lighting qualification"
+    );
+    ensure!(
+        valid_lighting_report(&value),
+        "invalid lighting evidence or failed final-composite continuity"
+    );
+    Ok(value)
+}
+
 pub fn prepare(root: &Path, captures: &Path, analytic: &Path, output: &Path) -> Result<()> {
     ensure!(!output.exists(), "lens evidence destination already exists");
     let protocol: Value = io::read(&captures.join("protocol.json"))?;
@@ -68,16 +83,10 @@ pub fn prepare(root: &Path, captures: &Path, analytic: &Path, output: &Path) -> 
         None
     };
     let lighting: Option<Value> = if captures.join("lighting.json").exists() {
-        let value: Value = io::read(&captures.join("lighting.json"))?;
-        ensure!(
-            value["provenance"]["source_sha256"] == current.source_sha256,
-            "stale lighting qualification"
-        );
-        ensure!(
-            valid_lighting_report(&value),
-            "invalid lighting evidence or failed final-composite continuity"
-        );
-        Some(value)
+        Some(read_lighting_report(
+            &captures.join("lighting.json"),
+            &current.source_sha256,
+        )?)
     } else {
         None
     };
@@ -93,8 +102,8 @@ pub fn prepare(root: &Path, captures: &Path, analytic: &Path, output: &Path) -> 
             && sampling["cameras_per_seed"] == 12
             && sampling["replay_exact"] == true
             && sampling["calibrations_valid"] == true
-            && sampling["prior"]["probability"] == 0.25
-            && (0.23..0.27).contains(&(sampling["angular"].as_f64().unwrap_or(0.) / 12_288.))
+            && sampling["prior"]["probability"] == 0.5
+            && (0.48..0.52).contains(&(sampling["angular"].as_f64().unwrap_or(0.) / 12_288.))
             && (0.17..0.23).contains(
                 &(sampling["circular"].as_f64().unwrap_or(0.)
                     / sampling["angular"].as_f64().unwrap_or(0.)),
@@ -142,8 +151,8 @@ pub fn prepare(root: &Path, captures: &Path, analytic: &Path, output: &Path) -> 
             && config["ssaa_factor"] == 0
             && protocol["adapter"]
                 .as_str()
-                .is_some_and(|a| a.contains("RTX PRO 6000 Blackwell") && a.contains("Vulkan")),
-        "lens study workload/hardware differs from the declared paper protocol"
+                .is_some_and(|a| !a.trim().is_empty()),
+        "lens study workload differs from the declared protocol or lacks adapter provenance"
     );
     let mut times = Vec::new();
     let mut max_error = 0_f64;
@@ -227,6 +236,7 @@ pub fn prepare(root: &Path, captures: &Path, analytic: &Path, output: &Path) -> 
         "seed_start":start,"rooms":rooms.len(),"cameras":cameras,"steps":steps,"image_size":dimensions,
         "captured_images":rooms.len()*cameras*steps,"self_reprojection_max_pixels":max_error,
         "diameter_degrees":crate::camera_study::distribution(diameters),"analytic":oracle,"sampling":sampling,
+        "adapter":protocol["adapter"],"build":protocol["build"],
         "timing":{"concurrent_training":protocol["concurrent_training"],"first_room_seconds":times[0],"steady_seconds":seconds,
             "rooms_per_second":(rooms.len()-1) as f64/seconds,"images_per_second":((rooms.len()-1)*cameras*steps) as f64/seconds,
             "scope":"completed generation and capture; application startup and PNG/JSON writing excluded; first room reported separately"},
@@ -300,7 +310,7 @@ pub fn build(root: &Path, stage: &Path) -> Result<()> {
     fs::write(output.join("index.html"), html)?;
     let section = paper_section(&receipt);
     fs::write(output.join("paper-section.tex"), &section)?;
-    let paper=format!("\\documentclass{{article}}\n\\pdfinfoomitdate=1\n\\pdftrailerid{{}}\n\\usepackage[margin=22mm]{{geometry}}\n\\usepackage{{graphicx,amsmath,booktabs,hyperref}}\n\\title{{bevy\\_zeroverse: calibrated fisheye cameras}}\n\\author{{Mitchell Mosure}}\n\\date{{October 2026}}\n\\begin{{document}}\n\\maketitle\n{section}\n\\end{{document}}\n");
+    let paper=format!("\\documentclass{{article}}\n\\pdfinfoomitdate=1\n\\pdftrailerid{{}}\n\\usepackage[margin=22mm]{{geometry}}\n\\usepackage{{graphicx,amsmath,booktabs,hyperref}}\n\\title{{bevy\\_zeroverse: calibrated fisheye cameras}}\n\\author{{Mitchell Mosure}}\n\\date{{}}\n\\begin{{document}}\n\\maketitle\n{section}\n\\end{{document}}\n");
     fs::write(output.join("fisheye_cameras.tex"), paper)?;
     compile(&output, "fisheye_cameras")?;
     bind_paper(stage)?;
@@ -401,7 +411,7 @@ fn paper_section(r: &Value) -> String {
         r"\section{{Projection and sampling}}
 The optional central angular camera uses $r(\theta)=\theta(1+k_1\theta^2+k_2\theta^4+k_3\theta^6+k_4\theta^8)$, with $\theta=\operatorname{{atan2}}(\sqrt{{x^2+y^2}},-z)$. Full pixel-space $K$, image dimensions, half-pixel centers, model version, coefficients and calibrated angular domain are exported per view. Monotonicity is certified over the entire domain using interval derivative bounds. The coefficient order matches OpenCV fisheye (Kannala--Brandt), verified against its forward-hemisphere equations; OpenCV integer-centered pixels require subtracting 0.5 from the exported principal point and converting the view basis to right/down/forward. The inverse supports rays behind the optical plane, beyond the domain of OpenCV routines based on the front-hemisphere arctangent. This is a central camera model, not rolling shutter or a non-central lens.
 
-Lens assignment is seeded by scene and camera index before placement retries. Configuration controls its Bernoulli probability, continuous diameter FOV, polynomial variation, anisotropy, principal-point displacement and circular, full-frame/diagonal or explicitly elliptical fit. Circular fits enforce equal focal axes and a contained disk; elliptical fits contain the sampled ellipse; diagonal fits cover every sensor corner, including principal-point shifts. Defaults remain pinhole; enabling the lens program defaults to probability 0.25, a 140--210 degree diameter range and 0.2 circular probability. In 1,024 consecutive seeds with 12 slots each, {angular} of {assignments} assignments are angular and {circular} of those are circular. Calibration validation and exact replay pass for every assignment. The admitted pose distribution is affected by obstacle and shared-surface constraints; lens assignment is preserved. Camera motion and baseline controls remain independent.
+Lens assignment is seeded by scene and camera index before placement retries. Configuration controls its Bernoulli probability, continuous diameter FOV, polynomial variation, anisotropy, principal-point displacement and circular, full-frame/diagonal or explicitly elliptical fit. Circular fits enforce equal focal axes and a contained disk; elliptical fits contain the sampled ellipse; diagonal fits cover every sensor corner, including principal-point shifts. The audited lens program uses probability 0.5, a 140--210 degree diameter range and 0.2 circular probability. In 1,024 consecutive seeds with 12 slots each, {angular} of {assignments} assignments are angular and {circular} of those are circular. Calibration validation and exact replay pass for every assignment. The admitted pose distribution is affected by obstacle and shared-surface constraints; lens assignment is preserved. Camera motion and baseline controls remain independent.
 
 \section{{Rendering and annotation contract}}
 Up to five co-located perspective faces retain the PBR renderer, shadows, lighting and exposure. Guard bands and a GPU angular resolve produce the final image; faces are implementation details and consume no dataset camera indices. SSAA averages RGB in linear light. Final-pixel-center rays independently intersect authoritative annotation triangles in a shared BVH. Fisheye depth is positive ray range; pinhole depth remains positive axial depth. Invalid lens pixels and surface misses are distinct through the calibrated domain mask. Normals are expressed in the logical camera frame; semantic IDs are never interpolated. Glass follows the selected geometric surface policy, not a refracted or reflected RGB light path.
@@ -420,11 +430,11 @@ The furnished-room cohort contains {} consecutive rooms, three cameras and two t
 \caption{{Diagonal and circular fisheye RGB; additive co-visibility from the same circular view (camera 1). Red: camera 0; blue: camera 2; magenta: both; black: no shared peer or invalid lens domain. The full gallery includes all rooms and aligned annotations.}}\end{{figure}}
 
 \section{{Throughput and limits}}
-On an NVIDIA RTX PRO 6000 Blackwell ({workload}), the completed-generation rate excluding the first room was {:.3} rooms/s or {:.3} camera/time images/s. The first room took {:.3} seconds and is reported separately. Application startup and PNG/JSON report writing are excluded; rendering, scene work and capture readback are included. These are bounded observations of the recorded workload, not a memory-stability guarantee. Five perspective faces cost more than a single pinhole image; shared scene assets/BVH, indexed-vertex transforms, compact BVH partitioning, nearest-first traversal, stable geometry reuse, and the capture activity gate bound redundant work. The disabled path creates no angular textures or BVH.
+On the recorded adapter \texttt{{{adapter}}} ({workload}), the completed-generation rate excluding the first room was {:.3} rooms/s or {:.3} camera/time images/s. The first room took {:.3} seconds and is reported separately. Application startup and PNG/JSON report writing are excluded; rendering, scene work and capture readback are included. These are bounded observations of the recorded workload, not a memory-stability guarantee. Five perspective faces cost more than a single pinhole image; shared scene assets/BVH, indexed-vertex transforms, compact BVH partitioning, nearest-first traversal, stable geometry reuse, and the capture activity gate bound redundant work. The disabled path creates no angular textures or BVH.
 
-Measurements use the optimized development profile (optimization level 3), the default 256 diffuse-GI rays, GPU material synthesis, furnishing density 0.65 and human density 0.25. Desktop applications share the GPU; training is separately identified above. This is native Vulkan qualification. The WebAssembly build passes; browser/Metal runtime and cross-vendor performance remain unqualified for this source.
+Measurements use the build recorded in the capture protocol, 256 diffuse-GI rays, GPU material synthesis, furnishing density 0.65 and human density 0.25. Other host workloads are uncontrolled. Software adapters measure software rendering and must not be interpreted as hardware GPU training throughput. Browser/Metal runtime and cross-vendor performance require separate qualification.
 
-Screen-space effects remain face-local; the guarded color resolve is not a path tracer. RGB uses perspective-face clipping while exact geometric targets use the calibrated ray range. Geometry within the configured operating range is the qualification domain; grazing near/far boundary behavior, arbitrary optical systems, hardware-vendor parity and downstream learning gains require further qualification. The main architectural cohort retains its original capture provenance; this addendum is independently source-bound.
+Screen-space effects remain face-local; the guarded color resolve is not a path tracer. RGB uses perspective-face clipping while exact geometric targets use the calibrated ray range. Geometry within the configured operating range is the qualification domain; grazing near/far boundary behavior, arbitrary optical systems, hardware-vendor parity and downstream learning gains require further qualification. The main architectural cohort and lens addendum each carry their capture provenance.
 ",
         r["analytic"]["position_max_metres"].as_f64().unwrap() * 1000.,
         r["analytic"]["flow_max_pixels"].as_f64().unwrap(),
@@ -442,10 +452,15 @@ Screen-space effects remain face-local; the guarded color resolve is not a path 
         angular = r["sampling"]["angular"],
         assignments = r["sampling"]["assignments"],
         circular = r["sampling"]["circular"],
+        adapter = crate::paper::tex(
+            r["adapter"]
+                .as_str()
+                .unwrap_or("adapter not recorded in this legacy receipt")
+        ),
         workload = if r["timing"]["concurrent_training"] == true {
             "concurrent training workload"
         } else {
-            "training paused during capture"
+            "no concurrent training launched by this capture command"
         }
     );
     if let Some(rows) = r["performance"]["rows"].as_array() {

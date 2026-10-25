@@ -4,65 +4,66 @@ The canonical Rust publication pipeline for the bevy_zeroverse project page and
 whitepaper. It is a separate, GPU-free workspace crate. The generator shares its
 wire contract, camera colors and Turbo depth palette through `bevy_zeroverse_capture`.
 
-From a bevy_zeroverse checkout:
+From a Linux bevy_zeroverse checkout:
 
 ```sh
-cargo run --locked -p bevy_zeroverse_publication -- refresh
-cargo run --locked -p bevy_zeroverse_publication -- verify
-cargo run --locked -p bevy_zeroverse_publication -- rebuild
-# Registry publication through the same preparation/validation gate:
+cargo run --locked -p bevy_zeroverse_publication -- plan
+cargo run --locked -p bevy_zeroverse_publication -- sync
+cargo run --locked -p bevy_zeroverse_publication -- verify-current
+# Registry publication uses the same current-source gate:
 cargo run --locked -p bevy_zeroverse_publication -- publish --package bevy_zeroverse --dry-run
 ```
 
-`refresh` owns the complete dependency order: compile/capture the current
-generator when the cache is absent or incompatible, validate the completed
-cohort, generate media/plots/HTML, compile the paper, package exact source/mask
-downloads, validate the staged bundle and install it with its attestation last.
-`--recapture` forces a new GPU run. Scientific validation failures leave the
-published bundle unchanged. A file-install error rolls back replacements.
+`sync` owns the complete order: build native tools, capture the main population,
+audit camera counts/baselines, render the camera subset, derive room metrics from
+the main captures, qualify fisheye sampling/geometry/lighting, measure preparation
+and completed capture, refresh factor/object/door/material atlases, build the page
+and paper, and verify/install the complete bundle. It never reads private
+before/after studies. `publication.toml` defines bounded populations; the default
+is a 512-room structural audit, 32 rendered rooms, 64 camera-audit families at
+counts 1–12 and baselines 0/0.5/1, a prespecified two-family rendered camera
+subset, and six fisheye rooms. Population sizes and different measurement
+resolutions are reported separately. Quality flags are not reduced for CI.
 
-`verify` is a read-only release/deployment gate. It requires neither raw captures
-in `out/`, a GPU, Python nor LaTeX. It checks current crate/source identity,
-protocol settings, exact input/output hashes, scene/camera/time identity, every
-annotation, mask/validity/preview consistency and denominators, page links and
-the PDF's exact source archive. It fails on stale captures, missing channels,
-untracked additions to the managed artifact set or edits to generated outputs.
+A shared writer lock prevents overlapping publication jobs. Completed stages
+are reused only for identical source, version, dependencies, tools and recipe,
+with every cached file rehashed. `--recapture` forces fresh captures. Incomplete
+stages retain diagnostics and cannot be deployed. Scientific or typesetting
+failures restore prepared input evidence; output installation has its own
+rollback. An interrupted input transaction leaves an explicit journal under
+`out/publication/input-transaction` and blocks the next writer until restored.
 
-`rebuild` first verifies the self-contained shipped capture bundle, then
-regenerates HTML and the paper from its measured programs and reports. This is
-the release/Pages command: it never relabels earlier measurements as current or
-downloads/initializes motion models. Source or dependency upgrades require a
-successful `refresh` before release, unless the explicit retained-evidence policy
-below is configured.
+`verify-current` is the read-only deployment gate. It needs no renderer, GPU,
+LaTeX, Python or `out/` captures. It rejects retained evidence, stale source/tool
+identities, incomplete annotations, modified artifacts, invalid membership
+masks, inconsistent denominators, broken page links and mismatched PDF sources.
+It checks the automatic run receipt as well as the page/paper attestation.
 
-For a release that must not perform GPU work, `publication.toml` may contain a
-`[retained_evidence]` table with `release_version`, `release_source_sha256`,
-`capture_evidence_sha256` and a nonempty `reason`. These are exact pins to the new
-release's source and the original scientific inputs/outputs recorded in
-`www/project/publication.json`; obtain the latter with the read-only
-`evidence-digest` command. The
-exception stops applying as soon as the release version or renderer source
-changes. It does not certify retained captures as measurements of the new code.
+The Pages workflow runs on main pushes, published releases and manual dispatch.
+Hosted Ubuntu uses Mesa Vulkan software rendering; the motion-enabled WASM
+viewer builds independently in parallel. A second job verifies the exact
+SHA-named artifacts before deploying them together. Only current main can
+deploy; superseded/failed runs leave the previously deployed site intact. The
+paper is produced in this same workflow, not by a separate stale-PDF job.
+Software-render timing is explicitly labeled with the actual adapter and must
+not be read as GPU training throughput. These workflows activate after the
+changes are pushed to main.
 
-In this mode, `verify` still validates the original capture identity, all
-scientific inputs and artifact hashes, annotations, and page/paper contracts.
-Publication implementation files, the recipe and the explicitly listed object
-explorer/page presentation files may change. Study tools, fonts, all rendered
-media, measurements, paper sources and PDF bytes remain identical. `verify`
-requires current presentation-input hashes too, so stale page builds fail.
-`rebuild` regenerates only the page and its attestation from those pinned captures.
-It never recompiles or relabels the paper. `refresh`
-rejects before starting any external commands, and `publish` never falls back
-to a GPU refresh. Remove the policy explicitly when new captures are authorized.
-The shipped page and paper keep their original capture source/version labels.
+Local rendering is the supported alternative: run `sync` on a Linux GPU host,
+then include the resulting `www/project`, `tex`, configured `docs/evidence`
+directories and `docs/evidence/publication_run.json` in the source revision.
+CI still verifies all bytes against that revision; it skips rendering only when
+the current-source gate passes. Capture-tool or renderer changes invalidate this
+shortcut. A cache hit never relaxes freshness or annotation checks. Required
+local tools are Rust, Vulkan, `latexmk`/pdfLaTeX and Poppler (`pdftoppm`); the
+checked-in Anny reference supplies static people, without motion-model downloads.
 
-The independently qualified fisheye chapter requires current-source evidence by
-default. To retain it too, explicitly set `lens_evidence_sha256` in the same
-release/source-bound policy using `lens-evidence-digest`. This pins every file in
-both `docs/evidence/fisheye` and `www/project/fisheye`, including the original
-receipts, rendered images, metrics and PDFs. Rebuild copies this chapter unchanged;
-missing, altered or additional files fail verification. It never relabels these
-measurements as evidence for the new release or recompiles their papers.
+`refresh` remains the lower-level assembly command for already prepared current
+studies; it does not generate missing camera/lens/timing prerequisites. `rebuild`
+regenerates presentation from an attested bundle. Legacy `verify`/`rebuild` can
+read an explicit source-bound `[retained_evidence]` archival policy, but `sync`,
+`verify-current`, registry `publish` and automatic deployment reject it. Such
+archives cannot masquerade as current measurements.
 
 The paper's capacity section contains analytical occupancy examples, generated
 automatically by `refresh`/`rebuild` from tested known probability laws. To inspect

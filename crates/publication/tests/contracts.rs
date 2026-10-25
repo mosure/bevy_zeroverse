@@ -102,6 +102,7 @@ fn legend_and_templates_are_closed_contracts() {
 fn recipe_cannot_replace_sources_or_the_publication_work_directory() {
     let root = tempfile::tempdir().unwrap();
     let original = Config {
+        automation: Default::default(),
         schema_version: 1,
         captures: "out/publication/captures".into(),
         capture: protocol(),

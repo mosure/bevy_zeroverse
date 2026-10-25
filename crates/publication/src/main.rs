@@ -12,6 +12,23 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Action {
+    /// Print the bounded current-source work plan and exact CI cache key (no renders).
+    Plan {
+        #[arg(long)]
+        release_version: Option<String>,
+    },
+    /// Generate all current studies, atlases, page and paper in dependency order.
+    Sync {
+        #[arg(long)]
+        recapture: bool,
+        #[arg(long)]
+        release_version: Option<String>,
+    },
+    /// Strict deployment gate: require the automatic current-source receipt.
+    VerifyCurrent {
+        #[arg(long)]
+        release_version: Option<String>,
+    },
     /// Compare source-bound matched fisheye/pinhole workloads, rejecting quality or pose differences.
     FisheyePerformance {
         #[arg(long)]
@@ -224,6 +241,30 @@ enum Action {
 fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
+        Action::Plan { release_version } => println!(
+            "{}",
+            serde_json::to_string_pretty(
+                &bevy_zeroverse_publication::automation::plan_for_release(
+                    &args.root,
+                    release_version.as_deref()
+                )?
+            )?
+        ),
+        Action::Sync {
+            recapture,
+            release_version,
+        } => bevy_zeroverse_publication::automation::sync(
+            &args.root,
+            recapture,
+            release_version.as_deref(),
+        )?,
+        Action::VerifyCurrent { release_version } => {
+            bevy_zeroverse_publication::automation::verify_current(
+                &args.root,
+                release_version.as_deref(),
+            )?;
+            println!("Current-source page and paper verified");
+        }
         Action::LensEvidenceDigest => {
             println!(
                 "{}",

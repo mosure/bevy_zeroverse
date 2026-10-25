@@ -479,6 +479,7 @@ mod tests {
         let (policy, _, attestation) = fixture();
         let root = tempfile::tempdir().unwrap();
         let config = Config {
+            automation: Default::default(),
             schema_version: 1,
             captures: "out/publication/captures".into(),
             capture: attestation.protocol,

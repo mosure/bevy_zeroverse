@@ -21,6 +21,16 @@ pub fn hash(path: &Path) -> Result<String> {
     Ok(sha(&fs::read(path)?))
 }
 pub fn files(root: &Path, dir: &Path) -> Result<BTreeMap<String, String>> {
+    files_where(root, dir, &|_| true)
+}
+
+/// Filter before hashing (and prune excluded directories). Planning must not
+/// reread hundreds of megabytes of generated captures to identify source code.
+pub(crate) fn files_where(
+    root: &Path,
+    dir: &Path,
+    include: &impl Fn(&str) -> bool,
+) -> Result<BTreeMap<String, String>> {
     let mut result = BTreeMap::new();
     if !dir.exists() {
         return Ok(result);
@@ -31,17 +41,19 @@ pub fn files(root: &Path, dir: &Path) -> Result<BTreeMap<String, String>> {
             !entry.file_type()?.is_symlink(),
             "symlink in publication assets"
         );
+        let name = entry
+            .path()
+            .strip_prefix(root)?
+            .to_string_lossy()
+            .replace('\\', "/");
         if entry.file_type()?.is_dir() {
-            result.extend(files(root, &entry.path())?);
+            if include(&format!("{name}/")) {
+                result.extend(files_where(root, &entry.path(), include)?);
+            }
         } else {
-            result.insert(
-                entry
-                    .path()
-                    .strip_prefix(root)?
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-                hash(&entry.path())?,
-            );
+            if include(&name) {
+                result.insert(name, hash(&entry.path())?);
+            }
         }
     }
     Ok(result)

@@ -471,7 +471,10 @@ pub fn run() {
     assert_eq!(rgb_wrong, 0, "RGB/geometry alignment");
     assert!(cov_compared > 5000);
     assert_eq!(cov_wrong, 0, "co-visibility mismatch away from silhouettes");
-    std::fs::create_dir_all("out/fisheye").unwrap();
-    std::fs::write(if wide { "out/fisheye/analytic-wide.json" } else if all_angular { "out/fisheye/analytic-all-angular.json" } else if narrow { "out/fisheye/analytic-narrow.json" } else { "out/fisheye/analytic.json" },serde_json::to_vec_pretty(&serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"position_max_metres":max_position,"flow_max_pixels":max_flow,"flow_correspondences":compared,"co_visibility_relations":cov_compared,"co_visibility_mismatches":cov_wrong,"mixed_lenses":!all_angular,"geometry_work":stats,"single_face_case":narrow,"omitted_poles_case":wide,"rgb_core_pixels":rgb_compared,"rgb_core_mismatches":rgb_wrong,"rgb_foreground_pixels":rgb_foreground,"moving_occluder_metres_per_step":0.08,"size":size})).unwrap()).unwrap();
+    let output = std::env::args()
+        .find_map(|a| a.strip_prefix("--output=").map(std::path::PathBuf::from))
+        .unwrap_or_else(|| std::path::PathBuf::from("out/fisheye"));
+    std::fs::create_dir_all(&output).unwrap();
+    std::fs::write(output.join(if wide { "analytic-wide.json" } else if all_angular { "analytic-all-angular.json" } else if narrow { "analytic-narrow.json" } else { "analytic.json" }),serde_json::to_vec_pretty(&serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"position_max_metres":max_position,"flow_max_pixels":max_flow,"flow_correspondences":compared,"co_visibility_relations":cov_compared,"co_visibility_mismatches":cov_wrong,"mixed_lenses":!all_angular,"geometry_work":stats,"single_face_case":narrow,"omitted_poles_case":wide,"rgb_core_pixels":rgb_compared,"rgb_core_mismatches":rgb_wrong,"rgb_foreground_pixels":rgb_foreground,"moving_occluder_metres_per_step":0.08,"size":size})).unwrap()).unwrap();
     println!("Analytic fisheye: max position {max_position:.8}m, max flow {max_flow:.6}px over {compared} correspondences; {cov_compared} co-visibility relations, {cov_wrong} mismatches");
 }

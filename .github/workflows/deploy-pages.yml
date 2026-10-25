@@ -2,90 +2,180 @@ name: deploy github pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+# A newer revision supersedes old rendering jobs. Deployment also checks main
+# immediately before pushing, so an old release can never roll the site back.
+concurrency:
+  group: current-project-publication
+  cancel-in-progress: ${{ github.event_name != 'release' }}
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-
+  CARGO_BUILD_JOBS: 2
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
 
 jobs:
-  publication:
+  source:
     runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.source.outputs.current }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: source
+        name: Only publish the current main revision
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+            echo 'This revision is not current main; no site deployment.'
+          fi
+
+  publication:
+    needs: source
+    if: needs.source.outputs.current == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      WGPU_BACKEND: vulkan
+      LP_NUM_THREADS: 2
+      RAYON_NUM_THREADS: 2
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-08-31
       - uses: Swatinem/rust-cache@v2
-      - name: Install paper typesetter
-        run: sudo apt-get update && sudo apt-get install -y latexmk texlive-latex-extra poppler-utils
-      - name: Rebuild and verify the current page and paper
-        run: cargo run --locked -p bevy_zeroverse_publication -- rebuild
-      - name: Stage the validated publication bundle
-        uses: actions/upload-artifact@v4
         with:
-          name: publication-bundle
+          shared-key: publication-native
+      - name: Install headless Vulkan and paper tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mesa-vulkan-drivers vulkan-tools libvulkan1 libasound2-dev libudev-dev libxkbcommon-dev libwayland-dev latexmk texlive-latex-extra poppler-utils ripgrep
+          ICD="$(rg --files /usr/share/vulkan/icd.d -g 'lvp_icd*.json' | head -1)"
+          test -n "$ICD"
+          echo "VK_DRIVER_FILES=$ICD" >> "$GITHUB_ENV"
+          echo "VK_ICD_FILENAMES=$ICD" >> "$GITHUB_ENV"
+          RUNTIME="$(mktemp -d)"
+          echo "XDG_RUNTIME_DIR=$RUNTIME" >> "$GITHUB_ENV"
+      - name: Record the software rendering adapter
+        run: vulkaninfo --summary
+      - name: Resolve the source-bound Rust work plan
+        id: plan
+        run: |
+          cargo run --locked -p bevy_zeroverse_publication -- plan > publication-plan.json
+          echo "key=$(jq -r .cache_key publication-plan.json)" >> "$GITHUB_OUTPUT"
+      # Only a fully verified bundle is cached. Partial render stages are never
+      # deployed, and a cache hit is still checked against the live source.
+      - uses: actions/cache@v4
+        with:
+          key: publication-v1-${{ runner.os }}-${{ steps.plan.outputs.key }}
           path: |
             www/project
             tex
-
-  deploy:
-    runs-on: macos-latest
-    needs: publication
-
-    steps:
-      - name: checkout repository
-        uses: actions/checkout@v3
-
-      - name: Retrieve the validated publication bundle
-        uses: actions/download-artifact@v4
+            docs/evidence/camera_counts
+            docs/evidence/room_qualification
+            docs/evidence/fisheye
+            docs/evidence/publication_run.json
+      - name: Generate current renders, measurements, project page and paper
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+        run: |
+          ARGS=()
+          if [[ "$RELEASE_TAG" == v* ]]; then ARGS+=(--release-version "$RELEASE_TAG"); fi
+          cargo run --locked -p bevy_zeroverse_publication -- sync "${ARGS[@]}"
+          cargo run --locked -p bevy_zeroverse_publication -- verify-current "${ARGS[@]}"
+      - name: Upload the exact verified publication
+        uses: actions/upload-artifact@v4
         with:
-          name: publication-bundle
-          path: .
+          name: publication-${{ github.sha }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            www/project
+            tex
+            docs/evidence/camera_counts
+            docs/evidence/room_qualification
+            docs/evidence/fisheye
+            docs/evidence/publication_run.json
+            publication-plan.json
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-failure-${{ github.sha }}
+          retention-days: 7
+          path: |
+            publication-plan.json
+            out/publication/**/*.json
+            out/publication/**/*.log
 
-      - name: setup nightly rust toolchain with caching
-        uses: brndnmtthws/rust-action@v1
+  viewer:
+    needs: source
+    if: needs.source.outputs.current == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-08-31
-          components: rustfmt, clippy
-          enable-sccache: "false"
-
-      - name: install wasm32-unknown-unknown
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Verify the exact page and paper selected for deployment
-        run: cargo run --locked -p bevy_zeroverse_publication -- verify
-
-      - name: install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
-
-      - name: build wasm artifacts
-        run: cargo build --locked --target wasm32-unknown-unknown --bin viewer --profile wasm-release --no-default-features --features "web,human_motion"
-
-      - name: generate bindings with wasm-bindgen
-        run: wasm-bindgen --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/wasm-release/viewer.wasm
-
-      - name: check GitHub Pages artifact size
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - name: Build the motion-enabled WebGPU viewer from the same revision
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          wasm = Path("www/out/viewer_bg.wasm")
-          size = wasm.stat().st_size
-          print(f"Motion-enabled viewer: {size / 1024**2:.2f} MiB")
-          assert size < 100 * 1024**2, "Wasm exceeds GitHub's per-file limit"
-          PY
-
-      - name: copy assets
-        run: mkdir -p ./www/assets && cp -r ./assets/* ./www/assets/
-
-      - name: deploy to github pages
-        uses: JamesIves/github-pages-deploy-action@v4
+          cargo build --locked --target wasm32-unknown-unknown --bin viewer --profile wasm-release --no-default-features --features "web,human_motion"
+          wasm-bindgen --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/wasm-release/viewer.wasm
+          test "$(wc -c < www/out/viewer_bg.wasm)" -lt 104857600
+          mkdir -p www/assets
+          cp -R assets/. www/assets/
+      - uses: actions/upload-artifact@v4
         with:
-          folder: ./www
+          name: viewer-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            www/out
+            www/assets
+
+  deploy:
+    needs: [publication, viewer]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: viewer-${{ github.sha }}
+          path: www
+      # Overlay the verified publication last; never restore the viewer job's
+      # checked-in, potentially old gallery over newly generated evidence.
+      - uses: actions/download-artifact@v4
+        with:
+          name: publication-${{ github.sha }}
+          path: .
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-08-31
+      - uses: Swatinem/rust-cache@v2
+      - name: Independently verify all publication bytes without a renderer
+        run: cargo run --locked -p bevy_zeroverse_publication -- verify-current
+      - name: Reject superseded deployments
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: www
           branch: www

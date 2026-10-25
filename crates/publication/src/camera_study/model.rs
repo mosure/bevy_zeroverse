@@ -12,6 +12,9 @@ pub struct Path {
     pub target: Point,
     pub fov_degrees: f64,
     pub length_m: f64,
+    /// Preserve calibrated lens/mount fields from the live generator wire type.
+    #[serde(default, flatten)]
+    pub metadata: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -25,6 +28,9 @@ pub struct Group {
     pub geometry: serde_json::Value,
     /// Production placement proxy, including both directions and all five times.
     pub reference_overlap: serde_json::Value,
+    /// Keep peer-overlap, mixed-rig and coherence diagnostics in published data.
+    #[serde(default, flatten)]
+    pub metadata: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -223,6 +229,7 @@ mod tests {
             target: [0.; 3],
             length_m: length(sub(end, start)),
             fov_degrees: 60.,
+            metadata: Default::default(),
         }
     }
 

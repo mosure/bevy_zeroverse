@@ -21,17 +21,12 @@ ssaa_factor = 0
 [paper]
 source = "tex/bevy_zeroverse.tex"
 
-# Preserve both captured cohorts and their original source provenance.
-# The lens pin also binds the installed gallery and papers byte for byte.
-# This exception expires when either the release version or source hash changes.
-[retained_evidence]
-release_version = "0.59.0"
-release_source_sha256 = "5701946cd879edf3bb4c2c2a293707bedb877cd918b54f554d1e5e6b8c9a168b"
-capture_evidence_sha256 = "63564616f23c73482abb3c96a76af96db1b6f2e63c22b9d875a0faeace031e6d"
-lens_evidence_sha256 = "88e7f00dfdea5f4010ae2b8ea83039275825bb2161af09aab7912f0ac569eba5"
-reason = "Preserve the captured cohorts, galleries and papers under their original provenance. This release tunes peer overlap for baseline-controlled multi-view camera rigs, exports directed pair diagnostics, and fixes furniture clearance below interior soffits. The matched camera qualification remains local; retained images are not measurements of the new camera distribution."
-
-[retained_evidence.current_tool_sha256]
-"examples/review_objects.rs" = "3a1194fc1ff73ff8d52e3e897df8c794d7c8bb1cb840d04bfd3b7b52b973376b"
-"examples/material_study/audit.rs" = "b2d36a849364ab3654fba07d768f6bd99a19ec44f3d6cc40b7adca17c1731fd6"
-"examples/material_study/studio.rs" = "f3cea006c8d388e71fa0985391996eec9947cf65e15c372e2444a87792d3f29e"
+# Bounded current-only measurement populations. Shadows, GI, SSAA and all
+# annotation contracts remain enabled. These studies are independent of private
+# matched before/after experiments.
+[automation]
+camera_audit_rooms = 64
+camera_render_rooms = 2
+preparation_rooms = 32
+timing_rooms = 8
+cpu_workers = 2

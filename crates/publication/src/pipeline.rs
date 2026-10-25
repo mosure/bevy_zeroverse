@@ -57,6 +57,12 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     for name in ["publication.toml", "tex/arxiv.sty", "tex/references.bib"] {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
+    if root.join(crate::automation::RECEIPT).is_file() {
+        inputs.insert(
+            crate::automation::RECEIPT.into(),
+            io::hash(&root.join(crate::automation::RECEIPT))?,
+        );
+    }
     let original: Option<Attestation> = config
         .retained_evidence
         .as_ref()
@@ -83,11 +89,9 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
         inputs.insert(name.into(), hash);
     }
     for dir in ["www/project/static", "tex/generated"] {
-        for (name, value) in io::files(root, &root.join(dir))? {
-            if !is_generated(&name) && !snapshot::retired(&name) {
-                inputs.insert(name, value);
-            }
-        }
+        inputs.extend(io::files_where(root, &root.join(dir), &|name| {
+            !is_generated(name) && !snapshot::retired(name)
+        })?);
     }
     if let Some(input) = &config.camera_study {
         for (name, hash) in io::files(root, &root.join(input))? {
@@ -109,7 +113,7 @@ fn publication_inputs(root: &Path, config: &Config) -> Result<BTreeMap<String, S
     }
     Ok(inputs)
 }
-fn is_generated(name: &str) -> bool {
+pub(crate) fn is_generated(name: &str) -> bool {
     name == "www/project/index.html"
         || name == "www/project/reference.html"
         || name.starts_with("www/project/fisheye/")
@@ -509,6 +513,96 @@ fn check_gallery(html: &str) -> Result<()> {
     Ok(())
 }
 
+/// Reuse only a complete source/recipe-matched cohort. Caller owns writer.lock.
+pub(crate) fn capture_dataset(root: &Path, config: &Config, recapture: bool) -> Result<Dataset> {
+    let current = identity(root)?;
+    let work = root.join("out/publication");
+    Ok({
+        let capture_root = root.join(&config.captures);
+        let dataset = if !recapture {
+            Dataset::load(&capture_root, &current, &config.capture).ok()
+        } else {
+            None
+        };
+        match dataset {
+            Some(dataset) => {
+                println!("Reuse completed captures with identical compiled generator and protocol");
+                dataset
+            }
+            None => {
+                println!(
+                    "Capture current generator: {} audited / {} rendered rooms",
+                    config.capture.audit_rooms, config.capture.rendered_rooms
+                );
+                let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+                let temporary = tempfile::Builder::new()
+                    .prefix("capture-")
+                    .tempdir_in(&work)?;
+                // Retain diagnostics if post-render contract checks fail.
+                let temporary = temporary.keep();
+                let p = &config.capture;
+                ensure!(
+                    Command::new(cargo)
+                        .args([
+                            "run",
+                            "--locked",
+                            "-p",
+                            "bevy_zeroverse",
+                            "--bin",
+                            "indoor_validate",
+                            "--no-default-features",
+                            "--features",
+                            "multi_threaded",
+                            "--"
+                        ])
+                        .args(["--labels", "--co-visibility", "--no-raw"])
+                        .args([
+                            "--seed",
+                            &p.seed.to_string(),
+                            "--audit-seeds",
+                            &p.audit_rooms.to_string(),
+                            "--renders",
+                            &p.rendered_rooms.to_string(),
+                            "--cameras",
+                            &p.cameras.to_string(),
+                            "--width",
+                            &p.width.to_string(),
+                            "--height",
+                            &p.height.to_string(),
+                            "--playback-steps",
+                            &p.playback_steps.to_string(),
+                            "--density",
+                            &p.density.to_string(),
+                            "--human-density",
+                            &p.human_density.to_string(),
+                            "--gi-rays",
+                            &p.gi_rays.to_string(),
+                            "--ssaa-factor",
+                            &p.ssaa_factor.to_string()
+                        ])
+                        .arg("--output")
+                        .arg(&temporary)
+                        .arg("--asset-root")
+                        .arg(root)
+                        .current_dir(root)
+                        .status()?
+                        .success(),
+                    "capture run failed; published output unchanged"
+                );
+                Dataset::load(&temporary, &current, p)?;
+                fs::create_dir_all(capture_root.parent().unwrap())?;
+                // Cache replacement is not publication: preserve the last complete
+                // cache until the new run has passed every contract check.
+                if capture_root.exists() {
+                    fs::remove_dir_all(&capture_root)?;
+                }
+                fs::rename(temporary, &capture_root)?;
+                Dataset::load(&capture_root, &current, p)?
+            }
+        }
+    })
+}
+
 pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     let root = root.canonicalize()?;
     let config = Config::load(&root)?;
@@ -523,6 +617,20 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         .open(work.join("writer.lock"))?;
     lock.try_lock_exclusive()
         .context("another publication build is running")?;
+    refresh_locked(&root, recapture, None)
+}
+
+/// Caller owns the shared publication lock, including preparation of evidence.
+pub(crate) fn refresh_locked(
+    root: &Path,
+    recapture: bool,
+    prepared_work: Option<&Path>,
+) -> Result<()> {
+    let config = Config::load(root)?;
+    crate::retained::require_refresh_allowed(&config)?;
+    let work = prepared_work
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| root.join("out/publication"));
     ensure!(
         Command::new("latexmk").arg("-v").output().is_ok()
             && Command::new("pdftoppm").arg("-v").output().is_ok(),
@@ -533,7 +641,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         publisher_digest == env!("PUBLICATION_SOURCE_SHA256"),
         "publisher binary is stale: use cargo run or rebuild this tool"
     );
-    let current = identity(&root)?;
+    let current = identity(root)?;
     // These independently measured inputs are not produced by the gallery
     // capture. Reject stale receipts before spending GPU time on any atlases.
     if let Some(input) = &config.camera_study {
@@ -552,97 +660,16 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         crate::timing::validate_receipt(&io::read(&timing)?, &current)
             .context("remeasure the paper timing study before publication refresh")?;
     }
-    let before = publication_inputs(&root, &config)?;
-    let capture_root = root.join(&config.captures);
-    let dataset = if !recapture {
-        Dataset::load(&capture_root, &current, &config.capture).ok()
-    } else {
-        None
-    };
-    let dataset = match dataset {
-        Some(dataset) => {
-            println!("Reuse completed captures with identical compiled generator and protocol");
-            dataset
-        }
-        None => {
-            println!(
-                "Capture current generator: {} audited / {} rendered rooms",
-                config.capture.audit_rooms, config.capture.rendered_rooms
-            );
-            let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
-            let temporary = tempfile::Builder::new()
-                .prefix("capture-")
-                .tempdir_in(&work)?;
-            // Retain diagnostics if post-render contract checks fail.
-            let temporary = temporary.keep();
-            let p = &config.capture;
-            ensure!(
-                Command::new(cargo)
-                    .args([
-                        "run",
-                        "--locked",
-                        "-p",
-                        "bevy_zeroverse",
-                        "--bin",
-                        "indoor_validate",
-                        "--no-default-features",
-                        "--features",
-                        "multi_threaded",
-                        "--"
-                    ])
-                    .args(["--labels", "--co-visibility", "--no-raw"])
-                    .args([
-                        "--seed",
-                        &p.seed.to_string(),
-                        "--audit-seeds",
-                        &p.audit_rooms.to_string(),
-                        "--renders",
-                        &p.rendered_rooms.to_string(),
-                        "--cameras",
-                        &p.cameras.to_string(),
-                        "--width",
-                        &p.width.to_string(),
-                        "--height",
-                        &p.height.to_string(),
-                        "--playback-steps",
-                        &p.playback_steps.to_string(),
-                        "--density",
-                        &p.density.to_string(),
-                        "--human-density",
-                        &p.human_density.to_string(),
-                        "--gi-rays",
-                        &p.gi_rays.to_string(),
-                        "--ssaa-factor",
-                        &p.ssaa_factor.to_string()
-                    ])
-                    .arg("--output")
-                    .arg(&temporary)
-                    .arg("--asset-root")
-                    .arg(&root)
-                    .current_dir(&root)
-                    .status()?
-                    .success(),
-                "capture run failed; published output unchanged"
-            );
-            Dataset::load(&temporary, &current, p)?;
-            fs::create_dir_all(capture_root.parent().unwrap())?;
-            // Cache replacement is not publication: preserve the last complete
-            // cache until the new run has passed every contract check.
-            if capture_root.exists() {
-                fs::remove_dir_all(&capture_root)?;
-            }
-            fs::rename(temporary, &capture_root)?;
-            Dataset::load(&capture_root, &current, p)?
-        }
-    };
+    let before = publication_inputs(root, &config)?;
+    let dataset = capture_dataset(root, &config, recapture)?;
     let qualification_cache = work.join("qualification");
-    qualification::refresh_cache(&root, &qualification_cache, &current)?;
+    qualification::refresh_cache(root, &qualification_cache, &current)?;
     let door_cache = work.join("doors");
-    doors::refresh_cache(&root, &door_cache, &current)?;
+    doors::refresh_cache(root, &door_cache, &current)?;
     let object_cache = work.join("objects");
-    objects::refresh_cache(&root, &object_cache, &current)?;
+    objects::refresh_cache(root, &object_cache, &current)?;
     let material_cache = work.join("materials");
-    materials::refresh_cache(&root, &material_cache, &current)?;
+    materials::refresh_cache(root, &material_cache, &current)?;
     let staging = tempfile::Builder::new()
         .prefix("stage-")
         .tempdir_in(&work)?;
@@ -660,9 +687,9 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     fs::copy(root.join("www/index.html"), stage.join("www/index.html"))?;
     println!("Build lossless media, plans, population metrics and unified HTML");
     let gallery = media::build(&dataset, stage, &config.capture)?;
-    camera_study::build(&root, stage, config.camera_study.as_deref())?;
+    camera_study::build(root, stage, config.camera_study.as_deref())?;
     crate::cohorts::publication::build(
-        &root,
+        root,
         stage,
         config.room_qualification.as_deref(),
         &current,
@@ -670,15 +697,20 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     objects::build(&object_cache, stage, &current)?;
     doors::build(&door_cache, stage, &current)?;
     materials::build(&material_cache, stage, &current)?;
-    crate::capacity::publication::build(&root, stage, &config.capacity_receipts, &current)?;
-    crate::fisheye::build(&root, stage)?;
+    crate::capacity::publication::build(root, stage, &config.capacity_receipts, &current)?;
+    crate::fisheye::build(root, stage)?;
+    if root.join(crate::automation::RECEIPT).is_file() {
+        let destination = stage.join(crate::automation::PUBLIC_RECEIPT);
+        fs::create_dir_all(destination.parent().unwrap())?;
+        fs::copy(root.join(crate::automation::RECEIPT), destination)?;
+    }
     media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
     paper::compile(stage, &config, &gallery)?;
     crate::fisheye::bind_paper(stage)?;
     ensure!(
-        identity(&root)? == current && publication_inputs(&root, &config)? == before,
+        identity(root)? == current && publication_inputs(root, &config)? == before,
         "sources changed during build; no artifacts installed"
     );
     let attestation = Attestation {
@@ -687,7 +719,7 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
         protocol: config.capture.clone(),
         run_id: dataset.selection["run_id"].as_str().unwrap().into(),
         capture_engine: dataset.selection["capture_engine"].as_str().unwrap().into(),
-        renderer_inputs: source_inputs(&root)?,
+        renderer_inputs: source_inputs(root)?,
         publication_inputs: before,
         capture_sources: dataset.input_sha256,
         artifacts: artifacts(stage)?,
@@ -696,8 +728,8 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     verify_bundle(stage, &config, &attestation, false)?;
     io::write(&stage.join(ATTESTATION), &attestation)?;
     println!("Install fully validated bundle; attestation is the last commit marker");
-    install(&root, stage, &attestation.artifacts)?;
-    verify(&root, None)?;
+    install(root, stage, &attestation.artifacts)?;
+    verify(root, None)?;
     println!(
         "Publication verified: crate {}, generator {}, {} rooms / {} views",
         current.crate_version,
@@ -823,15 +855,8 @@ fn rebuild_retained_page(
 /// page/paper has passed the explicit source and evidence policy.
 /// Direct Cargo uploads remain outside this tool's control.
 pub fn publish(root: &Path, package: &str, dry_run: bool) -> Result<()> {
-    if Config::load(root)?.retained_evidence.is_some() {
-        // A failed retained-evidence check must never start a GPU refresh.
-        rebuild(root, None)?;
-    } else if verify(root, None).is_err() {
-        refresh(root, false)?;
-    } else {
-        rebuild(root, None)?;
-    }
-    let attestation = verify(root, None)?;
+    crate::automation::sync(root, false, None)?;
+    let attestation = crate::automation::verify_current(root, None)?;
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let mut command = Command::new(cargo);
     command

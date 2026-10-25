@@ -191,7 +191,7 @@ pub fn prepare(input: &Path, output: &Path, rendered: Option<&Path>) -> Result<(
             for group in &selected {
                 if let Some(error) = &group.error {
                     failures.push(json!({"seed":group.seed,"error":error}));
-                    records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":false,"error":error}));
+                    records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":false,"error":error,"policy":group.policy,"diagnostics":group.metadata}));
                     continue;
                 }
                 accepted += 1;
@@ -305,7 +305,7 @@ pub fn prepare(input: &Path, output: &Path, rendered: Option<&Path>) -> Result<(
                         .collect();
                     compact[field] = distribution(values);
                 }
-                records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":true,"metrics":compact,"geometry":group.geometry,"reference_proxy_overlap":distribution(proxy)}));
+                records.push(json!({"seed":group.seed,"baseline":b,"camera_count":n,"accepted":true,"metrics":compact,"geometry":group.geometry,"policy":group.policy,"diagnostics":group.metadata,"reference_proxy_overlap":distribution(proxy)}));
                 if group.seed == example_seed {
                     examples.push(json!({"baseline":b,"camera_count":n,"cameras":group.cameras}));
                 }
@@ -694,7 +694,7 @@ fn paper(report: &Value) -> String {
 \section{{Camera-count and baseline audit}}
 The current sampler was evaluated on {} consecutive matched rooms (seeds {}--{}), 1--12 cameras and baseline values 0, 0.5 and 1 at aspect ratio {}. Geometry, people and appearance were unchanged between requests; complete camera sets were resampled, so different counts are not necessarily nested prefixes. {} of {} requested sets were rejected by the bounded sampler; all failures remain in the downloadable report. Camera-center and optical-axis measurements use 33 synchronized path samples. Reference-edge overlap uses the production 13$\times$9 first-surface proxy at five times, rather than rendered pixels.
 
-At one camera the baseline imposes no pair constraint. Increasing camera count does not increase the minimum nonreference pair separation: the same $0.04+0.46b$ metre threshold applies. Group covariance spread constrains overall anisotropy, not every nearest neighbor. Visible-region target variation samples reference-visible surface patches and ranks feasible candidates for count-aware nearest-peer spacing, optical-axis separation and additional primary-room proxy surface cells. The soft distance scale is room diagonal divided by the square root of camera count. Temporal paths can remain related deformations of an existing route; varied gaze is not independent route topology. There is no explicit 90-degree optical-angle cap.
+At one camera the baseline imposes no pair constraint. The serialized controls and per-count mixed-rig/coherence diagnostics accompany every requested set. Nominal advanced controls describe proposals; admission also accounts for calibrated lens footprints and room clearance. Group covariance spread constrains overall anisotropy, not every nearest neighbor. Visible-region target variation samples reference-visible surface patches and ranks feasible candidates for count-aware nearest-peer spacing, optical-axis separation and additional primary-room proxy surface cells. The soft distance scale is room diagonal divided by the square root of camera count. Temporal paths can remain related deformations of an existing route; varied gaze is not independent route topology. There is no explicit 90-degree optical-angle cap.
 
 \begin{{table}}[htbp]\centering\small
 \begin{{tabular}}{{rrrrrr}}\toprule
@@ -784,7 +784,7 @@ $b$ & Cameras & Pair (\%) & Any peer (\%) & Min ref. (\%) & Components \\
             ));
         }
         text.push_str(r"\bottomrule\end{tabular}
-\caption{Native first-surface co-visibility; glass follows the solid annotation convention. Components is the largest number of connected components when an undirected edge requires at least 5\% shared pixels in both directions. The two room families are the independent units; camera pairs and endpoints are correlated.}\label{tab:camera-count-rendered}\end{table}
+\caption{Native first-surface co-visibility; glass follows the solid annotation convention. Components is the largest number of connected components when an undirected edge requires at least 5\% shared pixels in both directions. Room families are the independent units; camera pairs and endpoints are correlated.}\label{tab:camera-count-rendered}\end{table}
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{generated/camera_count_rendered.png}
 \caption{Measured native visibility and triangulation at increasing camera counts. Any-peer visibility is averaged over source views, other means over directed pairs. More peer views increase any-peer visibility without proving broader unique surface coverage.}\label{fig:camera-count-rendered}\end{figure}
 
@@ -818,6 +818,7 @@ mod tests {
             policy: Value::Null,
             geometry: Value::Null,
             reference_overlap: Value::Null,
+            metadata: Default::default(),
         };
         validate_group(&group).unwrap();
         group.error = None;

@@ -155,7 +155,7 @@ The project page, paper, figures and calibration archives are built by a single 
     )?;
     Ok(())
 }
-fn tex(text: &str) -> String {
+pub(crate) fn tex(text: &str) -> String {
     text.chars()
         .map(|c| match c {
             '&' => "\\&".into(),

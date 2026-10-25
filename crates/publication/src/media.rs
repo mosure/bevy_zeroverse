@@ -763,6 +763,7 @@ pub fn page(gallery: &Value, stage: &Path, protocol: &Protocol) -> Result<()> {
     let page = fill(
         include_str!("../templates/project.html"),
         &BTreeMap::from([
+            ("AUTOMATION_LINK", if stage.join(crate::automation::PUBLIC_RECEIPT).is_file() {"<a class=\"button\" href=\"static/papers/publication-run.json\">Generation recipe and provenance ↗</a>".into()} else {String::new()}),
             ("CAMERA_NAV",if stage.join(crate::camera_study::DIRECTORY).join("study.json").exists() {"<a href=\"#camera-counts\">Cameras</a>".into()} else {String::new()}),
             ("CAMERA_STUDY",if stage.join(crate::camera_study::DIRECTORY).join("study.json").exists() {
                 let report: Value=io::read(&stage.join(crate::camera_study::DIRECTORY).join("study.json"))?;

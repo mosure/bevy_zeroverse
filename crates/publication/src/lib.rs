@@ -1,5 +1,6 @@
 //! The canonical capture → validate → media/metrics → page → paper → attest
-//! pipeline. Normal CI verifies the checked-in bundle without a GPU or Python.
+//! pipeline. CI generates current evidence, then independently verifies it.
+pub mod automation;
 pub mod camera_study;
 pub mod capacity;
 pub mod capacity_theory;
