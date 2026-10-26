@@ -21,8 +21,10 @@ jobs:
         fetch-depth: 2
 
     # Generated galleries can exceed GitHub's compare-diff limit. Avoid the
-    # remote issue scan when no marker is added or removed. The action derives
-    # issue creation/closure from the marker line's added/deleted status.
+    # remote issue scan when no marker is added or removed. Generated evidence
+    # embeds base64 images that can randomly contain task-marker letters; scan
+    # their source templates/programs instead. The action derives issue
+    # creation/closure from the marker line's added/deleted status.
     - name: Check local diff for TODO markers
       id: markers
       env:
@@ -41,13 +43,15 @@ jobs:
         elif subprocess.run(["git", "cat-file", "-e", before], capture_output=True).returncode:
             subprocess.run(["git", "fetch", "--no-tags", "--depth=1", "origin", before], check=True)
         patch = subprocess.Popen(
-            ["git", "diff", "--no-ext-diff", "--no-color", "--no-renames", before, after, "--"],
+            ["git", "diff", "--no-ext-diff", "--no-color", "--no-renames", before, after,
+             "--", ".", ":(exclude)www/project", ":(exclude)tex/generated",
+             ":(exclude)docs/evidence"],
             stdout=subprocess.PIPE,
         )
         found = False
         for line in patch.stdout:
             if line[:1] in (b"+", b"-") and not line.startswith((b"+++", b"---")):
-                found |= b"TODO" in line
+                found |= re.search(rb"\bTODO\b", line) is not None
         if patch.wait():
             raise RuntimeError("local diff failed")
         with open(os.environ["GITHUB_OUTPUT"], "a") as output:
