@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn sculpture_sweeps_stay_above_support_across_admitted_aspects() {
+    let mut failures = Vec::new();
+    for seed in 0..256 {
+        let mut o = super::super::audit::fixture(ObjectKind::Sculpture, seed);
+        for size in [
+            dimensions(ObjectKind::Sculpture, 0),
+            o.size,
+            Vec3::new(0.78, 0.26, 0.70),
+            Vec3::new(0.24, 1.05, 0.22),
+            Vec3::new(0.78, 0.26, 0.22),
+            Vec3::new(0.24, 0.26, 0.70),
+        ] {
+            o.size = size;
+            let assembly = super::super::build_object(&o);
+            let program = sculpture::parameters(&o);
+            if let Err(error) = super::super::audit::check(&o, &assembly) {
+                failures.push(format!("{error}; size={size:?}; program={program:?}"));
+            }
+            if assembly.bounds().0.y < -1e-6 {
+                failures.push(format!(
+                    "seed {seed}; size={size:?}; program={program:?}; bounds={:?}",
+                    assembly.bounds()
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
 fn banquette_back_height_does_not_change_the_adult_seating_datum() {
     for seed in 0..64 {
         let mut o = super::super::audit::fixture(ObjectKind::Banquette, seed);

@@ -44,10 +44,31 @@ pub fn parameters(o: &IndoorObject) -> SculptureProgram {
 /// Fit tube thickness to the realized bends, including the closed-loop seam.
 /// A thick sweep around a narrow ellipse can invert its inner triangles even
 /// when every centerline point and vertex stays inside the admitted envelope.
+/// Tilted cross-sections must also stay above the sculpture's support plane.
 fn sweep_radius(points: &[Vec3], desired: f32) -> f32 {
     let closed = points[0].distance_squared(*points.last().unwrap()) < 1e-12;
     let count = points.len() - usize::from(closed);
     let mut radius = desired;
+    for i in 0..count {
+        // Match Geometry::tube's endpoint and centered tangents. The vertical
+        // extent of its circular cross-section is r * |tangent x up|,
+        // independent of the transported frame or polygonal side count.
+        let before = if closed {
+            (i + count - 1) % count
+        } else {
+            i.saturating_sub(1)
+        };
+        let after = if closed {
+            (i + 1) % count
+        } else {
+            (i + 1).min(count - 1)
+        };
+        let tangent = (points[after] - points[before]).normalize();
+        let vertical_extent = tangent.cross(Vec3::Y).length();
+        if vertical_extent > 1e-5 {
+            radius = radius.min(points[i].y / vertical_extent * (1. - 4. * f32::EPSILON));
+        }
+    }
     let range = if closed { 0..count } else { 1..count - 1 };
     for i in range {
         let a = points[i] - points[(i + count - 1) % count];
@@ -84,8 +105,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     p.bend * (TAU * t + p.phase).sin(),
                 ) * s
             };
-            let pts: Vec<_> = (0..=p.elements)
-                .map(|i| at(i as f32 / p.elements as f32))
+            // Lobe count must not undersample the curved armature. Sparse
+            // samples can turn adjacent sweep frames through a large angle
+            // and invert triangles in squat, wide sculptures.
+            let spine_segments = (p.elements * 4).max(24);
+            let pts: Vec<_> = (0..=spine_segments)
+                .map(|i| at(i as f32 / spine_segments as f32))
                 .collect();
             let radius = sweep_radius(&pts, radius);
             a.part(p.surface, label).tube(&pts, radius, 10);

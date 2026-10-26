@@ -424,8 +424,8 @@ pub fn check(o: &IndoorObject, a: &Assembly) -> Result<MeshCheck, String> {
                 .sum();
             if normal.length_squared() < 1e-20 || normal.dot(smooth) < -1e-6 {
                 return Err(format!(
-                    "{:?}/{} degenerate/inverted triangle",
-                    o.kind, o.seed
+                    "{:?}/{} degenerate/inverted triangle {tri:?} in {label}, points {p:?}, orientation {}",
+                    o.kind, o.seed, normal.dot(smooth)
                 ));
             }
             triangles += 1;
