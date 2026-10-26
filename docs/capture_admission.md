@@ -148,14 +148,18 @@ placement search under valid constraints.
 `MissingProgramAnchor` includes a kitchen whose bounded service-run search could
 not admit its required equipment. Every manifest integrity check runs before
 that decision; partial or malformed kitchen assemblies remain fatal errors.
-`PlacementClearance` includes a ceiling fan whose mount or swept rotor clearance
-fails after construction. Fan identity/support, nonfinite transforms and all
-other manifest integrity checks remain fatal and take precedence over recovery.
-Fan admission reserves the maximum possible area-rug thickness before the rugs
-are placed, preserving the full 2.1 m headroom when later floor supports appear.
-This sampling change is identified by generator revision 67; replay requires
-the recorded generator identity, not just the seed. It does not change the
-retirement protocol or opt consumers into skipping rejected rooms.
+`PlacementClearance` includes finite ceiling-installation overlaps or headroom
+conflicts and ceiling fans whose mount or swept rotor clearance fails after
+construction. Every ceiling module's numeric parameters and detail profile are
+checked before placement, and the remaining manifest integrity checks run before
+returning a recoverable rejection. Invalid dimensions, nonfinite transforms,
+malformed identities/supports and incompatible generator provenance remain fatal.
+Fan admission reserves the maximum possible area-rug thickness, preserving its
+2.1 m headroom. Later rugs must also preserve the installed ceiling modules'
+2.35 m headroom; infeasible proposals are retried within the existing bounded rug
+sampler. Fixtures are retained and the final validator keeps the same limits.
+Replay requires the recorded generator identity, not just the seed. Recovery
+remains opt-in and uses the existing retirement protocol and rejection limits.
 Mixed ceiling/room camera search separates optical visibility from physical
 clearance. Ceiling installation triangles participate in visibility; conservative
 installation reservations still protect mounting bodies and rail sweeps. The

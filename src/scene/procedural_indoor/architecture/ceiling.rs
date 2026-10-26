@@ -11,6 +11,8 @@ use super::*;
 pub use profile::{CeilingDetail, CeilingShape, TrussWeb};
 use serde::{Deserialize, Serialize};
 
+const MIN_HEADROOM_M: f32 = 2.35;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CeilingSystem {
     AcousticCloud,
@@ -72,11 +74,32 @@ impl CeilingInstallation {
     pub fn sample(scene: &IndoorManifest) -> Self {
         sampling::sample(scene)
     }
+    /// A floor covering fitted after the ceiling must preserve its headroom.
+    /// Match `highest_floor`'s conservative footprint test, including coverings
+    /// entirely inside a module's bounds, without rebuilding scene reservations.
+    /// Include touching edges: `floor_height` also samples the module's corners.
+    pub(crate) fn admits_floor_support(&self, lo: Vec2, hi: Vec2, height: f32) -> bool {
+        self.modules.iter().all(|module| {
+            let (a, b) = module.body_bounds();
+            !lo.cmple(b.xz()).all() || !hi.cmpge(a.xz()).all() || a.y >= height + MIN_HEADROOM_M
+        })
+    }
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        match self.validate_integrity(scene)? {
+            Some(reason) => Err(reason),
+            None => Ok(()),
+        }
+    }
+
+    /// Defer finite placement conflicts until the caller has checked the entire
+    /// manifest. A bad placement must never mask corrupt geometry or metadata.
+    pub(crate) fn validate_integrity(
+        &self,
+        scene: &IndoorManifest,
+    ) -> Result<Option<String>, String> {
         if self.modules.len() > 96 {
             return Err("unbounded ceiling installation".into());
         }
-        let reservations = sampling::Reservations::new(scene);
         for (i, module) in self.modules.iter().enumerate() {
             if !module.center.is_finite()
                 || !module.size.is_finite()
@@ -101,15 +124,24 @@ impl CeilingInstallation {
                             | CeilingSystem::Coffers
                             | CeilingSystem::Ventilation
                     ))
-                || !sampling::admissible(scene, module, &reservations)
+            {
+                return Err(format!("invalid ceiling module {i}"));
+            }
+        }
+        let reservations = sampling::Reservations::new(scene);
+        for (i, module) in self.modules.iter().enumerate() {
+            if !sampling::admissible(scene, module, &reservations)
                 || self.modules[..i]
                     .iter()
                     .any(|m| overlap(m.bounds(), module.bounds(), 0.012))
             {
-                return Err(format!("invalid or intersecting ceiling module {i}"));
+                return Ok(Some(format!(
+                    "seed {}: ceiling module {i} violates placement clearance",
+                    scene.seed
+                )));
             }
         }
-        Ok(())
+        Ok(None)
     }
 }
 

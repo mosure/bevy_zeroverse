@@ -70,7 +70,7 @@ timeout. Each completion carries its sequence and exact seed.
 An optional shared `CaptureControl` supplies cumulative room credits, hold and
 cancel. GPU delivery emits `CaptureOutcome::Delivered`, distinct from durable
 archive publication. Typed construction rejections, including `PlacementClearance`
-for the known floor-furniture/ceiling-clearance failure, return credits only after
+for finite furniture or ceiling placement conflicts, return credits only after
 scene retirement and follow the existing bounded `RejectionPolicy`. Transport
 failures are not relabeled as scientific rejections. Recovery defaults to `Abort`;
 opt in with `RejectionPolicy::Continue`, allowed kinds and finite total/consecutive

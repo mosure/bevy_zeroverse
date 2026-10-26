@@ -49,6 +49,12 @@ impl RugSupport {
             && hi.xz().cmple(self.max).all()
             && polygon::box_inside(&self.outline, lo.xz(), hi.xz(), 0.03)
     }
+    pub(super) fn ceiling_clear(&self, scene: &IndoorManifest) -> bool {
+        scene
+            .ceiling_installation
+            .as_ref()
+            .is_none_or(|ceiling| ceiling.admits_floor_support(self.min, self.max, self.top))
+    }
 }
 impl IndoorManifest {
     pub(in super::super) fn furnish_area_rugs(&mut self) {
@@ -114,6 +120,7 @@ impl IndoorManifest {
                 // but furniture may occupy this rug when fully supported.
                 if !self.placement_clear_internal(&rug, 0.025, true)
                     || !self.floor_support_clear(lo, hi)
+                    || !support.ceiling_clear(self)
                 {
                     continue;
                 }
@@ -230,6 +237,9 @@ impl IndoorManifest {
                     continue;
                 }
                 let support = RugSupport::from_object(&rug);
+                if !support.ceiling_clear(self) {
+                    continue;
+                }
                 self.objects.push(rug.clone());
                 self.rug_supports.push(support);
                 let kind = if r.random_bool(0.55) {

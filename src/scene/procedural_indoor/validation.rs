@@ -76,7 +76,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
         envelope.validate(scene)?;
     }
     if let Some(ceiling) = &scene.ceiling_installation {
-        ceiling.validate(scene)?;
+        placement_rejection = ceiling.validate_integrity(scene)?;
     }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));

@@ -1,8 +1,36 @@
 use super::*;
+mod ceiling;
 use crate::scene::procedural_indoor::{
     layout::{IndoorObject, ObjectKind},
     objects,
 };
+
+#[test]
+fn reported_ceiling_seeds_neighbors_and_density_variants_keep_clearance() {
+    for seed in (65_904_928..65_904_944).chain(65_991_952..65_991_968) {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        validate_layout(&scene).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        validate_geometry(&scene).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+    }
+    for seed in [65_904_936, 65_991_960] {
+        for density in [0.15, 0.65, 1.] {
+            for people in [0., 0.35] {
+                let scene = IndoorManifest::generate_with_humans(
+                    seed,
+                    IndoorLayout::Mixed,
+                    density,
+                    4,
+                    people,
+                )
+                .unwrap();
+                validate_layout(&scene)
+                    .unwrap_or_else(|e| panic!("density {density}, people {people}: {e}"));
+                validate_geometry(&scene).unwrap();
+            }
+        }
+    }
+}
 
 #[test]
 fn reported_65824532_furniture_clearance() {

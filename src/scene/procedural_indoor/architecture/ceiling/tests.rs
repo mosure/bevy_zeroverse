@@ -2,6 +2,94 @@ use super::*;
 use crate::scene::procedural_indoor::layout::IndoorLayout;
 
 #[test]
+fn reported_65991960_ceiling_installation_is_valid() {
+    validate_reported_ceiling_seed(65_991_960, 3);
+}
+
+#[test]
+fn reported_65904936_ceiling_installation_is_valid() {
+    validate_reported_ceiling_seed(65_904_936, 8);
+}
+
+fn validate_reported_ceiling_seed(seed: u64, module_count: usize) {
+    let mut scene =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let plan = scene.ceiling_installation.as_ref().unwrap();
+    // Keep the original fixtures. A later rug must fit their headroom rather
+    // than invalidating the room or removing already installed geometry.
+    assert_eq!(plan.modules.len(), module_count);
+    plan.validate(&scene).unwrap();
+    crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
+    crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+
+    let policy = crate::scene::procedural_indoor::cameras::CameraSettings::parse(include_str!(
+        "../../cameras/ceiling/tests/mixed_training_camera_settings.json"
+    ))
+    .unwrap();
+    let started = std::time::Instant::now();
+    scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+    crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
+    eprintln!(
+        "seed {}: eight-view placement in {:.4}s",
+        scene.seed,
+        started.elapsed().as_secs_f64()
+    );
+    let mut replay =
+        IndoorManifest::generate_with_humans(scene.seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    replay.resample_cameras(8, policy, 1.).unwrap();
+    assert_eq!(scene, replay);
+}
+
+#[test]
+fn late_floor_support_preserves_headroom_for_partial_and_contained_footprints() {
+    use crate::scene::procedural_indoor::layout::floor::area::RugSupport;
+
+    let mut scene =
+        IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let module = scene.ceiling_installation.as_ref().unwrap().modules[0].clone();
+    let plan = CeilingInstallation {
+        exposed_slab: true,
+        modules: vec![module.clone()],
+    };
+    let (lo, hi) = module.body_bounds();
+    let threshold = lo.y - MIN_HEADROOM_M;
+    for (min, max) in [
+        (
+            module.center.xz() - Vec2::splat(0.01),
+            module.center.xz() + Vec2::splat(0.01),
+        ),
+        (lo.xz() - Vec2::splat(0.01), lo.xz() + Vec2::splat(0.01)),
+        (lo.xz() - Vec2::splat(0.01), hi.xz() + Vec2::splat(0.01)),
+    ] {
+        assert!(plan.admits_floor_support(min, max, threshold - 0.001));
+        assert!(!plan.admits_floor_support(min, max, threshold + 0.001));
+    }
+    assert!(!plan.admits_floor_support(hi.xz(), hi.xz() + Vec2::ONE, threshold + 1.));
+    assert!(plan.admits_floor_support(
+        hi.xz() + Vec2::splat(0.001),
+        hi.xz() + Vec2::ONE,
+        threshold + 1.
+    ));
+    // The admission rule must agree with the independent final validator,
+    // even when none of the ceiling footprint's corners lies on the rug.
+    scene.rug_supports.clear();
+    plan.validate(&scene).unwrap();
+    let min = module.center.xz() - Vec2::splat(0.01);
+    let max = module.center.xz() + Vec2::splat(0.01);
+    scene.rug_supports.push(RugSupport {
+        object: usize::MAX,
+        outline: vec![min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)],
+        min,
+        max,
+        bottom: threshold - 0.004,
+        top: threshold + 0.001,
+    });
+    assert!(plan.validate(&scene).is_err());
+    scene.rug_supports[0].top = threshold - 0.001;
+    plan.validate(&scene).unwrap();
+}
+
+#[test]
 fn ceiling_program_replays_diversifies_and_contains_every_mesh() {
     let mut systems = std::collections::BTreeSet::new();
     let mut exposed = 0;

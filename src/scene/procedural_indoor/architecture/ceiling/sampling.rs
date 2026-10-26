@@ -112,7 +112,7 @@ pub(super) fn admissible(
         Vec2::new(lo.x, hi.z),
         Vec2::new(hi.x, lo.z),
     ];
-    if lo.y < highest_floor(scene, lo.xz(), hi.xz()) + 2.35
+    if lo.y < highest_floor(scene, lo.xz(), hi.xz()) + MIN_HEADROOM_M
         || corners
             .iter()
             .any(|&p| hi.y > scene.ceiling_height(p) - 0.002)

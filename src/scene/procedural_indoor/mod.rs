@@ -777,4 +777,6 @@ fn position_editor(
 }
 
 #[cfg(test)]
+mod recovery_tests;
+#[cfg(test)]
 mod tests;
