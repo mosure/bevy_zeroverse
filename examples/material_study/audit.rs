@@ -15,16 +15,24 @@ use std::{
     path::Path,
 };
 
+pub fn finish_slot(category: &Category, seed: u64) -> usize {
+    if category.name == "Rug" {
+        rugs::slot(seed)
+    } else {
+        variants::object_slot(category.surface, seed, None)
+    }
+}
+
 pub fn recipe(category: &Category, seed: u64) -> program::MaterialRecipe {
     let recipes = program::sample_with_floor(seed, category.floor).unwrap();
     if category.name == "Rug" {
         return rugs::recipe(&recipes[category.surface as usize], rugs::slot(seed));
     }
-    recipes[category.surface as usize].variant(variants::slot(seed))
+    recipes[category.surface as usize].variant(finish_slot(category, seed))
 }
 pub fn record(category: &Category, seed: u64) -> Value {
     let r = recipe(category, seed);
-    let content_seed = variants::screen_seed(seed, variants::slot(seed));
+    let content_seed = variants::screen_seed(seed, finish_slot(category, seed));
     let content = match category.surface {
         Surface::Screen => json!(screens::parameters_for(
             content_seed,
@@ -44,8 +52,8 @@ pub fn record(category: &Category, seed: u64) -> Value {
     };
     let glass = matches!(category.surface, Surface::Glass | Surface::GlassInterior)
         .then(|| GlassRecipe::sample(seed, category.surface));
-    json!({"seed":seed,"finish_slot":if category.name == "Rug" { Some(rugs::slot(seed)) } else { variants::supports(category.surface).then(|| variants::slot(seed)) },
-        "structure_group":if category.name == "Rug" { rugs::slot(seed) } else { variants::slot(seed) % variants::structure_count(category.surface) },
+    json!({"seed":seed,"finish_slot":if category.name == "Rug" { Some(rugs::slot(seed)) } else { variants::supports(category.surface).then(|| finish_slot(category, seed)) },
+        "structure_group":if category.name == "Rug" { rugs::slot(seed) } else { finish_slot(category, seed) % variants::structure_count(category.surface) },
         "recipe":r,"glass":glass,"content":content})
 }
 
@@ -158,6 +166,21 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
 mod tests {
     use super::*;
     #[test]
+    fn document_probes_cover_the_production_content_pool() {
+        for c in super::super::categories()
+            .into_iter()
+            .filter(|c| variants::is_content(c.surface))
+        {
+            let slots: BTreeSet<_> = (0..256).map(|seed| finish_slot(&c, seed)).collect();
+            assert!(slots.len() > 80, "{}: {} slots", c.name, slots.len());
+            assert!(slots.iter().all(|&slot| slot < variants::count(c.surface)));
+            for seed in 0..256 {
+                assert_eq!(record(&c, seed)["finish_slot"], finish_slot(&c, seed));
+            }
+        }
+    }
+
+    #[test]
     fn reserved_food_finishes_do_not_alias_generic_slots() {
         for (surface, slot) in [
             (Surface::Ceramic, 100),
@@ -166,15 +189,11 @@ mod tests {
             (Surface::Terracotta, 103),
             (Surface::Paper, 104),
         ] {
-            assert!(food_finish(surface, &format!("food#finish{slot}"), slot));
-            assert!(!food_finish(
-                surface,
-                &format!("furniture#finish{slot}"),
-                slot
-            ));
+            assert!(registered_finish(surface, slot));
+            assert!(slot >= variants::count(surface));
         }
-        assert!(!food_finish(Surface::Metal, "food#finish104", 104));
-        assert!(!food_finish(Surface::Paper, "food#finish105", 105));
+        assert!(!registered_finish(Surface::Metal, 104));
+        assert!(!registered_finish(Surface::Paper, 105));
         let output = tempfile::tempdir().unwrap();
         run(output.path(), &[], 0, 32).unwrap();
         let audit: Value =
@@ -207,7 +226,7 @@ mod tests {
                     if c.name == "Rug" {
                         rugs::slot(seed)
                     } else {
-                        variants::slot(seed) % variants::structure_count(c.surface)
+                        finish_slot(&c, seed) % variants::structure_count(c.surface)
                     }
                 })
                 .collect::<BTreeSet<_>>();

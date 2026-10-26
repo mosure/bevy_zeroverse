@@ -1,5 +1,10 @@
 {
   "adapter": "AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", vendor: 4318, device: 11185, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"610.43.02\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+  "build": {
+    "debug_assertions": true,
+    "profile_opt_level_override": "1",
+    "target_arch": "x86_64"
+  },
   "concurrent_training": false,
   "config": {
     "animated": false,
@@ -17,7 +22,8 @@
     "human_motion": null,
     "image_copiers": true,
     "indoor_appearance": null,
-    "indoor_camera": "{\"lenses\":{\"anisotropy\":[0.9700000286102295,1.0299999713897705],\"circular_probability\":0.20000000298023224,\"distortion_strength\":1.0,\"elliptical_probability\":0.0,\"fov_degrees\":[140.0,210.0],\"probability\":1.0},\"motion_fraction\":1}",
+    "indoor_camera": "{\"lenses\":{\"probability\":1.0,\"fov_degrees\":[140.0,210.0],\"fov_bias\":0.0,\"fov_spread\":1.0,\"circular_probability\":0.2,\"elliptical_probability\":0.0,\"distortion_strength\":1.0,\"anisotropy\":[0.97,1.03]},\"intrinsics\":{\"fov_y_min_degrees\":28.0,\"fov_y_max_degrees\":145.0,\"bias\":-0.2,\"spread\":1.0},\"primary_room\":true,\"motion_fraction\":1.0,\"path_length_min\":0.03,\"path_length_max\":8.0,\"long_path_fraction\":0.45,\"multiview\":{\"mixed_rig\":true,\"min_overlap\":0.34221387,\"min_baseline\":0.27,\"min_reference_baseline\":1.2099999,\"max_baseline\":5.1749997,\"min_spread\":0.25,\"trajectory_variation\":0.5,\"target_variation\":0.5}}",
+    "indoor_clutter": null,
     "indoor_density": 0.6499999761581421,
     "indoor_gi_rays": 256,
     "indoor_gpu_materials": true,
@@ -67,14 +73,14 @@
     "zoom_smoothness": 0.800000011920929
   },
   "provenance": {
-    "capture_engine": "capture-v82;ssaa=1;capacity=1;primary_region=1;indoor_motion=3;calibration=2;fisheye=3;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=50;public_programs=6;kitchens=3;doors=1;multiview=13;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=6;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=6;furnishings=8;botany=3;visual_content=5;equipment=10;palette=2;photometry=4;sun_shadow=2;material_compute=3;semantic=7;ceiling=4;floor_details=2;window_treatments=1",
-    "crate_version": "0.52.0",
+    "capture_engine": "capture-v101;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=3;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=9;finishes=15;seating=6;activity=3;playback=2;exterior=5;envelope=6;furnishings=9;botany=3;visual_content=6;equipment=12;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=4;window_treatments=1",
+    "crate_version": "0.59.1",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 59,
+    "generator_version": 77,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -83,19 +89,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.52.0"
+        "0.59.1"
       ],
       "bevy_zeroverse_burn": [
-        "0.36.0"
+        "0.43.1"
       ],
       "bevy_zeroverse_capture": [
-        "0.6.0"
+        "0.6.12"
       ],
       "bevy_zeroverse_ffi": [
-        "0.52.0"
+        "0.59.1"
       ],
       "bevy_zeroverse_publication": [
-        "0.7.0"
+        "0.9.0"
       ],
       "burn": [
         "0.22.0"
@@ -996,15 +1002,62 @@
           164,
           211
         ]
+      },
+      {
+        "id": 98,
+        "label": "exit_sign",
+        "srgb8": [
+          48,
+          218,
+          173
+        ]
+      },
+      {
+        "id": 99,
+        "label": "fire_alarm",
+        "srgb8": [
+          241,
+          67,
+          82
+        ]
+      },
+      {
+        "id": 100,
+        "label": "string_lights",
+        "srgb8": [
+          240,
+          205,
+          88
+        ]
+      },
+      {
+        "id": 101,
+        "label": "fire_detector",
+        "srgb8": [
+          179,
+          219,
+          237
+        ]
+      },
+      {
+        "id": 102,
+        "label": "fire_pull_station",
+        "srgb8": [
+          208,
+          86,
+          141
+        ]
       }
     ],
-    "semantic_taxonomy_version": 8,
-    "source_sha256": "d8e7fd73187680902aced96469ae3ff073cee8d84d2d18afa35273cfb70767c1",
+    "semantic_taxonomy_version": 10,
+    "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596",
     "target": "x86_64-unknown-linux-gnu"
   },
+  "reference_settling": false,
   "seeds": [
     400,
     406
   ],
-  "timing": "completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"
+  "timing": "completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering",
+  "warmup_rooms": 0
 }

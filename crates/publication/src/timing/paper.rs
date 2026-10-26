@@ -59,7 +59,9 @@ The CPU-only study samples {count} consecutive rooms, seeds {seed}--{}, with {} 
 \begin{{tabular}}{{lrrrr}}\toprule
 Preparation phase & Mean (ms) & Median (ms) & p95 (ms) & Share (\%)\\\midrule
 ",
-        tex(env["hardware"].as_str().unwrap()),
+        tex(&crate::paper::adapter_label(
+            env["hardware"].as_str().unwrap()
+        )),
         tex(env["build"].as_str().unwrap()),
         tex(env["contention"].as_str().unwrap()),
         &receipt["identity"]["source_sha256"].as_str().unwrap()[..16],

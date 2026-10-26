@@ -152,7 +152,7 @@ pub fn page(stage: &Path, gallery_rooms: usize) -> Result<String> {
         return Ok(String::new());
     }
     let r: Value = io::read(&path)?;
-    Ok(format!("<p class=\"note\"><strong>Additional rendered qualification: {} rooms · {} calibrated views.</strong> Each sampling population retains its own denominator and selection policy. These are additional native capture checks, distinct from the factor sweep and the {gallery_rooms}-room interactive gallery. <a href=\"static/media/cohorts/report.json\">Rendered-cohort receipt ↗</a></p>", r["rooms"], r["views"]))
+    Ok(format!("<p class=\"note\"><strong>Rendered-cohort qualification: {} rooms · {} calibrated views.</strong> Each sampling population retains its own denominator and selection policy. Counts belong to this receipt and must not be added to the {gallery_rooms}-room gallery or factor sweep: their room populations can overlap. <a href=\"static/media/cohorts/report.json\">Rendered-cohort receipt ↗</a></p>", r["rooms"], r["views"]))
 }
 
 pub fn paper(stage: &Path) -> Result<String> {
@@ -161,7 +161,7 @@ pub fn paper(stage: &Path) -> Result<String> {
         return Ok(String::new());
     }
     let r: Value = io::read(&path)?;
-    let mut text = format!("\\subsection{{Additional rendered populations}}\nAn independent current-source qualification covers {} distinct rooms and {} camera/time views. All requested captures and aligned annotations are checked before the receipt is emitted. The table keeps each sampling population separate; the selected strata are not an IID estimate of ordinary generation. The interactive gallery above remains its own four-camera protocol. The compact downloadable receipt retains protocols, selected seeds, checks and all local input hashes; it does not bundle all training images.\n\n\\begin{{table}}[htbp]\\centering\\small\n\\begin{{tabular}}{{lrrrr}}\\toprule\nCohort start & Rooms & Views & Shared (\\%) & Min. classes \\\\\n\\midrule\n", r["rooms"],r["views"]);
+    let mut text = format!("\\subsection{{Rendered-cohort qualification}}\nCurrent-source qualification covers {} distinct rooms and {} camera/time views. All requested captures and aligned annotations are checked before the receipt is emitted. The table keeps each sampling population separate; selected strata are not an IID estimate of ordinary generation. The automatic snapshot qualifies the same captures shown in the interactive gallery. These counts are not additional independent evidence and must not be added to gallery or factor-sweep totals. The compact downloadable receipt retains protocols, selected seeds, checks and all local input hashes; it does not bundle all training images.\n\n\\begin{{table}}[htbp]\\centering\\small\n\\begin{{tabular}}{{lrrrr}}\\toprule\nCohort start & Rooms & Views & Shared (\\%) & Min. classes \\\\\n\\midrule\n", r["rooms"],r["views"]);
     for cohort in r["cohorts"].as_array().unwrap() {
         let p = &cohort["protocol"];
         let s = &cohort["summary"];

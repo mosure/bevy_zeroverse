@@ -1,27 +1,43 @@
 {
+  "clutter": {
+    "probability": 0.75,
+    "minimum": 0.05,
+    "maximum": 1.0,
+    "bias": -0.15,
+    "spread": 1.0
+  },
   "camera_diagnostics": {
-    "reference_proposals": 10,
-    "long_reference_requests": 1,
+    "reference_proposals": 148,
+    "long_reference_requests": 4,
     "short_reference_recoveries": 0,
     "reference_rejections": [
-      1,
-      1,
-      3,
-      1,
-      3
+      52,
+      10,
+      18,
+      31,
+      24
     ],
     "group_restarts": 0,
+    "prefix_backtracks": 0,
     "connected_reference_recoveries": 0,
-    "peer_proposals": 215,
+    "peer_proposals": 39,
     "peer_rejections": [
-      115,
-      41,
       0,
-      44,
-      5,
-      6
+      0,
+      0,
+      0,
+      0,
+      0
     ],
-    "endpoint_adjustments": 5
+    "endpoint_adjustments": 20,
+    "peer_search_succeeded": true,
+    "peer_search_fallbacks": 0,
+    "peer_search_discarded_proposals": 0,
+    "peer_search_discarded_reference_proposals": 0,
+    "peer_framing_candidates": 0,
+    "peer_framing_updates": 0,
+    "peer_weak_pairs_before": 0,
+    "peer_weak_pairs_after": 0
   },
   "assembly_diagnostics": {
     "mounts": [],
@@ -44,8 +60,9 @@
       }
     ]
   },
-  "generator_version": 59,
+  "generator_version": 77,
   "program": {
+    "primary_zone": 0,
     "domain": {
       "photometry": {
         "sun_lux": 0.30699047,
@@ -136,6 +153,16 @@
     ],
     "materials": [
       {
+        "construction": {
+          "weights": [
+            0.05848062,
+            0.07676262,
+            0.7532971,
+            0.111459605
+          ],
+          "scale": 0.98418146,
+          "variation": 0.9166262
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -152,27 +179,27 @@
         "coating": {
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.003649977,
-            "roller_spacing_m": 0.0052348813,
-            "roller_stretch": 3.4694862,
-            "orange_peel_m": 0.0019504947,
-            "orange_peel": 0.03708243,
+            "spray_spacing_m": 0.0062935078,
+            "roller_spacing_m": 0.0038057105,
+            "roller_stretch": 4.8737516,
+            "orange_peel_m": 0.0021016388,
+            "orange_peel": 0.16206056,
             "brush_spacing_m": 0.00071116764,
             "brush": 0.35259405,
-            "trowel_scale_m": 0.03470236,
-            "lap_variation": 0.011204591,
-            "repair_mix": 0.054797456
+            "trowel_scale_m": 0.04426239,
+            "lap_variation": 0.04106692,
+            "repair_mix": 0.08489415
           },
           "cells": [
             62,
             37
           ],
-          "texture_mix": 0.32912493,
-          "knockdown": 0.38419983,
-          "roller": 0.7476366,
-          "trowel": 0.20694469,
-          "pinholes": 0.1088865,
-          "pigment_variation": 0.04512064,
+          "texture_mix": 0.65599746,
+          "knockdown": 0.65143216,
+          "roller": 0.22401987,
+          "trowel": 0.23211776,
+          "pinholes": 0.10093548,
+          "pigment_variation": 0.045739286,
           "gloss": 0.15632023,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -189,8 +216,8 @@
           0.929498
         ],
         "roughness": 0.83744943,
-        "period_m": 0.18410467,
-        "relief_m": 0.00008841009,
+        "period_m": 0.4138364,
+        "relief_m": 0.0002977162,
         "grain_frequency": 24.384949,
         "cross_frequency": 2.3783543,
         "warp": 0.050568797,
@@ -209,6 +236,16 @@
         "joint_width": 0.0027368627
       },
       {
+        "construction": {
+          "weights": [
+            0.6629218,
+            0.07631329,
+            0.058294483,
+            0.20247051
+          ],
+          "scale": 1.4871613,
+          "variation": 0.6067484
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -224,52 +261,53 @@
         "mineral": null,
         "coating": {
           "wall": {
+            "print_style": 4,
             "weights": [
-              0.8366079,
-              0.07756137,
-              0.0,
-              0.0
+              0.6629218,
+              0.07631329,
+              0.058294483,
+              0.20247051
             ],
             "fiber_cells": [
-              63,
-              72
+              23,
+              20
             ],
-            "bands": 5,
-            "band_duty": 0.33426034,
+            "bands": 4,
+            "band_duty": 0.41404906,
             "warp": 0.002781854,
-            "pigment": 0.54126525,
+            "pigment": 0.34518856,
             "secondary_tint": [
               0.49382925,
               0.5003002,
               0.5028887
             ],
-            "relief_m": 0.0001426989,
-            "roughness_variation": 0.13013071,
-            "burnish": 0.10004037
+            "relief_m": 0.00008558552,
+            "roughness_variation": 0.11085101,
+            "burnish": 0.11262349
           },
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.0036693641,
-            "roller_spacing_m": 0.0024284308,
-            "roller_stretch": 1.656029,
-            "orange_peel_m": 0.0017003412,
-            "orange_peel": 0.27190465,
+            "spray_spacing_m": 0.0052223955,
+            "roller_spacing_m": 0.0023355992,
+            "roller_stretch": 3.3955004,
+            "orange_peel_m": 0.0014698538,
+            "orange_peel": 0.13328615,
             "brush_spacing_m": 0.0013448286,
             "brush": 0.11309751,
-            "trowel_scale_m": 0.07414114,
-            "lap_variation": 0.017949667,
-            "repair_mix": 0.0015863351
+            "trowel_scale_m": 0.058126554,
+            "lap_variation": 0.037613377,
+            "repair_mix": 0.02176084
           },
           "cells": [
             32,
             64
           ],
-          "texture_mix": 0.0738787,
-          "knockdown": 0.5804195,
-          "roller": 0.0540927,
-          "trowel": 0.28400132,
-          "pinholes": 0.08627498,
-          "pigment_variation": 0.02371648,
+          "texture_mix": 0.05050592,
+          "knockdown": 0.2135514,
+          "roller": 0.13572025,
+          "trowel": 0.21780306,
+          "pinholes": 0.035738546,
+          "pigment_variation": 0.03181485,
           "gloss": 0.0086424835,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -285,9 +323,9 @@
           0.58303934,
           0.6345912
         ],
-        "roughness": 0.6339207,
-        "period_m": 0.94536364,
-        "relief_m": 0.00001495277,
+        "roughness": 0.9437774,
+        "period_m": 1.4128032,
+        "relief_m": 0.000008905764,
         "grain_frequency": 49.955894,
         "cross_frequency": 7.875264,
         "warp": 0.08279229,
@@ -306,6 +344,16 @@
         "joint_width": 0.0022378927
       },
       {
+        "construction": {
+          "weights": [
+            0.08897871,
+            0.24488668,
+            0.33312201,
+            0.33301258
+          ],
+          "scale": 0.8850523,
+          "variation": 0.27255866
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -327,12 +375,12 @@
             0.06821728,
             0.053090427
           ],
-          "stain_strength": 0.7227367,
-          "bleach": 0.08067305,
-          "pore_fill": 0.4349031,
-          "ring_contrast": 1.095327,
-          "clearcoat": 0.3020605,
-          "coat_roughness": 0.24545395
+          "stain_strength": 0.43703192,
+          "bleach": 0.21210746,
+          "pore_fill": 0.4373472,
+          "ring_contrast": 0.8059082,
+          "clearcoat": 0.3146958,
+          "coat_roughness": 0.28052494
         },
         "leaf": null,
         "cuticle": null,
@@ -343,12 +391,12 @@
           0.20403862,
           0.1609507
         ],
-        "roughness": 0.7405843,
-        "period_m": 1.097324,
-        "relief_m": 0.00004200724,
-        "grain_frequency": 28.781807,
+        "roughness": 0.5741299,
+        "period_m": 0.91563946,
+        "relief_m": 0.00010528928,
+        "grain_frequency": 41.196545,
         "cross_frequency": 5.121951,
-        "warp": 0.07737401,
+        "warp": 0.05225587,
         "contrast": 0.32158113,
         "weathering": 0.015344865,
         "mineral_mix": 0.51269054,
@@ -364,6 +412,16 @@
         "joint_width": 0.0014684192
       },
       {
+        "construction": {
+          "weights": [
+            0.08897871,
+            0.24488668,
+            0.33312201,
+            0.33301258
+          ],
+          "scale": 0.8850523,
+          "variation": 0.27255866
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -385,12 +443,12 @@
             0.06821728,
             0.053090427
           ],
-          "stain_strength": 0.7227367,
-          "bleach": 0.08067305,
-          "pore_fill": 0.4349031,
-          "ring_contrast": 1.095327,
-          "clearcoat": 0.3020605,
-          "coat_roughness": 0.24545395
+          "stain_strength": 0.43703192,
+          "bleach": 0.21210746,
+          "pore_fill": 0.4373472,
+          "ring_contrast": 0.8059082,
+          "clearcoat": 0.3146958,
+          "coat_roughness": 0.28052494
         },
         "leaf": null,
         "cuticle": null,
@@ -401,12 +459,12 @@
           0.20403862,
           0.1609507
         ],
-        "roughness": 0.4559537,
-        "period_m": 1.6287904,
-        "relief_m": 0.00007331014,
-        "grain_frequency": 57.145782,
+        "roughness": 0.5741299,
+        "period_m": 0.91563946,
+        "relief_m": 0.00010528928,
+        "grain_frequency": 41.196545,
         "cross_frequency": 4.2249203,
-        "warp": 0.020322673,
+        "warp": 0.05225587,
         "contrast": 0.48737195,
         "weathering": 0.033709314,
         "mineral_mix": 0.60183215,
@@ -422,6 +480,16 @@
         "joint_width": 0.002642693
       },
       {
+        "construction": {
+          "weights": [
+            0.066988915,
+            0.08509614,
+            0.7173026,
+            0.13061231
+          ],
+          "scale": 0.82312566,
+          "variation": 0.6158142
+        },
         "flooring": {
           "layout": "Herringbone",
           "craft": {
@@ -536,12 +604,12 @@
             0.106802434,
             0.09660677
           ],
-          "stain_strength": 0.1519225,
-          "bleach": 0.000058920912,
-          "pore_fill": 0.7404787,
-          "ring_contrast": 0.9118922,
-          "clearcoat": 0.70993775,
-          "coat_roughness": 0.18450272
+          "stain_strength": 0.15913168,
+          "bleach": 0.4154666,
+          "pore_fill": 0.3949444,
+          "ring_contrast": 0.7412623,
+          "clearcoat": 0.26549697,
+          "coat_roughness": 0.34169734
         },
         "leaf": null,
         "cuticle": null,
@@ -552,12 +620,12 @@
           0.20403862,
           0.1609507
         ],
-        "roughness": 0.5944629,
+        "roughness": 0.72344106,
         "period_m": 2.8,
-        "relief_m": 0.00016148764,
-        "grain_frequency": 18.28759,
+        "relief_m": 0.000110407374,
+        "grain_frequency": 44.540474,
         "cross_frequency": 1.9030464,
-        "warp": 0.02487249,
+        "warp": 0.086581424,
         "contrast": 0.12745294,
         "weathering": 0.020948326,
         "mineral_mix": 0.954159,
@@ -573,6 +641,16 @@
         "joint_width": 0.0028614202
       },
       {
+        "construction": {
+          "weights": [
+            0.47140047,
+            0.019518996,
+            0.27706447,
+            0.23201612
+          ],
+          "scale": 0.85003227,
+          "variation": 0.39612842
+        },
         "layers": {
           "quarter_turn": 1,
           "bands": [
@@ -589,27 +667,27 @@
         "coating": {
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.006139119,
-            "roller_spacing_m": 0.001971907,
-            "roller_stretch": 1.8067583,
-            "orange_peel_m": 0.0013192568,
-            "orange_peel": 0.26077774,
+            "spray_spacing_m": 0.004538784,
+            "roller_spacing_m": 0.0018895792,
+            "roller_stretch": 2.6674142,
+            "orange_peel_m": 0.001140943,
+            "orange_peel": 0.114813745,
             "brush_spacing_m": 0.0006419847,
             "brush": 0.46212265,
-            "trowel_scale_m": 0.057865623,
-            "lap_variation": 0.010963079,
-            "repair_mix": 0.05856939
+            "trowel_scale_m": 0.041061036,
+            "lap_variation": 0.04309167,
+            "repair_mix": 0.017681196
           },
           "cells": [
             44,
             42
           ],
-          "texture_mix": 0.354131,
-          "knockdown": 0.56723875,
-          "roller": 0.42750227,
-          "trowel": 0.34569559,
-          "pinholes": 0.1267296,
-          "pigment_variation": 0.017898947,
+          "texture_mix": 0.3539722,
+          "knockdown": 0.3732672,
+          "roller": 0.34920153,
+          "trowel": 0.2802496,
+          "pinholes": 0.06365689,
+          "pigment_variation": 0.01906337,
           "gloss": 0.063021235,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -626,8 +704,8 @@
           0.75900847
         ],
         "roughness": 0.9046247,
-        "period_m": 0.3002731,
-        "relief_m": 0.000099515695,
+        "period_m": 0.3115645,
+        "relief_m": 0.00004474917,
         "grain_frequency": 77.06333,
         "cross_frequency": 5.3895955,
         "warp": 0.04253464,
@@ -646,13 +724,23 @@
         "joint_width": 0.0020287698
       },
       {
+        "construction": {
+          "weights": [
+            0.09018221,
+            0.17633694,
+            0.0049018953,
+            0.7285789
+          ],
+          "scale": 1.6108881,
+          "variation": 0.34372672
+        },
         "manufactured": {
           "cells": [
-            106,
-            88
+            19,
+            21
           ],
-          "structure": 0.91945523,
-          "peening": 0.47646973
+          "structure": 0.8503,
+          "peening": 0.40102297
         },
         "layers": {
           "quarter_turn": 1,
@@ -678,9 +766,9 @@
           0.19854674,
           0.20432965
         ],
-        "roughness": 0.40509385,
-        "period_m": 0.18700577,
-        "relief_m": 0.00004156817,
+        "roughness": 0.6560779,
+        "period_m": 0.36893043,
+        "relief_m": 0.000099701065,
         "grain_frequency": 42.995552,
         "cross_frequency": 1.7182391,
         "warp": 0.0071944683,
@@ -699,13 +787,23 @@
         "joint_width": 0.0012390838
       },
       {
+        "construction": {
+          "weights": [
+            0.01681907,
+            0.9405005,
+            0.024794139,
+            0.017886274
+          ],
+          "scale": 0.9897979,
+          "variation": 0.86491525
+        },
         "manufactured": {
           "cells": [
-            112,
-            11
+            35,
+            40
           ],
-          "structure": 0.3728918,
-          "peening": 0.0
+          "structure": 0.7129297,
+          "peening": 0.5475299
         },
         "layers": {
           "quarter_turn": 3,
@@ -731,9 +829,9 @@
           0.84998596,
           0.85840166
         ],
-        "roughness": 0.17678976,
-        "period_m": 0.23315622,
-        "relief_m": 0.0000017052665,
+        "roughness": 0.35123718,
+        "period_m": 0.17668812,
+        "relief_m": 0.0000020336563,
         "grain_frequency": 57.00535,
         "cross_frequency": 5.958556,
         "warp": 0.02115108,
@@ -752,13 +850,23 @@
         "joint_width": 0.002910473
       },
       {
+        "construction": {
+          "weights": [
+            0.01064095,
+            0.030243656,
+            0.0072450456,
+            0.9518703
+          ],
+          "scale": 1.5165151,
+          "variation": 0.7105562
+        },
         "manufactured": {
           "cells": [
-            20,
-            75
+            14,
+            17
           ],
-          "structure": 0.723623,
-          "peening": 0.04237981
+          "structure": 0.8579129,
+          "peening": 0.29265183
         },
         "layers": {
           "quarter_turn": 1,
@@ -784,9 +892,9 @@
           0.13114817,
           0.13496801
         ],
-        "roughness": 0.47224104,
-        "period_m": 0.09163362,
-        "relief_m": 0.00003128139,
+        "roughness": 0.45055583,
+        "period_m": 0.3862917,
+        "relief_m": 0.000017213033,
         "grain_frequency": 50.007637,
         "cross_frequency": 2.697085,
         "warp": 0.06480632,
@@ -805,6 +913,16 @@
         "joint_width": 0.0025862437
       },
       {
+        "construction": {
+          "weights": [
+            0.38322648,
+            0.0074277204,
+            0.14219742,
+            0.4671484
+          ],
+          "scale": 1.0930809,
+          "variation": 0.56024426
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -817,24 +935,24 @@
         },
         "textile": {
           "yarns": [
-            24,
-            48
+            42,
+            42
           ],
-          "repeat": 2,
-          "float_length": 1,
+          "repeat": 7,
+          "float_length": 5,
           "advance": 1,
           "bundle": 3,
           "herringbone": true,
           "width": [
-            0.6350113,
-            0.7758578
+            0.6905767,
+            0.76071155
           ],
-          "slub": 0.17770636,
-          "crimp": 0.3388317,
+          "slub": 0.17784253,
+          "crimp": 0.32394227,
           "twist": 1.0736227,
-          "fuzz": 0.9193283,
-          "lustre": 0.7990335,
-          "dye_variation": 0.1583635,
+          "fuzz": 0.5355405,
+          "lustre": 0.27391842,
+          "dye_variation": 0.17862263,
           "yarn_tint": [
             [
               0.93020827,
@@ -847,8 +965,8 @@
               0.9201951
             ]
           ],
-          "pile": 0.0,
-          "knit": false,
+          "pile": 0.1208678,
+          "knit": true,
           "dye_program": {
             "runs": [
               1,
@@ -886,9 +1004,9 @@
           0.68075097,
           0.6845073
         ],
-        "roughness": 0.6841556,
-        "period_m": 0.16114339,
-        "relief_m": 0.00011288473,
+        "roughness": 0.7649326,
+        "period_m": 0.12222993,
+        "relief_m": 0.00015605986,
         "grain_frequency": 29.953346,
         "cross_frequency": 1.0102422,
         "warp": 0.056309436,
@@ -907,6 +1025,16 @@
         "joint_width": 0.0021514157
       },
       {
+        "construction": {
+          "weights": [
+            0.88197166,
+            0.081160635,
+            0.007075124,
+            0.029792573
+          ],
+          "scale": 1.153569,
+          "variation": 0.39351782
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -919,24 +1047,24 @@
         },
         "textile": {
           "yarns": [
-            24,
-            48
+            32,
+            24
           ],
-          "repeat": 6,
-          "float_length": 3,
-          "advance": 5,
-          "bundle": 1,
+          "repeat": 2,
+          "float_length": 1,
+          "advance": 1,
+          "bundle": 2,
           "herringbone": false,
           "width": [
-            0.8984117,
-            0.67608094
+            0.6649346,
+            0.6875328
           ],
-          "slub": 0.10829069,
-          "crimp": 0.18451461,
+          "slub": 0.18812606,
+          "crimp": 0.23440498,
           "twist": 1.1302667,
-          "fuzz": 0.5699091,
-          "lustre": 0.43789804,
-          "dye_variation": 0.14684157,
+          "fuzz": 0.34465516,
+          "lustre": 0.20858051,
+          "dye_variation": 0.21264072,
           "yarn_tint": [
             [
               0.9091918,
@@ -949,7 +1077,7 @@
               0.97753507
             ]
           ],
-          "pile": 0.0,
+          "pile": 0.0060138553,
           "knit": false,
           "dye_program": {
             "runs": [
@@ -988,9 +1116,9 @@
           0.4596417,
           0.55643916
         ],
-        "roughness": 0.72261244,
-        "period_m": 0.1648218,
-        "relief_m": 0.00007738684,
+        "roughness": 0.7463569,
+        "period_m": 0.0742956,
+        "relief_m": 0.00009873874,
         "grain_frequency": 16.429367,
         "cross_frequency": 7.95755,
         "warp": 0.025038738,
@@ -1054,6 +1182,16 @@
         "joint_width": 0.0014310456
       },
       {
+        "construction": {
+          "weights": [
+            0.146047,
+            0.29945526,
+            0.06604178,
+            0.48845598
+          ],
+          "scale": 1.5342177,
+          "variation": 0.33961484
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1069,26 +1207,26 @@
         "mineral": null,
         "coating": {
           "glaze": {
-            "body_grain_m": 0.001674253,
-            "cloud_scale_m": 0.026904617,
-            "reactive_mix": 0.032011397,
+            "body_grain_m": 0.0016057054,
+            "cloud_scale_m": 0.030056871,
+            "reactive_mix": 0.17929286,
             "reactive_color": [
               0.7063304,
               0.58711964,
               0.503672
             ],
-            "thickness_variation": 0.20016916,
-            "flow": 0.6839524,
-            "throwing": 0.025889471,
-            "turning_pitch_m": 0.0036598668,
-            "speckle_density": 0.1878161,
-            "speckle_radius_m": 0.000500061,
+            "thickness_variation": 0.21879391,
+            "flow": 0.2888641,
+            "throwing": 0.36302996,
+            "turning_pitch_m": 0.007952173,
+            "speckle_density": 0.20618397,
+            "speckle_radius_m": 0.0005482561,
             "speckle_color": [
               0.2,
               0.11033457,
               0.11314127
             ],
-            "crack_spacing_m": 0.014218074
+            "crack_spacing_m": 0.020403799
           },
           "application": null,
           "cells": [
@@ -1102,9 +1240,9 @@
           "pinholes": 0.033890646,
           "pigment_variation": 0.033212863,
           "gloss": 0.27575907,
-          "clearcoat": 0.089752465,
+          "clearcoat": 0.069617644,
           "coat_roughness": 0.3012419,
-          "crackle": 0.0
+          "crackle": 0.3497131
         },
         "wood": null,
         "leaf": null,
@@ -1117,8 +1255,8 @@
           0.8508566
         ],
         "roughness": 0.6014535,
-        "period_m": 0.08923557,
-        "relief_m": 0.00001827321,
+        "period_m": 0.15396148,
+        "relief_m": 0.000054301338,
         "grain_frequency": 76.31103,
         "cross_frequency": 4.3146687,
         "warp": 0.035119515,
@@ -1137,6 +1275,16 @@
         "joint_width": 0.0022746543
       },
       {
+        "construction": {
+          "weights": [
+            0.14564452,
+            0.11328678,
+            0.08457688,
+            0.6564918
+          ],
+          "scale": 1.0182244,
+          "variation": 0.30737644
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1152,11 +1300,11 @@
         "mineral": {
           "casting": null,
           "aggregate_cells": [
-            61,
-            36
+            59,
+            54
           ],
-          "aggregate_exposure": 0.010227689,
-          "aggregate_radius": 0.21890724,
+          "aggregate_exposure": 0.20829791,
+          "aggregate_radius": 0.2829665,
           "aggregate_color": [
             [
               0.5327078,
@@ -1169,7 +1317,7 @@
               0.40482533
             ]
           ],
-          "porosity": 0.30836254,
+          "porosity": 0.20772973,
           "marble_mix": 0.0,
           "vein_cells": [
             4,
@@ -1184,7 +1332,7 @@
             0.51372653
           ],
           "polish": 0.0,
-          "binder_variation": 0.081804514
+          "binder_variation": 0.053528283
         },
         "coating": null,
         "wood": null,
@@ -1197,9 +1345,9 @@
           0.057837106,
           0.028918553
         ],
-        "roughness": 0.85978293,
-        "period_m": 0.19372906,
-        "relief_m": 0.0002525028,
+        "roughness": 0.9008608,
+        "period_m": 0.14779563,
+        "relief_m": 0.0002791085,
         "grain_frequency": 53.069923,
         "cross_frequency": 1.803932,
         "warp": 0.02934115,
@@ -1218,6 +1366,16 @@
         "joint_width": 0.001001576
       },
       {
+        "construction": {
+          "weights": [
+            0.68691546,
+            0.09741762,
+            0.11075058,
+            0.10491637
+          ],
+          "scale": 0.7577639,
+          "variation": 0.4576778
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -1234,15 +1392,15 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 16,
-          "vein_rake": 0.4366633,
-          "vein_curve": -0.041128516,
-          "vein_width": 0.004370912,
-          "midrib_width": 0.004539686,
-          "chlorophyll_variation": 0.063126676,
-          "variegation": 0.025098134,
+          "vein_pairs": 14,
+          "vein_rake": 0.35727695,
+          "vein_curve": -0.024477422,
+          "vein_width": 0.0031000155,
+          "midrib_width": 0.006315471,
+          "chlorophyll_variation": 0.09618418,
+          "variegation": 0.027169744,
           "patch_cells": [
-            2,
+            7,
             11
           ],
           "pale_color": [
@@ -1250,8 +1408,8 @@
             0.7642885,
             0.5660032
           ],
-          "wax": 0.39573812,
-          "transmission": 0.02257488,
+          "wax": 0.64494354,
+          "transmission": 0.037528105,
           "reference_size_m": [
             0.055040468,
             0.2773828
@@ -1265,9 +1423,9 @@
           0.3547954,
           0.0616268
         ],
-        "roughness": 0.50961953,
+        "roughness": 0.4291237,
         "period_m": 1.0,
-        "relief_m": 0.000029259118,
+        "relief_m": 0.000022822911,
         "grain_frequency": 69.4021,
         "cross_frequency": 2.5563798,
         "warp": 0.062838964,
@@ -1286,6 +1444,16 @@
         "joint_width": 0.0031697024
       },
       {
+        "construction": {
+          "weights": [
+            0.16569917,
+            0.58988863,
+            0.026598983,
+            0.21781321
+          ],
+          "scale": 1.5622116,
+          "variation": 0.29893148
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -1302,15 +1470,15 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 16,
-          "vein_rake": 0.1542601,
-          "vein_curve": -0.060250744,
-          "vein_width": 0.0046020593,
-          "midrib_width": 0.008439055,
-          "chlorophyll_variation": 0.21833108,
-          "variegation": 0.03206557,
+          "vein_pairs": 10,
+          "vein_rake": 0.50595677,
+          "vein_curve": -0.08926046,
+          "vein_width": 0.0040484658,
+          "midrib_width": 0.00968774,
+          "chlorophyll_variation": 0.166917,
+          "variegation": 0.011732911,
           "patch_cells": [
-            3,
+            4,
             7
           ],
           "pale_color": [
@@ -1318,8 +1486,8 @@
             0.6974125,
             0.5701869
           ],
-          "wax": 0.34930095,
-          "transmission": 0.08123775,
+          "wax": 0.25215524,
+          "transmission": 0.059131462,
           "reference_size_m": [
             0.095625825,
             0.20688215
@@ -1333,9 +1501,9 @@
           0.22344927,
           0.076853745
         ],
-        "roughness": 0.52726567,
+        "roughness": 0.5940948,
         "period_m": 1.0,
-        "relief_m": 0.00004885494,
+        "relief_m": 0.000034100674,
         "grain_frequency": 51.217316,
         "cross_frequency": 7.782132,
         "warp": 0.016135916,
@@ -1354,6 +1522,16 @@
         "joint_width": 0.002939966
       },
       {
+        "construction": {
+          "weights": [
+            0.028750075,
+            0.90292823,
+            0.03455469,
+            0.033766955
+          ],
+          "scale": 1.4155867,
+          "variation": 0.45591137
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1378,13 +1556,13 @@
           0.7487832,
           0.73744583
         ],
-        "roughness": 0.94880456,
-        "period_m": 0.14892754,
-        "relief_m": 0.0000134978745,
+        "roughness": 0.39614367,
+        "period_m": 0.087512285,
+        "relief_m": 0.000009063828,
         "grain_frequency": 33.772324,
         "cross_frequency": 3.8903189,
         "warp": 0.08909182,
-        "contrast": 0.011075787,
+        "contrast": 0.011816869,
         "weathering": 0.0039051133,
         "mineral_mix": 0.18607926,
         "weave_mix": 0.82969904,
@@ -1534,6 +1712,16 @@
         "joint_width": 0.0014853443
       },
       {
+        "construction": {
+          "weights": [
+            0.34127223,
+            0.194044,
+            0.07505869,
+            0.38962513
+          ],
+          "scale": 0.9336877,
+          "variation": 0.84381396
+        },
         "layers": {
           "quarter_turn": 1,
           "bands": [
@@ -1548,25 +1736,25 @@
         "leather": null,
         "mineral": {
           "casting": {
-            "formwork": 0.07533654,
-            "board_width_m": 0.17963001,
-            "form_relief_m": 0.000056313755,
+            "formwork": 0.1756728,
+            "board_width_m": 0.21567139,
+            "form_relief_m": 0.00007175309,
             "seam_width_m": 0.0010887767,
-            "trowel": 0.06338904,
-            "trowel_scale_m": 0.05251401,
-            "cure_variation": 0.054904178,
-            "bleed": 0.024634367,
-            "sand_exposure": 0.50338763,
-            "bughole_density": 0.030822752,
-            "bughole_radius_m": 0.0035722146,
+            "trowel": 0.15546127,
+            "trowel_scale_m": 0.09220525,
+            "cure_variation": 0.06484202,
+            "bleed": 0.037889615,
+            "sand_exposure": 0.17290986,
+            "bughole_density": 0.049775895,
+            "bughole_radius_m": 0.002978779,
             "bughole_depth_m": 0.0012157029
           },
           "aggregate_cells": [
-            37,
-            63
+            64,
+            59
           ],
-          "aggregate_exposure": 0.00010327616,
-          "aggregate_radius": 0.42148307,
+          "aggregate_exposure": 0.35426134,
+          "aggregate_radius": 0.26311633,
           "aggregate_color": [
             [
               0.4087589,
@@ -1579,7 +1767,7 @@
               0.4984504
             ]
           ],
-          "porosity": 0.05048521,
+          "porosity": 0.023277344,
           "marble_mix": 0.0,
           "vein_cells": [
             5,
@@ -1593,8 +1781,8 @@
             0.5999641,
             0.64208835
           ],
-          "polish": 0.010836661,
-          "binder_variation": 0.066864036
+          "polish": 0.6414895,
+          "binder_variation": 0.05253594
         },
         "coating": null,
         "wood": null,
@@ -1607,9 +1795,9 @@
           0.46240726,
           0.44372413
         ],
-        "roughness": 0.873498,
-        "period_m": 0.62028706,
-        "relief_m": 0.0003050094,
+        "roughness": 0.5022765,
+        "period_m": 0.76740444,
+        "relief_m": 0.00013064677,
         "grain_frequency": 35.68631,
         "cross_frequency": 4.359271,
         "warp": 0.063649625,
@@ -1673,13 +1861,23 @@
         "joint_width": 0.002727899
       },
       {
+        "construction": {
+          "weights": [
+            0.1255389,
+            0.7182651,
+            0.08025934,
+            0.07593658
+          ],
+          "scale": 0.6536793,
+          "variation": 0.93577284
+        },
         "manufactured": {
           "cells": [
-            102,
-            42
+            72,
+            66
           ],
-          "structure": 0.8205337,
-          "peening": 0.001542543
+          "structure": 0.77461874,
+          "peening": 0.43785977
         },
         "layers": {
           "quarter_turn": 0,
@@ -1705,9 +1903,9 @@
           0.036,
           0.037
         ],
-        "roughness": 0.8964936,
-        "period_m": 0.14175707,
-        "relief_m": 0.000112782975,
+        "roughness": 0.99,
+        "period_m": 0.11080392,
+        "relief_m": 0.000117252675,
         "grain_frequency": 20.836761,
         "cross_frequency": 5.3411293,
         "warp": 0.020852517,
@@ -1726,6 +1924,16 @@
         "joint_width": 0.0012646997
       },
       {
+        "construction": {
+          "weights": [
+            0.9083541,
+            0.010719722,
+            0.055979125,
+            0.02494704
+          ],
+          "scale": 0.8375065,
+          "variation": 0.44270095
+        },
         "layers": {
           "quarter_turn": 1,
           "bands": [
@@ -1742,24 +1950,24 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 10,
-          "vein_rake": 0.4325491,
-          "vein_curve": 0.049421906,
-          "vein_width": 0.0015581546,
-          "midrib_width": 0.0032144194,
-          "chlorophyll_variation": 0.2934315,
-          "variegation": 0.54601836,
+          "vein_pairs": 11,
+          "vein_rake": 0.28483593,
+          "vein_curve": -0.012118448,
+          "vein_width": 0.0020623442,
+          "midrib_width": 0.004961462,
+          "chlorophyll_variation": 0.11916433,
+          "variegation": 0.33764678,
           "patch_cells": [
-            2,
-            5
+            6,
+            10
           ],
           "pale_color": [
             0.70594347,
             0.69818574,
             0.6282661
           ],
-          "wax": 0.23695564,
-          "transmission": 0.039840557,
+          "wax": 0.750083,
+          "transmission": 0.031745434,
           "reference_size_m": [
             0.05490689,
             0.24328195
@@ -1773,9 +1981,9 @@
           0.37784266,
           0.07777799
         ],
-        "roughness": 0.5699569,
+        "roughness": 0.38496512,
         "period_m": 1.0,
-        "relief_m": 0.00003322598,
+        "relief_m": 0.000016883914,
         "grain_frequency": 58.04059,
         "cross_frequency": 7.3339624,
         "warp": 0.06303846,
@@ -1794,6 +2002,16 @@
         "joint_width": 0.0019006161
       },
       {
+        "construction": {
+          "weights": [
+            0.5194892,
+            0.116219535,
+            0.24424155,
+            0.1200497
+          ],
+          "scale": 0.8679723,
+          "variation": 0.52668124
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -1809,11 +2027,11 @@
         "mineral": {
           "casting": null,
           "aggregate_cells": [
-            43,
-            30
+            73,
+            64
           ],
-          "aggregate_exposure": 0.10450462,
-          "aggregate_radius": 0.4027545,
+          "aggregate_exposure": 0.12958416,
+          "aggregate_radius": 0.20756613,
           "aggregate_color": [
             [
               0.5524584,
@@ -1826,7 +2044,7 @@
               0.86571455
             ]
           ],
-          "porosity": 0.2983235,
+          "porosity": 0.13384752,
           "marble_mix": 0.0,
           "vein_cells": [
             4,
@@ -1840,8 +2058,8 @@
             0.77526236,
             0.82667977
           ],
-          "polish": 0.0,
-          "binder_variation": 0.11045781
+          "polish": 0.13433285,
+          "binder_variation": 0.05815821
         },
         "coating": null,
         "wood": null,
@@ -1854,9 +2072,9 @@
           0.2658049,
           0.14673583
         ],
-        "roughness": 0.6925775,
-        "period_m": 0.1988044,
-        "relief_m": 0.00042283075,
+        "roughness": 0.8835802,
+        "period_m": 0.10093234,
+        "relief_m": 0.00015463302,
         "grain_frequency": 40.08297,
         "cross_frequency": 7.253708,
         "warp": 0.07415693,
@@ -1875,6 +2093,16 @@
         "joint_width": 0.0010853339
       },
       {
+        "construction": {
+          "weights": [
+            0.037738573,
+            0.88570356,
+            0.0020930711,
+            0.0744648
+          ],
+          "scale": 1.6279836,
+          "variation": 0.31606176
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1899,9 +2127,9 @@
           0.15890023,
           0.09080013
         ],
-        "roughness": 0.307743,
-        "period_m": 0.0800121,
-        "relief_m": 0.00079369696,
+        "roughness": 0.9692016,
+        "period_m": 0.38950092,
+        "relief_m": 0.001597984,
         "grain_frequency": 59.59552,
         "cross_frequency": 2.1723967,
         "warp": 0.043700904,
@@ -2190,6 +2418,16 @@
         "joint_width": 0.0014764292
       },
       {
+        "construction": {
+          "weights": [
+            0.8742442,
+            0.057403132,
+            0.062278178,
+            0.0060744397
+          ],
+          "scale": 0.75886387,
+          "variation": 0.56173825
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -2203,18 +2441,18 @@
         "textile": null,
         "leather": {
           "cells": [
-            39,
-            42
+            62,
+            55
           ],
-          "stretch": 0.9296732,
-          "roundness": 1.173007,
-          "pore_depth": 0.04857657,
-          "crease_strength": 0.028801626,
-          "mottling": 0.026242394,
-          "polish": 0.034231424,
-          "nap": 0.2859959,
-          "coat": 0.35461482,
-          "coat_roughness": 0.21929494
+          "stretch": 1.1777947,
+          "roundness": 1.18337,
+          "pore_depth": 0.07153168,
+          "crease_strength": 0.06334954,
+          "mottling": 0.19281246,
+          "polish": 0.29688975,
+          "nap": 0.038387842,
+          "coat": 0.08546767,
+          "coat_roughness": 0.2870451
         },
         "mineral": null,
         "coating": null,
@@ -2228,9 +2466,9 @@
           0.2607201,
           0.118056394
         ],
-        "roughness": 0.6140584,
-        "period_m": 0.08361397,
-        "relief_m": 0.000017854298,
+        "roughness": 0.4503066,
+        "period_m": 0.065328255,
+        "relief_m": 0.000039855277,
         "grain_frequency": 45.051025,
         "cross_frequency": 1.5636469,
         "warp": 0.014759265,
@@ -2339,6 +2577,16 @@
         "joint_width": 0.003310096
       },
       {
+        "construction": {
+          "weights": [
+            0.9230891,
+            0.026700247,
+            0.022208316,
+            0.028002338
+          ],
+          "scale": 1.5628035,
+          "variation": 0.3158727
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -2356,14 +2604,14 @@
         "wood": null,
         "leaf": null,
         "cuticle": {
-          "chlorophyll_variation": 0.1102248,
-          "wax": 0.58107406,
-          "bloom": 0.034200277,
+          "chlorophyll_variation": 0.072873905,
+          "wax": 0.23563188,
+          "bloom": 0.08579835,
           "pore_cells": [
-            37,
-            39
+            30,
+            32
           ],
-          "pore_contrast": 0.041101225,
+          "pore_contrast": 0.039997593,
           "transmission": 0.008740058
         },
         "surface": "Succulent",
@@ -2373,9 +2621,9 @@
           0.25399345,
           0.0882974
         ],
-        "roughness": 0.4747315,
-        "period_m": 0.09108377,
-        "relief_m": 0.00001631201,
+        "roughness": 0.62475413,
+        "period_m": 0.15628035,
+        "relief_m": 0.000014929954,
         "grain_frequency": 70.225945,
         "cross_frequency": 2.5280113,
         "warp": 0.03334279,
@@ -2909,7 +3157,34 @@
   },
   "ceiling_installation": {
     "exposed_slab": false,
-    "modules": []
+    "modules": [
+      {
+        "system": "Ventilation",
+        "center": [
+          0.0,
+          3.891861,
+          -1.5044699
+        ],
+        "size": [
+          0.46759415,
+          0.24807742,
+          0.62575805
+        ],
+        "support_top_m": 4.075543,
+        "pitch_m": 0.2987411,
+        "thickness_m": 0.02045281,
+        "seed": 1162121476752109325,
+        "detail": {
+          "finish": 9,
+          "shape": {
+            "kind": "Diffuser",
+            "round": false,
+            "blades": 3,
+            "angle": 0.3560835
+          }
+        }
+      }
+    ]
   },
   "palette": 3,
   "furniture_style": 1,
@@ -3515,18 +3790,18 @@
       "id": 21,
       "kind": "Clock",
       "position": [
-        2.6191618,
-        2.0792909,
-        -3.158802
+        2.8605251,
+        1.9563545,
+        -2.9174387
       ],
       "size": [
-        0.39611202,
-        0.39611202,
+        0.27799156,
+        0.27799156,
         0.045
       ],
       "yaw": -0.78539807,
-      "variant": 2,
-      "seed": 2592836614197362767,
+      "variant": 0,
+      "seed": 16441425891653472830,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3536,18 +3811,18 @@
       "id": 22,
       "kind": "WallOutlet",
       "position": [
-        -3.7569642,
-        0.37661597,
-        -0.25743017
+        -3.5080855,
+        0.3689796,
+        -2.6494865
       ],
       "size": [
-        0.15,
-        0.11812904,
+        0.075,
+        0.11767073,
         0.018
       ],
-      "yaw": 1.5249051,
+      "yaw": 0.78539807,
       "variant": 2,
-      "seed": 8128957500693883394,
+      "seed": 5136652809120990499,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3557,18 +3832,18 @@
       "id": 23,
       "kind": "WallOutlet",
       "position": [
-        2.324259,
-        0.3751641,
-        -3.461059
+        -3.749368,
+        0.24042562,
+        -0.42283782
       ],
       "size": [
         0.075,
-        0.120292336,
+        0.10068936,
         0.018
       ],
-      "yaw": -0.78539807,
+      "yaw": 1.5249051,
       "variant": 2,
-      "seed": 17107096810860457771,
+      "seed": 15523536489369876405,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -3618,85 +3893,85 @@
     },
     {
       "id": 26,
-      "kind": "SodaCan",
+      "kind": "Kettle",
       "position": [
-        -3.1771057,
-        1.1531702,
-        -1.4124329
+        -1.3898509,
+        1.0322446,
+        3.0775368
       ],
       "size": [
-        0.07409872,
-        0.15703994,
-        0.07409872
+        0.173521,
+        0.24898651,
+        0.3096614
       ],
-      "yaw": -2.2784538,
-      "variant": 2,
-      "seed": 18255280987900060372,
+      "yaw": 3.26278,
+      "variant": 0,
+      "seed": 7131784606530542672,
       "solid": false,
-      "support": 5,
+      "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 27,
-      "kind": "Mug",
+      "kind": "Dishware",
       "position": [
-        -3.20654,
-        1.1531702,
-        -1.2390392
+        -1.8090742,
+        1.0322446,
+        3.0762603
       ],
       "size": [
-        0.12113482,
-        0.1128923,
-        0.096849054
+        0.1254347,
+        0.09197564,
+        0.1254347
       ],
-      "yaw": -3.0208645,
-      "variant": 1,
-      "seed": 4048807156641872102,
+      "yaw": 3.9854271,
+      "variant": 2,
+      "seed": 15178672389240556194,
       "solid": false,
-      "support": 5,
+      "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 28,
-      "kind": "SodaCan",
+      "kind": "Mug",
       "position": [
-        0.032698978,
-        0.82,
-        -2.8554716
+        -1.6002835,
+        1.0322446,
+        3.1699057
       ],
       "size": [
-        0.07247249,
-        0.16787395,
-        0.07247249
+        0.0964401,
+        0.08376844,
+        0.07306068
       ],
-      "yaw": -0.151301,
+      "yaw": 2.726547,
       "variant": 1,
-      "seed": 17858913035439312043,
+      "seed": 11712234326960311821,
       "solid": false,
-      "support": 8,
+      "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 29,
-      "kind": "WaterBottle",
+      "kind": "Mug",
       "position": [
-        0.14563103,
-        0.82,
-        -3.043244
+        -1.1687044,
+        1.0322446,
+        3.0276554
       ],
       "size": [
-        0.095418364,
-        0.20657998,
-        0.095418364
+        0.0879986,
+        0.10882802,
+        0.066665605
       ],
-      "yaw": -0.21525785,
-      "variant": 0,
-      "seed": 17499284448220987409,
+      "yaw": 3.258247,
+      "variant": 2,
+      "seed": 4576906178679236576,
       "solid": false,
-      "support": 8,
+      "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
@@ -3704,130 +3979,424 @@
       "id": 30,
       "kind": "Plant",
       "position": [
-        -1.6477765,
-        0.74,
-        5.543786
+        0.78625906,
+        0.82,
+        -2.9761455
       ],
       "size": [
-        0.25,
-        0.29286546,
-        0.25
+        0.19614357,
+        0.3054175,
+        0.1908414
       ],
-      "yaw": 0.39873838,
-      "variant": 4,
-      "seed": 17856083960543902192,
+      "yaw": 5.278867,
+      "variant": 7,
+      "seed": 5109363335875970922,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 31,
+      "kind": "Vase",
+      "position": [
+        -0.12693861,
+        0.3639889,
+        0.14963013
+      ],
+      "size": [
+        0.1047142,
+        0.2540041,
+        0.1047142
+      ],
+      "yaw": 1.2551436,
+      "variant": 0,
+      "seed": 1660901717506549910,
+      "solid": false,
+      "support": 0,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 32,
+      "kind": "Notepad",
+      "position": [
+        2.0231824,
+        0.37467867,
+        0.58062947
+      ],
+      "size": [
+        0.11083146,
+        0.01708172,
+        0.16977759
+      ],
+      "yaw": 7.591383,
+      "variant": 0,
+      "seed": 12235074116055967709,
+      "solid": false,
+      "support": 2,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 33,
+      "kind": "Notebook",
+      "position": [
+        2.0623877,
+        0.37467867,
+        1.1791245
+      ],
+      "size": [
+        0.0936095,
+        0.020475809,
+        0.11550409
+      ],
+      "yaw": 2.0460262,
+      "variant": 0,
+      "seed": 4247589736609236686,
+      "solid": false,
+      "support": 2,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 34,
+      "kind": "Notebook",
+      "position": [
+        -3.1047962,
+        1.1531702,
+        -1.39057
+      ],
+      "size": [
+        0.21225959,
+        0.015205821,
+        0.32096663
+      ],
+      "yaw": -2.9901595,
+      "variant": 0,
+      "seed": 9323808132074084811,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 35,
+      "kind": "Kettle",
+      "position": [
+        0.3938424,
+        0.82,
+        -2.9991198
+      ],
+      "size": [
+        0.15539108,
+        0.19346723,
+        0.2590961
+      ],
+      "yaw": -1.480544,
+      "variant": 0,
+      "seed": 13059945645166311274,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 36,
+      "kind": "SodaCan",
+      "position": [
+        0.5910267,
+        0.82,
+        -2.8227994
+      ],
+      "size": [
+        0.05835521,
+        0.14813027,
+        0.05835521
+      ],
+      "yaw": -2.4529567,
+      "variant": 0,
+      "seed": 6169102406102127417,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 37,
+      "kind": "WaterBottle",
+      "position": [
+        0.60032696,
+        0.82,
+        -2.9738715
+      ],
+      "size": [
+        0.07544866,
+        0.2180275,
+        0.07544866
+      ],
+      "yaw": -1.531232,
+      "variant": 2,
+      "seed": 2169703779186980447,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 38,
+      "kind": "Mug",
+      "position": [
+        -0.7322728,
+        0.82,
+        -3.1122851
+      ],
+      "size": [
+        0.098059826,
+        0.11312464,
+        0.075317554
+      ],
+      "yaw": -2.4729176,
+      "variant": 0,
+      "seed": 13291153275109961036,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 39,
+      "kind": "Mug",
+      "position": [
+        1.0313349,
+        0.82,
+        -2.9226491
+      ],
+      "size": [
+        0.15329099,
+        0.17223911,
+        0.11393306
+      ],
+      "yaw": -1.1518743,
+      "variant": 0,
+      "seed": 5110761544903167378,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 40,
+      "kind": "WaterBottle",
+      "position": [
+        1.0184661,
+        0.82,
+        -3.187508
+      ],
+      "size": [
+        0.0576691,
+        0.16203792,
+        0.0576691
+      ],
+      "yaw": -1.4652805,
+      "variant": 2,
+      "seed": 16547649920563344710,
+      "solid": false,
+      "support": 8,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 41,
+      "kind": "Pencil",
+      "position": [
+        -1.5006255,
+        0.74,
+        5.9325376
+      ],
+      "size": [
+        0.008992852,
+        0.010071994,
+        0.19406116
+      ],
+      "yaw": 4.6556034,
+      "variant": 1,
+      "seed": 5297400343002014394,
       "solid": false,
       "support": 10,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 31,
-      "kind": "Notebook",
+      "id": 42,
+      "kind": "Headphones",
       "position": [
-        0.87915397,
-        1.2,
-        6.3503327
+        -1.5325986,
+        0.74,
+        5.555105
       ],
       "size": [
-        0.099326245,
-        0.020145629,
-        0.14003992
+        0.18990928,
+        0.20584442,
+        0.111384235
       ],
-      "yaw": 3.3074365,
+      "yaw": 5.338812,
       "variant": 1,
-      "seed": 14275239027018919522,
+      "seed": 13368207914098558542,
       "solid": false,
-      "support": 12,
+      "support": 10,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 32,
+      "id": 43,
       "kind": "Vase",
       "position": [
-        1.085726,
-        1.2,
-        6.335846
+        -1.81507,
+        0.74,
+        5.4856415
       ],
       "size": [
-        0.095727056,
-        0.24828966,
-        0.095727056
+        0.18611217,
+        0.29033774,
+        0.18611217
       ],
-      "yaw": 3.222238,
-      "variant": 2,
-      "seed": 11808896743922460378,
+      "yaw": 3.7906141,
+      "variant": 0,
+      "seed": 15740654755109129976,
       "solid": false,
-      "support": 12,
+      "support": 10,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 33,
-      "kind": "Phone",
+      "id": 44,
+      "kind": "DeskOrganizer",
       "position": [
-        -0.34434828,
-        0.66415143,
-        1.4791479
+        -1.3391852,
+        0.74,
+        5.626648
       ],
       "size": [
-        0.0847348,
-        0.014026,
-        0.15701759
+        0.21057343,
+        0.115213074,
+        0.09662663
       ],
-      "yaw": 4.3949757,
+      "yaw": 1.5197577,
+      "variant": 0,
+      "seed": 10295066099514508806,
+      "solid": false,
+      "support": 10,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 45,
+      "kind": "Phone",
+      "position": [
+        -1.5206717,
+        0.74,
+        5.7553897
+      ],
+      "size": [
+        0.08091717,
+        0.015135506,
+        0.15842982
+      ],
+      "yaw": 1.3774594,
       "variant": 2,
-      "seed": 16269204939993173056,
+      "seed": 15369590340938034834,
+      "solid": false,
+      "support": 10,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 46,
+      "kind": "Vase",
+      "position": [
+        -0.20546286,
+        0.66415143,
+        1.5556077
+      ],
+      "size": [
+        0.11000387,
+        0.109607205,
+        0.11000387
+      ],
+      "yaw": 1.7674277,
+      "variant": 2,
+      "seed": 6476675351826205571,
       "solid": false,
       "support": 15,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 34,
-      "kind": "Mug",
+      "id": 47,
+      "kind": "Vase",
       "position": [
-        0.43347454,
+        0.4024827,
         0.9851093,
-        -1.0661684
+        -0.9672684
       ],
       "size": [
-        0.13882163,
-        0.07974482,
-        0.10473195
+        0.12202223,
+        0.2090059,
+        0.12202223
       ],
-      "yaw": 4.022395,
-      "variant": 0,
-      "seed": 15606077925370669824,
+      "yaw": 1.2842236,
+      "variant": 1,
+      "seed": 3751720487443834387,
       "solid": false,
       "support": 16,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 35,
-      "kind": "TissueBox",
+      "id": 48,
+      "kind": "Mug",
       "position": [
-        2.4268696,
-        1.8286458,
-        -3.1473284
+        0.12912063,
+        0.9851093,
+        -1.1126686
       ],
       "size": [
-        0.23534495,
-        0.12851956,
-        0.13620299
+        0.121130124,
+        0.081588894,
+        0.0918655
       ],
-      "yaw": -3.8215961,
+      "yaw": 1.2635319,
       "variant": 2,
-      "seed": 3510383571519202418,
+      "seed": 1518239082521506509,
       "solid": false,
-      "support": 17,
+      "support": 16,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 36,
+      "id": 49,
+      "kind": "FireAlarm",
+      "position": [
+        2.4984145,
+        2.053262,
+        -3.2687259
+      ],
+      "size": [
+        0.17775327,
+        0.17775327,
+        0.041638084
+      ],
+      "yaw": -0.78539807,
+      "variant": 3,
+      "seed": 1014415742098463724,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 50,
       "kind": "FloorOutlet",
       "position": [
         -0.8778454,
@@ -3848,7 +4417,7 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 51,
       "kind": "FloorOutlet",
       "position": [
         -1.2969778,
@@ -3857,11 +4426,11 @@
       ],
       "size": [
         0.20105502,
-        0.006,
+        0.1175157,
         0.23523799
       ],
       "yaw": -0.1334296,
-      "variant": 10,
+      "variant": 2,
       "seed": 9559454865825451868,
       "solid": false,
       "support": null,
@@ -3869,788 +4438,853 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 52,
       "kind": "Cable",
       "position": [
-        -3.3521981,
-        0.3899879,
-        -0.6687559
+        -3.3484087,
+        0.0020000003,
+        -0.7515454
       ],
       "size": [
-        0.7975333,
-        0.7819317,
-        0.8350551
+        0.7901516,
+        1.1700358,
+        0.6699171
       ],
       "yaw": 0.0,
-      "variant": 1,
-      "seed": 1308785981489726690,
+      "variant": 2,
+      "seed": 139596411124907084,
       "solid": false,
       "support": 5,
       "neighbor": false,
       "interaction_target": 18,
       "cable_path": [
         [
-          0.39302754,
-          0.77758235,
-          -0.37005413
+          0.38923812,
+          1.1655703,
+          -0.2872646
         ],
         [
-          0.3944173,
-          0.77758235,
-          -0.3964013
+          0.39061022,
+          1.1655703,
+          -0.31327522
         ],
         [
-          0.39424348,
-          0.77757734,
-          -0.3991754
+          0.39043164,
+          1.1655654,
+          -0.3161235
         ],
         [
-          0.39344025,
-          0.7775627,
-          -0.4018365
+          0.3896072,
+          1.165551,
+          -0.31885564
         ],
         [
-          0.39205027,
-          0.7775392,
-          -0.40424347
+          0.38818002,
+          1.1655278,
+          -0.32132697
         ],
         [
-          0.39014697,
-          0.77750796,
-          -0.40626895
+          0.3862257,
+          1.1654972,
+          -0.3234067
         ],
         [
-          0.3878312,
-          0.77747077,
-          -0.40780592
+          0.3838482,
+          1.1654606,
+          -0.3249848
         ],
         [
-          0.38522553,
-          0.7774295,
-          -0.40877283
+          0.38117266,
+          1.16542,
+          -0.32597744
         ],
         [
-          0.382468,
-          0.7773865,
-          -0.40911853
+          0.37834144,
+          1.1653777,
+          -0.32633245
         ],
         [
-          0.16696715,
-          0.7740403,
-          -0.41114843
+          0.15746832,
+          1.1620948,
+          -0.32841277
         ],
         [
-          -0.048533678,
-          0.7706942,
-          -0.4131782
+          -0.06340456,
+          1.1588119,
+          -0.33049297
         ],
         [
-          -0.05137849,
-          0.7703336,
-          -0.41307867
+          -0.06651664,
+          1.1583685,
+          -0.33049154
         ],
         [
-          -0.054055452,
-          0.76936036,
-          -0.412732
+          -0.06941795,
+          1.1571593,
+          -0.33042884
         ],
         [
-          -0.056413412,
-          0.7678297,
-          -0.4121579
+          -0.07192159,
+          1.155262,
+          -0.33030868
         ],
         [
-          -0.05831957,
-          0.7658277,
-          -0.41138852
+          -0.073866844,
+          1.1527984,
+          -0.33013892
         ],
         [
-          -0.059666395,
-          0.7634674,
-          -0.4104674
+          -0.07512903,
+          1.1499269,
+          -0.32993042
         ],
         [
-          -0.060377598,
-          0.76088196,
-          -0.40944648
+          -0.07562709,
+          1.1468319,
+          -0.32969666
         ],
         [
-          -0.06824994,
-          0.7055654,
-          -0.3874892
+          -0.07740736,
+          1.0914352,
+          -0.325436
         ],
         [
-          -0.068288326,
-          0.7053049,
-          -0.3873824
+          -0.07956648,
+          1.027856,
+          -0.32026732
         ],
         [
-          -0.077512026,
-          0.644525,
-          -0.36165535
+          -0.081726074,
+          0.9677045,
+          -0.31509888
         ],
         [
-          -0.0775547,
-          0.6442532,
-          -0.3615365
+          -0.08388519,
+          0.9107975,
+          -0.30993032
         ],
         [
-          -0.08677387,
-          0.5873234,
-          -0.33582246
+          -0.088204145,
+          0.80603254,
+          -0.2995931
         ],
         [
-          -0.08682132,
-          0.5870402,
-          -0.33569014
+          -0.0925231,
+          0.7122832,
+          -0.2892561
         ],
         [
-          -0.09603548,
-          0.53376216,
-          -0.30998993
+          -0.096836805,
+          0.62850076,
+          -0.27893054
         ],
         [
-          -0.09608817,
-          0.5334678,
-          -0.30984306
+          -0.09684706,
+          0.6283111,
+          -0.27890575
         ],
         [
-          -0.10529685,
-          0.4836554,
-          -0.28415817
+          -0.101154566,
+          0.55348295,
+          -0.2685963
         ],
         [
-          -0.10535526,
-          0.48335016,
-          -0.28399533
+          -0.10116744,
+          0.553272,
+          -0.26856554
         ],
         [
-          -0.11454153,
-          0.43691057,
-          -0.2583722
+          -0.10547185,
+          0.48639998,
+          -0.25826275
         ],
         [
-          -0.114640474,
-          0.43643558,
-          -0.25809604
+          -0.10548782,
+          0.48616543,
+          -0.2582245
         ],
         [
-          -0.13304281,
-          0.3525504,
-          -0.20676917
+          -0.109788895,
+          0.42643338,
+          -0.24792993
         ],
         [
-          -0.1332004,
-          0.3518827,
-          -0.20632982
+          -0.10980868,
+          0.4261729,
+          -0.24788237
         ],
         [
-          -0.1515553,
-          0.2794155,
-          -0.1551339
+          -0.114105225,
+          0.3728517,
+          -0.2375983
         ],
         [
-          -0.15174556,
-          0.27872002,
-          -0.15460354
+          -0.11412978,
+          0.37256286,
+          -0.23753929
         ],
         [
-          -0.17006564,
-          0.21656793,
-          -0.10350472
+          -0.11842108,
+          0.3250011,
+          -0.22726786
         ],
         [
-          -0.17029262,
-          0.21585798,
-          -0.10287154
+          -0.118451595,
+          0.32468137,
+          -0.22719467
         ],
         [
-          -0.18857408,
-          0.16313207,
-          -0.051880956
+          -0.12273669,
+          0.2822977,
+          -0.21693903
         ],
         [
-          -0.18884158,
-          0.1624257,
-          -0.051134884
+          -0.1227746,
+          0.28194463,
+          -0.21684843
         ],
         [
-          -0.20708132,
-          0.118362844,
-          -0.00026094913
+          -0.12705112,
+          0.24422047,
+          -0.20661199
         ],
         [
-          -0.20739174,
-          0.11768299,
-          0.0006045699
+          -0.12709785,
+          0.24383153,
+          -0.2065
         ],
         [
-          -0.22558808,
-          0.08163634,
-          0.051357567
+          -0.13136458,
+          0.2103046,
+          -0.19628727
         ],
         [
-          -0.22594166,
-          0.081010014,
-          0.052343905
+          -0.13142228,
+          0.20987755,
+          -0.19614917
         ],
         [
-          -0.24409556,
-          0.05244094,
-          0.10297811
+          -0.13567758,
+          0.18013585,
+          -0.18596518
         ],
         [
-          -0.24449039,
-          0.051897585,
-          0.104079366
+          -0.13574862,
+          0.17966913,
+          -0.18579537
         ],
         [
-          -0.2626047,
-          0.03037113,
-          0.15460455
+          -0.13998866,
+          0.15334582,
+          -0.17564636
         ],
         [
-          -0.26303554,
-          0.029940039,
-          0.15580642
+          -0.14007568,
+          0.15283811,
+          -0.17543817
         ],
         [
-          -0.28111815,
-          0.015122294,
-          0.20624158
+          -0.14427161,
+          0.12975271,
+          -0.16539472
         ],
         [
-          -0.28157687,
-          0.014829397,
-          0.20752108
+          -0.14443779,
+          0.12892185,
+          -0.16499722
         ],
         [
-          -0.2996366,
-          0.0064865053,
-          0.25789297
+          -0.15284443,
+          0.09048326,
+          -0.14487517
         ],
         [
-          -0.30011225,
-          0.006350726,
-          0.25921962
+          -0.15315652,
+          0.08923659,
+          -0.14412802
         ],
         [
-          -0.318161,
-          0.0043493807,
-          0.30956173
+          -0.16142035,
+          0.060202662,
+          -0.124349356
         ],
         [
-          -0.31864095,
-          0.004379928,
-          0.31090006
+          -0.161865,
+          0.058854245,
+          -0.123285234
         ],
         [
-          -0.3366921,
-          0.008687913,
-          0.3612489
+          -0.170053,
+          0.03734654,
+          -0.10368717
         ],
         [
-          -0.33716297,
-          0.008882672,
-          0.36256227
+          -0.17049503,
+          0.03632135,
+          -0.10262936
         ],
         [
-          -0.3524859,
-          0.017946243,
-          0.40530047
+          -0.17441201,
+          0.028310705,
+          -0.09325355
         ],
         [
-          -0.35386777,
-          0.01852125,
-          0.40799305
+          -0.1747601,
+          0.027662398,
+          -0.09242058
         ],
         [
-          -0.355901,
-          0.01901257,
-          0.41025463
+          -0.17870831,
+          0.020981714,
+          -0.08297002
         ],
         [
-          -0.35845327,
-          0.019388288,
-          0.41193822
+          -0.17910075,
+          0.020384584,
+          -0.082030475
         ],
         [
-          -0.36135888,
-          0.019623965,
-          0.4129343
+          -0.18300533,
+          0.015075706,
+          -0.07268453
         ],
         [
-          -0.36442876,
-          0.019704252,
-          0.4131782
+          -0.18344021,
+          0.014554774,
+          -0.07164377
         ],
         [
-          -0.39441705,
-          0.019704223,
-          0.41180098
+          -0.18730474,
+          0.01052085,
+          -0.062393963
+        ],
+        [
+          -0.1877768,
+          0.010100905,
+          -0.061264038
+        ],
+        [
+          -0.19160771,
+          0.007263122,
+          -0.052094758
+        ],
+        [
+          -0.19210911,
+          0.006966277,
+          -0.05089444
+        ],
+        [
+          -0.19580746,
+          0.0053140586,
+          -0.042042196
+        ],
+        [
+          -0.19654608,
+          0.005135555,
+          -0.0402745
+        ],
+        [
+          -0.213413,
+          0.004467014,
+          0.0000962615
+        ],
+        [
+          -0.21348596,
+          0.004465568,
+          0.00027114153
+        ],
+        [
+          -0.2479999,
+          0.004465566,
+          0.082880795
+        ],
+        [
+          -0.26527524,
+          0.004465566,
+          0.12422931
+        ],
+        [
+          -0.2738557,
+          0.004465566,
+          0.14476657
+        ],
+        [
+          -0.27397013,
+          0.0044691237,
+          0.14504057
+        ],
+        [
+          -0.27798367,
+          0.004718462,
+          0.15464711
+        ],
+        [
+          -0.27847767,
+          0.0048157666,
+          0.15582967
+        ],
+        [
+          -0.2822926,
+          0.006085531,
+          0.16496104
+        ],
+        [
+          -0.28280282,
+          0.0063290177,
+          0.16618252
+        ],
+        [
+          -0.286623,
+          0.00871382,
+          0.17532581
+        ],
+        [
+          -0.2871077,
+          0.00908776,
+          0.17648596
+        ],
+        [
+          -0.29095793,
+          0.012643102,
+          0.18570197
+        ],
+        [
+          -0.29140806,
+          0.0131271845,
+          0.1867795
+        ],
+        [
+          -0.29529667,
+          0.017924227,
+          0.19608623
+        ],
+        [
+          -0.29570627,
+          0.01849444,
+          0.1970666
+        ],
+        [
+          -0.29963708,
+          0.02462317,
+          0.20647544
+        ],
+        [
+          -0.3000028,
+          0.025254235,
+          0.20735055
+        ],
+        [
+          -0.30397844,
+          0.032821704,
+          0.21686614
+        ],
+        [
+          -0.30429935,
+          0.03348964,
+          0.21763438
+        ],
+        [
+          -0.3082497,
+          0.04246146,
+          0.2270897
+        ],
+        [
+          -0.30865312,
+          0.043493193,
+          0.22805512
+        ],
+        [
+          -0.31688285,
+          0.067198485,
+          0.24775356
+        ],
+        [
+          -0.31728363,
+          0.06852405,
+          0.24871302
+        ],
+        [
+          -0.32558584,
+          0.10019173,
+          0.26858425
+        ],
+        [
+          -0.32586455,
+          0.101395905,
+          0.26925114
+        ],
+        [
+          -0.33429694,
+          0.1430108,
+          0.28943413
+        ],
+        [
+          -0.33444428,
+          0.143805,
+          0.28978667
+        ],
+        [
+          -0.33865452,
+          0.16873668,
+          0.29986387
+        ],
+        [
+          -0.33873153,
+          0.16921946,
+          0.30004793
+        ],
+        [
+          -0.34298086,
+          0.19757581,
+          0.31021893
+        ],
+        [
+          -0.34304357,
+          0.1980183,
+          0.31036878
+        ],
+        [
+          -0.34730577,
+          0.23001055,
+          0.32057086
+        ],
+        [
+          -0.34735656,
+          0.23041423,
+          0.32069248
+        ],
+        [
+          -0.35038018,
+          0.25590345,
+          0.32792965
+        ],
+        [
+          -0.35108876,
+          0.2587429,
+          0.32871878
+        ],
+        [
+          -0.35249043,
+          0.2613411,
+          0.32940626
+        ],
+        [
+          -0.354501,
+          0.26354286,
+          0.32995108
+        ],
+        [
+          -0.35700083,
+          0.26521677,
+          0.33032066
+        ],
+        [
+          -0.3598404,
+          0.2662628,
+          0.33049294
+        ],
+        [
+          -0.36285043,
+          0.26661858,
+          0.3304577
+        ],
+        [
+          -0.39061022,
+          0.26661864,
+          0.32918286
         ]
       ],
-      "cable_target": 22
+      "cable_target": 23
     },
     {
-      "id": 39,
+      "id": 53,
       "kind": "Cable",
       "position": [
-        1.412557,
-        0.0019999999,
-        -3.3263211
+        -0.3764753,
+        0.012763049,
+        -3.0538986
       ],
       "size": [
-        1.8171318,
-        0.83658946,
-        0.26320338
+        1.8557377,
+        0.8258739,
+        0.300385
       ],
       "yaw": 0.0,
-      "variant": 1,
-      "seed": 3115200719567493320,
+      "variant": 2,
+      "seed": 12649616643522716845,
       "solid": false,
       "support": 8,
       "neighbor": false,
       "interaction_target": 20,
       "cable_path": [
         [
-          -0.8654004,
-          0.8324,
-          0.12646699
+          0.9236319,
+          0.821637,
+          -0.14595556
         ],
         [
-          -0.8923313,
-          0.8324,
-          0.12741208
+          0.88486373,
+          0.821637,
+          -0.14459515
         ],
         [
-          -0.8949867,
-          0.83238655,
-          0.1272006
+          0.88444805,
+          0.82163614,
+          -0.14458776
         ],
         [
-          -0.8975243,
-          0.83234686,
-          0.12639117
+          0.5969303,
+          0.8204502,
+          -0.14458776
         ],
         [
-          -0.8998112,
-          0.83228296,
-          0.1250267
+          0.30941254,
+          0.8192642,
+          -0.14458752
         ],
         [
-          -0.9017275,
-          0.83219826,
-          0.12317824
+          0.021894813,
+          0.8180783,
+          -0.14458776
         ],
         [
-          -0.90317285,
-          0.8320972,
-          0.12094283
+          -0.265623,
+          0.8168923,
+          -0.14458776
         ],
         [
-          -0.90407157,
-          0.83198506,
-          0.11843777
+          -0.55314064,
+          0.8157064,
+          -0.14458776
         ],
         [
-          -0.90437645,
-          0.8318677,
-          0.11579394
+          -0.8406584,
+          0.8145204,
+          -0.14458776
         ],
         [
-          -0.9043764,
-          0.8256764,
-          -0.02424407
+          -0.8436221,
+          0.81413317,
+          -0.14452839
         ],
         [
-          -0.90424615,
-          0.82520205,
-          -0.027136326
+          -0.84639156,
+          0.81302094,
+          -0.1443541
         ],
         [
-          -0.90386367,
-          0.8240662,
-          -0.029814243
+          -0.848788,
+          0.8112554,
+          -0.14407635
         ],
         [
-          -0.90325326,
-          0.8223412,
-          -0.03210759
+          -0.85065675,
+          0.8089505,
+          -0.14371276
         ],
         [
-          -0.9024538,
-          0.82013655,
-          -0.03387046
+          -0.85187745,
+          0.806255,
+          -0.14328694
         ],
         [
-          -0.90151596,
-          0.8175924,
-          -0.034991026
+          -0.8523711,
+          0.8033427,
+          -0.14282632
         ],
         [
-          -0.9004995,
-          0.8148705,
-          -0.035398006
+          -0.8541769,
+          0.75709605,
+          -0.1355083
         ],
         [
-          -0.8765941,
-          0.7512424,
-          -0.036264896
+          -0.8564174,
+          0.7033329,
+          -0.12642884
         ],
         [
-          -0.8764939,
-          0.75098485,
-          -0.036268473
+          -0.85865796,
+          0.65296304,
+          -0.117349386
         ],
         [
-          -0.84876955,
-          0.6821983,
-          -0.037273407
+          -0.860893,
+          0.60589164,
+          -0.108291626
         ],
         [
-          -0.8486563,
-          0.68192726,
-          -0.03727746
+          -0.8609042,
+          0.6056669,
+          -0.10824609
         ],
         [
-          -0.8209457,
-          0.61788386,
-          -0.038282394
+          -0.8653705,
+          0.5203712,
+          -0.09014654
         ],
         [
-          -0.820818,
-          0.6175993,
-          -0.038286924
+          -0.8653892,
+          0.52003664,
+          -0.090070486
         ],
         [
-          -0.79312265,
-          0.5580234,
-          -0.039290667
+          -0.8698491,
+          0.44538343,
+          -0.07199764
         ],
         [
-          -0.7929789,
-          0.5577253,
-          -0.03929591
+          -0.86987317,
+          0.44500756,
+          -0.07190013
         ],
         [
-          -0.7653005,
-          0.5023599,
-          -0.040299654
+          -0.8743268,
+          0.37972766,
+          -0.053851604
         ],
         [
-          -0.76513886,
-          0.50204843,
-          -0.040305614
+          -0.8743576,
+          0.37930664,
+          -0.05372691
         ],
         [
-          -0.73747927,
-          0.4506549,
-          -0.04130864
+          -0.87880373,
+          0.32232052,
+          -0.035708904
         ],
         [
-          -0.7372979,
-          0.45033044,
-          -0.041315317
+          -0.87884307,
+          0.32185096,
+          -0.03554964
         ],
         [
-          -0.709659,
-          0.4026865,
-          -0.042316914
+          -0.8832797,
+          0.27221444,
+          -0.017570019
         ],
         [
-          -0.7094559,
-          0.40234965,
-          -0.042324305
+          -0.88332963,
+          0.27169386,
+          -0.017367601
         ],
         [
-          -0.68183976,
-          0.35824895,
-          -0.043325663
+          -0.88775444,
+          0.22858228,
+          0.0005633831
         ],
         [
-          -0.68161285,
-          0.3579006,
-          -0.043334007
+          -0.8878176,
+          0.22800913,
+          0.0008196831
         ],
         [
-          -0.6540217,
-          0.31715152,
-          -0.044333935
+          -0.89222753,
+          0.19070305,
+          0.018690825
         ],
         [
-          -0.6537688,
-          0.3167928,
-          -0.044342995
+          -0.89230716,
+          0.19007792,
+          0.019013405
         ],
         [
-          -0.6262748,
-          0.27931365,
-          -0.04534006
+          -0.8966992,
+          0.15795028,
+          0.03681135
         ],
         [
-          -0.625844,
-          0.27876198,
-          -0.045355797
+          -0.8967986,
+          0.15727663,
+          0.03721428
         ],
         [
-          -0.5707331,
-          0.2124042,
-          -0.047353745
+          -0.9011688,
+          0.12978162,
+          0.05492425
         ],
         [
-          -0.57004553,
-          0.21164677,
-          -0.04737878
+          -0.90129197,
+          0.12906665,
+          0.05542326
         ],
         [
-          -0.51513976,
-          0.15625827,
-          -0.049369335
+          -0.9056364,
+          0.1057297,
+          0.07302928
         ],
         [
-          -0.5143121,
-          0.15550023,
-          -0.049399376
+          -0.9057871,
+          0.10498579,
+          0.07364011
         ],
         [
-          -0.4595523,
-          0.11000462,
-          -0.051384926
+          -0.9101021,
+          0.085394606,
+          0.09112644
         ],
         [
-          -0.45857435,
-          0.109275304,
-          -0.05142045
+          -0.91028416,
+          0.08464016,
+          0.09186411
         ],
         [
-          -0.40396726,
-          0.07284604,
-          -0.053400278
+          -0.9145663,
+          0.0684374,
+          0.109217644
         ],
         [
-          -0.40283692,
-          0.072180875,
-          -0.053441286
+          -0.9147824,
+          0.0676976,
+          0.11009359
         ],
         [
-          -0.34837902,
-          0.044142865,
-          -0.05541563
+          -0.9190296,
+          0.05457529,
+          0.12730455
         ],
         [
-          -0.34710538,
-          0.043580864,
-          -0.055461884
+          -0.91928136,
+          0.053881343,
+          0.12832475
         ],
         [
-          -0.29278135,
-          0.023402857,
-          -0.05743122
+          -0.9222381,
+          0.046647046,
+          0.14030719
         ],
         [
-          -0.29138672,
-          0.022982195,
-          -0.057481766
+          -0.9228159,
+          0.04477444,
+          0.14264846
         ],
         [
-          -0.2371676,
-          0.010273468,
-          -0.059447527
+          -0.9232588,
+          0.042344525,
+          0.14444327
         ],
         [
-          -0.23568738,
-          0.010026028,
-          -0.05950117
+          -0.923537,
+          0.039520837,
+          0.145571
         ],
         [
-          -0.18133032,
-          0.0045155236,
-          -0.0614717
+          -0.9236319,
+          0.036493406,
+          0.14595556
         ],
         [
-          -0.1802144,
-          0.0044563967,
-          -0.06151223
-        ],
-        [
-          -0.12511206,
-          0.0041894377,
-          -0.06350994
-        ],
-        [
-          -0.013788581,
-          0.0041894377,
-          -0.06754637
-        ],
-        [
-          0.20885837,
-          0.0041894377,
-          -0.075618505
-        ],
-        [
-          0.31992662,
-          0.0041894377,
-          -0.07964516
-        ],
-        [
-          0.32043684,
-          0.0042006406,
-          -0.07966375
-        ],
-        [
-          0.37509894,
-          0.0066026575,
-          -0.08164573
-        ],
-        [
-          0.3765782,
-          0.006762992,
-          -0.08169937
-        ],
-        [
-          0.43077505,
-          0.016179139,
-          -0.08366418
-        ],
-        [
-          0.43221366,
-          0.01652465,
-          -0.08371639
-        ],
-        [
-          0.4864856,
-          0.033276908,
-          -0.08568406
-        ],
-        [
-          0.48781776,
-          0.033779334,
-          -0.08573246
-        ],
-        [
-          0.5422121,
-          0.05819717,
-          -0.08770442
-        ],
-        [
-          0.54340935,
-          0.058820464,
-          -0.08774781
-        ],
-        [
-          0.5979477,
-          0.0913712,
-          -0.08972502
-        ],
-        [
-          0.5989951,
-          0.09207612,
-          -0.089762926
-        ],
-        [
-          0.6536859,
-          0.133369,
-          -0.09174585
-        ],
-        [
-          0.65458095,
-          0.13411805,
-          -0.09177828
-        ],
-        [
-          0.70942175,
-          0.18490973,
-          -0.09376669
-        ],
-        [
-          0.7101711,
-          0.1856706,
-          -0.09379387
-        ],
-        [
-          0.7652308,
-          0.24696304,
-          -0.095790386
-        ],
-        [
-          0.7657033,
-          0.24752356,
-          -0.09580755
-        ],
-        [
-          0.79316366,
-          0.28226572,
-          -0.09680271
-        ],
-        [
-          0.7934419,
-          0.28263244,
-          -0.096812725
-        ],
-        [
-          0.82100904,
-          0.32049674,
-          -0.097812414
-        ],
-        [
-          0.8212594,
-          0.3208546,
-          -0.097821474
-        ],
-        [
-          0.848853,
-          0.36190903,
-          -0.09882164
-        ],
-        [
-          0.8490776,
-          0.36225638,
-          -0.098829746
-        ],
-        [
-          0.8727144,
-          0.40027544,
-          -0.0996871
-        ],
-        [
-          0.8743173,
-          0.40245995,
-          -0.09998107
-        ],
-        [
-          0.8761803,
-          0.40429732,
-          -0.100743055
-        ],
-        [
-          0.8782011,
-          0.40568683,
-          -0.10193157
-        ],
-        [
-          0.8802694,
-          0.40655223,
-          -0.10348129
-        ],
-        [
-          0.8822712,
-          0.40684608,
-          -0.1053071
-        ],
-        [
-          0.9043764,
-          0.40684596,
-          -0.12741232
+          -0.9236319,
+          0.0042369515,
+          0.14595556
         ]
       ],
-      "cable_target": 23
+      "cable_target": 51
     }
   ],
   "human_density": 0.25,
   "humans": [
     {
-      "id": 40,
+      "id": 54,
       "seed": 3424138590051757379,
       "position": [
         -2.9210904,
@@ -4951,6 +5585,8 @@
         140.0,
         210.0
       ],
+      "fov_bias": 0.0,
+      "fov_spread": 1.0,
       "circular_probability": 0.2,
       "elliptical_probability": 0.0,
       "distortion_strength": 1.0,
@@ -4971,6 +5607,7 @@
     "path_length_max": 8.0,
     "long_path_fraction": 0.45,
     "multiview": {
+      "mixed_rig": true,
       "min_overlap": 0.34221387,
       "min_baseline": 0.27,
       "min_reference_baseline": 1.2099999,
@@ -4997,53 +5634,53 @@
         "anisotropy": 0.9994219
       },
       "start": [
-        0.71767426,
-        1.5750959,
-        -0.84551716
+        -0.59431934,
+        2.9452457,
+        -1.8341097
       ],
       "end": [
-        -1.2186873,
-        1.5750959,
-        -3.0467548
+        -2.2770255,
+        2.9452457,
+        -0.22573936
       ],
       "target": [
         -2.9384413,
-        1.5301629,
+        1.328489,
         0.4814637
       ],
-      "fov_degrees": 70.3498,
+      "fov_degrees": 127.2766,
       "motion": {
         "control": [
           [
-            -0.51278377,
-            1.5750959,
-            -3.2015204
+            -1.6056811,
+            2.9452457,
+            -1.765039
           ],
           [
-            -1.1711466,
-            1.5750959,
-            -3.9499412
+            -2.1778011,
+            2.9452457,
+            -1.218193
           ]
         ],
         "target_end": [
-          -2.9456265,
-          1.5279273,
-          0.6530583
+          -2.7719564,
+          1.3708073,
+          0.2496973
         ],
         "roll": [
-          -0.036788236,
-          0.07790659
+          0.019842833,
+          0.07752058
         ],
         "route": [
           [
-            0.71767426,
-            1.5750959,
-            -0.84551716
+            -0.59431934,
+            2.9452457,
+            -1.8341097
           ],
           [
-            -1.2186873,
-            1.5750959,
-            -3.0467548
+            -2.2770255,
+            2.9452457,
+            -0.22573936
           ]
         ]
       }
@@ -5063,53 +5700,53 @@
         "anisotropy": 1.0
       },
       "start": [
-        1.3162798,
-        2.2223518,
-        0.9660139
+        1.8144073,
+        2.2852333,
+        -2.0319226
       ],
       "end": [
-        -1.0286385,
-        2.2223518,
-        -1.1625087
+        1.2008536,
+        2.2852333,
+        -0.8865198
       ],
       "target": [
-        -3.0537198,
-        1.5399593,
-        0.38677073
+        -2.8331165,
+        1.3473691,
+        0.2958819
       ],
-      "fov_degrees": 37.305595,
+      "fov_degrees": 114.26034,
       "motion": {
         "control": [
           [
-            -0.37410942,
-            2.2745662,
-            -1.7115186
+            1.23097,
+            2.2367263,
+            -1.7042501
           ],
           [
-            -1.1713814,
-            2.2745662,
-            -2.4352164
+            1.0223618,
+            2.2367263,
+            -1.3148133
           ]
         ],
         "target_end": [
-          -3.060905,
-          1.5377237,
-          0.55836535
+          -2.6666317,
+          1.3896874,
+          0.064115494
         ],
         "roll": [
-          -0.049137384,
-          -0.07423342
+          0.080004334,
+          0.04450959
         ],
         "route": [
           [
-            1.3162798,
-            2.2223518,
-            0.9660139
+            1.8144073,
+            2.2852333,
+            -2.0319226
           ],
           [
-            -1.0286385,
-            2.2223518,
-            -1.1625087
+            1.2008536,
+            2.2852333,
+            -0.8865198
           ]
         ]
       }
@@ -5129,57 +5766,57 @@
         "anisotropy": 0.9772958
       },
       "start": [
-        2.4002802,
-        1.7163233,
-        -1.919105
+        0.7364639,
+        2.17807,
+        1.4106182
       ],
       "end": [
-        1.150811,
-        1.7163233,
-        -2.7150307
+        -1.7264317,
+        2.17807,
+        2.8034854
       ],
       "target": [
-        -1.2810413,
-        1.4535241,
-        -0.13643628
+        -3.057938,
+        1.3908769,
+        0.6126641
       ],
-      "fov_degrees": 112.60531,
+      "fov_degrees": 117.89892,
       "motion": {
         "control": [
           [
-            1.6461787,
-            1.7373245,
-            -3.0551841
+            -0.5193207,
+            2.2125597,
+            1.3764726
           ],
           [
-            1.2213594,
-            1.7373245,
-            -3.3257987
+            -1.3567052,
+            2.2125597,
+            1.8500475
           ]
         ],
         "target_end": [
-          -1.2882265,
-          1.4801437,
-          0.035158336
+          -2.8914533,
+          1.4331952,
+          0.3808977
         ],
         "roll": [
-          0.085115016,
-          -0.0475575
+          -0.009746827,
+          0.06997755
         ],
         "route": [
           [
-            2.4002802,
-            1.7163233,
-            -1.919105
+            0.7364639,
+            2.17807,
+            1.4106182
           ],
           [
-            1.150811,
-            1.7163233,
-            -2.7150307
+            -1.7264317,
+            2.17807,
+            2.8034854
           ]
         ]
       }
     }
   ],
-  "rejected_placements": 140
+  "rejected_placements": 167
 }

@@ -12,6 +12,21 @@ use std::{
     process::Command,
 };
 
+/// A readable adapter label for prose. Full driver/PCI/capability metadata stays
+/// in the checksum-bound protocol, rather than an unbreakable debug dump in TeX.
+pub(crate) fn adapter_label(raw: &str) -> String {
+    if let Some((_, rest)) = raw.split_once("AdapterInfo { name: \"") {
+        if let Some((name, fields)) = rest.split_once('"') {
+            if let Some((_, backend)) = fields.split_once("backend: ") {
+                let backend = backend.split([',', '}']).next().unwrap().trim();
+                return format!("{name} ({backend})");
+            }
+            return name.to_owned();
+        }
+    }
+    raw.to_owned()
+}
+
 pub fn write_sources(
     dataset: &Dataset,
     gallery: &Value,
@@ -278,4 +293,21 @@ pub fn compile(stage: &Path, config: &Config, gallery: &Value) -> Result<()> {
         &json!({"schema_version":2,"generator_identity":gallery["generator_identity"],"pdf_sha256":io::hash(&pdf)?,"source_archive_sha256":io::hash(&papers.join("whitepaper-source.zip"))?,"sources":sources,"architecture_gallery_sha256":io::hash(&stage.join("www/project/static/media/architecture/gallery.json"))?,"object_atlas_sha256":io::hash(&stage.join(crate::objects::DIRECTORY).join("atlas.json"))?,"material_atlas_sha256":io::hash(&stage.join(crate::materials::DIRECTORY).join("atlas.json"))?,"build":"bevy_zeroverse_publication refresh; latexmk -pdf -no-shell-escape","scope":"Room captures, matched camera studies and the object/material atlases share the current generator identity. Their separate protocols and denominators are retained."}),
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod adapter_tests {
+    use super::adapter_label;
+
+    #[test]
+    fn labels_keep_device_and_backend_without_debug_fields() {
+        assert_eq!(adapter_label("AdapterInfo { name: \"NVIDIA RTX PRO 6000 Blackwell Workstation Edition\", device_type: DiscreteGpu, backend: Vulkan, subgroup_min_size: 32 }"), "NVIDIA RTX PRO 6000 Blackwell Workstation Edition (Vulkan)");
+        assert_eq!(
+            adapter_label(
+                "AdapterInfo { name: \"llvmpipe (LLVM 19.1.7, 256 bits)\", backend: Vulkan }"
+            ),
+            "llvmpipe (LLVM 19.1.7, 256 bits) (Vulkan)"
+        );
+        assert_eq!(adapter_label("Apple M4 (Metal)"), "Apple M4 (Metal)");
+    }
 }

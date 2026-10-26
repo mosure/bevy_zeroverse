@@ -7,10 +7,10 @@ The material atlas covers all 36 architectural/object surface roles, with the Fl
 
 Each render uses the actual \texttt{IndoorMaterials} factory and \texttt{for\_part} binding, including palette tint, texture structure group, UV transform, clearcoat, anisotropy and transmission. The studio reuses a native Bevy renderer. Texture maps are baked by the production CPU reference implementation; this study does not measure GPU-baking throughput. The rig uses fixed 1,400/250 lux directional lights with shadows, the same seed-zero procedural reflection environment, indoor capture exposure and a $40^\circ$ vertical field of view. A 0.46 m diameter sphere and a $0.46\times0.49$ m beveled panel expose curved highlights and flat detail. Leaves use production blades with normalized atlas UVs. The backdrop is identical across columns and reveals glass transmission. These are material probes, not representative furnished rooms.
 
-The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: 15015 objects and 53927 material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Generic object finishes must have a valid slot in $[0,12)$ and resolve from their recorded finish seed; deliberately independent book-cover slots are retained. Food uses separately validated role-specific bindings. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
+The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: 18162 objects and 65592 material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Generic object finishes use their declared coordinated palette; content bindings use their separately declared document pool. Every finish slot must be within its role-specific capacity and resolve from their recorded finish seed; deliberately independent book-cover slots are retained. Food uses separately validated role-specific bindings. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
 
 \subsection{Correlated controls, bounded palettes}
-Within a room, twelve finish slots share at most three texture structures per surface. Ceramic, Fabric, FabricAlt and Leather have three structures; Wood, WoodEdge, Leaf, LeafLight, LeafVariegated and Succulent have two. Other roles reuse one structure; rug fields have up to four dedicated dye/pile structures. Shared map handles bound synthesis/upload costs; independent room material seeds resample the underlying recipe. These are correlated palettes, not twelve independent textures. Painted Metal is dielectric; Chrome is conductive. Screen, phone, television, artwork, printed-paper and whiteboard maps come from their dedicated content programs. Container glass and liquids retain several fixed optical constants; their presence is not evidence of broad optical diversity.
+Within a room, twelve coordinated furniture finish slots share at most three texture structures per surface. Artwork, whiteboard and electronic display content use a separate pool of 120 independently sampled content slots per category; only slots used by geometry are synthesized. Pane subdivisions, typography, marker scales, painting fields and wall installation proportions vary continuously with the seed. Ceramic, Fabric, FabricAlt, Leather, Metal, Chrome and Plastic have three structures; Wood, WoodEdge, Leaf, LeafLight, LeafVariegated and Succulent have two. Other roles reuse one structure; rug fields have up to four dedicated dye/pile structures. Shared map handles bound synthesis/upload costs; independent room material seeds resample the underlying recipe. These are correlated palettes, not twelve independent textures. Painted Metal is dielectric; Chrome is conductive. Screen, phone, television, artwork, printed-paper and whiteboard maps come from their dedicated content programs. Container glass and liquids retain several fixed optical constants; their presence is not evidence of broad optical diversity.
 
 The page pairs each image with its actual PBR scalars and seed, and exposes eight-bin observed parameter marginals and object-assignment histograms. Optional subprograms keep their own denominators. Recorded ranges include conditional controls and are not causal influence measurements. Raw base-color maps precede the material multiplier; roughness previews show the packed green channel before its scalar multiplier (or the scalar when no texture exists). Tangent normals are distinct from rendered view-space normals. The maps include production mip chains, while map previews show level zero. A fixed RGB image or parameter count cannot establish perceptual volume, photographic realism, or 10M-sample learning utility. No product-of-ranges diversity estimate is reported.
 
@@ -22,45 +22,45 @@ The page pairs each image with its actual PBR scalars and seed, and exposes eigh
 \endfirsthead
 \toprule Surface / floor type & Structures & Object parts & Slots seen \\\midrule
 \endhead
-Paint & 1 & 100 & 0 \\
+Paint & 1 & 1137 & 12 \\
 Accent & 1 & 0 & 0 \\
-Wood & 2 & 2495 & 12 \\
-WoodEdge & 2 & 3073 & 12 \\
+Wood & 2 & 3139 & 12 \\
+WoodEdge & 2 & 2444 & 12 \\
 FloorTimber & 1 & 0 & 0 \\
 FloorCarpet & 1 & 0 & 0 \\
 FloorStone & 1 & 0 & 0 \\
 Ceiling & 1 & 0 & 0 \\
-Metal & 3 & 9159 & 12 \\
-Chrome & 3 & 2189 & 12 \\
-Plastic & 3 & 8307 & 12 \\
-Fabric & 3 & 590 & 12 \\
-FabricAlt & 3 & 1724 & 12 \\
+Metal & 3 & 9220 & 16 \\
+Chrome & 3 & 3558 & 12 \\
+Plastic & 3 & 11550 & 17 \\
+Fabric & 3 & 619 & 12 \\
+FabricAlt & 3 & 2049 & 12 \\
 Glass & 1 & 0 & 0 \\
-Ceramic & 3 & 1456 & 15 \\
-Soil & 1 & 1116 & 0 \\
-Leaf & 2 & 736 & 12 \\
-LeafLight & 2 & 721 & 12 \\
-Paper & 1 & 4212 & 13 \\
-Screen & 1 & 426 & 12 \\
-Ink & 1 & 5682 & 0 \\
-Light & 1 & 451 & 0 \\
-Concrete & 1 & 413 & 0 \\
-Art & 1 & 1783 & 12 \\
-Rubber & 1 & 5133 & 0 \\
-LeafVariegated & 2 & 72 & 12 \\
-Terracotta & 1 & 333 & 1 \\
-Bark & 1 & 736 & 0 \\
-GlassInterior & 1 & 57 & 0 \\
-ContainerGlass & 1 & 399 & 0 \\
-Liquid & 1 & 135 & 0 \\
-Drink & 1 & 406 & 0 \\
-PhoneScreen & 1 & 368 & 12 \\
-PrintedPaper & 1 & 304 & 12 \\
-Leather & 3 & 437 & 12 \\
-Whiteboard & 1 & 232 & 12 \\
-Television & 1 & 168 & 12 \\
-Succulent & 2 & 308 & 12 \\
-Rug & 4 & 206 & 4 \\
+Ceramic & 3 & 1229 & 15 \\
+Soil & 1 & 964 & 0 \\
+Leaf & 2 & 705 & 12 \\
+LeafLight & 2 & 654 & 12 \\
+Paper & 1 & 5779 & 13 \\
+Screen & 1 & 529 & 119 \\
+Ink & 1 & 7118 & 0 \\
+Light & 1 & 1326 & 0 \\
+Concrete & 1 & 469 & 0 \\
+Art & 1 & 2645 & 120 \\
+Rubber & 1 & 5629 & 0 \\
+LeafVariegated & 2 & 61 & 12 \\
+Terracotta & 1 & 533 & 1 \\
+Bark & 1 & 705 & 0 \\
+GlassInterior & 1 & 56 & 0 \\
+ContainerGlass & 1 & 516 & 0 \\
+Liquid & 1 & 145 & 0 \\
+Drink & 1 & 558 & 0 \\
+PhoneScreen & 1 & 511 & 120 \\
+PrintedPaper & 1 & 260 & 12 \\
+Leather & 3 & 547 & 12 \\
+Whiteboard & 1 & 344 & 114 \\
+Television & 1 & 205 & 95 \\
+Succulent & 2 & 198 & 12 \\
+Rug & 4 & 190 & 4 \\
 \bottomrule
 \end{longtable}
 \normalsize
@@ -113,10 +113,10 @@ The following columns are the same six Ceramic images in the material plates. Re
 \toprule Material seed & 0 & 1 & 4 & 19 & 53 & 101 \\\midrule
 Texture structure & 1.000 & 0.000 & 2.000 & 1.000 & 2.000 & 1.000 \\
 Glaze gloss & 0.792 & 0.624 & 0.948 & 0.840 & 0.412 & 0.184 \\
-Crackle strength & 0.000 & 0.000 & 0.135 & 0.230 & 0.000 & 0.000 \\
-Relief (mm) & 0.059 & 0.024 & 0.052 & 0.059 & 0.020 & 0.017 \\
+Crackle strength & 0.052 & 0.043 & 0.052 & 0.151 & 0.337 & 0.535 \\
+Relief (mm) & 0.038 & 0.076 & 0.076 & 0.053 & 0.056 & 0.051 \\
 Shader roughness multiplier & 0.943 & 0.867 & 0.980 & 0.927 & 0.907 & 0.933 \\
-Shader clearcoat & 0.206 & 0.256 & 0.419 & 0.257 & 0.179 & 0.051 \\
+Shader clearcoat & 0.315 & 0.088 & 0.128 & 0.213 & 0.120 & 0.052 \\
 \bottomrule\end{tabular}
 \caption{Recorded recipe values and actual PBR bindings for the Ceramic grid. Full seed records and observed ranges for every material category accompany the project page.}
 \end{table}

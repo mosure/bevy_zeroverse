@@ -1,27 +1,43 @@
 {
+  "clutter": {
+    "probability": 0.75,
+    "minimum": 0.05,
+    "maximum": 1.0,
+    "bias": -0.15,
+    "spread": 1.0
+  },
   "camera_diagnostics": {
-    "reference_proposals": 1,
-    "long_reference_requests": 0,
+    "reference_proposals": 95,
+    "long_reference_requests": 12,
     "short_reference_recoveries": 0,
     "reference_rejections": [
+      34,
+      6,
+      17,
+      6,
+      13
+    ],
+    "group_restarts": 0,
+    "prefix_backtracks": 0,
+    "connected_reference_recoveries": 0,
+    "peer_proposals": 70,
+    "peer_rejections": [
+      0,
       0,
       0,
       0,
       0,
       0
     ],
-    "group_restarts": 0,
-    "connected_reference_recoveries": 0,
-    "peer_proposals": 30,
-    "peer_rejections": [
-      23,
-      0,
-      0,
-      0,
-      1,
-      1
-    ],
-    "endpoint_adjustments": 0
+    "endpoint_adjustments": 17,
+    "peer_search_succeeded": true,
+    "peer_search_fallbacks": 0,
+    "peer_search_discarded_proposals": 0,
+    "peer_search_discarded_reference_proposals": 0,
+    "peer_framing_candidates": 0,
+    "peer_framing_updates": 0,
+    "peer_weak_pairs_before": 0,
+    "peer_weak_pairs_after": 0
   },
   "assembly_diagnostics": {
     "mounts": [],
@@ -89,8 +105,9 @@
       }
     ]
   },
-  "generator_version": 59,
+  "generator_version": 77,
   "program": {
+    "primary_zone": 0,
     "domain": {
       "photometry": {
         "sun_lux": 16715.418,
@@ -181,6 +198,16 @@
     ],
     "materials": [
       {
+        "construction": {
+          "weights": [
+            0.11362437,
+            0.12250376,
+            0.14317183,
+            0.62070006
+          ],
+          "scale": 1.4577855,
+          "variation": 0.13081503
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -196,6 +223,7 @@
         "mineral": null,
         "coating": {
           "wall": {
+            "print_style": 4,
             "weights": [
               0.6707412,
               0.13520654,
@@ -221,27 +249,27 @@
           },
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.0067113405,
-            "roller_spacing_m": 0.0048389463,
-            "roller_stretch": 2.5112524,
-            "orange_peel_m": 0.0017715853,
-            "orange_peel": 0.35453206,
+            "spray_spacing_m": 0.007266432,
+            "roller_spacing_m": 0.0038636154,
+            "roller_stretch": 1.8531847,
+            "orange_peel_m": 0.0018455423,
+            "orange_peel": 0.1896388,
             "brush_spacing_m": 0.0015801673,
             "brush": 0.009011607,
-            "trowel_scale_m": 0.035791323,
-            "lap_variation": 0.04367632,
-            "repair_mix": 0.11802001
+            "trowel_scale_m": 0.08675725,
+            "lap_variation": 0.08664873,
+            "repair_mix": 0.023818908
           },
           "cells": [
             57,
             52
           ],
-          "texture_mix": 0.03189194,
-          "knockdown": 0.021723365,
-          "roller": 0.24315926,
-          "trowel": 0.42064178,
-          "pinholes": 0.047951605,
-          "pigment_variation": 0.013420253,
+          "texture_mix": 0.089231886,
+          "knockdown": 0.2722078,
+          "roller": 0.0786228,
+          "trowel": 0.55500823,
+          "pinholes": 0.052047424,
+          "pigment_variation": 0.070030026,
           "gloss": 0.24628575,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -257,9 +285,9 @@
           0.9334615,
           0.91354483
         ],
-        "roughness": 0.67081094,
-        "period_m": 1.4903944,
-        "relief_m": 0.0000057155594,
+        "roughness": 0.7726742,
+        "period_m": 0.75537056,
+        "relief_m": 0.000020161646,
         "grain_frequency": 30.738312,
         "cross_frequency": 4.2180285,
         "warp": 0.058524292,
@@ -278,6 +306,16 @@
         "joint_width": 0.0013490267
       },
       {
+        "construction": {
+          "weights": [
+            0.11660984,
+            0.14363226,
+            0.22073045,
+            0.5190275
+          ],
+          "scale": 1.0141733,
+          "variation": 0.8676941
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -294,27 +332,27 @@
         "coating": {
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.007706161,
-            "roller_spacing_m": 0.004028648,
-            "roller_stretch": 3.9316692,
-            "orange_peel_m": 0.0010873567,
-            "orange_peel": 0.034096733,
+            "spray_spacing_m": 0.005829432,
+            "roller_spacing_m": 0.002902525,
+            "roller_stretch": 4.790033,
+            "orange_peel_m": 0.0013622852,
+            "orange_peel": 0.14912471,
             "brush_spacing_m": 0.00061370374,
             "brush": 0.43282068,
-            "trowel_scale_m": 0.04668848,
-            "lap_variation": 0.047550444,
-            "repair_mix": 0.0244874
+            "trowel_scale_m": 0.060684487,
+            "lap_variation": 0.0789765,
+            "repair_mix": 0.06761244
           },
           "cells": [
             46,
             56
           ],
-          "texture_mix": 0.39653343,
-          "knockdown": 0.11950245,
-          "roller": 0.6374851,
-          "trowel": 0.07664893,
-          "pinholes": 0.040303733,
-          "pigment_variation": 0.009953676,
+          "texture_mix": 0.44124627,
+          "knockdown": 0.3225918,
+          "roller": 0.21852422,
+          "trowel": 0.42462024,
+          "pinholes": 0.05450011,
+          "pigment_variation": 0.0624997,
           "gloss": 0.52062625,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -331,8 +369,8 @@
           0.48065868
         ],
         "roughness": 0.57514906,
-        "period_m": 0.28465742,
-        "relief_m": 0.0001202052,
+        "period_m": 0.4976964,
+        "relief_m": 0.00014455388,
         "grain_frequency": 20.156342,
         "cross_frequency": 4.9624047,
         "warp": 0.06336142,
@@ -351,6 +389,16 @@
         "joint_width": 0.0031928504
       },
       {
+        "construction": {
+          "weights": [
+            0.92608625,
+            0.05585131,
+            0.0020730738,
+            0.015989367
+          ],
+          "scale": 0.7203254,
+          "variation": 0.8465443
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -372,12 +420,12 @@
             0.09865004,
             0.097787805
           ],
-          "stain_strength": 0.09409691,
-          "bleach": 0.0027735922,
-          "pore_fill": 0.74565053,
-          "ring_contrast": 0.94433784,
-          "clearcoat": 0.81152827,
-          "coat_roughness": 0.16725625
+          "stain_strength": 0.09999071,
+          "bleach": 0.02442169,
+          "pore_fill": 0.622356,
+          "ring_contrast": 0.5447947,
+          "clearcoat": 0.32208878,
+          "coat_roughness": 0.22994429
         },
         "leaf": null,
         "cuticle": null,
@@ -388,12 +436,12 @@
           0.5044923,
           0.21840253
         ],
-        "roughness": 0.55743676,
-        "period_m": 1.253827,
-        "relief_m": 0.0000962781,
-        "grain_frequency": 72.48057,
+        "roughness": 0.44576323,
+        "period_m": 0.5660504,
+        "relief_m": 0.00004534881,
+        "grain_frequency": 36.32683,
         "cross_frequency": 6.1962037,
-        "warp": 0.06034634,
+        "warp": 0.109654434,
         "contrast": 0.4407903,
         "weathering": 0.021223094,
         "mineral_mix": 0.10361636,
@@ -409,6 +457,16 @@
         "joint_width": 0.0017232171
       },
       {
+        "construction": {
+          "weights": [
+            0.92608625,
+            0.05585131,
+            0.0020730738,
+            0.015989367
+          ],
+          "scale": 0.7203254,
+          "variation": 0.8465443
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -430,12 +488,12 @@
             0.09865004,
             0.097787805
           ],
-          "stain_strength": 0.09409691,
-          "bleach": 0.0027735922,
-          "pore_fill": 0.74565053,
-          "ring_contrast": 0.94433784,
-          "clearcoat": 0.81152827,
-          "coat_roughness": 0.16725625
+          "stain_strength": 0.09999071,
+          "bleach": 0.02442169,
+          "pore_fill": 0.622356,
+          "ring_contrast": 0.5447947,
+          "clearcoat": 0.32208878,
+          "coat_roughness": 0.22994429
         },
         "leaf": null,
         "cuticle": null,
@@ -446,12 +504,12 @@
           0.5044923,
           0.21840253
         ],
-        "roughness": 0.7144387,
-        "period_m": 0.40165251,
-        "relief_m": 0.0001865817,
-        "grain_frequency": 76.94713,
+        "roughness": 0.44576323,
+        "period_m": 0.5660504,
+        "relief_m": 0.00004534881,
+        "grain_frequency": 36.32683,
         "cross_frequency": 5.87402,
-        "warp": 0.029986221,
+        "warp": 0.109654434,
         "contrast": 0.5058924,
         "weathering": 0.0023605304,
         "mineral_mix": 0.7734256,
@@ -467,6 +525,16 @@
         "joint_width": 0.001059427
       },
       {
+        "construction": {
+          "weights": [
+            0.19274847,
+            0.059720714,
+            0.05782576,
+            0.6897051
+          ],
+          "scale": 0.79286534,
+          "variation": 0.36983627
+        },
         "flooring": {
           "layout": "BrokenBond",
           "cells": [
@@ -489,8 +557,8 @@
         "carpet": {
           "pattern": 0,
           "repeats": [
-            5,
-            2
+            13,
+            16
           ],
           "palette": [
             [
@@ -509,11 +577,11 @@
               0.19088669
             ]
           ],
-          "contrast": 0.35315996,
-          "heather": 0.1072591,
-          "pile": 0.93211865,
-          "line_width": 0.12790294,
-          "edge_variation": 0.003935559
+          "contrast": 0.0727072,
+          "heather": 0.10268206,
+          "pile": 0.34007943,
+          "line_width": 0.24574906,
+          "edge_variation": 0.011136398
         },
         "layers": {
           "quarter_turn": 3,
@@ -622,9 +690,9 @@
           0.3010236,
           0.29891282
         ],
-        "roughness": 0.97919464,
+        "roughness": 0.94413686,
         "period_m": 4.1887245,
-        "relief_m": 0.00074637576,
+        "relief_m": 0.00018403714,
         "grain_frequency": 22.743492,
         "cross_frequency": 2.9500997,
         "warp": 0.060019407,
@@ -643,6 +711,16 @@
         "joint_width": 0.0025248046
       },
       {
+        "construction": {
+          "weights": [
+            0.22835585,
+            0.3371686,
+            0.18658222,
+            0.24789336
+          ],
+          "scale": 1.0153489,
+          "variation": 0.9027588
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -659,27 +737,27 @@
         "coating": {
           "glaze": null,
           "application": {
-            "spray_spacing_m": 0.0040070117,
-            "roller_spacing_m": 0.005429755,
-            "roller_stretch": 3.9928656,
-            "orange_peel_m": 0.0016248171,
-            "orange_peel": 0.14178348,
+            "spray_spacing_m": 0.0046726163,
+            "roller_spacing_m": 0.002928814,
+            "roller_stretch": 4.928505,
+            "orange_peel_m": 0.0015280314,
+            "orange_peel": 0.30353403,
             "brush_spacing_m": 0.00069544476,
             "brush": 0.3771228,
-            "trowel_scale_m": 0.019164162,
-            "lap_variation": 0.04501469,
-            "repair_mix": 0.001082513
+            "trowel_scale_m": 0.040701192,
+            "lap_variation": 0.052221272,
+            "repair_mix": 0.070846036
           },
           "cells": [
             37,
             40
           ],
-          "texture_mix": 0.36394468,
-          "knockdown": 0.0036608696,
-          "roller": 0.6371869,
-          "trowel": 0.27193692,
-          "pinholes": 0.15234165,
-          "pigment_variation": 0.0073877564,
+          "texture_mix": 0.39287692,
+          "knockdown": 0.21471617,
+          "roller": 0.28607816,
+          "trowel": 0.26830864,
+          "pinholes": 0.0686501,
+          "pigment_variation": 0.019725397,
           "gloss": 0.6882795,
           "clearcoat": 0.0,
           "coat_roughness": 0.18,
@@ -696,8 +774,8 @@
           0.7330088
         ],
         "roughness": 0.45443872,
-        "period_m": 0.25970477,
-        "relief_m": 0.00010409623,
+        "period_m": 0.37855276,
+        "relief_m": 0.00005324804,
         "grain_frequency": 30.586418,
         "cross_frequency": 2.8148904,
         "warp": 0.014743954,
@@ -716,13 +794,23 @@
         "joint_width": 0.002250508
       },
       {
+        "construction": {
+          "weights": [
+            0.08603286,
+            0.5518906,
+            0.18652187,
+            0.17555459
+          ],
+          "scale": 1.0913588,
+          "variation": 0.9307076
+        },
         "manufactured": {
           "cells": [
-            43,
-            108
+            46,
+            32
           ],
-          "structure": 0.86127925,
-          "peening": 0.15089451
+          "structure": 0.81771094,
+          "peening": 0.4031919
         },
         "layers": {
           "quarter_turn": 2,
@@ -748,9 +836,9 @@
           0.12848502,
           0.1322273
         ],
-        "roughness": 0.68583155,
-        "period_m": 0.08575705,
-        "relief_m": 0.000056618937,
+        "roughness": 0.7268208,
+        "period_m": 0.19220462,
+        "relief_m": 0.000060985094,
         "grain_frequency": 33.902367,
         "cross_frequency": 6.213398,
         "warp": 0.055866838,
@@ -769,13 +857,23 @@
         "joint_width": 0.0016676162
       },
       {
+        "construction": {
+          "weights": [
+            0.09988151,
+            0.6190974,
+            0.14747024,
+            0.1335508
+          ],
+          "scale": 1.2738178,
+          "variation": 0.44769013
+        },
         "manufactured": {
           "cells": [
-            24,
-            86
+            38,
+            30
           ],
-          "structure": 0.47272483,
-          "peening": 0.0
+          "structure": 0.72696805,
+          "peening": 0.39871338
         },
         "layers": {
           "quarter_turn": 0,
@@ -801,9 +899,9 @@
           0.89334613,
           0.9021911
         ],
-        "roughness": 0.065111,
-        "period_m": 0.15275049,
-        "relief_m": 4.166654e-7,
+        "roughness": 0.21751228,
+        "period_m": 0.22078115,
+        "relief_m": 0.0000022547615,
         "grain_frequency": 62.89892,
         "cross_frequency": 2.6963155,
         "warp": 0.0791712,
@@ -822,13 +920,23 @@
         "joint_width": 0.0026973293
       },
       {
+        "construction": {
+          "weights": [
+            0.13978238,
+            0.11572676,
+            0.06968669,
+            0.6748042
+          ],
+          "scale": 1.246729,
+          "variation": 0.60844696
+        },
         "manufactured": {
           "cells": [
-            42,
-            3
+            32,
+            28
           ],
-          "structure": 0.66761565,
-          "peening": 0.5387453
+          "structure": 0.7855482,
+          "peening": 0.36558282
         },
         "layers": {
           "quarter_turn": 3,
@@ -854,9 +962,9 @@
           0.16243148,
           0.16716248
         ],
-        "roughness": 0.3287763,
-        "period_m": 0.13091505,
-        "relief_m": 0.000017397704,
+        "roughness": 0.42878193,
+        "period_m": 0.26994398,
+        "relief_m": 0.000022698987,
         "grain_frequency": 33.614838,
         "cross_frequency": 7.402799,
         "warp": 0.014404313,
@@ -875,6 +983,16 @@
         "joint_width": 0.0019456641
       },
       {
+        "construction": {
+          "weights": [
+            0.14521009,
+            0.2273862,
+            0.097960986,
+            0.5294427
+          ],
+          "scale": 1.3230326,
+          "variation": 0.89554495
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -887,24 +1005,24 @@
         },
         "textile": {
           "yarns": [
-            36,
-            36
+            32,
+            32
           ],
-          "repeat": 3,
+          "repeat": 2,
           "float_length": 1,
-          "advance": 2,
-          "bundle": 3,
+          "advance": 1,
+          "bundle": 2,
           "herringbone": false,
           "width": [
-            0.69502395,
-            0.7819152
+            0.7391925,
+            0.7923452
           ],
-          "slub": 0.18510753,
-          "crimp": 0.26706883,
+          "slub": 0.14320375,
+          "crimp": 0.29272008,
           "twist": -0.8841516,
-          "fuzz": 0.39381725,
-          "lustre": 0.3795131,
-          "dye_variation": 0.18325979,
+          "fuzz": 0.3729531,
+          "lustre": 0.3027013,
+          "dye_variation": 0.13707778,
           "yarn_tint": [
             [
               0.98106015,
@@ -917,8 +1035,8 @@
               0.89712954
             ]
           ],
-          "pile": 0.0,
-          "knit": false,
+          "pile": 0.08326684,
+          "knit": true,
           "dye_program": {
             "runs": [
               1,
@@ -956,9 +1074,9 @@
           0.19956198,
           0.19388847
         ],
-        "roughness": 0.7049095,
-        "period_m": 0.087729245,
-        "relief_m": 0.00018492184,
+        "roughness": 0.7237803,
+        "period_m": 0.0961446,
+        "relief_m": 0.00013885251,
         "grain_frequency": 57.57395,
         "cross_frequency": 6.3139167,
         "warp": 0.035843402,
@@ -977,6 +1095,16 @@
         "joint_width": 0.003154852
       },
       {
+        "construction": {
+          "weights": [
+            0.023929017,
+            0.95101863,
+            0.01635143,
+            0.008700934
+          ],
+          "scale": 1.5251068,
+          "variation": 0.6684576
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -989,24 +1117,24 @@
         },
         "textile": {
           "yarns": [
-            32,
-            16
+            48,
+            24
           ],
           "repeat": 4,
-          "float_length": 3,
-          "advance": 1,
-          "bundle": 2,
-          "herringbone": true,
+          "float_length": 2,
+          "advance": 2,
+          "bundle": 3,
+          "herringbone": false,
           "width": [
-            0.8221478,
-            0.89814067
+            0.8169093,
+            0.8640882
           ],
-          "slub": 0.087638274,
-          "crimp": 0.19265479,
+          "slub": 0.044040293,
+          "crimp": 0.17297749,
           "twist": -1.1118704,
-          "fuzz": 0.3430585,
-          "lustre": 0.42171213,
-          "dye_variation": 0.12927778,
+          "fuzz": 0.1347001,
+          "lustre": 0.6207425,
+          "dye_variation": 0.069690466,
           "yarn_tint": [
             [
               0.9171822,
@@ -1019,7 +1147,7 @@
               0.9821421
             ]
           ],
-          "pile": 0.0,
+          "pile": 0.013898715,
           "knit": false,
           "dye_program": {
             "runs": [
@@ -1058,9 +1186,9 @@
           0.322815,
           0.31712386
         ],
-        "roughness": 0.68209803,
-        "period_m": 0.05330519,
-        "relief_m": 0.0002103576,
+        "roughness": 0.5807173,
+        "period_m": 0.05784951,
+        "relief_m": 0.00005148632,
         "grain_frequency": 40.447426,
         "cross_frequency": 6.6793957,
         "warp": 0.050363496,
@@ -1124,6 +1252,16 @@
         "joint_width": 0.0021845861
       },
       {
+        "construction": {
+          "weights": [
+            0.54753965,
+            0.06283043,
+            0.15797165,
+            0.23165828
+          ],
+          "scale": 0.8592301,
+          "variation": 0.19412003
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1139,26 +1277,26 @@
         "mineral": null,
         "coating": {
           "glaze": {
-            "body_grain_m": 0.0013083355,
-            "cloud_scale_m": 0.030143563,
-            "reactive_mix": 0.0019443685,
+            "body_grain_m": 0.0006618948,
+            "cloud_scale_m": 0.019248016,
+            "reactive_mix": 0.1737366,
             "reactive_color": [
               0.52156115,
               0.5798712,
               0.6206882
             ],
-            "thickness_variation": 0.010051805,
-            "flow": 0.51031315,
-            "throwing": 0.081326686,
-            "turning_pitch_m": 0.0068945447,
-            "speckle_density": 0.23002876,
-            "speckle_radius_m": 0.0005121337,
+            "thickness_variation": 0.17678869,
+            "flow": 0.26547876,
+            "throwing": 0.19044368,
+            "turning_pitch_m": 0.0038669363,
+            "speckle_density": 0.09556896,
+            "speckle_radius_m": 0.00024128305,
             "speckle_color": [
               0.2,
               0.10253976,
               0.0828414
             ],
-            "crack_spacing_m": 0.016131707
+            "crack_spacing_m": 0.01089219
           },
           "application": null,
           "cells": [
@@ -1172,9 +1310,9 @@
           "pinholes": 0.0074184276,
           "pigment_variation": 0.012125729,
           "gloss": 0.8172723,
-          "clearcoat": 0.2337758,
+          "clearcoat": 0.26692316,
           "coat_roughness": 0.11712742,
-          "crackle": 0.0
+          "crackle": 0.17100184
         },
         "wood": null,
         "leaf": null,
@@ -1187,8 +1325,8 @@
           0.82584864
         ],
         "roughness": 0.21156394,
-        "period_m": 0.09451562,
-        "relief_m": 0.000036233825,
+        "period_m": 0.139412,
+        "relief_m": 0.000027676964,
         "grain_frequency": 59.028404,
         "cross_frequency": 1.3823385,
         "warp": 0.051665395,
@@ -1207,6 +1345,16 @@
         "joint_width": 0.002596417
       },
       {
+        "construction": {
+          "weights": [
+            0.8699319,
+            0.018569274,
+            0.046825767,
+            0.0646731
+          ],
+          "scale": 0.82243866,
+          "variation": 0.49498674
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1222,11 +1370,11 @@
         "mineral": {
           "casting": null,
           "aggregate_cells": [
-            35,
-            49
+            93,
+            83
           ],
-          "aggregate_exposure": 0.31804183,
-          "aggregate_radius": 0.4518479,
+          "aggregate_exposure": 0.101249106,
+          "aggregate_radius": 0.15854235,
           "aggregate_color": [
             [
               0.79110354,
@@ -1239,7 +1387,7 @@
               0.50231355
             ]
           ],
-          "porosity": 0.2125553,
+          "porosity": 0.11108797,
           "marble_mix": 0.0,
           "vein_cells": [
             5,
@@ -1254,7 +1402,7 @@
             0.6634311
           ],
           "polish": 0.0,
-          "binder_variation": 0.035743922
+          "binder_variation": 0.031948913
         },
         "coating": null,
         "wood": null,
@@ -1267,9 +1415,9 @@
           0.071826294,
           0.035913147
         ],
-        "roughness": 0.9016787,
-        "period_m": 0.18738475,
-        "relief_m": 0.00017709583,
+        "roughness": 0.8464538,
+        "period_m": 0.086158335,
+        "relief_m": 0.00010154282,
         "grain_frequency": 35.533577,
         "cross_frequency": 1.4041873,
         "warp": 0.08993152,
@@ -1288,6 +1436,16 @@
         "joint_width": 0.0028319696
       },
       {
+        "construction": {
+          "weights": [
+            0.009175424,
+            0.924568,
+            0.047188792,
+            0.01906785
+          ],
+          "scale": 1.5631182,
+          "variation": 0.4082229
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1304,15 +1462,15 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 13,
-          "vein_rake": 0.40013003,
-          "vein_curve": 0.17691857,
-          "vein_width": 0.002667911,
-          "midrib_width": 0.007042064,
-          "chlorophyll_variation": 0.23664209,
-          "variegation": 0.011596489,
+          "vein_pairs": 10,
+          "vein_rake": 0.58895737,
+          "vein_curve": 0.00014130771,
+          "vein_width": 0.0029836379,
+          "midrib_width": 0.008587833,
+          "chlorophyll_variation": 0.19361252,
+          "variegation": 0.011757056,
           "patch_cells": [
-            3,
+            5,
             7
           ],
           "pale_color": [
@@ -1320,8 +1478,8 @@
             0.7813347,
             0.53776646
           ],
-          "wax": 0.4379548,
-          "transmission": 0.054596685,
+          "wax": 0.14003569,
+          "transmission": 0.065298036,
           "reference_size_m": [
             0.06949493,
             0.1517462
@@ -1335,9 +1493,9 @@
           0.24951702,
           0.050427124
         ],
-        "roughness": 0.49357718,
+        "roughness": 0.641185,
         "period_m": 1.0,
-        "relief_m": 0.00002663001,
+        "relief_m": 0.000025625695,
         "grain_frequency": 56.77133,
         "cross_frequency": 7.1642776,
         "warp": 0.037303485,
@@ -1356,6 +1514,16 @@
         "joint_width": 0.0012257958
       },
       {
+        "construction": {
+          "weights": [
+            0.91750455,
+            0.024811933,
+            0.012286815,
+            0.04539665
+          ],
+          "scale": 0.8220024,
+          "variation": 0.30440176
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1372,24 +1540,24 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 15,
-          "vein_rake": 0.2395104,
-          "vein_curve": 0.0032389015,
-          "vein_width": 0.005805645,
-          "midrib_width": 0.012858942,
-          "chlorophyll_variation": 0.07592648,
-          "variegation": 0.010232091,
+          "vein_pairs": 12,
+          "vein_rake": 0.25345486,
+          "vein_curve": -0.07446194,
+          "vein_width": 0.0030037975,
+          "midrib_width": 0.0070968233,
+          "chlorophyll_variation": 0.07063511,
+          "variegation": 0.004503781,
           "patch_cells": [
-            7,
-            3
+            6,
+            10
           ],
           "pale_color": [
             0.7370199,
             0.7383102,
             0.5387974
           ],
-          "wax": 0.38529035,
-          "transmission": 0.07303991,
+          "wax": 0.7777929,
+          "transmission": 0.030221391,
           "reference_size_m": [
             0.06155759,
             0.2050466
@@ -1403,9 +1571,9 @@
           0.31381518,
           0.09733014
         ],
-        "roughness": 0.5135897,
+        "roughness": 0.373327,
         "period_m": 1.0,
-        "relief_m": 0.000025074616,
+        "relief_m": 0.000018033352,
         "grain_frequency": 36.595604,
         "cross_frequency": 3.1475916,
         "warp": 0.041675184,
@@ -1424,6 +1592,16 @@
         "joint_width": 0.0014302979
       },
       {
+        "construction": {
+          "weights": [
+            0.01024948,
+            0.46203205,
+            0.088976584,
+            0.4387419
+          ],
+          "scale": 1.2706149,
+          "variation": 0.79271436
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1448,13 +1626,13 @@
           0.7734527,
           0.7834059
         ],
-        "roughness": 0.9898934,
-        "period_m": 0.108086236,
-        "relief_m": 0.000012416372,
+        "roughness": 0.6791005,
+        "period_m": 0.18998274,
+        "relief_m": 0.00005907233,
         "grain_frequency": 60.866463,
         "cross_frequency": 1.2997432,
         "warp": 0.06538578,
-        "contrast": 0.02450616,
+        "contrast": 0.046420205,
         "weathering": 0.0026971742,
         "mineral_mix": 0.10653818,
         "weave_mix": 0.9664731,
@@ -1604,6 +1782,16 @@
         "joint_width": 0.002118844
       },
       {
+        "construction": {
+          "weights": [
+            0.93532175,
+            0.036096264,
+            0.010813679,
+            0.017768323
+          ],
+          "scale": 0.8519081,
+          "variation": 0.84134287
+        },
         "layers": {
           "quarter_turn": 2,
           "bands": [
@@ -1618,25 +1806,25 @@
         "leather": null,
         "mineral": {
           "casting": {
-            "formwork": 0.003148374,
-            "board_width_m": 0.16917701,
-            "form_relief_m": 0.00019289425,
+            "formwork": 0.043891445,
+            "board_width_m": 0.19746679,
+            "form_relief_m": 0.00005970456,
             "seam_width_m": 0.0007508186,
-            "trowel": 0.23853175,
-            "trowel_scale_m": 0.07733049,
-            "cure_variation": 0.05215838,
-            "bleed": 0.034200918,
-            "sand_exposure": 0.09800854,
-            "bughole_density": 0.022379234,
-            "bughole_radius_m": 0.0017195957,
+            "trowel": 0.14856753,
+            "trowel_scale_m": 0.08984401,
+            "cure_variation": 0.046953317,
+            "bleed": 0.05972938,
+            "sand_exposure": 0.07355787,
+            "bughole_density": 0.029692402,
+            "bughole_radius_m": 0.0024048747,
             "bughole_depth_m": 0.00057427667
           },
           "aggregate_cells": [
-            25,
-            43
+            91,
+            82
           ],
-          "aggregate_exposure": 0.6792013,
-          "aggregate_radius": 0.44860706,
+          "aggregate_exposure": 0.04681502,
+          "aggregate_radius": 0.15395968,
           "aggregate_color": [
             [
               0.33985698,
@@ -1649,7 +1837,7 @@
               0.74281204
             ]
           ],
-          "porosity": 0.014513759,
+          "porosity": 0.017023884,
           "marble_mix": 0.0,
           "vein_cells": [
             3,
@@ -1663,8 +1851,8 @@
             0.32038146,
             0.29757282
           ],
-          "polish": 0.8623594,
-          "binder_variation": 0.036017217
+          "polish": 0.39341465,
+          "binder_variation": 0.028728923
         },
         "coating": null,
         "wood": null,
@@ -1677,9 +1865,9 @@
           0.38855997,
           0.37286058
         ],
-        "roughness": 0.36258435,
-        "period_m": 0.5334732,
-        "relief_m": 0.00007791239,
+        "roughness": 0.65608287,
+        "period_m": 0.6991366,
+        "relief_m": 0.00019613854,
         "grain_frequency": 29.500114,
         "cross_frequency": 5.53082,
         "warp": 0.08940693,
@@ -1743,13 +1931,23 @@
         "joint_width": 0.0032961238
       },
       {
+        "construction": {
+          "weights": [
+            0.048905067,
+            0.022336,
+            0.9132208,
+            0.015538147
+          ],
+          "scale": 1.1627707,
+          "variation": 0.7180393
+        },
         "manufactured": {
           "cells": [
-            89,
-            78
+            88,
+            7
           ],
-          "structure": 0.33128917,
-          "peening": 0.32608286
+          "structure": 0.7994816,
+          "peening": 0.11165586
         },
         "layers": {
           "quarter_turn": 1,
@@ -1775,9 +1973,9 @@
           0.036,
           0.037
         ],
-        "roughness": 0.73003656,
-        "period_m": 0.15581489,
-        "relief_m": 0.000041444226,
+        "roughness": 0.98308885,
+        "period_m": 0.15196425,
+        "relief_m": 0.00018761361,
         "grain_frequency": 25.522942,
         "cross_frequency": 4.234132,
         "warp": 0.04584852,
@@ -1796,6 +1994,16 @@
         "joint_width": 0.0019293071
       },
       {
+        "construction": {
+          "weights": [
+            0.07989075,
+            0.0658814,
+            0.08245656,
+            0.7717713
+          ],
+          "scale": 1.0002245,
+          "variation": 0.946927
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1812,24 +2020,24 @@
         "coating": null,
         "wood": null,
         "leaf": {
-          "vein_pairs": 14,
-          "vein_rake": 0.48483443,
-          "vein_curve": -0.1360262,
-          "vein_width": 0.0021384587,
-          "midrib_width": 0.007855589,
-          "chlorophyll_variation": 0.10473724,
-          "variegation": 0.6828569,
+          "vein_pairs": 19,
+          "vein_rake": 0.63473487,
+          "vein_curve": 0.14441474,
+          "vein_width": 0.0058178823,
+          "midrib_width": 0.013256909,
+          "chlorophyll_variation": 0.13917778,
+          "variegation": 0.5289866,
           "patch_cells": [
-            2,
-            8
+            6,
+            13
           ],
           "pale_color": [
             0.7840999,
             0.78409934,
             0.5586823
           ],
-          "wax": 0.7810831,
-          "transmission": 0.072611734,
+          "wax": 0.3526256,
+          "transmission": 0.05360559,
           "reference_size_m": [
             0.09234667,
             0.23563907
@@ -1843,9 +2051,9 @@
           0.37896013,
           0.11906845
         ],
-        "roughness": 0.36318845,
+        "roughness": 0.5518972,
         "period_m": 1.0,
-        "relief_m": 0.000048208894,
+        "relief_m": 0.00006237738,
         "grain_frequency": 42.24048,
         "cross_frequency": 1.0599805,
         "warp": 0.04585501,
@@ -1864,6 +2072,16 @@
         "joint_width": 0.0033565876
       },
       {
+        "construction": {
+          "weights": [
+            0.09391431,
+            0.71615064,
+            0.10024271,
+            0.089692354
+          ],
+          "scale": 1.4444091,
+          "variation": 0.2721033
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -1879,11 +2097,11 @@
         "mineral": {
           "casting": null,
           "aggregate_cells": [
-            64,
-            50
+            21,
+            22
           ],
-          "aggregate_exposure": 0.0984812,
-          "aggregate_radius": 0.28461948,
+          "aggregate_exposure": 0.4526477,
+          "aggregate_radius": 0.36804903,
           "aggregate_color": [
             [
               0.67992496,
@@ -1896,7 +2114,7 @@
               0.61102456
             ]
           ],
-          "porosity": 0.07146053,
+          "porosity": 0.26620585,
           "marble_mix": 0.0,
           "vein_cells": [
             2,
@@ -1910,8 +2128,8 @@
             0.8450363,
             0.86228615
           ],
-          "polish": 0.0,
-          "binder_variation": 0.086973935
+          "polish": 0.05513349,
+          "binder_variation": 0.0828667
         },
         "coating": null,
         "wood": null,
@@ -1924,9 +2142,9 @@
           0.3357751,
           0.18021789
         ],
-        "roughness": 0.845402,
-        "period_m": 0.11836122,
-        "relief_m": 0.00036879792,
+        "roughness": 0.91684395,
+        "period_m": 0.2728764,
+        "relief_m": 0.00046711855,
         "grain_frequency": 60.065918,
         "cross_frequency": 1.6861656,
         "warp": 0.0131233055,
@@ -1945,6 +2163,16 @@
         "joint_width": 0.0034598908
       },
       {
+        "construction": {
+          "weights": [
+            0.060845688,
+            0.40499416,
+            0.3205976,
+            0.21356261
+          ],
+          "scale": 0.80889195,
+          "variation": 0.9036552
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -1969,9 +2197,9 @@
           0.20978925,
           0.119879566
         ],
-        "roughness": 0.36064917,
-        "period_m": 0.2087756,
-        "relief_m": 0.0007024917,
+        "roughness": 0.9176107,
+        "period_m": 0.15620022,
+        "relief_m": 0.0010828893,
         "grain_frequency": 40.66948,
         "cross_frequency": 2.4733315,
         "warp": 0.016268007,
@@ -2260,6 +2488,16 @@
         "joint_width": 0.0012911881
       },
       {
+        "construction": {
+          "weights": [
+            0.08852578,
+            0.7103955,
+            0.097476095,
+            0.10360271
+          ],
+          "scale": 1.1709162,
+          "variation": 0.58493006
+        },
         "layers": {
           "quarter_turn": 3,
           "bands": [
@@ -2273,18 +2511,18 @@
         "textile": null,
         "leather": {
           "cells": [
-            49,
-            37
+            24,
+            26
           ],
-          "stretch": 1.0440512,
-          "roundness": 0.46167928,
-          "pore_depth": 0.0760062,
-          "crease_strength": 0.07358879,
-          "mottling": 0.1803686,
-          "polish": 0.9435103,
-          "nap": 0.00091601064,
-          "coat": 0.5896855,
-          "coat_roughness": 0.2350052
+          "stretch": 1.2201514,
+          "roundness": 0.6360804,
+          "pore_depth": 0.20096076,
+          "crease_strength": 0.12019133,
+          "mottling": 0.13619745,
+          "polish": 0.35894442,
+          "nap": 0.05217791,
+          "coat": 0.25177878,
+          "coat_roughness": 0.3285235
         },
         "mineral": null,
         "coating": null,
@@ -2298,9 +2536,9 @@
           0.20039117,
           0.09548002
         ],
-        "roughness": 0.27501708,
-        "period_m": 0.08624555,
-        "relief_m": 0.000013732151,
+        "roughness": 0.43775782,
+        "period_m": 0.13531919,
+        "relief_m": 0.00008105318,
         "grain_frequency": 36.959396,
         "cross_frequency": 3.0407453,
         "warp": 0.024706025,
@@ -2409,6 +2647,16 @@
         "joint_width": 0.0022400636
       },
       {
+        "construction": {
+          "weights": [
+            0.041313037,
+            0.0010409199,
+            0.013937966,
+            0.94370806
+          ],
+          "scale": 1.2897345,
+          "variation": 0.6591119
+        },
         "layers": {
           "quarter_turn": 0,
           "bands": [
@@ -2426,14 +2674,14 @@
         "wood": null,
         "leaf": null,
         "cuticle": {
-          "chlorophyll_variation": 0.06404447,
-          "wax": 0.74175555,
-          "bloom": 0.015639273,
+          "chlorophyll_variation": 0.15193324,
+          "wax": 0.39691928,
+          "bloom": 0.15148652,
           "pore_cells": [
-            43,
-            36
+            11,
+            15
           ],
-          "pore_contrast": 0.08811475,
+          "pore_contrast": 0.17045702,
           "transmission": 0.021999998
         },
         "surface": "Succulent",
@@ -2443,9 +2691,9 @@
           0.31365797,
           0.07383339
         ],
-        "roughness": 0.43456113,
-        "period_m": 0.16945636,
-        "relief_m": 0.000020388648,
+        "roughness": 0.5881918,
+        "period_m": 0.12897345,
+        "relief_m": 0.000043388085,
         "grain_frequency": 66.847015,
         "cross_frequency": 3.6331286,
         "warp": 0.06353235,
@@ -3282,7 +3530,34 @@
   },
   "ceiling_installation": {
     "exposed_slab": true,
-    "modules": []
+    "modules": [
+      {
+        "system": "Ventilation",
+        "center": [
+          0.0,
+          3.8044808,
+          4.362661
+        ],
+        "size": [
+          0.7461324,
+          0.13682033,
+          0.53850734
+        ],
+        "support_top_m": 4.0086684,
+        "pitch_m": 0.25832462,
+        "thickness_m": 0.015596694,
+        "seed": 882076165927137500,
+        "detail": {
+          "finish": 7,
+          "shape": {
+            "kind": "Diffuser",
+            "round": true,
+            "blades": 8,
+            "angle": 0.3742119
+          }
+        }
+      }
+    ]
   },
   "palette": 5,
   "furniture_style": 1,
@@ -4221,27 +4496,6 @@
     },
     {
       "id": 28,
-      "kind": "Plant",
-      "position": [
-        -0.9523241,
-        0.0,
-        0.6933243
-      ],
-      "size": [
-        0.84469163,
-        0.83584344,
-        0.8977717
-      ],
-      "yaw": 5.730163,
-      "variant": 13,
-      "seed": 9734355352663484869,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 29,
       "kind": "NoticeBoard",
       "position": [
         4.3783073,
@@ -4262,7 +4516,7 @@
       "interaction_target": null
     },
     {
-      "id": 30,
+      "id": 29,
       "kind": "ProjectionScreen",
       "position": [
         5.1887455,
@@ -4283,7 +4537,7 @@
       "interaction_target": null
     },
     {
-      "id": 31,
+      "id": 30,
       "kind": "WallShelf",
       "position": [
         0.12494731,
@@ -4304,7 +4558,7 @@
       "interaction_target": null
     },
     {
-      "id": 32,
+      "id": 31,
       "kind": "WallShelf",
       "position": [
         -5.169773,
@@ -4325,7 +4579,7 @@
       "interaction_target": null
     },
     {
-      "id": 33,
+      "id": 32,
       "kind": "Projector",
       "position": [
         0.5704223,
@@ -4346,7 +4600,7 @@
       "interaction_target": null
     },
     {
-      "id": 34,
+      "id": 33,
       "kind": "PowerStrip",
       "position": [
         2.7381518,
@@ -4367,28 +4621,7 @@
       "interaction_target": null
     },
     {
-      "id": 35,
-      "kind": "PowerStrip",
-      "position": [
-        -1.4866567,
-        0.75041014,
-        -0.19673586
-      ],
-      "size": [
-        0.26181653,
-        0.03,
-        0.049224008
-      ],
-      "yaw": -0.45216724,
-      "variant": 1,
-      "seed": 7399519780004318729,
-      "solid": false,
-      "support": 5,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 36,
+      "id": 34,
       "kind": "PowerStrip",
       "position": [
         -1.4646742,
@@ -4409,21 +4642,63 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 35,
       "kind": "Display",
       "position": [
-        2.8732333,
-        0.9338885,
-        -5.4189324
+        3.0891602,
+        0.84547687,
+        -5.4151783
       ],
       "size": [
-        2.5,
-        1.4,
-        0.07
+        2.4501832,
+        1.2444589,
+        0.07750745
       ],
       "yaw": 0.0,
-      "variant": 2,
-      "seed": 16319090046215758924,
+      "variant": 1,
+      "seed": 7345319707322157528,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 36,
+      "kind": "WallArt",
+      "position": [
+        4.2336764,
+        1.0214691,
+        1.7805443
+      ],
+      "size": [
+        0.22724359,
+        0.595635,
+        0.04504197
+      ],
+      "yaw": -0.5457919,
+      "variant": 1,
+      "seed": 8890860964073133768,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 37,
+      "kind": "WallArt",
+      "position": [
+        4.2501845,
+        1.726093,
+        1.7874382
+      ],
+      "size": [
+        0.2863162,
+        0.82,
+        0.039688278
+      ],
+      "yaw": -0.5457919,
+      "variant": 1,
+      "seed": 2701001454026642183,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4431,20 +4706,20 @@
     },
     {
       "id": 38,
-      "kind": "Display",
+      "kind": "WallArt",
       "position": [
-        -4.662045,
-        1.6118782,
-        -0.5601184
+        4.6250343,
+        1.259546,
+        2.0176067
       ],
       "size": [
-        0.8,
-        0.5,
-        0.07
+        0.22428882,
+        0.22,
+        0.043980613
       ],
-      "yaw": 2.762803,
+      "yaw": -0.5457919,
       "variant": 1,
-      "seed": 17072951651784768672,
+      "seed": 10179111269701344637,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4452,20 +4727,20 @@
     },
     {
       "id": 39,
-      "kind": "Whiteboard",
+      "kind": "WallArt",
       "position": [
-        -5.269892,
-        1.3002911,
-        4.703976
+        4.5965195,
+        1.6183833,
+        2.0086687
       ],
       "size": [
-        1.0338827,
-        0.5684013,
-        0.07
+        0.21388122,
+        0.3244784,
+        0.058304958
       ],
-      "yaw": 1.5454757,
-      "variant": 1,
-      "seed": 11004345404538571394,
+      "yaw": -0.5457919,
+      "variant": 0,
+      "seed": 1235508717200612347,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4475,18 +4750,18 @@
       "id": 40,
       "kind": "WallArt",
       "position": [
-        -4.901046,
-        1.300139,
-        3.100158
+        4.9803734,
+        0.840896,
+        2.2228386
       ],
       "size": [
-        0.35685715,
-        0.684154,
-        0.05198653
+        0.26851785,
+        0.22,
+        0.025901288
       ],
-      "yaw": 0.32814825,
-      "variant": 2,
-      "seed": 18267093322626561206,
+      "yaw": -0.5457919,
+      "variant": 1,
+      "seed": 3593986327469515252,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4496,18 +4771,18 @@
       "id": 41,
       "kind": "WallArt",
       "position": [
-        -4.427765,
-        1.300139,
-        2.925835
+        4.969432,
+        1.1995049,
+        2.2311246
       ],
       "size": [
-        0.35685715,
-        0.684154,
-        0.027012413
+        0.27523395,
+        0.82,
+        0.05142474
       ],
-      "yaw": 0.32814825,
-      "variant": 2,
-      "seed": 12694190777208755182,
+      "yaw": -0.5457919,
+      "variant": 4,
+      "seed": 1823670353727243045,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4515,6 +4790,153 @@
     },
     {
       "id": 42,
+      "kind": "Whiteboard",
+      "position": [
+        -4.5343914,
+        1.3374661,
+        -0.5215961
+      ],
+      "size": [
+        0.82236606,
+        0.44384095,
+        0.0928283
+      ],
+      "yaw": 2.762803,
+      "variant": 2,
+      "seed": 15355223363684085386,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 43,
+      "kind": "WallArt",
+      "position": [
+        -4.9836893,
+        1.095267,
+        3.1258128
+      ],
+      "size": [
+        0.3356446,
+        0.26571524,
+        0.04728796
+      ],
+      "yaw": 0.32814825,
+      "variant": 1,
+      "seed": 8539809329696679610,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 44,
+      "kind": "WallArt",
+      "position": [
+        -4.952818,
+        1.5120968,
+        3.109562
+      ],
+      "size": [
+        0.24780098,
+        0.27715096,
+        0.03642004
+      ],
+      "yaw": 0.32814825,
+      "variant": 1,
+      "seed": 5395009274408080447,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 45,
+      "kind": "WallArt",
+      "position": [
+        -4.997873,
+        1.9403623,
+        3.1301594
+      ],
+      "size": [
+        0.33354002,
+        0.82,
+        0.04637512
+      ],
+      "yaw": 0.32814825,
+      "variant": 1,
+      "seed": 3994724424693464443,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 46,
+      "kind": "WallArt",
+      "position": [
+        -4.5263586,
+        0.43404898,
+        2.958713
+      ],
+      "size": [
+        0.27476603,
+        0.64839226,
+        0.025708571
+      ],
+      "yaw": 0.32814825,
+      "variant": 5,
+      "seed": 3838868034882436123,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 47,
+      "kind": "WallArt",
+      "position": [
+        -4.5731654,
+        1.2082471,
+        2.9760146
+      ],
+      "size": [
+        0.24871896,
+        0.82,
+        0.028294642
+      ],
+      "yaw": 0.32814825,
+      "variant": 4,
+      "seed": 11472279021266786036,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 48,
+      "kind": "WallArt",
+      "position": [
+        -4.5142355,
+        2.1540525,
+        2.9644828
+      ],
+      "size": [
+        0.32623345,
+        0.82,
+        0.044446446
+      ],
+      "yaw": 0.32814825,
+      "variant": 1,
+      "seed": 8213612229437624641,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 49,
       "kind": "Clock",
       "position": [
         4.5298553,
@@ -4535,168 +4957,21 @@
       "interaction_target": null
     },
     {
-      "id": 43,
-      "kind": "WallOutlet",
-      "position": [
-        -4.331103,
-        0.35019386,
-        -0.39751038
-      ],
-      "size": [
-        0.075,
-        0.10358308,
-        0.018
-      ],
-      "yaw": 2.762803,
-      "variant": 1,
-      "seed": 8098431035893234355,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 44,
-      "kind": "WallOutlet",
-      "position": [
-        4.9829297,
-        0.36776596,
-        2.2166102
-      ],
-      "size": [
-        0.22500001,
-        0.11558081,
-        0.018
-      ],
-      "yaw": -0.5457919,
-      "variant": 1,
-      "seed": 13773195226294341980,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 45,
-      "kind": "WallOutlet",
-      "position": [
-        3.222989,
-        0.36048222,
-        -5.4476323
-      ],
-      "size": [
-        0.22500001,
-        0.11187883,
-        0.018
-      ],
-      "yaw": 0.0,
-      "variant": 1,
-      "seed": 4746668265995134549,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 46,
-      "kind": "WallOutlet",
-      "position": [
-        -5.2684555,
-        0.36982894,
-        3.5136468
-      ],
-      "size": [
-        0.15,
-        0.10250951,
-        0.018
-      ],
-      "yaw": 1.5454757,
-      "variant": 1,
-      "seed": 17072949319925562116,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 47,
-      "kind": "WallOutlet",
-      "position": [
-        4.893973,
-        0.35495445,
-        -4.909125
-      ],
-      "size": [
-        0.075,
-        0.106623486,
-        0.018
-      ],
-      "yaw": -1.5299429,
-      "variant": 1,
-      "seed": 5913081905707811053,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 48,
-      "kind": "WallOutlet",
-      "position": [
-        4.903054,
-        0.3082842,
-        -4.6869593
-      ],
-      "size": [
-        0.075,
-        0.10713554,
-        0.018
-      ],
-      "yaw": -1.5299429,
-      "variant": 1,
-      "seed": 14689740531462328694,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 49,
-      "kind": "WallOutlet",
-      "position": [
-        -5.302743,
-        0.33271185,
-        4.8674946
-      ],
-      "size": [
-        0.22500001,
-        0.12442382,
-        0.018
-      ],
-      "yaw": 1.5454757,
-      "variant": 1,
-      "seed": 10513736305735865445,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
       "id": 50,
-      "kind": "WallOutlet",
+      "kind": "LightSwitch",
       "position": [
-        -0.2387417,
-        0.26722756,
-        -4.643743
+        -1.5047191,
+        1.1458058,
+        -4.9858785
       ],
       "size": [
         0.15,
-        0.1035502,
+        0.10073852,
         0.018
       ],
-      "yaw": 0.0,
+      "yaw": -1.5707963,
       "variant": 1,
-      "seed": 15277492553308584569,
+      "seed": 8223842582701380641,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4706,18 +4981,18 @@
       "id": 51,
       "kind": "WallOutlet",
       "position": [
-        -4.9407325,
-        0.23878378,
-        3.092866
+        -4.0551696,
+        0.27910742,
+        0.45888042
       ],
       "size": [
-        0.22500001,
-        0.117126666,
+        0.15,
+        0.11407911,
         0.018
       ],
-      "yaw": 0.32814825,
+      "yaw": 1.5454756,
       "variant": 1,
-      "seed": 15508622250141954367,
+      "seed": 16278344450989676519,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4727,18 +5002,18 @@
       "id": 52,
       "kind": "WallOutlet",
       "position": [
-        -4.507519,
-        0.3671958,
-        2.9453752
+        0.2753984,
+        0.29024267,
+        -4.643743
       ],
       "size": [
         0.075,
-        0.10142854,
+        0.12034279,
         0.018
       ],
-      "yaw": 0.32814825,
+      "yaw": 0.0,
       "variant": 1,
-      "seed": 9288387554617633750,
+      "seed": 10767942905961917494,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4748,18 +5023,18 @@
       "id": 53,
       "kind": "WallOutlet",
       "position": [
-        4.9512796,
-        0.23961708,
-        -3.50717
+        1.2851261,
+        0.36808422,
+        -4.878167
       ],
       "size": [
-        0.075,
-        0.1052672,
+        0.22500001,
+        0.12341077,
         0.018
       ],
-      "yaw": -1.5299429,
+      "yaw": 1.5707963,
       "variant": 1,
-      "seed": 15977867778810571771,
+      "seed": 9232559213519087061,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4769,18 +5044,18 @@
       "id": 54,
       "kind": "WallOutlet",
       "position": [
-        4.938249,
-        0.2916417,
-        -3.8259563
+        1.2851261,
+        0.2237711,
+        -5.276921
       ],
       "size": [
-        0.075,
-        0.10677086,
+        0.15,
+        0.10770937,
         0.018
       ],
-      "yaw": -1.5299429,
+      "yaw": 1.5707963,
       "variant": 1,
-      "seed": 2751887938711143447,
+      "seed": 7233048476078248577,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4790,18 +5065,18 @@
       "id": 55,
       "kind": "WallOutlet",
       "position": [
-        1.2851261,
-        0.36547175,
-        -4.9319453
+        4.817524,
+        0.34741318,
+        -2.9122665
       ],
       "size": [
         0.075,
-        0.107975125,
+        0.11379441,
         0.018
       ],
-      "yaw": 1.5707963,
+      "yaw": -2.5140936,
       "variant": 1,
-      "seed": 4454267010013073127,
+      "seed": 1261493467408481594,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4809,6 +5084,132 @@
     },
     {
       "id": 56,
+      "kind": "WallOutlet",
+      "position": [
+        -4.440461,
+        0.2961732,
+        -0.44103616
+      ],
+      "size": [
+        0.22500001,
+        0.11893065,
+        0.018
+      ],
+      "yaw": 2.762803,
+      "variant": 1,
+      "seed": 17421791902095271892,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 57,
+      "kind": "WallOutlet",
+      "position": [
+        -0.61702484,
+        0.3111921,
+        -4.643743
+      ],
+      "size": [
+        0.075,
+        0.11761123,
+        0.018
+      ],
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 2514083734665995591,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 58,
+      "kind": "WallOutlet",
+      "position": [
+        4.3166122,
+        0.35251108,
+        -2.54896
+      ],
+      "size": [
+        0.15,
+        0.10737931,
+        0.018
+      ],
+      "yaw": -2.5140936,
+      "variant": 1,
+      "seed": 13637370226942183196,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 59,
+      "kind": "WallOutlet",
+      "position": [
+        5.272815,
+        0.35451585,
+        4.358898
+      ],
+      "size": [
+        0.075,
+        0.10293497,
+        0.018
+      ],
+      "yaw": -1.5299429,
+      "variant": 1,
+      "seed": 16730006516101399615,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 60,
+      "kind": "WallOutlet",
+      "position": [
+        4.9379525,
+        0.2713535,
+        -3.8332136
+      ],
+      "size": [
+        0.075,
+        0.10377007,
+        0.018
+      ],
+      "yaw": -1.5299429,
+      "variant": 1,
+      "seed": 13908125976197387327,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 61,
+      "kind": "WallOutlet",
+      "position": [
+        -5.2887993,
+        0.3741305,
+        4.316928
+      ],
+      "size": [
+        0.075,
+        0.12080998,
+        0.018
+      ],
+      "yaw": 1.5454757,
+      "variant": 1,
+      "seed": 7375912149364073957,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 62,
       "kind": "Laptop",
       "position": [
         2.0058954,
@@ -4829,7 +5230,7 @@
       "interaction_target": null
     },
     {
-      "id": 57,
+      "id": 63,
       "kind": "SodaCan",
       "position": [
         2.3840578,
@@ -4850,28 +5251,29 @@
       "interaction_target": null
     },
     {
-      "id": 58,
-      "kind": "Phone",
+      "finish_seed": 8444832983222985327,
+      "id": 64,
+      "kind": "Laptop",
       "position": [
-        -2.0034103,
+        -1.8047439,
         0.75041014,
-        -0.09583884
+        -0.17902762
       ],
       "size": [
-        0.083857425,
-        0.008054615,
-        0.16152807
+        0.3598376,
+        0.27587667,
+        0.3458712
       ],
-      "yaw": -1.7435541,
+      "yaw": -0.6782057,
       "variant": 0,
-      "seed": 17029726046464909461,
+      "seed": 14145494563007343896,
       "solid": false,
       "support": 5,
       "neighbor": false,
-      "interaction_target": null
+      "interaction_target": 6
     },
     {
-      "id": 59,
+      "id": 65,
       "kind": "Phone",
       "position": [
         0.3447146,
@@ -4892,7 +5294,7 @@
       "interaction_target": null
     },
     {
-      "id": 60,
+      "id": 66,
       "kind": "Notepad",
       "position": [
         -0.78684306,
@@ -4913,7 +5315,7 @@
       "interaction_target": null
     },
     {
-      "id": 61,
+      "id": 67,
       "kind": "Phone",
       "position": [
         -2.8132777,
@@ -4934,406 +5336,511 @@
       "interaction_target": null
     },
     {
-      "id": 62,
-      "kind": "SodaCan",
+      "id": 68,
+      "kind": "CoffeeCup",
       "position": [
-        1.7171719,
-        0.44178694,
-        -1.3929409
-      ],
-      "size": [
-        0.05338148,
-        0.091104776,
-        0.05338148
-      ],
-      "yaw": -1.642347,
-      "variant": 1,
-      "seed": 10650516172509941904,
-      "solid": false,
-      "support": 0,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 63,
-      "kind": "Mug",
-      "position": [
-        2.5059834,
+        2.4930723,
         0.76590157,
-        -2.5303073
+        -2.4783852
       ],
       "size": [
-        0.08684117,
-        0.06606744,
-        0.06958047
+        0.078868575,
+        0.14076515,
+        0.078868575
       ],
-      "yaw": -1.0369778,
+      "yaw": 1.7036235,
       "variant": 2,
-      "seed": 8990467675951032753,
+      "seed": 603251777754297005,
       "solid": false,
       "support": 3,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 64,
-      "kind": "Speaker",
+      "id": 69,
+      "kind": "WaterBottle",
       "position": [
-        2.5226998,
+        2.445885,
         0.76590157,
-        -2.8148606
+        -3.1003456
       ],
       "size": [
-        0.10385172,
-        0.26409006,
-        0.121004425
+        0.064413354,
+        0.13442017,
+        0.064413354
       ],
-      "yaw": -1.1558955,
-      "variant": 1,
-      "seed": 143995334115690174,
-      "solid": false,
-      "support": 3,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 65,
-      "kind": "Pencil",
-      "position": [
-        -1.4969053,
-        0.75041014,
-        -0.06677382
-      ],
-      "size": [
-        0.0070680557,
-        0.007916222,
-        0.19854607
-      ],
-      "yaw": -2.741711,
+      "yaw": 0.88207316,
       "variant": 0,
-      "seed": 7244255049389378760,
+      "seed": 1589800708921673840,
       "solid": false,
-      "support": 5,
+      "support": 3,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 66,
-      "kind": "Notepad",
+      "id": 70,
+      "kind": "Stapler",
       "position": [
-        -1.9851573,
-        0.75041014,
-        -0.37348717
-      ],
-      "size": [
-        0.11100316,
-        0.013574699,
-        0.12447963
-      ],
-      "yaw": -0.10551095,
-      "variant": 2,
-      "seed": 14542794818999152885,
-      "solid": false,
-      "support": 5,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 67,
-      "kind": "Pencil",
-      "position": [
-        0.9482577,
+        0.86901534,
         0.73832273,
-        1.2759268
+        1.5771759
       ],
       "size": [
-        0.008488913,
-        0.0095075825,
-        0.16903308
+        0.044202495,
+        0.05348172,
+        0.11376966
       ],
-      "yaw": -0.60378146,
-      "variant": 2,
-      "seed": 18139739767384214809,
+      "yaw": 0.7310632,
+      "variant": 0,
+      "seed": 3104858747999393779,
       "solid": false,
       "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 68,
-      "kind": "DeskOrganizer",
-      "position": [
-        -0.54909205,
-        0.76852036,
-        -3.1385033
-      ],
-      "size": [
-        0.19693293,
-        0.11968629,
-        0.12889123
-      ],
-      "yaw": -0.7092446,
-      "variant": 0,
-      "seed": 10047475153416980246,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 69,
-      "kind": "TapeDispenser",
-      "position": [
-        -0.6118642,
-        0.76852036,
-        -2.8772593
-      ],
-      "size": [
-        0.060577057,
-        0.09655262,
-        0.14767615
-      ],
-      "yaw": -0.8048569,
-      "variant": 1,
-      "seed": 4705968947435567157,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 70,
+      "id": 71,
       "kind": "Pencil",
       "position": [
-        3.4240456,
-        0.41863403,
-        3.2493687
+        0.49424765,
+        0.73832273,
+        0.8960253
       ],
       "size": [
-        0.006888252,
-        0.0077148424,
-        0.1283172
+        0.0077021653,
+        0.008626425,
+        0.14129214
       ],
-      "yaw": -1.2001312,
+      "yaw": 1.1202862,
       "variant": 0,
-      "seed": 406697530868250455,
+      "seed": 7497455301880309047,
       "solid": false,
-      "support": 12,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 71,
-      "kind": "Bowl",
-      "position": [
-        -2.27697,
-        0.35887012,
-        2.386925
-      ],
-      "size": [
-        0.12562197,
-        0.039040122,
-        0.12562197
-      ],
-      "yaw": -1.2282159,
-      "variant": 1,
-      "seed": 9633675228494585768,
-      "solid": false,
-      "support": 14,
+      "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 72,
-      "kind": "Phone",
+      "kind": "Headphones",
       "position": [
-        -2.3237586,
-        0.35887012,
-        2.168832
+        -0.817914,
+        0.76852036,
+        -2.81767
       ],
       "size": [
-        0.06422443,
-        0.012376937,
-        0.13719818
+        0.17561547,
+        0.21639907,
+        0.11405703
       ],
-      "yaw": -3.0393417,
+      "yaw": 1.8213875,
       "variant": 1,
-      "seed": 13687845094738844361,
+      "seed": 14772850410652757300,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 73,
+      "kind": "DeskOrganizer",
+      "position": [
+        -0.62145424,
+        0.76852036,
+        -2.7600565
+      ],
+      "size": [
+        0.1378983,
+        0.15777716,
+        0.09069892
+      ],
+      "yaw": 2.2857084,
+      "variant": 2,
+      "seed": 16244652540104229982,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 74,
+      "kind": "CoffeeCup",
+      "position": [
+        -2.2605433,
+        0.35887012,
+        2.4304605
+      ],
+      "size": [
+        0.06506719,
+        0.086608715,
+        0.06506719
+      ],
+      "yaw": -2.599033,
+      "variant": 2,
+      "seed": 8712197691386290168,
       "solid": false,
       "support": 14,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 73,
-      "kind": "Notebook",
-      "position": [
-        0.5747458,
-        1.2,
-        8.021851
-      ],
-      "size": [
-        0.1029947,
-        0.021659888,
-        0.12886916
-      ],
-      "yaw": 3.4266477,
-      "variant": 1,
-      "seed": 11871349009398645964,
-      "solid": false,
-      "support": 20,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 74,
-      "kind": "SodaCan",
-      "position": [
-        0.81046194,
-        1.2,
-        7.9819694
-      ],
-      "size": [
-        0.05342529,
-        0.12598836,
-        0.05342529
-      ],
-      "yaw": 3.4995453,
-      "variant": 2,
-      "seed": 7527889778429697102,
-      "solid": false,
-      "support": 20,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
       "id": 75,
-      "kind": "TissueBox",
+      "kind": "Vase",
       "position": [
-        0.577677,
-        1.2,
-        8.198681
+        -2.7852075,
+        0.37169296,
+        -3.4602563
       ],
       "size": [
-        0.2283495,
-        0.11307298,
-        0.11458413
+        0.068908826,
+        0.16803043,
+        0.068908826
       ],
-      "yaw": 3.4316397,
-      "variant": 0,
-      "seed": 16758470595716636535,
+      "yaw": -1.5596659,
+      "variant": 1,
+      "seed": 13254681929289842047,
       "solid": false,
-      "support": 20,
-      "neighbor": true,
+      "support": 17,
+      "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 76,
-      "kind": "WaterBottle",
+      "kind": "Phone",
       "position": [
-        0.12989996,
-        0.5537071,
-        0.41011506
+        0.13551557,
+        1.2,
+        8.02303
       ],
       "size": [
-        0.08645922,
-        0.21488619,
-        0.08645922
+        0.058599316,
+        0.007933953,
+        0.114072405
       ],
-      "yaw": -0.26383352,
+      "yaw": 5.6423903,
       "variant": 2,
-      "seed": 4899430761347528667,
+      "seed": 8953233386604617642,
       "solid": false,
-      "support": 23,
-      "neighbor": false,
+      "support": 20,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 77,
-      "kind": "CoffeeCup",
+      "kind": "Books",
       "position": [
-        -3.019393,
-        0.50075275,
-        1.439036
+        0.47259235,
+        1.2,
+        8.106865
       ],
       "size": [
-        0.071719304,
-        0.11838297,
-        0.071719304
+        0.21872246,
+        0.14632003,
+        0.29703695
       ],
-      "yaw": 0.20996428,
+      "yaw": 0.91484857,
       "variant": 2,
-      "seed": 2305693261189049362,
+      "seed": 4964390491830051374,
       "solid": false,
-      "support": 24,
-      "neighbor": false,
+      "support": 20,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 78,
-      "kind": "TapeDispenser",
+      "kind": "Speaker",
       "position": [
-        2.4105697,
-        0.68510735,
-        -3.959814
+        1.4562621,
+        1.2,
+        8.121683
       ],
       "size": [
-        0.051978182,
-        0.092129424,
-        0.13076839
+        0.104436785,
+        0.19753158,
+        0.11948889
       ],
-      "yaw": 0.25257218,
+      "yaw": -0.10705376,
       "variant": 0,
-      "seed": 974814313470965199,
+      "seed": 15987103751446284609,
+      "solid": false,
+      "support": 20,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 79,
+      "kind": "Phone",
+      "position": [
+        0.9068024,
+        1.2,
+        8.221013
+      ],
+      "size": [
+        0.07548973,
+        0.009413875,
+        0.1433515
+      ],
+      "yaw": 1.6888312,
+      "variant": 0,
+      "seed": 17997241625156675963,
+      "solid": false,
+      "support": 20,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 80,
+      "kind": "Phone",
+      "position": [
+        1.1634275,
+        1.2,
+        8.227628
+      ],
+      "size": [
+        0.066738695,
+        0.014760492,
+        0.13562854
+      ],
+      "yaw": 1.2623217,
+      "variant": 1,
+      "seed": 5890978604878735995,
+      "solid": false,
+      "support": 20,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 81,
+      "kind": "Stapler",
+      "position": [
+        2.1407452,
+        0.68510735,
+        -3.9494963
+      ],
+      "size": [
+        0.05123436,
+        0.039206,
+        0.13325511
+      ],
+      "yaw": -0.121107936,
+      "variant": 2,
+      "seed": 6809043314690432770,
       "solid": false,
       "support": 26,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 79,
-      "kind": "TissueBox",
+      "id": 82,
+      "kind": "Notebook",
       "position": [
-        3.7603393,
-        0.5282335,
-        4.396634
+        2.3890355,
+        0.68510735,
+        -4.21339
       ],
       "size": [
-        0.20201595,
-        0.13814458,
-        0.11266334
+        0.08973163,
+        0.0068470654,
+        0.11967777
       ],
-      "yaw": 1.9422199,
+      "yaw": 1.5782195,
       "variant": 1,
-      "seed": 14968232638978755658,
+      "seed": 9788558909140043898,
+      "solid": false,
+      "support": 26,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 83,
+      "kind": "DeskOrganizer",
+      "position": [
+        3.8217194,
+        0.5282335,
+        4.213325
+      ],
+      "size": [
+        0.14350495,
+        0.124541774,
+        0.15909423
+      ],
+      "yaw": 0.16497481,
+      "variant": 2,
+      "seed": 7283567723597780340,
       "solid": false,
       "support": 27,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 80,
-      "kind": "Mug",
+      "id": 84,
+      "kind": "Vase",
       "position": [
-        -5.2216935,
-        1.564475,
-        3.5870364
+        3.932744,
+        0.5282335,
+        4.438993
       ],
       "size": [
-        0.09340118,
-        0.052687608,
-        0.0689726
+        0.07928616,
+        0.060747672,
+        0.07928616
       ],
-      "yaw": 4.552815,
+      "yaw": -4.5052752,
       "variant": 2,
-      "seed": 3954207038930435538,
+      "seed": 15482486541799908394,
       "solid": false,
-      "support": 32,
+      "support": 27,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 81,
+      "id": 85,
+      "kind": "Bowl",
+      "position": [
+        -0.36365694,
+        1.6288002,
+        -4.505358
+      ],
+      "size": [
+        0.103890255,
+        0.035539825,
+        0.103890255
+      ],
+      "yaw": -1.469848,
+      "variant": 2,
+      "seed": 14091050692871997442,
+      "solid": false,
+      "support": 30,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 86,
+      "kind": "Phone",
+      "position": [
+        -0.0040402412,
+        1.6288002,
+        -4.5029254
+      ],
+      "size": [
+        0.07218137,
+        0.0130707305,
+        0.13660192
+      ],
+      "yaw": 2.9680383,
+      "variant": 0,
+      "seed": 16827425777391042203,
+      "solid": false,
+      "support": 30,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 87,
+      "kind": "Phone",
+      "position": [
+        -5.1462517,
+        1.564475,
+        3.4455276
+      ],
+      "size": [
+        0.06583774,
+        0.0075920057,
+        0.12618005
+      ],
+      "yaw": -0.736341,
+      "variant": 2,
+      "seed": 6028746849274605142,
+      "solid": false,
+      "support": 31,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 88,
+      "kind": "FireAlarm",
+      "position": [
+        -4.503644,
+        1.8113178,
+        -0.49266672
+      ],
+      "size": [
+        0.1263336,
+        0.14217357,
+        0.061811693
+      ],
+      "yaw": 2.762803,
+      "variant": 0,
+      "seed": 9671570279126125015,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 89,
+      "kind": "FireDetector",
+      "position": [
+        -1.8337722,
+        3.9247327,
+        0.87563753
+      ],
+      "size": [
+        0.09679693,
+        0.061905622,
+        0.09679693
+      ],
+      "yaw": 0.0010591059,
+      "variant": 2,
+      "seed": 10800582512510671903,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 90,
+      "kind": "StringLights",
+      "position": [
+        3.1499321,
+        3.5537322,
+        -5.4096766
+      ],
+      "size": [
+        1.980597,
+        0.48939723,
+        0.088511154
+      ],
+      "yaw": 0.0,
+      "variant": 0,
+      "seed": 15963878789563414384,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 91,
+      "kind": "FirePullStation",
+      "position": [
+        0.6236788,
+        1.269621,
+        5.4242373
+      ],
+      "size": [
+        0.088072814,
+        0.15781926,
+        0.059389718
+      ],
+      "yaw": 3.1415927,
+      "variant": 0,
+      "seed": 14912179290482607953,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 92,
       "kind": "Rug",
       "position": [
         -1.1865826,
@@ -5354,7 +5861,7 @@
       "interaction_target": null
     },
     {
-      "id": 82,
+      "id": 93,
       "kind": "FloorOutlet",
       "position": [
         2.9056938,
@@ -5375,20 +5882,20 @@
       "interaction_target": null
     },
     {
-      "id": 83,
+      "id": 94,
       "kind": "FloorOutlet",
       "position": [
-        0.96270764,
+        -1.3140726,
         0.0,
-        0.90757704
+        3.1103926
       ],
       "size": [
         0.17803873,
-        0.006,
+        0.11614519,
         0.19360821
       ],
-      "yaw": -0.8053154,
-      "variant": 8,
+      "yaw": -1.2832361,
+      "variant": 0,
       "seed": 11285889337097220260,
       "solid": false,
       "support": null,
@@ -5396,718 +5903,682 @@
       "interaction_target": null
     },
     {
-      "id": 84,
-      "kind": "FloorOutlet",
-      "position": [
-        -1.2187498,
-        0.0,
-        3.0918686
-      ],
-      "size": [
-        0.19673476,
-        0.110757485,
-        0.16822892
-      ],
-      "yaw": -1.2802709,
-      "variant": 1,
-      "seed": 12987565679736549701,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 85,
+      "id": 95,
       "kind": "Cable",
       "position": [
-        3.815748,
-        0.0020000003,
-        -3.0145693
+        3.5004232,
+        0.0020108009,
+        -2.565964
       ],
       "size": [
-        2.2609735,
-        0.7836081,
-        0.9949677
+        1.6300826,
+        0.7832256,
+        0.09701347
+      ],
+      "yaw": 0.0,
+      "variant": 2,
+      "seed": 15017685578953468374,
+      "solid": false,
+      "support": 3,
+      "neighbor": false,
+      "interaction_target": 33,
+      "cable_path": [
+        [
+          -0.8031969,
+          0.77829075,
+          0.04357195
+        ],
+        [
+          -0.8096328,
+          0.77829075,
+          0.019930363
+        ],
+        [
+          -0.8101065,
+          0.77828074,
+          0.01678729
+        ],
+        [
+          -0.809844,
+          0.77825123,
+          0.013619661
+        ],
+        [
+          -0.80885935,
+          0.7782038,
+          0.010597944
+        ],
+        [
+          -0.8072052,
+          0.77814096,
+          0.007884264
+        ],
+        [
+          -0.80497074,
+          0.77806616,
+          0.005624771
+        ],
+        [
+          -0.8022759,
+          0.7779834,
+          0.003941059
+        ],
+        [
+          -0.79926586,
+          0.7778971,
+          0.0029234886
+        ],
+        [
+          -0.5892656,
+          0.7720661,
+          -0.04178047
+        ],
+        [
+          -0.5862181,
+          0.7716237,
+          -0.042393684
+        ],
+        [
+          -0.5833349,
+          0.7704888,
+          -0.04290247
+        ],
+        [
+          -0.58076763,
+          0.76872116,
+          -0.0432806
+        ],
+        [
+          -0.5786505,
+          0.7664134,
+          -0.043507576
+        ],
+        [
+          -0.57709503,
+          0.7636866,
+          -0.04357195
+        ],
+        [
+          -0.53795886,
+          0.67283064,
+          -0.042980433
+        ],
+        [
+          -0.5377462,
+          0.67236114,
+          -0.042977333
+        ],
+        [
+          -0.4952333,
+          0.58306503,
+          -0.042334795
+        ],
+        [
+          -0.49498248,
+          0.5825647,
+          -0.04233098
+        ],
+        [
+          -0.4525106,
+          0.5020029,
+          -0.04168892
+        ],
+        [
+          -0.4522159,
+          0.5014726,
+          -0.04168439
+        ],
+        [
+          -0.40979052,
+          0.42896965,
+          -0.04104352
+        ],
+        [
+          -0.40944552,
+          0.4284113,
+          -0.041038275
+        ],
+        [
+          -0.367074,
+          0.3633574,
+          -0.040397882
+        ],
+        [
+          -0.36667228,
+          0.36277407,
+          -0.040391922
+        ],
+        [
+          -0.3243611,
+          0.30461982,
+          -0.039752245
+        ],
+        [
+          -0.32389545,
+          0.30401596,
+          -0.039745092
+        ],
+        [
+          -0.28165174,
+          0.2522677,
+          -0.039106607
+        ],
+        [
+          -0.28111553,
+          0.25164953,
+          -0.0390985
+        ],
+        [
+          -0.23894525,
+          0.20586468,
+          -0.038461447
+        ],
+        [
+          -0.23833227,
+          0.20524038,
+          -0.03845215
+        ],
+        [
+          -0.19624162,
+          0.16502406,
+          -0.03781581
+        ],
+        [
+          -0.19554639,
+          0.16440366,
+          -0.03780532
+        ],
+        [
+          -0.1535399,
+          0.12940523,
+          -0.03717065
+        ],
+        [
+          -0.15275884,
+          0.1288008,
+          -0.037158728
+        ],
+        [
+          -0.110839844,
+          0.098711245,
+          -0.03652525
+        ],
+        [
+          -0.109971285,
+          0.09813649,
+          -0.036512136
+        ],
+        [
+          -0.068139076,
+          0.072686195,
+          -0.03587985
+        ],
+        [
+          -0.06718445,
+          0.07215628,
+          -0.035865307
+        ],
+        [
+          -0.02543664,
+          0.05111352,
+          -0.03523445
+        ],
+        [
+          -0.024400473,
+          0.05064409,
+          -0.035218716
+        ],
+        [
+          0.017269611,
+          0.033814047,
+          -0.03458929
+        ],
+        [
+          0.018378973,
+          0.033420537,
+          -0.0345726
+        ],
+        [
+          0.059981585,
+          0.02064481,
+          -0.033943653
+        ],
+        [
+          0.061151743,
+          0.020341262,
+          -0.03392601
+        ],
+        [
+          0.10270071,
+          0.011497768,
+          -0.033297777
+        ],
+        [
+          0.10391593,
+          0.011295708,
+          -0.03327942
+        ],
+        [
+          0.14543939,
+          0.0062976433,
+          -0.03265214
+        ],
+        [
+          0.14666033,
+          0.006205775,
+          -0.03263378
+        ],
+        [
+          0.18839645,
+          0.00493607,
+          -0.032002926
+        ],
+        [
+          0.18918753,
+          0.00493484,
+          -0.031991005
+        ],
+        [
+          0.27347374,
+          0.007237343,
+          -0.030716896
+        ],
+        [
+          0.27507806,
+          0.007375831,
+          -0.030692577
+        ],
+        [
+          0.3164165,
+          0.0134073505,
+          -0.03006792
+        ],
+        [
+          0.317621,
+          0.013638551,
+          -0.0300498
+        ],
+        [
+          0.35918355,
+          0.023563482,
+          -0.029421568
+        ],
+        [
+          0.3603382,
+          0.0238933,
+          -0.029404163
+        ],
+        [
+          0.40195847,
+          0.037780702,
+          -0.028775215
+        ],
+        [
+          0.40304852,
+          0.038196772,
+          -0.028758764
+        ],
+        [
+          0.44473934,
+          0.056178816,
+          -0.028128624
+        ],
+        [
+          0.44575357,
+          0.05666664,
+          -0.028113365
+        ],
+        [
+          0.48752403,
+          0.07891184,
+          -0.027481794
+        ],
+        [
+          0.48845506,
+          0.079455726,
+          -0.027467728
+        ],
+        [
+          0.53031135,
+          0.10616908,
+          -0.026835203
+        ],
+        [
+          0.5311558,
+          0.106753536,
+          -0.026822329
+        ],
+        [
+          0.5730994,
+          0.1381771,
+          -0.02618885
+        ],
+        [
+          0.5738561,
+          0.13878727,
+          -0.026177406
+        ],
+        [
+          0.61588645,
+          0.17520145,
+          -0.02554202
+        ],
+        [
+          0.6165583,
+          0.17582409,
+          -0.025531769
+        ],
+        [
+          0.65867114,
+          0.21754928,
+          -0.024895191
+        ],
+        [
+          0.65926194,
+          0.21817268,
+          -0.02488637
+        ],
+        [
+          0.7014539,
+          0.26557145,
+          -0.024248838
+        ],
+        [
+          0.70196986,
+          0.26618645,
+          -0.02424097
+        ],
+        [
+          0.7442329,
+          0.3196665,
+          -0.023602486
+        ],
+        [
+          0.74468017,
+          0.32026514,
+          -0.02359581
+        ],
+        [
+          0.78169847,
+          0.3727532,
+          -0.023036003
+        ],
+        [
+          0.78377175,
+          0.37533352,
+          -0.022659302
+        ],
+        [
+          0.78605676,
+          0.37751794,
+          -0.021609068
+        ],
+        [
+          0.7884195,
+          0.37917748,
+          -0.019947529
+        ],
+        [
+          0.7907202,
+          0.38021407,
+          -0.017772675
+        ],
+        [
+          0.7928226,
+          0.38056657,
+          -0.015212774
+        ],
+        [
+          0.8101065,
+          0.38056648,
+          0.00861764
+        ]
+      ],
+      "cable_target": 58
+    },
+    {
+      "id": 96,
+      "kind": "Cable",
+      "position": [
+        -1.4382963,
+        0.013559697,
+        3.2194955
+      ],
+      "size": [
+        0.22118235,
+        0.9078398,
+        0.21498775
       ],
       "yaw": 0.0,
       "variant": 1,
-      "seed": 18333916017133780428,
+      "seed": 5316733962670447611,
       "solid": false,
-      "support": 3,
+      "support": 25,
       "neighbor": false,
       "interaction_target": 34,
       "cable_path": [
         [
-          -1.1185217,
-          0.7783016,
-          0.49217725
+          -0.091917396,
+          0.90439945,
+          0.1040535
         ],
         [
-          -1.1246707,
-          0.7783016,
-          0.46958923
+          -0.105968714,
+          0.90439945,
+          0.07860327
         ],
         [
-          -1.1251802,
-          0.77829146,
-          0.4662094
+          -0.10680139,
+          0.90438545,
+          0.076575994
         ],
         [
-          -1.124898,
-          0.77826154,
-          0.46280336
+          -0.10715091,
+          0.9043442,
+          0.074412584
         ],
         [
-          -1.1238389,
-          0.77821344,
-          0.45955396
+          -0.1069988,
+          0.90427786,
+          0.072227
         ],
         [
-          -1.1220601,
-          0.7781498,
-          0.4566362
+          -0.10635316,
+          0.9041899,
+          0.0701344
         ],
         [
-          -1.119657,
-          0.77807397,
-          0.45420647
+          -0.105247855,
+          0.904085,
+          0.068244696
         ],
         [
-          -1.1167593,
-          0.77799004,
-          0.45239592
+          -0.10374117,
+          0.9039686,
+          0.066657305
         ],
         [
-          -1.1135225,
-          0.7779026,
-          0.4513018
+          -0.10191226,
+          0.90384686,
+          0.06545544
         ],
         [
-          -0.90308714,
-          0.77239466,
-          0.40650487
+          0.009294391,
+          0.8969075,
+          0.009496689
         ],
         [
-          -0.8998289,
-          0.77192694,
-          0.40574765
+          0.011306405,
+          0.89650655,
+          0.00847435
         ],
         [
-          -0.8967869,
-          0.77072024,
-          0.40491247
+          0.013167381,
+          0.89557993,
+          0.0075087547
         ],
         [
-          -0.8941207,
-          0.76883775,
-          0.40404296
+          0.014770269,
+          0.894181,
+          0.006655216
         ],
         [
-          -0.89197016,
-          0.76637846,
-          0.40318513
+          0.016022682,
+          0.8923903,
+          0.0059633255
         ],
         [
-          -0.834172,
-          0.68191266,
-          0.37707114
+          0.016852856,
+          0.8903108,
+          0.0054724216
         ],
         [
-          -0.8338525,
-          0.6814641,
-          0.3769269
+          0.017212749,
+          0.88806224,
+          0.005211115
         ],
         [
-          -0.77224517,
-          0.5983225,
-          0.349092
+          0.019613624,
+          0.84050685,
+          0.002294302
         ],
         [
-          -0.771893,
-          0.59786654,
-          0.34893298
+          0.022437453,
+          0.7876055,
+          -0.001136303
         ],
         [
-          -0.7103195,
-          0.5213308,
-          0.32111287
+          0.028085113,
+          0.69025385,
+          -0.007997274
         ],
         [
-          -0.7099328,
-          0.5208701,
-          0.3209381
+          0.033732533,
+          0.6031822,
+          -0.014858723
         ],
         [
-          -0.6483946,
-          0.4506341,
-          0.29313445
+          0.039380193,
+          0.5253152,
+          -0.021719694
         ],
         [
-          -0.64797115,
-          0.45017183,
-          0.29294324
+          0.045027733,
+          0.45569104,
+          -0.028580904
         ],
         [
-          -0.58647084,
-          0.38595384,
-          0.26515627
+          0.05066812,
+          0.39352816,
+          -0.03543353
         ],
         [
-          -0.58600926,
-          0.3854937,
-          0.26494765
+          0.05068314,
+          0.39337137,
+          -0.03545189
         ],
         [
-          -0.52454734,
-          0.3270351,
-          0.2371788
+          0.05631399,
+          0.33790973,
+          -0.042292595
         ],
         [
-          -0.5240462,
-          0.32658124,
-          0.2369523
+          0.056332707,
+          0.33773527,
+          -0.042315483
         ],
         [
-          -0.4626248,
-          0.27364567,
-          0.20920134
+          0.061959386,
+          0.28821915,
+          -0.049150944
         ],
         [
-          -0.4620831,
-          0.27320263,
-          0.20895672
+          0.06198275,
+          0.28802514,
+          -0.049179316
         ],
         [
-          -0.40070224,
-          0.22557516,
-          0.18122387
+          0.0676043,
+          0.24384254,
+          -0.056008577
         ],
         [
-          -0.40012002,
-          0.22514795,
-          0.1809609
+          0.06763339,
+          0.2436271,
+          -0.056043863
         ],
         [
-          -0.33877945,
-          0.18263417,
-          0.15324616
+          0.073248506,
+          0.20423171,
+          -0.062865734
         ],
         [
-          -0.33815694,
-          0.18222807,
-          0.15296483
+          0.073284626,
+          0.20399298,
+          -0.0629096
         ],
         [
-          -0.27685666,
-          0.14465359,
-          0.12526846
+          0.07889187,
+          0.16889727,
+          -0.06972194
         ],
         [
-          -0.2761948,
-          0.14427403,
-          0.12496948
+          0.07893658,
+          0.16863325,
+          -0.0697763
         ],
         [
-          -0.21493244,
-          0.11148381,
-          0.097290516
+          0.08453441,
+          0.13740267,
+          -0.07657695
         ],
         [
-          -0.21423316,
-          0.11113635,
-          0.09697461
+          0.08458984,
+          0.13711134,
+          -0.07664418
         ],
         [
-          -0.1530075,
-          0.08299436,
-          0.069312096
+          0.09017587,
+          0.10935856,
+          -0.08343077
         ],
         [
-          -0.15227365,
-          0.08268441,
-          0.068980455
+          0.09024429,
+          0.1090382,
+          -0.083513975
         ],
         [
-          -0.091080666,
-          0.059073247,
-          0.041332483
+          0.09579468,
+          0.084511414,
+          -0.09025717
         ],
         [
-          -0.09031558,
-          0.05880598,
-          0.040986776
+          0.095927,
+          0.08397791,
+          -0.09041786
         ],
         [
-          -0.029151917,
-          0.039626587,
-          0.013352156
+          0.106666684,
+          0.044232294,
+          -0.10346532
         ],
         [
-          -0.028360128,
-          0.03940664,
-          0.012994289
+          0.1070286,
+          0.042401083,
+          -0.10390496
         ],
         [
-          0.032779455,
-          0.024578212,
-          -0.014629364
+          0.10715091,
+          0.040493026,
+          -0.1040535
         ],
         [
-          0.03359294,
-          0.024409581,
-          -0.014997005
-        ],
-        [
-          0.09471369,
-          0.013869368,
-          -0.042611837
-        ],
-        [
-          0.095543146,
-          0.01375521,
-          -0.04298663
-        ],
-        [
-          0.15665102,
-          0.0074584596,
-          -0.07059574
-        ],
-        [
-          0.15749025,
-          0.0074009886,
-          -0.070975065
-        ],
-        [
-          0.21880412,
-          0.005313564,
-          -0.098677635
-        ],
-        [
-          0.21922088,
-          0.0053064823,
-          -0.09886575
-        ],
-        [
-          0.3428986,
-          0.005306474,
-          -0.1547451
-        ],
-        [
-          0.46628737,
-          0.0069096265,
-          -0.21049404
-        ],
-        [
-          0.4672792,
-          0.006962777,
-          -0.21094227
-        ],
-        [
-          0.5283096,
-          0.012721699,
-          -0.23851657
-        ],
-        [
-          0.5291407,
-          0.012828846,
-          -0.23889208
-        ],
-        [
-          0.5902598,
-          0.022833984,
-          -0.26650643
-        ],
-        [
-          0.59107566,
-          0.022995938,
-          -0.26687503
-        ],
-        [
-          0.6522124,
-          0.037282683,
-          -0.29449725
-        ],
-        [
-          0.65300727,
-          0.03749639,
-          -0.2948563
-        ],
-        [
-          0.71416783,
-          0.056125246,
-          -0.3224895
-        ],
-        [
-          0.7149365,
-          0.05638683,
-          -0.32283688
-        ],
-        [
-          0.7761252,
-          0.07943632,
-          -0.3504827
-        ],
-        [
-          0.77686334,
-          0.079741165,
-          -0.350816
-        ],
-        [
-          0.83808494,
-          0.10730803,
-          -0.3784771
-        ],
-        [
-          0.83878875,
-          0.10765107,
-          -0.37879515
-        ],
-        [
-          0.9000461,
-          0.1398504,
-          -0.40647173
-        ],
-        [
-          0.9007127,
-          0.14022622,
-          -0.40677285
-        ],
-        [
-          0.9620087,
-          0.17719167,
-          -0.43446732
-        ],
-        [
-          0.96263623,
-          0.1775948,
-          -0.4347508
-        ],
-        [
-          1.0239713,
-          0.21947901,
-          -0.4624629
-        ],
-        [
-          1.0245588,
-          0.21990384,
-          -0.46272826
-        ],
-        [
-          1.0821502,
-          0.2639826,
-          -0.48874903
-        ],
-        [
-          1.0849907,
-          0.26567742,
-          -0.48977518
-        ],
-        [
-          1.0882146,
-          0.26673326,
-          -0.49047375
-        ],
-        [
-          1.0916436,
-          0.26709178,
-          -0.49080634
-        ],
-        [
-          1.1251805,
-          0.2670919,
-          -0.4921775
+          0.10715091,
+          0.0034403037,
+          -0.1040535
         ]
       ],
-      "cable_target": 53
-    },
-    {
-      "id": 86,
-      "kind": "Cable",
-      "position": [
-        -1.3901596,
-        0.013564225,
-        3.2101183
-      ],
-      "size": [
-        0.31745517,
-        0.9078307,
-        0.23373318
-      ],
-      "yaw": 0.0,
-      "variant": 0,
-      "seed": 4020995214360322001,
-      "solid": false,
-      "support": 25,
-      "neighbor": false,
-      "interaction_target": 36,
-      "cable_path": [
-        [
-          -0.1400541,
-          0.9043949,
-          0.11343074
-        ],
-        [
-          -0.15411162,
-          0.9043949,
-          0.0879693
-        ],
-        [
-          -0.15494311,
-          0.90438354,
-          0.085944414
-        ],
-        [
-          -0.1552918,
-          0.90434986,
-          0.083783865
-        ],
-        [
-          -0.15513945,
-          0.9042958,
-          0.081600904
-        ],
-        [
-          -0.15449393,
-          0.9042241,
-          0.07951045
-        ],
-        [
-          -0.15338922,
-          0.90413857,
-          0.07762265
-        ],
-        [
-          -0.15188348,
-          0.9040437,
-          0.07603693
-        ],
-        [
-          -0.15005589,
-          0.9039445,
-          0.074836254
-        ],
-        [
-          -0.009928584,
-          0.8968108,
-          0.004324436
-        ],
-        [
-          -0.007917643,
-          0.8964347,
-          0.0033082962
-        ],
-        [
-          -0.0060474873,
-          0.89553404,
-          0.002354622
-        ],
-        [
-          -0.0044252872,
-          0.8941604,
-          0.0015182495
-        ],
-        [
-          -0.0031439066,
-          0.89239246,
-          0.0008471012
-        ],
-        [
-          -0.0022768974,
-          0.8903315,
-          0.00037932396
-        ],
-        [
-          -0.0018737316,
-          0.88809556,
-          0.00014209747
-        ],
-        [
-          0.002467513,
-          0.8266287,
-          -0.0029950142
-        ],
-        [
-          0.007397294,
-          0.761957,
-          -0.0065574646
-        ],
-        [
-          0.012326956,
-          0.7020417,
-          -0.010119915
-        ],
-        [
-          0.017256856,
-          0.64653623,
-          -0.013682365
-        ],
-        [
-          0.022186756,
-          0.5951196,
-          -0.017244816
-        ],
-        [
-          0.027116537,
-          0.54749453,
-          -0.020807266
-        ],
-        [
-          0.032046318,
-          0.50338554,
-          -0.024369717
-        ],
-        [
-          0.036966205,
-          0.46262088,
-          -0.027925014
-        ],
-        [
-          0.036987543,
-          0.46245438,
-          -0.027940512
-        ],
-        [
-          0.046818733,
-          0.38982433,
-          -0.03504467
-        ],
-        [
-          0.046855927,
-          0.3895706,
-          -0.03507161
-        ],
-        [
-          0.056672215,
-          0.32743293,
-          -0.04216528
-        ],
-        [
-          0.056722403,
-          0.32714,
-          -0.04220152
-        ],
-        [
-          0.06652391,
-          0.2740275,
-          -0.04928422
-        ],
-        [
-          0.06659138,
-          0.2736904,
-          -0.049332857
-        ],
-        [
-          0.07637286,
-          0.22837038,
-          -0.05640149
-        ],
-        [
-          0.07646334,
-          0.22798409,
-          -0.056466818
-        ],
-        [
-          0.08621824,
-          0.18940334,
-          -0.06351614
-        ],
-        [
-          0.086339235,
-          0.188963,
-          -0.06360364
-        ],
-        [
-          0.09605932,
-          0.15622252,
-          -0.07062745
-        ],
-        [
-          0.096220255,
-          0.1557244,
-          -0.0707438
-        ],
-        [
-          0.105894685,
-          0.12805793,
-          -0.07773471
-        ],
-        [
-          0.106107354,
-          0.12750001,
-          -0.07788849
-        ],
-        [
-          0.11572313,
-          0.10425487,
-          -0.0848372
-        ],
-        [
-          0.116001844,
-          0.103638425,
-          -0.08503866
-        ],
-        [
-          0.12554371,
-          0.084258944,
-          -0.09193373
-        ],
-        [
-          0.12590504,
-          0.083590254,
-          -0.092194796
-        ],
-        [
-          0.13535547,
-          0.06760304,
-          -0.09902406
-        ],
-        [
-          0.13581717,
-          0.06689532,
-          -0.099357605
-        ],
-        [
-          0.14515817,
-          0.05389643,
-          -0.10610771
-        ],
-        [
-          0.14573765,
-          0.05317192,
-          -0.106526375
-        ],
-        [
-          0.15276515,
-          0.045275066,
-          -0.11160493
-        ],
-        [
-          0.15383399,
-          0.043795813,
-          -0.11237717
-        ],
-        [
-          0.15463209,
-          0.042076126,
-          -0.1129539
-        ],
-        [
-          0.15512514,
-          0.04019015,
-          -0.11331034
-        ],
-        [
-          0.15529191,
-          0.038219195,
-          -0.11343074
-        ],
-        [
-          0.15529191,
-          0.0034357756,
-          -0.11343074
-        ]
-      ],
-      "cable_target": 84
+      "cable_target": 94
     }
   ],
   "human_density": 0.25,
@@ -6120,6 +6591,8 @@
         140.0,
         210.0
       ],
+      "fov_bias": 0.0,
+      "fov_spread": 1.0,
       "circular_probability": 0.2,
       "elliptical_probability": 0.0,
       "distortion_strength": 1.0,
@@ -6140,6 +6613,7 @@
     "path_length_max": 8.0,
     "long_path_fraction": 0.45,
     "multiview": {
+      "mixed_rig": true,
       "min_overlap": 0.34221387,
       "min_baseline": 0.27,
       "min_reference_baseline": 1.2099999,
@@ -6166,42 +6640,42 @@
         "anisotropy": 0.9742366
       },
       "start": [
-        4.1175385,
-        2.3036048,
-        4.63439
+        1.4099255,
+        1.7674221,
+        3.377778
       ],
       "end": [
-        4.159352,
-        2.235675,
-        4.6908774
+        -0.22513628,
+        1.8830526,
+        4.6697383
       ],
       "target": [
-        0.23424686,
-        1.0680891,
-        1.6254665
+        0.61181915,
+        1.195699,
+        0.07283044
       ],
-      "fov_degrees": 99.380135,
+      "fov_degrees": 55.825153,
       "motion": {
         "control": [
           [
-            4.1130247,
-            2.281188,
-            4.676664
+            0.030329764,
+            1.8055801,
+            4.006981
           ],
           [
-            4.1272416,
-            2.258092,
-            4.69587
+            -0.5255912,
+            1.8448946,
+            4.446248
           ]
         ],
         "target_end": [
-          0.22062524,
-          0.9573913,
-          1.416737
+          0.84377545,
+          1.3024627,
+          0.17788458
         ],
         "roll": [
-          0.030951902,
-          -0.05372847
+          0.020223983,
+          -0.04175204
         ]
       }
     },
@@ -6220,42 +6694,42 @@
         "anisotropy": 1.0
       },
       "start": [
-        2.746758,
-        2.0633245,
-        3.561081
+        -1.555949,
+        1.3704573,
+        2.435605
       ],
       "end": [
-        2.771343,
-        2.012245,
-        3.6078606
+        -1.6832973,
+        1.1949123,
+        2.4263287
       ],
       "target": [
-        1.5223438,
-        0.8006306,
-        3.4825835
+        -2.8308442,
+        1.671556,
+        -1.4521006
       ],
-      "fov_degrees": 36.59365,
+      "fov_degrees": 64.48346,
       "motion": {
         "control": [
           [
-            2.730355,
-            2.048757,
-            3.600754
+            -1.6076325,
+            1.3125274,
+            2.4357111
           ],
           [
-            2.7387142,
-            2.03139,
-            3.6166594
+            -1.650931,
+            1.2528422,
+            2.4325573
           ]
         ],
         "target_end": [
-          1.5087221,
-          0.6899329,
-          3.273854
+          -2.6312294,
+          1.4738255,
+          -1.243154
         ],
         "roll": [
-          -0.07734313,
-          -0.062422536
+          0.04730767,
+          0.032319956
         ]
       }
     },
@@ -6274,45 +6748,45 @@
         "anisotropy": 1.0
       },
       "start": [
-        3.929027,
-        2.0056884,
-        3.4223912
+        -0.6070862,
+        0.95796424,
+        -0.16091251
       ],
       "end": [
-        3.948101,
-        1.9270097,
-        3.5015252
+        -0.63686264,
+        0.81978923,
+        -0.10148096
       ],
       "target": [
-        1.6010243,
-        1.5865123,
-        -1.8961617
+        -4.3595314,
+        1.0860819,
+        4.649994
       ],
-      "fov_degrees": 96.319405,
+      "fov_degrees": 137.5162,
       "motion": {
         "control": [
           [
-            3.9137385,
-            1.9783251,
-            3.457837
+            -0.6295996,
+            0.91236645,
+            -0.15119593
           ],
           [
-            3.920224,
-            1.9515744,
-            3.484743
+            -0.63972354,
+            0.86538696,
+            -0.13098921
           ]
         ],
         "target_end": [
-          1.5874026,
-          1.4878039,
-          -2.1048913
+          -4.210669,
+          0.997528,
+          4.6756444
         ],
         "roll": [
-          0.013199449,
-          -0.04719598
+          0.03746888,
+          0.04717706
         ]
       }
     }
   ],
-  "rejected_placements": 111
+  "rejected_placements": 143
 }

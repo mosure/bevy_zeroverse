@@ -17,7 +17,7 @@ use bevy_zeroverse::{
             geometry::Geometry,
             layout::ObjectKind,
             layout::{IndoorLayout, IndoorManifest},
-            materials::{rugs, variants, IndoorMaterials, Surface},
+            materials::{rugs, IndoorMaterials, Surface},
             objects,
         },
         SceneAabbNode, ZeroverseSceneRoot, ZeroverseSceneType,
@@ -358,7 +358,7 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
                     let label = if c.name == "Rug" {
                         format!("floormat#rug{}", rugs::slot(seed))
                     } else {
-                        format!("swatch#finish{}", variants::slot(seed))
+                        format!("swatch#finish{}", audit::finish_slot(c, seed))
                     };
                     (c.surface, label)
                 })
@@ -410,7 +410,7 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
                 let label = if c.name == "Rug" {
                     format!("floormat#rug{}", rugs::slot(seed))
                 } else {
-                    format!("swatch#finish{}", variants::slot(seed))
+                    format!("swatch#finish{}", audit::finish_slot(c, seed))
                 };
                 let h = palette.for_part(c.surface, &label);
                 let m = materials.get(&h).unwrap();

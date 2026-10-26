@@ -1,18 +1,18 @@
 % Generated from the same manifest as the project page.
 \section{Architectural evaluation}
 \subsection{Protocol and architectural audit}
-This cohort was captured with bevy\_zeroverse 0.44.2, generator 51, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
+This cohort was captured with bevy\_zeroverse 0.59.1, generator 77, on 512 consecutive seeds (0--511), with 4 cameras per room, furnishing density 0.65 and static human density 0.25. Every audited room passed the recorded layout, support and camera-clearance checks. The first 32 rooms were rendered without appearance filtering at 640$\times$400, with 2 trajectory endpoints: 256 camera/time identities in six aligned modes. The audit contains 512 unique structural signatures after centimetre quantization; this bounded diagnostic does not estimate the total procedural space or learning utility.
 
 \begin{table}[ht]\centering\small
 \begin{tabular}{lrr}\toprule
 Built feature & Rooms & Fraction \\\midrule
-Arched portals & 54 / 512 & 10.5\% \\
+Arched portals & 51 / 512 & 10.0\% \\
 Chamfered corners & 178 / 512 & 34.8\% \\
 Exterior cut-in & 403 / 512 & 78.7\% \\
-Interior pillars & 295 / 512 & 57.6\% \\
+Interior pillars & 294 / 512 & 57.4\% \\
 Mezzanine & 22 / 512 & 4.3\% \\
 Oblique walls & 497 / 512 & 97.1\% \\
-Raised floor & 76 / 512 & 14.8\% \\
+Raised floor & 79 / 512 & 15.4\% \\
 Sloping ceiling & 354 / 512 & 69.1\% \\
 Sunken floor & 61 / 512 & 11.9\% \\
 \bottomrule\end{tabular}
@@ -24,9 +24,9 @@ Footprint areas span 34.49--413.71 m$^2$, with roof pitch 0.00--11.32$^\circ$. F
 
 The page presents all 32 rooms, all four cameras and both endpoints in one explorer, with 1536 channel images. RGB, depth, normals, semantics, positions, co-visibility, camera calibration and plans share the same room/time identity. RGB preserves renderer tone mapping and sRGB encoding without per-image exposure correction or cropping. All previews use lossless WebP. Depth uses Turbo (warm near, cool far) with a fixed logarithmic 0--15 m display scale, colorized from the 8-bit axial-depth/15 m preview; values beyond 15 m are clamped and background is black; normals store $(n+1)/2$, and positions are affine-normalized by the annotation AABB and clamped. Semantic colors are preserved exactly. These previews are not float32 training labels. This gallery uses the surface glass policy: geometric annotations treat panes as first surfaces. The optional through-glass policy traces straight geometry behind transmitting panes while frames and opaque frit remain occluders. Neither policy describes the reflected or refracted optical path in RGB.
 
-The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00050 pixels and normal-length error 2.384e-7. Every view contains at least 8 semantic classes. 19/19 rooms with humans in the camera's primary functional zone show person pixels; 6/25 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
+The native capture protocol uses Auto quality, shadows, SSAO and approximate diffuse GI with 1024 primary rays per probe. Renderer identity and capabilities are recorded in every calibration download. All captured views passed the recorded alignment checks: maximum per-view depth/position p99 error 2.861 $\mu$m, reprojection p99 0.00061 pixels and normal-length error 2.384e-7. Every view contains at least 7 semantic classes. 24/24 rooms with humans in the camera's primary functional zone show person pixels; 2/27 rooms with humans anywhere in the main envelope never show person pixels. These are class-level observations, rather than instance-level visibility guarantees.
 
-Scene construction through capture/export takes 2.42--6.74 seconds per room (median 4.22), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
+Scene construction through capture/export takes 2.85--8.30 seconds per room (median 4.30), excluding application startup. This is a bounded capture run, not a sustained-throughput, unlimited-process memory-stability or photographic-realism qualification.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_levels.jpg}
@@ -51,7 +51,7 @@ Scene construction through capture/export takes 2.42--6.74 seconds per room (med
 \subsection{Co-visibility in every captured room}
 Production co-visibility accompanies every RGB and geometry view in this cohort. Each valid source pixel stores an exact uint16 membership mask of other capture cameras that see its first surface, with the source bit excluded. One deterministic additive legend is shared across all views. The unified explorer supports all memberships and individual-peer overlays; the selected peer's own tile stays RGB.
 
-Across every room and endpoint, 81.9\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
+Across every room and endpoint, 81.5\% of valid source-pixel observations are visible to at least one peer. This pixel-weighted statistic pools 65536000 valid source-pixel observations; it does not count unique 3D points. Exact downloads include 16-bit grayscale membership PNGs, separate 8-bit 0/1 validity PNGs, calibrated transforms and the ordered camera legend. Zero membership with valid=1 is an unshared surface; zero membership with valid=0 is background. Co-visibility and other annotations were captured together, rather than joined from separate runs.
 
 \begin{figure}[p]
 \centering\includegraphics[width=\linewidth,height=.82\textheight,keepaspectratio]{generated/architecture_co_visibility.jpg}
@@ -63,40 +63,38 @@ A separate prespecified factor sweep covers 2 geometry families and 14 settings 
 
 Captures export a full row-major pixel-space $K$, image dimensions, half-pixel centers, a versioned pinhole lens contract with optional seedable optical-center displacement, normalized playback progress, eased trajectory progress and optional explicitly assigned seconds. Unassigned physical time remains unknown. Short handheld paths sample local metric translations and yaw/pitch/roll increments independently of a moving look-target, retaining swept collision checks. Requested high/low/zero proxy-overlap strata are selected before placement retries. Their all-ray proxy estimates are stored separately from rendered directed overlap over valid source pixels. A proxy-negative pair can retain a small rendered overlap. The same off-center projection drives RGB, geometry, visibility, flow, frustum culling and exported calibration. Lens distortion and rolling shutter remain gated research extensions. An optional stable connected-overlap graph permits peer chains instead of requiring every view to share camera zero. Measured overlap on the exact primary region is exported separately from whole-frame overlap, so distant exterior context cannot inflate the primary-room diagnostic.
 
-Table~\ref{tab:factor-qualification} reports directed rendered pair means, primary-room graph component counts at a 10\% bidirectional overlap threshold, pixel-weighted median triangulation angles, and the maximum per-view 99th-percentile self-reprojection error. Angle statistics omit pairs with no shared primary geometry and retain their null values in the receipt. There are 14 exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
+Table~\ref{tab:factor-qualification} reports directed rendered pair means, primary-room graph component counts at a 10\% bidirectional overlap threshold, pixel-weighted median triangulation angles, and the maximum per-view 99th-percentile self-reprojection error. Angle statistics omit pairs with no shared primary geometry and retain their null values in the receipt. There are 16 exact duplicate RGB images: the baseline/overlap interventions deliberately reuse the reference camera. These counts measure exact repetition in this matched study, not perceptual redundancy across a training population. Sensor white balance, blur, noise and optional JPEG are separate seeded RGB-only export transforms with individual operator regressions; they are not applied in this render sweep. This bounded check does not establish photographic realism, a calibrated sensor model, a fitted training mixture or downstream transfer.
 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{lrrrrr}\toprule
 Factor & Shared (\%) & Base (m) & Components & $\theta_{50}$ ($^\circ$) & Reproj. (px) \\
 \midrule
-reference & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
-portrait & 55.90 & 2.139 & 1.00 & 19.0 & 0.00008 \\
-principal point & 63.49 & 2.991 & 1.00 & 27.5 & 0.00009 \\
-portrait principal point & 59.24 & 2.139 & 1.00 & 19.6 & 0.00010 \\
-connected graph & 51.12 & 2.187 & 1.00 & 26.4 & 0.00012 \\
-wide baseline & 47.75 & 4.548 & 1.00 & 45.8 & 0.00007 \\
-handheld & 51.59 & 3.581 & 1.00 & 37.2 & 0.00006 \\
-low overlap & 14.27 & 2.117 & 1.50 & 8.0 & 0.00020 \\
-no proxy overlap & 0.00 & 2.827 & 2.00 & -- & 0.00033 \\
-material seed & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
-low detail & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
-lighting seed & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
-dim illumination & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
-exposure & 65.13 & 3.082 & 1.00 & 35.1 & 0.00009 \\
+reference & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
+portrait & 56.77 & 1.547 & 1.00 & 14.2 & 0.00007 \\
+principal point & 52.78 & 2.764 & 1.00 & 20.1 & 0.00008 \\
+portrait principal point & 51.41 & 1.547 & 1.00 & 17.0 & 0.00007 \\
+connected graph & 52.62 & 2.293 & 1.00 & 22.7 & 0.00009 \\
+wide baseline & 43.37 & 4.565 & 1.00 & 61.2 & 0.00011 \\
+handheld & 54.51 & 2.325 & 1.00 & 37.0 & 0.00006 \\
+low overlap & 9.14 & 3.967 & 2.00 & 59.0 & 0.00008 \\
+no proxy overlap & 0.00 & 3.293 & 2.00 & -- & 0.00007 \\
+material seed & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
+low detail & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
+lighting seed & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
+dim illumination & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
+exposure & 55.16 & 2.853 & 1.00 & 21.9 & 0.00007 \\
 \bottomrule\end{tabular}
 \caption{Prespecified factor checks on matched room geometry. Directed overlap uses valid source pixels; the zero target refers to placement proxies.}\label{tab:factor-qualification}
 \end{table}
 
-\subsection{Additional rendered populations}
-An independent current-source qualification covers 512 distinct rooms and 3072 camera/time views. All requested captures and aligned annotations are checked before the receipt is emitted. The table keeps each sampling population separate; the selected strata are not an IID estimate of ordinary generation. The interactive gallery above remains its own four-camera protocol. The compact downloadable receipt retains protocols, selected seeds, checks and all local input hashes; it does not bundle all training images.
+\subsection{Rendered-cohort qualification}
+Current-source qualification covers 32 distinct rooms and 256 camera/time views. All requested captures and aligned annotations are checked before the receipt is emitted. The table keeps each sampling population separate; selected strata are not an IID estimate of ordinary generation. The automatic snapshot qualifies the same captures shown in the interactive gallery. These counts are not additional independent evidence and must not be added to gallery or factor-sweep totals. The compact downloadable receipt retains protocols, selected seeds, checks and all local input hashes; it does not bundle all training images.
 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{lrrrr}\toprule
 Cohort start & Rooms & Views & Shared (\%) & Min. classes \\
 \midrule
-0 & 256 & 1536 & 74.49 & 5 \\
-20000 & 128 & 768 & 73.30 & 5 \\
-40000 & 128 & 768 & 74.59 & 7 \\
+0 & 32 & 256 & 81.46 & 7 \\
 \bottomrule\end{tabular}
 \caption{Rendered populations. Shared means valid source pixels visible in any peer, pooled within each cohort; it is not unique surface area. Seeds and selection policies are retained in the receipt. No downstream model inference filters the samples.}\label{tab:rendered-populations}\end{table}
 
@@ -104,9 +102,7 @@ Cohort start & Rooms & Views & Shared (\%) & Min. classes \\
 \begin{tabular}{lrrr}\toprule
 Cohort start & Connected / groups & Median baseline (m) & Median angle ($^\circ$) \\
 \midrule
-0 & 512 / 512 & 2.16 & 19.75 \\
-20000 & 256 / 256 & 2.24 & 22.75 \\
-40000 & 256 / 256 & 2.10 & 20.25 \\
+0 & 64 / 64 & 2.08 & 19.75 \\
 \bottomrule\end{tabular}
 \caption{Measured primary-room reconstruction geometry. An edge requires at least 10\% shared first-surface pixels in both directions. Groups count camera sets at each time, not independent rooms. Baselines weight each pair equally; angle values are medians of pair medians from 0.5-degree pixel-weighted source-view histograms. Empty pairs remain in the receipt and have no angle. The primary region excludes neighboring rooms and exterior context.}\label{tab:primary-reconstruction}\end{table}
 

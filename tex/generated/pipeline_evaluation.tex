@@ -4,7 +4,7 @@
 Figure~\ref{fig:pipeline-engine} follows the production path from seeded programs to completed views. Immutable architecture, furnishing and person assemblies are constructed once. The same triangles supply transport and rendering. One shared pool with at most eight dedicated preparation threads executes geometry, materials, tangents and both transport trees; scoped callers can also execute queued work. Ordered triangle emission releases the assembly borrow before tree construction and mesh realization proceed concurrently, without cloning complete scenes. Ordered results and reserved mesh handles preserve seed identity. Material preparation overlaps geometry transport, group planning and mesh/tangent realization. Only referenced material variants are prepared. Supported material maps and their mip chains are baked once on the GPU; remaining programs use the CPU oracle. Native room lookahead overlaps preparation, bounded speculative uploads and static lighting with current capture, without promoting future scene entities early. The browser uses cooperative yields in place of native worker parallelism; yields return control between stages but do not provide CPU parallelism or guarantee a frame-time budget.
 
 \subsection{Protocol and accounting}
-Measurements use Intel Core i9-12900K (24 logical CPUs), NVIDIA RTX PRO 6000 Blackwell Workstation (96 GiB VRAM), Linux Vulkan; release subprocesses pinned to logical CPUs 0 and 2. Native development profile with opt-level 3 and debug information disabled, nightly rustc 1.100; frozen source-matched executables; automatic SSAA and full native quality. Active production training shared the CPU and GPU with explicit operator approval. One release renderer ran at a time with two-CPU affinity, a 10 GiB task RSS cap and free-memory floors. Two short capture repetitions are a shared-workstation screen, not isolated hardware throughput or long-run memory qualification. These are shared-machine measurements, not isolated hardware limits or a training-throughput benchmark. The receipt binds source SHA256 \texttt{3c21395218bb18c4}, package versions, exact configuration, input hashes and every measured seed. No geometry, texture resolution, shadow quality or GI-ray budget is reduced for this study. Static AnnyBody people are sampled at density 0.25; ARDY inference is disabled. Auto SSAA renders the three $512\times512$ RGB outputs at $1024\times1024$ before the GPU box resolve; numeric annotations retain the $512\times512$ pixel-center grid.
+Measurements use NVIDIA RTX PRO 6000 Blackwell Workstation Edition (Vulkan). Cargo development profile; opt-level override Some("1"), dependency override None; x86\_64. No concurrent training launched by publication; other host workloads are uncontrolled. Software adapters measure software rendering, not GPU training throughput.. These are shared-machine measurements, not isolated hardware limits or a training-throughput benchmark. The receipt binds source SHA256 \texttt{22de61e1ed76d863}, package versions, exact configuration, input hashes and every measured seed. No geometry, texture resolution, shadow quality or GI-ray budget is reduced for this study. Static AnnyBody people are sampled at density 0.25; ARDY inference is disabled. Auto SSAA renders the three $512\times512$ RGB outputs at $1024\times1024$ before the GPU box resolve; numeric annotations retain the $512\times512$ pixel-center grid.
 
 The CPU-only study samples 32 consecutive rooms, seeds 400--431, with 2 separate warm-up rooms. It invokes the same preparation entry point as capture, including camera sampling, layout validation, geometry, material recipes, transport, reflections and lighting requests. It prepares GPU requests without executing them and cannot measure rendered throughput. Table~\ref{tab:pipeline-stages} partitions one future's monotonic wall lifetime into disjoint intervals. Values include scheduling/waiting within a stage, not CPU core time. Relative shares divide summed stage durations by summed preparation lifetimes; percentiles use nearest rank. Concurrent branch times and different rooms must not be summed into this partition.
 
@@ -16,20 +16,20 @@ The CPU-only study samples 32 consecutive rooms, seeds 400--431, with 2 separate
 \begin{table}[htbp]\centering\small
 \begin{tabular}{lrrrr}\toprule
 Preparation phase & Mean (ms) & Median (ms) & p95 (ms) & Share (\%)\\\midrule
-Layout and appearance & 2.02 & 1.11 & 4.95 & 0.15 \\
-Camera paths and overlap & 28.57 & 20.61 & 76.01 & 2.07 \\
-Layout validation & 4.95 & 3.52 & 12.86 & 0.36 \\
+Layout and appearance & 7.25 & 5.38 & 16.92 & 0.52 \\
+Camera paths and overlap & 92.91 & 39.70 & 388.38 & 6.70 \\
+Layout validation & 15.00 & 12.21 & 27.64 & 1.08 \\
 Motion planning & 0.00 & 0.00 & 0.00 & 0.00 \\
-Geometry assemblies & 70.19 & 48.34 & 194.05 & 5.09 \\
-Consumed material selection & 0.11 & 0.10 & 0.21 & 0.01 \\
-Materials / transport / meshes & 1013.12 & 1052.87 & 1474.68 & 73.49 \\
-Transport material binding & 4.99 & 4.09 & 9.90 & 0.36 \\
-HDR reflection environment & 211.05 & 172.62 & 461.08 & 15.31 \\
-Lighting bake preparation & 40.13 & 39.60 & 75.99 & 2.91 \\
+Geometry assemblies & 70.79 & 71.74 & 129.91 & 5.11 \\
+Consumed material selection & 0.16 & 0.16 & 0.27 & 0.01 \\
+Materials / transport / meshes & 952.69 & 929.92 & 1623.61 & 68.74 \\
+Transport material binding & 3.78 & 3.87 & 6.57 & 0.27 \\
+HDR reflection environment & 187.91 & 150.36 & 460.91 & 13.56 \\
+Lighting bake preparation & 52.65 & 49.19 & 87.47 & 3.80 \\
 Serial mesh tail (Wasm) & 0.00 & 0.00 & 0.00 & 0.00 \\
-Render group binding & 0.18 & 0.17 & 0.37 & 0.01 \\
-Scheduling and bookkeeping & 3.26 & 2.52 & 8.13 & 0.24 \\
-\midrule Total & 1378.58 & 1492.43 & 2052.31 & 100.00 \\
+Render group binding & 0.24 & 0.22 & 0.37 & 0.02 \\
+Scheduling and bookkeeping & 2.62 & 2.33 & 7.33 & 0.19 \\
+\midrule Total & 1386.00 & 1392.09 & 2190.43 & 100.00 \\
 \bottomrule\end{tabular}
 \caption{CPU preparation with production GPU material recipes, three square-aspect cameras and native Auto quality. The material/transport/mesh row counts the union once. Asset installation, actual GPU bakes, rendering and readback are downstream.}\label{tab:pipeline-stages}\end{table}
 
@@ -39,21 +39,17 @@ Each native capture run regenerates rooms and delivers three 512$\times$512 view
 \begin{table}[htbp]\centering\small
 \begin{tabular}{lrrrr}\toprule
 Workload & Rooms & Wall rooms/s & Median (ms) & p95 (ms)\\\midrule
-CPU preparation, 1 in flight & 32 & 0.723 & 1492.4 & 2052.3 \\
-CPU preparation, 4 in flight & 32 & 0.783 & 5018.4 & 9684.8 \\
-Completed capture, run 1 & 32 & 0.672 & 1061.7 & 4073.5 \\
-Completed capture, run 2 & 32 & 0.669 & 1066.7 & 4177.3 \\
+CPU preparation, 1 in flight & 32 & 0.719 & 1392.1 & 2190.4 \\
+Completed capture, run 1 & 8 & 1.070 & 509.5 & 2267.7 \\
 \bottomrule\end{tabular}
 \caption{Different denominators: CPU-only preparation emits immutable asset plans; completed capture emits all requested planes. Repeated capture runs expose shared-machine variability. Neither rate includes downstream training.}\label{tab:pipeline-throughput}\end{table}
-Capture run 1 excludes 4 warm-up rooms; setup took 2.14 s and the first room took 9.97 s. The measured stream delivered 2.02 views/s; capture spans occupied 99.58\% of stream wall time. These spans overlap future-room work. Main-world installation records deferred ECS commands and asset insertion, not their later execution or upload.
-
-Capture run 2 excludes 4 warm-up rooms; setup took 1.66 s and the first room took 9.01 s. The measured stream delivered 2.01 views/s; capture spans occupied 99.59\% of stream wall time. These spans overlap future-room work. Main-world installation records deferred ECS commands and asset insertion, not their later execution or upload.
+Capture run 1 excludes 1 warm-up rooms; setup took 0.75 s and the first room took 5.98 s. The measured stream delivered 3.21 views/s; capture spans occupied 99.81\% of stream wall time. These spans overlap future-room work. Main-world installation records deferred ECS commands and asset insertion, not their later execution or upload.
 
 \subsection{Hot spots and next optimization targets}
-The largest measured preparation windows are Materials / transport / meshes, HDR reflection environment and Geometry assemblies (Figure~\ref{fig:pipeline-profile}). They are observations of this workload, not universal cost ratios.
-Within the parallel asset window, mean material preparation is 993.5 ms, geometry transport construction is 790.9 ms, and mesh/tangent realization is 707.9 ms. Only ordered triangle emission precedes meshes; tree construction and mesh/tangent realization then overlap each other and material work. Geometry builder service times are separately retained by architecture, object and person categories; their sums are not a CPU-utilization measurement.
+The largest measured preparation windows are Materials / transport / meshes, HDR reflection environment and Camera paths and overlap (Figure~\ref{fig:pipeline-profile}). They are observations of this workload, not universal cost ratios.
+Within the parallel asset window, mean material preparation is 871.7 ms, geometry transport construction is 927.3 ms, and mesh/tangent realization is 469.6 ms. Only ordered triangle emission precedes meshes; tree construction and mesh/tangent realization then overlap each other and material work. Geometry builder service times are separately retained by architecture, object and person categories; their sums are not a CPU-utilization measurement.
 
-Transport construction records 44.3 ms mean triangle emission, 297.2 ms probe-tree construction and 449.2 ms shadow-tree construction. These disjoint transport stages overlap other branches and are not added to the wall partition. Cached bounds and centroids preserve median splits, equal-distance ties and the original triangle order; temporary compact records are discarded after construction.
+Transport construction records 34.9 ms mean triangle emission, 581.6 ms probe-tree construction and 310.7 ms shadow-tree construction. These disjoint transport stages overlap other branches and are not added to the wall partition. Cached bounds and centroids preserve median splits, equal-distance ties and the original triangle order; temporary compact records are discarded after construction.
 
 Priority candidates are reducing triangle-staging and BVH-construction memory traffic, improving scheduling of the existing parallel transport subtrees, and GPU radiance tracing for reflection environments. Cube faces for all room probes already share immutable light inputs and execute as a bounded batch; convolution runs on the GPU, while CPU ray traversal remains a separate cost. Camera visibility searches need independent rejection/attempt profiling before changing their budget: reducing the search budget can bias the camera distribution. Geometry assembly is separately measured, so finer-grained person/architecture scheduling should be pursued only when it is on the critical path. Any move of map or reflection work to the GPU must retain deterministic inputs, normal/roughness mip correctness, annotation alignment and measured completed capture throughput while training competes for the device. Pool expansion can increase contention; more workers are not automatically faster. Broad caching keyed only by material category would reduce procedural diversity and is not an acceptable optimization.
 

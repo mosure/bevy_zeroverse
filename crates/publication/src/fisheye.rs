@@ -340,7 +340,11 @@ fn compile(output: &Path, name: &str) -> Result<()> {
     let log = fs::read_to_string(output.join(format!("{name}.log")))?;
     ensure!(
         !log.contains("Overfull ") && !log.contains("undefined references"),
-        "lens paper layout or reference error"
+        "lens paper layout or reference error:\n{}",
+        log.lines()
+            .filter(|line| line.contains("Overfull ") || line.contains("undefined references"))
+            .collect::<Vec<_>>()
+            .join("\n")
     );
     for ext in ["aux", "log", "fls", "fdb_latexmk", "out"] {
         let _ = fs::remove_file(output.join(format!("{name}.{ext}")));
@@ -452,11 +456,11 @@ Screen-space effects remain face-local; the guarded color resolve is not a path 
         angular = r["sampling"]["angular"],
         assignments = r["sampling"]["assignments"],
         circular = r["sampling"]["circular"],
-        adapter = crate::paper::tex(
+        adapter = crate::paper::tex(&crate::paper::adapter_label(
             r["adapter"]
                 .as_str()
                 .unwrap_or("adapter not recorded in this legacy receipt")
-        ),
+        )),
         workload = if r["timing"]["concurrent_training"] == true {
             "concurrent training workload"
         } else {

@@ -2,7 +2,7 @@
 \section{Object geometry diversity}
 \label{sec:object-diversity}
 \subsection{Fixed-envelope protocol}
-We evaluate all 100 furnishing/prop categories on 256 consecutive construction seeds each: 25600 triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
+We evaluate all 106 furnishing/prop categories on 256 consecutive construction seeds each: 27136 triangle assemblies. Each category holds its metric placement envelope, orientation and finish seed fixed. This isolates internal construction from changes in object size, pose or color; it deliberately does not measure the full joint scene distribution. The cable fixture varies a controlled centerline; actual endpoint connectivity and collision are separate room-level checks. Humans and architecture are evaluated elsewhere.
 
 For each mesh, six orthographic first-surface depth maps sample pixel centers at $24\times24$ resolution per direction. Depth is normalized by the fixed envelope extent. Pair distance is mean absolute depth difference over the union of hit pixels; missing-versus-present surface contributes one. Greedy coverage retains a sample only when its distance to every earlier representative exceeds the threshold. We report thresholds 0.005, 0.015 and 0.030, and retain seed order. These are finite-resolution, order-dependent coverage counts, not numbers of independent geometries, perceptual embedding volume, or a proof of a multiplicative increase in dataset utility. Thin features and content on nearly planar surfaces can be under-resolved; saturated categories need more samples or a finer descriptor.
 
@@ -18,106 +18,112 @@ Six examples per category are selected by deterministic farthest-spread sampling
 \endfirsthead
 \toprule Category & $C_{.005}$ & $C_{.015}$ & $C_{.030}$ & Triangles & ms \\\midrule
 \endhead
-Table & 255 & 246 & 225 & 2272 & 0.095 \\
-Desk & 255 & 246 & 219 & 2184 & 0.079 \\
-Chair & 255 & 252 & 241 & 4444 & 0.118 \\
-Sofa & 256 & 252 & 176 & 11552 & 0.400 \\
-CoffeeTable & 256 & 255 & 236 & 2200 & 0.062 \\
-Cabinet & 135 & 74 & 32 & 1888 & 0.068 \\
-Bookcase & 256 & 251 & 163 & 9576 & 0.276 \\
-Plant & 256 & 256 & 256 & 5240 & 0.213 \\
-TrashCan & 219 & 138 & 54 & 1452 & 0.031 \\
-Whiteboard & 51 & 26 & 9 & 646 & 0.028 \\
-Display & 91 & 47 & 34 & 132 & 0.006 \\
-Laptop & 252 & 200 & 122 & 8012 & 0.255 \\
-Monitor & 256 & 255 & 250 & 668 & 0.030 \\
-Notebook & 124 & 76 & 32 & 626 & 0.023 \\
-Mug & 212 & 97 & 36 & 1284 & 0.032 \\
-Books & 256 & 232 & 137 & 2160 & 0.045 \\
-Rug & 167 & 66 & 30 & 768 & 0.028 \\
-WallArt & 15 & 3 & 2 & 542 & 0.013 \\
-Clock & 159 & 58 & 9 & 5560 & 0.232 \\
-FloorLamp & 256 & 256 & 256 & 3232 & 0.083 \\
-Keyboard & 252 & 235 & 150 & 7020 & 0.217 \\
-Mouse & 251 & 210 & 115 & 1040 & 0.060 \\
-WaterBottle & 160 & 67 & 22 & 3104 & 0.065 \\
-PenHolder & 256 & 256 & 256 & 752 & 0.033 \\
-Printer & 171 & 49 & 15 & 776 & 0.034 \\
-StorageBox & 188 & 55 & 18 & 452 & 0.034 \\
-CoatRack & 233 & 205 & 159 & 3280 & 0.075 \\
-Bag & 246 & 120 & 33 & 736 & 0.041 \\
-CoffeeCup & 112 & 65 & 30 & 956 & 0.038 \\
-SodaCan & 11 & 2 & 1 & 1752 & 0.045 \\
-Notepad & 43 & 23 & 10 & 240 & 0.044 \\
-Pencil & 59 & 21 & 9 & 116 & 0.008 \\
-Microphone & 168 & 152 & 103 & 1076 & 0.023 \\
-Phone & 66 & 20 & 13 & 200 & 0.008 \\
-WallOutlet & 14 & 7 & 3 & 1252 & 0.030 \\
-LightSwitch & 31 & 14 & 6 & 724 & 0.029 \\
-SideTable & 256 & 250 & 236 & 2200 & 0.072 \\
-MobileCart & 147 & 92 & 56 & 3348 & 0.092 \\
-DrawerUnit & 13 & 3 & 3 & 1400 & 0.047 \\
-Bench & 23 & 13 & 8 & 1136 & 0.041 \\
-Ottoman & 144 & 73 & 32 & 1840 & 0.062 \\
-RoomDivider & 23 & 17 & 17 & 540 & 0.029 \\
-DeskLamp & 253 & 239 & 219 & 1514 & 0.032 \\
-CoffeeMaker & 129 & 38 & 21 & 1132 & 0.049 \\
-Kettle & 150 & 39 & 14 & 1628 & 0.034 \\
-Speaker & 193 & 82 & 28 & 1232 & 0.060 \\
-Headphones & 250 & 213 & 136 & 2624 & 0.065 \\
-Stapler & 152 & 52 & 18 & 404 & 0.012 \\
-TapeDispenser & 201 & 105 & 44 & 648 & 0.019 \\
-DocumentTray & 34 & 23 & 12 & 2052 & 0.041 \\
-DeskOrganizer & 8 & 8 & 8 & 888 & 0.022 \\
-TissueBox & 256 & 201 & 61 & 1292 & 0.043 \\
-Vase & 252 & 241 & 183 & 384 & 0.010 \\
-Bowl & 218 & 141 & 68 & 384 & 0.014 \\
-DeskFan & 71 & 35 & 18 & 4276 & 0.136 \\
-Projector & 93 & 10 & 2 & 2728 & 0.062 \\
-ProjectionScreen & 18 & 10 & 8 & 514 & 0.013 \\
-PowerStrip & 4 & 2 & 1 & 2052 & 0.044 \\
-Cable & 209 & 188 & 143 & 496 & 0.018 \\
-WallShelf & 34 & 30 & 17 & 700 & 0.018 \\
-NoticeBoard & 2 & 1 & 1 & 7032 & 0.171 \\
-WallSconce & 235 & 174 & 103 & 344 & 0.041 \\
-CeilingPendant & 248 & 222 & 194 & 1928 & 0.050 \\
-FloorOutlet & 73 & 72 & 31 & 668 & 0.018 \\
-KitchenCounter & 147 & 87 & 50 & 4728 & 0.097 \\
-KitchenSink & 188 & 111 & 64 & 7240 & 0.171 \\
-KitchenCupboard & 254 & 232 & 163 & 7352 & 0.220 \\
-Pantry & 115 & 63 & 40 & 4032 & 0.086 \\
-Cooktop & 36 & 14 & 11 & 1836 & 0.053 \\
-Range & 143 & 81 & 47 & 6268 & 0.230 \\
-Oven & 154 & 98 & 62 & 4184 & 0.177 \\
-Microwave & 151 & 100 & 67 & 2400 & 0.079 \\
-Dishwasher & 89 & 47 & 24 & 5952 & 0.124 \\
-Refrigerator & 115 & 71 & 42 & 3904 & 0.085 \\
-DryingRack & 83 & 35 & 13 & 1884 & 0.042 \\
-SoapDispenser & 3 & 2 & 2 & 692 & 0.018 \\
-Sponge & 4 & 1 & 1 & 216 & 0.007 \\
-KnifeBlock & 10 & 4 & 4 & 1080 & 0.037 \\
-UtensilHolder & 171 & 77 & 33 & 1468 & 0.043 \\
-PaperTowel & 105 & 43 & 19 & 760 & 0.020 \\
-KitchenTowel & 1 & 1 & 1 & 432 & 0.010 \\
-Dishware & 137 & 86 & 51 & 240 & 0.007 \\
-CuttingBoard & 1 & 1 & 1 & 324 & 0.012 \\
-FruitBowl & 227 & 155 & 88 & 2920 & 0.094 \\
-Bread & 1 & 1 & 1 & 490 & 0.086 \\
-Elevator & 8 & 5 & 3 & 3076 & 0.084 \\
-ServiceCounter & 1 & 1 & 1 & 972 & 0.024 \\
-DisplayCase & 1 & 1 & 1 & 5250 & 0.253 \\
-TrayReturn & 4 & 2 & 1 & 1404 & 0.031 \\
-DrinkDispenser & 1 & 1 & 1 & 752 & 0.021 \\
-QueueBarrier & 19 & 6 & 3 & 1280 & 0.047 \\
-Lectern & 1 & 1 & 1 & 836 & 0.023 \\
-Locker & 28 & 16 & 7 & 5940 & 0.163 \\
-TeachingBoard & 1 & 1 & 1 & 2568 & 0.070 \\
-ExhibitPlinth & 1 & 1 & 1 & 324 & 0.010 \\
-Sculpture & 117 & 56 & 32 & 3148 & 0.068 \\
-InformationStand & 1 & 1 & 1 & 308 & 0.009 \\
-ExhibitionPanel & 1 & 1 & 1 & 1408 & 0.043 \\
-ExtractionHood & 1 & 1 & 1 & 384 & 0.012 \\
-Banquette & 2 & 1 & 1 & 756 & 0.018 \\
+Table & 256 & 256 & 253 & 2200 & 0.150 \\
+Desk & 255 & 253 & 234 & 2184 & 0.151 \\
+Chair & 256 & 255 & 254 & 4976 & 0.335 \\
+Sofa & 256 & 256 & 254 & 12208 & 0.964 \\
+CoffeeTable & 256 & 255 & 254 & 2200 & 0.141 \\
+Cabinet & 135 & 74 & 32 & 1888 & 0.099 \\
+Bookcase & 256 & 253 & 226 & 16652 & 1.101 \\
+Plant & 256 & 256 & 256 & 6264 & 0.351 \\
+TrashCan & 219 & 138 & 54 & 1452 & 0.084 \\
+Whiteboard & 51 & 30 & 10 & 646 & 0.042 \\
+Display & 141 & 73 & 62 & 132 & 0.012 \\
+Laptop & 252 & 200 & 122 & 8012 & 0.329 \\
+Monitor & 256 & 256 & 255 & 668 & 0.051 \\
+Notebook & 125 & 76 & 32 & 626 & 0.046 \\
+Mug & 256 & 256 & 256 & 2756 & 0.128 \\
+Books & 256 & 231 & 134 & 2160 & 0.102 \\
+Rug & 167 & 66 & 30 & 768 & 0.050 \\
+WallArt & 51 & 11 & 5 & 542 & 0.033 \\
+Clock & 159 & 58 & 9 & 5560 & 0.280 \\
+FloorLamp & 256 & 256 & 256 & 3232 & 0.141 \\
+Keyboard & 252 & 235 & 150 & 7020 & 0.315 \\
+Mouse & 251 & 210 & 115 & 1040 & 0.124 \\
+WaterBottle & 256 & 227 & 139 & 4128 & 0.276 \\
+PenHolder & 256 & 256 & 256 & 752 & 0.046 \\
+Printer & 171 & 49 & 15 & 776 & 0.069 \\
+StorageBox & 188 & 55 & 18 & 452 & 0.052 \\
+CoatRack & 233 & 205 & 159 & 3280 & 0.118 \\
+Bag & 256 & 250 & 222 & 1564 & 0.211 \\
+CoffeeCup & 247 & 187 & 106 & 2896 & 0.141 \\
+SodaCan & 11 & 2 & 1 & 1752 & 0.079 \\
+Notepad & 43 & 23 & 10 & 240 & 0.020 \\
+Pencil & 59 & 21 & 9 & 116 & 0.012 \\
+Microphone & 168 & 152 & 103 & 1076 & 0.050 \\
+Phone & 161 & 65 & 27 & 680 & 0.146 \\
+WallOutlet & 14 & 7 & 3 & 1252 & 0.069 \\
+LightSwitch & 31 & 14 & 6 & 724 & 0.039 \\
+SideTable & 256 & 256 & 252 & 2200 & 0.147 \\
+MobileCart & 147 & 92 & 56 & 3348 & 0.113 \\
+DrawerUnit & 121 & 42 & 10 & 2344 & 0.140 \\
+Bench & 23 & 13 & 8 & 1136 & 0.070 \\
+Ottoman & 144 & 73 & 32 & 1840 & 0.125 \\
+RoomDivider & 23 & 17 & 17 & 540 & 0.056 \\
+DeskLamp & 256 & 256 & 256 & 1514 & 0.077 \\
+CoffeeMaker & 196 & 127 & 40 & 1312 & 0.147 \\
+Kettle & 150 & 39 & 14 & 1628 & 0.057 \\
+Speaker & 193 & 82 & 28 & 1232 & 0.092 \\
+Headphones & 250 & 213 & 136 & 2624 & 0.144 \\
+Stapler & 152 & 52 & 18 & 404 & 0.027 \\
+TapeDispenser & 201 & 105 & 44 & 648 & 0.036 \\
+DocumentTray & 34 & 23 & 12 & 2052 & 0.088 \\
+DeskOrganizer & 8 & 8 & 8 & 888 & 0.052 \\
+TissueBox & 256 & 201 & 61 & 1292 & 0.061 \\
+Vase & 256 & 256 & 256 & 2624 & 0.123 \\
+Bowl & 255 & 238 & 164 & 2624 & 0.116 \\
+DeskFan & 71 & 35 & 18 & 4276 & 0.204 \\
+Projector & 93 & 10 & 2 & 2728 & 0.137 \\
+ProjectionScreen & 18 & 10 & 8 & 514 & 0.028 \\
+PowerStrip & 4 & 2 & 1 & 2052 & 0.100 \\
+Cable & 209 & 188 & 143 & 496 & 0.039 \\
+WallShelf & 34 & 30 & 17 & 700 & 0.037 \\
+NoticeBoard & 2 & 1 & 1 & 3884 & 0.218 \\
+WallSconce & 235 & 174 & 103 & 344 & 0.053 \\
+CeilingPendant & 248 & 222 & 194 & 1928 & 0.113 \\
+FloorOutlet & 73 & 72 & 31 & 668 & 0.043 \\
+KitchenCounter & 150 & 77 & 47 & 4004 & 0.208 \\
+KitchenSink & 187 & 111 & 64 & 6768 & 0.406 \\
+KitchenCupboard & 253 & 230 & 160 & 5760 & 0.339 \\
+Pantry & 139 & 66 & 43 & 4028 & 0.234 \\
+Cooktop & 36 & 14 & 11 & 1836 & 0.185 \\
+Range & 144 & 85 & 49 & 5696 & 0.385 \\
+Oven & 154 & 99 & 62 & 3912 & 0.193 \\
+Microwave & 148 & 99 & 67 & 2400 & 0.133 \\
+Dishwasher & 89 & 47 & 25 & 5920 & 0.261 \\
+Refrigerator & 118 & 75 & 43 & 4164 & 0.226 \\
+DryingRack & 227 & 165 & 84 & 1884 & 0.094 \\
+SoapDispenser & 6 & 3 & 2 & 692 & 0.032 \\
+Sponge & 28 & 4 & 2 & 216 & 0.016 \\
+KnifeBlock & 14 & 4 & 4 & 1080 & 0.065 \\
+UtensilHolder & 172 & 78 & 31 & 1468 & 0.068 \\
+PaperTowel & 168 & 100 & 61 & 760 & 0.038 \\
+KitchenTowel & 1 & 1 & 1 & 432 & 0.022 \\
+Dishware & 66 & 43 & 36 & 240 & 0.018 \\
+CuttingBoard & 4 & 2 & 1 & 324 & 0.021 \\
+FruitBowl & 248 & 224 & 166 & 2920 & 0.160 \\
+Bread & 1 & 1 & 1 & 490 & 0.087 \\
+Elevator & 105 & 27 & 7 & 4120 & 0.220 \\
+ServiceCounter & 243 & 171 & 116 & 1184 & 0.065 \\
+DisplayCase & 137 & 110 & 72 & 7472 & 0.611 \\
+TrayReturn & 256 & 230 & 151 & 2364 & 0.134 \\
+DrinkDispenser & 176 & 103 & 40 & 2336 & 0.120 \\
+QueueBarrier & 254 & 247 & 240 & 1644 & 0.093 \\
+Lectern & 241 & 213 & 177 & 988 & 0.052 \\
+Locker & 248 & 213 & 143 & 5472 & 0.320 \\
+TeachingBoard & 256 & 255 & 252 & 2568 & 0.103 \\
+ExhibitPlinth & 116 & 87 & 76 & 432 & 0.053 \\
+Sculpture & 256 & 256 & 256 & 836 & 0.051 \\
+InformationStand & 256 & 256 & 256 & 486 & 0.033 \\
+ExhibitionPanel & 256 & 256 & 256 & 3194 & 0.279 \\
+ExtractionHood & 256 & 253 & 240 & 784 & 0.090 \\
+Banquette & 256 & 231 & 133 & 4324 & 0.278 \\
+CeilingFan & 256 & 256 & 255 & 2464 & 0.125 \\
+ExitSign & 1 & 1 & 1 & 808 & 0.038 \\
+FireAlarm & 96 & 21 & 8 & 1374 & 0.086 \\
+StringLights & 256 & 256 & 256 & 6076 & 0.244 \\
+FireDetector & 7 & 3 & 2 & 1000 & 0.048 \\
+FirePullStation & 10 & 4 & 3 & 1166 & 0.057 \\
 \bottomrule
 \end{longtable}
 \normalsize
@@ -141,14 +147,14 @@ Banquette & 2 & 1 & 1 & 756 & 0.018 \\
 \centering\includegraphics[width=\linewidth]{generated/object_parameter_grid.png}
 \smallskip
 \small\begin{tabular}{lrrrrrr}\toprule
-Construction seed & 0 & 138 & 199 & 182 & 171 & 101 \\
+Construction seed & 0 & 80 & 185 & 37 & 67 & 209 \\
 \midrule
-Shade height (m) & 0.248 & 0.238 & 0.324 & 0.224 & 0.315 & 0.254 \\
-Radius / envelope width & 0.402 & 0.434 & 0.372 & 0.313 & 0.429 & 0.401 \\
-Upper / lower radius & 0.993 & 0.656 & 0.768 & 0.623 & 0.980 & 0.855 \\
-Stem offset / width & 0.053 & -0.067 & 0.071 & 0.047 & -0.080 & 0.090 \\
-Shade sides & 32 & 32 & 32 & 32 & 6 & 32 \\
-Support code & 3 & 1 & 2 & 1 & 2 & 1 \\
+Shade height (m) & 0.255 & 0.354 & 0.303 & 0.273 & 0.324 & 0.245 \\
+Radius / envelope width & 0.402 & 0.290 & 0.280 & 0.311 & 0.395 & 0.438 \\
+Upper / lower radius & 1.070 & 1.093 & 0.626 & 0.542 & 0.434 & 0.846 \\
+Stem offset / width & 0.063 & -0.112 & 0.047 & 0.101 & -0.064 & 0.059 \\
+Shade sides & 32 & 32 & 32 & 32 & 7 & 32 \\
+Support code & 3 & 1 & 2 & 1 & 1 & 1 \\
 \bottomrule\end{tabular}\normalsize
 \caption{A construction parameter grid with values taken from the pictured meshes. Each lamp occupies the same $0.55\times1.65\times0.55$ m reserved envelope. Support code 0 is a disk and stem, 1 a wooden tripod, and 2 four metal legs. A 32-sided shade approximates a circular section; smaller counts produce polygonal shades. Stem offset and shade radius are jointly bounded by the reserved envelope. The bulb and light emitter use the same computed position. This grid shows correlated sampled programs, not isolated causal effects.}
 \end{figure}
@@ -163,50 +169,50 @@ The following inventory lists the sampled construction inputs recorded by each b
 \toprule Category & Recorded controls \\\midrule
 \endhead
 
-Table & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
-Desk & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
-Chair & arm\_ height, arm\_ pad\_ length, arm\_ pad\_ roundness, arm\_ pad\_ width\_ m, arm\_ support, armrests, back\_ construction, back\_ width\_ fraction, base\_ radius\_ fraction, curvature, frame\_ bend\_ m, headrest, headrest\_ curvature\_ m, headrest\_ height\_ m, headrest\_ width\_ fraction, leg\_ splay, lumbar, mesh\_ pitch\_ m, recline, seat\_ crown, seat\_ depth\_ fraction, seat\_ dish\_ m, seat\_ roundness, seat\_ width\_ fraction, shell\_ thickness, shoulder\_ flare, spindle\_ pitch, spoke\_ count, taper \\
-Sofa & arm\_ crown, arm\_ rise\_ m, arm\_ roundness, arm\_ width, back\_ tilt, chaise, cushion, cushion\_ crown, cushion\_ dish\_ m, cushion\_ gap\_ m, exposed\_ frame, left\_ return, leg\_ height, module\_ asymmetry, modules, pillow\_ roll, pillow\_ width\_ m, pillows, roundness, seam\_ radius\_ m, seat\_ height, upholstery \\
-CoffeeTable & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Table & bay\_ rake, bay\_ style, bay\_ width, beam\_ depth, boat\_ blend, boat\_ end\_ width, boat\_ shoulder, capsule\_ blend, edge\_ bevel, end\_ overhang, frame\_ bend\_ m, frame\_ surface, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ facets, pedestal\_ radius, pedestal\_ shoulder, pedestal\_ waist, polygon\_ blend, polygon\_ phase, polygon\_ rounding, polygon\_ sides, span\_ pitch, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Desk & bay\_ rake, bay\_ style, bay\_ width, beam\_ depth, boat\_ blend, boat\_ end\_ width, boat\_ shoulder, capsule\_ blend, edge\_ bevel, end\_ overhang, frame\_ bend\_ m, frame\_ surface, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ facets, pedestal\_ radius, pedestal\_ shoulder, pedestal\_ waist, polygon\_ blend, polygon\_ phase, polygon\_ rounding, polygon\_ sides, span\_ pitch, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+Chair & arm\_ crown, arm\_ height, arm\_ pad\_ length, arm\_ pad\_ roundness, arm\_ pad\_ width\_ m, arm\_ rise\_ m, arm\_ roundness, arm\_ style, arm\_ support, arm\_ sweep\_ m, arm\_ width, armrests, back\_ aperture, back\_ construction, back\_ division, back\_ style, back\_ surface, back\_ tilt, back\_ waist, back\_ width\_ fraction, base, base\_ radius\_ fraction, base\_ style, casters, chaise, cover, crest\_ rounding, curvature, cushion, cushion\_ crown, cushion\_ dish\_ m, cushion\_ gap\_ m, exposed\_ frame, foot\_ spread, footrest\_ height\_ m, frame, frame\_ bend\_ m, frame\_ surface, front\_ bolster\_ fraction, headrest, headrest\_ curvature\_ m, headrest\_ height\_ m, headrest\_ style, headrest\_ width\_ fraction, left\_ return, leg\_ height, leg\_ splay, legs, lumbar, mesh\_ pitch\_ m, module\_ asymmetry, modules, padding\_ m, phase, pillow\_ roll, pillow\_ width\_ m, pillows, radius\_ fraction, recline, recliner, recliner\_ extension, roundness, seam\_ radius\_ m, seat\_ aspect, seat\_ crown, seat\_ depth\_ fraction, seat\_ dish\_ m, seat\_ height, seat\_ roundness, seat\_ style, seat\_ surface, seat\_ width\_ fraction, shell\_ thickness, shoulder\_ flare, slat\_ pitch\_ m, spindle\_ pitch, spoke\_ arch\_ m, spoke\_ count, taper, upholstery, waterfall\_ drop\_ m \\
+Sofa & arm\_ crown, arm\_ rise\_ m, arm\_ roundness, arm\_ style, arm\_ sweep\_ m, arm\_ width, back\_ division, back\_ style, back\_ tilt, base\_ style, chaise, cushion, cushion\_ crown, cushion\_ dish\_ m, cushion\_ gap\_ m, exposed\_ frame, left\_ return, leg\_ height, module\_ asymmetry, modules, pillow\_ roll, pillow\_ width\_ m, pillows, recliner, recliner\_ extension, roundness, seam\_ radius\_ m, seat\_ height, seat\_ style, upholstery \\
+CoffeeTable & bay\_ rake, bay\_ style, bay\_ width, beam\_ depth, boat\_ blend, boat\_ end\_ width, boat\_ shoulder, capsule\_ blend, edge\_ bevel, end\_ overhang, frame\_ bend\_ m, frame\_ surface, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ facets, pedestal\_ radius, pedestal\_ shoulder, pedestal\_ waist, polygon\_ blend, polygon\_ phase, polygon\_ rounding, polygon\_ sides, span\_ pitch, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
 Cabinet & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, opening\_ radians, panel\_ m \\
-Bookcase & columns, fill, front, handle, levels, metal, open\_ back, open\_ fraction, opening\_ radians, panel\_ m \\
-Plant & branching, crown\_ skew, density, droop, leaf\_ aspect, maturity, phyllotaxis, pot\_ fraction, pot\_ radius, pot\_ taper \\
+Bookcase & bays, closed\_ back, fill, frame, open\_ frame, panel\_ m, shelves \\
+Plant & growth, pot, species \\
 TrashCan & finish, lid, rim\_ width, squareness, taper \\
-Whiteboard & border\_ m, marker\_ count, mounts, tray, tray\_ fraction, tray\_ side \\
-Display & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
+Whiteboard & border\_ m, corner\_ fraction, frame\_ surface, frameless, marker\_ count, mounts, tray, tray\_ fraction, tray\_ side \\
+Display & aspect, bezel\_ m, casing, chin\_ fraction, curvature\_ radius\_ m, lift\_ fraction, mount\_ offset, panel\_ m, stand, stand\_ depth, stand\_ width, tilt\_ radians \\
 Laptop & aspect\_ ratio, bezel\_ m, chassis\_ m, corner\_ m, hinge\_ radians, keyboard\_ columns, keyboard\_ fraction, lid\_ m, port\_ count, speaker\_ grilles, trackpad\_ fraction \\
-Monitor & aspect, bezel\_ m, curvature\_ radius\_ m, lift\_ fraction, panel\_ m, stand, tilt\_ radians \\
+Monitor & aspect, bezel\_ m, casing, chin\_ fraction, curvature\_ radius\_ m, lift\_ fraction, mount\_ offset, panel\_ m, stand, stand\_ depth, stand\_ width, tilt\_ radians \\
 Notebook & binding, cover\_ fraction, opened, page\_ balance, page\_ crown, strap \\
-Mug & fill\_ fraction, style, taper, wall\_ m \\
+Mug & belly\_ fraction, belly\_ height, cup\_ radius\_ fraction, cup\_ sides, empty, fill\_ fraction, handle\_ bottom, handle\_ shape, handle\_ top, heel\_ fraction, lid, neck\_ fraction, rib\_ depth, ribs, shoulder\_ fraction, style, taper, waist, waist\_ height, wall\_ m \\
 Books & binding, cover\_ fraction, size\_ variation, stack\_ yaw, strap, volumes \\
 Rug & clipped\_ corners, rug\_ exponent, rug\_ taper \\
-WallArt & border\_ width, mat\_ width, picture\_ inset, shadow\_ gap, style \\
+WallArt & border\_ width, mat\_ width, outer\_ fraction, picture\_ inset, recess\_ fraction, shadow\_ gap, stepped, style \\
 Clock & bezel\_ fraction, dark\_ dial, digital, second\_ hand, seconds, square \\
-FloorLamp & shade, shade\_ height, shade\_ radius\_ fraction, shade\_ sides, shade\_ taper, stem\_ offset, support \\
+FloorLamp & base\_ fraction, bulb\_ radius, shade, shade\_ height, shade\_ radius\_ fraction, shade\_ sides, shade\_ taper, stem\_ depth, stem\_ offset, stem\_ radius, support \\
 Keyboard & deck\_ fraction, key\_ area\_ fraction, keyboard\_ columns, keyboard\_ rows, keyboard\_ split, row\_ stagger, wrist\_ rest \\
 Mouse & button\_ fraction, mouse\_ crown, mouse\_ roundness, mouse\_ waist, trackball \\
-WaterBottle & fill\_ fraction, neck\_ fraction, shoulder\_ fraction, style \\
+WaterBottle & belly\_ fraction, belly\_ height, cup\_ radius\_ fraction, cup\_ sides, empty, fill\_ fraction, handle\_ bottom, handle\_ shape, handle\_ top, heel\_ fraction, lid, neck\_ fraction, rib\_ depth, ribs, shoulder\_ fraction, style, taper, waist, waist\_ height, wall\_ m \\
 PenHolder & variant \\
 Printer & construction, lid\_ fraction, roundness, split \\
 StorageBox & construction, handle\_ span, lid\_ fraction, roundness, taper \\
 CoatRack & arms, branch\_ height, construction, handle\_ span \\
-Bag & construction, handle\_ span, lid\_ fraction, roundness, taper \\
-CoffeeCup & fill\_ fraction, lid, style, taper, wall\_ m \\
-SodaCan & heel\_ fraction, lid, neck\_ fraction, style \\
+Bag & body\_ height, finish, flap, fullness, handle\_ drop, handle\_ span, pocket\_ depth, pocket\_ height, pocket\_ width, roundness, seam, strap\_ width, style, taper \\
+CoffeeCup & belly\_ fraction, belly\_ height, cup\_ radius\_ fraction, cup\_ sides, empty, fill\_ fraction, handle\_ bottom, handle\_ shape, handle\_ top, heel\_ fraction, lid, neck\_ fraction, rib\_ depth, ribs, shoulder\_ fraction, style, taper, waist, waist\_ height, wall\_ m \\
+SodaCan & belly\_ fraction, belly\_ height, cup\_ radius\_ fraction, cup\_ sides, empty, fill\_ fraction, handle\_ bottom, handle\_ shape, handle\_ top, heel\_ fraction, lid, neck\_ fraction, rib\_ depth, ribs, shoulder\_ fraction, style, taper, waist, waist\_ height, wall\_ m \\
 Notepad & binding, leaf\_ fraction \\
 Pencil & barrel\_ sides, binding, tip\_ fraction \\
 Microphone & microphone\_ bend, microphone\_ head, microphone\_ lateral \\
-Phone & bezel\_ fraction, camera\_ island, case\_ fraction, lens\_ count \\
+Phone & bezel\_ fraction, camera\_ island, case\_ fraction, lens\_ count, phone\_ bottom\_ border, phone\_ controls, phone\_ face\_ up, phone\_ roundness, phone\_ surface, phone\_ top\_ border \\
 WallOutlet & edge\_ radius, finish, gangs, rocker\_ angle, screws, style \\
 LightSwitch & edge\_ radius, finish, gangs, rocker\_ angle, screws, style \\
-SideTable & capsule\_ blend, edge\_ bevel, frame\_ bend\_ m, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ radius, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
+SideTable & bay\_ rake, bay\_ style, bay\_ width, beam\_ depth, boat\_ blend, boat\_ end\_ width, boat\_ shoulder, capsule\_ blend, edge\_ bevel, end\_ overhang, frame\_ bend\_ m, frame\_ surface, leg\_ aspect, leg\_ inset, leg\_ radius, leg\_ rake, leg\_ taper, outline\_ exponent, pedestal\_ base\_ aspect, pedestal\_ base\_ radius, pedestal\_ facets, pedestal\_ radius, pedestal\_ shoulder, pedestal\_ waist, polygon\_ blend, polygon\_ phase, polygon\_ rounding, polygon\_ sides, span\_ pitch, spider\_ sweep, support, taper, top\_ surface, top\_ thickness, trestle\_ spread \\
 MobileCart & feet\_ height, levels \\
 DrawerUnit & drawer\_ bias, drawers, feet\_ height, handle\_ fraction \\
 Bench & backed, roundness, slats \\
 Ottoman & feet\_ height, roundness \\
 RoomDivider & panel\_ fraction, slats \\
-DeskLamp & arm, head, shade \\
-CoffeeMaker & belly, neck, style, taper \\
+DeskLamp & aperture\_ fraction, arm, bar\_ depth, bar\_ width, base\_ depth, base\_ width, elbow\_ height, head, head\_ height, shade \\
+CoffeeMaker & body\_ depth, body\_ width, brewer, controls, corner\_ exponent, finish, head\_ height, shoulder\_ height, thermal\_ carafe, tray\_ fraction, trim \\
 Kettle & belly, style, taper \\
 Speaker & body\_ taper, control\_ fraction, profile\_ roundness, style, support\_ fraction \\
 Headphones & control\_ fraction, profile\_ roundness, support\_ fraction \\
@@ -215,15 +221,15 @@ TapeDispenser & body\_ taper, control\_ fraction, support\_ fraction \\
 DocumentTray & body\_ taper, sections, support\_ fraction \\
 DeskOrganizer & body\_ taper, sections, support\_ fraction \\
 TissueBox & box\_ height, finish, fold, lean, opening, phase \\
-Vase & belly, flutes, neck, style, taper \\
-Bowl & belly, flutes, style, taper \\
+Vase & belly, belly\_ height, finish, flutes, foot, mouth, neck, profile, relief, shoulder\_ height, wall\_ fraction \\
+Bowl & belly, belly\_ height, finish, flutes, foot, mouth, neck, profile, relief, shoulder\_ height, wall\_ fraction \\
 DeskFan & style, support\_ fraction \\
 Projector & corner\_ m, lens\_ fraction, lens\_ offset, vent\_ count \\
 ProjectionScreen & screen\_ drop, screen\_ frame \\
 PowerStrip & corner\_ m, socket\_ count \\
 Cable & variant \\
 WallShelf & bracket\_ style, shelf\_ brackets, shelf\_ span \\
-NoticeBoard & board\_ divider\_ fraction, board\_ frame\_ fraction, note\_ count \\
+NoticeBoard & attachments, divider\_ fraction, frame\_ fraction \\
 WallSconce & diffuser\_ fraction, sconce\_ height, sconce\_ taper, sconce\_ width \\
 CeilingPendant & diffuser\_ fraction, shade\_ fraction \\
 FloorOutlet & lid\_ height\_ fraction, lid\_ width\_ fraction \\
@@ -248,21 +254,27 @@ Dishware & stack\_ count, style \\
 CuttingBoard & size\_ metres \\
 FruitBowl & basket, fruit\_ count \\
 Bread & count \\
-Elevator & bays, finish, opening \\
-ServiceCounter & bays, finish \\
-DisplayCase & bays, contents, finish, shelves \\
-TrayReturn & contents, finish, shelves \\
-DrinkDispenser & opening \\
-QueueBarrier & opening \\
-Lectern & finish \\
-Locker & bays, contents, finish, opening \\
-TeachingBoard & dimensions\_ metres \\
-ExhibitPlinth & finish \\
-Sculpture & bays, curvature, glazed \\
-InformationStand & dimensions\_ metres \\
-ExhibitionPanel & taper \\
-ExtractionHood & dimensions\_ metres \\
-Banquette & bays, finish \\
+Elevator & centered, control\_ height, control\_ side, doors, floor, floor\_ number, indicator\_ side, leaves\_ per\_ side, light\_ depth, light\_ width, lining, lining\_ bays, opening, opening\_ side, portal\_ left, portal\_ right, portal\_ top, rail\_ height, rail\_ sides, recess, surround, threshold \\
+ServiceCounter & bay\_ weights, body\_ depth, body\_ width, finish, footrail, leg\_ width, shelf\_ height, slab\_ thickness, slats, structure, taper, toe\_ height, top \\
+DisplayCase & base\_ fraction, contents, finish, foot\_ span, frame, glazed\_ top, levels, structure, taper, wall\_ fraction \\
+TrayReturn & base\_ fraction, contents, finish, foot\_ span, frame, glazed\_ top, levels, structure, taper, wall\_ fraction \\
+DrinkDispenser & body\_ bottom, construction, fill, finish, neck, shoulder, tank\_ radius, tanks, tap\_ height \\
+QueueBarrier & base, base\_ radius, belt\_ width, construction, frame, post\_ radius, rail, rail\_ height, sag \\
+Lectern & board\_ fraction, desk\_ angle, finish, frame\_ fraction, leaf\_ gap, microphone, panel\_ bottom, panel\_ offset, panels, structure, support, thickness, tray \\
+Locker & accent, bays, body\_ depth\_ m, contents\_ probability, feet\_ m, finish, front, handle, panel\_ m, vent\_ rows \\
+TeachingBoard & board\_ fraction, desk\_ angle, finish, frame\_ fraction, leaf\_ gap, microphone, panel\_ bottom, panel\_ offset, panels, structure, support, thickness, tray \\
+ExhibitPlinth & base\_ fraction, contents, finish, foot\_ span, frame, glazed\_ top, levels, structure, taper, wall\_ fraction \\
+Sculpture & base, base\_ height, base\_ width, bend, breadth, elements, form, phase, surface, taper, thickness, turns \\
+InformationStand & artwork\_ count, base, border\_ fraction, finish, foot\_ width, height\_ fraction, horizontal\_ offset, margins, panel\_ bottom, support, tilt, top\_ gap, width\_ fraction \\
+ExhibitionPanel & artwork\_ count, base, border\_ fraction, finish, foot\_ width, height\_ fraction, horizontal\_ offset, margins, panel\_ bottom, support, tilt, top\_ gap, width\_ fraction \\
+ExtractionHood & canopy\_ fraction, chimney\_ fraction, chimney\_ x, construction, filters, finish, lights, taper \\
+Banquette & back, back\_ divisions, back\_ lean, back\_ thickness\_ m, base, crown, cushion\_ m, frame, leg\_ m, roundness, seat\_ height\_ m, seat\_ weights, setback, upholstery \\
+CeilingFan & blade\_ surface, blade\_ width\_ m, blades, housing\_ surface, hub\_ radius, phase, pitch\_ radians, radius\_ m, rotor\_ top, rotor\_ y, style, sweep\_ m, taper, thickness\_ m \\
+ExitSign & dimensions\_ m, emission, variant \\
+FireAlarm & bevel, finish, grille\_ fraction, lens\_ fraction, slots, style \\
+StringLights & bays, bow, bulbs, colors\_ srgb, drop\_ m, luminance, radius\_ m, sag, shape, skew, spacing\_ jitter, suspended \\
+FireDetector & bevel, finish, grille\_ fraction, lens\_ fraction, slots, style \\
+FirePullStation & bevel, finish, grille\_ fraction, lens\_ fraction, slots, style \\
 \bottomrule
 \end{longtable}
 \normalsize

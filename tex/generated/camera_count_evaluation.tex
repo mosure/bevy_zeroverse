@@ -2,24 +2,24 @@
 \section{Camera-count and baseline audit}
 The current sampler was evaluated on 64 consecutive matched rooms (seeds 0--63), 1--12 cameras and baseline values 0, 0.5 and 1 at aspect ratio 1.60. Geometry, people and appearance were unchanged between requests; complete camera sets were resampled, so different counts are not necessarily nested prefixes. 0 of 2304 requested sets were rejected by the bounded sampler; all failures remain in the downloadable report. Camera-center and optical-axis measurements use 33 synchronized path samples. Reference-edge overlap uses the production 13$\times$9 first-surface proxy at five times, rather than rendered pixels.
 
-At one camera the baseline imposes no pair constraint. Increasing camera count does not increase the minimum nonreference pair separation: the same $0.04+0.46b$ metre threshold applies. Group covariance spread constrains overall anisotropy, not every nearest neighbor. Visible-region target variation samples reference-visible surface patches and ranks feasible candidates for count-aware nearest-peer spacing, optical-axis separation and additional primary-room proxy surface cells. The soft distance scale is room diagonal divided by the square root of camera count. Temporal paths can remain related deformations of an existing route; varied gaze is not independent route topology. There is no explicit 90-degree optical-angle cap.
+At one camera the baseline imposes no pair constraint. The serialized controls and per-count mixed-rig/coherence diagnostics accompany every requested set. Nominal advanced controls describe proposals; admission also accounts for calibrated lens footprints and room clearance. Group covariance spread constrains overall anisotropy, not every nearest neighbor. Visible-region target variation samples reference-visible surface patches and ranks feasible candidates for count-aware nearest-peer spacing, optical-axis separation and additional primary-room proxy surface cells. The soft distance scale is room diagonal divided by the square root of camera count. Temporal paths can remain related deformations of an existing route; varied gaze is not independent route topology. There is no explicit 90-degree optical-angle cap.
 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{rrrrrr}\toprule
 $b$ & Cameras & Accepted & NN (m) & Max angle ($^\circ$) & Targets (m) \\
 \midrule
-0.0 & 2 & 64/64 & 0.21 & 1.9 & 0.03 \\
-0.0 & 4 & 64/64 & 0.14 & 4.0 & 0.04 \\
-0.0 & 8 & 64/64 & 0.11 & 5.5 & 0.06 \\
-0.0 & 12 & 64/64 & 0.09 & 6.5 & 0.06 \\
-0.5 & 2 & 64/64 & 2.01 & 28.1 & 0.21 \\
-0.5 & 4 & 64/64 & 1.35 & 50.4 & 1.25 \\
-0.5 & 8 & 64/64 & 0.99 & 75.0 & 2.43 \\
-0.5 & 12 & 64/64 & 0.83 & 85.4 & 2.92 \\
-1.0 & 2 & 64/64 & 4.05 & 73.0 & 1.64 \\
-1.0 & 4 & 64/64 & 2.60 & 121.9 & 4.47 \\
-1.0 & 8 & 64/64 & 1.42 & 160.3 & 6.05 \\
-1.0 & 12 & 64/64 & 1.13 & 167.1 & 6.60 \\
+0.0 & 2 & 64/64 & 0.18 & 1.3 & 0.03 \\
+0.0 & 4 & 64/64 & 0.15 & 4.2 & 0.05 \\
+0.0 & 8 & 64/64 & 0.11 & 6.2 & 0.06 \\
+0.0 & 12 & 64/64 & 0.09 & 6.9 & 0.06 \\
+0.5 & 2 & 64/64 & 2.09 & 27.2 & 0.33 \\
+0.5 & 4 & 64/64 & 1.43 & 45.6 & 1.63 \\
+0.5 & 8 & 64/64 & 1.05 & 76.3 & 2.25 \\
+0.5 & 12 & 64/64 & 0.85 & 97.7 & 2.79 \\
+1.0 & 2 & 64/64 & 4.32 & 71.9 & 1.87 \\
+1.0 & 4 & 64/64 & 2.69 & 144.7 & 4.94 \\
+1.0 & 8 & 64/64 & 1.41 & 156.0 & 5.73 \\
+1.0 & 12 & 64/64 & 1.19 & 166.6 & 6.42 \\
 \bottomrule\end{tabular}
 \caption{Current matched placement audit. NN is the pooled camera-level initial nearest-neighbor median; angle and target diameter are room-level medians. Failed sets have no placement measurements. These denominators differ from rendered pixel overlap.}\label{tab:camera-counts}
 \end{table}
@@ -42,20 +42,20 @@ The rendered check uses 2 prespecified matched room families, 12 configurations 
 \begin{tabular}{rrrrrr}\toprule
 $b$ & Cameras & Pair (\%) & Any peer (\%) & Min ref. (\%) & Components \\
 \midrule
-0 & 2 & 87.1 & 87.1 & 75.4 & 1 \\
-0 & 4 & 87.0 & 94.2 & 67.7 & 1 \\
-0 & 8 & 85.7 & 98.3 & 67.1 & 1 \\
-0 & 12 & 85.6 & 98.8 & 67.1 & 1 \\
-0.5 & 2 & 66.7 & 66.7 & 40.2 & 1 \\
-0.5 & 4 & 53.3 & 80.1 & 39.1 & 1 \\
-0.5 & 8 & 55.6 & 91.8 & 38.6 & 1 \\
-0.5 & 12 & 55.9 & 94.6 & 37.2 & 1 \\
-1 & 2 & 41.3 & 41.3 & 28.3 & 1 \\
-1 & 4 & 43.8 & 78.8 & 22.8 & 1 \\
-1 & 8 & 40.0 & 88.8 & 18.1 & 1 \\
-1 & 12 & 39.2 & 92.2 & 18.1 & 1 \\
+0.0 & 2 & 84.0 & 84.0 & 75.4 & 1 \\
+0.0 & 4 & 82.3 & 93.0 & 62.3 & 1 \\
+0.0 & 8 & 81.1 & 96.9 & 62.3 & 1 \\
+0.0 & 12 & 80.6 & 98.3 & 59.3 & 1 \\
+0.5 & 2 & 58.3 & 58.3 & 32.6 & 1 \\
+0.5 & 4 & 52.7 & 76.9 & 32.6 & 1 \\
+0.5 & 8 & 54.9 & 91.4 & 32.6 & 1 \\
+0.5 & 12 & 53.6 & 93.7 & 32.6 & 1 \\
+1.0 & 2 & 39.7 & 39.7 & 29.7 & 1 \\
+1.0 & 4 & 46.2 & 74.5 & 26.2 & 1 \\
+1.0 & 8 & 39.5 & 86.1 & 14.7 & 1 \\
+1.0 & 12 & 39.3 & 90.8 & 14.7 & 1 \\
 \bottomrule\end{tabular}
-\caption{Native first-surface co-visibility; glass follows the solid annotation convention. Components is the largest number of connected components when an undirected edge requires at least 5\% shared pixels in both directions. The two room families are the independent units; camera pairs and endpoints are correlated.}\label{tab:camera-count-rendered}\end{table}
+\caption{Native first-surface co-visibility; glass follows the solid annotation convention. Components is the largest number of connected components when an undirected edge requires at least 5\% shared pixels in both directions. Room families are the independent units; camera pairs and endpoints are correlated.}\label{tab:camera-count-rendered}\end{table}
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{generated/camera_count_rendered.png}
 \caption{Measured native visibility and triangulation at increasing camera counts. Any-peer visibility is averaged over source views, other means over directed pairs. More peer views increase any-peer visibility without proving broader unique surface coverage.}\label{fig:camera-count-rendered}\end{figure}
 

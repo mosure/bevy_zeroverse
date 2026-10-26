@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v76;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=47;public_programs=3;kitchens=3;doors=1;multiview=12;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=6;furnishings=5;botany=3;visual_content=3;equipment=8;palette=2;photometry=4;sun_shadow=2;material_compute=3;semantic=7;ceiling=3;floor_details=2;window_treatments=1",
-    "crate_version": "0.44.2",
+    "capture_engine": "capture-v101;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=3;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=9;finishes=15;seating=6;activity=3;playback=2;exterior=5;envelope=6;furnishings=9;botany=3;visual_content=6;equipment=12;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=4;window_treatments=1",
+    "crate_version": "0.59.1",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 51,
+    "generator_version": 77,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_burn": [
-        "0.28.2"
+        "0.43.1"
       ],
       "bevy_zeroverse_capture": [
-        "0.4.1"
+        "0.6.12"
       ],
       "bevy_zeroverse_ffi": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_publication": [
-        "0.5.1"
+        "0.9.0"
       ],
       "burn": [
         "0.22.0"
@@ -920,19 +920,73 @@
           94,
           226
         ]
+      },
+      {
+        "id": 97,
+        "label": "ceiling_fan",
+        "srgb8": [
+          92,
+          164,
+          211
+        ]
+      },
+      {
+        "id": 98,
+        "label": "exit_sign",
+        "srgb8": [
+          48,
+          218,
+          173
+        ]
+      },
+      {
+        "id": 99,
+        "label": "fire_alarm",
+        "srgb8": [
+          241,
+          67,
+          82
+        ]
+      },
+      {
+        "id": 100,
+        "label": "string_lights",
+        "srgb8": [
+          240,
+          205,
+          88
+        ]
+      },
+      {
+        "id": 101,
+        "label": "fire_detector",
+        "srgb8": [
+          179,
+          219,
+          237
+        ]
+      },
+      {
+        "id": 102,
+        "label": "fire_pull_station",
+        "srgb8": [
+          208,
+          86,
+          141
+        ]
       }
     ],
-    "semantic_taxonomy_version": 7,
-    "source_sha256": "3c21395218bb18c4548984893940d8b6262bd471f37875a93b4b0ad7066f7207",
+    "semantic_taxonomy_version": 10,
+    "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596",
     "target": "x86_64-unknown-linux-gnu"
   },
   "categories": [
     {
-      "elapsed_seconds": 9.722262741,
+      "elapsed_seconds": 9.45217131,
       "kind": "HingedDoor",
       "selected": [
         {
-          "build_ms": 21.323164,
+          "build_ms": 0.899128,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -970,7 +1024,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.048239,
+          "build_ms": 0.058244,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1008,7 +1062,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.035387,
+          "build_ms": 0.07521000000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1046,7 +1100,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.17604799999999998,
+          "build_ms": 0.257506,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1084,7 +1138,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.210169,
+          "build_ms": 0.247371,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1122,7 +1176,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.046277,
+          "build_ms": 0.083885,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1207,11 +1261,11 @@
       ]
     },
     {
-      "elapsed_seconds": 1.16236336,
+      "elapsed_seconds": 1.37746511,
       "kind": "PairedDoor",
       "selected": [
         {
-          "build_ms": 0.191917,
+          "build_ms": 0.218726,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1249,7 +1303,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.050335,
+          "build_ms": 0.093578,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1287,7 +1341,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.063866,
+          "build_ms": 0.117817,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1325,7 +1379,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.360139,
+          "build_ms": 0.50383,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1363,7 +1417,7 @@
           "seed": 7
         },
         {
-          "build_ms": 1.26064,
+          "build_ms": 0.497334,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1401,7 +1455,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.089977,
+          "build_ms": 0.15055400000000002,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1486,11 +1540,11 @@
       ]
     },
     {
-      "elapsed_seconds": 1.099087792,
+      "elapsed_seconds": 1.38386717,
       "kind": "SlidingDoor",
       "selected": [
         {
-          "build_ms": 0.050251,
+          "build_ms": 0.076895,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1528,7 +1582,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.035792,
+          "build_ms": 0.054896,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1566,7 +1620,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.036151,
+          "build_ms": 0.057262999999999994,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1604,7 +1658,7 @@
           "seed": 3
         },
         {
-          "build_ms": 3.046495,
+          "build_ms": 0.26232099999999997,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1642,7 +1696,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.172832,
+          "build_ms": 0.232065,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1680,7 +1734,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.049265,
+          "build_ms": 0.07263,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -1765,11 +1819,11 @@
       ]
     },
     {
-      "elapsed_seconds": 0.889227424,
+      "elapsed_seconds": 1.264110975,
       "kind": "TelescopingDoor",
       "selected": [
         {
-          "build_ms": 0.087828,
+          "build_ms": 0.137823,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1807,7 +1861,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.040639,
+          "build_ms": 0.083896,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1845,7 +1899,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.038391,
+          "build_ms": 0.087794,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1883,7 +1937,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.28428200000000003,
+          "build_ms": 0.506561,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1921,7 +1975,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.33218499999999995,
+          "build_ms": 0.463436,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -1959,7 +2013,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.073732,
+          "build_ms": 0.119863,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2044,11 +2098,11 @@
       ]
     },
     {
-      "elapsed_seconds": 1.595710982,
+      "elapsed_seconds": 1.855439402,
       "kind": "RevolvingDoor",
       "selected": [
         {
-          "build_ms": 2.782559,
+          "build_ms": 1.627641,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2086,7 +2140,7 @@
           "seed": 0
         },
         {
-          "build_ms": 1.147044,
+          "build_ms": 1.218407,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2124,7 +2178,7 @@
           "seed": 3
         },
         {
-          "build_ms": 1.134213,
+          "build_ms": 1.273019,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2162,7 +2216,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.749194,
+          "build_ms": 1.280239,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2200,7 +2254,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.884928,
+          "build_ms": 1.179823,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2238,7 +2292,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.695735,
+          "build_ms": 1.117103,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2323,11 +2377,11 @@
       ]
     },
     {
-      "elapsed_seconds": 1.283742718,
+      "elapsed_seconds": 1.217639294,
       "kind": "Cabinet",
       "selected": [
         {
-          "build_ms": 17.494667,
+          "build_ms": 0.495014,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -2349,7 +2403,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.053583,
+          "build_ms": 0.046653999999999994,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2371,7 +2425,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.08462499999999999,
+          "build_ms": 0.080128,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2393,7 +2447,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.057194,
+          "build_ms": 0.088908,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2415,7 +2469,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.088903,
+          "build_ms": 0.125775,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
@@ -2437,7 +2491,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.034712,
+          "build_ms": 0.054863,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -2502,16 +2556,16 @@
       ]
     },
     {
-      "elapsed_seconds": 0.852795452,
+      "elapsed_seconds": 1.191591358,
       "kind": "KitchenCounter",
       "selected": [
         {
-          "build_ms": 2.114581,
+          "build_ms": 0.255863,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5808
+            "triangles": 4216
           },
           "program": {
             "counter_doors": true,
@@ -2529,12 +2583,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.26165900000000003,
+          "build_ms": 0.26017999999999997,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7216
+            "triangles": 5636
           },
           "program": {
             "counter_doors": true,
@@ -2552,12 +2606,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.070913,
+          "build_ms": 0.08609599999999999,
           "mesh": {
-            "batches": 3,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2376
+            "triangles": 1620
           },
           "program": {
             "counter_doors": false,
@@ -2575,12 +2629,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.21229,
+          "build_ms": 0.363236,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5732
+            "triangles": 8660
           },
           "program": {
             "counter_doors": true,
@@ -2598,12 +2652,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.105387,
+          "build_ms": 0.10318,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2052
+            "triangles": 2308
           },
           "program": {
             "counter_doors": false,
@@ -2621,12 +2675,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.41529,
+          "build_ms": 0.35717099999999996,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10140
+            "triangles": 9208
           },
           "program": {
             "counter_doors": true,
@@ -2648,31 +2702,31 @@
       "semantic_pixel_counts": [
         {
           "background": 1600,
-          "cabinet": 33877,
+          "cabinet": 34291,
           "counter": 5930,
-          "dishware": 433,
-          "floor": 60560
+          "dishware": 13,
+          "floor": 60566
         },
         {
           "background": 1600,
-          "cabinet": 26188,
+          "cabinet": 27510,
           "cabinet_hardware": 126,
           "counter": 4182,
-          "dishware": 2237,
-          "floor": 68067
+          "dishware": 946,
+          "floor": 68036
         },
         {
           "background": 1600,
-          "cabinet": 38642,
+          "cabinet": 38656,
           "counter": 5992,
-          "floor": 56166
+          "floor": 56152
         },
         {
           "background": 1600,
-          "cabinet": 30462,
+          "cabinet": 30906,
           "cabinet_hardware": 65,
           "counter": 3967,
-          "dishware": 1830,
+          "dishware": 1386,
           "floor": 64476
         },
         {
@@ -2684,25 +2738,24 @@
         },
         {
           "background": 1558,
-          "cabinet": 40281,
-          "cabinet_hardware": 30,
+          "cabinet": 40358,
+          "cabinet_hardware": 31,
           "counter": 6324,
-          "dishware": 83,
-          "floor": 54124
+          "floor": 54129
         }
       ]
     },
     {
-      "elapsed_seconds": 1.253013066,
+      "elapsed_seconds": 1.017896392,
       "kind": "KitchenCupboard",
       "selected": [
         {
-          "build_ms": 0.243339,
+          "build_ms": 0.21931,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6672
+            "triangles": 4928
           },
           "program": {
             "cabinet_motion": 1,
@@ -2723,12 +2776,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.314048,
+          "build_ms": 0.215921,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8672
+            "triangles": 4552
           },
           "program": {
             "cabinet_motion": 0,
@@ -2749,12 +2802,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.187728,
+          "build_ms": 0.261938,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7332
+            "triangles": 6228
           },
           "program": {
             "cabinet_motion": 2,
@@ -2775,12 +2828,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.32929600000000003,
+          "build_ms": 0.402785,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7112
+            "triangles": 8504
           },
           "program": {
             "cabinet_motion": 2,
@@ -2801,12 +2854,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.180327,
+          "build_ms": 0.216639,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6056
+            "triangles": 4568
           },
           "program": {
             "cabinet_motion": 0,
@@ -2827,12 +2880,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.300069,
+          "build_ms": 0.5058509999999999,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10536
+            "triangles": 11024
           },
           "program": {
             "cabinet_motion": 0,
@@ -2857,63 +2910,62 @@
       "semantic_pixel_counts": [
         {
           "background": 2219,
-          "cabinet": 20453,
+          "cabinet": 20819,
           "counter": 2578,
-          "dishware": 496,
+          "dishware": 130,
           "floor": 76654
         },
         {
           "background": 2157,
-          "cabinet": 16133,
+          "cabinet": 16443,
           "cabinet_hardware": 64,
           "counter": 2000,
-          "dishware": 588,
-          "floor": 81458
+          "dishware": 281,
+          "floor": 81455
         },
         {
           "background": 2271,
-          "cabinet": 17568,
+          "cabinet": 18155,
           "counter": 2313,
-          "dishware": 1443,
+          "dishware": 856,
           "floor": 78805
         },
         {
           "background": 2220,
-          "cabinet": 16139,
+          "cabinet": 16571,
           "cabinet_hardware": 26,
           "counter": 1725,
-          "dishware": 940,
+          "dishware": 508,
           "floor": 81350
         },
         {
           "background": 2267,
-          "cabinet": 17040,
+          "cabinet": 17053,
           "cabinet_hardware": 58,
           "counter": 1930,
-          "dishware": 13,
           "floor": 81092
         },
         {
           "background": 2238,
-          "cabinet": 19559,
-          "cabinet_hardware": 12,
+          "cabinet": 19557,
+          "cabinet_hardware": 11,
           "counter": 2378,
-          "dishware": 20,
+          "dishware": 23,
           "floor": 78193
         }
       ]
     },
     {
-      "elapsed_seconds": 1.243696209,
+      "elapsed_seconds": 0.932528124,
       "kind": "Pantry",
       "selected": [
         {
-          "build_ms": 0.387265,
+          "build_ms": 0.261606,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3404
+            "triangles": 6052
           },
           "program": {
             "cabinet_motion": 1,
@@ -2934,12 +2986,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.669641,
+          "build_ms": 0.237391,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5248
+            "triangles": 4992
           },
           "program": {
             "cabinet_motion": 0,
@@ -2960,12 +3012,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.202876,
+          "build_ms": 0.206959,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3768
+            "triangles": 4612
           },
           "program": {
             "cabinet_motion": 2,
@@ -2986,12 +3038,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.480029,
+          "build_ms": 0.278872,
           "mesh": {
-            "batches": 9,
+            "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4140
+            "triangles": 5916
           },
           "program": {
             "cabinet_motion": 2,
@@ -3012,12 +3064,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.473016,
+          "build_ms": 0.145465,
           "mesh": {
-            "batches": 10,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4124
+            "triangles": 3160
           },
           "program": {
             "cabinet_motion": 0,
@@ -3038,12 +3090,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.166893,
+          "build_ms": 0.276567,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 5224
+            "triangles": 5924
           },
           "program": {
             "cabinet_motion": 0,
@@ -3068,63 +3120,60 @@
       "semantic_pixel_counts": [
         {
           "background": 2199,
-          "cabinet": 21577,
-          "dishware": 59,
-          "floor": 78032,
-          "food": 533
+          "cabinet": 22168,
+          "dishware": 1,
+          "floor": 78032
         },
         {
           "background": 2140,
-          "cabinet": 17215,
+          "cabinet": 17654,
           "cabinet_hardware": 36,
-          "dishware": 446,
+          "dishware": 128,
           "floor": 81760,
-          "food": 803
+          "food": 682
         },
         {
           "background": 2253,
-          "cabinet": 18631,
-          "dishware": 484,
+          "cabinet": 19429,
+          "dishware": 370,
           "floor": 79447,
-          "food": 1585
+          "food": 901
         },
         {
           "background": 2204,
-          "cabinet": 19110,
+          "cabinet": 18752,
           "cabinet_hardware": 20,
-          "dishware": 154,
+          "dishware": 59,
           "floor": 80332,
-          "food": 580
+          "food": 1033
         },
         {
           "background": 2251,
-          "cabinet": 18273,
+          "cabinet": 18304,
           "cabinet_hardware": 34,
-          "dishware": 19,
-          "floor": 81804,
-          "food": 19
+          "dishware": 7,
+          "floor": 81804
         },
         {
           "background": 2220,
-          "cabinet": 20332,
-          "cabinet_hardware": 6,
-          "dishware": 32,
-          "floor": 79759,
-          "food": 51
+          "cabinet": 20404,
+          "cabinet_hardware": 5,
+          "floor": 79760,
+          "food": 11
         }
       ]
     },
     {
-      "elapsed_seconds": 1.136849035,
+      "elapsed_seconds": 1.668107348,
       "kind": "KitchenSink",
       "selected": [
         {
-          "build_ms": 0.111053,
+          "build_ms": 0.310839,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4360
+            "triangles": 4208
           },
           "program": {
             "basins": 1,
@@ -3145,12 +3194,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.135303,
+          "build_ms": 0.233951,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6220
+            "triangles": 5840
           },
           "program": {
             "basins": 1,
@@ -3171,7 +3220,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.136916,
+          "build_ms": 0.278995,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -3197,7 +3246,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.131611,
+          "build_ms": 0.275514,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -3223,7 +3272,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.080443,
+          "build_ms": 0.167146,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
@@ -3249,12 +3298,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.182398,
+          "build_ms": 0.366791,
           "mesh": {
             "batches": 15,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9428
+            "triangles": 8716
           },
           "program": {
             "basins": 2,
@@ -3279,21 +3328,21 @@
       "semantic_pixel_counts": [
         {
           "background": 1742,
-          "cabinet": 25278,
+          "cabinet": 25277,
           "counter": 3971,
           "faucet": 271,
           "floor": 67492,
-          "sink": 3477,
+          "sink": 3478,
           "soap_dispenser": 169
         },
         {
           "background": 1687,
-          "cabinet": 21115,
+          "cabinet": 21139,
           "cabinet_hardware": 106,
           "counter": 3103,
           "faucet": 325,
-          "floor": 70954,
-          "sink": 4832,
+          "floor": 70936,
+          "sink": 4826,
           "soap_dispenser": 278
         },
         {
@@ -3329,8 +3378,8 @@
         },
         {
           "background": 1723,
-          "cabinet": 27379,
-          "cabinet_hardware": 59,
+          "cabinet": 27383,
+          "cabinet_hardware": 55,
           "cleaning_supply": 238,
           "counter": 3722,
           "dishware": 1830,

@@ -21,6 +21,30 @@ const SEEDS: [u64; 6] = [0, 1, 4, 19, 53, 101];
 const MODES: [&str; 5] = ["color", "normal", "albedo", "normal_map", "roughness"];
 const SAMPLES: usize = 256;
 const ROOMS: usize = 256;
+fn finish_capacity(category: &Value) -> Result<usize> {
+    category["finish_slots"]
+        .as_u64()
+        .filter(|n| (1..=4096).contains(n))
+        .map(|n| n as usize)
+        .context("invalid declared material finish capacity")
+}
+
+fn histogram_parts(row: &Value, capacity: usize) -> Result<u64> {
+    let slots = row["slots"]
+        .as_array()
+        .context("missing finish histogram")?;
+    ensure!(
+        slots.len() == capacity,
+        "finish histogram size: expected {capacity}, got {}",
+        slots.len()
+    );
+    slots.iter().try_fold(0u64, |total, count| {
+        total
+            .checked_add(count.as_u64().context("invalid finish histogram count")?)
+            .context("finish count overflow")
+    })
+}
+
 fn special_parts(surface: &str, row: &Value) -> Result<u64> {
     let Some(slots) = row.get("special_slots") else {
         return Ok(0);
@@ -98,6 +122,7 @@ fn parameters(samples: &[Value]) -> Value {
     }).collect())
 }
 fn validate_samples(c: &Value) -> Result<()> {
+    let capacity = finish_capacity(c)?;
     let samples = c["samples"]
         .as_array()
         .context("missing material samples")?;
@@ -117,7 +142,11 @@ fn validate_samples(c: &Value) -> Result<()> {
         );
         let slot = &s["finish_slot"];
         ensure!(
-            slot.is_null() || slot.as_u64().is_some_and(|v| v < 12),
+            if capacity == 1 {
+                slot.is_null()
+            } else {
+                slot.as_u64().is_some_and(|v| v < capacity as u64)
+            },
             "finish out of bounds"
         );
         ensure!(
@@ -345,6 +374,28 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             == usage["object_count"].as_u64().unwrap_or(0),
         "object-category denominator mismatch"
     );
+    let capacities = categories
+        .iter()
+        .map(|c| {
+            Ok((
+                c["name"].as_str().context("material name")?,
+                finish_capacity(c)?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    // Base roles and rugs use the generic palette's histogram storage. Content
+    // roles declare their larger, independently sampled document pools.
+    let generic_capacity = capacities
+        .iter()
+        .filter(|(name, _)| {
+            !matches!(
+                **name,
+                "Screen" | "PhoneScreen" | "Television" | "Whiteboard" | "Art" | "Rug"
+            )
+        })
+        .map(|(_, n)| *n)
+        .max()
+        .context("missing generic finish palette")?;
     let mut parts = 0;
     for (kind, category) in usage["usage"]
         .as_object()
@@ -355,11 +406,10 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             .and_then(Value::as_u64)
             .context("missing category denominator")?;
         for (surface, row) in category.as_object().context("missing assignment row")? {
-            let slots = row["slots"]
-                .as_array()
-                .context("missing finish histogram")?;
-            ensure!(slots.len() == 12, "finish histogram size");
-            let total = slots.iter().map(|n| n.as_u64().unwrap_or(0)).sum::<u64>()
+            let capacity = *capacities
+                .get(surface.as_str())
+                .context("unregistered assignment surface")?;
+            let total = histogram_parts(row, capacity.max(generic_capacity))?
                 + special_parts(surface, row)?
                 + row["base_parts"].as_u64().unwrap_or(0);
             ensure!(row["parts"] == total, "part/slot count mismatch");
@@ -495,7 +545,7 @@ mod tests {
     #[test]
     fn sample_contract_rejects_missing_seeds_and_invalid_bindings() {
         let rows:Vec<_>=(0..SAMPLES).map(|i|json!({"seed":i,"finish_slot":i%12,"structure_group":i%3,"recipe":{"surface":"Fabric","period_m":0.1}})).collect();
-        let c = json!({"surface":"Fabric","structure_count":3,"samples":rows});
+        let c = json!({"surface":"Fabric","finish_slots":12,"structure_count":3,"samples":rows});
         validate_samples(&c).unwrap();
         for (field, value) in [
             ("seed", json!(8)),
@@ -509,5 +559,22 @@ mod tests {
         let mut bad = c.clone();
         bad["samples"].as_array_mut().unwrap().pop();
         assert!(validate_samples(&bad).is_err());
+    }
+
+    #[test]
+    fn content_pools_validate_all_declared_slots_and_exact_histograms() {
+        let rows: Vec<_> = (0..SAMPLES).map(|seed| json!({"seed":seed,"finish_slot":seed%120,"structure_group":0,"recipe":{"surface":"Screen","period_m":0.1}})).collect();
+        let mut c =
+            json!({"surface":"Screen","finish_slots":120,"structure_count":1,"samples":rows});
+        validate_samples(&c).unwrap();
+        c["samples"][0]["finish_slot"] = json!(120);
+        assert!(validate_samples(&c).is_err());
+        for capacity in [12, 120] {
+            let mut row = json!({"slots":vec![1;capacity]});
+            assert_eq!(histogram_parts(&row, capacity).unwrap(), capacity as u64);
+            assert!(histogram_parts(&row, capacity + 1).is_err());
+            row["slots"][0] = json!(-1);
+            assert!(histogram_parts(&row, capacity).is_err());
+        }
     }
 }
