@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v76;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=47;public_programs=3;kitchens=3;doors=1;multiview=12;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=6;furnishings=5;botany=3;visual_content=3;equipment=8;palette=2;photometry=4;sun_shadow=2;material_compute=3;semantic=7;ceiling=3;floor_details=2;window_treatments=1",
-    "crate_version": "0.44.2",
+    "capture_engine": "capture-v101;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=3;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=9;finishes=15;seating=6;activity=3;playback=2;exterior=5;envelope=6;furnishings=9;botany=3;visual_content=6;equipment=12;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=4;window_treatments=1",
+    "crate_version": "0.59.1",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 51,
+    "generator_version": 77,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_burn": [
-        "0.28.2"
+        "0.43.1"
       ],
       "bevy_zeroverse_capture": [
-        "0.4.1"
+        "0.6.12"
       ],
       "bevy_zeroverse_ffi": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_publication": [
-        "0.5.1"
+        "0.9.0"
       ],
       "burn": [
         "0.22.0"
@@ -920,13 +920,68 @@
           94,
           226
         ]
+      },
+      {
+        "id": 97,
+        "label": "ceiling_fan",
+        "srgb8": [
+          92,
+          164,
+          211
+        ]
+      },
+      {
+        "id": 98,
+        "label": "exit_sign",
+        "srgb8": [
+          48,
+          218,
+          173
+        ]
+      },
+      {
+        "id": 99,
+        "label": "fire_alarm",
+        "srgb8": [
+          241,
+          67,
+          82
+        ]
+      },
+      {
+        "id": 100,
+        "label": "string_lights",
+        "srgb8": [
+          240,
+          205,
+          88
+        ]
+      },
+      {
+        "id": 101,
+        "label": "fire_detector",
+        "srgb8": [
+          179,
+          219,
+          237
+        ]
+      },
+      {
+        "id": 102,
+        "label": "fire_pull_station",
+        "srgb8": [
+          208,
+          86,
+          141
+        ]
       }
     ],
-    "semantic_taxonomy_version": 7,
-    "source_sha256": "3c21395218bb18c4548984893940d8b6262bd471f37875a93b4b0ad7066f7207",
+    "semantic_taxonomy_version": 10,
+    "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596",
     "target": "x86_64-unknown-linux-gnu"
   },
   "camera_qualification": {
+    "camera_coherence_policy": null,
     "physical_time": "time_seconds = normalized playback progress * explicitly configured duration_seconds; null when unassigned; motion clips are retimed to this timeline",
     "placement_denominator": "all 13x9 source proxy rays, including misses; at five normalized trajectory parameters; not measured for RGB-only captures without overlap_mixture",
     "placement_estimate": [
@@ -936,38 +991,38 @@
         "samples": [
           {
             "baseline_m": 1.5043840408325195,
-            "mean_triangulation_degrees": 20.797271728515625,
-            "reference_to_view": 0.470085471868515,
+            "mean_triangulation_degrees": 19.173349380493164,
+            "reference_to_view": 0.7094017267227173,
             "time": 0.0,
-            "view_to_reference": 0.6837607026100159
+            "view_to_reference": 0.43589743971824646
           },
           {
-            "baseline_m": 1.4923124313354492,
-            "mean_triangulation_degrees": 21.048749923706055,
-            "reference_to_view": 0.4871794879436493,
+            "baseline_m": 1.490026593208313,
+            "mean_triangulation_degrees": 18.72775650024414,
+            "reference_to_view": 0.7179487347602844,
             "time": 0.25,
-            "view_to_reference": 0.7094017267227173
+            "view_to_reference": 0.45299145579338074
           },
           {
-            "baseline_m": 1.486194372177124,
-            "mean_triangulation_degrees": 21.240257263183594,
-            "reference_to_view": 0.5299145579338074,
+            "baseline_m": 1.4819248914718628,
+            "mean_triangulation_degrees": 18.455774307250977,
+            "reference_to_view": 0.7350427508354187,
             "time": 0.5,
-            "view_to_reference": 0.752136766910553
+            "view_to_reference": 0.4615384638309479
           },
           {
-            "baseline_m": 1.4860538244247437,
-            "mean_triangulation_degrees": 21.095264434814453,
-            "reference_to_view": 0.5470085740089417,
+            "baseline_m": 1.4801161289215088,
+            "mean_triangulation_degrees": 17.717817306518555,
+            "reference_to_view": 0.7264957427978516,
             "time": 0.75,
-            "view_to_reference": 0.7863247990608215
+            "view_to_reference": 0.4615384638309479
           },
           {
-            "baseline_m": 1.4919379949569702,
-            "mean_triangulation_degrees": 21.29741668701172,
-            "reference_to_view": 0.5811966061592102,
+            "baseline_m": 1.4846599102020264,
+            "mean_triangulation_degrees": 18.119598388671875,
+            "reference_to_view": 0.7179487347602844,
             "time": 1.0,
-            "view_to_reference": 0.7692307829856873
+            "view_to_reference": 0.4871794879436493
           }
         ]
       }
@@ -976,52 +1031,52 @@
     "rendered_overlap": [
       {
         "baseline_m": 1.5043840408325195,
-        "mean_triangulation_degrees": 20.504127976860527,
-        "shared_fraction_valid": 0.4931396484375,
-        "shared_pixels": 20199,
+        "mean_triangulation_degrees": 22.710330238415786,
+        "shared_fraction_valid": 0.6470703125,
+        "shared_pixels": 26504,
         "source_camera": 0,
         "step_index": 0,
         "target_camera": 1,
-        "triangulation_sample_count": 1972,
+        "triangulation_sample_count": 2595,
         "valid_source_pixels": 40960
       },
       {
         "baseline_m": 1.5043840408325195,
-        "mean_triangulation_degrees": 19.010209605896886,
-        "shared_fraction_valid": 0.6072021484375,
-        "shared_pixels": 24871,
+        "mean_triangulation_degrees": 15.545704964750252,
+        "shared_fraction_valid": 0.4449462890625,
+        "shared_pixels": 18225,
         "source_camera": 1,
         "step_index": 0,
         "target_camera": 0,
-        "triangulation_sample_count": 2536,
+        "triangulation_sample_count": 1882,
         "valid_source_pixels": 40960
       },
       {
-        "baseline_m": 1.4919379949569702,
-        "mean_triangulation_degrees": 20.835916027498516,
-        "shared_fraction_valid": 0.5620361328125,
-        "shared_pixels": 23021,
+        "baseline_m": 1.4846599102020264,
+        "mean_triangulation_degrees": 21.19268651835417,
+        "shared_fraction_valid": 0.6615966796875,
+        "shared_pixels": 27099,
         "source_camera": 0,
         "step_index": 1,
         "target_camera": 1,
-        "triangulation_sample_count": 2283,
+        "triangulation_sample_count": 2601,
         "valid_source_pixels": 40960
       },
       {
-        "baseline_m": 1.4919379949569702,
-        "mean_triangulation_degrees": 19.553505217623073,
-        "shared_fraction_valid": 0.661865234375,
-        "shared_pixels": 27110,
+        "baseline_m": 1.4846599102020264,
+        "mean_triangulation_degrees": 15.417565112855254,
+        "shared_fraction_valid": 0.4460205078125,
+        "shared_pixels": 18269,
         "source_camera": 1,
         "step_index": 1,
         "target_camera": 0,
-        "triangulation_sample_count": 2731,
+        "triangulation_sample_count": 1904,
         "valid_source_pixels": 40960
       }
     ],
     "requested_pairs": [],
     "scene_family": {
-      "id": "procedural_indoor/51/0000000000000001",
+      "id": "procedural_indoor/77/0000000000000001",
       "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
       "split_bucket_10000": 515
     },
@@ -1029,9 +1084,9 @@
     "selection": "requested strata are fixed before placement retries; no rendered or model-score filtering",
     "triangulation": "mean angle of shared rendered world positions on a regular grid of at most 4096 source pixels/view; null when position was not exported or no shared samples"
   },
-  "run_id": "3472859-1792326496132259328",
+  "run_id": "831158-1792977746412580404",
   "seed": 1,
-  "elapsed_seconds": 2.847344578,
+  "elapsed_seconds": 1.5190606880000002,
   "image_size": [
     160,
     256
@@ -1043,6 +1098,10 @@
     "exposure_ev100": 7.0925397872924805,
     "glass_filter": "default",
     "gpu_materials": true,
+    "phase_timeouts_seconds": {
+      "capture": 180,
+      "preparation": 60
+    },
     "quality": "Auto",
     "sampling": {
       "schema_version": 1,
@@ -1109,21 +1168,21 @@
       "fy_pixels": 165.8097,
       "world_from_view": [
         [
-          0.9815999,
-          0.06738125,
-          0.17866537,
+          0.76457715,
+          0.06746418,
+          0.6409917,
           0.0
         ],
         [
-          -0.056612097,
-          0.99629706,
-          -0.0647093,
+          -0.03887819,
+          0.9975233,
+          -0.058614977,
           0.0
         ],
         [
-          -0.18236396,
-          0.053404022,
-          0.9817797,
+          -0.6433586,
+          0.019895077,
+          0.7653065,
           0.0
         ],
         [
@@ -1136,61 +1195,61 @@
       "fov_y": 1.3148278,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.1255858,
-      "luminance_std": 0.21618417,
+      "mean_luminance": 0.09313831,
+      "luminance_std": 0.09550654,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 24,
       "semantic_pixel_counts": {
-        "cabinet": 5448,
-        "cabinet_hardware": 3,
-        "ceiling": 13158,
-        "chair": 84,
-        "cleaning_supply": 20,
-        "counter": 2571,
-        "dishware": 138,
-        "dishwasher": 273,
-        "drink_container": 10,
-        "faucet": 1,
-        "floor": 7486,
-        "floormat": 27,
-        "food": 18,
-        "kitchen_utensil": 123,
-        "lamp": 973,
-        "other_structure": 1799,
-        "paper": 3,
-        "refrigerator": 539,
-        "sink": 8,
-        "soap_dispenser": 7,
-        "table": 137,
-        "towel": 168,
-        "wall": 7963,
-        "whiteboard": 3
+        "cabinet": 736,
+        "cabinet_hardware": 6,
+        "ceiling": 14297,
+        "chair": 38,
+        "cleaning_supply": 13,
+        "counter": 9169,
+        "dishware": 30,
+        "drink_container": 24,
+        "fire_detector": 6,
+        "floor": 3058,
+        "food": 25,
+        "kitchen_utensil": 24,
+        "lamp": 591,
+        "microwave": 1301,
+        "paper": 4,
+        "plant": 501,
+        "refrigerator": 357,
+        "soap_dispenser": 5,
+        "speaker": 68,
+        "string_lights": 17,
+        "table": 33,
+        "towel": 322,
+        "wall": 10305,
+        "wall_outlet": 30
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
         "depth_position_p99_metres": 7.1525574e-7,
         "depth_position_max_metres": 9.536743e-7,
-        "reprojection_p99_pixels": 0.000055016346,
-        "reprojection_max_pixels": 0.000091870075,
+        "reprojection_p99_pixels": 0.00005554283,
+        "reprojection_max_pixels": 0.000105990934,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.011966122
+        "position_quantization_budget_p99_ratio": 0.007707483
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 20199,
+        "shared_pixels": 26504,
         "peer_pixels": [
           0,
-          20199
+          26504
         ],
         "cardinality_pixels": [
-          20761,
-          20199
+          14456,
+          26504
         ],
-        "shared_fraction_valid": 0.4931396484375,
+        "shared_fraction_valid": 0.6470703125,
         "peer_fraction_valid": [
           0.0,
-          0.4931396484375
+          0.6470703125
         ]
       }
     },
@@ -1232,21 +1291,21 @@
       "fy_pixels": 198.5643,
       "world_from_view": [
         [
-          0.9221654,
-          0.0011048922,
-          0.3867942,
+          0.5860958,
+          0.0011048876,
+          0.81024104,
           0.0
         ],
         [
-          0.015229705,
+          0.033388034,
           0.9991167,
-          -0.03916352,
+          -0.025514014,
           0.0
         ],
         [
-          -0.38649583,
-          0.042006005,
-          0.9213341,
+          -0.80955356,
+          0.04200601,
+          0.58554125,
           0.0
         ],
         [
@@ -1259,56 +1318,53 @@
       "fov_y": 1.1451782,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.09218243,
-      "luminance_std": 0.13845012,
+      "mean_luminance": 0.10338632,
+      "luminance_std": 0.094134904,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 20,
+      "semantic_colors": 17,
       "semantic_pixel_counts": {
-        "cabinet": 6424,
-        "cabinet_hardware": 14,
-        "ceiling": 12244,
-        "chair": 173,
-        "counter": 428,
-        "dishware": 98,
-        "dishwasher": 139,
-        "faucet": 10,
-        "floor": 10276,
-        "floormat": 35,
-        "food": 4,
-        "kitchen_utensil": 143,
-        "lamp": 576,
-        "other_structure": 2460,
-        "paper": 5,
-        "refrigerator": 495,
-        "soap_dispenser": 10,
-        "table": 9,
-        "towel": 32,
-        "wall": 7385
+        "cabinet": 4093,
+        "ceiling": 11472,
+        "cleaning_supply": 11,
+        "counter": 4113,
+        "dishware": 21,
+        "fire_detector": 5,
+        "floor": 7611,
+        "food": 19,
+        "kitchen_utensil": 69,
+        "lamp": 238,
+        "microwave": 902,
+        "other_structure": 1795,
+        "plant": 126,
+        "speaker": 133,
+        "string_lights": 29,
+        "towel": 100,
+        "wall": 10223
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
-        "depth_position_p99_metres": 0.0000019073486,
-        "depth_position_max_metres": 0.0000019073486,
+        "depth_position_p99_metres": 4.7683716e-7,
+        "depth_position_max_metres": 9.536743e-7,
         "reprojection_p99_pixels": 0.000061035156,
-        "reprojection_max_pixels": 0.00012302029,
+        "reprojection_max_pixels": 0.00011108566,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.009894206
+        "position_quantization_budget_p99_ratio": 0.0067481822
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 24871,
+        "shared_pixels": 18225,
         "peer_pixels": [
-          24871,
+          18225,
           0
         ],
         "cardinality_pixels": [
-          16089,
-          24871
+          22735,
+          18225
         ],
-        "shared_fraction_valid": 0.6072021484375,
+        "shared_fraction_valid": 0.4449462890625,
         "peer_fraction_valid": [
-          0.6072021484375,
+          0.4449462890625,
           0.0
         ]
       }
@@ -1351,87 +1407,87 @@
       "fy_pixels": 165.8097,
       "world_from_view": [
         [
-          0.9723869,
-          0.08133149,
-          0.21874394,
+          0.73488855,
+          0.08149723,
+          0.6732734,
           0.0
         ],
         [
-          -0.055838734,
-          0.9911653,
-          -0.12030551,
+          -0.0034095347,
+          0.99318486,
+          -0.116499774,
           0.0
         ],
         [
-          -0.22659601,
-          0.10476911,
-          0.9683376,
+          -0.6781793,
+          0.08331881,
+          0.7301581,
           0.0
         ],
         [
-          -0.72514784,
+          -0.7083764,
           1.4935467,
-          3.0405746,
+          3.0243165,
           1.0
         ]
       ],
       "fov_y": 1.3148278,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.11421023,
-      "luminance_std": 0.19107947,
+      "mean_luminance": 0.09745971,
+      "luminance_std": 0.09971562,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
       "semantic_colors": 23,
       "semantic_pixel_counts": {
-        "cabinet": 5046,
-        "cabinet_hardware": 3,
-        "ceiling": 12214,
-        "chair": 126,
-        "cleaning_supply": 25,
-        "counter": 3548,
-        "dishware": 150,
-        "dishwasher": 287,
-        "drink_container": 9,
-        "faucet": 7,
-        "floor": 7386,
-        "floormat": 26,
-        "food": 23,
-        "kitchen_utensil": 127,
-        "lamp": 1065,
-        "other_structure": 1893,
-        "paper": 2,
-        "refrigerator": 543,
-        "sink": 10,
-        "soap_dispenser": 5,
-        "table": 179,
-        "towel": 221,
-        "wall": 8065
+        "cabinet": 897,
+        "cabinet_hardware": 4,
+        "ceiling": 13287,
+        "cleaning_supply": 17,
+        "counter": 8330,
+        "dishware": 35,
+        "drink_container": 51,
+        "fire_detector": 3,
+        "floor": 3934,
+        "food": 15,
+        "kitchen_utensil": 2,
+        "lamp": 370,
+        "microwave": 1406,
+        "paper": 3,
+        "plant": 546,
+        "refrigerator": 538,
+        "soap_dispenser": 6,
+        "speaker": 150,
+        "string_lights": 19,
+        "table": 74,
+        "towel": 331,
+        "wall": 10913,
+        "wall_outlet": 29
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
-        "depth_position_p99_metres": 0.0000014305115,
+        "depth_position_p99_metres": 9.536743e-7,
         "depth_position_max_metres": 0.0000014305115,
-        "reprojection_p99_pixels": 0.000051179533,
-        "reprojection_max_pixels": 0.00008217109,
+        "reprojection_p99_pixels": 0.00005722046,
+        "reprojection_max_pixels": 0.0000943704,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.0115701305
+        "position_quantization_budget_p99_ratio": 0.006569185
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 23021,
+        "shared_pixels": 27099,
         "peer_pixels": [
           0,
-          23021
+          27099
         ],
         "cardinality_pixels": [
-          17939,
-          23021
+          13861,
+          27099
         ],
-        "shared_fraction_valid": 0.5620361328125,
+        "shared_fraction_valid": 0.6615966796875,
         "peer_fraction_valid": [
           0.0,
-          0.5620361328125
+          0.6615966796875
         ]
       }
     },
@@ -1473,83 +1529,80 @@
       "fy_pixels": 198.5643,
       "world_from_view": [
         [
-          0.89833426,
-          0.040113118,
-          0.43747738,
+          0.54616964,
+          0.040113114,
+          0.8367137,
           0.0
         ],
         [
-          -0.017625831,
+          0.013296827,
           0.9983118,
-          -0.055343445,
+          -0.056539916,
           0.0
         ],
         [
-          -0.43895885,
-          0.042006012,
-          0.8975247,
+          -0.8375691,
+          0.042006023,
+          0.5447142,
           0.0
         ],
         [
-          -2.1524067,
+          -2.128979,
           1.096929,
-          2.8630772,
+          2.8546176,
           1.0
         ]
       ],
       "fov_y": 1.1451782,
       "near": 0.1,
       "far": 50.0,
-      "mean_luminance": 0.09073496,
-      "luminance_std": 0.14610201,
+      "mean_luminance": 0.096736774,
+      "luminance_std": 0.075803004,
       "dark_fraction": 0.0,
       "clipped_fraction": 0.0,
-      "semantic_colors": 20,
+      "semantic_colors": 17,
       "semantic_pixel_counts": {
-        "cabinet": 6862,
-        "cabinet_hardware": 6,
-        "ceiling": 12734,
-        "chair": 181,
-        "counter": 959,
-        "dishware": 126,
-        "faucet": 6,
-        "floor": 7762,
-        "floormat": 39,
-        "food": 13,
-        "kitchen_utensil": 159,
-        "lamp": 1014,
-        "other_structure": 2603,
-        "paper": 5,
-        "refrigerator": 596,
-        "sink": 11,
-        "soap_dispenser": 5,
-        "table": 24,
-        "towel": 85,
-        "wall": 7770
+        "cabinet": 3571,
+        "ceiling": 12023,
+        "cleaning_supply": 15,
+        "counter": 4385,
+        "dishware": 6,
+        "fire_detector": 3,
+        "floor": 5347,
+        "food": 3,
+        "kitchen_utensil": 91,
+        "lamp": 503,
+        "microwave": 943,
+        "other_structure": 3173,
+        "plant": 163,
+        "speaker": 128,
+        "string_lights": 23,
+        "towel": 150,
+        "wall": 10433
       },
       "annotation_alignment": {
         "checked_pixels": 40960,
-        "depth_position_p99_metres": 9.536743e-7,
-        "depth_position_max_metres": 0.0000011920929,
-        "reprojection_p99_pixels": 0.00007780486,
-        "reprojection_max_pixels": 0.00013037115,
+        "depth_position_p99_metres": 7.1525574e-7,
+        "depth_position_max_metres": 9.536743e-7,
+        "reprojection_p99_pixels": 0.00006484985,
+        "reprojection_max_pixels": 0.00010235907,
         "normal_length_max_error": 1.7881393e-7,
-        "position_quantization_budget_p99_ratio": 0.0081246905
+        "position_quantization_budget_p99_ratio": 0.005598211
       },
       "co_visibility": {
         "valid_pixels": 40960,
-        "shared_pixels": 27110,
+        "shared_pixels": 18269,
         "peer_pixels": [
-          27110,
+          18269,
           0
         ],
         "cardinality_pixels": [
-          13850,
-          27110
+          22691,
+          18269
         ],
-        "shared_fraction_valid": 0.661865234375,
+        "shared_fraction_valid": 0.4460205078125,
         "peer_fraction_valid": [
-          0.661865234375,
+          0.4460205078125,
           0.0
         ]
       }
@@ -1588,10 +1641,10 @@
         "directed_overlap": [
           [
             0.0,
-            0.4931396484375
+            0.6470703125
           ],
           [
-            0.6072021484375,
+            0.4449462890625,
             0.0
           ]
         ],
@@ -1599,15 +1652,15 @@
           40960,
           40960
         ],
-        "mean_directed_overlap": 0.5501708984375,
+        "mean_directed_overlap": 0.54600830078125,
         "peer_count_fractions": [
           [
-            0.5068603515625,
-            0.4931396484375
+            0.3529296875,
+            0.6470703125
           ],
           [
-            0.3927978515625,
-            0.6072021484375
+            0.5550537109375,
+            0.4449462890625
           ]
         ]
       },
@@ -1640,26 +1693,26 @@
           "directed_overlap": [
             [
               0.0,
-              0.5064445143036781
+              0.654265691651432
             ],
             [
-              0.6334925199862801,
+              0.39745746263828685,
               0.0
             ]
           ],
           "valid_pixels": [
-            38172,
-            37901
+            32820,
+            30914
           ],
-          "mean_directed_overlap": 0.5699685171449791,
+          "mean_directed_overlap": 0.5258615771448594,
           "peer_count_fractions": [
             [
-              0.4935554856963219,
-              0.5064445143036781
+              0.34573430834856794,
+              0.654265691651432
             ],
             [
-              0.36650748001371997,
-              0.6334925199862801
+              0.6025425373617131,
+              0.39745746263828685
             ]
           ]
         },
@@ -1670,11 +1723,11 @@
               1
             ],
             "baseline_metres": 1.504384,
-            "primary_shared_source_pixels": 19332,
+            "primary_shared_source_pixels": 21473,
             "angle_degrees_p05_p50_p95": [
               9.75,
-              18.25,
-              37.25
+              19.25,
+              46.25
             ]
           }
         ]
@@ -1712,10 +1765,10 @@
         "directed_overlap": [
           [
             0.0,
-            0.5620361328125
+            0.6615966796875
           ],
           [
-            0.661865234375,
+            0.4460205078125,
             0.0
           ]
         ],
@@ -1723,15 +1776,15 @@
           40960,
           40960
         ],
-        "mean_directed_overlap": 0.61195068359375,
+        "mean_directed_overlap": 0.55380859375,
         "peer_count_fractions": [
           [
-            0.4379638671875,
-            0.5620361328125
+            0.3384033203125,
+            0.6615966796875
           ],
           [
-            0.338134765625,
-            0.661865234375
+            0.5539794921875,
+            0.4460205078125
           ]
         ]
       },
@@ -1764,26 +1817,26 @@
           "directed_overlap": [
             [
               0.0,
-              0.6055802332037756
+              0.6679113704931006
             ],
             [
-              0.6691805779171257,
+              0.3700193423597679,
               0.0
             ]
           ],
           "valid_pixels": [
-            36020,
-            35403
+            40438,
+            31020
           ],
-          "mean_directed_overlap": 0.6373804055604506,
+          "mean_directed_overlap": 0.5189653564264343,
           "peer_count_fractions": [
             [
-              0.3944197667962243,
-              0.6055802332037756
+              0.33208862950689944,
+              0.6679113704931006
             ],
             [
-              0.33081942208287435,
-              0.6691805779171257
+              0.6299806576402321,
+              0.3700193423597679
             ]
           ]
         },
@@ -1793,34 +1846,34 @@
               0,
               1
             ],
-            "baseline_metres": 1.491938,
-            "primary_shared_source_pixels": 21813,
+            "baseline_metres": 1.4846599,
+            "primary_shared_source_pixels": 27009,
             "angle_degrees_p05_p50_p95": [
-              9.75,
-              18.75,
-              35.75
+              8.75,
+              15.75,
+              43.25
             ]
           }
         ]
       }
     }
   ],
-  "mesh_assets": 237,
-  "material_assets": 104,
-  "image_assets": 154,
+  "mesh_assets": 324,
+  "material_assets": 137,
+  "image_assets": 155,
   "annotation_precision": "float32_geometry",
   "diffuse_gi": {
     "backend": "gpu_bvh_compute",
-    "triangles": 313426,
+    "triangles": 262358,
     "probes": 675,
-    "relocated_probes": 64,
+    "relocated_probes": 63,
     "primary_rays": 172800,
     "diffuse_bounces": 3,
     "texture_bytes": 32400,
-    "preparation_ms": 739.6957769999999,
+    "preparation_ms": 570.7763209999999,
     "bake_ms": null,
     "mean_radiance": null,
-    "transport_bytes": 37128608,
+    "transport_bytes": 31633248,
     "prefetch_hit": false,
     "prefetch_wait_ms": 0.0
   },

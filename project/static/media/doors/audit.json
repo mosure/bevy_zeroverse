@@ -1,13 +1,13 @@
 {
   "build_provenance": {
-    "capture_engine": "capture-v76;ssaa=1;capacity=1;primary_region=1;indoor_motion=1;calibration=1;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=47;public_programs=3;kitchens=3;doors=1;multiview=12;camera_motion=1;lens_distribution=2;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=4;finishes=12;seating=3;activity=3;playback=2;exterior=5;envelope=6;furnishings=5;botany=3;visual_content=3;equipment=8;palette=2;photometry=4;sun_shadow=2;material_compute=3;semantic=7;ceiling=3;floor_details=2;window_treatments=1",
-    "crate_version": "0.44.2",
+    "capture_engine": "capture-v101;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.0;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=3;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=9;finishes=15;seating=6;activity=3;playback=2;exterior=5;envelope=6;furnishings=9;botany=3;visual_content=6;equipment=12;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=4;window_treatments=1",
+    "crate_version": "0.59.1",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 51,
+    "generator_version": 77,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -16,19 +16,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_burn": [
-        "0.28.2"
+        "0.43.1"
       ],
       "bevy_zeroverse_capture": [
-        "0.4.1"
+        "0.6.12"
       ],
       "bevy_zeroverse_ffi": [
-        "0.44.2"
+        "0.59.1"
       ],
       "bevy_zeroverse_publication": [
-        "0.5.1"
+        "0.9.0"
       ],
       "burn": [
         "0.22.0"
@@ -920,10 +920,64 @@
           94,
           226
         ]
+      },
+      {
+        "id": 97,
+        "label": "ceiling_fan",
+        "srgb8": [
+          92,
+          164,
+          211
+        ]
+      },
+      {
+        "id": 98,
+        "label": "exit_sign",
+        "srgb8": [
+          48,
+          218,
+          173
+        ]
+      },
+      {
+        "id": 99,
+        "label": "fire_alarm",
+        "srgb8": [
+          241,
+          67,
+          82
+        ]
+      },
+      {
+        "id": 100,
+        "label": "string_lights",
+        "srgb8": [
+          240,
+          205,
+          88
+        ]
+      },
+      {
+        "id": 101,
+        "label": "fire_detector",
+        "srgb8": [
+          179,
+          219,
+          237
+        ]
+      },
+      {
+        "id": 102,
+        "label": "fire_pull_station",
+        "srgb8": [
+          208,
+          86,
+          141
+        ]
       }
     ],
-    "semantic_taxonomy_version": 7,
-    "source_sha256": "3c21395218bb18c4548984893940d8b6262bd471f37875a93b4b0ad7066f7207",
+    "semantic_taxonomy_version": 10,
+    "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596",
     "target": "x86_64-unknown-linux-gnu"
   },
   "categories": [
@@ -931,7 +985,7 @@
       "kind": "HingedDoor",
       "samples": [
         {
-          "build_ms": 21.323164,
+          "build_ms": 0.899128,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -969,7 +1023,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.106797,
+          "build_ms": 0.100637,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1007,7 +1061,7 @@
           "seed": 1
         },
         {
-          "build_ms": 0.048239,
+          "build_ms": 0.058244,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1045,7 +1099,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.035387,
+          "build_ms": 0.07521000000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1083,7 +1137,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.155025,
+          "build_ms": 0.107655,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1121,7 +1175,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.045932,
+          "build_ms": 0.07941100000000001,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1159,7 +1213,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.036568,
+          "build_ms": 0.064481,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1197,7 +1251,7 @@
           "seed": 6
         },
         {
-          "build_ms": 0.17604799999999998,
+          "build_ms": 0.257506,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1235,7 +1289,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.067145,
+          "build_ms": 0.095532,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1273,7 +1327,7 @@
           "seed": 8
         },
         {
-          "build_ms": 0.059445,
+          "build_ms": 0.08885,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1311,7 +1365,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.04654,
+          "build_ms": 0.07799600000000001,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1349,7 +1403,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.061921,
+          "build_ms": 0.091637,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1387,7 +1441,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.042308000000000005,
+          "build_ms": 0.07285,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1425,7 +1479,7 @@
           "seed": 12
         },
         {
-          "build_ms": 0.210169,
+          "build_ms": 0.247371,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1463,7 +1517,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.137806,
+          "build_ms": 0.22514,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1501,7 +1555,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.165589,
+          "build_ms": 0.211049,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1539,7 +1593,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.046749000000000006,
+          "build_ms": 0.073804,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1577,7 +1631,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.049431,
+          "build_ms": 0.088724,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1615,7 +1669,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.041312,
+          "build_ms": 0.07572999999999999,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1653,7 +1707,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.033129,
+          "build_ms": 0.07158199999999999,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1691,7 +1745,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.093498,
+          "build_ms": 0.120086,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1729,7 +1783,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.043173,
+          "build_ms": 0.076896,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1767,7 +1821,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.219093,
+          "build_ms": 0.230025,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1805,7 +1859,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.046277,
+          "build_ms": 0.083885,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1843,7 +1897,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.032326999999999995,
+          "build_ms": 0.054141,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1881,7 +1935,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.303614,
+          "build_ms": 0.240162,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1919,7 +1973,7 @@
           "seed": 25
         },
         {
-          "build_ms": 0.033586,
+          "build_ms": 0.054429,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -1957,7 +2011,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.059588,
+          "build_ms": 0.088859,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -1995,7 +2049,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.045053,
+          "build_ms": 0.07041599999999999,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2033,7 +2087,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.059741,
+          "build_ms": 0.095866,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2071,7 +2125,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.070806,
+          "build_ms": 0.0857,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2109,7 +2163,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.123992,
+          "build_ms": 0.1031,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2147,7 +2201,7 @@
           "seed": 31
         },
         {
-          "build_ms": 0.176854,
+          "build_ms": 0.224758,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2185,7 +2239,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.033081,
+          "build_ms": 0.06520999999999999,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2223,7 +2277,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.04638,
+          "build_ms": 0.07570400000000001,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2261,7 +2315,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.049508,
+          "build_ms": 0.08689100000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2299,7 +2353,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.043657,
+          "build_ms": 0.075578,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2337,7 +2391,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.141457,
+          "build_ms": 0.239415,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2375,7 +2429,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.136707,
+          "build_ms": 0.23575,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2413,7 +2467,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.14812899999999998,
+          "build_ms": 0.235038,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2451,7 +2505,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.029065,
+          "build_ms": 0.0554,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2489,7 +2543,7 @@
           "seed": 40
         },
         {
-          "build_ms": 0.147981,
+          "build_ms": 0.263573,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2527,7 +2581,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.114052,
+          "build_ms": 0.238163,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2565,7 +2619,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.060591000000000006,
+          "build_ms": 0.106147,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2603,7 +2657,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.118528,
+          "build_ms": 0.211208,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2641,7 +2695,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.135468,
+          "build_ms": 0.242047,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2679,7 +2733,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.06532199999999999,
+          "build_ms": 0.104896,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2717,7 +2771,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.049354,
+          "build_ms": 0.101541,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2755,7 +2809,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.044974,
+          "build_ms": 0.086757,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2793,7 +2847,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.043238,
+          "build_ms": 0.084799,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2831,7 +2885,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.052412,
+          "build_ms": 0.089056,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2869,7 +2923,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.043711,
+          "build_ms": 0.06956799999999999,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2907,7 +2961,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.027119,
+          "build_ms": 0.053983,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -2945,7 +2999,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.055161,
+          "build_ms": 0.091905,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -2983,7 +3037,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.048188,
+          "build_ms": 0.095552,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3021,7 +3075,7 @@
           "seed": 54
         },
         {
-          "build_ms": 0.061882,
+          "build_ms": 0.109826,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3059,7 +3113,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.059011,
+          "build_ms": 0.092399,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3097,7 +3151,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.071213,
+          "build_ms": 0.062032,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3135,7 +3189,7 @@
           "seed": 57
         },
         {
-          "build_ms": 0.144136,
+          "build_ms": 0.254148,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3173,7 +3227,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.033167,
+          "build_ms": 0.055208,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3211,7 +3265,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.050662,
+          "build_ms": 0.084491,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3249,7 +3303,7 @@
           "seed": 60
         },
         {
-          "build_ms": 0.166884,
+          "build_ms": 0.22129,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3287,7 +3341,7 @@
           "seed": 61
         },
         {
-          "build_ms": 0.058541,
+          "build_ms": 0.081143,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3325,7 +3379,7 @@
           "seed": 62
         },
         {
-          "build_ms": 0.049354,
+          "build_ms": 0.079942,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3376,7 +3430,7 @@
       "kind": "PairedDoor",
       "samples": [
         {
-          "build_ms": 0.191917,
+          "build_ms": 0.218726,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3414,7 +3468,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.119509,
+          "build_ms": 0.166996,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3452,7 +3506,7 @@
           "seed": 1
         },
         {
-          "build_ms": 0.050335,
+          "build_ms": 0.093578,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3490,7 +3544,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.063866,
+          "build_ms": 0.117817,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3528,7 +3582,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.166422,
+          "build_ms": 0.200764,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3566,7 +3620,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.09123,
+          "build_ms": 0.150628,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3604,7 +3658,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.055235,
+          "build_ms": 0.110494,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3642,7 +3696,7 @@
           "seed": 6
         },
         {
-          "build_ms": 0.360139,
+          "build_ms": 0.50383,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3680,7 +3734,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.153555,
+          "build_ms": 0.195697,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3718,7 +3772,7 @@
           "seed": 8
         },
         {
-          "build_ms": 0.142989,
+          "build_ms": 0.198123,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3756,7 +3810,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.093235,
+          "build_ms": 0.14656,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3794,7 +3848,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.155472,
+          "build_ms": 0.194638,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3832,7 +3886,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.08717699999999999,
+          "build_ms": 0.13470600000000002,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -3870,7 +3924,7 @@
           "seed": 12
         },
         {
-          "build_ms": 1.26064,
+          "build_ms": 0.497334,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3908,7 +3962,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.346701,
+          "build_ms": 0.5122730000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3946,7 +4000,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.381787,
+          "build_ms": 0.482392,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -3984,7 +4038,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.08358,
+          "build_ms": 0.139632,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4022,7 +4076,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.103458,
+          "build_ms": 0.180093,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4060,7 +4114,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.090567,
+          "build_ms": 0.133316,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4098,7 +4152,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.063135,
+          "build_ms": 0.108631,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4136,7 +4190,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.192235,
+          "build_ms": 0.240461,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4174,7 +4228,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.09429,
+          "build_ms": 0.135823,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4212,7 +4266,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.344002,
+          "build_ms": 0.490038,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4250,7 +4304,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.089977,
+          "build_ms": 0.15055400000000002,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4288,7 +4342,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.050982,
+          "build_ms": 0.092677,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4326,7 +4380,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.436969,
+          "build_ms": 0.490581,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4364,7 +4418,7 @@
           "seed": 25
         },
         {
-          "build_ms": 0.055678,
+          "build_ms": 0.094764,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4402,7 +4456,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.138653,
+          "build_ms": 0.195441,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4440,7 +4494,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.113937,
+          "build_ms": 0.152287,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4478,7 +4532,7 @@
           "seed": 28
         },
         {
-          "build_ms": 1.433965,
+          "build_ms": 0.201139,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4516,7 +4570,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.092332,
+          "build_ms": 0.167871,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4554,7 +4608,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.159179,
+          "build_ms": 0.196847,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4592,7 +4646,7 @@
           "seed": 31
         },
         {
-          "build_ms": 0.287254,
+          "build_ms": 0.47806,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4630,7 +4684,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.046488,
+          "build_ms": 0.111611,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4668,7 +4722,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.072284,
+          "build_ms": 0.13499399999999998,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4706,7 +4760,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.083766,
+          "build_ms": 0.176134,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4744,7 +4798,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.067669,
+          "build_ms": 0.13341899999999998,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -4782,7 +4836,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.249276,
+          "build_ms": 0.462929,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4820,7 +4874,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.30828099999999997,
+          "build_ms": 0.466897,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4858,7 +4912,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.311408,
+          "build_ms": 0.478528,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4896,7 +4950,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.056775,
+          "build_ms": 0.0928,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4934,7 +4988,7 @@
           "seed": 40
         },
         {
-          "build_ms": 1.836636,
+          "build_ms": 0.536175,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -4972,7 +5026,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.754149,
+          "build_ms": 0.461567,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5010,7 +5064,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.133115,
+          "build_ms": 0.229044,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5048,7 +5102,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.325009,
+          "build_ms": 0.47429,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5086,7 +5140,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.344135,
+          "build_ms": 0.545677,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5124,7 +5178,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.126477,
+          "build_ms": 0.222544,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5162,7 +5216,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.116718,
+          "build_ms": 0.185202,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5200,7 +5254,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.110181,
+          "build_ms": 0.164081,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5238,7 +5292,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.072314,
+          "build_ms": 0.156045,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5276,7 +5330,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.10277,
+          "build_ms": 0.182284,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5314,7 +5368,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.074244,
+          "build_ms": 0.136501,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5352,7 +5406,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.037848,
+          "build_ms": 0.09127,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5390,7 +5444,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.113192,
+          "build_ms": 0.202868,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5428,7 +5482,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.086101,
+          "build_ms": 0.1917,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5466,7 +5520,7 @@
           "seed": 54
         },
         {
-          "build_ms": 0.212842,
+          "build_ms": 0.223774,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5504,7 +5558,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.147477,
+          "build_ms": 0.18622,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5542,7 +5596,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.064335,
+          "build_ms": 0.106552,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5580,7 +5634,7 @@
           "seed": 57
         },
         {
-          "build_ms": 0.452109,
+          "build_ms": 0.495213,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5618,7 +5672,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.054245,
+          "build_ms": 0.099592,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5656,7 +5710,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.087557,
+          "build_ms": 0.149215,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5694,7 +5748,7 @@
           "seed": 60
         },
         {
-          "build_ms": 0.556762,
+          "build_ms": 0.466345,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -5732,7 +5786,7 @@
           "seed": 61
         },
         {
-          "build_ms": 0.086397,
+          "build_ms": 0.148349,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5770,7 +5824,7 @@
           "seed": 62
         },
         {
-          "build_ms": 0.075592,
+          "build_ms": 0.140242,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5821,7 +5875,7 @@
       "kind": "SlidingDoor",
       "samples": [
         {
-          "build_ms": 0.050251,
+          "build_ms": 0.076895,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5859,7 +5913,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.054402,
+          "build_ms": 0.088438,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -5897,7 +5951,7 @@
           "seed": 1
         },
         {
-          "build_ms": 0.035792,
+          "build_ms": 0.054896,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -5935,7 +5989,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.036151,
+          "build_ms": 0.057262999999999994,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -5973,7 +6027,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.044395,
+          "build_ms": 0.075252,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6011,7 +6065,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.052701000000000005,
+          "build_ms": 0.091339,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6049,7 +6103,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.030648,
+          "build_ms": 0.058449,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6087,7 +6141,7 @@
           "seed": 6
         },
         {
-          "build_ms": 3.046495,
+          "build_ms": 0.26232099999999997,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6125,7 +6179,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.060782,
+          "build_ms": 0.086201,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6163,7 +6217,7 @@
           "seed": 8
         },
         {
-          "build_ms": 0.04748799999999999,
+          "build_ms": 0.072747,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -6201,7 +6255,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.045126,
+          "build_ms": 0.078604,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6239,7 +6293,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.04205,
+          "build_ms": 0.075962,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6277,7 +6331,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.042164,
+          "build_ms": 0.072389,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -6315,7 +6369,7 @@
           "seed": 12
         },
         {
-          "build_ms": 0.172832,
+          "build_ms": 0.232065,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6353,7 +6407,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.169831,
+          "build_ms": 0.229313,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6391,7 +6445,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.162278,
+          "build_ms": 0.233951,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6429,7 +6483,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.047058,
+          "build_ms": 0.07579100000000001,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6467,7 +6521,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.054028,
+          "build_ms": 0.085842,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6505,7 +6559,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.04309,
+          "build_ms": 0.072898,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6543,7 +6597,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.031382,
+          "build_ms": 0.061406,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6581,7 +6635,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.050984,
+          "build_ms": 0.08717,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6619,7 +6673,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.044379,
+          "build_ms": 0.072581,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6657,7 +6711,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.17628000000000002,
+          "build_ms": 0.230159,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6695,7 +6749,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.049265,
+          "build_ms": 0.07263,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -6733,7 +6787,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.033034,
+          "build_ms": 0.055235,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6771,7 +6825,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.325571,
+          "build_ms": 0.230902,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6809,7 +6863,7 @@
           "seed": 25
         },
         {
-          "build_ms": 0.032147999999999996,
+          "build_ms": 0.055398,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -6847,7 +6901,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.033158,
+          "build_ms": 0.072974,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6885,7 +6939,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.027814,
+          "build_ms": 0.053852,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6923,7 +6977,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.041464,
+          "build_ms": 0.085242,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6961,7 +7015,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.035141,
+          "build_ms": 0.077182,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -6999,7 +7053,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.043579,
+          "build_ms": 0.075256,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -7037,7 +7091,7 @@
           "seed": 31
         },
         {
-          "build_ms": 2.094759,
+          "build_ms": 0.232443,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7075,7 +7129,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.041147,
+          "build_ms": 0.055864,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7113,7 +7167,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.048688,
+          "build_ms": 0.074892,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7151,7 +7205,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.051698,
+          "build_ms": 0.08695499999999999,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7189,7 +7243,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.047443,
+          "build_ms": 0.077126,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7227,7 +7281,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.160337,
+          "build_ms": 0.222866,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7265,7 +7319,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.14932199999999998,
+          "build_ms": 0.227131,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7303,7 +7357,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.145366,
+          "build_ms": 0.230834,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7341,7 +7395,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.035495,
+          "build_ms": 0.057459,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7379,7 +7433,7 @@
           "seed": 40
         },
         {
-          "build_ms": 0.12582300000000002,
+          "build_ms": 0.237287,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7417,7 +7471,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.13066799999999998,
+          "build_ms": 0.216872,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7455,7 +7509,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.053778,
+          "build_ms": 0.08716800000000001,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7493,7 +7547,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.143494,
+          "build_ms": 0.214769,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7531,7 +7585,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.125172,
+          "build_ms": 0.211274,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7569,7 +7623,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.052359,
+          "build_ms": 0.091372,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7607,7 +7661,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.052141,
+          "build_ms": 0.087564,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7645,7 +7699,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.049181,
+          "build_ms": 0.084883,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7683,7 +7737,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.047153,
+          "build_ms": 0.078182,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7721,7 +7775,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.044408,
+          "build_ms": 0.070663,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -7759,7 +7813,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.032237999999999996,
+          "build_ms": 0.058934999999999994,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7797,7 +7851,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.031379,
+          "build_ms": 0.056596,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7835,7 +7889,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.046047000000000005,
+          "build_ms": 0.07850599999999999,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7873,7 +7927,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.054005,
+          "build_ms": 0.08785699999999999,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7911,7 +7965,7 @@
           "seed": 54
         },
         {
-          "build_ms": 0.066175,
+          "build_ms": 0.084651,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -7949,7 +8003,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.048964,
+          "build_ms": 0.07796099999999999,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -7987,7 +8041,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.033588,
+          "build_ms": 0.051966,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8025,7 +8079,7 @@
           "seed": 57
         },
         {
-          "build_ms": 3.948672,
+          "build_ms": 0.215363,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8063,7 +8117,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.041124,
+          "build_ms": 0.056612,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8101,7 +8155,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.03865,
+          "build_ms": 0.07692299999999999,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8139,7 +8193,7 @@
           "seed": 60
         },
         {
-          "build_ms": 0.115924,
+          "build_ms": 0.222083,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8177,7 +8231,7 @@
           "seed": 61
         },
         {
-          "build_ms": 0.034551,
+          "build_ms": 0.073956,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8215,7 +8269,7 @@
           "seed": 62
         },
         {
-          "build_ms": 0.044512,
+          "build_ms": 0.071016,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -8266,7 +8320,7 @@
       "kind": "TelescopingDoor",
       "samples": [
         {
-          "build_ms": 0.087828,
+          "build_ms": 0.137823,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8304,7 +8358,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.080587,
+          "build_ms": 0.151693,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -8342,7 +8396,7 @@
           "seed": 1
         },
         {
-          "build_ms": 0.040639,
+          "build_ms": 0.083896,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8380,7 +8434,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.038391,
+          "build_ms": 0.087794,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8418,7 +8472,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.058861,
+          "build_ms": 0.138111,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8456,7 +8510,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.070622,
+          "build_ms": 0.15264599999999998,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8494,7 +8548,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.038432,
+          "build_ms": 0.089728,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8532,7 +8586,7 @@
           "seed": 6
         },
         {
-          "build_ms": 0.28428200000000003,
+          "build_ms": 0.506561,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8570,7 +8624,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.086532,
+          "build_ms": 0.140978,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8608,7 +8662,7 @@
           "seed": 8
         },
         {
-          "build_ms": 0.07338,
+          "build_ms": 0.118614,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -8646,7 +8700,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.086198,
+          "build_ms": 0.146561,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8684,7 +8738,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.091897,
+          "build_ms": 0.143306,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8722,7 +8776,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.07682499999999999,
+          "build_ms": 0.119392,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -8760,7 +8814,7 @@
           "seed": 12
         },
         {
-          "build_ms": 0.33218499999999995,
+          "build_ms": 0.463436,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8798,7 +8852,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.308213,
+          "build_ms": 0.467004,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8836,7 +8890,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.29841999999999996,
+          "build_ms": 0.451396,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -8874,7 +8928,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.089974,
+          "build_ms": 0.125435,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8912,7 +8966,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.093171,
+          "build_ms": 0.148679,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8950,7 +9004,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.072768,
+          "build_ms": 0.12424499999999998,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -8988,7 +9042,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.052799,
+          "build_ms": 0.095106,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9026,7 +9080,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.08741600000000001,
+          "build_ms": 0.153572,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9064,7 +9118,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.069088,
+          "build_ms": 0.123643,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9102,7 +9156,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.286253,
+          "build_ms": 0.411058,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9140,7 +9194,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.073732,
+          "build_ms": 0.119863,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -9178,7 +9232,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.08246500000000001,
+          "build_ms": 0.08783,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9216,7 +9270,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.356819,
+          "build_ms": 0.408849,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9254,7 +9308,7 @@
           "seed": 25
         },
         {
-          "build_ms": 0.054974,
+          "build_ms": 0.090006,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9292,7 +9346,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.073778,
+          "build_ms": 0.120937,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9330,7 +9384,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.059593,
+          "build_ms": 0.083622,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9368,7 +9422,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.088526,
+          "build_ms": 0.14607199999999998,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9406,7 +9460,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.072123,
+          "build_ms": 0.13037300000000002,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9444,7 +9498,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.134007,
+          "build_ms": 0.132494,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -9482,7 +9536,7 @@
           "seed": 31
         },
         {
-          "build_ms": 0.477769,
+          "build_ms": 0.412309,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9520,7 +9574,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.083799,
+          "build_ms": 0.090594,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9558,7 +9612,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.123414,
+          "build_ms": 0.12987400000000002,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9596,7 +9650,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.138974,
+          "build_ms": 0.151059,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9634,7 +9688,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.133932,
+          "build_ms": 0.131146,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9672,7 +9726,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.478102,
+          "build_ms": 0.393776,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9710,7 +9764,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.387339,
+          "build_ms": 0.399715,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9748,7 +9802,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.277398,
+          "build_ms": 0.414593,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9786,7 +9840,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.048966,
+          "build_ms": 0.091862,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9824,7 +9878,7 @@
           "seed": 40
         },
         {
-          "build_ms": 0.247445,
+          "build_ms": 0.410249,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9862,7 +9916,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.481402,
+          "build_ms": 0.425055,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -9900,7 +9954,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.141916,
+          "build_ms": 0.150172,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9938,7 +9992,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.423191,
+          "build_ms": 0.394969,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -9976,7 +10030,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.448011,
+          "build_ms": 0.395018,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10014,7 +10068,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.148376,
+          "build_ms": 0.157697,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10052,7 +10106,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.155561,
+          "build_ms": 0.151803,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10090,7 +10144,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.146338,
+          "build_ms": 0.149136,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10128,7 +10182,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.104592,
+          "build_ms": 0.140556,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10166,7 +10220,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.111469,
+          "build_ms": 0.119803,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10204,7 +10258,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.07688400000000001,
+          "build_ms": 0.083175,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10242,7 +10296,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.077558,
+          "build_ms": 0.090922,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10280,7 +10334,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.115794,
+          "build_ms": 0.131862,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10318,7 +10372,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.15234,
+          "build_ms": 0.15282600000000002,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10356,7 +10410,7 @@
           "seed": 54
         },
         {
-          "build_ms": 0.1424,
+          "build_ms": 0.14861400000000002,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10394,7 +10448,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.116468,
+          "build_ms": 0.131724,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10432,7 +10486,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.07607,
+          "build_ms": 0.086131,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10470,7 +10524,7 @@
           "seed": 57
         },
         {
-          "build_ms": 0.470536,
+          "build_ms": 0.474924,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10508,7 +10562,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.08206,
+          "build_ms": 0.092947,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -10546,7 +10600,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.108969,
+          "build_ms": 0.132121,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10584,7 +10638,7 @@
           "seed": 60
         },
         {
-          "build_ms": 0.486637,
+          "build_ms": 0.443804,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10622,7 +10676,7 @@
           "seed": 61
         },
         {
-          "build_ms": 0.12423299999999998,
+          "build_ms": 0.12803399999999998,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -10660,7 +10714,7 @@
           "seed": 62
         },
         {
-          "build_ms": 0.108575,
+          "build_ms": 0.118295,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10711,7 +10765,7 @@
       "kind": "RevolvingDoor",
       "samples": [
         {
-          "build_ms": 2.782559,
+          "build_ms": 1.627641,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10749,7 +10803,7 @@
           "seed": 0
         },
         {
-          "build_ms": 1.4121940000000002,
+          "build_ms": 1.277845,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10787,7 +10841,7 @@
           "seed": 1
         },
         {
-          "build_ms": 1.119312,
+          "build_ms": 1.215073,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10825,7 +10879,7 @@
           "seed": 2
         },
         {
-          "build_ms": 1.147044,
+          "build_ms": 1.218407,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10863,7 +10917,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.697569,
+          "build_ms": 1.20937,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10901,7 +10955,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.664774,
+          "build_ms": 1.213197,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10939,7 +10993,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.660276,
+          "build_ms": 1.218612,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -10977,7 +11031,7 @@
           "seed": 6
         },
         {
-          "build_ms": 1.134213,
+          "build_ms": 1.273019,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11015,7 +11069,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.92799,
+          "build_ms": 1.2180959999999998,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11053,7 +11107,7 @@
           "seed": 8
         },
         {
-          "build_ms": 1.00894,
+          "build_ms": 1.285093,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11091,7 +11145,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.84392,
+          "build_ms": 1.232496,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11129,7 +11183,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.749194,
+          "build_ms": 1.280239,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11167,7 +11221,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.762183,
+          "build_ms": 1.218034,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11205,7 +11259,7 @@
           "seed": 12
         },
         {
-          "build_ms": 0.777004,
+          "build_ms": 1.210886,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11243,7 +11297,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.7616269999999999,
+          "build_ms": 1.195685,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11281,7 +11335,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.99476,
+          "build_ms": 1.1868200000000002,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11319,7 +11373,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.937088,
+          "build_ms": 1.186284,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11357,7 +11411,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.884928,
+          "build_ms": 1.179823,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11395,7 +11449,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.7772150000000001,
+          "build_ms": 1.18245,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11433,7 +11487,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.7515780000000001,
+          "build_ms": 1.1799689999999998,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11471,7 +11525,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.731712,
+          "build_ms": 1.243283,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11509,7 +11563,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.643775,
+          "build_ms": 1.177223,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11547,7 +11601,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.668583,
+          "build_ms": 1.167555,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11585,7 +11639,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.695735,
+          "build_ms": 1.117103,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11623,7 +11677,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.7837000000000001,
+          "build_ms": 1.116412,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11661,7 +11715,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.8458530000000001,
+          "build_ms": 1.125832,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11699,7 +11753,7 @@
           "seed": 25
         },
         {
-          "build_ms": 0.8511099999999999,
+          "build_ms": 1.234918,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11737,7 +11791,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.885242,
+          "build_ms": 1.195955,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11775,7 +11829,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.771903,
+          "build_ms": 1.17405,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11813,7 +11867,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.891988,
+          "build_ms": 1.248889,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11851,7 +11905,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.746266,
+          "build_ms": 1.177642,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11889,7 +11943,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.902703,
+          "build_ms": 1.227081,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11927,7 +11981,7 @@
           "seed": 31
         },
         {
-          "build_ms": 0.771648,
+          "build_ms": 1.182442,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -11965,7 +12019,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.7696839999999999,
+          "build_ms": 1.131111,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12003,7 +12057,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.895391,
+          "build_ms": 1.188029,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12041,7 +12095,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.769562,
+          "build_ms": 1.122873,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12079,7 +12133,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.746158,
+          "build_ms": 1.119692,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12117,7 +12171,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.913809,
+          "build_ms": 1.173729,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12155,7 +12209,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.848159,
+          "build_ms": 1.171205,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12193,7 +12247,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.7627229999999999,
+          "build_ms": 1.1269,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12231,7 +12285,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.730787,
+          "build_ms": 1.122306,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12269,7 +12323,7 @@
           "seed": 40
         },
         {
-          "build_ms": 0.8636349999999999,
+          "build_ms": 1.184808,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12307,7 +12361,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.879152,
+          "build_ms": 1.164533,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12345,7 +12399,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.7501209999999999,
+          "build_ms": 1.131686,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12383,7 +12437,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.885436,
+          "build_ms": 1.185354,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12421,7 +12475,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.914649,
+          "build_ms": 1.187461,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12459,7 +12513,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.8855230000000001,
+          "build_ms": 1.250683,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12497,7 +12551,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.798451,
+          "build_ms": 1.149492,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12535,7 +12589,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.7917339999999999,
+          "build_ms": 1.132501,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12573,7 +12627,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.777285,
+          "build_ms": 1.132836,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12611,7 +12665,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.753155,
+          "build_ms": 1.15275,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12649,7 +12703,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.768984,
+          "build_ms": 1.122232,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12687,7 +12741,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.778962,
+          "build_ms": 1.134318,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12725,7 +12779,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.852834,
+          "build_ms": 1.1455110000000002,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12763,7 +12817,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.764981,
+          "build_ms": 1.150225,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12801,7 +12855,7 @@
           "seed": 54
         },
         {
-          "build_ms": 1.022379,
+          "build_ms": 1.154135,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12839,7 +12893,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.937798,
+          "build_ms": 1.2793450000000002,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12877,7 +12931,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.800075,
+          "build_ms": 1.1753950000000002,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12915,7 +12969,7 @@
           "seed": 57
         },
         {
-          "build_ms": 0.720012,
+          "build_ms": 1.099139,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12953,7 +13007,7 @@
           "seed": 58
         },
         {
-          "build_ms": 1.079619,
+          "build_ms": 1.239326,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -12991,7 +13045,7 @@
           "seed": 59
         },
         {
-          "build_ms": 1.303333,
+          "build_ms": 1.279597,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -13029,7 +13083,7 @@
           "seed": 60
         },
         {
-          "build_ms": 1.156915,
+          "build_ms": 1.186326,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -13067,7 +13121,7 @@
           "seed": 61
         },
         {
-          "build_ms": 1.151544,
+          "build_ms": 1.179763,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -13105,7 +13159,7 @@
           "seed": 62
         },
         {
-          "build_ms": 1.405577,
+          "build_ms": 1.224613,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -13156,7 +13210,7 @@
       "kind": "Cabinet",
       "samples": [
         {
-          "build_ms": 17.494667,
+          "build_ms": 0.495014,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -13178,7 +13232,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.141358,
+          "build_ms": 0.087952,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -13200,7 +13254,7 @@
           "seed": 1
         },
         {
-          "build_ms": 0.243406,
+          "build_ms": 0.19356,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13222,7 +13276,7 @@
           "seed": 2
         },
         {
-          "build_ms": 0.053583,
+          "build_ms": 0.046653999999999994,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13244,7 +13298,7 @@
           "seed": 3
         },
         {
-          "build_ms": 0.077692,
+          "build_ms": 0.07125400000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13266,7 +13320,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.18908,
+          "build_ms": 0.15274400000000002,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -13288,7 +13342,7 @@
           "seed": 5
         },
         {
-          "build_ms": 0.121512,
+          "build_ms": 0.092782,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13310,7 +13364,7 @@
           "seed": 6
         },
         {
-          "build_ms": 0.08462499999999999,
+          "build_ms": 0.080128,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13332,7 +13386,7 @@
           "seed": 7
         },
         {
-          "build_ms": 0.135532,
+          "build_ms": 0.130565,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13354,7 +13408,7 @@
           "seed": 8
         },
         {
-          "build_ms": 0.192745,
+          "build_ms": 0.17954,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13376,7 +13430,7 @@
           "seed": 9
         },
         {
-          "build_ms": 0.071805,
+          "build_ms": 0.08099500000000001,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13398,7 +13452,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.057194,
+          "build_ms": 0.088908,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13420,7 +13474,7 @@
           "seed": 11
         },
         {
-          "build_ms": 0.074476,
+          "build_ms": 0.094122,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13442,7 +13496,7 @@
           "seed": 12
         },
         {
-          "build_ms": 0.059134,
+          "build_ms": 0.090346,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -13464,7 +13518,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.045027,
+          "build_ms": 0.069255,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13486,7 +13540,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.053255,
+          "build_ms": 0.090717,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13508,7 +13562,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.054823,
+          "build_ms": 0.094737,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13530,7 +13584,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.088903,
+          "build_ms": 0.125775,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
@@ -13552,7 +13606,7 @@
           "seed": 17
         },
         {
-          "build_ms": 0.160504,
+          "build_ms": 0.413688,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -13574,7 +13628,7 @@
           "seed": 18
         },
         {
-          "build_ms": 0.06567100000000001,
+          "build_ms": 0.086594,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13596,7 +13650,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.113667,
+          "build_ms": 0.168236,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13618,7 +13672,7 @@
           "seed": 20
         },
         {
-          "build_ms": 0.084741,
+          "build_ms": 0.122106,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -13640,7 +13694,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.073932,
+          "build_ms": 0.103399,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -13662,7 +13716,7 @@
           "seed": 22
         },
         {
-          "build_ms": 0.034712,
+          "build_ms": 0.054863,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
@@ -13684,7 +13738,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.025483,
+          "build_ms": 0.039679,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -13706,7 +13760,7 @@
           "seed": 24
         },
         {
-          "build_ms": 0.029203,
+          "build_ms": 0.049775,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13728,10 +13782,10 @@
           "seed": 25
         },
         {
-          "build_ms": 0.057008,
+          "build_ms": 0.073287,
           "mesh": {
             "batches": 3,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
             "triangles": 2400
           },
@@ -13750,7 +13804,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.024112,
+          "build_ms": 0.038623,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -13772,7 +13826,7 @@
           "seed": 27
         },
         {
-          "build_ms": 0.049026,
+          "build_ms": 0.075712,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13794,7 +13848,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.066458,
+          "build_ms": 0.092624,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -13816,7 +13870,7 @@
           "seed": 29
         },
         {
-          "build_ms": 0.056405,
+          "build_ms": 0.080563,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13838,7 +13892,7 @@
           "seed": 30
         },
         {
-          "build_ms": 0.031251,
+          "build_ms": 0.046993,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13860,7 +13914,7 @@
           "seed": 31
         },
         {
-          "build_ms": 0.070695,
+          "build_ms": 0.091277,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13882,7 +13936,7 @@
           "seed": 32
         },
         {
-          "build_ms": 0.087061,
+          "build_ms": 0.128395,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13904,7 +13958,7 @@
           "seed": 33
         },
         {
-          "build_ms": 0.173222,
+          "build_ms": 0.210261,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
@@ -13926,7 +13980,7 @@
           "seed": 34
         },
         {
-          "build_ms": 0.090549,
+          "build_ms": 0.140273,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13948,7 +14002,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.057699,
+          "build_ms": 0.089894,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -13970,7 +14024,7 @@
           "seed": 36
         },
         {
-          "build_ms": 0.038929,
+          "build_ms": 0.047833,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -13992,7 +14046,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.07026500000000001,
+          "build_ms": 0.091968,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14014,7 +14068,7 @@
           "seed": 38
         },
         {
-          "build_ms": 0.055397,
+          "build_ms": 0.081788,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -14036,7 +14090,7 @@
           "seed": 39
         },
         {
-          "build_ms": 0.049472,
+          "build_ms": 0.082117,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14058,7 +14112,7 @@
           "seed": 40
         },
         {
-          "build_ms": 0.053499,
+          "build_ms": 0.071462,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14080,7 +14134,7 @@
           "seed": 41
         },
         {
-          "build_ms": 0.048633,
+          "build_ms": 0.076369,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
@@ -14102,7 +14156,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.062032,
+          "build_ms": 0.104112,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14124,7 +14178,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.107281,
+          "build_ms": 0.156164,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
@@ -14146,7 +14200,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.062070999999999994,
+          "build_ms": 0.099831,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14168,7 +14222,7 @@
           "seed": 45
         },
         {
-          "build_ms": 0.07493899999999999,
+          "build_ms": 0.103719,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -14190,7 +14244,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.036086,
+          "build_ms": 0.056654,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14212,7 +14266,7 @@
           "seed": 47
         },
         {
-          "build_ms": 0.429558,
+          "build_ms": 0.5171979999999999,
           "mesh": {
             "batches": 18,
             "max_envelope_overrun_m": 0.0,
@@ -14234,7 +14288,7 @@
           "seed": 48
         },
         {
-          "build_ms": 0.176701,
+          "build_ms": 0.211823,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -14256,7 +14310,7 @@
           "seed": 49
         },
         {
-          "build_ms": 0.12188,
+          "build_ms": 0.12952300000000003,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14278,7 +14332,7 @@
           "seed": 50
         },
         {
-          "build_ms": 0.087654,
+          "build_ms": 0.121315,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
@@ -14300,7 +14354,7 @@
           "seed": 51
         },
         {
-          "build_ms": 0.133941,
+          "build_ms": 0.17611,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14322,7 +14376,7 @@
           "seed": 52
         },
         {
-          "build_ms": 0.021404,
+          "build_ms": 0.032993,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
@@ -14344,7 +14398,7 @@
           "seed": 53
         },
         {
-          "build_ms": 0.058997,
+          "build_ms": 0.08274400000000001,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
@@ -14366,7 +14420,7 @@
           "seed": 54
         },
         {
-          "build_ms": 0.086298,
+          "build_ms": 0.108793,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14388,7 +14442,7 @@
           "seed": 55
         },
         {
-          "build_ms": 0.034761,
+          "build_ms": 0.04208,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14410,7 +14464,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.153666,
+          "build_ms": 0.176409,
           "mesh": {
             "batches": 9,
             "max_envelope_overrun_m": 0.0,
@@ -14432,7 +14486,7 @@
           "seed": 57
         },
         {
-          "build_ms": 0.08597199999999999,
+          "build_ms": 0.101258,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
@@ -14454,7 +14508,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.137221,
+          "build_ms": 0.166391,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14476,7 +14530,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.104118,
+          "build_ms": 0.138518,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14498,7 +14552,7 @@
           "seed": 60
         },
         {
-          "build_ms": 0.045987,
+          "build_ms": 0.070776,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14520,7 +14574,7 @@
           "seed": 61
         },
         {
-          "build_ms": 0.105597,
+          "build_ms": 0.134637,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14542,7 +14596,7 @@
           "seed": 62
         },
         {
-          "build_ms": 0.07890799999999999,
+          "build_ms": 0.095513,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
@@ -14577,12 +14631,12 @@
       "kind": "KitchenCounter",
       "samples": [
         {
-          "build_ms": 2.114581,
+          "build_ms": 0.255863,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5808
+            "triangles": 4216
           },
           "program": {
             "counter_doors": true,
@@ -14600,12 +14654,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.488093,
+          "build_ms": 0.264965,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9528
+            "triangles": 6312
           },
           "program": {
             "counter_doors": true,
@@ -14623,12 +14677,12 @@
           "seed": 1
         },
         {
-          "build_ms": 0.08143,
+          "build_ms": 0.297353,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2716
+            "triangles": 1652
           },
           "program": {
             "counter_doors": false,
@@ -14646,12 +14700,12 @@
           "seed": 2
         },
         {
-          "build_ms": 0.26165900000000003,
+          "build_ms": 0.26017999999999997,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7216
+            "triangles": 5636
           },
           "program": {
             "counter_doors": true,
@@ -14669,12 +14723,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.230523,
+          "build_ms": 0.31762799999999997,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9888
+            "triangles": 7632
           },
           "program": {
             "counter_doors": true,
@@ -14692,12 +14746,12 @@
           "seed": 4
         },
         {
-          "build_ms": 0.16108,
+          "build_ms": 0.113796,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6984
+            "triangles": 2808
           },
           "program": {
             "counter_doors": true,
@@ -14715,12 +14769,12 @@
           "seed": 5
         },
         {
-          "build_ms": 0.196148,
+          "build_ms": 0.207735,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6948
+            "triangles": 5212
           },
           "program": {
             "counter_doors": true,
@@ -14738,12 +14792,12 @@
           "seed": 6
         },
         {
-          "build_ms": 0.070913,
+          "build_ms": 0.08609599999999999,
           "mesh": {
-            "batches": 3,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2376
+            "triangles": 1620
           },
           "program": {
             "counter_doors": false,
@@ -14761,12 +14815,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.532447,
+          "build_ms": 0.085336,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2716
+            "triangles": 1652
           },
           "program": {
             "counter_doors": false,
@@ -14784,12 +14838,12 @@
           "seed": 8
         },
         {
-          "build_ms": 0.187639,
+          "build_ms": 0.29654200000000003,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6660
+            "triangles": 7348
           },
           "program": {
             "counter_doors": true,
@@ -14807,12 +14861,12 @@
           "seed": 9
         },
         {
-          "build_ms": 0.25752,
+          "build_ms": 0.162345,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8980
+            "triangles": 3608
           },
           "program": {
             "counter_doors": true,
@@ -14830,12 +14884,12 @@
           "seed": 10
         },
         {
-          "build_ms": 0.21229,
+          "build_ms": 0.363236,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5732
+            "triangles": 8660
           },
           "program": {
             "counter_doors": true,
@@ -14853,12 +14907,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.095153,
+          "build_ms": 0.114783,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2860
+            "triangles": 2356
           },
           "program": {
             "counter_doors": false,
@@ -14876,12 +14930,12 @@
           "seed": 12
         },
         {
-          "build_ms": 0.058440000000000006,
+          "build_ms": 0.067761,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2160
+            "triangles": 1400
           },
           "program": {
             "counter_doors": true,
@@ -14899,12 +14953,12 @@
           "seed": 13
         },
         {
-          "build_ms": 1.72215,
+          "build_ms": 0.226359,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 14040
+            "triangles": 4152
           },
           "program": {
             "counter_doors": false,
@@ -14922,12 +14976,12 @@
           "seed": 14
         },
         {
-          "build_ms": 0.056397,
+          "build_ms": 0.06453099999999999,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 1188
+            "triangles": 1292
           },
           "program": {
             "counter_doors": false,
@@ -14945,12 +14999,12 @@
           "seed": 15
         },
         {
-          "build_ms": 0.863204,
+          "build_ms": 0.213839,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 12996
+            "triangles": 4116
           },
           "program": {
             "counter_doors": false,
@@ -14968,12 +15022,12 @@
           "seed": 16
         },
         {
-          "build_ms": 0.105387,
+          "build_ms": 0.10318,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2052
+            "triangles": 2308
           },
           "program": {
             "counter_doors": false,
@@ -14991,12 +15045,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.334238,
+          "build_ms": 0.147998,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5212
+            "triangles": 3248
           },
           "program": {
             "counter_doors": true,
@@ -15014,12 +15068,12 @@
           "seed": 18
         },
         {
-          "build_ms": 0.111158,
+          "build_ms": 0.081625,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2052
+            "triangles": 1548
           },
           "program": {
             "counter_doors": false,
@@ -15037,12 +15091,12 @@
           "seed": 19
         },
         {
-          "build_ms": 3.168113,
+          "build_ms": 0.137903,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3684
+            "triangles": 2676
           },
           "program": {
             "counter_doors": false,
@@ -15060,12 +15114,12 @@
           "seed": 20
         },
         {
-          "build_ms": 0.110702,
+          "build_ms": 0.142704,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3696
+            "triangles": 3240
           },
           "program": {
             "counter_doors": false,
@@ -15083,12 +15137,12 @@
           "seed": 21
         },
         {
-          "build_ms": 0.307569,
+          "build_ms": 0.335708,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8068
+            "triangles": 8212
           },
           "program": {
             "counter_doors": true,
@@ -15106,12 +15160,12 @@
           "seed": 22
         },
         {
-          "build_ms": 0.41529,
+          "build_ms": 0.35717099999999996,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10140
+            "triangles": 9208
           },
           "program": {
             "counter_doors": true,
@@ -15129,12 +15183,12 @@
           "seed": 23
         },
         {
-          "build_ms": 0.335339,
+          "build_ms": 0.115396,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7048
+            "triangles": 2536
           },
           "program": {
             "counter_doors": true,
@@ -15152,12 +15206,12 @@
           "seed": 24
         },
         {
-          "build_ms": 0.19699,
+          "build_ms": 0.105947,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6024
+            "triangles": 2096
           },
           "program": {
             "counter_doors": true,
@@ -15175,12 +15229,12 @@
           "seed": 25
         },
         {
-          "build_ms": 0.6681229999999999,
+          "build_ms": 0.285898,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 18068
+            "triangles": 5236
           },
           "program": {
             "counter_doors": false,
@@ -15198,12 +15252,12 @@
           "seed": 26
         },
         {
-          "build_ms": 0.175723,
+          "build_ms": 0.133106,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4676
+            "triangles": 2548
           },
           "program": {
             "counter_doors": false,
@@ -15221,12 +15275,12 @@
           "seed": 27
         },
         {
-          "build_ms": 0.7120839999999999,
+          "build_ms": 0.271936,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 17076
+            "triangles": 5236
           },
           "program": {
             "counter_doors": false,
@@ -15244,12 +15298,12 @@
           "seed": 28
         },
         {
-          "build_ms": 0.089349,
+          "build_ms": 0.147635,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2952
+            "triangles": 3336
           },
           "program": {
             "counter_doors": false,
@@ -15267,12 +15321,12 @@
           "seed": 29
         },
         {
-          "build_ms": 0.525811,
+          "build_ms": 0.278717,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10224
+            "triangles": 6200
           },
           "program": {
             "counter_doors": true,
@@ -15290,12 +15344,12 @@
           "seed": 30
         },
         {
-          "build_ms": 0.073321,
+          "build_ms": 0.08859600000000001,
           "mesh": {
-            "batches": 3,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2376
+            "triangles": 1620
           },
           "program": {
             "counter_doors": false,
@@ -15313,12 +15367,12 @@
           "seed": 31
         },
         {
-          "build_ms": 0.356646,
+          "build_ms": 0.197457,
           "mesh": {
-            "batches": 5,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8952
+            "triangles": 4632
           },
           "program": {
             "counter_doors": true,
@@ -15336,12 +15390,12 @@
           "seed": 32
         },
         {
-          "build_ms": 0.103532,
+          "build_ms": 0.228796,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3972
+            "triangles": 5664
           },
           "program": {
             "counter_doors": true,
@@ -15359,12 +15413,12 @@
           "seed": 33
         },
         {
-          "build_ms": 0.062239,
+          "build_ms": 0.113973,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2220
+            "triangles": 2476
           },
           "program": {
             "counter_doors": false,
@@ -15382,12 +15436,12 @@
           "seed": 34
         },
         {
-          "build_ms": 0.224379,
+          "build_ms": 0.161671,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8700
+            "triangles": 2996
           },
           "program": {
             "counter_doors": false,
@@ -15405,12 +15459,12 @@
           "seed": 35
         },
         {
-          "build_ms": 0.032341,
+          "build_ms": 0.057409,
           "mesh": {
-            "batches": 3,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 972
+            "triangles": 1076
           },
           "program": {
             "counter_doors": false,
@@ -15428,12 +15482,12 @@
           "seed": 36
         },
         {
-          "build_ms": 2.534948,
+          "build_ms": 0.221845,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 13740
+            "triangles": 4020
           },
           "program": {
             "counter_doors": false,
@@ -15451,12 +15505,12 @@
           "seed": 37
         },
         {
-          "build_ms": 0.358975,
+          "build_ms": 0.14321799999999998,
           "mesh": {
-            "batches": 3,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8316
+            "triangles": 2612
           },
           "program": {
             "counter_doors": false,
@@ -15474,12 +15528,12 @@
           "seed": 38
         },
         {
-          "build_ms": 0.409754,
+          "build_ms": 0.234842,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 13672
+            "triangles": 5144
           },
           "program": {
             "counter_doors": true,
@@ -15497,12 +15551,12 @@
           "seed": 39
         },
         {
-          "build_ms": 0.16172899999999998,
+          "build_ms": 0.236964,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4544
+            "triangles": 5112
           },
           "program": {
             "counter_doors": true,
@@ -15520,12 +15574,12 @@
           "seed": 40
         },
         {
-          "build_ms": 0.245172,
+          "build_ms": 0.147332,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7764
+            "triangles": 3260
           },
           "program": {
             "counter_doors": true,
@@ -15543,12 +15597,12 @@
           "seed": 41
         },
         {
-          "build_ms": 0.207508,
+          "build_ms": 0.250755,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7620
+            "triangles": 5388
           },
           "program": {
             "counter_doors": true,
@@ -15566,12 +15620,12 @@
           "seed": 42
         },
         {
-          "build_ms": 0.196993,
+          "build_ms": 0.350794,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8520
+            "triangles": 8712
           },
           "program": {
             "counter_doors": true,
@@ -15589,12 +15643,12 @@
           "seed": 43
         },
         {
-          "build_ms": 0.067316,
+          "build_ms": 0.123752,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2376
+            "triangles": 2760
           },
           "program": {
             "counter_doors": false,
@@ -15612,12 +15666,12 @@
           "seed": 44
         },
         {
-          "build_ms": 0.182912,
+          "build_ms": 0.121201,
           "mesh": {
-            "batches": 5,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7020
+            "triangles": 2844
           },
           "program": {
             "counter_doors": true,
@@ -15635,12 +15689,12 @@
           "seed": 45
         },
         {
-          "build_ms": 0.067036,
+          "build_ms": 0.08977199999999999,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2716
+            "triangles": 1652
           },
           "program": {
             "counter_doors": false,
@@ -15658,12 +15712,12 @@
           "seed": 46
         },
         {
-          "build_ms": 0.166098,
+          "build_ms": 0.254346,
           "mesh": {
-            "batches": 5,
+            "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7992
+            "triangles": 6216
           },
           "program": {
             "counter_doors": true,
@@ -15681,12 +15735,12 @@
           "seed": 47
         },
         {
-          "build_ms": 0.18683,
+          "build_ms": 0.202775,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8336
+            "triangles": 4600
           },
           "program": {
             "counter_doors": true,
@@ -15704,12 +15758,12 @@
           "seed": 48
         },
         {
-          "build_ms": 0.102623,
+          "build_ms": 0.136843,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3684
+            "triangles": 2676
           },
           "program": {
             "counter_doors": false,
@@ -15727,12 +15781,12 @@
           "seed": 49
         },
         {
-          "build_ms": 0.13580299999999998,
+          "build_ms": 0.210178,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6084
+            "triangles": 4892
           },
           "program": {
             "counter_doors": true,
@@ -15750,12 +15804,12 @@
           "seed": 50
         },
         {
-          "build_ms": 0.23304,
+          "build_ms": 0.2006,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9988
+            "triangles": 3764
           },
           "program": {
             "counter_doors": false,
@@ -15773,12 +15827,12 @@
           "seed": 51
         },
         {
-          "build_ms": 0.121792,
+          "build_ms": 0.219617,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5260
+            "triangles": 5120
           },
           "program": {
             "counter_doors": true,
@@ -15796,12 +15850,12 @@
           "seed": 52
         },
         {
-          "build_ms": 0.199231,
+          "build_ms": 0.287934,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8168
+            "triangles": 5904
           },
           "program": {
             "counter_doors": true,
@@ -15819,12 +15873,12 @@
           "seed": 53
         },
         {
-          "build_ms": 0.654662,
+          "build_ms": 0.330856,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 19444
+            "triangles": 6260
           },
           "program": {
             "counter_doors": false,
@@ -15842,12 +15896,12 @@
           "seed": 54
         },
         {
-          "build_ms": 0.137072,
+          "build_ms": 0.264435,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4712
+            "triangles": 6240
           },
           "program": {
             "counter_doors": true,
@@ -15865,12 +15919,12 @@
           "seed": 55
         },
         {
-          "build_ms": 0.089198,
+          "build_ms": 0.114337,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3696
+            "triangles": 2100
           },
           "program": {
             "counter_doors": false,
@@ -15888,12 +15942,12 @@
           "seed": 56
         },
         {
-          "build_ms": 0.053072,
+          "build_ms": 0.097168,
           "mesh": {
-            "batches": 4,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 1836
+            "triangles": 2092
           },
           "program": {
             "counter_doors": false,
@@ -15911,12 +15965,12 @@
           "seed": 57
         },
         {
-          "build_ms": 0.28391799999999995,
+          "build_ms": 0.39151,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8144
+            "triangles": 9536
           },
           "program": {
             "counter_doors": true,
@@ -15934,12 +15988,12 @@
           "seed": 58
         },
         {
-          "build_ms": 0.110584,
+          "build_ms": 0.194104,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3676
+            "triangles": 4348
           },
           "program": {
             "counter_doors": true,
@@ -15957,12 +16011,12 @@
           "seed": 59
         },
         {
-          "build_ms": 0.115334,
+          "build_ms": 0.237156,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4416
+            "triangles": 5808
           },
           "program": {
             "counter_doors": true,
@@ -15980,12 +16034,12 @@
           "seed": 60
         },
         {
-          "build_ms": 0.123968,
+          "build_ms": 0.216734,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4944
+            "triangles": 4832
           },
           "program": {
             "counter_doors": true,
@@ -16003,12 +16057,12 @@
           "seed": 61
         },
         {
-          "build_ms": 0.132151,
+          "build_ms": 0.218944,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5112
+            "triangles": 4920
           },
           "program": {
             "counter_doors": true,
@@ -16026,12 +16080,12 @@
           "seed": 62
         },
         {
-          "build_ms": 0.212013,
+          "build_ms": 0.2292,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8372
+            "triangles": 5500
           },
           "program": {
             "counter_doors": true,
@@ -16062,12 +16116,12 @@
       "kind": "KitchenCupboard",
       "samples": [
         {
-          "build_ms": 0.243339,
+          "build_ms": 0.21931,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6672
+            "triangles": 4928
           },
           "program": {
             "cabinet_motion": 1,
@@ -16088,12 +16142,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.262511,
+          "build_ms": 0.226112,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8160
+            "triangles": 5040
           },
           "program": {
             "cabinet_motion": 2,
@@ -16114,12 +16168,12 @@
           "seed": 1
         },
         {
-          "build_ms": 2.455314,
+          "build_ms": 0.214417,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6020
+            "triangles": 4376
           },
           "program": {
             "cabinet_motion": 2,
@@ -16140,12 +16194,12 @@
           "seed": 2
         },
         {
-          "build_ms": 0.314048,
+          "build_ms": 0.215921,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8672
+            "triangles": 4552
           },
           "program": {
             "cabinet_motion": 0,
@@ -16166,12 +16220,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.431059,
+          "build_ms": 0.579926,
           "mesh": {
-            "batches": 8,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 12000
+            "triangles": 10080
           },
           "program": {
             "cabinet_motion": 1,
@@ -16192,12 +16246,12 @@
           "seed": 4
         },
         {
-          "build_ms": 0.264556,
+          "build_ms": 0.108955,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7632
+            "triangles": 2400
           },
           "program": {
             "cabinet_motion": 2,
@@ -16218,12 +16272,12 @@
           "seed": 5
         },
         {
-          "build_ms": 0.220408,
+          "build_ms": 0.28800800000000004,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8196
+            "triangles": 6356
           },
           "program": {
             "cabinet_motion": 1,
@@ -16244,12 +16298,12 @@
           "seed": 6
         },
         {
-          "build_ms": 0.187728,
+          "build_ms": 0.261938,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7332
+            "triangles": 6228
           },
           "program": {
             "cabinet_motion": 2,
@@ -16270,12 +16324,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.159633,
+          "build_ms": 0.21056499999999995,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5712
+            "triangles": 4248
           },
           "program": {
             "cabinet_motion": 0,
@@ -16296,12 +16350,12 @@
           "seed": 8
         },
         {
-          "build_ms": 0.24133,
+          "build_ms": 0.359801,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8288
+            "triangles": 7688
           },
           "program": {
             "cabinet_motion": 2,
@@ -16322,12 +16376,12 @@
           "seed": 9
         },
         {
-          "build_ms": 5.29993,
+          "build_ms": 0.26804599999999995,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9752
+            "triangles": 5536
           },
           "program": {
             "cabinet_motion": 0,
@@ -16348,12 +16402,12 @@
           "seed": 10
         },
         {
-          "build_ms": 0.32929600000000003,
+          "build_ms": 0.402785,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7112
+            "triangles": 8504
           },
           "program": {
             "cabinet_motion": 2,
@@ -16374,12 +16428,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.198401,
+          "build_ms": 0.210372,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6800
+            "triangles": 4360
           },
           "program": {
             "cabinet_motion": 0,
@@ -16400,12 +16454,12 @@
           "seed": 12
         },
         {
-          "build_ms": 0.102879,
+          "build_ms": 0.117753,
           "mesh": {
             "batches": 4,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3888
+            "triangles": 2368
           },
           "program": {
             "cabinet_motion": 1,
@@ -16426,12 +16480,12 @@
           "seed": 13
         },
         {
-          "build_ms": 0.134892,
+          "build_ms": 0.260513,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5220
+            "triangles": 5844
           },
           "program": {
             "cabinet_motion": 1,
@@ -16452,12 +16506,12 @@
           "seed": 14
         },
         {
-          "build_ms": 0.09237,
+          "build_ms": 0.188431,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3288
+            "triangles": 4056
           },
           "program": {
             "cabinet_motion": 0,
@@ -16478,12 +16532,12 @@
           "seed": 15
         },
         {
-          "build_ms": 0.14074,
+          "build_ms": 0.221025,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5412
+            "triangles": 4932
           },
           "program": {
             "cabinet_motion": 1,
@@ -16504,12 +16558,12 @@
           "seed": 16
         },
         {
-          "build_ms": 0.180327,
+          "build_ms": 0.216639,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6056
+            "triangles": 4568
           },
           "program": {
             "cabinet_motion": 0,
@@ -16530,12 +16584,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.205919,
+          "build_ms": 0.194351,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6592
+            "triangles": 4056
           },
           "program": {
             "cabinet_motion": 2,
@@ -16556,12 +16610,12 @@
           "seed": 18
         },
         {
-          "build_ms": 0.194693,
+          "build_ms": 0.214988,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6616
+            "triangles": 4040
           },
           "program": {
             "cabinet_motion": 0,
@@ -16582,12 +16636,12 @@
           "seed": 19
         },
         {
-          "build_ms": 0.216961,
+          "build_ms": 0.188076,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7632
+            "triangles": 4224
           },
           "program": {
             "cabinet_motion": 1,
@@ -16608,12 +16662,12 @@
           "seed": 20
         },
         {
-          "build_ms": 0.227068,
+          "build_ms": 0.32410700000000003,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7644
+            "triangles": 7036
           },
           "program": {
             "cabinet_motion": 0,
@@ -16634,12 +16688,12 @@
           "seed": 21
         },
         {
-          "build_ms": 0.284503,
+          "build_ms": 0.343515,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9256
+            "triangles": 8008
           },
           "program": {
             "cabinet_motion": 2,
@@ -16660,12 +16714,12 @@
           "seed": 22
         },
         {
-          "build_ms": 0.300069,
+          "build_ms": 0.5058509999999999,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10536
+            "triangles": 11024
           },
           "program": {
             "cabinet_motion": 0,
@@ -16686,12 +16740,12 @@
           "seed": 23
         },
         {
-          "build_ms": 0.295159,
+          "build_ms": 0.183235,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8428
+            "triangles": 3916
           },
           "program": {
             "cabinet_motion": 2,
@@ -16712,12 +16766,12 @@
           "seed": 24
         },
         {
-          "build_ms": 0.198553,
+          "build_ms": 0.184104,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7224
+            "triangles": 3496
           },
           "program": {
             "cabinet_motion": 1,
@@ -16738,12 +16792,12 @@
           "seed": 25
         },
         {
-          "build_ms": 0.5568609999999999,
+          "build_ms": 0.386858,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 15488
+            "triangles": 7904
           },
           "program": {
             "cabinet_motion": 1,
@@ -16764,12 +16818,12 @@
           "seed": 26
         },
         {
-          "build_ms": 0.208925,
+          "build_ms": 0.184586,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7056
+            "triangles": 4080
           },
           "program": {
             "cabinet_motion": 2,
@@ -16790,12 +16844,12 @@
           "seed": 27
         },
         {
-          "build_ms": 1.347404,
+          "build_ms": 0.509325,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 16060
+            "triangles": 11232
           },
           "program": {
             "cabinet_motion": 2,
@@ -16816,12 +16870,12 @@
           "seed": 28
         },
         {
-          "build_ms": 0.320969,
+          "build_ms": 0.203793,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7852
+            "triangles": 4444
           },
           "program": {
             "cabinet_motion": 2,
@@ -16842,12 +16896,12 @@
           "seed": 29
         },
         {
-          "build_ms": 0.652034,
+          "build_ms": 0.397013,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 12288
+            "triangles": 8608
           },
           "program": {
             "cabinet_motion": 0,
@@ -16868,12 +16922,12 @@
           "seed": 30
         },
         {
-          "build_ms": 0.607026,
+          "build_ms": 0.22508,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8984
+            "triangles": 4916
           },
           "program": {
             "cabinet_motion": 2,
@@ -16894,12 +16948,12 @@
           "seed": 31
         },
         {
-          "build_ms": 0.488689,
+          "build_ms": 0.23475,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6768
+            "triangles": 5184
           },
           "program": {
             "cabinet_motion": 2,
@@ -16920,12 +16974,12 @@
           "seed": 32
         },
         {
-          "build_ms": 0.486282,
+          "build_ms": 0.288808,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5760
+            "triangles": 6600
           },
           "program": {
             "cabinet_motion": 0,
@@ -16946,12 +17000,12 @@
           "seed": 33
         },
         {
-          "build_ms": 0.385987,
+          "build_ms": 0.279162,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7704
+            "triangles": 6168
           },
           "program": {
             "cabinet_motion": 1,
@@ -16972,12 +17026,12 @@
           "seed": 34
         },
         {
-          "build_ms": 0.5764,
+          "build_ms": 0.327009,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 11392
+            "triangles": 6856
           },
           "program": {
             "cabinet_motion": 2,
@@ -16998,12 +17052,12 @@
           "seed": 35
         },
         {
-          "build_ms": 0.543822,
+          "build_ms": 0.154161,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4680
+            "triangles": 3432
           },
           "program": {
             "cabinet_motion": 1,
@@ -17024,12 +17078,12 @@
           "seed": 36
         },
         {
-          "build_ms": 2.003577,
+          "build_ms": 0.29385700000000003,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 12104
+            "triangles": 5892
           },
           "program": {
             "cabinet_motion": 2,
@@ -17050,9 +17104,9 @@
           "seed": 37
         },
         {
-          "build_ms": 1.056624,
+          "build_ms": 0.210912,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
             "triangles": 4536
@@ -17076,12 +17130,12 @@
           "seed": 38
         },
         {
-          "build_ms": 3.61169,
+          "build_ms": 0.295564,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 16028
+            "triangles": 5968
           },
           "program": {
             "cabinet_motion": 0,
@@ -17102,12 +17156,12 @@
           "seed": 39
         },
         {
-          "build_ms": 0.983939,
+          "build_ms": 0.29808900000000005,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4976
+            "triangles": 6284
           },
           "program": {
             "cabinet_motion": 2,
@@ -17128,12 +17182,12 @@
           "seed": 40
         },
         {
-          "build_ms": 1.1186919999999998,
+          "build_ms": 0.236792,
           "mesh": {
-            "batches": 5,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8244
+            "triangles": 4996
           },
           "program": {
             "cabinet_motion": 1,
@@ -17154,12 +17208,12 @@
           "seed": 41
         },
         {
-          "build_ms": 1.185,
+          "build_ms": 0.246022,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8624
+            "triangles": 4724
           },
           "program": {
             "cabinet_motion": 2,
@@ -17180,12 +17234,12 @@
           "seed": 42
         },
         {
-          "build_ms": 1.354697,
+          "build_ms": 0.396578,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9168
+            "triangles": 9120
           },
           "program": {
             "cabinet_motion": 1,
@@ -17206,12 +17260,12 @@
           "seed": 43
         },
         {
-          "build_ms": 1.068567,
+          "build_ms": 0.330623,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6324
+            "triangles": 7620
           },
           "program": {
             "cabinet_motion": 1,
@@ -17232,12 +17286,12 @@
           "seed": 44
         },
         {
-          "build_ms": 0.642889,
+          "build_ms": 0.1485,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7668
+            "triangles": 3300
           },
           "program": {
             "cabinet_motion": 0,
@@ -17258,12 +17312,12 @@
           "seed": 45
         },
         {
-          "build_ms": 0.49944599999999995,
+          "build_ms": 0.185311,
           "mesh": {
             "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6072
+            "triangles": 3432
           },
           "program": {
             "cabinet_motion": 0,
@@ -17284,12 +17338,12 @@
           "seed": 46
         },
         {
-          "build_ms": 0.324102,
+          "build_ms": 0.174137,
           "mesh": {
-            "batches": 6,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6576
+            "triangles": 3792
           },
           "program": {
             "cabinet_motion": 1,
@@ -17310,12 +17364,12 @@
           "seed": 47
         },
         {
-          "build_ms": 0.36907,
+          "build_ms": 0.229324,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7364
+            "triangles": 4784
           },
           "program": {
             "cabinet_motion": 2,
@@ -17336,12 +17390,12 @@
           "seed": 48
         },
         {
-          "build_ms": 0.944784,
+          "build_ms": 0.253689,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8504
+            "triangles": 5440
           },
           "program": {
             "cabinet_motion": 0,
@@ -17362,12 +17416,12 @@
           "seed": 49
         },
         {
-          "build_ms": 0.962323,
+          "build_ms": 0.263586,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7712
+            "triangles": 5856
           },
           "program": {
             "cabinet_motion": 2,
@@ -17388,12 +17442,12 @@
           "seed": 50
         },
         {
-          "build_ms": 1.633415,
+          "build_ms": 0.352448,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 11328
+            "triangles": 7240
           },
           "program": {
             "cabinet_motion": 1,
@@ -17414,12 +17468,12 @@
           "seed": 51
         },
         {
-          "build_ms": 1.020093,
+          "build_ms": 0.245654,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6640
+            "triangles": 5064
           },
           "program": {
             "cabinet_motion": 2,
@@ -17440,12 +17494,12 @@
           "seed": 52
         },
         {
-          "build_ms": 2.7574880000000004,
+          "build_ms": 0.434318,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 11704
+            "triangles": 8056
           },
           "program": {
             "cabinet_motion": 0,
@@ -17466,12 +17520,12 @@
           "seed": 53
         },
         {
-          "build_ms": 0.5873649999999999,
+          "build_ms": 0.253229,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4656
+            "triangles": 5136
           },
           "program": {
             "cabinet_motion": 1,
@@ -17492,12 +17546,12 @@
           "seed": 54
         },
         {
-          "build_ms": 0.592334,
+          "build_ms": 0.34611800000000004,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5800
+            "triangles": 6648
           },
           "program": {
             "cabinet_motion": 0,
@@ -17518,12 +17572,12 @@
           "seed": 55
         },
         {
-          "build_ms": 0.678233,
+          "build_ms": 0.240668,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6852
+            "triangles": 5076
           },
           "program": {
             "cabinet_motion": 1,
@@ -17544,12 +17598,12 @@
           "seed": 56
         },
         {
-          "build_ms": 1.266343,
+          "build_ms": 0.36059,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7576
+            "triangles": 7384
           },
           "program": {
             "cabinet_motion": 0,
@@ -17570,12 +17624,12 @@
           "seed": 57
         },
         {
-          "build_ms": 0.911696,
+          "build_ms": 0.371983,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7940
+            "triangles": 7508
           },
           "program": {
             "cabinet_motion": 2,
@@ -17596,12 +17650,12 @@
           "seed": 58
         },
         {
-          "build_ms": 0.233059,
+          "build_ms": 0.291367,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5056
+            "triangles": 5728
           },
           "program": {
             "cabinet_motion": 2,
@@ -17622,12 +17676,12 @@
           "seed": 59
         },
         {
-          "build_ms": 0.17131700000000002,
+          "build_ms": 0.23725,
           "mesh": {
             "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4008
+            "triangles": 4968
           },
           "program": {
             "cabinet_motion": 1,
@@ -17648,12 +17702,12 @@
           "seed": 60
         },
         {
-          "build_ms": 0.195049,
+          "build_ms": 0.321546,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6888
+            "triangles": 5992
           },
           "program": {
             "cabinet_motion": 1,
@@ -17674,12 +17728,12 @@
           "seed": 61
         },
         {
-          "build_ms": 0.190346,
+          "build_ms": 0.367057,
           "mesh": {
-            "batches": 8,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7224
+            "triangles": 7080
           },
           "program": {
             "cabinet_motion": 1,
@@ -17700,12 +17754,12 @@
           "seed": 62
         },
         {
-          "build_ms": 0.275037,
+          "build_ms": 0.333273,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9752
+            "triangles": 6836
           },
           "program": {
             "cabinet_motion": 2,
@@ -17739,12 +17793,12 @@
       "kind": "Pantry",
       "samples": [
         {
-          "build_ms": 0.387265,
+          "build_ms": 0.261606,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3404
+            "triangles": 6052
           },
           "program": {
             "cabinet_motion": 1,
@@ -17765,12 +17819,12 @@
           "seed": 0
         },
         {
-          "build_ms": 0.5521280000000001,
+          "build_ms": 0.254689,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 4180
+            "triangles": 5504
           },
           "program": {
             "cabinet_motion": 2,
@@ -17791,12 +17845,12 @@
           "seed": 1
         },
         {
-          "build_ms": 0.410735,
+          "build_ms": 0.148118,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4164
+            "triangles": 2760
           },
           "program": {
             "cabinet_motion": 2,
@@ -17817,12 +17871,12 @@
           "seed": 2
         },
         {
-          "build_ms": 0.669641,
+          "build_ms": 0.237391,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5248
+            "triangles": 4992
           },
           "program": {
             "cabinet_motion": 0,
@@ -17843,12 +17897,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.558608,
+          "build_ms": 0.373253,
           "mesh": {
-            "batches": 10,
+            "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5720
+            "triangles": 7944
           },
           "program": {
             "cabinet_motion": 1,
@@ -17869,12 +17923,12 @@
           "seed": 4
         },
         {
-          "build_ms": 0.25611900000000004,
+          "build_ms": 0.107843,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 4808
+            "triangles": 2200
           },
           "program": {
             "cabinet_motion": 2,
@@ -17895,12 +17949,12 @@
           "seed": 5
         },
         {
-          "build_ms": 0.141677,
+          "build_ms": 0.19126,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2808
+            "triangles": 3960
           },
           "program": {
             "cabinet_motion": 1,
@@ -17921,12 +17975,12 @@
           "seed": 6
         },
         {
-          "build_ms": 0.202876,
+          "build_ms": 0.206959,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3768
+            "triangles": 4612
           },
           "program": {
             "cabinet_motion": 2,
@@ -17947,12 +18001,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.210826,
+          "build_ms": 0.174762,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3168
+            "triangles": 3552
           },
           "program": {
             "cabinet_motion": 0,
@@ -17973,12 +18027,12 @@
           "seed": 8
         },
         {
-          "build_ms": 0.300462,
+          "build_ms": 0.235949,
           "mesh": {
-            "batches": 9,
+            "batches": 10,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 4948
+            "triangles": 5280
           },
           "program": {
             "cabinet_motion": 2,
@@ -17999,12 +18053,12 @@
           "seed": 9
         },
         {
-          "build_ms": 0.384525,
+          "build_ms": 0.220788,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6768
+            "triangles": 4848
           },
           "program": {
             "cabinet_motion": 0,
@@ -18025,12 +18079,12 @@
           "seed": 10
         },
         {
-          "build_ms": 0.480029,
+          "build_ms": 0.278872,
           "mesh": {
-            "batches": 9,
+            "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4140
+            "triangles": 5916
           },
           "program": {
             "cabinet_motion": 2,
@@ -18051,12 +18105,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.24573200000000003,
+          "build_ms": 0.176548,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3776
+            "triangles": 3740
           },
           "program": {
             "cabinet_motion": 0,
@@ -18077,12 +18131,12 @@
           "seed": 12
         },
         {
-          "build_ms": 0.15723,
+          "build_ms": 0.059535,
           "mesh": {
             "batches": 2,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2052
+            "triangles": 1292
           },
           "program": {
             "cabinet_motion": 1,
@@ -18103,12 +18157,12 @@
           "seed": 13
         },
         {
-          "build_ms": 0.480889,
+          "build_ms": 0.167897,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3156
+            "triangles": 3604
           },
           "program": {
             "cabinet_motion": 1,
@@ -18129,12 +18183,12 @@
           "seed": 14
         },
         {
-          "build_ms": 0.29729099999999997,
+          "build_ms": 0.200296,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 1908
+            "triangles": 4276
           },
           "program": {
             "cabinet_motion": 0,
@@ -18155,12 +18209,12 @@
           "seed": 15
         },
         {
-          "build_ms": 0.328946,
+          "build_ms": 0.128589,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2668
+            "triangles": 2612
           },
           "program": {
             "cabinet_motion": 1,
@@ -18181,12 +18235,12 @@
           "seed": 16
         },
         {
-          "build_ms": 0.473016,
+          "build_ms": 0.145465,
           "mesh": {
-            "batches": 10,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4124
+            "triangles": 3160
           },
           "program": {
             "cabinet_motion": 0,
@@ -18207,12 +18261,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.505069,
+          "build_ms": 0.13713899999999998,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3192
+            "triangles": 2812
           },
           "program": {
             "cabinet_motion": 2,
@@ -18233,12 +18287,12 @@
           "seed": 18
         },
         {
-          "build_ms": 0.163832,
+          "build_ms": 0.15736,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3664
+            "triangles": 3096
           },
           "program": {
             "cabinet_motion": 0,
@@ -18259,12 +18313,12 @@
           "seed": 19
         },
         {
-          "build_ms": 0.14491600000000002,
+          "build_ms": 0.244157,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4316
+            "triangles": 5668
           },
           "program": {
             "cabinet_motion": 1,
@@ -18285,12 +18339,12 @@
           "seed": 20
         },
         {
-          "build_ms": 0.118624,
+          "build_ms": 0.25313100000000005,
           "mesh": {
-            "batches": 8,
+            "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3640
+            "triangles": 5428
           },
           "program": {
             "cabinet_motion": 0,
@@ -18311,12 +18365,12 @@
           "seed": 21
         },
         {
-          "build_ms": 0.200036,
+          "build_ms": 0.210429,
           "mesh": {
-            "batches": 10,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5388
+            "triangles": 4724
           },
           "program": {
             "cabinet_motion": 2,
@@ -18337,12 +18391,12 @@
           "seed": 22
         },
         {
-          "build_ms": 0.166893,
+          "build_ms": 0.276567,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 5224
+            "triangles": 5924
           },
           "program": {
             "cabinet_motion": 0,
@@ -18363,12 +18417,12 @@
           "seed": 23
         },
         {
-          "build_ms": 0.176194,
+          "build_ms": 0.170385,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3972
+            "triangles": 3932
           },
           "program": {
             "cabinet_motion": 2,
@@ -18389,12 +18443,12 @@
           "seed": 24
         },
         {
-          "build_ms": 0.146736,
+          "build_ms": 0.091223,
           "mesh": {
-            "batches": 8,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4520
+            "triangles": 1808
           },
           "program": {
             "cabinet_motion": 1,
@@ -18415,12 +18469,12 @@
           "seed": 25
         },
         {
-          "build_ms": 0.314986,
+          "build_ms": 0.266912,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 7860
+            "triangles": 5200
           },
           "program": {
             "cabinet_motion": 1,
@@ -18441,12 +18495,12 @@
           "seed": 26
         },
         {
-          "build_ms": 0.116265,
+          "build_ms": 0.183267,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3796
+            "triangles": 4076
           },
           "program": {
             "cabinet_motion": 2,
@@ -18467,12 +18521,12 @@
           "seed": 27
         },
         {
-          "build_ms": 0.17450500000000002,
+          "build_ms": 0.29363399999999995,
           "mesh": {
             "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7268
+            "triangles": 6372
           },
           "program": {
             "cabinet_motion": 2,
@@ -18493,12 +18547,12 @@
           "seed": 28
         },
         {
-          "build_ms": 0.088949,
+          "build_ms": 0.099439,
           "mesh": {
-            "batches": 9,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3164
+            "triangles": 2100
           },
           "program": {
             "cabinet_motion": 2,
@@ -18519,12 +18573,12 @@
           "seed": 29
         },
         {
-          "build_ms": 0.135989,
+          "build_ms": 0.311836,
           "mesh": {
-            "batches": 7,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5476
+            "triangles": 7036
           },
           "program": {
             "cabinet_motion": 0,
@@ -18545,12 +18599,12 @@
           "seed": 30
         },
         {
-          "build_ms": 0.098722,
+          "build_ms": 0.156481,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3712
+            "triangles": 3320
           },
           "program": {
             "cabinet_motion": 2,
@@ -18571,12 +18625,12 @@
           "seed": 31
         },
         {
-          "build_ms": 0.13993,
+          "build_ms": 0.13539800000000002,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 5792
+            "triangles": 2888
           },
           "program": {
             "cabinet_motion": 2,
@@ -18597,12 +18651,12 @@
           "seed": 32
         },
         {
-          "build_ms": 0.146755,
+          "build_ms": 0.13977499999999998,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3260
+            "triangles": 2744
           },
           "program": {
             "cabinet_motion": 0,
@@ -18623,12 +18677,12 @@
           "seed": 33
         },
         {
-          "build_ms": 0.213901,
+          "build_ms": 0.152106,
           "mesh": {
-            "batches": 8,
+            "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3784
+            "triangles": 3288
           },
           "program": {
             "cabinet_motion": 1,
@@ -18649,12 +18703,12 @@
           "seed": 34
         },
         {
-          "build_ms": 0.35828299999999996,
+          "build_ms": 0.146664,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6812
+            "triangles": 2880
           },
           "program": {
             "cabinet_motion": 2,
@@ -18675,12 +18729,12 @@
           "seed": 35
         },
         {
-          "build_ms": 0.15656,
+          "build_ms": 0.116702,
           "mesh": {
-            "batches": 6,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2068
+            "triangles": 2316
           },
           "program": {
             "cabinet_motion": 1,
@@ -18701,12 +18755,12 @@
           "seed": 36
         },
         {
-          "build_ms": 0.257399,
+          "build_ms": 0.172536,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 6428
+            "triangles": 3404
           },
           "program": {
             "cabinet_motion": 2,
@@ -18727,12 +18781,12 @@
           "seed": 37
         },
         {
-          "build_ms": 0.059725999999999994,
+          "build_ms": 0.154826,
           "mesh": {
-            "batches": 6,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2008
+            "triangles": 3116
           },
           "program": {
             "cabinet_motion": 0,
@@ -18753,12 +18807,12 @@
           "seed": 38
         },
         {
-          "build_ms": 0.20257,
+          "build_ms": 0.226364,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8296
+            "triangles": 4804
           },
           "program": {
             "cabinet_motion": 0,
@@ -18779,12 +18833,12 @@
           "seed": 39
         },
         {
-          "build_ms": 0.147176,
+          "build_ms": 0.155888,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3156
+            "triangles": 3076
           },
           "program": {
             "cabinet_motion": 2,
@@ -18805,12 +18859,12 @@
           "seed": 40
         },
         {
-          "build_ms": 0.101176,
+          "build_ms": 0.099792,
           "mesh": {
-            "batches": 7,
+            "batches": 5,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3708
+            "triangles": 1984
           },
           "program": {
             "cabinet_motion": 1,
@@ -18831,12 +18885,12 @@
           "seed": 41
         },
         {
-          "build_ms": 0.27728200000000003,
+          "build_ms": 0.279821,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 5540
+            "triangles": 5640
           },
           "program": {
             "cabinet_motion": 2,
@@ -18857,12 +18911,12 @@
           "seed": 42
         },
         {
-          "build_ms": 0.16159099999999998,
+          "build_ms": 0.27746200000000004,
           "mesh": {
-            "batches": 7,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5684
+            "triangles": 6348
           },
           "program": {
             "cabinet_motion": 1,
@@ -18883,12 +18937,12 @@
           "seed": 43
         },
         {
-          "build_ms": 0.13786,
+          "build_ms": 0.232214,
           "mesh": {
             "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4424
+            "triangles": 5272
           },
           "program": {
             "cabinet_motion": 1,
@@ -18909,12 +18963,12 @@
           "seed": 44
         },
         {
-          "build_ms": 0.085243,
+          "build_ms": 0.090769,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3208
+            "triangles": 1864
           },
           "program": {
             "cabinet_motion": 0,
@@ -18935,12 +18989,12 @@
           "seed": 45
         },
         {
-          "build_ms": 0.07974099999999999,
+          "build_ms": 0.089795,
           "mesh": {
             "batches": 3,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3036
+            "triangles": 1716
           },
           "program": {
             "cabinet_motion": 0,
@@ -18961,12 +19015,12 @@
           "seed": 46
         },
         {
-          "build_ms": 0.118241,
+          "build_ms": 0.203419,
           "mesh": {
-            "batches": 8,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4352
+            "triangles": 4580
           },
           "program": {
             "cabinet_motion": 1,
@@ -18987,12 +19041,12 @@
           "seed": 47
         },
         {
-          "build_ms": 0.15121700000000002,
+          "build_ms": 0.192924,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6308
+            "triangles": 4148
           },
           "program": {
             "cabinet_motion": 2,
@@ -19013,12 +19067,12 @@
           "seed": 48
         },
         {
-          "build_ms": 0.126874,
+          "build_ms": 0.19625,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4904
+            "triangles": 3924
           },
           "program": {
             "cabinet_motion": 0,
@@ -19039,12 +19093,12 @@
           "seed": 49
         },
         {
-          "build_ms": 0.093601,
+          "build_ms": 0.213835,
           "mesh": {
             "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3604
+            "triangles": 4744
           },
           "program": {
             "cabinet_motion": 2,
@@ -19065,12 +19119,12 @@
           "seed": 50
         },
         {
-          "build_ms": 0.177679,
+          "build_ms": 0.217735,
           "mesh": {
-            "batches": 8,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7192
+            "triangles": 4568
           },
           "program": {
             "cabinet_motion": 1,
@@ -19091,12 +19145,12 @@
           "seed": 51
         },
         {
-          "build_ms": 0.09022,
+          "build_ms": 0.178543,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3400
+            "triangles": 3772
           },
           "program": {
             "cabinet_motion": 2,
@@ -19117,12 +19171,12 @@
           "seed": 52
         },
         {
-          "build_ms": 0.176206,
+          "build_ms": 0.21659,
           "mesh": {
             "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6620
+            "triangles": 4396
           },
           "program": {
             "cabinet_motion": 0,
@@ -19143,12 +19197,12 @@
           "seed": 53
         },
         {
-          "build_ms": 0.095832,
+          "build_ms": 0.237783,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4012
+            "triangles": 5220
           },
           "program": {
             "cabinet_motion": 1,
@@ -19169,12 +19223,12 @@
           "seed": 54
         },
         {
-          "build_ms": 0.08999900000000001,
+          "build_ms": 0.151681,
           "mesh": {
-            "batches": 9,
+            "batches": 7,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 3684
+            "triangles": 3016
           },
           "program": {
             "cabinet_motion": 0,
@@ -19195,12 +19249,12 @@
           "seed": 55
         },
         {
-          "build_ms": 0.07037600000000001,
+          "build_ms": 0.130158,
           "mesh": {
-            "batches": 7,
+            "batches": 6,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 2744
+            "triangles": 2732
           },
           "program": {
             "cabinet_motion": 1,
@@ -19221,12 +19275,12 @@
           "seed": 56
         },
         {
-          "build_ms": 0.08887400000000001,
+          "build_ms": 0.152101,
           "mesh": {
-            "batches": 9,
+            "batches": 8,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3728
+            "triangles": 3300
           },
           "program": {
             "cabinet_motion": 0,
@@ -19247,12 +19301,12 @@
           "seed": 57
         },
         {
-          "build_ms": 0.133488,
+          "build_ms": 0.35064500000000004,
           "mesh": {
-            "batches": 10,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6324
+            "triangles": 8180
           },
           "program": {
             "cabinet_motion": 2,
@@ -19273,12 +19327,12 @@
           "seed": 58
         },
         {
-          "build_ms": 0.092141,
+          "build_ms": 0.129882,
           "mesh": {
-            "batches": 9,
+            "batches": 7,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3616
+            "triangles": 2916
           },
           "program": {
             "cabinet_motion": 2,
@@ -19299,12 +19353,12 @@
           "seed": 59
         },
         {
-          "build_ms": 0.048303,
+          "build_ms": 0.127171,
           "mesh": {
             "batches": 7,
             "max_envelope_overrun_m": 2.384185791015625e-7,
             "min_y_m": 0.0,
-            "triangles": 1848
+            "triangles": 2648
           },
           "program": {
             "cabinet_motion": 1,
@@ -19325,12 +19379,12 @@
           "seed": 60
         },
         {
-          "build_ms": 0.088569,
+          "build_ms": 0.175115,
           "mesh": {
             "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3652
+            "triangles": 3472
           },
           "program": {
             "cabinet_motion": 1,
@@ -19351,12 +19405,12 @@
           "seed": 61
         },
         {
-          "build_ms": 0.080598,
+          "build_ms": 0.15753,
           "mesh": {
-            "batches": 9,
+            "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 3264
+            "triangles": 3332
           },
           "program": {
             "cabinet_motion": 1,
@@ -19377,12 +19431,12 @@
           "seed": 62
         },
         {
-          "build_ms": 0.132554,
+          "build_ms": 0.197597,
           "mesh": {
-            "batches": 8,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5920
+            "triangles": 4008
           },
           "program": {
             "cabinet_motion": 2,
@@ -19416,12 +19470,12 @@
       "kind": "KitchenSink",
       "samples": [
         {
-          "build_ms": 0.111053,
+          "build_ms": 0.310839,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4360
+            "triangles": 4208
           },
           "program": {
             "basins": 1,
@@ -19442,7 +19496,7 @@
           "seed": 0
         },
         {
-          "build_ms": 0.099268,
+          "build_ms": 0.160741,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
@@ -19468,12 +19522,12 @@
           "seed": 1
         },
         {
-          "build_ms": 0.322229,
+          "build_ms": 0.494347,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10680
+            "triangles": 9360
           },
           "program": {
             "basins": 2,
@@ -19494,12 +19548,12 @@
           "seed": 2
         },
         {
-          "build_ms": 0.135303,
+          "build_ms": 0.233951,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6220
+            "triangles": 5840
           },
           "program": {
             "basins": 1,
@@ -19520,12 +19574,12 @@
           "seed": 3
         },
         {
-          "build_ms": 0.20332099999999995,
+          "build_ms": 0.399395,
           "mesh": {
-            "batches": 16,
+            "batches": 17,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9652
+            "triangles": 9700
           },
           "program": {
             "basins": 2,
@@ -19546,7 +19600,7 @@
           "seed": 4
         },
         {
-          "build_ms": 0.151421,
+          "build_ms": 0.28127,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -19572,12 +19626,12 @@
           "seed": 5
         },
         {
-          "build_ms": 0.120524,
+          "build_ms": 0.236527,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5468
+            "triangles": 5364
           },
           "program": {
             "basins": 1,
@@ -19598,7 +19652,7 @@
           "seed": 6
         },
         {
-          "build_ms": 0.136916,
+          "build_ms": 0.278995,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -19624,12 +19678,12 @@
           "seed": 7
         },
         {
-          "build_ms": 0.116907,
+          "build_ms": 0.215667,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5780
+            "triangles": 5120
           },
           "program": {
             "basins": 1,
@@ -19650,12 +19704,12 @@
           "seed": 8
         },
         {
-          "build_ms": 0.197346,
+          "build_ms": 0.362962,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9400
+            "triangles": 8840
           },
           "program": {
             "basins": 2,
@@ -19676,12 +19730,12 @@
           "seed": 9
         },
         {
-          "build_ms": 0.138642,
+          "build_ms": 0.26588399999999995,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6828
+            "triangles": 6448
           },
           "program": {
             "basins": 1,
@@ -19702,7 +19756,7 @@
           "seed": 10
         },
         {
-          "build_ms": 0.131611,
+          "build_ms": 0.275514,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -19728,12 +19782,12 @@
           "seed": 11
         },
         {
-          "build_ms": 0.12303,
+          "build_ms": 0.248848,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6244
+            "triangles": 5864
           },
           "program": {
             "basins": 1,
@@ -19754,12 +19808,12 @@
           "seed": 12
         },
         {
-          "build_ms": 0.14759,
+          "build_ms": 0.311535,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8016
+            "triangles": 7256
           },
           "program": {
             "basins": 2,
@@ -19780,7 +19834,7 @@
           "seed": 13
         },
         {
-          "build_ms": 0.091171,
+          "build_ms": 0.182301,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -19806,7 +19860,7 @@
           "seed": 14
         },
         {
-          "build_ms": 0.11575,
+          "build_ms": 0.224521,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
@@ -19832,7 +19886,7 @@
           "seed": 15
         },
         {
-          "build_ms": 0.10393,
+          "build_ms": 0.218745,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -19858,7 +19912,7 @@
           "seed": 16
         },
         {
-          "build_ms": 0.080443,
+          "build_ms": 0.167146,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
@@ -19884,12 +19938,12 @@
           "seed": 17
         },
         {
-          "build_ms": 0.15108,
+          "build_ms": 0.312045,
           "mesh": {
             "batches": 15,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7720
+            "triangles": 7340
           },
           "program": {
             "basins": 1,
@@ -19910,12 +19964,12 @@
           "seed": 18
         },
         {
-          "build_ms": 0.140098,
+          "build_ms": 0.260465,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6748
+            "triangles": 5988
           },
           "program": {
             "basins": 1,
@@ -19936,7 +19990,7 @@
           "seed": 19
         },
         {
-          "build_ms": 0.155725,
+          "build_ms": 0.317233,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -19962,12 +20016,12 @@
           "seed": 20
         },
         {
-          "build_ms": 0.149727,
+          "build_ms": 0.26268800000000003,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6900
+            "triangles": 6620
           },
           "program": {
             "basins": 1,
@@ -19988,7 +20042,7 @@
           "seed": 21
         },
         {
-          "build_ms": 0.11309,
+          "build_ms": 0.230314,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
@@ -20014,12 +20068,12 @@
           "seed": 22
         },
         {
-          "build_ms": 0.182398,
+          "build_ms": 0.366791,
           "mesh": {
             "batches": 15,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9428
+            "triangles": 8716
           },
           "program": {
             "basins": 2,
@@ -20040,7 +20094,7 @@
           "seed": 23
         },
         {
-          "build_ms": 0.146987,
+          "build_ms": 0.28525700000000004,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
@@ -20066,12 +20120,12 @@
           "seed": 24
         },
         {
-          "build_ms": 0.14660399999999998,
+          "build_ms": 0.226633,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6072
+            "triangles": 5360
           },
           "program": {
             "basins": 2,
@@ -20092,12 +20146,12 @@
           "seed": 25
         },
         {
-          "build_ms": 0.195899,
+          "build_ms": 0.265847,
           "mesh": {
-            "batches": 13,
+            "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9688
+            "triangles": 6032
           },
           "program": {
             "basins": 1,
@@ -20118,7 +20172,7 @@
           "seed": 26
         },
         {
-          "build_ms": 0.115514,
+          "build_ms": 0.228351,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -20144,12 +20198,12 @@
           "seed": 27
         },
         {
-          "build_ms": 0.305176,
+          "build_ms": 0.43633,
           "mesh": {
             "batches": 15,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 13140
+            "triangles": 9900
           },
           "program": {
             "basins": 2,
@@ -20170,7 +20224,7 @@
           "seed": 28
         },
         {
-          "build_ms": 0.196425,
+          "build_ms": 0.33665399999999995,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
@@ -20196,12 +20250,12 @@
           "seed": 29
         },
         {
-          "build_ms": 0.229496,
+          "build_ms": 0.324175,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8228
+            "triangles": 7516
           },
           "program": {
             "basins": 2,
@@ -20222,12 +20276,12 @@
           "seed": 30
         },
         {
-          "build_ms": 0.227698,
+          "build_ms": 0.31011500000000003,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 8212
+            "triangles": 7452
           },
           "program": {
             "basins": 2,
@@ -20248,10 +20302,10 @@
           "seed": 31
         },
         {
-          "build_ms": 0.138517,
+          "build_ms": 0.293663,
           "mesh": {
             "batches": 13,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
             "triangles": 7128
           },
@@ -20274,12 +20328,12 @@
           "seed": 32
         },
         {
-          "build_ms": 0.148653,
+          "build_ms": 0.278596,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7496
+            "triangles": 6836
           },
           "program": {
             "basins": 2,
@@ -20300,12 +20354,12 @@
           "seed": 33
         },
         {
-          "build_ms": 0.17806000000000002,
+          "build_ms": 0.372808,
           "mesh": {
             "batches": 14,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
-            "triangles": 9028
+            "triangles": 9076
           },
           "program": {
             "basins": 2,
@@ -20326,12 +20380,12 @@
           "seed": 34
         },
         {
-          "build_ms": 0.29007,
+          "build_ms": 0.327532,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10944
+            "triangles": 7596
           },
           "program": {
             "basins": 1,
@@ -20352,7 +20406,7 @@
           "seed": 35
         },
         {
-          "build_ms": 0.13777599999999998,
+          "build_ms": 0.248018,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -20378,12 +20432,12 @@
           "seed": 36
         },
         {
-          "build_ms": 0.27596899999999996,
+          "build_ms": 0.286425,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9988
+            "triangles": 6360
           },
           "program": {
             "basins": 1,
@@ -20404,7 +20458,7 @@
           "seed": 37
         },
         {
-          "build_ms": 0.169023,
+          "build_ms": 0.255254,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
@@ -20430,12 +20484,12 @@
           "seed": 38
         },
         {
-          "build_ms": 0.27796899999999997,
+          "build_ms": 0.286387,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10068
+            "triangles": 6556
           },
           "program": {
             "basins": 1,
@@ -20456,12 +20510,12 @@
           "seed": 39
         },
         {
-          "build_ms": 0.20967,
+          "build_ms": 0.318023,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7688
+            "triangles": 7536
           },
           "program": {
             "basins": 2,
@@ -20482,12 +20536,12 @@
           "seed": 40
         },
         {
-          "build_ms": 0.175849,
+          "build_ms": 0.220906,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 6248
+            "triangles": 5488
           },
           "program": {
             "basins": 2,
@@ -20508,12 +20562,12 @@
           "seed": 41
         },
         {
-          "build_ms": 0.228571,
+          "build_ms": 0.29938000000000003,
           "mesh": {
             "batches": 14,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
-            "triangles": 8336
+            "triangles": 7016
           },
           "program": {
             "basins": 1,
@@ -20534,7 +20588,7 @@
           "seed": 42
         },
         {
-          "build_ms": 0.144875,
+          "build_ms": 0.192216,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -20560,7 +20614,7 @@
           "seed": 43
         },
         {
-          "build_ms": 0.174651,
+          "build_ms": 0.26363800000000004,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
@@ -20586,7 +20640,7 @@
           "seed": 44
         },
         {
-          "build_ms": 0.143742,
+          "build_ms": 0.204731,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
@@ -20612,12 +20666,12 @@
           "seed": 45
         },
         {
-          "build_ms": 0.1991,
+          "build_ms": 0.274445,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7672
+            "triangles": 6352
           },
           "program": {
             "basins": 2,
@@ -20638,7 +20692,7 @@
           "seed": 46
         },
         {
-          "build_ms": 0.112681,
+          "build_ms": 0.161716,
           "mesh": {
             "batches": 10,
             "max_envelope_overrun_m": 0.0,
@@ -20664,12 +20718,12 @@
           "seed": 47
         },
         {
-          "build_ms": 0.138341,
+          "build_ms": 0.19052,
           "mesh": {
             "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 5108
+            "triangles": 4348
           },
           "program": {
             "basins": 1,
@@ -20690,12 +20744,12 @@
           "seed": 48
         },
         {
-          "build_ms": 0.254451,
+          "build_ms": 0.364917,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 9204
+            "triangles": 8824
           },
           "program": {
             "basins": 2,
@@ -20716,12 +20770,12 @@
           "seed": 49
         },
         {
-          "build_ms": 0.231017,
+          "build_ms": 0.402492,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10308
+            "triangles": 9748
           },
           "program": {
             "basins": 2,
@@ -20742,12 +20796,12 @@
           "seed": 50
         },
         {
-          "build_ms": 0.162927,
+          "build_ms": 0.202036,
           "mesh": {
-            "batches": 8,
+            "batches": 9,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7716
+            "triangles": 4252
           },
           "program": {
             "basins": 1,
@@ -20768,12 +20822,12 @@
           "seed": 51
         },
         {
-          "build_ms": 0.15431799999999998,
+          "build_ms": 0.28471300000000005,
           "mesh": {
             "batches": 11,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
-            "triangles": 7836
+            "triangles": 7076
           },
           "program": {
             "basins": 2,
@@ -20794,12 +20848,12 @@
           "seed": 52
         },
         {
-          "build_ms": 0.205679,
+          "build_ms": 0.31618,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10416
+            "triangles": 7056
           },
           "program": {
             "basins": 2,
@@ -20820,10 +20874,10 @@
           "seed": 53
         },
         {
-          "build_ms": 0.124449,
+          "build_ms": 0.269624,
           "mesh": {
             "batches": 13,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
             "triangles": 6632
           },
@@ -20846,12 +20900,12 @@
           "seed": 54
         },
         {
-          "build_ms": 0.15551900000000002,
+          "build_ms": 0.32142899999999996,
           "mesh": {
             "batches": 13,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7668
+            "triangles": 7516
           },
           "program": {
             "basins": 2,
@@ -20872,10 +20926,10 @@
           "seed": 55
         },
         {
-          "build_ms": 0.135237,
+          "build_ms": 0.284978,
           "mesh": {
             "batches": 12,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
             "triangles": 7112
           },
@@ -20898,7 +20952,7 @@
           "seed": 56
         },
         {
-          "build_ms": 0.130749,
+          "build_ms": 0.265241,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
@@ -20924,10 +20978,10 @@
           "seed": 57
         },
         {
-          "build_ms": 0.149259,
+          "build_ms": 0.309666,
           "mesh": {
             "batches": 15,
-            "max_envelope_overrun_m": 5.960464477539064e-8,
+            "max_envelope_overrun_m": 5.960464477539065e-8,
             "min_y_m": 0.0,
             "triangles": 7280
           },
@@ -20950,7 +21004,7 @@
           "seed": 58
         },
         {
-          "build_ms": 0.191989,
+          "build_ms": 0.381926,
           "mesh": {
             "batches": 16,
             "max_envelope_overrun_m": 0.0,
@@ -20976,7 +21030,7 @@
           "seed": 59
         },
         {
-          "build_ms": 0.141538,
+          "build_ms": 0.290277,
           "mesh": {
             "batches": 12,
             "max_envelope_overrun_m": 0.0,
@@ -21002,12 +21056,12 @@
           "seed": 60
         },
         {
-          "build_ms": 0.144039,
+          "build_ms": 0.27926300000000004,
           "mesh": {
-            "batches": 13,
+            "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 7184
+            "triangles": 6640
           },
           "program": {
             "basins": 2,
@@ -21028,12 +21082,12 @@
           "seed": 61
         },
         {
-          "build_ms": 0.092853,
+          "build_ms": 0.200697,
           "mesh": {
-            "batches": 10,
+            "batches": 11,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 4500
+            "triangles": 4548
           },
           "program": {
             "basins": 1,
@@ -21054,12 +21108,12 @@
           "seed": 62
         },
         {
-          "build_ms": 0.195104,
+          "build_ms": 0.420234,
           "mesh": {
             "batches": 14,
             "max_envelope_overrun_m": 0.0,
             "min_y_m": 0.0,
-            "triangles": 10360
+            "triangles": 9600
           },
           "program": {
             "basins": 2,
