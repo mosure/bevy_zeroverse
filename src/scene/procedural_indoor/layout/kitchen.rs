@@ -2,6 +2,10 @@
 use super::super::objects::kitchen as geometry;
 use super::*;
 use rand::seq::SliceRandom;
+use std::f32::consts::{PI, TAU};
+#[cfg(test)]
+mod diversity_tests;
+pub mod sampling;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KitchenAssembly {
@@ -15,6 +19,8 @@ pub struct KitchenAssembly {
     pub fitted_to_wall: bool,
     #[serde(default)]
     pub worktop_height_metres: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<sampling::KitchenSampling>,
 }
 impl IndoorManifest {
     pub(super) fn furnish_kitchen(
@@ -23,12 +29,16 @@ impl IndoorManifest {
         zone_index: usize,
     ) -> bool {
         let mut r = stream(self.seed, 8060 + zone_index as u64);
+        let mut placement = stream(self.seed, 0x4b49544348504c41 + zone_index as u64);
+        let gap = placement.random_range(0.012..0.045);
+        let appliance_coherence = placement.random_range(0.30..0.85);
         let start = self.objects.len();
         let worktop_height = r.random_range(0.86..0.94);
         let mut kinds = vec![ObjectKind::KitchenSink, ObjectKind::KitchenCounter];
         if zone.activity == IndoorLayout::Kitchen {
             kinds.push(ObjectKind::Range);
         }
+        kinds.shuffle(&mut placement);
         let mut optional = vec![
             ObjectKind::Refrigerator,
             ObjectKind::KitchenCupboard,
@@ -45,7 +55,7 @@ impl IndoorManifest {
         let total: f32 = kinds
             .iter()
             .zip(&seeds)
-            .map(|(&k, &seed)| geometry::dimensions(k, seed).x + 0.025)
+            .map(|(&k, &seed)| geometry::dimensions(k, seed).x + gap)
             .sum();
         let extent = zone.max - zone.min;
         let center = (zone.min + zone.max) * 0.5;
@@ -56,7 +66,7 @@ impl IndoorManifest {
                 let span = envelope.footprint[wall.edge]
                     .distance(envelope.footprint[(wall.edge + 1) % envelope.footprint.len()]);
                 candidates.push((
-                    tf.translation + tf.rotation * Vec3::Z * 0.052,
+                    tf.translation + tf.rotation * Vec3::Z * placement.random_range(0.035..0.085),
                     tf.rotation.to_euler(EulerRot::YXZ).0,
                     span,
                     true,
@@ -66,7 +76,11 @@ impl IndoorManifest {
         candidates.shuffle(&mut r);
         // Narrow or glazed edges may not admit a fitted run. Try progressively
         // inset service runs with the same full door/aisle collision contract.
-        for inset in [0.38, 1.15, 2.2] {
+        for inset in [
+            placement.random_range(0.30..0.65),
+            placement.random_range(0.85..1.55),
+            placement.random_range(1.80..2.60),
+        ] {
             for &wall in &walls {
                 let yaw = [
                     0.,
@@ -106,7 +120,7 @@ impl IndoorManifest {
             (back, yaw, if wall < 2 { extent.x } else { extent.y }, false)
         });
         'fit: for (back, yaw, along, fitted) in candidates.into_iter().chain(interior) {
-            for shift in [0., -0.5, 0.5, -1., 1.] {
+            for shift in sampling::run_shifts(along, total, &mut placement) {
                 if total > along - 0.85 {
                     continue;
                 }
@@ -130,15 +144,15 @@ impl IndoorManifest {
                         break;
                     }
                     self.objects.push(o);
-                    x += size.x + 0.025;
+                    x += size.x + gap;
                 }
                 if self.objects.len() == start + kinds.len() {
-                    accepted = Some((back, q, yaw, x, -total * 0.5 + shift, fitted));
+                    accepted = Some((back, q, yaw, x, -total * 0.5 + shift, fitted, shift));
                     break 'fit;
                 }
             }
         }
-        let Some((back, q, yaw, mut x, mut left, fitted_to_wall)) = accepted else {
+        let Some((back, q, yaw, mut x, mut left, fitted_to_wall, run_offset)) = accepted else {
             self.objects.truncate(start);
             return false;
         };
@@ -156,11 +170,13 @@ impl IndoorManifest {
             let seed = r.random();
             let size = geometry::dimensions(kind, seed);
             let mut placed = false;
-            for side in [1., -1.] {
+            let mut sides = [1., -1.];
+            sides.shuffle(&mut placement);
+            for side in sides {
                 let local_x = if side > 0. {
                     x + size.x * 0.5
                 } else {
-                    left - size.x * 0.5 - 0.025
+                    left - size.x * 0.5 - gap
                 };
                 let pos = back + q * Vec3::new(local_x, 0., size.z * 0.5);
                 let mut o = self.floor_candidate(kind, pos, size, yaw, &mut r);
@@ -173,9 +189,9 @@ impl IndoorManifest {
                     self.objects.push(o);
                     placed = true;
                     if side > 0. {
-                        x += size.x + 0.025;
+                        x += size.x + gap;
                     } else {
-                        left -= size.x + 0.025;
+                        left -= size.x + gap;
                     }
                     break;
                 }
@@ -189,11 +205,19 @@ impl IndoorManifest {
         let choice = r.random_range(0..3);
         let positions = [
             (
-                Vec3::new(center.x, 0., center.y),
+                Vec3::new(
+                    center.x + extent.x * placement.random_range(-0.12..0.12),
+                    0.,
+                    center.y + extent.y * placement.random_range(-0.12..0.12),
+                ),
                 yaw + std::f32::consts::FRAC_PI_2,
             ),
             (
-                back + q * Vec3::new(-total * 0.5 - 0.05, 0., 2.9),
+                back + q * Vec3::new(
+                    -total * 0.5 - placement.random_range(0.03..0.18),
+                    0.,
+                    placement.random_range(2.2..3.4),
+                ),
                 yaw + std::f32::consts::FRAC_PI_2,
             ),
             (
@@ -204,12 +228,18 @@ impl IndoorManifest {
                         extent.x
                     } else {
                         extent.y
-                    }) - 1.25,
+                    }) - placement.random_range(0.95..1.60),
                 ),
                 yaw + std::f32::consts::PI,
             ),
         ];
         let (pos, turn) = positions[choice];
+        let turn = turn
+            + if choice == 0 {
+                placement.random_range(-0.18..0.18)
+            } else {
+                0.
+            };
         let seed = r.random();
         let size = geometry::dimensions(ObjectKind::KitchenCounter, seed);
         let width_scale = if choice != 0 {
@@ -228,16 +258,9 @@ impl IndoorManifest {
         let floor = self.objects[start].position.y;
         // Try nearby positions on the same working level. An island must not
         // become a low block inside a sunken floor or straddle a stair/step.
+        let proposed = sampling::island_shifts(&mut placement);
         let shifts: &[Vec2] = if choice == 0 {
-            &[
-                Vec2::ZERO,
-                Vec2::new(-0.65, 0.),
-                Vec2::new(0.65, 0.),
-                Vec2::new(0., -0.65),
-                Vec2::new(0., 0.65),
-                Vec2::new(-0.65, 0.65),
-                Vec2::new(0.65, 0.65),
-            ]
+            &proposed
         } else {
             &[Vec2::ZERO]
         };
@@ -257,7 +280,20 @@ impl IndoorManifest {
         let units: Vec<_> = (start..self.objects.len()).collect();
         let finish_seed = stream(self.seed, 8070 + zone_index as u64).random();
         for &id in &units {
-            self.objects[id].finish_seed = Some(finish_seed);
+            let o = &mut self.objects[id];
+            let appliance = matches!(
+                o.kind,
+                ObjectKind::Range
+                    | ObjectKind::Oven
+                    | ObjectKind::Refrigerator
+                    | ObjectKind::Dishwasher
+            );
+            o.finish_seed = if appliance {
+                super::assemblies::finishes::matches(finish_seed, o.seed, appliance_coherence)
+                    .then_some(finish_seed ^ 0x4150504c46494e49)
+            } else {
+                Some(finish_seed)
+            };
         }
         let prop_start = self.objects.len();
         for id in units
@@ -270,7 +306,11 @@ impl IndoorManifest {
         }
         // Sink-side mats vary in shape/finish through the established rug program.
         if r.random_bool(0.72) {
-            let sink = self.objects[start].clone();
+            let sink = self.objects[*units
+                .iter()
+                .find(|&&id| self.objects[id].kind == ObjectKind::KitchenSink)
+                .unwrap()]
+            .clone();
             let mut mat = self.floor_candidate(
                 ObjectKind::Rug,
                 sink.position + q * Vec3::Z * (sink.size.z * 0.5 + 0.43),
@@ -296,6 +336,11 @@ impl IndoorManifest {
             rejected_optional,
             fitted_to_wall,
             worktop_height_metres: worktop_height,
+            sampling: Some(sampling::KitchenSampling {
+                unit_gap_m: gap,
+                run_offset_m: run_offset,
+                appliance_coherence,
+            }),
         });
         true
     }
@@ -427,8 +472,12 @@ impl IndoorManifest {
                 0.,
                 r.random_range(zone.min.y + 1.2..zone.max.y - 1.2),
             );
-            let size = Vec3::new(r.random_range(1.1..1.7), 0.75, r.random_range(0.75..1.05));
-            let yaw = r.random_range(-0.4..0.4);
+            let size = Vec3::new(
+                r.random_range(1.1..1.9),
+                r.random_range(0.70..0.80),
+                r.random_range(0.75..1.15),
+            );
+            let yaw = r.random_range(-PI..PI);
             let checkpoint = self.objects.len();
             if let Some(id) = self.add(ObjectKind::Table, position, size, yaw, r) {
                 let table = self.objects[id].clone();
@@ -448,6 +497,12 @@ impl IndoorManifest {
                         -std::f32::consts::FRAC_PI_2,
                     ),
                 ] {
+                    if r.random_bool(0.15) {
+                        continue;
+                    }
+                    let local = local
+                        + Vec3::new(r.random_range(-0.16..0.16), 0., r.random_range(-0.16..0.16));
+                    let angle = angle + r.random_range(-0.30..0.30);
                     let before = self.objects.len();
                     self.chair(tf.transform_point(local), yaw + angle, r);
                     if self.objects.len() > before {
@@ -510,6 +565,9 @@ impl IndoorManifest {
     }
     pub(crate) fn validate_kitchens(&self) -> Result<(), String> {
         for group in &self.assembly_diagnostics.kitchens {
+            if group.sampling.as_ref().is_some_and(|s| !s.valid()) {
+                return Err("invalid kitchen placement sampling".into());
+            }
             if !(0.86..=0.94).contains(&group.worktop_height_metres) {
                 return Err("invalid kitchen worktop height".into());
             }

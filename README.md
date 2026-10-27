@@ -76,7 +76,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
 - **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
   sloped and raised tray ceilings, arches, pillars, floor levels and mezzanines.
   Acoustic panels, coffers, suspended grids, round/square/rectangular ducts, ventilation terminals, conduit,
-  sprinklers and trusses vary overhead detail.
+  sprinklers and trusses vary overhead detail. Exposed framing includes deep
+  rafters, purlins and suspended services; mezzanines vary stair construction,
+  structural supports and guardrail profiles.
   Windows include shaped glazing, tints, partial frosting, blinds and curtains;
   exterior streets, planted courtyards and multi-storey buildings with varied
   wings, setbacks, roof forms and facade bays provide context beyond the glass.
@@ -100,8 +102,11 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   fire alarms, ceiling detectors, manual pull stations, speakers and suspended or
   wall-mounted multicolored string lights add room services. Floor finishes vary
   plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
-  seamless mineral finishes, regional wear and furniture-bearing area rugs, with floor outlets and routed
-  cables. Walls mix quiet paint with washed, woven and patterned wallpaper surfaces;
+  seamless mineral finishes, mixed tile/plank stock, carpet dye fields, staggered
+  joints, regional wear and furniture-bearing area rugs, with floor outlets and
+  routed cables. Cabinets, kitchen appliances, clocks, wall shelves and presentation
+  equipment vary construction independently of surface finishes. Walls mix quiet
+  paint with washed, woven and patterned wallpaper surfaces;
   metal and polymer finishes vary grain, polish, peening and roughness.
   Architecture and
   furnishings need no downloaded mesh or texture catalog. Power cables follow

@@ -39,7 +39,7 @@ fn material_shader_parses_and_validates_without_a_gpu() {
 
 #[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 42 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 49 * 16);
     assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
     assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {

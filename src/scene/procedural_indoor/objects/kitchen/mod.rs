@@ -1,6 +1,6 @@
 //! Seeded kitchen construction. Dimensions include every opened door and handle.
 //! Programs are pure: layout, geometry, audits and archives share the same seed.
-mod appliances;
+pub mod appliances;
 mod cabinet;
 pub(crate) mod contents;
 pub mod dishware;
@@ -198,6 +198,38 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         r.random_range(0.96..1.04),
         r.random_range(0.94..1.06),
     );
+    match kind {
+        ObjectKind::Cooktop => {
+            o.size = Vec3::new(
+                r.random_range(0.32..0.95),
+                r.random_range(0.045..0.085),
+                r.random_range(0.39..0.60),
+            )
+        }
+        ObjectKind::Microwave => {
+            o.size = Vec3::new(
+                r.random_range(0.40..0.67),
+                r.random_range(0.27..0.43),
+                r.random_range(0.33..0.49),
+            )
+        }
+        ObjectKind::Refrigerator => {
+            o.size = Vec3::new(
+                r.random_range(0.55..1.12),
+                r.random_range(1.35..2.10),
+                r.random_range(0.54..0.82),
+            )
+        }
+        ObjectKind::Range => {
+            o.size.x = r.random_range(0.53..1.02);
+            o.size.z = r.random_range(0.57..0.74);
+        }
+        ObjectKind::Dishwasher => {
+            o.size.x = r.random_range(0.44..0.79);
+            o.size.z = r.random_range(0.54..0.70);
+        }
+        _ => {}
+    }
     if kind == ObjectKind::Dishware {
         o.size = super::super::items::sizing::dish(props::program(&o).style, &mut r);
     } else if let Some(size) = super::super::items::sizing::loose(kind, &mut r) {
@@ -240,7 +272,8 @@ fn extension(o: &IndoorObject, p: &KitchenProgram) -> f32 {
     }
     let leaf = match o.kind {
         ObjectKind::KitchenCounter | ObjectKind::KitchenSink | ObjectKind::Cooktop => return 0.,
-        ObjectKind::Dishwasher | ObjectKind::Range => o.size.y * 0.76,
+        ObjectKind::Dishwasher => appliances::program::dishwasher_door_height(o),
+        ObjectKind::Range => o.size.y * 0.76,
         ObjectKind::Oven => {
             if o.size.y > 1.3 {
                 o.size.y * 0.30
@@ -248,10 +281,11 @@ fn extension(o: &IndoorObject, p: &KitchenProgram) -> f32 {
                 o.size.y * 0.73
             }
         }
-        ObjectKind::KitchenCupboard | ObjectKind::Pantry | ObjectKind::Refrigerator => {
+        ObjectKind::KitchenCupboard | ObjectKind::Pantry => {
             o.size.x * if p.paired { 0.46 } else { 0.92 }
         }
-        ObjectKind::Microwave => o.size.x * if p.controls == 2 { 0.94 } else { 0.77 },
+        ObjectKind::Refrigerator => appliances::program::refrigerator_leaf_width(o, p),
+        ObjectKind::Microwave => appliances::program::microwave_door_width(o, p),
         _ => return 0.,
     };
     leaf * p.opening_radians.sin() + 0.035
@@ -264,7 +298,7 @@ fn body(o: &IndoorObject, p: &KitchenProgram) -> (f32, f32) {
 pub fn metadata(o: &IndoorObject) -> serde_json::Value {
     let p = parameters(o);
     use ObjectKind::*;
-    match o.kind {
+    let mut value = match o.kind {
         KitchenSink => {
             serde_json::json!({"door_style":p.door_style,"opening_radians":p.opening_radians,"cabinet_motion":p.cabinet_motion,"front_profile":p.front_profile,"handles":p.handles,"basins":p.basins,"faucet":p.faucet,"faucet_handles":p.faucet_handles,"hand_soap":p.hand_soap,"dish_soap":p.dish_soap,"sponge":p.sponge,"dishes":p.sink_dishes,"draining_board":p.draining_board,"top":p.top})
         }
@@ -337,7 +371,18 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
                 _ => serde_json::json!({"size_metres":o.size}),
             }
         }
+    };
+    if matches!(
+        o.kind,
+        Cooktop | Range | Oven | Microwave | Dishwasher | Refrigerator
+    ) {
+        value["construction"] = appliances::metadata(o, &p);
+        if o.kind == Refrigerator {
+            value["shelves"] =
+                serde_json::json!(appliances::program::parameters(o).shelf_levels_m.len());
+        }
     }
+    value
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {

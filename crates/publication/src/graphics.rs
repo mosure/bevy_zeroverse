@@ -1,3 +1,4 @@
+mod stairs;
 use crate::{
     dataset::{area, number, View},
     io::html,
@@ -229,11 +230,15 @@ pub fn plan(row: &Value, manifest: Option<&Value>, views: &[&View]) -> String {
             "#e4d7ec",
         );
         let axis = m["stair_axis"].as_u64().unwrap() as usize;
-        let steps = m["steps"].as_u64().unwrap();
-        for i in 0..=steps {
+        for (index, (start, end, _)) in stairs::treads(m).into_iter().enumerate() {
             let (mut a, mut b) = (p2(&m["stair_min"]), p2(&m["stair_max"]));
-            a[axis] += (b[axis] - a[axis]) * i as f64 / steps as f64;
-            b[axis] = a[axis];
+            if index == 0 {
+                a[axis] = start;
+                b[axis] = start;
+                line(&mut svg, map(a), map(b), "#79608f", 0.8);
+            }
+            a[axis] = end;
+            b[axis] = end;
             line(&mut svg, map(a), map(b), "#79608f", 0.8);
         }
     }
@@ -391,21 +396,17 @@ pub fn plan(row: &Value, manifest: Option<&Value>, views: &[&View]) -> String {
             "#9f80b4",
             number(&m["thickness"]) * scale,
         );
-        let steps = m["steps"].as_u64().unwrap();
-        let min = number(&m["stair_min"][axis]);
-        let max = number(&m["stair_max"][axis]);
-        for i in 0..steps {
-            let a = min + (max - min) * i as f64 / steps as f64;
-            let b = min + (max - min) * (i + 1) as f64 / steps as f64;
-            let y = height * (1.0 - i as f64 / steps as f64);
-            line(&mut svg, section(a, y), section(b, y), "#79608f", 1.5);
+        let mut previous = 0.;
+        for (start, end, y) in stairs::treads(m) {
+            line(&mut svg, section(start, y), section(end, y), "#79608f", 1.5);
             line(
                 &mut svg,
-                section(b, y),
-                section(b, y - height / steps as f64),
+                section(start, previous),
+                section(start, y),
                 "#79608f",
                 1.5,
             );
+            previous = y;
         }
     }
     let pitch = (number(&e["ceiling_drop"][0]) / w)

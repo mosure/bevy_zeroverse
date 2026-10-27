@@ -18,7 +18,7 @@ pub fn parameters(seed: u64) -> CollectionFinishes {
         device_coherence: r.random_range(0.20..0.96),
     }
 }
-pub(super) fn matches(collection: u64, object: u64, probability: f32) -> bool {
+pub(crate) fn matches(collection: u64, object: u64, probability: f32) -> bool {
     stream(collection ^ object.rotate_left(23), 0x434f4c4c4d415443).random_bool(probability as f64)
 }
 

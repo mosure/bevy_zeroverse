@@ -1,22 +1,44 @@
 //! Appliance cavities, doors, controls and supported interior contents.
 use super::super::super::motion::{construction as motion, MotionKind};
 use super::*;
+pub mod cooktop;
+pub mod notes;
+pub mod program;
+#[cfg(test)]
+mod tests;
 // The cooktop sheet is 0.07 * 0.24 of total height; its work plane is at 0.94.
 const RANGE_BODY_TOP: f32 = 0.94 - 0.07 * 0.24;
-fn knobs(a: &mut Assembly, base: Vec3, step: Vec3, count: u32, radius: f32, label: &str) {
+#[allow(clippy::too_many_arguments)]
+fn knobs(
+    a: &mut Assembly,
+    base: Vec3,
+    step: Vec3,
+    count: u32,
+    radius: f32,
+    label: &str,
+    seed: u64,
+) {
+    let mut r = stream(seed, 0x4b4e4f4250414e45);
+    let span = r.random_range(0.76..1.0);
     for i in 0..count {
-        let p = base + step * i as f32;
+        let radius = radius * r.random_range(0.72..1.08);
+        let p = base
+            + step
+                * ((count - 1) as f32 * 0.5
+                    + (i as f32 - (count - 1) as f32 * 0.5) * span
+                    + r.random_range(-0.06..0.06));
         a.part(Surface::Metal, label).cylinder(
             radius,
             0.016,
             Transform::from_translation(p).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
         );
-        a.box_part(
-            Surface::Ink,
-            label,
-            p + Vec3::new(0., radius * 0.42, 0.009),
-            Vec3::new(0.002, radius * 0.65, 0.001),
+        let angle = r.random_range(-2.7..2.7);
+        let q = Quat::from_rotation_z(angle);
+        a.part(Surface::Ink, label).cuboid(
+            Vec3::new(radius * 0.12, radius * 0.65, 0.001),
             0.0001,
+            Transform::from_translation(p + q * Vec3::Y * radius * 0.42 + Vec3::Z * 0.009)
+                .with_rotation(q),
         );
     }
 }
@@ -30,6 +52,7 @@ fn oven_leaf(
     p: &KitchenProgram,
     label: &str,
     seed: u64,
+    o: &IndoorObject,
 ) {
     let rotation = Quat::from_rotation_x(p.opening_radians);
     let tf = Transform::from_translation(
@@ -53,7 +76,7 @@ fn oven_leaf(
             a,
             Vec2::new(width, height),
             tf,
-            Surface::Metal,
+            program::finishes(o).1,
             label,
             p.viewport,
         );
@@ -93,59 +116,21 @@ fn side_leaf(
             a,
             Vec2::new(width - 0.004, height),
             tf,
-            Surface::Metal,
+            program::finishes(o).1,
             label,
             p.viewport,
         );
         cabinet::handle(a, tf, -side * (width * 0.5 - 0.045), 0., p, false, label);
 
         if o.kind == ObjectKind::Refrigerator {
-            for n in 0..p.door_notes {
-                let x = (if p.viewport {
-                    side * 0.32
-                } else {
-                    -0.15 + n as f32 * 0.10
-                }) * width;
-                let y = o.size.y * (0.28 - n as f32 * 0.11);
-                box_at(
-                    a,
-                    if n.is_multiple_of(2) {
-                        Surface::Art
-                    } else {
-                        Surface::Paper
-                    },
-                    "paper",
-                    Vec3::new(x, y, 0.030),
-                    Vec3::new(width * 0.13, o.size.y * 0.065, 0.002),
-                    tf,
-                );
-                box_at(
-                    a,
-                    Surface::Plastic,
-                    "paper",
-                    Vec3::new(x, y + o.size.y * 0.026, 0.033),
-                    Vec3::new(0.015, 0.012, 0.003),
-                    tf,
-                );
-                if !n.is_multiple_of(2) {
-                    for line in 0..3 {
-                        box_at(
-                            a,
-                            Surface::Ink,
-                            "paper",
-                            Vec3::new(x, y - line as f32 * o.size.y * 0.012, 0.0315),
-                            Vec3::new(width * 0.09, 0.0015, 0.0005),
-                            tf,
-                        );
-                    }
-                }
-            }
+            let placements = notes::placements(seed, width, height, side, p);
+            notes::build(a, &placements, tf, p);
         }
     });
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     if o.kind == ObjectKind::Cooktop {
-        cooktop(a, o.size, Vec3::ZERO, p);
+        cooktop::build(a, o.size, Vec3::ZERO, p, o.seed);
         return;
     }
     let s = o.size;
@@ -153,11 +138,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     let w = s.x - 0.018;
     let front = z + d * 0.5;
     let label = o.kind.class_name();
-    let toe = if o.kind == ObjectKind::Microwave {
-        0.012
-    } else {
-        0.075
-    };
+    let product = program::parameters(o);
+    let toe = product.toe_m;
     a.box_part(
         Surface::Rubber,
         label,
@@ -178,7 +160,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         ),
         toe,
         z,
-        Surface::Metal,
+        product.shell,
         label,
     );
     // A distinct inner lining makes open doors reveal a cavity rather than a dark decal.
@@ -191,8 +173,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     );
     match o.kind {
         ObjectKind::Refrigerator => {
-            for i in 0..p.shelves {
-                let y = toe + 0.04 + i as f32 * (s.y - toe - 0.15) / p.shelves as f32;
+            for (i, &y) in product.shelf_levels_m.iter().enumerate() {
+                let top = product
+                    .shelf_levels_m
+                    .get(i + 1)
+                    .copied()
+                    .unwrap_or(product.shelf_top_m);
                 a.box_part(
                     Surface::ContainerGlass,
                     label,
@@ -203,38 +189,31 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 if p.contents {
                     let items = contents::shelf_contents(
                         o,
-                        i,
+                        i as u32,
                         (
                             Vec2::new(-w * 0.45, z - d * 0.42),
                             Vec2::new(w * 0.45, z + d * 0.42),
                         ),
                         y + 0.007,
-                        (s.y - toe - 0.15) / p.shelves as f32 - 0.015,
+                        top - y - 0.020,
                     );
                     contents::build(a, &items);
                 }
             }
-            let count = if p.paired { 2 } else { 1 };
-            let leaf = (w - 0.018) / count as f32;
-            for i in 0..count {
-                let side = if i == 0 { -1. } else { 1. };
-                let cx = if count == 2 { side * leaf * 0.5 } else { 0. };
-                side_leaf(
-                    a,
-                    Vec3::new(cx, (s.y + toe) * 0.5, front + 0.014),
-                    leaf,
-                    s.y - toe - 0.02,
-                    side,
-                    p,
-                    o,
-                );
+            for door in refrigerator_doors(o, p) {
+                side_leaf(a, door.center, door.width, door.height, door.side, p, o);
             }
         }
         ObjectKind::Microwave => {
             let lower = p.controls == 2;
             let sign = if p.controls == 1 { -1. } else { 1. };
-            let door_w = if lower { w * 0.94 } else { w * 0.77 };
-            let cx = if lower { 0. } else { -sign * w * 0.10 };
+            let fraction = product.control_fraction;
+            let door_w = program::microwave_door_width(o, p);
+            let cx = if lower {
+                0.
+            } else {
+                -sign * w * fraction * 0.5
+            };
             side_leaf(
                 a,
                 Vec3::new(cx, s.y * if lower { 0.64 } else { 0.52 }, front + 0.014),
@@ -247,12 +226,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             let center = if lower {
                 Vec3::new(0., s.y * 0.17, front + 0.016)
             } else {
-                Vec3::new(sign * w * 0.40, s.y * 0.51, front + 0.016)
+                Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.51, front + 0.016)
             };
             let panel_size = if lower {
                 Vec3::new(w * 0.96, s.y * 0.21, 0.025)
             } else {
-                Vec3::new(w * 0.16, s.y * 0.86, 0.025)
+                Vec3::new(w * fraction - 0.006, s.y * 0.86, 0.025)
             };
             a.box_part(Surface::Plastic, label, center, panel_size, 0.003);
             if lower {
@@ -263,15 +242,17 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     3,
                     0.012,
                     label,
+                    o.seed,
                 );
             } else {
                 knobs(
                     a,
-                    Vec3::new(sign * w * 0.40, s.y * 0.24, front + 0.037),
+                    Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.24, front + 0.037),
                     Vec3::Y * s.y * 0.19,
                     2,
                     0.016,
                     label,
+                    o.seed,
                 );
             }
             a.box_part(
@@ -280,7 +261,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 if lower {
                     center + Vec3::new(w * 0.30, 0., 0.014)
                 } else {
-                    Vec3::new(sign * w * 0.40, s.y * 0.77, front + 0.030)
+                    Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.77, front + 0.030)
                 },
                 Vec3::new(w * 0.12, s.y * 0.11, 0.002),
                 0.001,
@@ -325,7 +306,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             let bottom = toe + 0.024;
             // Fit below the control fascia even on short compact appliances.
             // A fixed fraction plus the toe height overlapped the fascia.
-            let height = (s.y * 0.865 - bottom - 0.012).max(0.10);
+            let height = program::dishwasher_door_height(o);
+            let fascia_bottom = s.y * (1. - product.fascia_fraction);
+            let fascia_top = s.y - 0.01;
+            let fascia_y = (fascia_bottom + fascia_top) * 0.5;
             oven_leaf(
                 a,
                 w * 0.96,
@@ -335,21 +319,23 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 p,
                 label,
                 o.seed,
+                o,
             );
             a.box_part(
-                Surface::Metal,
+                product.front,
                 label,
-                Vec3::new(0., s.y * 0.925, front + 0.014),
-                Vec3::new(w * 0.97, s.y * 0.12, 0.022),
+                Vec3::new(0., fascia_y, front + 0.014),
+                Vec3::new(w * 0.97, fascia_top - fascia_bottom, 0.022),
                 0.003,
             );
             knobs(
                 a,
-                Vec3::new(-w * 0.30, s.y * 0.925, front + 0.03),
+                Vec3::new(-w * 0.30, fascia_y, front + 0.03),
                 Vec3::X * w * 0.18,
                 4,
                 0.012,
                 label,
+                o.seed,
             );
             for (index, level) in [0.22, 0.55].into_iter().enumerate() {
                 props::rack(
@@ -399,6 +385,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     &q,
                     label,
                     o.seed ^ level as u64,
+                    o,
                 );
                 a.box_part(
                     Surface::Ink,
@@ -430,7 +417,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             }
             cabinet::aperture_front(
                 a,
-                if tall { p.finish } else { Surface::Metal },
+                if tall { p.finish } else { product.front },
                 label,
                 [
                     Vec2::new(-w * 0.485, toe),
@@ -457,6 +444,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     3,
                     0.015,
                     label,
+                    o.seed,
                 );
             } else {
                 knobs(
@@ -466,77 +454,105 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     4,
                     0.016,
                     label,
+                    o.seed,
                 );
             }
             if o.kind == ObjectKind::Range {
-                cooktop(
+                cooktop::build(
                     a,
                     Vec3::new(w, s.y * 0.07, d),
                     Vec3::new(0., s.y * RANGE_BODY_TOP, z),
                     p,
+                    o.seed,
                 );
             }
         }
         _ => unreachable!(),
     }
 }
-fn cooktop(a: &mut Assembly, s: Vec3, base: Vec3, p: &KitchenProgram) {
-    a.box_part(
-        if p.gas { Surface::Metal } else { Surface::Ink },
-        "stove",
-        base + Vec3::Y * s.y * 0.12,
-        Vec3::new(s.x, s.y * 0.24, s.z),
-        0.005,
-    );
-    for i in 0..4 {
-        let x = if i % 2 == 0 { -0.22 } else { 0.22 };
-        let z = if i < 2 { -0.22 } else { 0.20 };
-        let c = base + Vec3::new(s.x * x, s.y * 0.30, s.z * z);
-        let radius = s.x.min(s.z) * if i == 0 { 0.145 } else { 0.115 };
-        a.part(Surface::Ink, "stove")
-            .cylinder(radius, s.y * 0.18, Transform::from_translation(c));
-        if p.gas {
-            a.part(Surface::Metal, "stove").cylinder(
-                radius * 0.72,
-                s.y * 0.12,
-                Transform::from_translation(c + Vec3::Y * s.y * 0.15),
-            );
-            for axis in [Vec3::X, Vec3::Z] {
-                pipe(
-                    a,
-                    Surface::Ink,
-                    "stove",
-                    &[
-                        c - axis * radius * 1.30 + Vec3::Y * s.y * 0.20,
-                        c + axis * radius * 1.30 + Vec3::Y * s.y * 0.20,
-                    ],
-                    0.006,
-                );
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ApplianceDoor {
+    pub center: Vec3,
+    pub width: f32,
+    pub height: f32,
+    pub side: f32,
+}
+pub fn refrigerator_doors(o: &IndoorObject, p: &KitchenProgram) -> Vec<ApplianceDoor> {
+    let split = program::proportions(o.seed).0;
+    let toe = 0.075;
+    let (d, z) = body(o, p);
+    let total = o.size.x - 0.036;
+    let widths = if p.paired {
+        vec![total * split, total * (1. - split)]
+    } else {
+        vec![total]
+    };
+    let mut x = -total * 0.5;
+    widths
+        .into_iter()
+        .enumerate()
+        .map(|(i, width)| {
+            let cx = x + width * 0.5;
+            x += width;
+            ApplianceDoor {
+                center: Vec3::new(cx, (o.size.y + toe) * 0.5, z + d * 0.5 + 0.014),
+                width,
+                height: o.size.y - toe - 0.02,
+                side: if i == 0 { -1. } else { 1. },
             }
-        } else {
-            for ring in [0.72, 0.94] {
-                let points: Vec<_> = (0..=32)
-                    .map(|k| {
-                        let t = TAU * k as f32 / 32.;
-                        c + Vec3::new(t.cos() * radius * ring, s.y * 0.12, t.sin() * radius * ring)
-                    })
-                    .collect();
-                pipe(a, Surface::Metal, "stove", &points, 0.0012);
-            }
+        })
+        .collect()
+}
+pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
+    let plan = program::parameters(o);
+    let mut value = serde_json::json!({"shell":plan.shell,"front":plan.front});
+    match o.kind {
+        ObjectKind::Refrigerator => {
+            let doors = refrigerator_doors(o, p);
+            let notes: Vec<_> = doors
+                .iter()
+                .map(|d| {
+                    let seed = o.seed
+                        ^ ((d.center.x.to_bits() as u64) << 32)
+                        ^ d.center.y.to_bits() as u64;
+                    notes::placements(seed, d.width, d.height, d.side, p)
+                })
+                .collect();
+            value["shelf_levels_m"] = serde_json::json!(plan.shelf_levels_m);
+            value["doors"] = serde_json::json!(doors);
+            value["notes"] = serde_json::json!(notes);
         }
+        ObjectKind::Dishwasher => {
+            value["fascia_fraction"] = serde_json::json!(plan.fascia_fraction);
+        }
+        ObjectKind::Microwave => {
+            value["control_fraction"] = serde_json::json!(plan.control_fraction);
+        }
+        ObjectKind::Cooktop | ObjectKind::Range => {
+            let size = if o.kind == ObjectKind::Range {
+                Vec3::new(o.size.x - 0.018, o.size.y * 0.07, body(o, p).0)
+            } else {
+                o.size
+            };
+            value["cooktop"] = serde_json::json!(cooktop::parameters(o.seed, size, p));
+        }
+        _ => {}
     }
-    // Controls share the chosen front/back/side placement with the physical knobs.
-    for i in 0..4 {
-        let t = (i as f32 - 1.5) * 0.16;
-        let (x, z) = match p.controls {
-            0 => (t, 0.43),
-            1 => (t, -0.43),
-            _ => (0.43, t),
-        };
-        a.part(Surface::Plastic, "stove").cylinder(
-            s.x.min(s.z) * 0.025,
-            s.y * 0.32,
-            Transform::from_translation(base + Vec3::new(x * s.x, s.y * 0.42, z * s.z)),
-        );
-    }
+    value
+}
+
+/// Fixed chassis and closed doors isolate construction from size and opening.
+/// An unexpanded occupied envelope cannot contain arbitrary open-door travel.
+#[cfg(test)]
+pub(crate) fn review_fixture(
+    kind: ObjectKind,
+    seed: u64,
+) -> (IndoorObject, Assembly, KitchenProgram) {
+    let mut o = super::super::audit::fixture(kind, seed);
+    o.size = fixture_size(kind);
+    let mut p = parameters(&o);
+    p.opening_radians = 0.;
+    let mut a = Assembly::default();
+    build(&mut a, &o, &p);
+    (o, a, p)
 }

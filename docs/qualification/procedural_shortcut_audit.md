@@ -35,6 +35,11 @@ conditions, but does not establish transfer for this generator.
 | Desk storage | A pen holder used one metal cylinder and exactly seven pens; organizers used equal compartments and repeated contents. | Hollow tapered/faceted cups with independently sampled substrates and collision-separated contents; unequal organizer compartments and tray spacing, optional supported paper stacks and varied occupancy. Work-surface task sampling includes pen holders. |
 | Kitchen supplies | Bread, folded towels, soap bottles and cutting boards occupied only a few fixed-envelope shapes. | Bounded loaf/cut profiles, fitted cloth folds, bottle shoulders/pump construction, curved cutting-board outlines and attached handles. Built-in sink dispensers use the same construction program. Food pigments vary within substrate-appropriate color ranges. |
 | Cabinet contents | Boxes and vases reused miniature fixed constructors centered in each bay. | Shared product builders, independent dimensions/finishes, and bounded support-local position/yaw proposals. Every transformed vertex remains within its physical bay. |
+| General cabinet construction | Equal compartment widths, equal shelf/drawer intervals and repeated handle coordinates survive metric-scale variation. | Unequal seeded bays and shelf intervals, sampled mixed-front membership, independently coordinated frame/shelf/front substrates, variable hardware and slats. Compartment boundaries drive contents, fronts and opening reserves together; the full top supports its declared footprint. |
+| Wall clocks | Square metric envelopes, a fixed depth, seed-modulo casing materials and fixed dial proportions recur. | Square, wide and tall metric sampling before mounting; tapered rounded cases, independent casing/dial finishes, varied indices, hands and fitted digital typography. Rear attachment and relief geometry share the sampled case depth. |
+| Whiteboard accessories | Equally spaced marker rows, alternating cap colors and one tray material impose repeated local geometry. | Supported irregular marker/eraser composition, variable occupancy and dimensions, independent cap/tray/frame finishes, fitted magnets and a connected tray with sampled lips/end caps. |
+| Wall shelves | A few bracket counts and fixed proportions repeat even when the mounting position changes. | Dimension-conditioned support counts, sampled span/offset/reach, straps, rods, curved braces and hidden supports, independent board/hardware substrates, and a full supported top. Braces connect to the physical wall plate and load strap. |
+| Projection screens | Repeated casing/borders and a nominal optical target disconnect placement from the actual rolled sheet. | Sampled sheet width/offset/drop, frame/case/caps and mounting proportions. Projector targeting and throw ratio use the same white-face rectangle that is rendered. |
 | Portable power | Nominal bounds concealed a nearly constant body and socket deck. | Sampled casing height, bevel, socket span/phase, inserts and switching. Both cable routing and geometry derive ports from the same program. |
 | Finish coupling | Every assembly chair shared a finish seed; unrelated substrates shared the same atlas index. | Collection-level coherence allows matching and replacement products. Independent substrate streams preserve related wood/cloth faces without locking wood grain to upholstery structure. Atlas capacities remain bounded. |
 | Content diagnostics | Screen/art/whiteboard statistics used the small finish palette rather than the actual content slot. | Metrics follow the material slot attached to the built mesh. Back-facing phone configurations without a screen mesh do not emit screen-content statistics. |
@@ -130,10 +135,18 @@ The local object audit has three complementary scopes:
 - Container/rack tests exercise independent metric extremes, triangle rays into
   actual cavities, lid extents, handle attachment, rack ground contacts, hanger
   separation, separate finish streams and rigid-motion ownership.
+- [Wall presentation equipment qualification](presentation_equipment.md) covers
+  accessory contact/separation, independent metric extremes, actual shelf-top
+  support, sheet ray hits, material independence and 80 distinct complete-room
+  seeds. Accepted transforms and construction programs accompany the local
+  geometry gallery and timing report.
 
 Set `ZEROVERSE_OBJECT_REPORT=out/object_regularity_current` while running the
 regularity qualification to save `catalog.json`, `geometry.json`, `rooms.json`,
-`cabinet-placement.json` and a fixed-envelope `objects.png` contact sheet. The
+and a fixed-envelope `objects.png` contact sheet. Cabinet contents are checked
+against actual sampled compartments by `objects::storage::tests`; the local
+`storage_clock_regularity_population` study records current cabinet/clock
+parameters and accepted placements in `out/storage_clock_regularity`. The
 source identity and generation configuration are recorded in the receipts. The
 contact sheet is a flat-shaded CPU rasterization of actual triangles, not PBR.
 Study results and galleries stay local; they are not automatically included in

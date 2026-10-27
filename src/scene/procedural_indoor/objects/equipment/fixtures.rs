@@ -1,63 +1,5 @@
 use super::*;
 
-pub(super) fn shelf(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    let thickness = (s.y * 0.10).clamp(0.016, 0.032).min(s.y * 0.2);
-    let surface = if p.housing == Surface::Metal {
-        Surface::Metal
-    } else {
-        Surface::Wood
-    };
-    // Flat top is exactly size.y, so separate supported plants/books obey the
-    // usual support contract. Brackets occupy the full declared vertical range.
-    a.box_part(
-        surface,
-        label,
-        Vec3::new(0., s.y - thickness * 0.5, 0.),
-        Vec3::new(s.x, thickness, s.z),
-        0.002,
-    );
-    for i in 0..p.shelf_brackets {
-        let x = if p.shelf_brackets == 2 {
-            [-p.shelf_span, p.shelf_span][i]
-        } else {
-            (i as f32 - 1.) * p.shelf_span
-        } * s.x;
-        a.box_part(
-            Surface::Metal,
-            label,
-            Vec3::new(x, s.y * 0.5, -s.z * 0.5 + 0.008),
-            Vec3::new(0.022, s.y, 0.016),
-            0.002,
-        );
-        if p.bracket_style != 1 {
-            a.part(Surface::Metal, label).rod(
-                Vec3::new(x, 0.021, -s.z * 0.5 + 0.017),
-                Vec3::new(x, s.y - thickness - 0.013, s.z * 0.39),
-                0.008,
-            );
-        } else {
-            a.box_part(
-                Surface::Metal,
-                label,
-                Vec3::new(x, s.y - thickness - 0.008, 0.),
-                Vec3::new(0.022, 0.016, s.z * 0.93),
-                0.002,
-            );
-        }
-        if p.bracket_style == 2 {
-            a.box_part(
-                Surface::Metal,
-                label,
-                Vec3::new(x, 0.012, -s.z * 0.27),
-                Vec3::new(0.024, 0.024, s.z * 0.44),
-                0.003,
-            );
-        }
-    }
-}
-
 pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
     let s = o.size;
     let label = o.kind.class_name();
@@ -166,10 +108,6 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
             ))),
         );
     }
-}
-
-pub(super) fn projection_screen(a: &mut Assembly, o: &IndoorObject) {
-    super::super::presentation::screen(a, o);
 }
 
 pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {

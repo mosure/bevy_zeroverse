@@ -39,7 +39,7 @@ fn quad(g: &mut Geometry, p: [Vec3; 4], outward: Vec3) {
     face(g, &p, outward);
 }
 
-fn panel(g: &mut Geometry, points: &[Vec3], extrusion: Vec3) {
+pub(super) fn panel(g: &mut Geometry, points: &[Vec3], extrusion: Vec3) {
     panel_faces(points, extrusion, |p, n, _| face(g, p, n));
 }
 
@@ -394,7 +394,23 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         ..default()
     };
     floors(&mut a, e, size);
+    let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {
+        if let Some(g) = &e.tier_guard {
+            guardrail::build(
+                &mut a,
+                &g.section,
+                guardrail::GuardRun {
+                    start,
+                    end,
+                    height: g.height,
+                    stair_rise: 0.,
+                },
+                |p| p.y,
+                &mut guard_posts,
+            );
+            continue;
+        }
         let rail = a.part(Surface::Metal, "other_structure");
         rail.rod(start + Vec3::Y * 1.03, end + Vec3::Y * 1.03, 0.022);
         rail.rod(start + Vec3::Y * 0.53, end + Vec3::Y * 0.53, 0.015);
@@ -411,7 +427,11 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     ceiling_mesh::build(
         a.part(
             if exposed {
-                Surface::Concrete
+                scene
+                    .ceiling_installation
+                    .as_ref()
+                    .and_then(|c| c.framing.as_ref())
+                    .map_or(Surface::Concrete, |f| f.roof_material)
             } else {
                 Surface::Ceiling
             },
@@ -475,7 +495,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         );
     }
     if let Some(m) = &e.mezzanine {
-        mezzanine(&mut a, m);
+        mezzanine::build(&mut a, m);
     }
     architecture::fixture_geometry(&mut a, scene);
     architecture::ceiling::build(&mut a, scene);
@@ -708,48 +728,6 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
             ],
             -n * 0.18,
         );
-    }
-}
-
-fn mezzanine(a: &mut Assembly, m: &Mezzanine) {
-    let lo = Vec3::new(m.deck.min.x, m.deck.height - m.thickness, m.deck.min.y);
-    let hi = Vec3::new(m.deck.max.x, m.deck.height, m.deck.max.y);
-    a.box_part(Surface::Wood, "floor", (lo + hi) * 0.5, hi - lo, 0.);
-    for x in [m.deck.min.x + 0.12, m.deck.max.x - 0.12] {
-        for z in [m.deck.min.y + 0.12, m.deck.max.y - 0.12] {
-            a.box_part(
-                Surface::Metal,
-                "other_structure",
-                Vec3::new(x, (m.deck.height - m.thickness) * 0.5, z),
-                Vec3::new(0.13, m.deck.height - m.thickness, 0.13),
-                0.004,
-            );
-        }
-    }
-    for (lo, hi) in m.stair_boxes() {
-        a.box_part(Surface::Wood, "floor", (lo + hi) * 0.5, hi - lo, 0.);
-    }
-    for (p, q) in m.rails() {
-        let up = Vec3::Y * m.rail_height;
-        let normal = (q - p).cross(Vec3::Y).normalize() * 0.01;
-        panel(
-            a.part(Surface::GlassInterior, "other_structure"),
-            &[
-                p + Vec3::Y * 0.08,
-                q + Vec3::Y * 0.08,
-                q + up - Vec3::Y * 0.05,
-                p + up - Vec3::Y * 0.05,
-            ],
-            normal,
-        );
-        a.part(Surface::Chrome, "other_structure")
-            .rod(p + up, q + up, 0.024);
-        let count = (p.distance(q) / 1.0).ceil().max(1.) as usize;
-        for i in 0..=count {
-            let c = p.lerp(q, i as f32 / count as f32);
-            a.part(Surface::Metal, "other_structure")
-                .rod(c, c + up, 0.018);
-        }
     }
 }
 

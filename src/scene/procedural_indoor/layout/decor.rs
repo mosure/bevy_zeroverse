@@ -198,7 +198,7 @@ impl IndoorManifest {
                 ),
                 _ => (
                     ObjectKind::Clock,
-                    Vec3::splat(rng.random_range(0.22..0.43)).with_z(0.045),
+                    super::super::objects::clocks::dimensions(rng),
                 ),
             };
             if span < size.x + 0.72 {

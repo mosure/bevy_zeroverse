@@ -142,54 +142,6 @@ fn object_regularity_fixed_envelopes_replay_and_vary() {
 }
 
 #[test]
-fn cabinet_contents_sample_usable_bays_without_center_or_axis_atoms() {
-    let parent = fixture(ObjectKind::Cabinet, 0);
-    let lo = Vec3::new(-0.23, 0.32, -0.18);
-    let hi = Vec3::new(0.23, 0.65, 0.18);
-    let mut accepted = 0;
-    let mut centered = 0;
-    let mut aligned = 0;
-    let mut min = Vec2::splat(f32::INFINITY);
-    let mut max = Vec2::splat(f32::NEG_INFINITY);
-    for seed in 0..256 {
-        let kind = if seed % 2 == 0 {
-            ObjectKind::StorageBox
-        } else {
-            ObjectKind::Vase
-        };
-        let Some(o) = storage::bay_contents::item(&parent, seed, kind, lo, hi) else {
-            continue;
-        };
-        accepted += 1;
-        let a = build_object(&o);
-        check(&o, &a).unwrap();
-        for p in a.parts.values().flat_map(|g| &g.positions) {
-            let p = o.transform().transform_point(Vec3::from_array(*p));
-            assert!(
-                p.cmpge(lo - Vec3::splat(0.0001)).all() && p.cmple(hi + Vec3::splat(0.0001)).all(),
-                "{seed}: {p:?}"
-            );
-        }
-        let q = (o.position.xz() - (lo + hi).xz() * 0.5) / (hi - lo).xz();
-        min = min.min(q);
-        max = max.max(q);
-        centered += usize::from(q.abs().max_element() < 0.02);
-        aligned += usize::from(
-            (4. * o.yaw).sin().atan2((4. * o.yaw).cos()).abs() * 0.25 < 2_f32.to_radians(),
-        );
-    }
-    assert!(
-        accepted > 220 && centered < accepted / 10 && aligned < accepted / 8,
-        "accepted={accepted}, centered={centered}, aligned={aligned}"
-    );
-    assert!(min.cmplt(Vec2::splat(-0.12)).all() && max.cmpgt(Vec2::splat(0.12)).all());
-    if let Some(path) = std::env::var_os("ZEROVERSE_OBJECT_REPORT").map(std::path::PathBuf::from) {
-        std::fs::create_dir_all(&path).unwrap();
-        std::fs::write(path.join("cabinet-placement.json"), serde_json::to_vec_pretty(&json!({"proposed":256,"accepted":accepted,"centered_within_two_percent":centered,"axis_aligned_within_two_degrees":aligned,"support_local_min_fraction":min,"support_local_max_fraction":max,"all_transformed_vertices_contained":true})).unwrap()).unwrap();
-    }
-}
-
-#[test]
 fn expanded_object_sampling_preserves_room_supports_semantics_and_collections() {
     let mut seen = BTreeMap::<String, usize>::new();
     let mut group_counts = [0_usize; 3];

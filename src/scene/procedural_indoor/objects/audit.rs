@@ -157,6 +157,8 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Locker => return serde_json::json!(public::education::parameters(o)),
         Banquette => return serde_json::json!(public::banquette::parameters(o)),
         Bookcase => return serde_json::json!(storage::bookcase::parameters(o)),
+        WallShelf => return serde_json::json!(equipment::wall_shelf::parameters(o)),
+        ProjectionScreen => return serde_json::json!(presentation::projection::parameters(o)),
         ServiceCounter => return serde_json::json!(public::service::counter_parameters(o)),
         ExtractionHood => return serde_json::json!(public::service::hood_parameters(o)),
         Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),

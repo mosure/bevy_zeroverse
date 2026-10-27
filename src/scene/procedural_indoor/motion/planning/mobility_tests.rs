@@ -107,6 +107,7 @@ fn operated_appliances_and_laptops_keep_rest_meshes_and_admit_real_motion() {
         Microwave,
         Dishwasher,
         DrawerUnit,
+        Cabinet,
         KitchenCupboard,
         KitchenCounter,
         Pantry,

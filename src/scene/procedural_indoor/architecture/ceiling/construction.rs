@@ -55,6 +55,22 @@ impl<'a> Frame<'a> {
         }
     }
     fn suspend(&self, a: &mut Assembly, scene: &IndoorManifest, anchors: &[Vec3]) {
+        if let Some(supports) = &self.m.suspension {
+            let inverse = self.tf.compute_affine().inverse();
+            for support in supports {
+                let p = inverse.transform_point3(support.start);
+                let end = inverse.transform_point3(support.end);
+                self.rod(a, Surface::Metal, p, end, 0.0025);
+                self.block(
+                    a,
+                    Surface::Metal,
+                    end - Vec3::Y * 0.001,
+                    Vec3::new(0.02, 0.006, 0.02),
+                    0.001,
+                );
+            }
+            return;
+        }
         for &p in anchors {
             let world = self.tf.transform_point(p);
             let roof = scene.ceiling_height(world.xz()) - self.tf.translation.y;
@@ -73,8 +89,22 @@ impl<'a> Frame<'a> {
 }
 
 pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule) {
+    build_internal(a, scene, m, false);
+}
+
+pub(super) fn anchors(scene: &IndoorManifest, m: &CeilingModule) -> Vec<Vec3> {
+    build_internal(&mut Assembly::default(), scene, m, true)
+}
+
+fn build_internal(
+    a: &mut Assembly,
+    scene: &IndoorManifest,
+    m: &CeilingModule,
+    anchors_only: bool,
+) -> Vec<Vec3> {
     let Some(detail) = &m.detail else {
-        return super::legacy::build(a, scene, m);
+        super::legacy::build(a, scene, m);
+        return vec![];
     };
     let f = Frame::new(m, detail.finish);
     let mut local = Assembly::default();
@@ -160,6 +190,9 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
             taper,
         } => truss::build(&mut local, &f, web, chord_radius_m, cell_pitch_m, taper),
     };
+    if anchors_only {
+        return anchors.iter().map(|&p| f.tf.transform_point(p)).collect();
+    }
     if matches!(detail.shape, CeilingShape::Diffuser { .. }) {
         // A suspended terminal needs an air connection as well as hangers.
         // The neck occupies the existing support reservation and ends just
@@ -189,6 +222,7 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest, m: &CeilingModule)
         }
         a.parts.entry(key).or_default().append(g);
     }
+    vec![]
 }
 
 /// Closed loft along local X. Ring planes remain parallel; oblique sections

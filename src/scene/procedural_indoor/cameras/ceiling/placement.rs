@@ -32,9 +32,9 @@ impl MountSpace {
         if !super::trajectory::plane_clear(scene, camera) {
             return false;
         }
-        // Endpoint tests enforce wall/floor and optical-axis clearance. A swept
-        // AABB of the body, near pyramid and first 60 cm is conservative between
-        // them, including arbitrarily thin fixtures.
+        // Endpoint tests enforce wall/floor and optical-axis clearance. Sweep
+        // each rigid component separately: merging the broad lens clearance
+        // into the narrow mount body invents occupied space beside roof ribs.
         let mut end = camera.clone();
         let delta = camera.end - camera.start;
         end.start = camera.end;
@@ -48,17 +48,31 @@ impl MountSpace {
         if delta == Vec3::ZERO {
             return true;
         }
-        let (mut lo, mut hi) = camera.ceiling_sweep_bounds().unwrap();
-        for c in [camera, &end] {
-            let (a, b) = near_bounds(scene, c);
-            let forward = c.start + c.ceiling_mount.as_ref().unwrap().inward_normal * 0.6;
-            lo = lo.min(a).min(forward);
-            hi = hi.max(b).max(forward);
-        }
-        !self
-            .obstacles
-            .iter()
-            .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())
+        let body = camera.ceiling_sweep_bounds().unwrap();
+        let (a, b) = near_bounds(scene, camera);
+        let (c, d) = near_bounds(scene, &end);
+        let near = (a.min(c), b.max(d));
+        let forward = camera.ceiling_mount.as_ref().unwrap().inward_normal * 0.6;
+        let axis = [
+            camera.start,
+            end.start,
+            camera.start + forward,
+            end.start + forward,
+        ];
+        let optical = (
+            axis.into_iter().fold(Vec3::splat(f32::INFINITY), Vec3::min) - Vec3::splat(1e-5),
+            axis.into_iter()
+                .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max)
+                + Vec3::splat(1e-5),
+        );
+        // The rail is linear with fixed orientation. Endpoint unions therefore
+        // conservatively contain each component for every intermediate time.
+        [body, near, optical].into_iter().all(|(lo, hi)| {
+            !self
+                .obstacles
+                .iter()
+                .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())
+        })
     }
 
     fn pose_clear(&self, scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
@@ -189,4 +203,83 @@ pub(super) fn surface(scene: &IndoorManifest, p: Vec2) -> (Vec3, Vec3) {
 
 pub(crate) fn clear(scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
     MountSpace::new(scene).clear(scene, camera)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene::procedural_indoor::{cameras::CameraMotion, layout::IndoorLayout};
+
+    #[test]
+    fn moving_mount_reserves_body_lens_and_optical_sweeps_without_empty_corners() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        scene.room_size = Vec3::new(10., 4., 10.);
+        scene.program = None;
+        let e = scene.envelope.as_mut().unwrap();
+        e.footprint = vec![
+            Vec2::new(-5., -5.),
+            Vec2::new(5., -5.),
+            Vec2::new(5., 5.),
+            Vec2::new(-5., 5.),
+        ];
+        e.ceiling_drop = Vec2::ZERO;
+        e.soffits.clear();
+        e.floor_patches.clear();
+        e.mezzanine = None;
+        scene.rug_supports.clear();
+        let policy = CeilingCameraSettings {
+            motion_fraction: 1.,
+            ..default()
+        };
+        let rotation = Transform::IDENTITY
+            .looking_to(Vec3::NEG_Y, Vec3::Z)
+            .rotation;
+        let start = Vec3::new(0., 3.78, 0.);
+        let delta = Vec3::X * 0.6;
+        let target = start + Vec3::NEG_Y * 2.;
+        let camera = IndoorCamera {
+            ceiling_mount: Some(CeilingCameraMount {
+                surface: Vec3::Y * 4.,
+                inward_normal: Vec3::NEG_Y,
+                rotation,
+                standoff_m: 0.22,
+                body_radius_m: policy.body_radius_m,
+            }),
+            fisheye: policy.lenses.sample(scene.seed, 0),
+            principal_point_offset: None,
+            start,
+            end: start + delta,
+            target,
+            fov_degrees: 120.,
+            motion: Some(CameraMotion {
+                control: [start + delta / 3., start + delta * (2. / 3.)],
+                target_end: target + delta,
+                roll: [0.; 2],
+                route: vec![],
+                orientations: Some([rotation; 2]),
+            }),
+        };
+        scene.camera_settings.ceiling_mount = Some(policy);
+        let mut space = MountSpace { obstacles: vec![] };
+        assert!(space.clear(&scene, &camera));
+        // Above the lens's near sphere, beside the narrower body: real space,
+        // even though it lies inside the combined swept bounding box.
+        space.obstacles = vec![(Vec3::new(0.2, 3.90, 0.08), Vec3::new(0.4, 3.92, 0.09))];
+        assert!(space.clear(&scene, &camera));
+        // Thin obstacles only encountered mid-trajectory must still fail, in
+        // each independent component (body, lens and first 60 cm of sight).
+        for (lo, hi) in [
+            (Vec3::new(0.2, 3.90, 0.015), Vec3::new(0.4, 3.92, 0.025)),
+            (Vec3::new(0.2, 3.81, 0.08), Vec3::new(0.4, 3.83, 0.09)),
+            (Vec3::new(0.2, 3.20, -0.01), Vec3::new(0.4, 3.23, 0.01)),
+        ] {
+            space.obstacles = vec![(lo, hi)];
+            assert!(space.pose_clear(&scene, &camera));
+            assert!(
+                !space.clear(&scene, &camera),
+                "missed swept obstacle {lo:?} {hi:?}"
+            );
+        }
+    }
 }

@@ -1,4 +1,5 @@
 //! Measurements of the built envelope, including zero counts for absent features.
+mod mezzanine;
 use super::{CoverageReport, IndoorManifest};
 use crate::scene::procedural_indoor::{envelope::polygon, metrics_sort::NumericCollector};
 use bevy::math::Vec3Swizzles;
@@ -127,6 +128,30 @@ pub(super) fn record(
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {
+        if let Some(frame) = &ceiling.framing {
+            numeric.push("ceiling_frame_members", frame.members.len() as f64)?;
+            for m in &frame.members {
+                for (key, value) in [
+                    ("ceiling_frame_depth_m", m.depth),
+                    ("ceiling_frame_span_m", m.top[0].distance(m.top[1])),
+                    ("ceiling_frame_width_m", m.top[0].distance(m.top[3])),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+                for (key, value) in [
+                    ("ceiling_frame_role", format!("{:?}", m.role)),
+                    ("ceiling_frame_section", format!("{:?}", m.section)),
+                    ("ceiling_frame_material", format!("{:?}", m.material)),
+                ] {
+                    *report
+                        .categories
+                        .entry(key.into())
+                        .or_default()
+                        .entry(value)
+                        .or_default() += 1;
+                }
+            }
+        }
         numeric.push("ceiling_installation_modules", ceiling.modules.len() as f64)?;
         numeric.push(
             "ceiling_installation_footprint_m2",
@@ -143,6 +168,10 @@ pub(super) fn record(
             .entry(ceiling.exposed_slab.to_string())
             .or_default() += 1;
         for m in &ceiling.modules {
+            numeric.push(
+                "ceiling_hangers",
+                m.suspension.as_ref().map_or(0, Vec::len) as f64,
+            )?;
             *report
                 .categories
                 .entry("ceiling_system".into())
@@ -340,13 +369,11 @@ pub(super) fn record(
         }
     }
     if let Some(m) = &e.mezzanine {
+        mezzanine::record(m, report, numeric)?;
         for (key, value) in [
             ("mezzanine_height_m", m.deck.height),
             ("mezzanine_stair_rise_m", m.deck.height / m.steps as f32),
-            (
-                "mezzanine_stair_tread_m",
-                (m.stair_max[m.stair_axis] - m.stair_min[m.stair_axis]) / m.steps as f32,
-            ),
+            ("mezzanine_stair_tread_m", m.tread_depth()),
             ("mezzanine_stair_steps", m.steps as f32),
             (
                 "mezzanine_stair_width_m",
@@ -364,6 +391,12 @@ pub(super) fn record(
             ),
         ] {
             numeric.push(key, value as f64)?;
+        }
+    }
+    if let Some(g) = &e.tier_guard {
+        if !e.tier_guards().is_empty() {
+            numeric.push("tier_guard_height_m", g.height as f64)?;
+            mezzanine::guard("tier_guard", &g.section, report, numeric)?;
         }
     }
     Ok(())

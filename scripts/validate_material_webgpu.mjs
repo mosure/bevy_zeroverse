@@ -11,7 +11,7 @@ import { verifyMaterialMaps } from './material_webgpu_oracle.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const chrome = process.env.CHROME ?? '/usr/bin/google-chrome';
-const shader = (await Promise.all(['synthesis.wgsl', 'paint.wgsl'].map(file => readFile(
+const shader = (await Promise.all(['synthesis.wgsl', 'paint.wgsl', 'flooring.wgsl'].map(file => readFile(
   new URL(`../src/scene/procedural_indoor/materials/gpu/${file}`, import.meta.url), 'utf8')))).join('\n');
 const kernel = await readFile(new URL('../src/scene/procedural_indoor/materials/gpu/kernel.rs', import.meta.url), 'utf8');
 const entries = [...kernel.match(/const ENTRIES:[\s\S]*?= \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);

@@ -293,6 +293,7 @@ pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
     let r = &mut recipes[Surface::Floor as usize];
     if r.construction.is_some() {
         materials::construction::sample(r, style);
+        materials::flooring::sampling::expand(r, style);
     }
 }
 

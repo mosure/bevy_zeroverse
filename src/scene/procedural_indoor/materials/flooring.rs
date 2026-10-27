@@ -22,6 +22,9 @@ pub struct FloorFinish {
     /// Optional construction parameters; old recorded installations are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub craft: Option<installation::Installation>,
+    /// Product/installation variation. Omitted recipes retain their original cuts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stock: Option<stock::FloorStock>,
     /// Installations close exactly at atlas boundaries. Basket cells are square.
     pub cells: [u32; 2],
     pub basket_strips: u32,
@@ -73,6 +76,7 @@ impl FloorFinish {
         let mut result = Self {
             layout,
             craft: None,
+            stock: None,
             cells: [nx, ny],
             basket_strips: rng.random_range(3..=5),
             piece_tone: rng.random_range(0.12..if style == 0 { 0.48 } else { 0.30 }),
@@ -96,6 +100,9 @@ impl FloorFinish {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(stock) = &self.stock {
+            stock.validate()?;
+        }
         if let Some(c) = &self.craft {
             c.validate(self)?;
         } else if matches!(
@@ -130,6 +137,13 @@ impl FloorFinish {
     pub(super) fn cut(&self, r: &MaterialRecipe, uv: [f32; 2]) -> Cut {
         if let Some(cut) = self.craft.as_ref().and_then(|c| c.cut(self, r, uv)) {
             return cut;
+        }
+        if let Some(stock) = &self.stock {
+            if matches!(self.layout, FloorLayout::Straight | FloorLayout::BrokenBond)
+                && stock.cut_jitter != [0.; 2]
+            {
+                return stock.cut(self, r, uv);
+            }
         }
         let [nx, ny] = self.cells;
         let u = uv[0].rem_euclid(1.) * nx as f32;
@@ -178,9 +192,11 @@ impl FloorFinish {
         }
         let cut = self.cut(r, uv);
         let [x, y] = cut.id;
+        let [mx, my] = self.stock.as_ref().map_or([3, 3], |s| s.mottle_cells);
         let gain = 1.
             + (hash(x, y, r.seed.wrapping_add(223)) - 0.5) * self.piece_tone
-            + (periodic_noise(uv[0], uv[1], 3, 3, r.seed.wrapping_add(227)) - 0.5) * self.mottling;
+            + (periodic_noise(uv[0], uv[1], mx, my, r.seed.wrapping_add(227)) - 0.5)
+                * self.mottling;
         let warm = (hash(x, y, r.seed.wrapping_add(229)) - 0.5) * self.piece_warmth;
         let accent = hash(x, y, r.seed.wrapping_add(233)) < self.accent_fraction;
         for (i, c) in t.color.iter_mut().enumerate() {
@@ -199,6 +215,10 @@ impl FloorFinish {
 }
 
 pub mod installation;
+pub(super) mod sampling;
+pub mod stock;
 
+#[cfg(test)]
+mod diversity_tests;
 #[cfg(test)]
 mod tests;

@@ -6,8 +6,14 @@ pub(super) fn append_ceiling(scene: &IndoorManifest, colliders: &mut Vec<Collide
     let Some(ceiling) = &scene.ceiling_installation else {
         return;
     };
-    for module in &ceiling.modules {
-        for geometry in module.geometry(scene).parts.into_values() {
+    let framing = ceiling.framing.as_ref().map(|f| f.geometry());
+    for assembly in ceiling
+        .modules
+        .iter()
+        .map(|module| module.geometry(scene))
+        .chain(framing)
+    {
+        for geometry in assembly.parts.into_values() {
             for indices in geometry.indices.as_chunks::<3>().0 {
                 let p = indices.map(|i| Vec3::from_array(geometry.positions[i as usize]));
                 colliders.push(Collider {
@@ -65,6 +71,7 @@ mod tests {
         let mut scene =
             IndoorManifest::generate_with_humans(3, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         let module = CeilingModule {
+            suspension: None,
             system: CeilingSystem::Conduit,
             center: Vec3::new(0., 2.7, 0.),
             size: Vec3::new(3., 0.15, 0.8),
@@ -85,6 +92,7 @@ mod tests {
         };
         let bounds = module.bounds();
         scene.ceiling_installation = Some(CeilingInstallation {
+            framing: None,
             exposed_slab: true,
             modules: vec![module],
         });
@@ -120,6 +128,57 @@ mod tests {
                         .min_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
                     assert_eq!(index.closest(&colliders, origin, ray, 3., false), scalar);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn roof_frame_visibility_uses_open_web_triangles_from_both_sides() {
+        use crate::scene::procedural_indoor::{
+            architecture::ceiling::framing::{
+                CeilingFraming, FrameMember, FrameRole, FrameSection,
+            },
+            materials::Surface,
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(3, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        let member = FrameMember {
+            top: [
+                Vec3::new(-2., 4., -0.15),
+                Vec3::new(2., 4., -0.15),
+                Vec3::new(2., 4., 0.15),
+                Vec3::new(-2., 4., 0.15),
+            ],
+            depth: 0.5,
+            role: FrameRole::Rafter,
+            section: FrameSection::OpenWeb,
+            material: Surface::Metal,
+            finish: 0,
+            web_pitch: 1.,
+        };
+        scene.ceiling_installation = Some(CeilingInstallation {
+            exposed_slab: true,
+            modules: vec![],
+            framing: Some(CeilingFraming {
+                roof_material: Surface::Metal,
+                members: vec![member.clone()],
+            }),
+        });
+        let mut colliders = Vec::new();
+        append_ceiling(&scene, &mut colliders);
+        assert!(!colliders.is_empty());
+        let index = index::Index::new(&colliders);
+        for (t, u, occupied) in [(0.37, 0.5, false), (0.37, 0.22, true), (-0.002, 0.22, true)] {
+            for (y, ray) in [(2., Vec3::Y), (5., Vec3::NEG_Y)] {
+                let origin = member.point(t, u, 0.).with_y(y);
+                let hit = index.closest(&colliders, origin, ray, 4., false);
+                assert_eq!(hit.is_some(), occupied, "origin={origin:?}");
+                let oracle = colliders
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, c)| c.hit(origin, ray).map(|d| (i, d)))
+                    .min_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+                assert_eq!(hit, oracle);
             }
         }
     }

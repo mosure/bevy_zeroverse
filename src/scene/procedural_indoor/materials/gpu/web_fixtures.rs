@@ -29,6 +29,31 @@ fn export_webgpu_material_fixtures() {
         .map(|s| recipes[s as usize].clone())
         .into();
         selected.push(super::super::super::human::knit_recipe(seed));
+        // All new dye poles, mixed stock, high shear/frequencies and archived
+        // carpet are read back at every mip in Chrome, including overflow seeds.
+        for pole in 0..8 {
+            let mut floor = recipes[Surface::Floor as usize].clone();
+            let c = floor.carpet.as_mut().unwrap();
+            if pole < 6 {
+                let d = c.dye.as_mut().unwrap();
+                d.weights = [0.; 6];
+                d.weights[pole] = 1.;
+                d.shear = if pole % 2 == 0 { -1 } else { 1 };
+            } else if pole == 6 {
+                floor
+                    .flooring
+                    .as_mut()
+                    .unwrap()
+                    .stock
+                    .as_mut()
+                    .unwrap()
+                    .cut_jitter = [0.39, 0.39];
+            } else {
+                c.dye = None;
+                floor.flooring.as_mut().unwrap().stock = None;
+            }
+            selected.push(floor);
+        }
         for component in 0..4 {
             let mut wall = recipes[Surface::Accent as usize].clone();
             let mut finish = (0..64)

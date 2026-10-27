@@ -34,6 +34,8 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
             (ObjectKind::Banquette, Vec3::new(2., 1.1, 0.75)),
             (ObjectKind::Cabinet, Vec3::new(0.9, 1.1, 0.42)),
             (ObjectKind::Whiteboard, Vec3::new(1.5, 0.9, 0.04)),
+            (ObjectKind::WallShelf, Vec3::new(0.85, 0.23, 0.27)),
+            (ObjectKind::ProjectionScreen, Vec3::new(1.4, 1.1, 0.09)),
             (ObjectKind::Phone, Vec3::new(0.074, 0.009, 0.16)),
             (ObjectKind::DocumentTray, Vec3::new(0.26, 0.13, 0.34)),
             (ObjectKind::DeskOrganizer, Vec3::new(0.20, 0.16, 0.13)),

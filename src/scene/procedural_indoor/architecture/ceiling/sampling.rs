@@ -4,13 +4,16 @@ use rand::seq::SliceRandom;
 /// Compute scene obstacles once, rather than allocating per proposal.
 pub(super) struct Reservations {
     fixtures: Vec<(Vec3, Vec3)>,
-    structure: Vec<(Vec3, Vec3)>,
-    partitions: Vec<(Vec3, Vec3)>,
+    pub(super) fixture_bodies: Vec<(Vec3, Vec3)>,
+    pub(super) structure: Vec<(Vec3, Vec3)>,
+    pub(super) partitions: Vec<(Vec3, Vec3)>,
 }
 impl Reservations {
     pub(super) fn new(scene: &IndoorManifest) -> Self {
+        let (fixtures, fixture_bodies) = fixture_reservations(scene);
         Self {
-            fixtures: fixture_bounds(scene),
+            fixtures,
+            fixture_bodies,
             structure: scene
                 .envelope
                 .as_ref()
@@ -20,21 +23,21 @@ impl Reservations {
     }
 }
 
-pub(super) fn fixture_bounds(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
-    super::super::fixture_positions(scene)
-        .into_iter()
-        .map(|p| {
-            let half = super::super::fixture_half_extents(scene, p) + Vec3::splat(0.04);
-            (
-                p - half,
-                Vec3::new(
-                    p.x + half.x,
-                    scene.ceiling_height(p.xz()) + 0.02,
-                    p.z + half.z,
-                ),
-            )
-        })
-        .collect()
+type Boxes = Vec<(Vec3, Vec3)>;
+fn fixture_reservations(scene: &IndoorManifest) -> (Boxes, Boxes) {
+    let points = super::super::fixture_positions(scene);
+    let mut full = Vec::with_capacity(points.len());
+    let mut bodies = Vec::with_capacity(points.len());
+    for p in points {
+        let h = super::super::fixture_half_extents(scene, p);
+        bodies.push((p - h - Vec3::splat(0.015), p + h + Vec3::splat(0.015)));
+        let h = h + Vec3::splat(0.04);
+        full.push((
+            p - h,
+            Vec3::new(p.x + h.x, scene.ceiling_height(p.xz()) + 0.02, p.z + h.z),
+        ));
+    }
+    (full, bodies)
 }
 
 pub(super) fn support_heights(scene: &IndoorManifest, center: Vec2, size: Vec2) -> [f32; 6] {
@@ -86,16 +89,7 @@ pub(crate) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
             } else {
                 h
             };
-            if lo.cmplt(m.stair_max).all() && hi.cmpgt(m.stair_min).all() {
-                let axis = m.stair_axis;
-                let tread = (m.stair_max[axis] - m.stair_min[axis]) / m.steps as f32;
-                let steps = ((m.stair_max[axis] - lo[axis].max(m.stair_min[axis])) / tread)
-                    .ceil()
-                    .clamp(1., m.steps as f32);
-                h.max(m.deck.height * steps / m.steps as f32)
-            } else {
-                h
-            }
+            m.stair_highest_in(lo, hi).map_or(h, |top| h.max(top))
         })
     })
 }
@@ -166,8 +160,12 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
     let mut plan = CeilingInstallation {
         exposed_slab: exposed,
         modules: Vec::new(),
+        framing: None,
     };
     let reserved = Reservations::new(scene);
+    if exposed {
+        plan.framing = Some(framing::CeilingFraming::sample(scene, &reserved));
+    }
     let Some(program) = &scene.program else {
         return plan;
     };
@@ -208,7 +206,7 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
         let zone_gap = rng.random_range(0.06..0.42);
         let mut decoration = Vec::new();
         for index in 0..(nx * nz).min(24) {
-            if !rng.random_bool(if exposed { 0.48 } else { 0.90 }) {
+            if !rng.random_bool(if exposed { 0.28 } else { 0.90 }) {
                 continue;
             }
             let center =
@@ -304,7 +302,63 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
             accept(scene, &mut plan, candidate, &reserved);
         }
     }
+    if exposed {
+        extra_services(scene, &mut plan, &reserved);
+    }
     plan
+}
+
+fn extra_services(scene: &IndoorManifest, plan: &mut CeilingInstallation, reserved: &Reservations) {
+    let Some(program) = &scene.program else {
+        return;
+    };
+    let mut rng = stream(scene.seed, 0x5345525649434553);
+    for zone in &program.zones {
+        let lo = zone.min + Vec2::splat(0.32);
+        let hi = zone.max - Vec2::splat(0.32);
+        let extent = hi - lo;
+        if extent.min_element() < 1.5 {
+            continue;
+        }
+        for _ in 0..rng.random_range(5..=10) {
+            let axis = usize::from(rng.random_bool(0.5));
+            let system = [
+                CeilingSystem::RoundDuct,
+                CeilingSystem::RectangularDuct,
+                CeilingSystem::Conduit,
+                CeilingSystem::Conduit,
+                CeilingSystem::CableTray,
+                CeilingSystem::SprinklerMain,
+            ][rng.random_range(0..6)];
+            let mut shape = Vec2::splat(
+                rng.random_range(0.22_f32..0.52)
+                    .min(extent.min_element() * 0.25),
+            );
+            shape[axis] = extent[axis] * rng.random_range(0.38..0.88);
+            let center = lo
+                + shape * 0.5
+                + (extent - shape)
+                    * Vec2::new(rng.random_range(0.0..1.), rng.random_range(0.0..1.));
+            let depth = rng.random_range(0.12..0.35);
+            let structural_drop = plan
+                .framing
+                .as_ref()
+                .map_or(0.15, |f| f.deepest_drop(scene));
+            let gap = rng.random_range(0.08..(structural_drop + 0.40).max(0.30));
+            let finish = rng.random_range(0..12);
+            let mut candidate = module(scene, &mut rng, system, center, shape, depth, gap, finish);
+            for _ in 0..3 {
+                if accept(scene, plan, candidate.clone(), reserved) {
+                    break;
+                }
+                shape[axis] *= 0.72;
+                if shape[axis] < 0.65 {
+                    break;
+                }
+                candidate = resize(scene, candidate, center, shape, depth, gap);
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -333,6 +387,7 @@ fn module(
         thickness_m: rng.random_range(0.015..0.048),
         seed: rng.random(),
         detail: Some(CeilingDetail::sample(system, rng, finish)),
+        suspension: None,
     };
     resize(scene, m, center, size, depth, gap)
 }
@@ -353,6 +408,7 @@ fn resize(
         (roof - highest_floor(scene, center - size * 0.5, center + size * 0.5) - 2.36).max(0.10);
     let depth = depth.min((available - 0.025).max(0.10));
     let gap = gap.min((available - depth).max(0.008));
+    m.suspension = None;
     m.center = Vec3::new(center.x, roof - gap - depth * 0.5, center.y);
     m.size = Vec3::new(size.x, depth, size.y);
     m.support_top_m = roofs.into_iter().fold(f32::NEG_INFINITY, f32::max) - 0.001;
@@ -362,15 +418,20 @@ fn resize(
 fn accept(
     scene: &IndoorManifest,
     plan: &mut CeilingInstallation,
-    m: CeilingModule,
+    mut m: CeilingModule,
     reserved: &Reservations,
 ) -> bool {
     if plan.modules.len() >= 96
         || !admissible(scene, &m, reserved)
-        || plan
-            .modules
-            .iter()
-            .any(|other| overlap(other.bounds(), m.bounds(), 0.025))
+        || !suspension::frame_clear(&m, plan.framing.as_ref())
+    {
+        return false;
+    }
+    suspension::prepare(scene, plan.framing.as_ref(), &mut m);
+    if plan
+        .modules
+        .iter()
+        .any(|other| suspension::conflicts(other, &m, 0.025))
     {
         return false;
     }

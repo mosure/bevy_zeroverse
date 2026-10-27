@@ -725,6 +725,9 @@ impl MaterialRecipe {
             t.color = materials::field::tint(t.color, 1. - seam * 0.22);
             t.height -= seam * self.joint_width * 0.25 * self.detail_scale.unwrap_or(1.);
             t.roughness = (t.roughness + seam * 0.12).min(1.);
+            if let Some(stock) = &f.stock {
+                stock.joint(seam, t);
+            }
             return;
         }
         let [nx, ny] = self.floor_repetitions(0);

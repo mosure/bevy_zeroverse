@@ -306,13 +306,22 @@ fn aligned_worktops_preserve_body_depth_and_door_envelopes() {
 fn range_burners_are_above_the_carcass_in_the_actual_mesh() {
     for seed in 0..64 {
         let o = super::super::audit::fixture(ObjectKind::Range, seed);
-        let (depth, z) = body(&o, &parameters(&o));
-        let point = Vec2::new(-(o.size.x - 0.018) * 0.22, z - depth * 0.22);
-        let hit = top_at(&super::super::build_object(&o), point) / o.size.y;
-        assert!(
-            (0.945..0.98).contains(&hit),
-            "seed {seed}: burner hidden by casing at {hit}"
+        let p = parameters(&o);
+        let (depth, z) = body(&o, &p);
+        let plan = appliances::cooktop::parameters(
+            o.seed,
+            Vec3::new(o.size.x - 0.018, o.size.y * 0.07, depth),
+            &p,
         );
+        let a = super::super::build_object(&o);
+        assert!(!plan.burners.is_empty());
+        for burner in &plan.burners {
+            let hit = top_at(&a, burner.center + Vec2::new(0., z)) / o.size.y;
+            assert!(
+                (0.945..0.98).contains(&hit),
+                "seed {seed}: burner hidden by casing at {hit}"
+            );
+        }
     }
 }
 #[test]

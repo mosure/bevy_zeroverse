@@ -1,5 +1,6 @@
 //! Device-free production-map qualification. GPU/scene qualification is separate.
 mod construction;
+mod floors;
 use super::{
     program::{self, MaterialRecipe},
     Surface,

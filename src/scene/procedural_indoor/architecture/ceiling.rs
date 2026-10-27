@@ -1,9 +1,11 @@
 //! Bounded ceiling installations shared by construction, placement and cameras.
 //! Recipes describe real occupied volumes; meshes are batched by existing PBR roles.
 mod construction;
+pub mod framing;
 mod legacy;
 mod profile;
 mod sampling;
+mod suspension;
 pub(crate) use sampling::highest_floor;
 #[cfg(test)]
 mod tests;
@@ -43,6 +45,15 @@ pub struct CeilingModule {
     /// Missing in older manifests: retain their original geometry exactly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<CeilingDetail>,
+    /// Explicit body-to-structure hangers. None preserves legacy reservations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suspension: Option<Vec<Suspension>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Suspension {
+    pub start: Vec3,
+    pub end: Vec3,
 }
 impl CeilingModule {
     pub fn bounds(&self) -> (Vec3, Vec3) {
@@ -69,6 +80,8 @@ impl CeilingModule {
 pub struct CeilingInstallation {
     pub exposed_slab: bool,
     pub modules: Vec<CeilingModule>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub framing: Option<framing::CeilingFraming>,
 }
 impl CeilingInstallation {
     pub fn sample(scene: &IndoorManifest) -> Self {
@@ -79,8 +92,7 @@ impl CeilingInstallation {
     /// entirely inside a module's bounds, without rebuilding scene reservations.
     /// Include touching edges: `floor_height` also samples the module's corners.
     pub(crate) fn admits_floor_support(&self, lo: Vec2, hi: Vec2, height: f32) -> bool {
-        self.modules.iter().all(|module| {
-            let (a, b) = module.body_bounds();
+        self.obstacles().all(|(a, b)| {
             !lo.cmple(b.xz()).all() || !hi.cmpge(a.xz()).all() || a.y >= height + MIN_HEADROOM_M
         })
     }
@@ -99,6 +111,9 @@ impl CeilingInstallation {
     ) -> Result<Option<String>, String> {
         if self.modules.len() > 96 {
             return Err("unbounded ceiling installation".into());
+        }
+        if let Some(frame) = &self.framing {
+            frame.validate_integrity()?;
         }
         for (i, module) in self.modules.iter().enumerate() {
             if !module.center.is_finite()
@@ -127,13 +142,25 @@ impl CeilingInstallation {
             {
                 return Err(format!("invalid ceiling module {i}"));
             }
+            module.validate_suspension()?;
         }
         let reservations = sampling::Reservations::new(scene);
+        if self
+            .framing
+            .as_ref()
+            .is_some_and(|f| !f.placement_valid(scene, &reservations))
+        {
+            return Ok(Some(format!(
+                "seed {}: ceiling frame violates placement clearance",
+                scene.seed
+            )));
+        }
         for (i, module) in self.modules.iter().enumerate() {
             if !sampling::admissible(scene, module, &reservations)
                 || self.modules[..i]
                     .iter()
-                    .any(|m| overlap(m.bounds(), module.bounds(), 0.012))
+                    .any(|m| suspension::conflicts(m, module, 0.012))
+                || !suspension::frame_clear(module, self.framing.as_ref())
             {
                 return Ok(Some(format!(
                     "seed {}: ceiling module {i} violates placement clearance",
@@ -151,6 +178,11 @@ fn overlap((a, b): (Vec3, Vec3), (c, d): (Vec3, Vec3), margin: f32) -> bool {
 
 pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
     if let Some(installation) = &scene.ceiling_installation {
+        if let Some(frame) = &installation.framing {
+            for (key, g) in frame.geometry().parts {
+                a.parts.entry(key).or_default().append(g);
+            }
+        }
         for module in &installation.modules {
             construction::build(a, scene, module);
         }

@@ -8,7 +8,7 @@ fn reported_65991960_ceiling_installation_is_valid() {
 
 #[test]
 fn reported_65904936_ceiling_installation_is_valid() {
-    validate_reported_ceiling_seed(65_904_936, 8);
+    validate_reported_ceiling_seed(65_904_936, 9);
 }
 
 fn validate_reported_ceiling_seed(seed: u64, module_count: usize) {
@@ -48,6 +48,7 @@ fn late_floor_support_preserves_headroom_for_partial_and_contained_footprints() 
         IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let module = scene.ceiling_installation.as_ref().unwrap().modules[0].clone();
     let plan = CeilingInstallation {
+        framing: None,
         exposed_slab: true,
         modules: vec![module.clone()],
     };
@@ -230,6 +231,7 @@ fn ceiling_headroom_counts_decks_and_rugs_without_corner_samples() {
         stair_axis: 0,
         steps: 16,
         rail_height: 1.1,
+        construction: None,
     });
     let (lo, hi) = (Vec2::splat(-1.), Vec2::splat(1.));
     assert_eq!(
@@ -301,6 +303,7 @@ fn ceiling_shapes_have_finite_wound_faces_and_bounded_complexity() {
                 size = Vec3::new(size.z, size.y, size.x);
             }
             let m = CeilingModule {
+                suspension: None,
                 system,
                 center: Vec3::new(0., scene.room_size.y - 0.5 - size.y * 0.5, 0.),
                 size,
@@ -414,6 +417,7 @@ fn interior_stair_treads_and_window_coverings_keep_clearance() {
         stair_axis: 0,
         steps: 5,
         rail_height: 1.1,
+        construction: None,
     });
     assert!((sampling::highest_floor(&scene, lo.xz(), hi.xz()) - (lo.y - 2.20)).abs() < 0.001);
     assert!((m.headroom(&scene) - 2.20).abs() < 0.001);

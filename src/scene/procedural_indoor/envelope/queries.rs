@@ -1,81 +1,6 @@
 use super::*;
 use crate::scene::procedural_indoor::layout::segment_hits_box;
 
-impl Mezzanine {
-    pub fn stair_boxes(&self) -> Vec<(Vec3, Vec3)> {
-        let axis = self.stair_axis;
-        let other = 1 - axis;
-        let tread = (self.stair_max[axis] - self.stair_min[axis]) / self.steps as f32;
-        (0..self.steps)
-            .map(|i| {
-                let mut lo = self.stair_min;
-                let mut hi = self.stair_max;
-                lo[axis] = self.stair_max[axis] - (i + 1) as f32 * tread;
-                hi[axis] = self.stair_max[axis] - i as f32 * tread;
-                lo[other] = self.stair_min[other];
-                hi[other] = self.stair_max[other];
-                (
-                    Vec3::new(lo.x, 0., lo.y),
-                    Vec3::new(
-                        hi.x,
-                        self.deck.height * (i + 1) as f32 / self.steps as f32,
-                        hi.y,
-                    ),
-                )
-            })
-            .collect()
-    }
-    pub fn rails(&self) -> Vec<(Vec3, Vec3)> {
-        let mut segments = Vec::new();
-        for axis in 0..2 {
-            for high in [false, true] {
-                let other = 1 - axis;
-                let coordinate = if high {
-                    self.deck.max[axis]
-                } else {
-                    self.deck.min[axis]
-                };
-                let spans = if axis == self.stair_axis && high {
-                    vec![
-                        (self.deck.min[other], self.stair_min[other]),
-                        (self.stair_max[other], self.deck.max[other]),
-                    ]
-                } else {
-                    vec![(self.deck.min[other], self.deck.max[other])]
-                };
-                for (lo, hi) in spans {
-                    if hi - lo < 0.03 {
-                        continue;
-                    }
-                    let mut a = Vec2::ZERO;
-                    let mut b = a;
-                    a[axis] = coordinate;
-                    b[axis] = coordinate;
-                    a[other] = lo;
-                    b[other] = hi;
-                    segments.push((
-                        Vec3::new(a.x, self.deck.height, a.y),
-                        Vec3::new(b.x, self.deck.height, b.y),
-                    ));
-                }
-            }
-        }
-        // Two sloping handrails meet the deck's guarded landing.
-        let other = 1 - self.stair_axis;
-        for side in [self.stair_min[other], self.stair_max[other]] {
-            let mut a = self.stair_min;
-            let mut b = self.stair_max;
-            a[other] = side;
-            b[other] = side;
-            segments.push((
-                Vec3::new(a.x, self.deck.height, a.y),
-                Vec3::new(b.x, 0., b.y),
-            ));
-        }
-        segments
-    }
-}
-
 impl EnvelopeProgram {
     /// Guard exposed level changes using the same geometry in the camera oracle.
     pub fn tier_guards(&self) -> Vec<(Vec3, Vec3)> {
@@ -106,6 +31,9 @@ impl EnvelopeProgram {
             .tier_guards()
             .into_iter()
             .map(|(a, b)| {
+                if let Some(g) = &self.tier_guard {
+                    return g.section.bounds(g.height, a, b);
+                }
                 (
                     a.min(b) - Vec3::new(0.025, 0., 0.025),
                     // The top rail is centered at 1.03 m with a 22 mm radius.
@@ -135,21 +63,19 @@ impl EnvelopeProgram {
                 Vec3::new(m.deck.min.x, m.deck.height - m.thickness, m.deck.min.y),
                 Vec3::new(m.deck.max.x, m.deck.height, m.deck.max.y),
             ));
-            for x in [m.deck.min.x + 0.12, m.deck.max.x - 0.12] {
-                for z in [m.deck.min.y + 0.12, m.deck.max.y - 0.12] {
-                    boxes.push((
-                        Vec3::new(x - 0.065, 0., z - 0.065),
-                        Vec3::new(x + 0.065, m.deck.height - m.thickness, z + 0.065),
-                    ));
-                }
-            }
+            boxes.extend(m.columns());
+            boxes.extend(m.beams());
             boxes.extend(m.stair_boxes());
             for (a, b) in m.rails() {
-                // Conservative continuous clearance for thin glass guard panels.
-                boxes.push((
-                    a.min(b) - Vec3::new(0.035, 0., 0.035),
-                    a.max(b) + Vec3::new(0.035, m.rail_height + 0.03, 0.035),
-                ));
+                if let Some(c) = &m.construction {
+                    boxes.push(c.guard.bounds(m.rail_height, a, b));
+                } else {
+                    // Conservative continuous clearance for thin glass guard panels.
+                    boxes.push((
+                        a.min(b) - Vec3::new(0.035, 0., 0.035),
+                        a.max(b) + Vec3::new(0.035, m.rail_height + 0.03, 0.035),
+                    ));
+                }
             }
         }
         boxes
@@ -348,6 +274,9 @@ impl EnvelopeProgram {
     }
 
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if let Some(g) = &self.tier_guard {
+            g.validate()?;
+        }
         polygon::validate(&self.footprint)?;
         let size = scene.room_size;
         if !self.ceiling_drop.is_finite()
@@ -428,36 +357,7 @@ impl EnvelopeProgram {
             }
         }
         if let Some(m) = &self.mezzanine {
-            if m.stair_axis > 1
-                || m.steps < 1
-                || !m.deck.height.is_finite()
-                || !m.stair_min.is_finite()
-                || !m.stair_max.is_finite()
-                || m.stair_max.cmple(m.stair_min).any()
-                || m.deck.max.cmple(m.deck.min).any()
-                || !(0.12..=0.35).contains(&m.thickness)
-            {
-                return Err("invalid mezzanine dimensions".into());
-            }
-            let rise = m.deck.height / m.steps as f32;
-            let tread = (m.stair_max[m.stair_axis] - m.stair_min[m.stair_axis]) / m.steps as f32;
-            if !polygon::box_inside(&self.footprint, m.deck.min, m.deck.max, 0.1)
-                || !polygon::box_inside(&self.footprint, m.stair_min, m.stair_max, 0.1)
-                || !(0.12..=0.18).contains(&rise)
-                || !(0.27..=0.36).contains(&tread)
-                || m.rail_height < 1.0
-                || [m.deck.min, m.deck.max]
-                    .into_iter()
-                    .any(|p| self.ceiling_height(size, p) - m.deck.height < 2.2)
-            {
-                return Err("invalid mezzanine, stair or headroom".into());
-            }
-            if m.stair_boxes()
-                .windows(2)
-                .any(|p| (p[0].1.y - p[1].1.y).abs() > 0.181)
-            {
-                return Err("inconsistent stair riser".into());
-            }
+            m.validate(self, size)?;
         }
         for (lo, hi) in self.structural_boxes(size) {
             if !lo.is_finite() || !hi.is_finite() || hi.cmple(lo).any() {

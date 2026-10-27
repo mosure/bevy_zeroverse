@@ -210,6 +210,7 @@ fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
         let size = Vec3::new(13.436966, 4.199328, 14.30445) * scale;
         let envelope = EnvelopeProgram {
             soffits: vec![],
+            tier_guard: None,
             ceiling_drop: Vec2::new(0.819709, 0.47927946) * scale,
             footprint: vec![],
             floor_patches: vec![],
@@ -440,7 +441,7 @@ fn architecture_program_replays_and_validates_consecutive_seeds() {
     );
 }
 
-fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
+pub(super) fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
     // Independent double-precision oracle for clipped/thin triangles. In f32,
     // subtracting large world coordinates dominated submillimetre distances.
     let origin = origin.as_dvec3();
@@ -517,13 +518,13 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
             let h = e.ceiling_height(scene.room_size, p);
             // At narrow re-entrant corners a footprint triangle's centroid may
             // lie within a wall's thickness. Test the ceiling support surface
-            // itself; an intervening wall cap is not the roof oracle.
+            // itself; an intervening wall cap is not the roof oracle. Exposed
+            // ribs now occupy the 3 cm below the roof, so locate the roof hit
+            // among intersections rather than assuming it is the first hit.
             let hit = assembly
                 .parts
                 .iter()
-                .filter(|((surface, label), _)| {
-                    matches!(surface, Surface::Ceiling | Surface::Concrete) && label == "ceiling"
-                })
+                .filter(|((_, label), _)| label == "ceiling")
                 .flat_map(|(_, g)| {
                     g.indices.as_chunks::<3>().0.iter().filter_map(move |t| {
                         ray_triangle(
@@ -533,7 +534,7 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
                         )
                     })
                 })
-                .min_by(f32::total_cmp)
+                .min_by(|a, b| (a - 0.03).abs().total_cmp(&(b - 0.03).abs()))
                 .unwrap();
             assert!(
                 (hit - 0.03).abs() < 1e-4,

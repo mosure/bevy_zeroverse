@@ -291,6 +291,10 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                 || scene.ceiling_height((position + offset).xz()),
                 |m| m.deck.height - m.thickness,
             );
+        let roof = scene
+            .ceiling_installation
+            .as_ref()
+            .map_or(roof, |c| c.attachment_height(position + offset, roof));
         a.part(Surface::Chrome, &label).rod(
             position + offset,
             (position + offset).with_y(roof - 0.001),

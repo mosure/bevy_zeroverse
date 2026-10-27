@@ -7,13 +7,18 @@ use super::{
 use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+pub mod dye;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CarpetDesign {
+    /// Continuous commercial dye program; absent recipes retain the old field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dye: Option<dye::CarpetDye>,
     /// Absent in older recipes and wall-to-wall carpet. Whole-rug UV domain when present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rug: Option<super::rug_design::RugDesign>,
-    /// 0 heather, 1 striae, 2 broken lattice, 3 woven diamonds, 4 color blocks.
+    /// Legacy pattern when `dye` is absent: 0 heather, 1 striae, 2 broken
+    /// lattice, 3 woven diamonds, 4 color blocks.
     pub pattern: u32,
     pub repeats: [u32; 2],
     pub palette: [[f32; 3]; 3],
@@ -33,6 +38,7 @@ impl CarpetDesign {
         let shade = rng.random_range(0.28..0.65);
         palette[2] = base.map(|c| c * shade);
         Self {
+            dye: None,
             rug: rug.then(|| super::rug_design::RugDesign::sample(seed)),
             pattern: rng.random_range(0..if rug { 5 } else { 3 }),
             repeats: [rng.random_range(2..=7), rng.random_range(2..=9)],
@@ -45,6 +51,9 @@ impl CarpetDesign {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(dye) = &self.dye {
+            dye.validate()?;
+        }
         if let Some(rug) = &self.rug {
             rug.validate()?;
         }
@@ -73,38 +82,17 @@ impl CarpetDesign {
             return rug.evaluate(self, r, uv);
         }
         let [u, v] = uv;
-        let nx = self.repeats[0] as f32;
-        let ny = self.repeats[1] as f32;
-        let x = (u * nx).fract();
-        let y = (v * ny).fract();
-        let width = nx.max(ny) / r.map_size(1) as f32;
-        let edge =
-            (periodic_noise(u, v, 17, 11, r.seed.wrapping_add(271)) - 0.5) * self.edge_variation;
-        let line = self.line_width + edge;
-        let smooth = |t: f32| {
-            let t = t.clamp(0., 1.);
-            t * t * (3. - 2. * t)
-        };
-        let mask = match self.pattern {
-            1 => smooth((line - (x - 0.5).abs()) / width + 0.5),
-            2 => {
-                let a = (x - 0.5).abs();
-                let b = (y - 0.5).abs();
-                smooth((line * 0.4 - a.min(b)) / width + 0.5)
-            }
-            3 => smooth(
-                (line * 0.7 - ((x - 0.5).abs() + (y - 0.5).abs() - 0.55).abs()) / width + 0.5,
-            ),
-            4 => hash(
-                (u * nx).floor() as u32,
-                (v * ny).floor() as u32,
-                r.seed.wrapping_add(251),
-            ),
-            _ => periodic_noise(u, v, 7, 9, r.seed.wrapping_add(241)),
-        };
-        let nap = periodic_noise(u, v, 173, 191, r.seed.wrapping_add(257)) - 0.5;
-        let slub = periodic_noise(u, v, 11, 83, r.seed.wrapping_add(263)) - 0.5;
-        let fleck = periodic_noise(u, v, 43, 47, r.seed.wrapping_add(269)) - 0.5;
+        let mask = self
+            .dye
+            .as_ref()
+            .map_or_else(|| self.legacy_mask(r, uv), |d| d.mask(self, r, uv));
+        let counts = self
+            .dye
+            .as_ref()
+            .map_or([173, 191, 11, 83, 43, 47], |d| d.grain_cells);
+        let nap = periodic_noise(u, v, counts[0], counts[1], r.seed.wrapping_add(257)) - 0.5;
+        let slub = periodic_noise(u, v, counts[2], counts[3], r.seed.wrapping_add(263)) - 0.5;
+        let fleck = periodic_noise(u, v, counts[4], counts[5], r.seed.wrapping_add(269)) - 0.5;
         let dye = (mask * self.contrast).clamp(0., 1.);
         let tone = self.heather * (slub * 0.6 + fleck * 0.4) + nap * 0.035;
         let color = [0, 1, 2].map(|i| {
@@ -130,5 +118,37 @@ impl CarpetDesign {
             t.height -= seam * 0.00035 * r.detail_scale.unwrap_or(1.);
         }
         t
+    }
+    fn legacy_mask(&self, r: &MaterialRecipe, uv: [f32; 2]) -> f32 {
+        let [u, v] = uv;
+        let nx = self.repeats[0] as f32;
+        let ny = self.repeats[1] as f32;
+        let x = (u * nx).fract();
+        let y = (v * ny).fract();
+        let width = nx.max(ny) / r.map_size(1) as f32;
+        let edge =
+            (periodic_noise(u, v, 17, 11, r.seed.wrapping_add(271)) - 0.5) * self.edge_variation;
+        let line = self.line_width + edge;
+        let smooth = |t: f32| {
+            let t = t.clamp(0., 1.);
+            t * t * (3. - 2. * t)
+        };
+        match self.pattern {
+            1 => smooth((line - (x - 0.5).abs()) / width + 0.5),
+            2 => {
+                let a = (x - 0.5).abs();
+                let b = (y - 0.5).abs();
+                smooth((line * 0.4 - a.min(b)) / width + 0.5)
+            }
+            3 => smooth(
+                (line * 0.7 - ((x - 0.5).abs() + (y - 0.5).abs() - 0.55).abs()) / width + 0.5,
+            ),
+            4 => hash(
+                (u * nx).floor() as u32,
+                (v * ny).floor() as u32,
+                r.seed.wrapping_add(251),
+            ),
+            _ => periodic_noise(u, v, 7, 9, r.seed.wrapping_add(241)),
+        }
     }
 }

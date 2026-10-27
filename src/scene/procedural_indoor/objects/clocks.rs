@@ -1,7 +1,8 @@
 //! Independent casing, dial and time programs; all hands share the same sampled time.
 use super::*;
+use rand_chacha::ChaCha8Rng;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ClockProgram {
     pub seconds: u32,
     pub digital: bool,
@@ -9,17 +10,73 @@ pub struct ClockProgram {
     pub dark_dial: bool,
     pub second_hand: bool,
     pub bezel_fraction: f32,
+    pub casing: Surface,
+    pub roundness: f32,
+    pub case_taper: f32,
+    pub minor_ticks: bool,
+    pub tick_radius: f32,
+    pub hand_lengths: [f32; 3],
+    pub hand_widths: [f32; 3],
+    pub digit_width_fraction: f32,
+    pub digit_height_fraction: f32,
+    pub digit_stroke_fraction: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ClockProgram {
     let mut rng = stream(o.seed, 871);
+    let mut detail = stream(o.seed, 0x434c4f434b444554);
+    let mut finish = stream(o.finish_seed.unwrap_or(o.seed), 0x434c4f434b46494e);
+    let digital = rng.random_bool(if o.size.x / o.size.y > 1.45 {
+        0.90
+    } else {
+        0.30
+    });
+    let square = rng.random_bool(0.4) || digital;
     ClockProgram {
         seconds: rng.random_range(0..86400),
-        digital: rng.random_bool(0.3),
-        square: rng.random_bool(0.4),
-        dark_dial: rng.random_bool(0.35),
+        digital,
+        square,
+        dark_dial: finish.random_bool(0.35),
         second_hand: rng.random_bool(0.65),
         bezel_fraction: rng.random_range(0.035..0.13),
+        casing: [
+            Surface::Metal,
+            Surface::WoodEdge,
+            Surface::Chrome,
+            Surface::Plastic,
+        ][finish.random_range(0..4)],
+        roundness: if square {
+            detail.random_range(3.5..12.)
+        } else {
+            2.
+        },
+        case_taper: detail.random_range(0.82..0.995),
+        minor_ticks: detail.random_bool(0.72),
+        tick_radius: detail.random_range(0.78..0.87),
+        hand_lengths: [
+            detail.random_range(0.40..0.57),
+            detail.random_range(0.65..0.77),
+            detail.random_range(0.70..0.82),
+        ],
+        hand_widths: [
+            detail.random_range(0.014..0.032),
+            detail.random_range(0.009..0.020),
+            detail.random_range(0.003..0.008),
+        ],
+        digit_width_fraction: detail.random_range(0.135..0.18),
+        digit_height_fraction: detail.random_range(0.46..0.72),
+        digit_stroke_fraction: detail.random_range(0.055..0.12),
     }
+}
+
+/// Metric dimensions are sampled before mounting/clearance admission.
+pub(crate) fn dimensions(r: &mut ChaCha8Rng) -> Vec3 {
+    let height = r.random_range(0.20..0.46);
+    let aspect = if r.random_bool(0.55) {
+        1.
+    } else {
+        r.random_range(0.80..2.35)
+    };
+    Vec3::new(height * aspect, height, r.random_range(0.032..0.080))
 }
 pub fn hand_angles(seconds: u32) -> [f32; 3] {
     let t = seconds as f32;
@@ -31,24 +88,20 @@ pub fn hand_angles(seconds: u32) -> [f32; 3] {
 }
 pub(crate) fn case_depth(o: &IndoorObject) -> f32 {
     // Reserve the dial, stacked hands and spindle in the total depth.
-    (o.size.z - 0.022).max(o.size.z * 0.3)
+    (o.size.z - 0.026).max(o.size.z * 0.12)
+        * stream(o.seed, 0x434c4f434b444550).random_range(0.72..1.0)
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = o.size;
     let r = s.x.min(s.y) * 0.5;
     let label = o.kind.class_name();
-    let casing = [
-        Surface::Metal,
-        Surface::WoodEdge,
-        Surface::Chrome,
-        Surface::Plastic,
-    ][(o.seed % 4) as usize];
+    let casing = p.casing;
     let tf = Transform::from_xyz(0., s.y * 0.5, 0.).with_rotation(Quat::from_rotation_x(FRAC_PI_2));
     let depth = case_depth(o);
     let front = depth * 0.5;
     let dial = if p.dark_dial {
-        Surface::Plastic
+        Surface::Ink
     } else {
         Surface::Paper
     };
@@ -57,38 +110,34 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         Surface::Ink
     };
-    if p.square || p.digital {
-        a.box_part(
-            casing,
-            label,
-            Vec3::Y * s.y * 0.5,
-            Vec3::new(s.x, s.y, depth),
-            s.z * 0.2,
-        );
-        a.box_part(
-            dial,
-            label,
-            Vec3::new(0., s.y * 0.5, front + 0.0006),
-            Vec3::new(
-                s.x * (1. - p.bezel_fraction),
-                s.y * (1. - p.bezel_fraction),
-                0.001,
-            ),
-            0.,
-        );
-    } else {
-        a.part(casing, label).cylinder(r, depth, tf);
-        a.part(dial, label).cylinder(
-            r * (1. - p.bezel_fraction),
-            0.001,
-            tf.with_translation(Vec3::new(0., s.y * 0.5, front + 0.0006)),
-        );
-    }
+    let half = Vec2::new(s.x, s.y) * 0.5;
+    a.part(casing, label).housing(
+        &[
+            (-depth * 0.5, half * p.case_taper),
+            (depth * 0.20, half),
+            (depth * 0.5, half * 0.985),
+        ],
+        p.roundness,
+        tf,
+    );
+    let dial_half = half * (1. - p.bezel_fraction).min(0.98);
+    a.part(dial, label).housing(
+        &[(front + 0.0001, dial_half), (front + 0.0011, dial_half)],
+        p.roundness,
+        tf,
+    );
     if p.digital {
         let minutes = p.seconds / 60;
-        let width = s.x * 0.16;
-        let height = (s.y * 0.55).min(width * 1.8);
-        let stroke = width * 0.075;
+        let width = s.x * p.digit_width_fraction;
+        let height = (s.y * p.digit_height_fraction).min(width * 1.8);
+        let stroke = width.min(height) * p.digit_stroke_fraction;
+        // The complete four-digit rectangle must fit the rounded dial, not
+        // merely its bounding box. Keep typography proportions while fitting.
+        let radius = (((2.38 * width + stroke * 0.5) / dial_half.x).powf(p.roundness)
+            + ((height * 0.5 + stroke * 0.5) / dial_half.y).powf(p.roundness))
+        .powf(1. / p.roundness);
+        let fit = (0.97 / radius).min(1.);
+        let (width, height, stroke) = (width * fit, height * fit, stroke * fit);
         for (i, digit) in [
             minutes / 600,
             minutes / 60 % 10,
@@ -136,11 +185,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         let center = Vec3::new(0., s.y * 0.5, front + 0.002);
         for i in 0..60 {
+            if i % 5 != 0 && !p.minor_ticks {
+                continue;
+            }
             let angle = TAU * i as f32 / 60.;
             let d = Vec3::new(angle.sin(), angle.cos(), 0.);
             a.part(marks, label).rod(
-                center + d * r * if i % 5 == 0 { 0.71 } else { 0.8 },
-                center + d * r * 0.84,
+                center + d * r * (p.tick_radius - if i % 5 == 0 { 0.12 } else { 0.04 }),
+                center + d * r * p.tick_radius,
                 r * if i % 5 == 0 { 0.009 } else { 0.003 },
             );
         }
@@ -153,8 +205,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             a.part(if index == 2 { Surface::Art } else { marks }, label)
                 .rod(
                     c - d * r * 0.12,
-                    c + d * r * [0.49, 0.73, 0.78][index],
-                    r * [0.024, 0.014, 0.006][index],
+                    c + d * r * p.hand_lengths[index],
+                    r * p.hand_widths[index],
                 );
         }
         a.part(casing, label).ellipsoid(
@@ -163,3 +215,6 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests;

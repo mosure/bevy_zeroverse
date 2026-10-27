@@ -1020,8 +1020,7 @@ impl IndoorManifest {
         }
         if !object.neighbor
             && self.ceiling_installation.as_ref().is_some_and(|c| {
-                c.modules.iter().any(|m| {
-                    let (lo, hi) = m.bounds();
+                c.obstacles().any(|(lo, hi)| {
                     world_lo.cmplt(hi + Vec3::splat(0.025)).all()
                         && world_hi.cmpgt(lo - Vec3::splat(0.025)).all()
                 })
@@ -1226,7 +1225,7 @@ impl IndoorManifest {
             );
             boxes.extend(super::floorplan::obstacles(self));
             if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
-                boxes.extend(installation.modules.iter().map(|m| m.bounds()));
+                boxes.extend(installation.obstacles());
             }
             return boxes;
         }

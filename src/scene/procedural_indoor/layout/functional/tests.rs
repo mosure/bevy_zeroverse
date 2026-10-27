@@ -196,17 +196,50 @@ fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
             program.rejected_candidates < 20_000,
             "bounded recovery budget"
         );
-        if seed == 65_437_985 {
-            use crate::scene::procedural_indoor::architecture::ceiling::CeilingSystem;
-            let modules = &scene.ceiling_installation.as_ref().unwrap().modules;
-            assert!(modules.iter().any(|m| m.system == CeilingSystem::Truss));
-            assert!(modules
-                .iter()
-                .any(|m| m.system == CeilingSystem::RectangularDuct));
-        }
         let replay =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
                 .unwrap();
         assert_eq!(scene, replay);
     }
+}
+
+#[test]
+fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() {
+    use crate::scene::procedural_indoor::{
+        architecture::ceiling::CeilingSystem,
+        validation::{validate_geometry, validate_layout},
+    };
+    // Retain the original generator-70 architecture independently of later
+    // ceiling samplers. Only furnishings and their receipts were removed from
+    // the rejected manifest, so this still exercises the narrow recovery bay.
+    let mut scene: IndoorManifest =
+        serde_json::from_str(include_str!("fixtures/elevator_truss_65437985.json")).unwrap();
+    assert_eq!(scene.generator_version, 70);
+    // Rebuild furnishings with today's grammar over the fixed old architecture.
+    scene.generator_version = GENERATOR_VERSION;
+    let ceiling = scene.ceiling_installation.clone().unwrap();
+    for system in [CeilingSystem::Truss, CeilingSystem::RectangularDuct] {
+        assert!(ceiling.modules.iter().any(|m| m.system == system));
+    }
+    assert!(scene.objects.is_empty());
+    scene.furnish_public_programs();
+    scene.validate_public_programs().unwrap();
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    assert_eq!(scene.ceiling_installation.as_ref().unwrap(), &ceiling);
+    let elevators: Vec<_> = scene
+        .objects
+        .iter()
+        .filter(|o| o.kind == ObjectKind::Elevator)
+        .collect();
+    assert!(!elevators.is_empty());
+    for elevator in elevators {
+        assert!(scene.placement_clear(elevator, 0.035));
+        assert!(elevator.size.x >= 2.05 && elevator.size.z >= 1.50);
+        assert!(
+            crate::scene::procedural_indoor::objects::public::elevator::car_height(elevator)
+                >= 2.50
+        );
+    }
+    assert!(scene.functional_programs()[0].rejected_candidates < 20_000);
 }

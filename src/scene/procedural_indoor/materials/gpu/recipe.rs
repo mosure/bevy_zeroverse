@@ -46,6 +46,13 @@ pub(super) struct Recipe {
     pub wall_tint: [f32; 4],
     pub manufactured_counts: [u32; 4],
     pub manufactured: [f32; 4],
+    pub floor_stock: [u32; 4],
+    pub floor_cut: [f32; 4],
+    pub carpet_dye: [u32; 4],
+    pub carpet_weights: [f32; 4],
+    pub carpet_mix: [f32; 4],
+    pub carpet_grain0: [u32; 4],
+    pub carpet_grain1: [u32; 4],
 }
 
 impl Recipe {
@@ -149,6 +156,10 @@ impl Recipe {
                 p.rug3 = [d.direction[0], d.direction[1], d.patchwork, 0.];
             }
             if let Some(f) = &r.flooring {
+                if let Some(stock) = &f.stock {
+                    p.floor_stock = [stock.mottle_cells[0], stock.mottle_cells[1], 1, 0];
+                    p.floor_cut[..2].copy_from_slice(&stock.cut_jitter);
+                }
                 use super::super::flooring::FloorLayout;
                 p.floor_meta = [
                     1,
@@ -168,6 +179,13 @@ impl Recipe {
                 if !matches!(f.layout, FloorLayout::Straight | FloorLayout::BrokenBond) {
                     return None;
                 }
+            }
+            if let Some(d) = r.carpet.as_ref().and_then(|c| c.dye.as_ref()) {
+                p.carpet_dye = [1, d.dye_cells[0], d.dye_cells[1], (d.shear + 1) as u32];
+                p.carpet_weights.copy_from_slice(&d.weights[..4]);
+                p.carpet_mix = [d.weights[4], d.weights[5], d.warp, d.brokenness];
+                p.carpet_grain0.copy_from_slice(&d.grain_cells[..4]);
+                p.carpet_grain1[..2].copy_from_slice(&d.grain_cells[4..]);
             }
         } else if cloth {
             let mut t = r

@@ -25,9 +25,9 @@ impl IndoorManifest {
             ][rng.random_range(0..4)];
             let size = match kind {
                 ObjectKind::WallShelf => Vec3::new(
-                    rng.random_range(0.60..1.40),
-                    rng.random_range(0.17..0.29),
-                    rng.random_range(0.20..0.32),
+                    rng.random_range(0.42..1.70),
+                    rng.random_range(0.13..0.38),
+                    rng.random_range(0.17..0.40),
                 ),
                 ObjectKind::NoticeBoard => Vec3::new(
                     rng.random_range(0.65..1.55),
@@ -35,9 +35,9 @@ impl IndoorManifest {
                     rng.random_range(0.020..0.034),
                 ),
                 ObjectKind::ProjectionScreen => Vec3::new(
-                    rng.random_range(1.20..2.10),
-                    rng.random_range(0.80..1.25),
-                    rng.random_range(0.06..0.09),
+                    rng.random_range(1.00..2.70),
+                    rng.random_range(0.70..1.70),
+                    rng.random_range(0.050..0.12),
                 ),
                 _ => Vec3::new(
                     rng.random_range(0.12..0.27),
@@ -142,6 +142,9 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for screen in screens {
+            let target = screen.transform().transform_point(
+                super::super::objects::presentation::projection::parameters(&screen).target_local(),
+            );
             let mut rng = stream(screen.seed, 5785);
             if !rng.random_bool(0.60 + self.density as f64 * 0.35) {
                 continue;
@@ -178,7 +181,7 @@ impl IndoorManifest {
                     let position = support
                         .transform()
                         .transform_point(offset + Vec3::Y * support.size.y);
-                    let direction = (screen.position - position).with_y(0.);
+                    let direction = (target - position).with_y(0.);
                     let yaw = direction.x.atan2(direction.z);
                     let mut projector =
                         self.candidate(ObjectKind::Projector, position, size, yaw, &mut rng);
@@ -401,14 +404,11 @@ fn projector_axis(
     let origin = projector
         .transform()
         .transform_point(p.optical_origin() + Vec3::Z * 0.015);
-    let target = screen.transform().transform_point(Vec3::new(
-        0.,
-        screen.size.y * 0.5,
-        screen.size.z * 0.2 + 0.0032,
-    ));
+    let surface = super::super::objects::presentation::projection::parameters(screen);
+    let target = screen.transform().transform_point(surface.target_local());
     let planar = (target - origin).with_y(0.);
     let throw = planar.length();
-    if !(0.9..=9.0).contains(&throw) || !(0.65..=3.5).contains(&(throw / screen.size.x)) {
+    if !(0.9..=9.0).contains(&throw) || !(0.65..=3.5).contains(&(throw / surface.image_width_m())) {
         return None;
     }
     let normal = screen.transform().rotation * Vec3::Z;

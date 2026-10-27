@@ -2,9 +2,12 @@
 //! visibility and exports. It is a bounded procedural building grammar, not CAD.
 mod ceilings;
 pub mod construction;
+pub mod guardrail;
+pub mod mezzanine;
 pub mod polygon;
 mod queries;
 mod sampling;
+pub use mezzanine::Mezzanine;
 #[cfg(test)]
 mod tests;
 use super::{architecture::facade::Facade, layout::IndoorManifest};
@@ -70,18 +73,6 @@ impl ColumnProfile {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Mezzanine {
-    pub deck: FloorPatch,
-    pub thickness: f32,
-    pub stair_min: Vec2,
-    pub stair_max: Vec2,
-    /// X/Z direction of the run. Stair rises from max[axis] to min[axis].
-    pub stair_axis: usize,
-    pub steps: u32,
-    pub rail_height: f32,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeWall {
     pub edge: usize,
     pub facade: Option<Facade>,
@@ -93,6 +84,8 @@ pub struct EnvelopeProgram {
     /// remains planar; these are solid, closed soffits rather than decals.
     #[serde(default)]
     pub soffits: Vec<FloorPatch>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier_guard: Option<guardrail::GuardProgram>,
     /// Simple CCW polygon in X/Z; the +Z edge connects to the neighboring room.
     pub footprint: Vec<Vec2>,
     /// Signed total height change across the room in X and Z; stored in metres.

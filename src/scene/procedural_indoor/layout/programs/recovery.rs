@@ -66,32 +66,41 @@ impl IndoorManifest {
             let rejected = self.rejected_placements;
             let count = self.objects.len();
             let mut r = stream(sink.seed, 0x4b49_5443_4845_4e42);
-            let size = super::super::super::objects::containers::bins::dimensions(&mut r) * 0.88;
-            let phase = r.random_range(0.0..std::f32::consts::TAU);
-            'search: for band in 0..3 {
-                for sector in 0..16 {
-                    let angle = phase
-                        + std::f32::consts::TAU * sector as f32 / 16.
-                        + r.random_range(-0.10..0.10);
-                    let offset = Vec2::from_angle(angle)
-                        * (sink.size.xz() * 0.5
-                            + size.xz() * 0.5
-                            + Vec2::splat(0.12 + band as f32 * 0.14));
-                    let position = sink
-                        .transform()
-                        .transform_point(Vec3::new(offset.x, 0., offset.y));
-                    if position.distance(sink.position) < 1.9
-                        && self
-                            .add(
-                                ObjectKind::TrashCan,
-                                position,
-                                size,
-                                sink.yaw + angle,
-                                &mut r,
-                            )
-                            .is_some()
-                    {
-                        break 'search;
+            'search: for product in 0..3 {
+                // Narrow supported strips can reject one product footprint.
+                // Keep each sampled size fixed through its finite search; the
+                // last product is a compact bin, not a squeezed existing mesh.
+                let size = super::super::super::objects::containers::bins::dimensions(&mut r)
+                    * if product == 2 { 0.66 } else { 0.88 };
+                let phase = r.random_range(0.0..std::f32::consts::TAU);
+                for band in 0..3 {
+                    for sector in 0..16 {
+                        let angle = phase
+                            + std::f32::consts::TAU * sector as f32 / 16.
+                            + r.random_range(-0.10..0.10);
+                        let offset = Vec2::from_angle(angle)
+                            * (sink.size.xz() * 0.5
+                                + size.xz() * 0.5
+                                + Vec2::splat(0.12 + band as f32 * 0.14));
+                        let position = sink
+                            .transform()
+                            .transform_point(Vec3::new(offset.x, 0., offset.y));
+                        // add() grounds on the actual floor, which may differ
+                        // from the sink's level despite a nearby XZ position.
+                        if (self.floor_height(position.xz()) - sink.position.y).abs() < 0.001
+                            && position.distance(sink.position) < 1.9
+                            && self
+                                .add(
+                                    ObjectKind::TrashCan,
+                                    position,
+                                    size,
+                                    sink.yaw + angle,
+                                    &mut r,
+                                )
+                                .is_some()
+                        {
+                            break 'search;
+                        }
                     }
                 }
             }

@@ -325,6 +325,7 @@ fn projector_optics_reach_physical_wall_screens_without_camera_clearance() {
     scene.room_size = Vec3::new(8., 3.2, 8.);
     scene.envelope = Some(EnvelopeProgram {
         soffits: vec![],
+        tier_guard: None,
         footprint: vec![
             Vec2::new(-4., -4.),
             Vec2::new(4., -4.),
@@ -371,6 +372,11 @@ fn projector_optics_reach_physical_wall_screens_without_camera_clearance() {
         };
         installed += 1;
         let (origin, target) = projector_axis(&scene, projector, &screen).unwrap();
+        let image = super::super::super::objects::presentation::projection::parameters(&screen);
+        assert_eq!(
+            target,
+            screen.transform().transform_point(image.target_local())
+        );
         let e = scene.envelope.as_ref().unwrap();
         assert!(projector_axis_clear(&scene, projector, &screen));
         assert!(

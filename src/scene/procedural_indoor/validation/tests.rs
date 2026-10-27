@@ -6,6 +6,53 @@ use crate::scene::procedural_indoor::{
 };
 
 #[test]
+fn reported_66120987_geometry_and_camera_configurations() {
+    let seed = 66_120_987;
+    let started = std::time::Instant::now();
+    for density in [0.15, 0.65, 1.] {
+        for people in [0., 0.35] {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
+                    .unwrap();
+            validate_layout(&scene)
+                .unwrap_or_else(|e| panic!("density={density}, people={people}: {e}"));
+            let report = validate_geometry(&scene)
+                .unwrap_or_else(|e| panic!("density={density}, people={people}: {e}"));
+            eprintln!("seed={seed} density={density} people={people}: layout/geometry pass; triangles={}, objects={}",report.triangles,report.object_envelopes_checked);
+        }
+    }
+    let base =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    for cameras in [1, 3, 8, 12] {
+        let mut scene = base.clone();
+        scene
+            .resample_cameras(cameras, Default::default(), 1.)
+            .unwrap();
+        validate_layout(&scene).unwrap();
+        assert_eq!(scene.cameras.len(), cameras);
+        eprintln!("seed={seed}: {cameras} default cameras pass");
+    }
+    let policy = super::super::cameras::CameraSettings::parse(include_str!(
+        "../cameras/ceiling/tests/mixed_training_camera_settings.json"
+    ))
+    .unwrap();
+    let mut scene = base;
+    scene.resample_cameras(8, policy, 1.).unwrap();
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    let mut replay = scene.clone();
+    replay
+        .resample_cameras(8, scene.camera_settings.clone(), 1.)
+        .unwrap();
+    assert_eq!(scene, replay);
+    eprintln!(
+        "seed={seed}: mixed eight-camera training fixture and replay pass; total {:.3}s; {}",
+        started.elapsed().as_secs_f64(),
+        crate::CAPTURE_ENGINE_IDENTITY
+    );
+}
+
+#[test]
 fn reported_ceiling_seeds_neighbors_and_density_variants_keep_clearance() {
     for seed in (65_904_928..65_904_944).chain(65_991_952..65_991_968) {
         let scene =
@@ -551,10 +598,13 @@ fn reported_seed_46839170_validates_across_view_and_population_settings() {
 #[test]
 fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
     use crate::sample::failure::{CaptureError, SceneRejectionKind};
-    // The former elevator fixture is now recovered by rotated bank placement.
-    // Retain a genuinely missing kitchen anchor for the rejection contract.
     let mut scene =
         IndoorManifest::generate_with_humans(62_762_988, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    // Placement now recovers this seed. Explicitly remove the kitchen receipt
+    // so the rejection contract does not depend on an obsolete sampler failure.
+    super::validate_prepared_layout(&scene).unwrap();
+    scene.assembly_diagnostics.kitchens.clear();
+    assert!(scene.missing_kitchen_program());
     assert!(
         matches!(super::validate_prepared_layout(&scene), Err(CaptureError::Rejected { rejection, retired: false }) if rejection.kind == SceneRejectionKind::MissingProgramAnchor)
     );
@@ -594,8 +644,12 @@ fn reported_capture_rejections_have_typed_sources_and_integrity_stays_fatal() {
 #[test]
 fn rejected_kitchen_is_typed_only_after_all_integrity_checks() {
     use crate::sample::failure::{CaptureError, SceneRejectionKind};
-    let scene =
+    let mut scene =
         IndoorManifest::generate_with_humans(62_762_988, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    // This seed now admits its kitchen. Deliberately remove the receipt to
+    // exercise typed rejection without depending on an obsolete sampler failure.
+    super::validate_prepared_layout(&scene).unwrap();
+    scene.assembly_diagnostics.kitchens.clear();
     assert!(scene.missing_kitchen_program());
     assert!(matches!(super::validate_prepared_layout(&scene),
         Err(CaptureError::Rejected { rejection, retired: false })

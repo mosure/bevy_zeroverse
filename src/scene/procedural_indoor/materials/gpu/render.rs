@@ -19,7 +19,15 @@ impl Plugin for MaterialBakePlugin {
         app.init_resource::<MaterialComputeAvailable>();
         app.add_plugins(super::super::environment::gpu::ReflectionBakePlugin);
         load_internal_asset!(app, SHADER, "synthesis.wgsl", |source, path| {
-            Shader::from_wgsl([source, include_str!("paint.wgsl")].join("\n"), path)
+            Shader::from_wgsl(
+                [
+                    source,
+                    include_str!("paint.wgsl"),
+                    include_str!("flooring.wgsl"),
+                ]
+                .join("\n"),
+                path,
+            )
         });
 
         if let Some(render) = app.get_sub_app_mut(RenderApp) {

@@ -66,6 +66,9 @@ impl EnvelopeProgram {
         let mut result = Self {
             footprint: ceilings::articulate(scene.seed, footprint, size),
             soffits: vec![],
+            tier_guard: Some(guardrail::GuardProgram::sample(
+                scene.seed.wrapping_add(4133),
+            )),
             ceiling_drop,
             floor_patches: vec![],
             pillars: vec![],
@@ -136,61 +139,7 @@ impl EnvelopeProgram {
                 break;
             }
         }
-        if size.y > 5.8 {
-            let axis = usize::from(zone.y >= zone.x);
-            let across = 1 - axis;
-            if zone[axis] > 8.0 && zone[across] > 5.2 {
-                for _ in 0..24 {
-                    let height: f32 = r.random_range(2.65..3.05);
-                    let steps = (height / 0.17).ceil() as u32;
-                    let run = steps as f32 * r.random_range(0.28..0.31);
-                    let mut lo = zone_lo + Vec2::splat(r.random_range(0.6..1.5));
-                    let mut hi = zone_hi - Vec2::splat(0.5);
-                    hi[axis] = lo[axis] + r.random_range(2.05..2.75);
-                    hi[across] = lo[across] + (zone[across] * 0.62).clamp(3.0, 5.0);
-                    let mut stair_lo = lo;
-                    let mut stair_hi = hi;
-                    stair_lo[axis] = hi[axis];
-                    stair_hi[axis] = hi[axis] + run;
-                    stair_lo[across] = lo[across] + 0.15;
-                    stair_hi[across] = stair_lo[across] + 1.08;
-                    // Alternate attachment side while preserving an open circulation aisle.
-                    if r.random_bool(0.5) {
-                        let shift = zone[across] - (hi[across] - lo[across]) - 1.;
-                        lo[across] += shift;
-                        hi[across] += shift;
-                        stair_lo[across] += shift;
-                        stair_hi[across] += shift;
-                    }
-                    if stair_hi[axis] < zone_hi[axis] - 0.4
-                        && result.feature_clear(scene, lo, hi, 0.32)
-                        && result.feature_clear(scene, stair_lo, stair_hi, 0.25)
-                        && [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
-                            .into_iter()
-                            .all(|p| result.ceiling_height(size, p) > height + 2.3)
-                        && result
-                            .floor_patches
-                            .iter()
-                            .all(|p| !p.overlaps(lo, stair_hi))
-                    {
-                        result.mezzanine = Some(Mezzanine {
-                            deck: FloorPatch {
-                                min: lo,
-                                max: hi,
-                                height,
-                            },
-                            thickness: 0.20,
-                            stair_min: stair_lo,
-                            stair_max: stair_hi,
-                            stair_axis: axis,
-                            steps,
-                            rail_height: 1.10,
-                        });
-                        break;
-                    }
-                }
-            }
-        }
+        result.mezzanine = Mezzanine::sample(scene, &result);
         let count = (polygon::area(&result.footprint) / 65. * r.random_range(0.0..2.2))
             .round()
             .min(5.) as usize;

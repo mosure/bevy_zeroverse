@@ -205,6 +205,11 @@ impl Coverage {
     }
 
     fn build(scene: &IndoorManifest, detailed_ceiling: bool) -> Self {
+        let detailed_ceiling = detailed_ceiling
+            || scene
+                .ceiling_installation
+                .as_ref()
+                .is_some_and(|c| c.framing.as_ref().is_some_and(|f| !f.members.is_empty()));
         let mut colliders = Vec::new();
         let mut bounds = |lo: Vec3, hi: Vec3, label| {
             colliders.push(Collider {
@@ -215,8 +220,9 @@ impl Coverage {
                 label,
             })
         };
-        // Only mixed/mounted requests need exact ceiling occlusion. Keep the
-        // room-only sampler and its cost unchanged.
+        // Sparse exposed framing also needs exact optical surfaces for room
+        // views. Its conservative I-section/truss boxes are valid collision
+        // reserves, but treating their empty space as walls biases view overlap.
         for (lo, hi) in scene.structural_obstacles_with_ceiling(!detailed_ceiling) {
             bounds(lo, hi, "wall");
         }

@@ -363,6 +363,9 @@ impl MineralRecipe {
         if r.surface == Surface::Floor {
             if let Some(f) = &r.flooring {
                 f.apply(r, installation_uv, &mut texel);
+                if let Some(stock) = &f.stock {
+                    stock.joint(seam, &mut texel);
+                }
             }
         }
         texel

@@ -6,7 +6,9 @@ use wgpu::util::DeviceExt;
 pub(super) const SHADER: &str = concat!(
     include_str!("synthesis.wgsl"),
     "\n",
-    include_str!("paint.wgsl")
+    include_str!("paint.wgsl"),
+    "\n",
+    include_str!("flooring.wgsl")
 );
 pub(super) const MAX_SIZE: u32 = 512;
 pub(super) const ENTRIES: [&str; 8] = [

@@ -5,6 +5,7 @@ pub mod pinups;
 pub mod power_strip;
 pub mod projector;
 pub mod signals;
+pub mod wall_shelf;
 pub(crate) mod wires;
 use super::*;
 
@@ -35,7 +36,7 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
     let mut rng = stream(o.seed, 5700);
     let mut detail = stream(o.seed, 7460);
     let mut board = stream(o.seed, 7510);
-    EquipmentProgram {
+    let mut p = EquipmentProgram {
         board_frame_fraction: board.random_range(0.018..0.052),
         board_divider_fraction: board
             .random_bool(0.30)
@@ -61,7 +62,24 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
         note_count: rng.random_range(2..=13),
         shade_fraction: rng.random_range(0.18..0.48),
         diffuser_fraction: rng.random_range(0.44..0.84),
+    };
+    if o.kind == ObjectKind::WallShelf {
+        let shelf = wall_shelf::parameters(o);
+        p.housing = shelf.board;
+        p.shelf_brackets = shelf.bracket_x_m.len();
+        p.shelf_span = shelf
+            .bracket_x_m
+            .iter()
+            .map(|x| x.abs() / o.size.x)
+            .fold(0., f32::max);
+        p.bracket_style = shelf.style;
+    } else if o.kind == ObjectKind::ProjectionScreen {
+        let screen = super::presentation::projection::parameters(o);
+        p.housing = screen.housing;
+        p.screen_drop = screen.drop_fraction;
+        p.screen_frame = screen.framed;
     }
+    p
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
@@ -69,13 +87,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Projector => return projector::build(a, o),
         ObjectKind::PowerStrip => return power_strip::build(a, o),
         ObjectKind::Cable => return wires::build(a, o),
+        ObjectKind::WallShelf => return wall_shelf::build(a, o),
+        ObjectKind::ProjectionScreen => return super::presentation::screen(a, o),
         _ => {}
     }
     let p = parameters(o);
     match o.kind {
-        ObjectKind::WallShelf => fixtures::shelf(a, o, &p),
         ObjectKind::NoticeBoard => fixtures::notice_board(a, o, &p),
-        ObjectKind::ProjectionScreen => fixtures::projection_screen(a, o),
         ObjectKind::WallSconce | ObjectKind::CeilingPendant => fixtures::light(a, o, &p),
         _ => unreachable!("non-equipment object"),
     }

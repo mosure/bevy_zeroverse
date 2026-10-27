@@ -100,6 +100,18 @@ pub(super) fn record_scene(
             "kitchen_worktop_height_m",
             group.worktop_height_metres as f64,
         )?;
+        if let Some(p) = &group.sampling {
+            numeric.push("kitchen_unit_gap_m", p.unit_gap_m as f64)?;
+            numeric.push("kitchen_run_offset_m", p.run_offset_m as f64)?;
+            numeric.push("kitchen_appliance_coherence", p.appliance_coherence as f64)?;
+        }
+        if let Some(o) = group.units.first().and_then(|&id| scene.objects.get(id)) {
+            category(
+                categories,
+                "kitchen_run_first_unit",
+                format!("{:?}", o.kind),
+            );
+        }
         for kind in &group.requested {
             category(categories, "kitchen_requested_units", format!("{kind:?}"));
         }
@@ -379,6 +391,7 @@ fn record_equipment(
     if !matches!(
         o.kind,
         ObjectKind::Projector
+            | ObjectKind::ProjectionScreen
             | ObjectKind::PowerStrip
             | ObjectKind::WallShelf
             | ObjectKind::NoticeBoard
@@ -430,19 +443,38 @@ fn record_equipment(
             numeric.push("equipment_socket_count", strip.socket_count as f64)?;
         }
         ObjectKind::WallShelf => {
+            let shelf = equipment::wall_shelf::parameters(o);
             category(
                 categories,
                 "wall_shelf_surface",
-                format!(
-                    "{:?}",
-                    if p.housing == Surface::Metal {
-                        Surface::Metal
-                    } else {
-                        Surface::Wood
-                    }
-                ),
+                format!("{:?}", shelf.board),
             );
-            numeric.push("wall_shelf_brackets", p.shelf_brackets as f64)?;
+            numeric.push("wall_shelf_brackets", shelf.bracket_x_m.len() as f64)?;
+            numeric.push("wall_shelf_thickness_m", shelf.thickness_m as f64)?;
+            category(categories, "wall_shelf_support_style", shelf.style);
+            for &x in &shelf.bracket_x_m {
+                numeric.push("wall_shelf_support_x_fraction", (x / o.size.x) as f64)?;
+            }
+        }
+        ObjectKind::ProjectionScreen => {
+            let screen = super::super::objects::presentation::projection::parameters(o);
+            category(categories, "projection_screen_framed", screen.framed);
+            category(
+                categories,
+                "projection_screen_housing",
+                format!("{:?}", screen.housing),
+            );
+            for (name, value) in [
+                ("projection_screen_drop", screen.drop_fraction),
+                ("projection_screen_image_width_m", screen.image_width_m()),
+                (
+                    "projection_screen_image_height_m",
+                    screen.surface_hi.y - screen.surface_lo.y,
+                ),
+                ("projection_screen_offset_x_m", screen.sheet_center_x_m),
+            ] {
+                numeric.push(name, value as f64)?;
+            }
         }
         ObjectKind::NoticeBoard => {
             category(
@@ -514,6 +546,48 @@ pub(super) fn record_object(
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_equipment(scene, o, categories, numeric)?;
+    if o.kind == ObjectKind::Cabinet {
+        let p = super::super::objects::storage::parameters(o);
+        category(categories, "cabinet_front", p.front);
+        for (name, surface) in [
+            ("frame", p.frame),
+            ("shelf", p.shelves),
+            ("front", p.fronts),
+        ] {
+            category(
+                categories,
+                &format!("cabinet_{name}_substrate"),
+                format!("{surface:?}"),
+            );
+        }
+        numeric.push("cabinet_bottom_m", p.bottom_m as f64)?;
+        numeric.push("cabinet_body_depth_m", p.body_depth_m as f64)?;
+        numeric.push("cabinet_panel_m", p.panel_m as f64)?;
+        for b in &p.bays {
+            numeric.push("cabinet_bay_width_m", (b.right - b.left) as f64)?;
+            for v in b.levels.windows(2) {
+                numeric.push(
+                    "cabinet_clear_bay_height_m",
+                    (v[1] - v[0] - p.panel_m) as f64,
+                )?;
+            }
+        }
+    }
+    if o.kind == ObjectKind::Clock {
+        let p = super::super::objects::clocks::parameters(o);
+        category(categories, "clock_digital", p.digital);
+        category(
+            categories,
+            "clock_casing_substrate",
+            format!("{:?}", p.casing),
+        );
+        numeric.push("clock_aspect", (o.size.x / o.size.y) as f64)?;
+        numeric.push(
+            "clock_case_depth_m",
+            super::super::objects::clocks::case_depth(o) as f64,
+        )?;
+        numeric.push("clock_roundness", p.roundness as f64)?;
+    }
     if o.kind.is_kitchen() {
         if let Some(fields) = super::super::objects::kitchen::metadata(o).as_object() {
             for (key, value) in fields {
@@ -652,6 +726,13 @@ pub(super) fn record_object(
         }
     }
     if o.kind == ObjectKind::Whiteboard {
+        let built = super::super::objects::presentation::parameters(o);
+        numeric.push("whiteboard_marker_count", built.marker_count as f64)?;
+        numeric.push("whiteboard_magnet_count", built.magnets.len() as f64)?;
+        numeric.push("whiteboard_depth_m", built.thickness_m as f64)?;
+        for item in &built.contents {
+            numeric.push("whiteboard_tray_item_yaw_rad", item.yaw as f64)?;
+        }
         let p = materials::boards::parameters(finish_seed(scene, o));
         category(categories, "whiteboard_content", p.layout);
         for (key, value) in [
@@ -709,6 +790,53 @@ pub(super) fn record_object(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn presentation_metrics_use_constructed_supports_accessories_and_sheet() {
+        use super::super::super::objects::{audit, presentation};
+        let directory = scratch();
+        let scene = IndoorManifest::generate_with_humans(
+            21,
+            super::super::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        let mut categories = Categories::new();
+        let mut numeric = NumericCollector::new(&directory).unwrap();
+        let board = audit::fixture(ObjectKind::Whiteboard, 8);
+        let shelf = audit::fixture(ObjectKind::WallShelf, 9);
+        let screen = audit::fixture(ObjectKind::ProjectionScreen, 10);
+        for o in [&board, &shelf, &screen] {
+            record_object(&scene, o, &mut categories, &mut numeric).unwrap();
+        }
+        let values = numeric.finish().unwrap();
+        let b = presentation::parameters(&board);
+        let s = equipment::wall_shelf::parameters(&shelf);
+        let p = presentation::projection::parameters(&screen);
+        assert_eq!(
+            values["whiteboard_marker_count"].mean,
+            b.marker_count as f64
+        );
+        assert_eq!(
+            values["whiteboard_magnet_count"].mean,
+            b.magnets.len() as f64
+        );
+        assert_eq!(
+            values["wall_shelf_brackets"].mean,
+            s.bracket_x_m.len() as f64
+        );
+        assert_eq!(values["wall_shelf_thickness_m"].mean, s.thickness_m as f64);
+        assert_eq!(
+            values["projection_screen_image_width_m"].mean,
+            p.image_width_m() as f64
+        );
+        assert_eq!(
+            values["projection_screen_image_height_m"].mean,
+            (p.surface_hi.y - p.surface_lo.y) as f64
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
     #[test]
     fn reported_content_seed_matches_the_constructed_material_slot() {
         let scene =

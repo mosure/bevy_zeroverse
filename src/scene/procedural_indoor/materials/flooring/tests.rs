@@ -103,7 +103,10 @@ fn installations_replay_with_metric_cuts_and_palette_variation() {
             let r = &recipes[Surface::Floor as usize];
             r.validate().unwrap();
             let f = r.flooring.as_ref().unwrap();
-            assert_eq!(*f, FloorFinish::sample(r.seed, style, r.period_m));
+            assert_eq!(
+                *r,
+                program::sample_with_floor(seed, style).unwrap()[Surface::Floor as usize]
+            );
             let cut = f.cut(r, [0.731, 0.127]);
             assert!(cut.uv.into_iter().all(|v| (0.0..=1.).contains(&v)));
             assert!(cut.distance_m.is_finite() && cut.distance_m >= 0.);
@@ -130,7 +133,10 @@ fn installations_replay_with_metric_cuts_and_palette_variation() {
         }
     }
     assert!(layouts.iter().all(|n| *n >= 8), "{layouts:?}");
-    assert!(carpet_patterns.iter().all(|n| *n >= 45));
+    assert!(
+        carpet_patterns.iter().all(|n| *n >= 45),
+        "{carpet_patterns:?}"
+    );
 }
 
 #[test]

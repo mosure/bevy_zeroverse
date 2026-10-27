@@ -204,8 +204,10 @@ fn mounting_points_hit_constructed_ceiling_triangles_and_reject_occupied_mounts(
         }
         let camera = scene.cameras[0].clone();
         scene.ceiling_installation = Some(CeilingInstallation {
+            framing: None,
             exposed_slab: true,
             modules: vec![CeilingModule {
+                suspension: None,
                 system: CeilingSystem::RectangularDuct,
                 center: camera.start,
                 size: Vec3::splat(0.4),
@@ -364,8 +366,10 @@ fn rails_reject_thin_between_endpoint_obstructions_and_soffit_steps() {
     let halfway = camera.transform_at(0.501).translation;
     let mut blocked = scene.clone();
     blocked.ceiling_installation = Some(CeilingInstallation {
+        framing: None,
         exposed_slab: true,
         modules: vec![CeilingModule {
+            suspension: None,
             system: CeilingSystem::RectangularDuct,
             center: halfway,
             size: Vec3::splat(0.005),

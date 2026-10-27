@@ -108,7 +108,7 @@ pub(super) fn under_mezzanine(scene: &IndoorManifest) -> Vec<Vec3> {
         7595,
     ) {
         let mut position = Vec3::new(p.x, 0., p.y);
-        position.y = m.deck.height - m.thickness - (half(scene, position).y + 0.035);
+        position.y = m.underside_height() - (half(scene, position).y + 0.035);
         let half = half(scene, position).xz();
         if (p - half).cmpgt(m.deck.min + Vec2::splat(0.03)).all()
             && (p + half).cmplt(m.deck.max - Vec2::splat(0.03)).all()
