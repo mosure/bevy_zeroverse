@@ -7,20 +7,20 @@
     "spread": 1.0
   },
   "camera_diagnostics": {
-    "reference_proposals": 32,
-    "long_reference_requests": 7,
+    "reference_proposals": 33,
+    "long_reference_requests": 5,
     "short_reference_recoveries": 0,
     "reference_rejections": [
-      5,
+      10,
+      3,
+      2,
       1,
-      1,
-      4,
-      6
+      2
     ],
     "group_restarts": 0,
     "prefix_backtracks": 0,
     "connected_reference_recoveries": 0,
-    "peer_proposals": 38,
+    "peer_proposals": 41,
     "peer_rejections": [
       0,
       0,
@@ -29,7 +29,7 @@
       0,
       0
     ],
-    "endpoint_adjustments": 6,
+    "endpoint_adjustments": 4,
     "peer_search_succeeded": true,
     "peer_search_fallbacks": 0,
     "peer_search_discarded_proposals": 0,
@@ -193,7 +193,7 @@
     "rejected_meetings": 0,
     "accepted": []
   },
-  "generator_version": 86,
+  "generator_version": 92,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -629,9 +629,25 @@
             "plank_ratio": 2,
             "chevron_rise": 2.0865226
           },
+          "stock": {
+            "cut_jitter": [
+              0.0,
+              0.0
+            ],
+            "mottle_cells": [
+              6,
+              3
+            ],
+            "joint_color": [
+              0.2810042,
+              0.27257407,
+              0.26414394
+            ],
+            "joint_roughness": 0.8064394
+          },
           "cells": [
-            9,
-            6
+            3,
+            4
           ],
           "basket_strips": 5,
           "piece_tone": 0.14188246,
@@ -699,7 +715,7 @@
             44
           ],
           "aggregate_exposure": 0.27306563,
-          "aggregate_radius": 0.283313,
+          "aggregate_radius": 0.13682331,
           "aggregate_color": [
             [
               0.2752895,
@@ -718,15 +734,15 @@
             5,
             8
           ],
-          "vein_width": 0.016643949,
-          "vein_warp": 0.13411961,
+          "vein_width": 0.017370483,
+          "vein_warp": 0.40685043,
           "vein_strength": 0.4273006,
           "vein_color": [
             0.77306366,
             0.7100354,
             0.6596128
           ],
-          "polish": 0.68215424,
+          "polish": 0.5135727,
           "binder_variation": 0.07617916
         },
         "coating": null,
@@ -749,13 +765,13 @@
         "surface": "Floor",
         "seed": 15321035631995631069,
         "color": [
-          0.5405931,
-          0.5208645,
-          0.5070545
+          0.5419554,
+          0.49745843,
+          0.5542337
         ],
-        "roughness": 0.39659974,
-        "period_m": 4.63144,
-        "relief_m": 0.00008356915,
+        "roughness": 0.521042,
+        "period_m": 3.1010728,
+        "relief_m": 0.000040273393,
         "grain_frequency": 78.955315,
         "cross_frequency": 3.4561186,
         "warp": 0.045063265,
@@ -771,7 +787,7 @@
           12,
           4
         ],
-        "joint_width": 0.002773467
+        "joint_width": 0.004537073
       },
       {
         "construction": {
@@ -2840,6 +2856,27 @@
         "height": 3.5279148
       }
     ],
+    "tier_guard": {
+      "height": 1.0400994,
+      "section": {
+        "seed": 4534,
+        "infill": "Solid",
+        "frame": "Wood",
+        "handrail": "Wood",
+        "panel": "Wood",
+        "round_posts": true,
+        "round_handrail": true,
+        "post_width": 0.06961174,
+        "handrail_width": 0.060038596,
+        "handrail_depth": 0.030224476,
+        "post_pitch": 0.78628665,
+        "bay_jitter": 0.039745368,
+        "infill_width": 0.051146165,
+        "infill_gap": 0.09157194,
+        "panel_thickness": 0.012536218,
+        "bottom_gap": 0.06740083
+      }
+    },
     "footprint": [
       [
         -6.1310987,
@@ -3500,32 +3537,859 @@
     "exposed_slab": true,
     "modules": [
       {
-        "system": "Baffles",
+        "system": "RectangularDuct",
         "center": [
-          3.5675445,
-          3.4245913,
-          -5.454854
+          -1.5153322,
+          3.408663,
+          0.0
         ],
         "size": [
-          1.9028051,
-          0.2102007,
-          1.7456583
+          0.85214317,
+          0.47438833,
+          9.956839
         ],
         "support_top_m": 3.7817633,
-        "pitch_m": 0.19991766,
-        "thickness_m": 0.040726766,
-        "seed": 14097272573754889573,
+        "pitch_m": 0.18582095,
+        "thickness_m": 0.01972248,
+        "seed": 14681825391761191526,
         "detail": {
           "finish": 1,
           "shape": {
-            "kind": "Panel",
-            "camber": 0.22205445,
-            "taper": 0.94961596,
-            "phase": 3.1435926
+            "kind": "Duct",
+            "section": 0.6950621,
+            "end_scale": 0.9436799,
+            "bend": -0.23297152,
+            "rise": 0.02836746,
+            "branches": 3,
+            "seam_pitch_m": 0.45356214
           }
-        }
+        },
+        "suspension": [
+          {
+            "start": [
+              -1.1361285,
+              3.3462589,
+              -3.3693943
+            ],
+            "end": [
+              -1.1361285,
+              3.7797632,
+              -3.3693943
+            ]
+          },
+          {
+            "start": [
+              -1.8945359,
+              3.3462589,
+              -3.3693943
+            ],
+            "end": [
+              -1.8945359,
+              3.7797632,
+              -3.3693943
+            ]
+          },
+          {
+            "start": [
+              -1.1361285,
+              3.3562844,
+              3.3693943
+            ],
+            "end": [
+              -1.1361285,
+              3.7797632,
+              3.3693943
+            ]
+          },
+          {
+            "start": [
+              -1.8945359,
+              3.3562844,
+              3.3693943
+            ],
+            "end": [
+              -1.8945359,
+              3.7797632,
+              3.3693943
+            ]
+          }
+        ]
+      },
+      {
+        "system": "RoundDuct",
+        "center": [
+          3.2413945,
+          3.3009324,
+          0.0
+        ],
+        "size": [
+          0.54585534,
+          0.52861995,
+          11.040528
+        ],
+        "support_top_m": 3.7817633,
+        "pitch_m": 0.24781135,
+        "thickness_m": 0.02458724,
+        "seed": 2661845030826003231,
+        "detail": {
+          "finish": 1,
+          "shape": {
+            "kind": "Duct",
+            "section": 0.63079417,
+            "end_scale": 0.6203204,
+            "bend": 0.33010447,
+            "rise": -0.38176417,
+            "branches": 1,
+            "seam_pitch_m": 0.5912431
+          }
+        },
+        "suspension": [
+          {
+            "start": [
+              3.4843001,
+              3.2840877,
+              -3.7361147
+            ],
+            "end": [
+              3.4843001,
+              3.7797632,
+              -3.7361147
+            ]
+          },
+          {
+            "start": [
+              2.998489,
+              3.2840877,
+              -3.7361147
+            ],
+            "end": [
+              2.998489,
+              3.7797632,
+              -3.7361147
+            ]
+          },
+          {
+            "start": [
+              3.4843001,
+              3.2347403,
+              3.7361147
+            ],
+            "end": [
+              3.4843001,
+              3.7797632,
+              3.7361147
+            ]
+          },
+          {
+            "start": [
+              2.998489,
+              3.2347403,
+              3.7361147
+            ],
+            "end": [
+              2.998489,
+              3.7797632,
+              3.7361147
+            ]
+          }
+        ]
       }
-    ]
+    ],
+    "framing": {
+      "roof_material": "Concrete",
+      "members": [
+        {
+          "top": [
+            [
+              -6.0874777,
+              3.5603046,
+              -3.6091583
+            ],
+            [
+              -6.0874777,
+              3.5603046,
+              3.6091583
+            ],
+            [
+              -5.9188643,
+              3.5603046,
+              3.6091583
+            ],
+            [
+              -5.9188643,
+              3.5603046,
+              -3.6091583
+            ]
+          ],
+          "depth": 0.74835694,
+          "role": "Rafter",
+          "section": "OpenWeb",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -6.0874777,
+              3.7817633,
+              -3.436517
+            ],
+            [
+              -6.0874777,
+              3.7817633,
+              -3.2765172
+            ],
+            [
+              -5.9188643,
+              3.7817633,
+              -3.2765172
+            ],
+            [
+              -5.9188643,
+              3.7817633,
+              -3.436517
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -6.0874777,
+              3.7817633,
+              3.2765172
+            ],
+            [
+              -6.0874777,
+              3.7817633,
+              3.436517
+            ],
+            [
+              -5.9188643,
+              3.7817633,
+              3.436517
+            ],
+            [
+              -5.9188643,
+              3.7817633,
+              3.2765172
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -2.5199335,
+              3.5603046,
+              -4.4014125
+            ],
+            [
+              -2.5199335,
+              3.5603046,
+              4.4014125
+            ],
+            [
+              -2.3513196,
+              3.5603046,
+              4.4014125
+            ],
+            [
+              -2.3513196,
+              3.5603046,
+              -4.4014125
+            ]
+          ],
+          "depth": 0.74835694,
+          "role": "Rafter",
+          "section": "OpenWeb",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -2.5199335,
+              3.7817633,
+              -4.1733136
+            ],
+            [
+              -2.5199335,
+              3.7817633,
+              -4.013314
+            ],
+            [
+              -2.3513196,
+              3.7817633,
+              -4.013314
+            ],
+            [
+              -2.3513196,
+              3.7817633,
+              -4.1733136
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -2.5199335,
+              3.7817633,
+              4.013314
+            ],
+            [
+              -2.5199335,
+              3.7817633,
+              4.1733136
+            ],
+            [
+              -2.3513196,
+              3.7817633,
+              4.1733136
+            ],
+            [
+              -2.3513196,
+              3.7817633,
+              4.013314
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              1.0476115,
+              3.5603046,
+              -6.5458245
+            ],
+            [
+              1.0476115,
+              3.5603046,
+              6.5458245
+            ],
+            [
+              1.2162254,
+              3.5603046,
+              6.5458245
+            ],
+            [
+              1.2162254,
+              3.5603046,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.74835694,
+          "role": "Rafter",
+          "section": "OpenWeb",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              1.0476115,
+              3.7817633,
+              -6.1676164
+            ],
+            [
+              1.0476115,
+              3.7817633,
+              -6.0076165
+            ],
+            [
+              1.2162254,
+              3.7817633,
+              -6.0076165
+            ],
+            [
+              1.2162254,
+              3.7817633,
+              -6.1676164
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              1.0476115,
+              3.7817633,
+              6.0076165
+            ],
+            [
+              1.0476115,
+              3.7817633,
+              6.1676164
+            ],
+            [
+              1.2162254,
+              3.7817633,
+              6.1676164
+            ],
+            [
+              1.2162254,
+              3.7817633,
+              6.0076165
+            ]
+          ],
+          "depth": 0.22345857,
+          "role": "Bearing",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -7.1350894,
+              3.7375462,
+              6.0976334
+            ],
+            [
+              7.1350894,
+              3.7375462,
+              6.0976334
+            ],
+            [
+              7.1350894,
+              3.7375462,
+              6.187562
+            ],
+            [
+              -7.1350894,
+              3.7375462,
+              6.187562
+            ]
+          ],
+          "depth": 0.17724143,
+          "role": "Purlin",
+          "section": "Solid",
+          "material": "Metal",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -6.0177193,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -6.0177193,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -5.8914385,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -5.8914385,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -5.5256443,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -5.5256443,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -5.3993635,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -5.3993635,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -4.541494,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -4.541494,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -4.415213,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -4.415213,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -4.049419,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -4.049419,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -3.9231381,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -3.9231381,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -3.5573437,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -3.5573437,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -3.431063,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -3.431063,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              -3.0652685,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              -3.0652685,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -2.9389877,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              -2.9389877,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              0.87133306,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              0.87133306,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              0.99761397,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              0.99761397,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              1.363408,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              1.363408,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              1.489689,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              1.489689,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              1.8554829,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              1.8554829,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              1.981764,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              1.981764,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              2.347558,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              2.347558,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              2.4738388,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              2.4738388,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              2.839633,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              2.839633,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              2.9659138,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              2.9659138,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              3.331709,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              3.331709,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              3.4579897,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              3.4579897,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        },
+        {
+          "top": [
+            [
+              3.8237839,
+              3.7817633,
+              -6.5458245
+            ],
+            [
+              3.8237839,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              3.9500647,
+              3.7817633,
+              6.5458245
+            ],
+            [
+              3.9500647,
+              3.7817633,
+              -6.5458245
+            ]
+          ],
+          "depth": 0.042217143,
+          "role": "RoofRib",
+          "section": "Fluted",
+          "material": "Concrete",
+          "finish": 7,
+          "web_pitch": 1.0162895
+        }
+      ]
+    }
   },
   "palette": 4,
   "furniture_style": 0,
@@ -4557,14 +5421,14 @@
       "id": 26,
       "kind": "WallShelf",
       "position": [
-        -3.1172428,
+        -3.0690331,
         1.5739753,
-        -6.675262
+        -6.6448293
       ],
       "size": [
-        0.725608,
-        0.17615217,
-        0.29912582
+        0.62097275,
+        0.14281702,
+        0.35999116
       ],
       "yaw": 0.0,
       "variant": 0,
@@ -4578,14 +5442,14 @@
       "id": 27,
       "kind": "WallShelf",
       "position": [
-        3.936892,
+        3.9337673,
         1.3819678,
-        -6.7129827
+        -6.717127
       ],
       "size": [
-        0.91249734,
-        0.19583002,
-        0.22368455
+        0.9199958,
+        0.18381253,
+        0.21539539
       ],
       "yaw": 0.0,
       "variant": 0,
@@ -4597,27 +5461,6 @@
     },
     {
       "id": 28,
-      "kind": "CeilingPendant",
-      "position": [
-        2.4371462,
-        3.4393992,
-        0.3331424
-      ],
-      "size": [
-        0.32551143,
-        0.33936408,
-        0.4236654
-      ],
-      "yaw": 0.0,
-      "variant": 0,
-      "seed": 1462463190734183204,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 29,
       "kind": "WallArt",
       "position": [
         -7.109197,
@@ -4638,7 +5481,7 @@
       "interaction_target": null
     },
     {
-      "id": 30,
+      "id": 29,
       "kind": "WallArt",
       "position": [
         -6.868067,
@@ -4659,7 +5502,7 @@
       "interaction_target": null
     },
     {
-      "id": 31,
+      "id": 30,
       "kind": "Display",
       "position": [
         4.9512076,
@@ -4680,21 +5523,42 @@
       "interaction_target": null
     },
     {
-      "id": 32,
-      "kind": "Display",
+      "id": 31,
+      "kind": "Clock",
       "position": [
-        2.6108813,
-        2.1497188,
-        -6.7751803
+        -3.7948024,
+        1.7310712,
+        -6.814885
       ],
       "size": [
-        0.8819125,
-        0.6078585,
-        0.099289015
+        0.40400445,
+        0.3669322,
+        0.048792496
       ],
       "yaw": 0.0,
+      "variant": 1,
+      "seed": 18283325947110660767,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 32,
+      "kind": "Clock",
+      "position": [
+        -6.462363,
+        1.1403229,
+        -6.487963
+      ],
+      "size": [
+        0.21459031,
+        0.21459031,
+        0.03410127
+      ],
+      "yaw": 0.78539824,
       "variant": 2,
-      "seed": 15680900555764157977,
+      "seed": 6207384831567784703,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4702,20 +5566,20 @@
     },
     {
       "id": 33,
-      "kind": "Clock",
+      "kind": "LightSwitch",
       "position": [
-        -2.5626824,
-        1.7863419,
-        -6.2781825
+        -4.630117,
+        1.1026711,
+        -6.818525
       ],
       "size": [
-        0.27223983,
-        0.27223983,
-        0.045
+        0.075,
+        0.110334024,
+        0.018
       ],
-      "yaw": -1.5707963,
-      "variant": 2,
-      "seed": 10387966579159731285,
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 7233452084195918400,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4723,20 +5587,20 @@
     },
     {
       "id": 34,
-      "kind": "LightSwitch",
+      "kind": "WallOutlet",
       "position": [
-        -7.3405013,
-        1.195988,
-        5.4154534
+        -4.9274206,
+        0.34767824,
+        -6.818525
       ],
       "size": [
-        0.075,
-        0.124037415,
+        0.15,
+        0.11323446,
         0.018
       ],
-      "yaw": 1.5231287,
+      "yaw": 0.0,
       "variant": 1,
-      "seed": 4984659621882789839,
+      "seed": 1932509497459569202,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4746,18 +5610,18 @@
       "id": 35,
       "kind": "WallOutlet",
       "position": [
-        -6.692165,
-        0.34855825,
-        0.1685646
+        -6.5574846,
+        0.33357394,
+        -6.3891153
       ],
       "size": [
-        0.22500001,
-        0.114202276,
+        0.075,
+        0.102081046,
         0.018
       ],
-      "yaw": 2.0015721,
+      "yaw": 0.78539824,
       "variant": 1,
-      "seed": 9452547323644256132,
+      "seed": 11224263679073376629,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4767,18 +5631,18 @@
       "id": 36,
       "kind": "WallOutlet",
       "position": [
-        -2.5574822,
-        0.36887622,
-        -5.896156
+        -5.0940895,
+        0.3482845,
+        -6.818525
       ],
       "size": [
-        0.22500001,
-        0.10493204,
+        0.075,
+        0.10371802,
         0.018
       ],
-      "yaw": -1.5707963,
+      "yaw": 0.0,
       "variant": 1,
-      "seed": 10642645681813196762,
+      "seed": 9939446052619236603,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4788,18 +5652,18 @@
       "id": 37,
       "kind": "WallOutlet",
       "position": [
-        -6.829228,
-        0.35536754,
-        -0.12968343
+        3.4394157,
+        0.3687236,
+        -6.818525
       ],
       "size": [
-        0.15,
-        0.10088557,
+        0.075,
+        0.11862515,
         0.018
       ],
-      "yaw": 2.0015721,
+      "yaw": 0.0,
       "variant": 1,
-      "seed": 104391726738990647,
+      "seed": 1619935580182312030,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4809,18 +5673,18 @@
       "id": 38,
       "kind": "WallOutlet",
       "position": [
-        -6.9308763,
-        0.32140753,
-        2.8766527
+        0.8545625,
+        0.3514161,
+        -6.818525
       ],
       "size": [
         0.15,
-        0.10426036,
+        0.113734394,
         0.018
       ],
-      "yaw": 1.044685,
+      "yaw": 0.0,
       "variant": 1,
-      "seed": 9442388102708752122,
+      "seed": 14161504831922679727,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4828,6 +5692,111 @@
     },
     {
       "id": 39,
+      "kind": "WallOutlet",
+      "position": [
+        0.068401314,
+        0.31049666,
+        -6.255065
+      ],
+      "size": [
+        0.22500001,
+        0.11442138,
+        0.018
+      ],
+      "yaw": 1.5707963,
+      "variant": 1,
+      "seed": 8877081342702100219,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 40,
+      "kind": "WallOutlet",
+      "position": [
+        -2.5574822,
+        0.34125242,
+        -6.3962603
+      ],
+      "size": [
+        0.15,
+        0.104864284,
+        0.018
+      ],
+      "yaw": -1.5707963,
+      "variant": 1,
+      "seed": 10671451765200770004,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 41,
+      "kind": "WallOutlet",
+      "position": [
+        4.129442,
+        0.324382,
+        -6.818525
+      ],
+      "size": [
+        0.15,
+        0.10408318,
+        0.018
+      ],
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 11573077363574646569,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 42,
+      "kind": "WallOutlet",
+      "position": [
+        0.068401314,
+        0.32954478,
+        -6.624263
+      ],
+      "size": [
+        0.075,
+        0.11116664,
+        0.018
+      ],
+      "yaw": 1.5707963,
+      "variant": 1,
+      "seed": 8005008406074036860,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 43,
+      "kind": "WallOutlet",
+      "position": [
+        7.080365,
+        0.35571957,
+        4.652297
+      ],
+      "size": [
+        0.15,
+        0.10563974,
+        0.018
+      ],
+      "yaw": -1.4213157,
+      "variant": 1,
+      "seed": 11912643142094560327,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 44,
       "kind": "CoffeeCup",
       "position": [
         3.6656022,
@@ -4848,7 +5817,7 @@
       "interaction_target": null
     },
     {
-      "id": 40,
+      "id": 45,
       "kind": "Plant",
       "position": [
         2.2653697,
@@ -4869,7 +5838,7 @@
       "interaction_target": null
     },
     {
-      "id": 41,
+      "id": 46,
       "kind": "Bowl",
       "position": [
         0.6596725,
@@ -4890,7 +5859,7 @@
       "interaction_target": null
     },
     {
-      "id": 42,
+      "id": 47,
       "kind": "TissueBox",
       "position": [
         4.1680565,
@@ -4911,7 +5880,7 @@
       "interaction_target": null
     },
     {
-      "id": 43,
+      "id": 48,
       "kind": "CoffeeCup",
       "position": [
         1.9048953,
@@ -4932,7 +5901,7 @@
       "interaction_target": null
     },
     {
-      "id": 44,
+      "id": 49,
       "kind": "SodaCan",
       "position": [
         4.0380654,
@@ -4953,7 +5922,7 @@
       "interaction_target": null
     },
     {
-      "id": 45,
+      "id": 50,
       "kind": "WaterBottle",
       "position": [
         1.0050429,
@@ -4974,7 +5943,7 @@
       "interaction_target": null
     },
     {
-      "id": 46,
+      "id": 51,
       "kind": "CoffeeCup",
       "position": [
         4.0428753,
@@ -4995,7 +5964,7 @@
       "interaction_target": null
     },
     {
-      "id": 47,
+      "id": 52,
       "kind": "Mug",
       "position": [
         1.6105499,
@@ -5016,7 +5985,7 @@
       "interaction_target": null
     },
     {
-      "id": 48,
+      "id": 53,
       "kind": "CoffeeCup",
       "position": [
         3.1768239,
@@ -5037,7 +6006,7 @@
       "interaction_target": null
     },
     {
-      "id": 49,
+      "id": 54,
       "kind": "CoffeeCup",
       "position": [
         2.9031565,
@@ -5058,7 +6027,7 @@
       "interaction_target": null
     },
     {
-      "id": 50,
+      "id": 55,
       "kind": "WaterBottle",
       "position": [
         2.4744806,
@@ -5079,7 +6048,7 @@
       "interaction_target": null
     },
     {
-      "id": 51,
+      "id": 56,
       "kind": "WaterBottle",
       "position": [
         1.7650505,
@@ -5100,7 +6069,7 @@
       "interaction_target": null
     },
     {
-      "id": 52,
+      "id": 57,
       "kind": "WaterBottle",
       "position": [
         2.7720826,
@@ -5121,7 +6090,7 @@
       "interaction_target": null
     },
     {
-      "id": 53,
+      "id": 58,
       "kind": "WaterBottle",
       "position": [
         2.7535176,
@@ -5142,7 +6111,7 @@
       "interaction_target": null
     },
     {
-      "id": 54,
+      "id": 59,
       "kind": "WaterBottle",
       "position": [
         2.7752862,
@@ -5163,7 +6132,7 @@
       "interaction_target": null
     },
     {
-      "id": 55,
+      "id": 60,
       "kind": "WaterBottle",
       "position": [
         3.1641238,
@@ -5184,7 +6153,7 @@
       "interaction_target": null
     },
     {
-      "id": 56,
+      "id": 61,
       "kind": "SodaCan",
       "position": [
         2.745896,
@@ -5205,7 +6174,7 @@
       "interaction_target": null
     },
     {
-      "id": 57,
+      "id": 62,
       "kind": "WaterBottle",
       "position": [
         1.8349059,
@@ -5226,7 +6195,7 @@
       "interaction_target": null
     },
     {
-      "id": 58,
+      "id": 63,
       "kind": "Bowl",
       "position": [
         2.2941854,
@@ -5247,7 +6216,7 @@
       "interaction_target": null
     },
     {
-      "id": 59,
+      "id": 64,
       "kind": "CoffeeCup",
       "position": [
         2.7857487,
@@ -5268,7 +6237,7 @@
       "interaction_target": null
     },
     {
-      "id": 60,
+      "id": 65,
       "kind": "WaterBottle",
       "position": [
         3.9447978,
@@ -5289,7 +6258,7 @@
       "interaction_target": null
     },
     {
-      "id": 61,
+      "id": 66,
       "kind": "Mug",
       "position": [
         2.619156,
@@ -5310,7 +6279,7 @@
       "interaction_target": null
     },
     {
-      "id": 62,
+      "id": 67,
       "kind": "WaterBottle",
       "position": [
         3.6154525,
@@ -5331,7 +6300,7 @@
       "interaction_target": null
     },
     {
-      "id": 63,
+      "id": 68,
       "kind": "WaterBottle",
       "position": [
         2.03658,
@@ -5352,7 +6321,7 @@
       "interaction_target": null
     },
     {
-      "id": 64,
+      "id": 69,
       "kind": "SodaCan",
       "position": [
         1.4024974,
@@ -5373,7 +6342,7 @@
       "interaction_target": null
     },
     {
-      "id": 65,
+      "id": 70,
       "kind": "CoffeeCup",
       "position": [
         2.090619,
@@ -5394,7 +6363,7 @@
       "interaction_target": null
     },
     {
-      "id": 66,
+      "id": 71,
       "kind": "CoffeeCup",
       "position": [
         4.3266563,
@@ -5415,7 +6384,7 @@
       "interaction_target": null
     },
     {
-      "id": 67,
+      "id": 72,
       "kind": "CoffeeCup",
       "position": [
         4.225877,
@@ -5436,7 +6405,7 @@
       "interaction_target": null
     },
     {
-      "id": 68,
+      "id": 73,
       "kind": "Bowl",
       "position": [
         1.3316804,
@@ -5457,7 +6426,7 @@
       "interaction_target": null
     },
     {
-      "id": 69,
+      "id": 74,
       "kind": "WaterBottle",
       "position": [
         2.304395,
@@ -5478,7 +6447,7 @@
       "interaction_target": null
     },
     {
-      "id": 70,
+      "id": 75,
       "kind": "CoffeeCup",
       "position": [
         0.6907754,
@@ -5499,49 +6468,28 @@
       "interaction_target": null
     },
     {
-      "id": 71,
-      "kind": "Vase",
+      "id": 76,
+      "kind": "WaterBottle",
       "position": [
-        -3.3876774,
-        1.7501276,
-        -6.719096
+        3.6089087,
+        1.5657803,
+        -6.734486
       ],
       "size": [
-        0.08422319,
-        0.1799407,
-        0.08422319
+        0.0757369,
+        0.14639048,
+        0.0757369
       ],
-      "yaw": -0.0071299076,
-      "variant": 1,
-      "seed": 6039557702455184968,
-      "solid": false,
-      "support": 26,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 72,
-      "kind": "Mug",
-      "position": [
-        3.5999272,
-        1.5777978,
-        -6.707315
-      ],
-      "size": [
-        0.13052215,
-        0.1602036,
-        0.10235593
-      ],
-      "yaw": -2.2902617,
-      "variant": 1,
-      "seed": 13908572435760045295,
+      "yaw": 1.0900393,
+      "variant": 2,
+      "seed": 5332614131757174190,
       "solid": false,
       "support": 27,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 73,
+      "id": 77,
       "kind": "ExitSign",
       "position": [
         -4.4488316,
@@ -5562,7 +6510,7 @@
       "interaction_target": null
     },
     {
-      "id": 74,
+      "id": 78,
       "kind": "FireAlarm",
       "position": [
         -7.3384256,
@@ -5583,7 +6531,7 @@
       "interaction_target": null
     },
     {
-      "id": 75,
+      "id": 79,
       "kind": "Speaker",
       "position": [
         -7.2460537,
@@ -5604,7 +6552,7 @@
       "interaction_target": null
     },
     {
-      "id": 76,
+      "id": 80,
       "kind": "Speaker",
       "position": [
         -6.575642,
@@ -5625,7 +6573,7 @@
       "interaction_target": null
     },
     {
-      "id": 77,
+      "id": 81,
       "kind": "FireDetector",
       "position": [
         -5.191557,
@@ -5646,7 +6594,7 @@
       "interaction_target": null
     },
     {
-      "id": 78,
+      "id": 82,
       "kind": "FireDetector",
       "position": [
         -4.8764505,
@@ -5670,7 +6618,7 @@
   "human_density": 0.25,
   "humans": [
     {
-      "id": 79,
+      "id": 83,
       "seed": 17423495852663686266,
       "position": [
         2.9427562,
@@ -5963,7 +6911,7 @@
       ]
     },
     {
-      "id": 80,
+      "id": 84,
       "seed": 8278767070644847098,
       "position": [
         -3.9439273,
@@ -6522,7 +7470,7 @@
       ]
     },
     {
-      "id": 81,
+      "id": 85,
       "seed": 2329561002825436851,
       "position": [
         -5.0200524,
@@ -6815,7 +7763,7 @@
       ]
     },
     {
-      "id": 82,
+      "id": 86,
       "seed": 12826210858864223258,
       "position": [
         2.9454024,
@@ -7108,7 +8056,7 @@
       ]
     },
     {
-      "id": 83,
+      "id": 87,
       "seed": 9812973310677964628,
       "position": [
         -5.012777,
@@ -7401,7 +8349,7 @@
       ]
     },
     {
-      "id": 84,
+      "id": 88,
       "seed": 11700869571561763633,
       "position": [
         0.9192512,
@@ -7751,42 +8699,54 @@
         "anisotropy": 1.0161995
       },
       "start": [
-        -1.4136376,
-        1.986797,
-        3.6029005
+        2.6389952,
+        2.8411167,
+        4.007331
       ],
       "end": [
-        -1.713296,
-        1.998255,
-        2.9008267
+        1.6511706,
+        2.8411167,
+        2.2210069
       ],
       "target": [
-        0.8868094,
-        0.992034,
-        1.0477359
+        2.959283,
+        1.0540283,
+        1.1982875
       ],
-      "fov_degrees": 42.406235,
+      "fov_degrees": 110.31725,
       "motion": {
         "control": [
           [
-            -1.5220273,
-            1.990578,
-            3.362661
+            0.9977081,
+            2.8411164,
+            3.2678723
           ],
           [
-            -1.6239111,
-            1.9944739,
-            3.123956
+            0.66184783,
+            2.8411167,
+            2.6605225
           ]
         ],
         "target_end": [
-          0.68877316,
-          1.0311279,
-          1.2009301
+          3.0813732,
+          1.0506821,
+          1.2429571
         ],
         "roll": [
-          -0.07414323,
-          -0.087371506
+          -0.028380454,
+          -0.041082967
+        ],
+        "route": [
+          [
+            2.6389952,
+            2.8411167,
+            4.007331
+          ],
+          [
+            1.6511706,
+            2.8411167,
+            2.2210069
+          ]
         ]
       }
     },
@@ -7805,42 +8765,54 @@
         "anisotropy": 1.0046806
       },
       "start": [
-        -3.7888288,
-        1.3563004,
-        -0.15010047
+        0.8973398,
+        2.3238182,
+        2.8409178
       ],
       "end": [
-        -3.961556,
-        1.3647354,
-        -0.6848494
+        -0.28459454,
+        2.3238182,
+        1.2019409
       ],
       "target": [
-        0.80417556,
-        1.0694885,
-        1.1831161
+        3.0286305,
+        0.9931986,
+        1.238097
       ],
       "fov_degrees": 87.77637,
       "motion": {
         "control": [
           [
-            -3.78776,
-            1.3689814,
-            -0.30790547
+            -0.632529,
+            2.2967103,
+            2.2519572
           ],
           [
-            -3.8464873,
-            1.3718493,
-            -0.48972002
+            -1.0343865,
+            2.2967105,
+            1.6947051
           ]
         ],
         "target_end": [
-          0.6061393,
-          1.1085824,
-          1.3363103
+          3.1507206,
+          0.98985237,
+          1.2827666
         ],
         "roll": [
-          0.051668808,
-          -0.06324941
+          0.074345574,
+          -0.016255088
+        ],
+        "route": [
+          [
+            0.8973398,
+            2.3238182,
+            2.8409178
+          ],
+          [
+            -0.28459454,
+            2.3238182,
+            1.2019409
+          ]
         ]
       }
     },
@@ -7859,45 +8831,57 @@
         "anisotropy": 1.0010896
       },
       "start": [
-        -0.8853487,
-        2.4056468,
-        1.3177884
+        5.223014,
+        2.7377822,
+        -0.20173073
       ],
       "end": [
-        -0.8423297,
-        2.422605,
-        0.18882394
+        4.3730435,
+        2.7377822,
+        -1.2182646
       ],
       "target": [
-        0.95948726,
-        0.93414193,
-        0.9527184
+        2.881653,
+        1.1012446,
+        1.2867113
       ],
       "fov_degrees": 48.705757,
       "motion": {
         "control": [
           [
-            -0.89536124,
-            2.423134,
-            1.0038983
+            3.860468,
+            2.7990243,
+            -0.58790845
           ],
           [
-            -0.8807349,
-            2.4289,
-            0.6200506
+            3.5714781,
+            2.7990246,
+            -0.9335298
           ]
         ],
         "target_end": [
-          0.761451,
-          0.97323585,
-          1.1059126
+          3.0037432,
+          1.0978984,
+          1.331381
         ],
         "roll": [
-          -0.0726306,
-          -0.005839728
+          -0.015941031,
+          0.044854715
+        ],
+        "route": [
+          [
+            5.223014,
+            2.7377822,
+            -0.20173073
+          ],
+          [
+            4.3730435,
+            2.7377822,
+            -1.2182646
+          ]
         ]
       }
     }
   ],
-  "rejected_placements": 142
+  "rejected_placements": 140
 }

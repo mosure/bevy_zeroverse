@@ -302,7 +302,7 @@
     "rejected_meetings": 0,
     "accepted": []
   },
-  "generator_version": 86,
+  "generator_version": 92,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -805,9 +805,25 @@
             "plank_ratio": 3,
             "chevron_rise": 1.1540997
           },
+          "stock": {
+            "cut_jitter": [
+              0.0,
+              0.0
+            ],
+            "mottle_cells": [
+              1,
+              6
+            ],
+            "joint_color": [
+              0.13462493,
+              0.13058618,
+              0.12654743
+            ],
+            "joint_roughness": 0.805626
+          },
           "cells": [
-            4,
-            4
+            6,
+            6
           ],
           "basket_strips": 5,
           "piece_tone": 0.15719305,
@@ -913,26 +929,26 @@
             0.3499006,
             0.3472382
           ],
-          "stain_strength": 0.66823226,
-          "bleach": 0.12348857,
-          "pore_fill": 0.82481414,
+          "stain_strength": 0.19472267,
+          "bleach": 0.05349783,
+          "pore_fill": 0.23829278,
           "ring_contrast": 0.61637926,
-          "clearcoat": 0.8007788,
-          "coat_roughness": 0.14501227
+          "clearcoat": 0.013646632,
+          "coat_roughness": 0.39812395
         },
         "leaf": null,
         "cuticle": null,
         "surface": "Floor",
         "seed": 11451775671133092963,
         "color": [
-          0.62030333,
-          0.48320028,
-          0.37646925
+          0.703833,
+          0.46129948,
+          0.26988018
         ],
-        "roughness": 0.24444437,
-        "period_m": 2.8,
-        "relief_m": 0.000032532924,
-        "grain_frequency": 28.814682,
+        "roughness": 0.6603621,
+        "period_m": 4.205414,
+        "relief_m": 0.00003928507,
+        "grain_frequency": 50.368626,
         "cross_frequency": 3.938651,
         "warp": 0.08727386,
         "contrast": 0.22389692,
@@ -947,7 +963,7 @@
           14,
           1
         ],
-        "joint_width": 0.0034653526
+        "joint_width": 0.00070686365
       },
       {
         "construction": {
@@ -2993,6 +3009,27 @@
         "height": 3.481475
       }
     ],
+    "tier_guard": {
+      "height": 1.1682394,
+      "section": {
+        "seed": 4536,
+        "infill": "Solid",
+        "frame": "Metal",
+        "handrail": "Chrome",
+        "panel": "Paint",
+        "round_posts": true,
+        "round_handrail": false,
+        "post_width": 0.060123082,
+        "handrail_width": 0.06065081,
+        "handrail_depth": 0.03173834,
+        "post_pitch": 0.85180974,
+        "bay_jitter": 0.07959274,
+        "infill_width": 0.040336646,
+        "infill_gap": 0.07013549,
+        "panel_thickness": 0.014542427,
+        "bottom_gap": 0.06171187
+      }
+    },
     "footprint": [
       [
         -8.475338,
@@ -4152,7 +4189,33 @@
             "blades": 7,
             "angle": 0.40198195
           }
-        }
+        },
+        "suspension": [
+          {
+            "start": [
+              5.566589,
+              3.9595113,
+              4.9805155
+            ],
+            "end": [
+              5.566589,
+              3.9851236,
+              4.9805155
+            ]
+          },
+          {
+            "start": [
+              6.0262494,
+              3.9595113,
+              4.9805155
+            ],
+            "end": [
+              6.0262494,
+              3.9921668,
+              4.9805155
+            ]
+          }
+        ]
       }
     ]
   },

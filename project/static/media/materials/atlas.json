@@ -1,14 +1,14 @@
 {
   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
   "build_provenance": {
-    "capture_engine": "capture-v111;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=6;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=17;seating=7;activity=3;playback=2;exterior=5;envelope=6;furnishings=13;botany=4;visual_content=6;equipment=17;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=5;window_treatments=1",
+    "capture_engine": "capture-v117;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=18;seating=7;activity=3;playback=2;exterior=5;envelope=7;furnishings=15;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
     "crate_version": "0.60.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 86,
+    "generator_version": 92,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -978,7 +978,7 @@
       }
     ],
     "semantic_taxonomy_version": 10,
-    "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130",
+    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717",
     "target": "x86_64-unknown-linux-gnu"
   },
   "categories": [
@@ -8327,51 +8327,51 @@
         "recipe.color.0": {
           "bins": [
             30,
+            30,
+            18,
+            26,
             28,
-            37,
-            29,
-            31,
-            36,
-            43,
-            22
+            41,
+            47,
+            36
           ],
-          "max": 0.8575804233551025,
-          "median": 0.5051370859146118,
-          "min": 0.12733829021453855,
+          "max": 0.8663068413734436,
+          "median": 0.6150739789009094,
+          "min": 0.2145290970802307,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.1": {
           "bins": [
-            39,
-            33,
-            41,
-            44,
-            38,
             34,
-            22,
-            5
+            32,
+            36,
+            30,
+            31,
+            30,
+            44,
+            19
           ],
-          "max": 0.7547551393508911,
-          "median": 0.3813556432723999,
-          "min": 0.10016390681266785,
+          "max": 0.8020721077919006,
+          "median": 0.4779489040374756,
+          "min": 0.16342315077781677,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.2": {
           "bins": [
-            43,
-            56,
-            29,
-            51,
-            32,
-            16,
-            20,
-            9
+            48,
+            49,
+            41,
+            27,
+            25,
+            27,
+            22,
+            17
           ],
-          "max": 0.568077802658081,
-          "median": 0.24189938604831696,
-          "min": 0.04527829959988594,
+          "max": 0.7150652408599854,
+          "median": 0.3153284788131714,
+          "min": 0.09921657294034958,
           "present": 256,
           "type": "numeric"
         },
@@ -8598,34 +8598,34 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            75,
-            20,
-            44,
-            57,
-            35,
-            16,
-            6,
-            3
+            83,
+            46,
+            36,
+            37,
+            17,
+            18,
+            13,
+            6
           ],
-          "max": 42.0,
-          "median": 16.0,
+          "max": 48.0,
+          "median": 14.0,
           "min": 3.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            160,
-            12,
+            157,
+            15,
+            15,
+            14,
+            22,
             18,
-            26,
-            16,
-            12,
-            6,
-            6
+            7,
+            8
           ],
-          "max": 42.0,
-          "median": 5.0,
+          "max": 44.0,
+          "median": 6.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
@@ -8742,6 +8742,142 @@
           "present": 256,
           "type": "numeric"
         },
+        "recipe.flooring.stock.cut_jitter.0": {
+          "bins": [
+            98,
+            33,
+            25,
+            25,
+            17,
+            20,
+            21,
+            17
+          ],
+          "max": 0.19987812638282776,
+          "median": 0.04929521307349205,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.cut_jitter.1": {
+          "bins": [
+            74,
+            18,
+            21,
+            27,
+            31,
+            31,
+            31,
+            23
+          ],
+          "max": 0.379550576210022,
+          "median": 0.169229656457901,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.0": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.17984412610530853,
+          "median": 0.10499973595142365,
+          "min": 0.035179316997528076,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.1": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.17444880306720734,
+          "median": 0.1018497496843338,
+          "min": 0.03412393853068352,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.2": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.16905348002910614,
+          "median": 0.09869974851608276,
+          "min": 0.03306855633854866,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_roughness": {
+          "bins": [
+            31,
+            38,
+            29,
+            32,
+            30,
+            28,
+            40,
+            28
+          ],
+          "max": 0.9691942930221558,
+          "median": 0.8089393377304077,
+          "min": 0.6503251194953918,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.0": {
+          "bins": [
+            53,
+            19,
+            24,
+            25,
+            50,
+            24,
+            20,
+            41
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.1": {
+          "bins": [
+            43,
+            22,
+            27,
+            24,
+            40,
+            20,
+            21,
+            59
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
         "recipe.flooring.tile_definition": {
           "bins": [
             31,
@@ -8761,35 +8897,35 @@
         },
         "recipe.grain_frequency": {
           "bins": [
-            45,
-            69,
-            46,
-            46,
+            31,
             25,
-            9,
-            12,
-            4
+            37,
+            39,
+            37,
+            35,
+            25,
+            27
           ],
-          "max": 83.32840728759766,
-          "median": 33.56736373901367,
-          "min": 12.72768211364746,
+          "max": 77.57658386230469,
+          "median": 46.97371292114258,
+          "min": 17.767549514770508,
           "present": 256,
           "type": "numeric"
         },
         "recipe.joint_width": {
           "bins": [
             44,
+            29,
             21,
-            26,
             36,
-            29,
-            32,
-            29,
-            39
+            28,
+            35,
+            26,
+            37
           ],
-          "max": 0.0034966026432812214,
-          "median": 0.0022617403883486986,
-          "min": 0.0010063443332910538,
+          "max": 0.0024826223962008953,
+          "median": 0.001492153387516737,
+          "min": 0.0005105345626361668,
           "present": 256,
           "type": "numeric"
         },
@@ -9322,18 +9458,18 @@
         },
         "recipe.period_m": {
           "bins": [
-            130,
-            20,
-            19,
-            13,
-            17,
-            21,
-            12,
-            24
+            41,
+            35,
+            28,
+            31,
+            25,
+            35,
+            26,
+            35
           ],
-          "max": 4.99467658996582,
-          "median": 3.0180649757385254,
-          "min": 2.799999952316284,
+          "max": 5.386226177215576,
+          "median": 3.762473583221435,
+          "min": 2.4102816581726074,
           "present": 256,
           "type": "numeric"
         },
@@ -9373,35 +9509,35 @@
         },
         "recipe.relief_m": {
           "bins": [
-            53,
-            45,
-            28,
-            61,
-            20,
-            14,
-            14,
-            21
+            25,
+            44,
+            49,
+            50,
+            38,
+            23,
+            15,
+            12
           ],
-          "max": 0.0002145220641978085,
-          "median": 0.00009840886195888744,
-          "min": 0.000028118951377109624,
+          "max": 0.00017860950902104378,
+          "median": 0.00007981203816598281,
+          "min": 0.000016338406567228958,
           "present": 256,
           "type": "numeric"
         },
         "recipe.roughness": {
           "bins": [
-            22,
-            12,
-            34,
-            47,
-            20,
+            36,
             35,
-            54,
-            32
+            18,
+            24,
+            31,
+            36,
+            37,
+            39
           ],
-          "max": 0.8301253914833069,
-          "median": 0.5746315717697144,
-          "min": 0.22893790900707245,
+          "max": 0.8193720579147339,
+          "median": 0.5992878675460815,
+          "min": 0.3003396987915039,
           "present": 256,
           "type": "numeric"
         },
@@ -10015,69 +10151,69 @@
         },
         "recipe.wood.bleach": {
           "bins": [
-            90,
-            72,
-            23,
+            160,
+            33,
+            24,
             17,
-            9,
-            20,
-            15,
-            10
+            10,
+            4,
+            5,
+            3
           ],
-          "max": 0.6217122077941895,
-          "median": 0.12167605757713318,
-          "min": 0.003569589927792549,
+          "max": 0.6391993165016174,
+          "median": 0.038961730897426605,
+          "min": 7.938515123040446e-11,
           "present": 256,
           "type": "numeric"
         },
         "recipe.wood.clearcoat": {
           "bins": [
-            49,
-            73,
-            54,
-            33,
-            13,
-            8,
+            83,
+            40,
+            37,
+            21,
+            21,
+            15,
             17,
-            9
+            22
           ],
-          "max": 0.7654684782028198,
-          "median": 0.21521514654159543,
-          "min": 0.02433549240231514,
+          "max": 0.8881354928016663,
+          "median": 0.23777921497821808,
+          "min": 1.0247214277114836e-6,
           "present": 256,
           "type": "numeric"
         },
         "recipe.wood.coat_roughness": {
           "bins": [
-            12,
-            17,
-            24,
-            40,
-            58,
-            52,
-            43,
-            10
+            34,
+            27,
+            32,
+            30,
+            37,
+            31,
+            22,
+            43
           ],
-          "max": 0.43150079250335693,
-          "median": 0.2847944498062134,
-          "min": 0.09224219620227814,
+          "max": 0.43579649925231934,
+          "median": 0.26758795976638794,
+          "min": 0.09013889729976654,
           "present": 256,
           "type": "numeric"
         },
         "recipe.wood.pore_fill": {
           "bins": [
-            29,
-            41,
-            46,
-            29,
-            59,
             25,
-            16,
-            11
+            29,
+            47,
+            38,
+            46,
+            43,
+            19,
+            9
           ],
-          "max": 0.8613904118537903,
-          "median": 0.4286140203475952,
-          "min": 0.10954611748456956,
+          "max": 0.8814943432807922,
+          "median": 0.4380136728286743,
+          "min": 0.06133592501282692,
           "present": 256,
           "type": "numeric"
         },
@@ -10151,18 +10287,18 @@
         },
         "recipe.wood.stain_strength": {
           "bins": [
-            31,
-            85,
-            63,
-            27,
-            16,
+            96,
+            32,
+            23,
+            24,
+            26,
+            25,
             11,
-            16,
-            7
+            19
           ],
-          "max": 0.8255787491798401,
-          "median": 0.2555942237377167,
-          "min": 0.05161774903535843,
+          "max": 0.8490749597549438,
+          "median": 0.21680235862731936,
+          "min": 0.000013177407709008548,
           "present": 256,
           "type": "numeric"
         }
@@ -10184,8 +10320,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.3128049075603485,
-            "clearcoat_roughness": 0.21746306121349335,
+            "clearcoat": 0.3199693560600281,
+            "clearcoat_roughness": 0.17376363277435303,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -10197,23 +10333,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.5322980394552742,
+                "mean_encoded": 0.34980972888392525,
                 "mip_levels": 10,
-                "std_encoded": 0.12641228283969563,
+                "std_encoded": 0.10365675704872668,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666644576328253,
+                "mean_encoded": 0.6666670905219186,
                 "mip_levels": 10,
-                "std_encoded": 0.23571799777409144,
+                "std_encoded": 0.2357073978199591,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.47283835317882233,
+                "mean_encoded": 0.6674989288999683,
                 "mip_levels": 10,
-                "std_encoded": 0.029815471269296012,
+                "std_encoded": 0.028603086398703813,
                 "width": 512
               }
             },
@@ -10223,10 +10359,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3289346694946289,
+              0.21039359271526337,
               0.0,
               0.0,
-              0.3289346694946289,
+              0.21039359271526337,
               0.0,
               0.0
             ]
@@ -10239,9 +10375,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.7446399927139282,
-              0.5595601797103882,
-              0.3955686092376709
+              0.5395421981811523,
+              0.3603391647338867,
+              0.2580372393131256
             ],
             "construction": {
               "scale": 1.4026905298233032,
@@ -10265,8 +10401,8 @@
               ],
               "basket_strips": 4,
               "cells": [
-                4,
-                15
+                6,
+                23
               ],
               "craft": {
                 "chevron_rise": 1.816600561141968,
@@ -10277,10 +10413,26 @@
               "piece_roughness": 0.07357257604598999,
               "piece_tone": 0.43574610352516174,
               "piece_warmth": 0.061541296541690826,
+              "stock": {
+                "cut_jitter": [
+                  0.02261989191174507,
+                  0.23326773941516876
+                ],
+                "joint_color": [
+                  0.12553301453590393,
+                  0.12176702916622162,
+                  0.11800103634595872
+                ],
+                "joint_roughness": 0.6921319961547852,
+                "mottle_cells": [
+                  1,
+                  10
+                ]
+              },
               "tile_definition": 0.9705170392990112
             },
-            "grain_frequency": 23.8504581451416,
-            "joint_width": 0.003271114081144333,
+            "grain_frequency": 48.42995071411133,
+            "joint_width": 0.0006463010795414448,
             "layers": {
               "bands": [
                 2,
@@ -10335,13 +10487,13 @@
               13,
               2
             ],
-            "period_m": 3.0401172637939453,
+            "period_m": 4.752996444702148,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
             ],
-            "relief_m": 0.00008791976142674685,
-            "roughness": 0.4781039357185364,
+            "relief_m": 0.0000929599191294983,
+            "roughness": 0.676580548286438,
             "seed": 18035940476790391229,
             "surface": "Floor",
             "textile": {
@@ -10383,10 +10535,10 @@
             "weathering": 0.03412192687392235,
             "weave_mix": 0.9905649423599244,
             "wood": {
-              "bleach": 0.07712611556053162,
-              "clearcoat": 0.3128049075603485,
-              "coat_roughness": 0.21746306121349335,
-              "pore_fill": 0.5001969933509827,
+              "bleach": 0.014691587537527084,
+              "clearcoat": 0.3199693560600281,
+              "coat_roughness": 0.17376363277435303,
+              "pore_fill": 0.7039235234260559,
               "ring_contrast": 0.7533791065216064,
               "seed": 18035940476790391229,
               "stain_color": [
@@ -10394,7 +10546,7 @@
                 0.15045076608657837,
                 0.1360977590084076
               ],
-              "stain_strength": 0.363226056098938
+              "stain_strength": 0.3425728380680084
             }
           },
           "seed": 0,
@@ -10415,8 +10567,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.37374347448349,
-            "clearcoat_roughness": 0.2889227271080017,
+            "clearcoat": 0.5378044843673706,
+            "clearcoat_roughness": 0.2606508731842041,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -10428,23 +10580,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.48088593327157386,
+                "mean_encoded": 0.6053206051089168,
                 "mip_levels": 10,
-                "std_encoded": 0.09070092239451458,
+                "std_encoded": 0.10837790574373488,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666517519483417,
+                "mean_encoded": 0.6666521259382697,
                 "mip_levels": 10,
-                "std_encoded": 0.23572919524083197,
+                "std_encoded": 0.2357204503090236,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.550722099746963,
+                "mean_encoded": 0.724249297498362,
                 "mip_levels": 10,
-                "std_encoded": 0.020328916388197435,
+                "std_encoded": 0.0225456712752442,
                 "width": 512
               }
             },
@@ -10454,10 +10606,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3571428656578064,
+              0.3521534204483032,
               0.0,
               0.0,
-              0.3571428656578064,
+              0.3521534204483032,
               0.0,
               0.0
             ]
@@ -10470,9 +10622,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.5026485919952393,
-              0.39851051568984985,
-              0.14099206030368805
+              0.7104212045669556,
+              0.6356494426727295,
+              0.4254530966281891
             ],
             "construction": {
               "scale": 0.9727993011474608,
@@ -10508,10 +10660,26 @@
               "piece_roughness": 0.03221447393298149,
               "piece_tone": 0.3912133276462555,
               "piece_warmth": 0.07282461225986481,
+              "stock": {
+                "cut_jitter": [
+                  0.17144687473773956,
+                  0.2308380156755447
+                ],
+                "joint_color": [
+                  0.12250451743602753,
+                  0.1188293844461441,
+                  0.11515424400568008
+                ],
+                "joint_roughness": 0.9082430601119996,
+                "mottle_cells": [
+                  4,
+                  2
+                ]
+              },
               "tile_definition": 0.6454686522483826
             },
-            "grain_frequency": 36.57795715332031,
-            "joint_width": 0.0032026395201683044,
+            "grain_frequency": 37.76036834716797,
+            "joint_width": 0.002202712465077638,
             "layers": {
               "bands": [
                 1,
@@ -10566,13 +10734,13 @@
               5,
               4
             ],
-            "period_m": 2.799999952316284,
+            "period_m": 2.8396713733673096,
             "phase": [
               0.511915922164917,
               0.9297031164169312
             ],
-            "relief_m": 0.00010023813956649974,
-            "roughness": 0.556316614151001,
+            "relief_m": 0.0000506480282638222,
+            "roughness": 0.7270787358283997,
             "seed": 2640584430712585208,
             "surface": "Floor",
             "textile": {
@@ -10614,10 +10782,10 @@
             "weathering": 0.00832869578152895,
             "weave_mix": 0.9057555198669434,
             "wood": {
-              "bleach": 0.17404410243034363,
-              "clearcoat": 0.37374347448349,
-              "coat_roughness": 0.2889227271080017,
-              "pore_fill": 0.453993558883667,
+              "bleach": 0.17909303307533264,
+              "clearcoat": 0.5378044843673706,
+              "coat_roughness": 0.2606508731842041,
+              "pore_fill": 0.27763819694519043,
               "ring_contrast": 0.7563390731811523,
               "seed": 2640584430712585208,
               "stain_color": [
@@ -10625,7 +10793,7 @@
                 0.30745187401771545,
                 0.21197013556957245
               ],
-              "stain_strength": 0.29398712515830994
+              "stain_strength": 0.19060350954532623
             }
           },
           "seed": 1,
@@ -10646,8 +10814,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.16369447112083435,
-            "clearcoat_roughness": 0.3739622831344605,
+            "clearcoat": 0.8823258280754089,
+            "clearcoat_roughness": 0.1128922998905182,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -10659,23 +10827,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.6851626128151603,
+                "mean_encoded": 0.4789262011164856,
                 "mip_levels": 10,
-                "std_encoded": 0.08915935241683064,
+                "std_encoded": 0.07401956341381812,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666860692641282,
+                "mean_encoded": 0.6666950300627995,
                 "mip_levels": 10,
-                "std_encoded": 0.23569997078857088,
+                "std_encoded": 0.2356886040864686,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.7449694016407782,
+                "mean_encoded": 0.5714823853671176,
                 "mip_levels": 10,
-                "std_encoded": 0.026430542607073823,
+                "std_encoded": 0.02554991355758869,
                 "width": 512
               }
             },
@@ -10685,10 +10853,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3571428656578064,
+              0.3167935907840729,
               0.0,
               0.0,
-              0.3571428656578064,
+              0.3167935907840729,
               0.0,
               0.0
             ]
@@ -10701,9 +10869,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.7053269147872925,
-              0.46498116850852966,
-              0.3290989398956299
+              0.612575888633728,
+              0.4779489040374756,
+              0.3153284788131714
             ],
             "construction": {
               "scale": 1.0786006450653076,
@@ -10727,7 +10895,7 @@
               ],
               "basket_strips": 5,
               "cells": [
-                19,
+                14,
                 3
               ],
               "craft": {
@@ -10739,10 +10907,26 @@
               "piece_roughness": 0.06080614775419235,
               "piece_tone": 0.29326531291007996,
               "piece_warmth": 0.05488727241754532,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.14633584022521973,
+                  0.1419457644224167,
+                  0.13755568861961365
+                ],
+                "joint_roughness": 0.8972706198692322,
+                "mottle_cells": [
+                  7,
+                  11
+                ]
+              },
               "tile_definition": 0.947628140449524
             },
-            "grain_frequency": 36.772735595703125,
-            "joint_width": 0.0027664366643875837,
+            "grain_frequency": 69.1553955078125,
+            "joint_width": 0.002063550055027008,
             "layers": {
               "bands": [
                 9,
@@ -10797,13 +10981,13 @@
               12,
               3
             ],
-            "period_m": 2.799999952316284,
+            "period_m": 3.1566295623779297,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
             ],
-            "relief_m": 0.0001208615503855981,
-            "roughness": 0.7538433074951172,
+            "relief_m": 0.00009680962102720514,
+            "roughness": 0.5743026733398438,
             "seed": 11920165914855096115,
             "surface": "Floor",
             "textile": {
@@ -10845,10 +11029,10 @@
             "weathering": 0.02310461737215519,
             "weave_mix": 0.012781023979187012,
             "wood": {
-              "bleach": 0.4258826971054077,
-              "clearcoat": 0.16369447112083435,
-              "coat_roughness": 0.3739622831344605,
-              "pore_fill": 0.2943335175514221,
+              "bleach": 0.12815144658088684,
+              "clearcoat": 0.8823258280754089,
+              "coat_roughness": 0.1128922998905182,
+              "pore_fill": 0.6885751485824585,
               "ring_contrast": 0.6528109908103943,
               "seed": 11920165914855096115,
               "stain_color": [
@@ -10856,7 +11040,7 @@
                 0.1818735897541046,
                 0.17975516617298126
               ],
-              "stain_strength": 0.0993318408727646
+              "stain_strength": 0.5031996965408325
             }
           },
           "seed": 4,
@@ -10877,8 +11061,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.21332308650016785,
-            "clearcoat_roughness": 0.2819024622440338,
+            "clearcoat": 0.1430281400680542,
+            "clearcoat_roughness": 0.3169260621070862,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -10890,23 +11074,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3222264358418943,
+                "mean_encoded": 0.3128450680411038,
                 "mip_levels": 10,
-                "std_encoded": 0.04526380281509427,
+                "std_encoded": 0.06950900885829171,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666605531779783,
+                "mean_encoded": 0.6666640238045094,
                 "mip_levels": 10,
-                "std_encoded": 0.23571202019519513,
+                "std_encoded": 0.2357095662444453,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.4747702654698773,
+                "mean_encoded": 0.708654097017043,
                 "mip_levels": 10,
-                "std_encoded": 0.027449382448622345,
+                "std_encoded": 0.02877895342164352,
                 "width": 512
               }
             },
@@ -10916,10 +11100,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.24947550892829895,
+              0.19771014153957367,
               0.0,
               0.0,
-              0.24947550892829895,
+              0.19771014153957367,
               0.0,
               0.0
             ]
@@ -10932,9 +11116,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.26397180557250977,
-              0.21710309386253357,
-              0.11221789568662643
+              0.3617104887962342,
+              0.2763640880584717,
+              0.16476090252399445
             ],
             "construction": {
               "scale": 0.7800668478012085,
@@ -10958,8 +11142,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                23,
-                4
+                48,
+                3
               ],
               "craft": {
                 "chevron_rise": 2.1682567596435547,
@@ -10970,10 +11154,26 @@
               "piece_roughness": 0.07303959131240845,
               "piece_tone": 0.2787109613418579,
               "piece_warmth": 0.01920603029429913,
+              "stock": {
+                "cut_jitter": [
+                  0.16086573898792267,
+                  0.36999762058258057
+                ],
+                "joint_color": [
+                  0.08399371057748795,
+                  0.08147390186786652,
+                  0.07895408570766449
+                ],
+                "joint_roughness": 0.7261325120925903,
+                "mottle_cells": [
+                  6,
+                  1
+                ]
+              },
               "tile_definition": 0.4589114189147949
             },
-            "grain_frequency": 38.01324844360352,
-            "joint_width": 0.001741082756780088,
+            "grain_frequency": 21.83747673034668,
+            "joint_width": 0.0014227761421352625,
             "layers": {
               "bands": [
                 5,
@@ -11028,13 +11228,13 @@
               9,
               4
             ],
-            "period_m": 4.00840950012207,
+            "period_m": 5.0579094886779785,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
             ],
-            "relief_m": 0.00006437450065277517,
-            "roughness": 0.4803708791732788,
+            "relief_m": 0.00008396369230467826,
+            "roughness": 0.713039755821228,
             "seed": 18417443712765155247,
             "surface": "Floor",
             "textile": {
@@ -11076,10 +11276,10 @@
             "weathering": 0.06022816523909569,
             "weave_mix": 0.9750287532806396,
             "wood": {
-              "bleach": 0.06622935831546783,
-              "clearcoat": 0.21332308650016785,
-              "coat_roughness": 0.2819024622440338,
-              "pore_fill": 0.515097975730896,
+              "bleach": 0.034301239997148514,
+              "clearcoat": 0.1430281400680542,
+              "coat_roughness": 0.3169260621070862,
+              "pore_fill": 0.5558634400367737,
               "ring_contrast": 0.6417605876922607,
               "seed": 18417443712765155247,
               "stain_color": [
@@ -11087,7 +11287,7 @@
                 0.28440573811531067,
                 0.27790433168411255
               ],
-              "stain_strength": 0.2201443761587143
+              "stain_strength": 0.04539972171187401
             }
           },
           "seed": 19,
@@ -11108,8 +11308,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.7654684782028198,
-            "clearcoat_roughness": 0.09224219620227814,
+            "clearcoat": 0.22611039876937863,
+            "clearcoat_roughness": 0.20844921469688416,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -11121,23 +11321,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.42690423703721786,
+                "mean_encoded": 0.505005605860864,
                 "mip_levels": 10,
-                "std_encoded": 0.10114474904709424,
+                "std_encoded": 0.10386587315678576,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666954040527284,
+                "mean_encoded": 0.6666756673575991,
                 "mip_levels": 10,
-                "std_encoded": 0.2356902204105038,
+                "std_encoded": 0.2357013329647803,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.2261522779295606,
+                "mean_encoded": 0.31766979741111506,
                 "mip_levels": 10,
-                "std_encoded": 0.01909937977225752,
+                "std_encoded": 0.02963859423112838,
                 "width": 512
               }
             },
@@ -11147,10 +11347,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.32280007004737854,
+              0.1860630214214325,
               0.0,
               0.0,
-              0.32280007004737854,
+              0.1860630214214325,
               0.0,
               0.0
             ]
@@ -11163,9 +11363,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.7419784665107727,
-              0.5846233367919922,
-              0.27881887555122375
+              0.6380304098129272,
+              0.4811498820781708,
+              0.3864379823207855
             ],
             "construction": {
               "scale": 0.7571841478347778,
@@ -11189,8 +11389,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                13,
-                2
+                22,
+                4
               ],
               "craft": {
                 "chevron_rise": 1.7648379802703855,
@@ -11201,10 +11401,26 @@
               "piece_roughness": 0.055293601006269455,
               "piece_tone": 0.31173497438430786,
               "piece_warmth": 0.012157578952610493,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.12307432293891908,
+                  0.1193820983171463,
+                  0.11568986624479294
+                ],
+                "joint_roughness": 0.8495647311210632,
+                "mottle_cells": [
+                  8,
+                  2
+                ]
+              },
               "tile_definition": 0.8357682228088379
             },
-            "grain_frequency": 24.774803161621097,
-            "joint_width": 0.002796524204313755,
+            "grain_frequency": 64.12882232666016,
+            "joint_width": 0.0018327555153518915,
             "layers": {
               "bands": [
                 4,
@@ -11259,13 +11475,13 @@
               5,
               5
             ],
-            "period_m": 3.0978927612304688,
+            "period_m": 5.374523162841797,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
             ],
-            "relief_m": 0.000028118951377109624,
-            "roughness": 0.22893790900707245,
+            "relief_m": 0.00008772944420343265,
+            "roughness": 0.3209594190120697,
             "seed": 3363738749664973461,
             "surface": "Floor",
             "textile": {
@@ -11330,10 +11546,10 @@
             "weathering": 0.040375255048274994,
             "weave_mix": 0.5931185483932495,
             "wood": {
-              "bleach": 0.07169898599386215,
-              "clearcoat": 0.7654684782028198,
-              "coat_roughness": 0.09224219620227814,
-              "pore_fill": 0.8613904118537903,
+              "bleach": 0.038961730897426605,
+              "clearcoat": 0.22611039876937863,
+              "coat_roughness": 0.20844921469688416,
+              "pore_fill": 0.43812763690948486,
               "ring_contrast": 0.6816077828407288,
               "seed": 3363738749664973461,
               "stain_color": [
@@ -11341,7 +11557,7 @@
                 0.167146697640419,
                 0.1325172334909439
               ],
-              "stain_strength": 0.6951958537101746
+              "stain_strength": 0.10263504832983016
             }
           },
           "seed": 53,
@@ -11362,8 +11578,8 @@
               0.9999999403953552,
               1.0
             ],
-            "clearcoat": 0.07677794247865677,
-            "clearcoat_roughness": 0.3876362442970276,
+            "clearcoat": 0.2921120524406433,
+            "clearcoat_roughness": 0.2431287169456482,
             "diffuse_transmission": 0.0,
             "double_sided": false,
             "emissive_linear_rgb": [
@@ -11375,23 +11591,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.62835180245089,
+                "mean_encoded": 0.42543651605849714,
                 "mip_levels": 10,
-                "std_encoded": 0.0775369449058172,
+                "std_encoded": 0.1627036589237113,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666599946863537,
+                "mean_encoded": 0.6666698929531115,
                 "mip_levels": 10,
-                "std_encoded": 0.2357147306006963,
+                "std_encoded": 0.2357054162144915,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.7335060119625832,
+                "mean_encoded": 0.5656009898411469,
                 "mip_levels": 10,
-                "std_encoded": 0.02991171258315587,
+                "std_encoded": 0.033059602884512033,
                 "width": 512
               }
             },
@@ -11401,10 +11617,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.26607948541641235,
+              0.1955128014087677,
               0.0,
               0.0,
-              0.26607948541641235,
+              0.1955128014087677,
               0.0,
               0.0
             ]
@@ -11417,9 +11633,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.4201174974441528,
-              0.33485621213912964,
-              0.16047640144824982
+              0.5884298086166382,
+              0.4985795021057129,
+              0.21653474867343905
             ],
             "construction": {
               "scale": 1.0944925546646118,
@@ -11443,8 +11659,8 @@
               ],
               "basket_strips": 4,
               "cells": [
-                20,
-                20
+                30,
+                30
               ],
               "craft": {
                 "chevron_rise": 1.4591110944747925,
@@ -11455,10 +11671,26 @@
               "piece_roughness": 0.07644768059253693,
               "piece_tone": 0.36537274718284607,
               "piece_warmth": 0.05748037248849869,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.0637444481253624,
+                  0.061832115054130554,
+                  0.05991978198289871
+                ],
+                "joint_roughness": 0.9226093292236328,
+                "mottle_cells": [
+                  5,
+                  10
+                ]
+              },
               "tile_definition": 0.598729133605957
             },
-            "grain_frequency": 34.22241973876953,
-            "joint_width": 0.002854967024177313,
+            "grain_frequency": 41.3027458190918,
+            "joint_width": 0.002092919545248151,
             "layers": {
               "bands": [
                 5,
@@ -11513,13 +11745,13 @@
               4,
               2
             ],
-            "period_m": 3.7582755088806152,
+            "period_m": 5.114754676818848,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
             ],
-            "relief_m": 0.00011206201452296229,
-            "roughness": 0.7416791319847107,
+            "relief_m": 0.000038649715861538425,
+            "roughness": 0.568082332611084,
             "seed": 16112947208351308751,
             "surface": "Floor",
             "textile": {
@@ -11561,10 +11793,10 @@
             "weathering": 0.0015470647485926747,
             "weave_mix": 0.939651370048523,
             "wood": {
-              "bleach": 0.42307472229003906,
-              "clearcoat": 0.07677794247865677,
-              "coat_roughness": 0.3876362442970276,
-              "pore_fill": 0.2530529797077179,
+              "bleach": 0.000010083050256071148,
+              "clearcoat": 0.2921120524406433,
+              "coat_roughness": 0.2431287169456482,
+              "pore_fill": 0.6974312663078308,
               "ring_contrast": 0.6728989481925964,
               "seed": 16112947208351308751,
               "stain_color": [
@@ -11572,7 +11804,7 @@
                 0.14582756161689758,
                 0.10450927168130876
               ],
-              "stain_strength": 0.0732518807053566
+              "stain_strength": 0.028054703027009964
             }
           },
           "seed": 101,
@@ -11589,18 +11821,307 @@
       "parameters": {
         "recipe.carpet.contrast": {
           "bins": [
-            25,
-            43,
-            52,
-            46,
-            44,
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.7193120121955872,
+          "median": 0.3889643549919128,
+          "min": 0.08079147338867188,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.brokenness": {
+          "bins": [
+            28,
+            31,
+            37,
             27,
+            37,
+            46,
+            25,
+            25
+          ],
+          "max": 0.9985473155975342,
+          "median": 0.5133858919143677,
+          "min": 0.004095315933227539,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.dye_cells.0": {
+          "bins": [
+            45,
+            22,
+            30,
+            25,
+            46,
+            15,
+            20,
+            53
+          ],
+          "max": 12.0,
+          "median": 7.0,
+          "min": 2.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.dye_cells.1": {
+          "bins": [
+            49,
+            17,
+            28,
+            25,
+            46,
+            31,
+            23,
+            37
+          ],
+          "max": 12.0,
+          "median": 7.0,
+          "min": 2.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.0": {
+          "bins": [
+            29,
+            32,
+            31,
+            34,
+            30,
+            36,
+            25,
+            39
+          ],
+          "max": 219.0,
+          "median": 160.0,
+          "min": 96.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.1": {
+          "bins": [
+            38,
+            29,
+            27,
+            27,
+            24,
+            44,
+            36,
+            31
+          ],
+          "max": 220.0,
+          "median": 162.0,
+          "min": 96.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.2": {
+          "bins": [
+            42,
+            24,
+            44,
+            19,
+            38,
+            19,
+            37,
+            33
+          ],
+          "max": 23.0,
+          "median": 12.0,
+          "min": 3.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.3": {
+          "bins": [
+            32,
+            33,
+            28,
+            30,
+            24,
+            33,
+            33,
+            43
+          ],
+          "max": 96.0,
+          "median": 67.0,
+          "min": 32.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.4": {
+          "bins": [
+            32,
+            36,
+            30,
+            37,
+            41,
+            30,
+            23,
+            27
+          ],
+          "max": 84.0,
+          "median": 48.0,
+          "min": 18.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.grain_cells.5": {
+          "bins": [
+            30,
+            42,
+            35,
+            26,
+            42,
+            34,
+            25,
+            22
+          ],
+          "max": 84.0,
+          "median": 50.0,
+          "min": 18.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.shear": {
+          "bins": [
+            89,
+            0,
+            0,
+            0,
+            75,
+            0,
+            0,
+            92
+          ],
+          "max": 1.0,
+          "median": 0.0,
+          "min": -1.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.warp": {
+          "bins": [
+            35,
+            42,
+            35,
+            30,
+            26,
+            22,
+            32,
+            34
+          ],
+          "max": 0.7988066077232361,
+          "median": 0.3638690114021301,
+          "min": 0.002529239747673273,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.0": {
+          "bins": [
+            160,
+            56,
+            0,
+            1,
+            8,
+            15,
+            6,
+            10
+          ],
+          "max": 0.9045397043228148,
+          "median": 0.08594192564487457,
+          "min": 0.00024221724015660584,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.1": {
+          "bins": [
+            167,
+            42,
+            3,
+            10,
+            13,
+            6,
+            10,
+            5
+          ],
+          "max": 0.91549152135849,
+          "median": 0.08704036474227905,
+          "min": 0.00016140595835167917,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.2": {
+          "bins": [
+            165,
+            40,
+            0,
+            7,
+            15,
+            16,
+            8,
+            5
+          ],
+          "max": 0.939898669719696,
+          "median": 0.08893086761236191,
+          "min": 0.0009654333698563278,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.3": {
+          "bins": [
+            176,
+            39,
+            1,
+            7,
+            10,
+            11,
+            8,
+            4
+          ],
+          "max": 0.9772226810455322,
+          "median": 0.07922565937042236,
+          "min": 0.0017712711123749614,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.4": {
+          "bins": [
+            163,
+            53,
+            1,
+            3,
+            11,
             12,
+            6,
             7
           ],
-          "max": 0.36798980832099915,
-          "median": 0.16965043544769287,
-          "min": 0.0408194437623024,
+          "max": 0.8738762736320496,
+          "median": 0.08072219789028168,
+          "min": 0.0006077560246922076,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.carpet.dye.weights.5": {
+          "bins": [
+            170,
+            46,
+            0,
+            6,
+            12,
+            9,
+            11,
+            2
+          ],
+          "max": 0.9326221346855164,
+          "median": 0.08307662606239319,
+          "min": 0.0019180403323844075,
           "present": 256,
           "type": "numeric"
         },
@@ -11640,171 +12161,171 @@
         },
         "recipe.carpet.line_width": {
           "bins": [
-            26,
-            20,
-            54,
+            30,
+            30,
+            36,
+            36,
             31,
-            44,
-            44,
-            15,
-            22
+            31,
+            31,
+            31
           ],
-          "max": 0.2936747670173645,
-          "median": 0.17396308481693268,
-          "min": 0.057558756321668625,
+          "max": 0.3391227126121521,
+          "median": 0.18511781096458435,
+          "min": 0.03620082512497902,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.0.0": {
           "bins": [
-            34,
-            33,
-            47,
-            52,
-            41,
+            35,
+            39,
+            43,
+            37,
+            43,
             32,
-            12,
-            5
+            21,
+            6
           ],
-          "max": 0.5945799350738525,
-          "median": 0.3303070664405823,
-          "min": 0.14108745753765106,
+          "max": 0.6580279469490051,
+          "median": 0.33448147773742676,
+          "min": 0.11403661966323853,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.0.1": {
           "bins": [
-            34,
-            31,
+            38,
+            43,
             40,
-            48,
-            41,
             35,
+            38,
+            38,
             18,
-            9
+            6
           ],
-          "max": 0.5651222467422485,
-          "median": 0.3294222354888916,
-          "min": 0.14267084002494812,
+          "max": 0.665864884853363,
+          "median": 0.3331693410873413,
+          "min": 0.11703657358884811,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.0.2": {
           "bins": [
-            39,
-            28,
-            45,
+            41,
+            43,
+            47,
             42,
-            36,
-            34,
-            21,
-            11
+            41,
+            22,
+            16,
+            4
           ],
-          "max": 0.5605131983757019,
-          "median": 0.3170040547847748,
-          "min": 0.14190812408924103,
+          "max": 0.6948765516281128,
+          "median": 0.31947416067123413,
+          "min": 0.11788182705640791,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.1.0": {
           "bins": [
-            43,
-            30,
-            26,
-            33,
-            30,
-            32,
-            30,
-            32
+            5,
+            20,
+            25,
+            49,
+            45,
+            50,
+            42,
+            20
           ],
-          "max": 0.8494062423706055,
-          "median": 0.6587446331977844,
-          "min": 0.4800852835178375,
+          "max": 0.7499423027038574,
+          "median": 0.5324679017066956,
+          "min": 0.20577681064605713,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.1.1": {
           "bins": [
-            31,
-            40,
-            26,
-            37,
-            36,
-            36,
+            4,
+            18,
             27,
-            23
+            49,
+            41,
+            53,
+            47,
+            17
           ],
-          "max": 0.8619071841239929,
-          "median": 0.6471704840660095,
-          "min": 0.4471355080604553,
+          "max": 0.75557541847229,
+          "median": 0.5346933603286743,
+          "min": 0.1908968091011047,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.1.2": {
           "bins": [
-            26,
-            41,
-            32,
-            41,
+            4,
+            17,
+            29,
+            48,
+            47,
+            59,
             38,
-            35,
-            25,
-            18
+            14
           ],
-          "max": 0.8789011240005493,
-          "median": 0.639646053314209,
-          "min": 0.42736563086509705,
+          "max": 0.764606237411499,
+          "median": 0.5204867720603943,
+          "min": 0.18688395619392395,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.2.0": {
           "bins": [
+            37,
+            62,
+            45,
+            42,
+            23,
             25,
-            69,
-            65,
-            56,
-            28,
-            7,
-            3,
-            3
+            17,
+            5
           ],
-          "max": 0.3803574144840241,
-          "median": 0.1474762111902237,
-          "min": 0.04076133668422699,
+          "max": 0.4746242165565491,
+          "median": 0.17979907989501953,
+          "min": 0.03645328804850578,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.2.1": {
           "bins": [
+            42,
+            56,
+            47,
+            40,
+            27,
             23,
-            62,
-            62,
-            49,
-            38,
-            12,
-            6,
-            4
+            13,
+            8
           ],
-          "max": 0.35214072465896606,
-          "median": 0.1440521776676178,
-          "min": 0.04127206653356552,
+          "max": 0.4677189290523529,
+          "median": 0.1710372418165207,
+          "min": 0.037918031215667725,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.palette.2.2": {
           "bins": [
-            25,
-            63,
-            63,
-            47,
-            38,
-            10,
-            6,
-            4
+            53,
+            77,
+            52,
+            35,
+            22,
+            12,
+            4,
+            1
           ],
-          "max": 0.3534407615661621,
-          "median": 0.14132949709892273,
-          "min": 0.0415785051882267,
+          "max": 0.5766586661338806,
+          "median": 0.17204979062080383,
+          "min": 0.04121771454811096,
           "present": 256,
           "type": "numeric"
         },
@@ -11827,103 +12348,103 @@
         },
         "recipe.carpet.pile": {
           "bins": [
-            14,
-            34,
-            53,
-            46,
-            47,
-            31,
-            15,
-            16
+            40,
+            32,
+            32,
+            30,
+            26,
+            24,
+            38,
+            34
           ],
-          "max": 0.7111071348190308,
-          "median": 0.4096325635910034,
-          "min": 0.16037967801094055,
+          "max": 0.949072003364563,
+          "median": 0.5041469931602478,
+          "min": 0.10140683501958848,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.repeats.0": {
           "bins": [
-            15,
-            68,
-            70,
-            28,
-            49,
-            16,
-            5,
-            5
+            31,
+            25,
+            42,
+            22,
+            41,
+            38,
+            30,
+            27
           ],
           "max": 16.0,
-          "median": 7.0,
+          "median": 9.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.repeats.1": {
           "bins": [
-            7,
-            17,
-            67,
-            28,
-            57,
-            13,
-            37,
-            30
+            40,
+            33,
+            33,
+            15,
+            25,
+            38,
+            30,
+            42
           ],
           "max": 16.0,
-          "median": 10.0,
-          "min": 4.0,
+          "median": 9.0,
+          "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.0": {
           "bins": [
-            34,
-            33,
-            47,
-            52,
-            41,
+            35,
+            39,
+            43,
+            37,
+            43,
             32,
-            12,
-            5
+            21,
+            6
           ],
-          "max": 0.5945799350738525,
-          "median": 0.3303070664405823,
-          "min": 0.14108745753765106,
+          "max": 0.6580279469490051,
+          "median": 0.33448147773742676,
+          "min": 0.11403661966323853,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.1": {
           "bins": [
-            34,
-            31,
+            38,
+            43,
             40,
-            48,
-            41,
             35,
+            38,
+            38,
             18,
-            9
+            6
           ],
-          "max": 0.5651222467422485,
-          "median": 0.3294222354888916,
-          "min": 0.14267084002494812,
+          "max": 0.665864884853363,
+          "median": 0.3331693410873413,
+          "min": 0.11703657358884811,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.2": {
           "bins": [
-            39,
-            28,
-            45,
+            41,
+            43,
+            47,
             42,
-            36,
-            34,
-            21,
-            11
+            41,
+            22,
+            16,
+            4
           ],
-          "max": 0.5605131983757019,
-          "median": 0.3170040547847748,
-          "min": 0.14190812408924103,
+          "max": 0.6948765516281128,
+          "median": 0.31947416067123413,
+          "min": 0.11788182705640791,
           "present": 256,
           "type": "numeric"
         },
@@ -12150,35 +12671,35 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            1,
-            44,
-            75,
-            64,
+            86,
+            78,
             33,
-            19,
-            17,
+            26,
+            18,
+            9,
+            3,
             3
           ],
-          "max": 10.0,
-          "median": 6.0,
-          "min": 3.0,
+          "max": 20.0,
+          "median": 5.0,
+          "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            14,
-            57,
-            75,
-            41,
-            39,
+            81,
+            90,
+            36,
             21,
-            6,
+            14,
+            4,
+            7,
             3
           ],
-          "max": 10.0,
-          "median": 5.0,
-          "min": 3.0,
+          "max": 17.0,
+          "median": 4.0,
+          "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
@@ -12257,6 +12778,142 @@
           "present": 256,
           "type": "numeric"
         },
+        "recipe.flooring.stock.cut_jitter.0": {
+          "bins": [
+            256,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "max": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.cut_jitter.1": {
+          "bins": [
+            256,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "max": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.0": {
+          "bins": [
+            32,
+            27,
+            32,
+            42,
+            27,
+            33,
+            22,
+            41
+          ],
+          "max": 0.8174682855606079,
+          "median": 0.4593682587146759,
+          "min": 0.12292271107435226,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.1": {
+          "bins": [
+            32,
+            27,
+            32,
+            42,
+            27,
+            33,
+            22,
+            41
+          ],
+          "max": 0.7929442524909973,
+          "median": 0.4455872178077698,
+          "min": 0.11923503130674362,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.2": {
+          "bins": [
+            32,
+            27,
+            32,
+            42,
+            27,
+            33,
+            22,
+            41
+          ],
+          "max": 0.7684201598167419,
+          "median": 0.4318061769008637,
+          "min": 0.11554735153913498,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_roughness": {
+          "bins": [
+            36,
+            35,
+            18,
+            24,
+            31,
+            36,
+            37,
+            39
+          ],
+          "max": 0.9696136116981506,
+          "median": 0.8341771960258484,
+          "min": 0.6502090096473694,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.0": {
+          "bins": [
+            53,
+            26,
+            24,
+            21,
+            41,
+            21,
+            24,
+            46
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.1": {
+          "bins": [
+            39,
+            23,
+            29,
+            23,
+            44,
+            22,
+            21,
+            55
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
         "recipe.flooring.tile_definition": {
           "bins": [
             88,
@@ -12293,18 +12950,18 @@
         },
         "recipe.joint_width": {
           "bins": [
-            44,
-            21,
-            26,
-            36,
-            29,
+            38,
+            34,
+            24,
+            35,
             32,
-            29,
-            39
+            37,
+            25,
+            31
           ],
-          "max": 0.0034966026432812214,
-          "median": 0.0022617403883486986,
-          "min": 0.0010063443332910538,
+          "max": 0.005958649329841137,
+          "median": 0.003473704680800438,
+          "min": 0.0010263363365083933,
           "present": 256,
           "type": "numeric"
         },
@@ -12837,18 +13494,18 @@
         },
         "recipe.period_m": {
           "bins": [
-            34,
-            28,
-            32,
-            27,
-            22,
-            37,
+            41,
             35,
-            41
+            28,
+            31,
+            25,
+            35,
+            26,
+            35
           ],
-          "max": 4.190695762634277,
-          "median": 3.5586042404174805,
-          "min": 2.8013763427734375,
+          "max": 5.386226177215576,
+          "median": 3.762473583221435,
+          "min": 2.4102816581726074,
           "present": 256,
           "type": "numeric"
         },
@@ -12888,35 +13545,35 @@
         },
         "recipe.relief_m": {
           "bins": [
-            24,
-            15,
-            58,
-            53,
-            51,
-            14,
-            17,
-            24
+            34,
+            27,
+            32,
+            30,
+            37,
+            31,
+            22,
+            43
           ],
-          "max": 0.000538616965059191,
-          "median": 0.0003138831234537065,
-          "min": 0.00012924559996463358,
+          "max": 0.000643995008431375,
+          "median": 0.0004036970785818994,
+          "min": 0.0001501984370406717,
           "present": 256,
           "type": "numeric"
         },
         "recipe.roughness": {
           "bins": [
             30,
-            40,
-            48,
-            81,
-            12,
-            14,
-            11,
-            20
+            29,
+            25,
+            39,
+            38,
+            26,
+            30,
+            39
           ],
-          "max": 0.9663265943527222,
-          "median": 0.8967266082763672,
-          "min": 0.852533221244812,
+          "max": 0.9789419174194336,
+          "median": 0.902240514755249,
+          "min": 0.8201707005500793,
           "present": 256,
           "type": "numeric"
         },
@@ -13712,23 +14369,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.43724729251599287,
+                "mean_encoded": 0.2999985539038659,
                 "mip_levels": 10,
-                "std_encoded": 0.01438817325016028,
+                "std_encoded": 0.02198381107757834,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666648814880776,
+                "mean_encoded": 0.6666639091142648,
                 "mip_levels": 10,
-                "std_encoded": 0.2357103785367674,
+                "std_encoded": 0.23570967571239423,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9030195946884328,
+                "mean_encoded": 0.9088477639699186,
                 "mip_levels": 10,
-                "std_encoded": 0.03096880021794411,
+                "std_encoded": 0.0286479979176802,
                 "width": 512
               }
             },
@@ -13738,10 +14395,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.31099069118499756,
+              0.21039359271526337,
               0.0,
               0.0,
-              0.31099069118499756,
+              0.21039359271526337,
               0.0,
               0.0
             ]
@@ -13753,39 +14410,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.108441524207592,
+              "contrast": 0.4795939922332764,
+              "dye": {
+                "brokenness": 0.6689203977584839,
+                "dye_cells": [
+                  5,
+                  8
+                ],
+                "grain_cells": [
+                  215,
+                  176,
+                  13,
+                  74,
+                  38,
+                  81
+                ],
+                "shear": -1,
+                "warp": 0.1968283653259277,
+                "weights": [
+                  0.11335086077451706,
+                  0.17413948476314545,
+                  0.06453929841518402,
+                  0.0503937192261219,
+                  0.4453006088733673,
+                  0.15227602422237396
+                ]
+              },
               "edge_variation": 0.0058328695595264435,
               "heather": 0.11523817479610445,
-              "line_width": 0.18300046026706696,
+              "line_width": 0.12153969705104828,
               "palette": [
                 [
-                  0.44034284353256226,
-                  0.4253391623497009,
-                  0.41633692383766174
+                  0.2820473313331604,
+                  0.2760840058326721,
+                  0.2571036219596863
                 ],
                 [
-                  0.7375808954238892,
-                  0.7586246132850647,
-                  0.7712509632110596
+                  0.4368916451931,
+                  0.4324225783348083,
+                  0.41819822788238525
                 ],
                 [
-                  0.14269350469112396,
-                  0.13783155381679535,
-                  0.134914368391037
+                  0.2144726663827896,
+                  0.20993807911872864,
+                  0.19550512731075287
                 ]
               ],
               "pattern": 0,
-              "pile": 0.3606033325195313,
+              "pile": 0.8904047012329102,
               "repeats": [
-                6,
-                8
+                9,
+                4
               ]
             },
             "coating": null,
             "color": [
-              0.44034284353256226,
-              0.4253391623497009,
-              0.41633692383766174
+              0.2820473313331604,
+              0.2760840058326721,
+              0.2571036219596863
             ],
             "construction": {
               "scale": 1.4026905298233032,
@@ -13809,7 +14491,7 @@
               ],
               "basket_strips": 4,
               "cells": [
-                7,
+                14,
                 5
               ],
               "layout": "Straight",
@@ -13817,10 +14499,26 @@
               "piece_roughness": 0.08991995453834534,
               "piece_tone": 0.24232688546180725,
               "piece_warmth": 0.04897297918796539,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.6059107184410095,
+                  0.5877333879470825,
+                  0.5695560574531555
+                ],
+                "joint_roughness": 0.8817418813705444,
+                "mottle_cells": [
+                  1,
+                  10
+                ]
+              },
               "tile_definition": 0.0
             },
             "grain_frequency": 51.736122131347656,
-            "joint_width": 0.003271114081144333,
+            "joint_width": 0.0013657526578754189,
             "layers": {
               "bands": [
                 2,
@@ -13875,13 +14573,13 @@
               13,
               2
             ],
-            "period_m": 3.2155303955078125,
+            "period_m": 4.752996444702148,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
             ],
-            "relief_m": 0.00028787829796783626,
-            "roughness": 0.9117327928543092,
+            "relief_m": 0.0002696623560041189,
+            "roughness": 0.9154009819030762,
             "seed": 18035940476790391229,
             "surface": "Floor",
             "textile": {
@@ -13968,23 +14666,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.35026582705415804,
+                "mean_encoded": 0.4676401823945775,
                 "mip_levels": 10,
-                "std_encoded": 0.042183775608183954,
+                "std_encoded": 0.0658833078555068,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666673099293425,
+                "mean_encoded": 0.6666690502291405,
                 "mip_levels": 10,
-                "std_encoded": 0.2357077786198634,
+                "std_encoded": 0.2357103006308752,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9005128000398398,
+                "mean_encoded": 0.9344793431981792,
                 "mip_levels": 10,
-                "std_encoded": 0.022008730510094977,
+                "std_encoded": 0.02342373415280417,
                 "width": 512
               }
             },
@@ -13994,10 +14692,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.2489149421453476,
+              0.3521534204483032,
               0.0,
               0.0,
-              0.2489149421453476,
+              0.3521534204483032,
               0.0,
               0.0
             ]
@@ -14009,39 +14707,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.20526380836963656,
+              "contrast": 0.46622681617736816,
+              "dye": {
+                "brokenness": 0.7820886373519897,
+                "dye_cells": [
+                  3,
+                  10
+                ],
+                "grain_cells": [
+                  118,
+                  178,
+                  11,
+                  91,
+                  27,
+                  73
+                ],
+                "shear": -1,
+                "warp": 0.4777691066265106,
+                "weights": [
+                  0.04933700338006019,
+                  0.02636797726154327,
+                  0.0227303933352232,
+                  0.7848201990127563,
+                  0.06682977825403214,
+                  0.049914631992578506
+                ]
+              },
               "edge_variation": 0.021953316405415535,
               "heather": 0.11621014028787612,
-              "line_width": 0.19102327525615692,
+              "line_width": 0.09995967149734496,
               "palette": [
                 [
-                  0.28542858362197876,
-                  0.38989120721817017,
-                  0.31205421686172485
+                  0.5224452614784241,
+                  0.35993054509162903,
+                  0.48159486055374146
                 ],
                 [
-                  0.6808636784553528,
-                  0.6305339932441711,
-                  0.6003361940383911
+                  0.6154586672782898,
+                  0.49298062920570374,
+                  0.5846720337867737
                 ],
                 [
-                  0.12239401787519456,
-                  0.1671884059906006,
-                  0.13381129503250122
+                  0.16059932112693787,
+                  0.11064241081476212,
+                  0.14804193377494812
                 ]
               ],
               "pattern": 0,
-              "pile": 0.43286970257759094,
+              "pile": 0.19392052292823792,
               "repeats": [
-                8,
-                11
+                7,
+                4
               ]
             },
             "coating": null,
             "color": [
-              0.28542858362197876,
-              0.38989120721817017,
-              0.31205421686172485
+              0.5224452614784241,
+              0.35993054509162903,
+              0.48159486055374146
             ],
             "construction": {
               "scale": 0.9727993011474608,
@@ -14065,18 +14788,34 @@
               ],
               "basket_strips": 5,
               "cells": [
-                5,
-                9
+                3,
+                3
               ],
               "layout": "BrokenBond",
               "mottling": 0.040001194924116135,
               "piece_roughness": 0.05914103612303734,
               "piece_tone": 0.29378461837768555,
               "piece_warmth": 0.022920876741409305,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.574675440788269,
+                  0.5574352145195007,
+                  0.5401949286460876
+                ],
+                "joint_roughness": 0.9128177165985109,
+                "mottle_cells": [
+                  4,
+                  2
+                ]
+              },
               "tile_definition": 0.0
             },
             "grain_frequency": 53.482391357421875,
-            "joint_width": 0.0032026395201683044,
+            "joint_width": 0.005256781354546547,
             "layers": {
               "bands": [
                 1,
@@ -14131,13 +14870,13 @@
               5,
               4
             ],
-            "period_m": 4.017436504364014,
+            "period_m": 2.8396713733673096,
             "phase": [
               0.511915922164917,
               0.9297031164169312
             ],
-            "relief_m": 0.0003078654408454895,
-            "roughness": 0.9050462245941162,
+            "relief_m": 0.000393786933273077,
+            "roughness": 0.9436832666397096,
             "seed": 2640584430712585208,
             "surface": "Floor",
             "textile": {
@@ -14224,23 +14963,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.34730070525286943,
+                "mean_encoded": 0.4806431240524059,
                 "mip_levels": 10,
-                "std_encoded": 0.07126843901018608,
+                "std_encoded": 0.027920156931256747,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666700924144063,
+                "mean_encoded": 0.666669404272939,
                 "mip_levels": 10,
-                "std_encoded": 0.23570752896072608,
+                "std_encoded": 0.23570581710196983,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.8760405147845077,
+                "mean_encoded": 0.975295661482608,
                 "mip_levels": 10,
-                "std_encoded": 0.020542592312661066,
+                "std_encoded": 0.01811593492290099,
                 "width": 512
               }
             },
@@ -14250,10 +14989,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.27171504497528076,
+              0.3167935907840729,
               0.0,
               0.0,
-              0.27171504497528076,
+              0.3167935907840729,
               0.0,
               0.0
             ]
@@ -14265,39 +15004,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.24399547278881073,
+              "contrast": 0.5714133977890015,
+              "dye": {
+                "brokenness": 0.4890176057815552,
+                "dye_cells": [
+                  11,
+                  7
+                ],
+                "grain_cells": [
+                  120,
+                  185,
+                  17,
+                  85,
+                  34,
+                  54
+                ],
+                "shear": -1,
+                "warp": 0.595233142375946,
+                "weights": [
+                  0.09601343423128128,
+                  0.10248596221208572,
+                  0.05728035047650337,
+                  0.6427953839302063,
+                  0.05149766057729721,
+                  0.04992721229791641
+                ]
+              },
               "edge_variation": 0.018354687839746475,
               "heather": 0.13504523038864136,
-              "line_width": 0.17517247796058655,
+              "line_width": 0.14850987493991852,
               "palette": [
                 [
-                  0.29217857122421265,
-                  0.4137102961540222,
-                  0.2772330939769745
+                  0.4328417181968689,
+                  0.48323702812194824,
+                  0.48147594928741455
                 ],
                 [
-                  0.7465798854827881,
-                  0.7247759699821472,
-                  0.7116935849189758
+                  0.510773241519928,
+                  0.5527616143226624,
+                  0.5512943267822266
                 ],
                 [
-                  0.17933745682239532,
-                  0.253932923078537,
-                  0.17016401886940002
+                  0.3525680899620056,
+                  0.3936172127723694,
+                  0.3921827673912048
                 ]
               ],
               "pattern": 2,
-              "pile": 0.4327543079853058,
+              "pile": 0.6296596527099609,
               "repeats": [
-                6,
-                8
+                14,
+                10
               ]
             },
             "coating": null,
             "color": [
-              0.29217857122421265,
-              0.4137102961540222,
-              0.2772330939769745
+              0.4328417181968689,
+              0.48323702812194824,
+              0.48147594928741455
             ],
             "construction": {
               "scale": 1.0786006450653076,
@@ -14321,18 +15085,34 @@
               ],
               "basket_strips": 5,
               "cells": [
-                9,
-                9
+                12,
+                3
               ],
               "layout": "Straight",
               "mottling": 0.05244126915931702,
               "piece_roughness": 0.057465992867946625,
               "piece_tone": 0.20212259888648987,
               "piece_warmth": 0.0545378252863884,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.6451407074928284,
+                  0.6257864832878113,
+                  0.6064322590827942
+                ],
+                "joint_roughness": 0.8188016414642334,
+                "mottle_cells": [
+                  7,
+                  11
+                ]
+              },
               "tile_definition": 0.41589319705963135
             },
             "grain_frequency": 23.70928955078125,
-            "joint_width": 0.0027664366643875837,
+            "joint_width": 0.004908875562250614,
             "layers": {
               "bands": [
                 9,
@@ -14387,13 +15167,13 @@
               12,
               3
             ],
-            "period_m": 3.680326223373413,
+            "period_m": 3.1566295623779297,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
             ],
-            "relief_m": 0.0003640576032921672,
-            "roughness": 0.878846287727356,
+            "relief_m": 0.0001827032829169184,
+            "roughness": 0.9784212112426758,
             "seed": 11920165914855096115,
             "surface": "Floor",
             "textile": {
@@ -14480,23 +15260,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.30371193480581016,
+                "mean_encoded": 0.3004020990095017,
                 "mip_levels": 10,
-                "std_encoded": 0.0175243204868263,
+                "std_encoded": 0.015814580489765296,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666680429496014,
+                "mean_encoded": 0.6666689504984933,
                 "mip_levels": 10,
-                "std_encoded": 0.2357079055906781,
+                "std_encoded": 0.23570760194082127,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9006438461112652,
+                "mean_encoded": 0.8822141909216654,
                 "mip_levels": 10,
-                "std_encoded": 0.01914641814506893,
+                "std_encoded": 0.019590741105468396,
                 "width": 512
               }
             },
@@ -14506,10 +15286,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3025989532470703,
+              0.19771014153957367,
               0.0,
               0.0,
-              0.3025989532470703,
+              0.19771014153957367,
               0.0,
               0.0
             ]
@@ -14521,39 +15301,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.10288875550031662,
+              "contrast": 0.29624810814857483,
+              "dye": {
+                "brokenness": 0.12421345710754396,
+                "dye_cells": [
+                  7,
+                  5
+                ],
+                "grain_cells": [
+                  125,
+                  204,
+                  20,
+                  33,
+                  72,
+                  44
+                ],
+                "shear": 1,
+                "warp": 0.015287208370864391,
+                "weights": [
+                  0.02910436689853668,
+                  0.10441060364246368,
+                  0.1159580796957016,
+                  0.09942030161619186,
+                  0.028857164084911343,
+                  0.6222494840621948
+                ]
+              },
               "edge_variation": 0.0065756905823946,
               "heather": 0.1918124556541443,
-              "line_width": 0.136055588722229,
+              "line_width": 0.2556065022945404,
               "palette": [
                 [
-                  0.3048079013824463,
-                  0.29289060831069946,
-                  0.2857402265071869
+                  0.2893218994140625,
+                  0.2987809181213379,
+                  0.30114424228668213
                 ],
                 [
-                  0.492942214012146,
-                  0.5038169622421265,
-                  0.5103418231010437
+                  0.3524102568626404,
+                  0.3608920574188232,
+                  0.3630112409591675
                 ],
                 [
-                  0.18984462320804596,
-                  0.1824221312999725,
-                  0.17796863615512848
+                  0.14403708279132843,
+                  0.14874619245529175,
+                  0.14992275834083557
                 ]
               ],
               "pattern": 0,
-              "pile": 0.3150784373283386,
+              "pile": 0.755852997303009,
               "repeats": [
-                8,
-                13
+                3,
+                2
               ]
             },
             "coating": null,
             "color": [
-              0.3048079013824463,
-              0.29289060831069946,
-              0.2857402265071869
+              0.2893218994140625,
+              0.2987809181213379,
+              0.30114424228668213
             ],
             "construction": {
               "scale": 0.7800668478012085,
@@ -14577,18 +15382,34 @@
               ],
               "basket_strips": 3,
               "cells": [
-                6,
-                4
+                20,
+                17
               ],
               "layout": "Straight",
               "mottling": 0.0212909784168005,
               "piece_roughness": 0.05415083467960358,
               "piece_tone": 0.1877540946006775,
               "piece_warmth": 0.02263929694890976,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.3479829430580139,
+                  0.33754345774650574,
+                  0.32710397243499756
+                ],
+                "joint_roughness": 0.9041783213615416,
+                "mottle_cells": [
+                  9,
+                  11
+                ]
+              },
               "tile_definition": 0.7493340373039246
             },
             "grain_frequency": 58.4036865234375,
-            "joint_width": 0.001741082756780088,
+            "joint_width": 0.003363249823451042,
             "layers": {
               "bands": [
                 5,
@@ -14643,13 +15464,13 @@
               9,
               4
             ],
-            "period_m": 3.304704189300537,
+            "period_m": 5.0579094886779785,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
             ],
-            "relief_m": 0.00028346673934720457,
-            "roughness": 0.8990607857704163,
+            "relief_m": 0.0004741800657939166,
+            "roughness": 0.8837836980819702,
             "seed": 18417443712765155247,
             "surface": "Floor",
             "textile": {
@@ -14736,23 +15557,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.23909528645230135,
+                "mean_encoded": 0.31513056038436515,
                 "mip_levels": 10,
-                "std_encoded": 0.005012960274827801,
+                "std_encoded": 0.009522238532490152,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666647917304946,
+                "mean_encoded": 0.6666631362017474,
                 "mip_levels": 10,
-                "std_encoded": 0.2357090232639033,
+                "std_encoded": 0.2357102195611789,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9634496651505962,
+                "mean_encoded": 0.8990885416768933,
                 "mip_levels": 10,
-                "std_encoded": 0.021008600019285294,
+                "std_encoded": 0.02183589208243796,
                 "width": 512
               }
             },
@@ -14762,10 +15583,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.24824218451976776,
+              0.1860630214214325,
               0.0,
               0.0,
-              0.24824218451976776,
+              0.1860630214214325,
               0.0,
               0.0
             ]
@@ -14777,39 +15598,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.0408194437623024,
+              "contrast": 0.46874183416366577,
+              "dye": {
+                "brokenness": 0.5307937860488892,
+                "dye_cells": [
+                  3,
+                  3
+                ],
+                "grain_cells": [
+                  187,
+                  182,
+                  9,
+                  90,
+                  57,
+                  19
+                ],
+                "shear": -1,
+                "warp": 0.5032817721366882,
+                "weights": [
+                  0.5904729962348938,
+                  0.06293319910764694,
+                  0.14359432458877563,
+                  0.03605127707123757,
+                  0.03818855062127113,
+                  0.12875957787036896
+                ]
+              },
               "edge_variation": 0.009435104206204414,
               "heather": 0.05664895102381706,
-              "line_width": 0.2936747670173645,
+              "line_width": 0.1519731730222702,
               "palette": [
                 [
-                  0.2344438284635544,
-                  0.2334812581539154,
-                  0.23316749930381775
+                  0.31510138511657715,
+                  0.31370386481285095,
+                  0.2981829047203064
                 ],
                 [
-                  0.7068755626678467,
-                  0.6571339964866638,
-                  0.6272890567779541
+                  0.37285634875297546,
+                  0.3715968132019043,
+                  0.35760846734046936
                 ],
                 [
-                  0.08645284920930862,
-                  0.08609788864850998,
-                  0.08598218858242035
+                  0.17979907989501953,
+                  0.17900164425373075,
+                  0.17014527320861816
                 ]
               ],
               "pattern": 0,
-              "pile": 0.22549408674240112,
+              "pile": 0.5537505745887756,
               "repeats": [
-                16,
-                16
+                13,
+                11
               ]
             },
             "coating": null,
             "color": [
-              0.2344438284635544,
-              0.2334812581539154,
-              0.23316749930381775
+              0.31510138511657715,
+              0.31370386481285095,
+              0.2981829047203064
             ],
             "construction": {
               "scale": 0.7571841478347778,
@@ -14833,7 +15679,7 @@
               ],
               "basket_strips": 3,
               "cells": [
-                7,
+                12,
                 5
               ],
               "layout": "Straight",
@@ -14841,10 +15687,26 @@
               "piece_roughness": 0.06167297065258026,
               "piece_tone": 0.207413911819458,
               "piece_warmth": 0.019234057515859604,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.4593682587146759,
+                  0.4455872178077698,
+                  0.4318061769008637
+                ],
+                "joint_roughness": 0.662898063659668,
+                "mottle_cells": [
+                  8,
+                  2
+                ]
+              },
               "tile_definition": 0.0
             },
             "grain_frequency": 36.51171112060547,
-            "joint_width": 0.002796524204313755,
+            "joint_width": 0.004331889096647501,
             "layers": {
               "bands": [
                 4,
@@ -14899,13 +15761,13 @@
               5,
               5
             ],
-            "period_m": 4.028324127197266,
+            "period_m": 5.374523162841797,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
             ],
-            "relief_m": 0.00012924559996463358,
-            "roughness": 0.9663265943527222,
+            "relief_m": 0.00031921316985972226,
+            "roughness": 0.9001971483230591,
             "seed": 3363738749664973461,
             "surface": "Floor",
             "textile": {
@@ -15015,23 +15877,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.26948128993197273,
+                "mean_encoded": 0.1760867050268212,
                 "mip_levels": 10,
-                "std_encoded": 0.06750153092017716,
+                "std_encoded": 0.02668797716858069,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666677437576594,
+                "mean_encoded": 0.6666670207104651,
                 "mip_levels": 10,
-                "std_encoded": 0.23570793255624853,
+                "std_encoded": 0.2357074815301542,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.8805287529521425,
+                "mean_encoded": 0.9105061250693828,
                 "mip_levels": 10,
-                "std_encoded": 0.019994327028071433,
+                "std_encoded": 0.01980864212879677,
                 "width": 512
               }
             },
@@ -15041,10 +15903,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.2427380383014679,
+              0.1955128014087677,
               0.0,
               0.0,
-              0.2427380383014679,
+              0.1955128014087677,
               0.0,
               0.0
             ]
@@ -15056,39 +15918,64 @@
           "name": "FloorCarpet",
           "recipe": {
             "carpet": {
-              "contrast": 0.25046518445014954,
+              "contrast": 0.20687203109264377,
+              "dye": {
+                "brokenness": 0.322956919670105,
+                "dye_cells": [
+                  9,
+                  5
+                ],
+                "grain_cells": [
+                  120,
+                  142,
+                  8,
+                  48,
+                  52,
+                  70
+                ],
+                "shear": 1,
+                "warp": 0.20864200592041016,
+                "weights": [
+                  0.0358382984995842,
+                  0.6239856481552124,
+                  0.042368266731500626,
+                  0.17754720151424408,
+                  0.1180138736963272,
+                  0.0022466247901320457
+                ]
+              },
               "edge_variation": 0.0211812611669302,
               "heather": 0.15235653519630432,
-              "line_width": 0.1897194981575012,
+              "line_width": 0.3214205801486969,
               "palette": [
                 [
-                  0.2412206828594208,
-                  0.30060112476348877,
-                  0.18543894588947296
+                  0.13379335403442383,
+                  0.12936989963054657,
+                  0.13157816231250763
                 ],
                 [
-                  0.738384485244751,
-                  0.6967512369155884,
-                  0.6717712879180908
+                  0.5388916730880737,
+                  0.5368069410324097,
+                  0.5378476977348328
                 ],
                 [
-                  0.10934743285179138,
-                  0.1362650990486145,
-                  0.08406108617782593
+                  0.07662928849458694,
+                  0.07409577816724777,
+                  0.07536055147647858
                 ]
               ],
               "pattern": 2,
-              "pile": 0.4812620282173157,
+              "pile": 0.8930467367172241,
               "repeats": [
                 7,
-                7
+                15
               ]
             },
             "coating": null,
             "color": [
-              0.2412206828594208,
-              0.30060112476348877,
-              0.18543894588947296
+              0.13379335403442383,
+              0.12936989963054657,
+              0.13157816231250763
             ],
             "construction": {
               "scale": 1.0944925546646118,
@@ -15113,17 +16000,33 @@
               "basket_strips": 5,
               "cells": [
                 9,
-                5
+                4
               ],
               "layout": "BrokenBond",
               "mottling": 0.03604631498456001,
               "piece_roughness": 0.05534612387418747,
               "piece_tone": 0.24994394183158877,
               "piece_warmth": 0.05690491944551468,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.7597599029541016,
+                  0.736967146396637,
+                  0.7141743302345276
+                ],
+                "joint_roughness": 0.8149737119674683,
+                "mottle_cells": [
+                  9,
+                  2
+                ]
+              },
               "tile_definition": 0.46096596121788025
             },
             "grain_frequency": 18.952804565429688,
-            "joint_width": 0.002854967024177313,
+            "joint_width": 0.0014047209406271577,
             "layers": {
               "bands": [
                 5,
@@ -15178,13 +16081,13 @@
               4,
               2
             ],
-            "period_m": 4.1196675300598145,
+            "period_m": 5.114754676818848,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
             ],
-            "relief_m": 0.00034444505581632257,
-            "roughness": 0.8836084604263306,
+            "relief_m": 0.0003687553107738495,
+            "roughness": 0.9111535549163818,
             "seed": 16112947208351308751,
             "surface": "Floor",
             "textile": {
@@ -15254,52 +16157,52 @@
       "parameters": {
         "recipe.color.0": {
           "bins": [
-            24,
-            26,
-            32,
-            29,
-            34,
+            30,
+            36,
             41,
-            35,
-            35
+            31,
+            29,
+            41,
+            33,
+            15
           ],
-          "max": 0.8266503810882568,
-          "median": 0.546255350112915,
-          "min": 0.18081195652484897,
+          "max": 0.8147960901260376,
+          "median": 0.4649374485015869,
+          "min": 0.15984350442886353,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.1": {
           "bins": [
-            22,
+            36,
+            37,
+            34,
             32,
-            30,
-            32,
-            32,
-            41,
-            35,
-            32
+            31,
+            34,
+            36,
+            16
           ],
-          "max": 0.8380603790283203,
-          "median": 0.5383321642875671,
-          "min": 0.1807571202516556,
+          "max": 0.8051419854164124,
+          "median": 0.452938437461853,
+          "min": 0.1654088944196701,
           "present": 256,
           "type": "numeric"
         },
         "recipe.color.2": {
           "bins": [
-            24,
-            31,
-            32,
+            36,
+            33,
+            53,
+            29,
             34,
-            38,
             37,
-            41,
-            19
+            23,
+            11
           ],
-          "max": 0.8567819595336914,
-          "median": 0.537969172000885,
-          "min": 0.1772555112838745,
+          "max": 0.8374866247177124,
+          "median": 0.4343058466911316,
+          "min": 0.16660350561141968,
           "present": 256,
           "type": "numeric"
         },
@@ -15526,33 +16429,33 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            102,
-            70,
-            50,
-            11,
-            2,
-            12,
-            7,
-            2
+            104,
+            68,
+            38,
+            19,
+            21,
+            4,
+            1,
+            1
           ],
-          "max": 24.0,
-          "median": 6.0,
+          "max": 32.0,
+          "median": 7.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            124,
-            76,
-            30,
-            7,
-            0,
+            143,
+            57,
+            22,
             11,
-            6,
-            2
+            17,
+            4,
+            1,
+            1
           ],
-          "max": 24.0,
+          "max": 32.0,
           "median": 5.0,
           "min": 2.0,
           "present": 256,
@@ -15670,6 +16573,142 @@
           "present": 256,
           "type": "numeric"
         },
+        "recipe.flooring.stock.cut_jitter.0": {
+          "bins": [
+            222,
+            3,
+            4,
+            5,
+            4,
+            7,
+            4,
+            7
+          ],
+          "max": 0.18318207561969757,
+          "median": 0.0,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.cut_jitter.1": {
+          "bins": [
+            215,
+            2,
+            5,
+            9,
+            6,
+            5,
+            2,
+            12
+          ],
+          "max": 0.379550576210022,
+          "median": 0.0,
+          "min": 0.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.0": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.8192474842071533,
+          "median": 0.45792970061302185,
+          "min": 0.12086567282676695,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.1": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.7946701049804688,
+          "median": 0.4441918134689331,
+          "min": 0.11723970621824265,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_color.2": {
+          "bins": [
+            31,
+            36,
+            33,
+            35,
+            23,
+            36,
+            34,
+            28
+          ],
+          "max": 0.7700926065444946,
+          "median": 0.4304539263248443,
+          "min": 0.11361373215913773,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.joint_roughness": {
+          "bins": [
+            40,
+            32,
+            32,
+            30,
+            26,
+            24,
+            38,
+            34
+          ],
+          "max": 0.9696506857872008,
+          "median": 0.8021494746208191,
+          "min": 0.6505296230316162,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.0": {
+          "bins": [
+            47,
+            20,
+            22,
+            30,
+            56,
+            18,
+            23,
+            40
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.flooring.stock.mottle_cells.1": {
+          "bins": [
+            44,
+            24,
+            30,
+            22,
+            40,
+            22,
+            27,
+            47
+          ],
+          "max": 11.0,
+          "median": 6.0,
+          "min": 1.0,
+          "present": 256,
+          "type": "numeric"
+        },
         "recipe.flooring.tile_definition": {
           "bins": [
             34,
@@ -15706,18 +16745,18 @@
         },
         "recipe.joint_width": {
           "bins": [
-            44,
-            21,
-            26,
+            37,
+            29,
+            28,
             36,
-            29,
-            32,
-            29,
-            39
+            33,
+            31,
+            27,
+            35
           ],
-          "max": 0.0034966026432812214,
-          "median": 0.0022617403883486986,
-          "min": 0.0010063443332910538,
+          "max": 0.0058851223438978195,
+          "median": 0.003423471003770828,
+          "min": 0.0010023704962804914,
           "present": 256,
           "type": "numeric"
         },
@@ -15978,18 +17017,18 @@
         },
         "recipe.mineral.aggregate_radius": {
           "bins": [
-            36,
-            43,
-            43,
-            36,
-            46,
-            14,
-            17,
-            21
+            31,
+            25,
+            37,
+            39,
+            37,
+            35,
+            25,
+            27
           ],
-          "max": 0.422383189201355,
-          "median": 0.2577938139438629,
-          "min": 0.1467294991016388,
+          "max": 0.4477093517780304,
+          "median": 0.28215286135673523,
+          "min": 0.1241523176431656,
           "present": 256,
           "type": "numeric"
         },
@@ -16029,18 +17068,18 @@
         },
         "recipe.mineral.polish": {
           "bins": [
-            6,
-            4,
+            30,
+            29,
             25,
-            40,
-            44,
-            49,
-            53,
-            35
+            39,
+            38,
+            26,
+            30,
+            39
           ],
-          "max": 1.0,
-          "median": 0.6521456241607666,
-          "min": 0.005818665027618408,
+          "max": 0.9933867454528807,
+          "median": 0.5140030384063721,
+          "min": 0.001067042350769043,
           "present": 256,
           "type": "numeric"
         },
@@ -16165,35 +17204,35 @@
         },
         "recipe.mineral.vein_warp": {
           "bins": [
-            20,
-            27,
-            42,
-            39,
+            30,
+            30,
+            36,
+            36,
             31,
-            52,
-            29,
-            16
+            31,
+            31,
+            31
           ],
-          "max": 0.4005235731601715,
-          "median": 0.2463144212961197,
-          "min": 0.08928878605365753,
+          "max": 0.4188781976699829,
+          "median": 0.2219539135694504,
+          "min": 0.03153547644615173,
           "present": 256,
           "type": "numeric"
         },
         "recipe.mineral.vein_width": {
           "bins": [
-            6,
-            22,
-            42,
-            56,
-            56,
-            42,
-            21,
-            11
+            38,
+            31,
+            30,
+            29,
+            25,
+            33,
+            28,
+            42
           ],
-          "max": 0.029102258384227753,
-          "median": 0.017495861276984215,
-          "min": 0.005782413762062788,
+          "max": 0.02788698673248291,
+          "median": 0.015563810244202614,
+          "min": 0.00303284521214664,
           "present": 256,
           "type": "numeric"
         },
@@ -16250,18 +17289,18 @@
         },
         "recipe.period_m": {
           "bins": [
-            31,
-            44,
-            33,
-            33,
-            30,
-            24,
-            32,
-            29
+            19,
+            14,
+            17,
+            46,
+            42,
+            34,
+            41,
+            43
           ],
-          "max": 4.99467658996582,
-          "median": 2.7458248138427734,
-          "min": 0.9000402092933655,
+          "max": 5.386226177215576,
+          "median": 3.5833044052124023,
+          "min": 0.9034271240234376,
           "present": 256,
           "type": "numeric"
         },
@@ -16301,35 +17340,35 @@
         },
         "recipe.relief_m": {
           "bins": [
-            35,
-            53,
-            49,
+            42,
+            60,
+            47,
             44,
-            40,
-            25,
-            4,
-            6
+            23,
+            22,
+            10,
+            8
           ],
-          "max": 0.0002188362705055624,
-          "median": 0.00008971810893854126,
-          "min": 0.000019999999494757503,
+          "max": 0.00015156716108322144,
+          "median": 0.00005664858690579422,
+          "min": 9.961197974917012e-6,
           "present": 256,
           "type": "numeric"
         },
         "recipe.roughness": {
           "bins": [
-            35,
-            53,
-            49,
-            44,
-            40,
+            39,
+            30,
+            26,
+            38,
+            39,
             25,
-            4,
-            6
+            29,
+            30
           ],
-          "max": 0.8362178206443787,
-          "median": 0.4165838360786438,
-          "min": 0.1899999976158142,
+          "max": 0.8592957854270935,
+          "median": 0.5210055112838745,
+          "min": 0.20436471700668335,
           "present": 256,
           "type": "numeric"
         },
@@ -17125,23 +18164,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3980778463534549,
+                "mean_encoded": 0.3709917953596395,
                 "mip_levels": 10,
-                "std_encoded": 0.00805907550780148,
+                "std_encoded": 0.016735402240954777,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666664966259128,
+                "mean_encoded": 0.6666660433501205,
                 "mip_levels": 10,
-                "std_encoded": 0.2357088998557557,
+                "std_encoded": 0.2357081382639903,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.5641411725152881,
+                "mean_encoded": 0.46309353698034145,
                 "mip_levels": 10,
-                "std_encoded": 0.012979911333849164,
+                "std_encoded": 0.01319619172032658,
                 "width": 512
               }
             },
@@ -17151,10 +18190,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.6017071604728699,
+              0.5937072038650513,
               0.0,
               0.0,
-              0.6017071604728699,
+              0.5937072038650513,
               0.0,
               0.0
             ]
@@ -17167,9 +18206,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.4014713764190674,
-              0.39854365587234497,
-              0.3964942693710327
+              0.3853917121887207,
+              0.37724336981773376,
+              0.3513084650039673
             ],
             "construction": {
               "scale": 1.4026905298233032,
@@ -17205,10 +18244,26 @@
               "piece_roughness": 0.08991995453834534,
               "piece_tone": 0.24232688546180725,
               "piece_warmth": 0.04897297918796539,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.5570558905601501,
+                  0.54034423828125,
+                  0.5236325263977051
+                ],
+                "joint_roughness": 0.9475641250610352,
+                "mottle_cells": [
+                  1,
+                  10
+                ]
+              },
               "tile_definition": 0.9705170392990112
             },
             "grain_frequency": 51.736122131347656,
-            "joint_width": 0.003271114081144333,
+            "joint_width": 0.0013657526578754189,
             "layers": {
               "bands": [
                 2,
@@ -17239,11 +18294,11 @@
                 ]
               ],
               "aggregate_exposure": 0.23576878011226657,
-              "aggregate_radius": 0.28124719858169556,
+              "aggregate_radius": 0.2900308668613434,
               "binder_variation": 0.06677769124507904,
               "casting": null,
               "marble_mix": 0.18885573744773865,
-              "polish": 0.4198770523071289,
+              "polish": 0.5962562561035156,
               "porosity": 0.021945895627141,
               "vein_cells": [
                 4,
@@ -17255,21 +18310,21 @@
                 0.6643154621124268
               ],
               "vein_strength": 0.352719247341156,
-              "vein_warp": 0.13127592206001282,
-              "vein_width": 0.013453461229801178
+              "vein_warp": 0.14065730571746826,
+              "vein_width": 0.007223084568977356
             },
             "mineral_mix": 0.9659088850021362,
             "panel_count": [
               13,
               2
             ],
-            "period_m": 1.661937952041626,
+            "period_m": 1.684332013130188,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
             ],
-            "relief_m": 0.00013602458056993785,
-            "roughness": 0.5670799016952515,
+            "relief_m": 0.00003338930764584802,
+            "roughness": 0.466470867395401,
             "seed": 18035940476790391229,
             "surface": "Floor",
             "textile": {
@@ -17356,23 +18411,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.546654321010629,
+                "mean_encoded": 0.582317636528292,
                 "mip_levels": 10,
-                "std_encoded": 0.06940975956204874,
+                "std_encoded": 0.09518587988103286,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666737226099745,
+                "mean_encoded": 0.6666667314915875,
                 "mip_levels": 10,
-                "std_encoded": 0.2357263128862288,
+                "std_encoded": 0.2357420727065697,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.2472822600723745,
+                "mean_encoded": 0.3606237822891268,
                 "mip_levels": 10,
-                "std_encoded": 0.02383976500520159,
+                "std_encoded": 0.04279465220057067,
                 "width": 512
               }
             },
@@ -17382,10 +18437,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.6224363446235657,
+              0.3521534204483032,
               0.0,
               0.0,
-              0.6224363446235657,
+              0.3521534204483032,
               0.0,
               0.0
             ]
@@ -17398,9 +18453,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.5677616596221924,
-              0.5817192792892456,
-              0.5914896130561829
+              0.6703454256057739,
+              0.5215007066726685,
+              0.6329311728477478
             ],
             "construction": {
               "scale": 0.9727993011474608,
@@ -17424,8 +18479,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                4,
-                2
+                7,
+                4
               ],
               "craft": {
                 "chevron_rise": 1.1769280433654783,
@@ -17436,10 +18491,26 @@
               "piece_roughness": 0.05914103612303734,
               "piece_tone": 0.29378461837768555,
               "piece_warmth": 0.022920876741409305,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.5424355268478394,
+                  0.5261625051498413,
+                  0.5098893642425537
+                ],
+                "joint_roughness": 0.6853582859039307,
+                "mottle_cells": [
+                  4,
+                  2
+                ]
+              },
               "tile_definition": 0.6722966432571411
             },
             "grain_frequency": 53.482391357421875,
-            "joint_width": 0.0032026395201683044,
+            "joint_width": 0.005256781354546547,
             "layers": {
               "bands": [
                 1,
@@ -17470,11 +18541,11 @@
                 ]
               ],
               "aggregate_exposure": 0.22088712453842163,
-              "aggregate_radius": 0.27780666947364807,
+              "aggregate_radius": 0.2323101907968521,
               "binder_variation": 0.08864150196313858,
               "casting": null,
               "marble_mix": 0.32714906334877014,
-              "polish": 0.9073129296302797,
+              "polish": 0.7730203866958618,
               "porosity": 0.025714099407196045,
               "vein_cells": [
                 5,
@@ -17486,21 +18557,21 @@
                 0.616325855255127
               ],
               "vein_strength": 0.6029530167579651,
-              "vein_warp": 0.3595673441886902,
-              "vein_width": 0.027307920157909393
+              "vein_warp": 0.11306318640708923,
+              "vein_width": 0.007221600506454706
             },
             "mineral_mix": 0.024126529693603516,
             "panel_count": [
               5,
               4
             ],
-            "period_m": 1.6065900325775146,
+            "period_m": 2.8396713733673096,
             "phase": [
               0.511915922164917,
               0.9297031164169312
             ],
-            "relief_m": 0.00003853741509374231,
-            "roughness": 0.2502465844154358,
+            "relief_m": 0.00004167713632341474,
+            "roughness": 0.349806547164917,
             "seed": 2640584430712585208,
             "surface": "Floor",
             "textile": {
@@ -17587,23 +18658,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.6313099580659589,
+                "mean_encoded": 0.6250102572991528,
                 "mip_levels": 10,
-                "std_encoded": 0.034292906146520266,
+                "std_encoded": 0.03828614055060454,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666707556232119,
+                "mean_encoded": 0.6666851517421707,
                 "mip_levels": 10,
-                "std_encoded": 0.2357107991246612,
+                "std_encoded": 0.23569597909644455,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.35366397932593113,
+                "mean_encoded": 0.20944653679427705,
                 "mip_levels": 10,
-                "std_encoded": 0.02299099336360191,
+                "std_encoded": 0.04045525151335473,
                 "width": 512
               }
             },
@@ -17613,10 +18684,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.4240582287311554,
+              0.3167935907840729,
               0.0,
               0.0,
-              0.4240582287311554,
+              0.3167935907840729,
               0.0,
               0.0
             ]
@@ -17629,9 +18700,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.6227799654006958,
-              0.6258054971694946,
-              0.6279234886169434
+              0.5972697734832764,
+              0.6392692923545837,
+              0.6378015875816345
             ],
             "construction": {
               "scale": 1.0786006450653076,
@@ -17655,8 +18726,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                6,
-                6
+                12,
+                3
               ],
               "craft": {
                 "chevron_rise": 2.3170371055603027,
@@ -17667,10 +18738,26 @@
               "piece_roughness": 0.057465992867946625,
               "piece_tone": 0.20212259888648987,
               "piece_warmth": 0.0545378252863884,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.6574833393096924,
+                  0.6377588510513306,
+                  0.6180343627929688
+                ],
+                "joint_roughness": 0.8494012951850891,
+                "mottle_cells": [
+                  9,
+                  1
+                ]
+              },
               "tile_definition": 0.947628140449524
             },
             "grain_frequency": 23.70928955078125,
-            "joint_width": 0.0027664366643875837,
+            "joint_width": 0.0024762980174273252,
             "layers": {
               "bands": [
                 9,
@@ -17701,11 +18788,11 @@
                 ]
               ],
               "aggregate_exposure": 0.2313959151506424,
-              "aggregate_radius": 0.22635924816131592,
+              "aggregate_radius": 0.4021521210670471,
               "binder_variation": 0.08290532976388931,
               "casting": null,
               "marble_mix": 0.587594747543335,
-              "polish": 0.7409311532974243,
+              "polish": 0.9901323318481444,
               "porosity": 0.03498488664627075,
               "vein_cells": [
                 3,
@@ -17717,21 +18804,21 @@
                 0.5088397860527039
               ],
               "vein_strength": 0.6160233020782471,
-              "vein_warp": 0.3000134229660034,
-              "vein_width": 0.01745494082570076
+              "vein_warp": 0.1751437783241272,
+              "vein_width": 0.017399197444319725
             },
             "mineral_mix": 0.9460369348526,
             "panel_count": [
               12,
               3
             ],
-            "period_m": 2.3581666946411133,
+            "period_m": 3.1566295623779297,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
             ],
-            "relief_m": 0.00007181376713560894,
-            "roughness": 0.3583947420120239,
+            "relief_m": 0.000010382640539319254,
+            "roughness": 0.20651262998580933,
             "seed": 11920165914855096115,
             "surface": "Floor",
             "textile": {
@@ -17818,23 +18905,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.7880841972013105,
+                "mean_encoded": 0.4127612992847216,
                 "mip_levels": 10,
-                "std_encoded": 0.04660379442328242,
+                "std_encoded": 0.026466825934843896,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666680130304076,
+                "mean_encoded": 0.6666715385087943,
                 "mip_levels": 10,
-                "std_encoded": 0.23570674551889,
+                "std_encoded": 0.2357062610050207,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.747062219356903,
+                "mean_encoded": 0.6056303585229554,
                 "mip_levels": 10,
-                "std_encoded": 0.020599606866315408,
+                "std_encoded": 0.03180519078660406,
                 "width": 512
               }
             },
@@ -17844,10 +18931,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.24947550892829895,
+              0.19771014153957367,
               0.0,
               0.0,
-              0.24947550892829895,
+              0.19771014153957367,
               0.0,
               0.0
             ]
@@ -17860,9 +18947,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.7800909876823425,
-              0.7878453135490417,
-              0.7932732701301575
+              0.39431795477867126,
+              0.40720969438552856,
+              0.4104306697845459
             ],
             "construction": {
               "scale": 0.7800668478012085,
@@ -17886,8 +18973,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                8,
-                5
+                20,
+                17
               ],
               "craft": {
                 "chevron_rise": 2.1682567596435547,
@@ -17898,10 +18985,26 @@
               "piece_roughness": 0.05415083467960358,
               "piece_tone": 0.1877540946006775,
               "piece_warmth": 0.02263929694890976,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.356521338224411,
+                  0.3458257019519806,
+                  0.33513006567955017
+                ],
+                "joint_roughness": 0.8969093561172485,
+                "mottle_cells": [
+                  6,
+                  1
+                ]
+              },
               "tile_definition": 0.4589114189147949
             },
             "grain_frequency": 58.4036865234375,
-            "joint_width": 0.001741082756780088,
+            "joint_width": 0.0033069406636059284,
             "layers": {
               "bands": [
                 5,
@@ -17932,11 +19035,11 @@
                 ]
               ],
               "aggregate_exposure": 0.1478724181652069,
-              "aggregate_radius": 0.19856148958206177,
+              "aggregate_radius": 0.1461699604988098,
               "binder_variation": 0.05978550761938095,
               "casting": null,
               "marble_mix": 0.09797300398349762,
-              "polish": 0.14833948016166687,
+              "polish": 0.39864790439605713,
               "porosity": 0.04610361531376839,
               "vein_cells": [
                 5,
@@ -17948,21 +19051,21 @@
                 0.13457171618938446
               ],
               "vein_strength": 0.4145565032958984,
-              "vein_warp": 0.12672805786132812,
-              "vein_width": 0.00943318009376526
+              "vein_warp": 0.31208696961402893,
+              "vein_width": 0.0035988716408610344
             },
             "mineral_mix": 0.9020907878875732,
             "panel_count": [
               9,
               4
             ],
-            "period_m": 4.00840950012207,
+            "period_m": 5.0579094886779785,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
             ],
-            "relief_m": 0.0001903320953715593,
-            "roughness": 0.7435793280601501,
+            "relief_m": 0.00008112710202112794,
+            "roughness": 0.5968923568725586,
             "seed": 18417443712765155247,
             "surface": "Floor",
             "textile": {
@@ -18049,23 +19152,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3406928118562605,
+                "mean_encoded": 0.43037922678717505,
                 "mip_levels": 10,
-                "std_encoded": 0.024383822147790408,
+                "std_encoded": 0.025653149835441955,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666764751758428,
+                "mean_encoded": 0.666671159532334,
                 "mip_levels": 10,
-                "std_encoded": 0.23570271703768528,
+                "std_encoded": 0.2357078984600417,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.3168492335907802,
+                "mean_encoded": 0.5316981745663031,
                 "mip_levels": 10,
-                "std_encoded": 0.021555417954983648,
+                "std_encoded": 0.03072530487348793,
                 "width": 512
               }
             },
@@ -18075,10 +19178,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.32280007004737854,
+              0.1860630214214325,
               0.0,
               0.0,
-              0.32280007004737854,
+              0.1860630214214325,
               0.0,
               0.0
             ]
@@ -18091,9 +19194,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.34252482652664185,
-              0.33583128452301025,
-              0.3311457931995392
+              0.4290212392807007,
+              0.4271184802055359,
+              0.4059861898422241
             ],
             "construction": {
               "scale": 0.7571841478347778,
@@ -18117,8 +19220,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                5,
-                4
+                12,
+                5
               ],
               "craft": {
                 "chevron_rise": 1.7648379802703855,
@@ -18129,10 +19232,26 @@
               "piece_roughness": 0.06167297065258026,
               "piece_tone": 0.207413911819458,
               "piece_warmth": 0.019234057515859604,
+              "stock": {
+                "cut_jitter": [
+                  0.13327555358409882,
+                  0.25211578607559204
+                ],
+                "joint_color": [
+                  0.5451863408088684,
+                  0.5288307666778564,
+                  0.5124751329421997
+                ],
+                "joint_roughness": 0.8208237290382385,
+                "mottle_cells": [
+                  1,
+                  9
+                ]
+              },
               "tile_definition": 0.8357682228088379
             },
             "grain_frequency": 36.51171112060547,
-            "joint_width": 0.002796524204313755,
+            "joint_width": 0.004872601944953203,
             "layers": {
               "bands": [
                 4,
@@ -18163,11 +19282,11 @@
                 ]
               ],
               "aggregate_exposure": 0.1170925870537758,
-              "aggregate_radius": 0.29602402448654175,
+              "aggregate_radius": 0.3749592006206513,
               "binder_variation": 0.05598108470439911,
               "casting": null,
               "marble_mix": 0.20789489150047305,
-              "polish": 0.8053516149520874,
+              "polish": 0.5012322664260864,
               "porosity": 0.003654452040791511,
               "vein_cells": [
                 10,
@@ -18179,21 +19298,21 @@
                 0.22539755702018735
               ],
               "vein_strength": 0.38541460037231445,
-              "vein_warp": 0.18647798895835876,
-              "vein_width": 0.014336288906633854
+              "vein_warp": 0.1795722395181656,
+              "vein_width": 0.01931293122470379
             },
             "mineral_mix": 0.5268648862838745,
             "panel_count": [
               5,
               5
             ],
-            "period_m": 3.0978927612304688,
+            "period_m": 5.374523162841797,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
             ],
-            "relief_m": 0.00005892967601539567,
-            "roughness": 0.31652146577835083,
+            "relief_m": 0.00004588593583321199,
+            "roughness": 0.5291867256164551,
             "seed": 3363738749664973461,
             "surface": "Floor",
             "textile": {
@@ -18303,23 +19422,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.4870945749724926,
+                "mean_encoded": 0.19427684210524587,
                 "mip_levels": 10,
-                "std_encoded": 0.04435678411471549,
+                "std_encoded": 0.020706529337911863,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666671453737747,
+                "mean_encoded": 0.6666642132927395,
                 "mip_levels": 10,
-                "std_encoded": 0.23570984185983876,
+                "std_encoded": 0.23570943226243135,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.29218399945244294,
+                "mean_encoded": 0.48553819843596013,
                 "mip_levels": 10,
-                "std_encoded": 0.022327677839350312,
+                "std_encoded": 0.02408577183425397,
                 "width": 512
               }
             },
@@ -18329,10 +19448,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.26607948541641235,
+              0.1955128014087677,
               0.0,
               0.0,
-              0.26607948541641235,
+              0.1955128014087677,
               0.0,
               0.0
             ]
@@ -18345,9 +19464,9 @@
           "recipe": {
             "coating": null,
             "color": [
-              0.5152117609977722,
-              0.48924845457077026,
-              0.4710741639137268
+              0.18847393989562988,
+              0.18224261701107025,
+              0.1853533834218979
             ],
             "construction": {
               "scale": 1.0944925546646118,
@@ -18371,8 +19490,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                8,
-                5
+                10,
+                6
               ],
               "craft": {
                 "chevron_rise": 1.4591110944747925,
@@ -18383,10 +19502,26 @@
               "piece_roughness": 0.05534612387418747,
               "piece_tone": 0.24994394183158877,
               "piece_warmth": 0.05690491944551468,
+              "stock": {
+                "cut_jitter": [
+                  0.0,
+                  0.0
+                ],
+                "joint_color": [
+                  0.2587662637233734,
+                  0.25100329518318176,
+                  0.24324028193950653
+                ],
+                "joint_roughness": 0.9485588073730468,
+                "mottle_cells": [
+                  9,
+                  2
+                ]
+              },
               "tile_definition": 0.5939383506774902
             },
             "grain_frequency": 18.952804565429688,
-            "joint_width": 0.002854967024177313,
+            "joint_width": 0.0014047209406271577,
             "layers": {
               "bands": [
                 5,
@@ -18417,11 +19552,11 @@
                 ]
               ],
               "aggregate_exposure": 0.11319012939929962,
-              "aggregate_radius": 0.21554772555828097,
+              "aggregate_radius": 0.25147387385368347,
               "binder_variation": 0.10299326479434968,
               "casting": null,
               "marble_mix": 0.6286967992782593,
-              "polish": 0.8410853147506714,
+              "polish": 0.5697095394134521,
               "porosity": 0.02452312409877777,
               "vein_cells": [
                 3,
@@ -18433,21 +19568,21 @@
                 0.20514331758022308
               ],
               "vein_strength": 0.6189893484115601,
-              "vein_warp": 0.3567731976509094,
-              "vein_width": 0.023076944053173065
+              "vein_warp": 0.3962426781654358,
+              "vein_width": 0.0256568044424057
             },
             "mineral_mix": 0.4171832799911499,
             "panel_count": [
               4,
               2
             ],
-            "period_m": 3.7582755088806152,
+            "period_m": 5.114754676818848,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
             ],
-            "relief_m": 0.000051782935770461336,
-            "roughness": 0.2932945489883423,
+            "relief_m": 0.00005053951099398546,
+            "roughness": 0.48399171233177185,
             "seed": 16112947208351308751,
             "surface": "Floor",
             "textile": {
@@ -69492,99 +70627,99 @@
     "FabricAlt-5-normal_map.webp": "e0d18607393cf9e1d3e374a8211a02869e7fc31b03602e736b1657438ab7fad7",
     "FabricAlt-5-roughness.webp": "705cc7f3c470c92279891e3dc03889999f0ca07e76ad2fc83814ad8c84256d66",
     "FabricAlt-samples.json": "363bee2e74dd6870c1be61fd9aecf4efc2f13e927e86bd01568c5982b3644d68",
-    "FloorCarpet-0-albedo.webp": "83b11b9871ca93b49d5f90f867b4be164930a82788ece6d6a9e583933c801c83",
-    "FloorCarpet-0-color.webp": "460a44ad7819edcac1fb7f2340e84ed9ff6348eab1d0f66010abb7fcf250574f",
+    "FloorCarpet-0-albedo.webp": "e7fb09d3b276cf760faca00e96d2c0e35a355239a8a08197e09f7f06bbaf86b6",
+    "FloorCarpet-0-color.webp": "c0e8d051c68f72d4467157e467dc2ca95fb9cc340cf5c8504d20f8c756f572f6",
     "FloorCarpet-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-0-normal_map.webp": "561ea3bd53320a69149e5eec5c71308b76bc52a96c5a05ac663b44dacd4e8b02",
-    "FloorCarpet-0-roughness.webp": "fb5593880d7d16a4d98a24c527bc4beda56f343f75a348b82f5411de2ac8a5d6",
-    "FloorCarpet-1-albedo.webp": "fd5c18e895ff33feaa6b7f8f47b20cb0f02d0184b78a03dd0fe6553446040066",
-    "FloorCarpet-1-color.webp": "9e9791e350c99db35f62eb7425251579bba631bc26939768a2cc502ec5b5e558",
+    "FloorCarpet-0-normal_map.webp": "b879cdbe92acef2e0a33b5b0362440d6c681f4ec20f767f8f8db1ac89a9932da",
+    "FloorCarpet-0-roughness.webp": "738d85b9cb5c8e06db6c1815cb1401f5b818cd87f95394d025aadacf4d668778",
+    "FloorCarpet-1-albedo.webp": "425b2a4e1379b167694bba0a0c5db2ee8b4cad244069e2ddf5a446a35ececc34",
+    "FloorCarpet-1-color.webp": "daecea0fd9c8287e8f88a83b78c0eba91acf40d585d09165800c46babe0883a8",
     "FloorCarpet-1-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-1-normal_map.webp": "8e77ee7e290557127b8730fa382fd6a8eb786d9949f05e72931a1002e7a59e79",
-    "FloorCarpet-1-roughness.webp": "527b20015e62efc40d40ef41c5300b53b62bbf1028b62f0dc9eafd7cf2415a0d",
-    "FloorCarpet-2-albedo.webp": "17b57d63d183fa6692142feec65ea49c5cdbb67b58825eb0ceb5881bc3066abc",
-    "FloorCarpet-2-color.webp": "5527ce1f010c1dca312a8cbc2b0994d0291aab1ddbc3cac7e1a507b08df70b24",
+    "FloorCarpet-1-normal_map.webp": "c439ebc11ef5a6c7d4a3b3997d36c01eee0d2b6099af77f47c86679bf8b0a913",
+    "FloorCarpet-1-roughness.webp": "80bcb35df76247edb5d267e9f309c6b895280fec5bc2f62d95a3d8a08eb81499",
+    "FloorCarpet-2-albedo.webp": "e74017600872f0d199a7d519e9edb772db6f1717f5c77970536225afdcfa7300",
+    "FloorCarpet-2-color.webp": "6e648888fefee676c9fd6283dafc20dfb4da1153637b2aa1979d236394cdf165",
     "FloorCarpet-2-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-2-normal_map.webp": "db4995de38ca015ada64cac9fea89d7e7d8520d58fcf3e1fb66919a47d7f8abe",
-    "FloorCarpet-2-roughness.webp": "91883550953fa683df5eb73dc360d7bcc921444cbdb2aacb7f90ddea767be25a",
-    "FloorCarpet-3-albedo.webp": "2c6cfc99c3110e3b1589ff252556d3afed1b221f08793fb81377c1e2f6a62a42",
-    "FloorCarpet-3-color.webp": "34228412c2e430330388635e5b867922b73dda66b82d52b6271cda5f89d9bc59",
+    "FloorCarpet-2-normal_map.webp": "8c8a4044c2da10a81a7966fe9687009edde580cbcd14cff773d272de525303c5",
+    "FloorCarpet-2-roughness.webp": "ae526954843c6a6cb10ef8668a31173e400325656ef6c222122fc3275ac53022",
+    "FloorCarpet-3-albedo.webp": "d94d434cea0a0cb328ab3f42b546915463756537dcad529dae30e36a432f3619",
+    "FloorCarpet-3-color.webp": "ff78e1295788df0cb92c24698a095b5271108be2549a6d0d268a0eb737200784",
     "FloorCarpet-3-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-3-normal_map.webp": "cec903e4308a040ada9d45912dfa0daf00d5ef9fc75632abe69e17789074eaed",
-    "FloorCarpet-3-roughness.webp": "5835357c011f70e895086d3db2de9189d5d4339e1f058e7556630ba5816cfa03",
-    "FloorCarpet-4-albedo.webp": "00493c70d5960ebda6a69d5874353bcfe0cb01ffbc44aad55e99d8cf472aa098",
-    "FloorCarpet-4-color.webp": "c90f91441215ce32bfde523a61343c83bf574a72799d6eace77f3617d10d36f0",
+    "FloorCarpet-3-normal_map.webp": "77aabe2199e2f1d2efad9461a8ad5b9f9789e103a65bb4d3e9eb6ee934551e7b",
+    "FloorCarpet-3-roughness.webp": "e4b94789d7275baa40c3ee170e3a33689ca3919df1fd59d2de95dbad4d06d105",
+    "FloorCarpet-4-albedo.webp": "6377fac7b43ec02f03a2d1b43291e92cf578adc86def3aee5b8f88aba0d10eb8",
+    "FloorCarpet-4-color.webp": "ab93dd3379e56c4080556d503ce73a58e08dc1a6bf048b100a9cf411269baa7c",
     "FloorCarpet-4-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-4-normal_map.webp": "d30eacd79e2c8ce5ca110104bae522e4fde9d563243ee8b817b6bc30f5a7875f",
-    "FloorCarpet-4-roughness.webp": "69953225762f11d4ba93772ff2cc5330b8165c18e6050f232fdc4b2e2f599b42",
-    "FloorCarpet-5-albedo.webp": "89e24b8d987d03264c81b6bdac6c9e6ab3e2f39c8162031d6da9386111d32f3b",
-    "FloorCarpet-5-color.webp": "0dc860b5a0cb447b36c13241635675d8edd63fdf8f2f62cfd3caae885b2f0396",
+    "FloorCarpet-4-normal_map.webp": "f284a8cc2eda9412f5da5dff47c79add9bb00b09336137d2fbd8416a727d8044",
+    "FloorCarpet-4-roughness.webp": "d53595ee374d46e3af555ab7fc6a820051809f91930b7d4c961e8dd9774e7fbb",
+    "FloorCarpet-5-albedo.webp": "d8157436b7162127c799c529e2a515d4bcaaf7909255f2a10689b8a0061c0f54",
+    "FloorCarpet-5-color.webp": "466b9fdd4b9e3ed6fe410088237797694a1a2cd6ac9d626ed16e5f1d552a56f2",
     "FloorCarpet-5-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-5-normal_map.webp": "52a4120eea66bdb59ba494fa018856a32e9351b2e6980176763e990af58da210",
-    "FloorCarpet-5-roughness.webp": "69be45cf7b7b435d055915306a5f1205ef0c5a80e2cd75d069670ad64ad6547e",
-    "FloorCarpet-samples.json": "2d5982c64c111835a5ec11986cddc60df58177a842aa1e1644324a1ca2acfb17",
-    "FloorStone-0-albedo.webp": "639a13c5e74b94f8337bea39803cec7a5f1073ff91ae61060d76316872c11f7a",
-    "FloorStone-0-color.webp": "ade336fc76a9f336068f56f4f5cac4c57c08f4ac78fc37b7852cb8f05a7808e2",
+    "FloorCarpet-5-normal_map.webp": "98f3c626a15658bc1f6ef9bb018bd348b4df1912ce53b452e9c81321b47da524",
+    "FloorCarpet-5-roughness.webp": "b889f26e2437c84efe473d6d0972b7c295a7535c85b9d0134039cccd658490d7",
+    "FloorCarpet-samples.json": "537edb98fff6c9b82a2c88d8380ce1f4586163438b8ef5beccfe89ac9804200e",
+    "FloorStone-0-albedo.webp": "6cbf4997ea11eddc7e2c1f6ed9b0a428d92c30008fbfd5097d8d9c72175821f6",
+    "FloorStone-0-color.webp": "72a62e0601ac6722702e4bab6b289fdf4b8e434364cefc4a994fd1a95cf6f2d6",
     "FloorStone-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-0-normal_map.webp": "7bc22aee0d96adeb79c6ff53f1f094d1da35801c61c370dfa2a19a80337d5183",
-    "FloorStone-0-roughness.webp": "9c155849e09993f6c1e20822ab6810c8295362b611714a774f930a743ae3e652",
-    "FloorStone-1-albedo.webp": "89c7e5458ff6dede8c2b756de2d2c17620d347009e79c5c0390a5071b4792a0f",
-    "FloorStone-1-color.webp": "04fc74ca0cbe2402069a1396d7d7f3101ecde10f630bf712a5089d712b71b2f2",
+    "FloorStone-0-normal_map.webp": "ea4dad5c0a5381177f88a7de0243e421ee077b1a6c177b82676601eb46df49c8",
+    "FloorStone-0-roughness.webp": "cf675345571835182bfad5c5a90bb439e884018b6a852698c7affa33aa8dc381",
+    "FloorStone-1-albedo.webp": "7d4b1ba0bec2bddd8276f7e678837b581cc704ef528492449ea0d40ce0262be7",
+    "FloorStone-1-color.webp": "a312f158256282f70bef8681facbcd08b3d4274a3dbd059d84c1232f774fe5bd",
     "FloorStone-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-1-normal_map.webp": "6ece0a48d92f5c764bcb5917c57eff68d78d7ac1d8069a244de11a7a8785a4ab",
-    "FloorStone-1-roughness.webp": "e0199b6174685b8a9d88bc4a65cc7165e890d94769465efc7b0dc603d1a1c87d",
-    "FloorStone-2-albedo.webp": "d7cab242b9c33ca30b4a0fded755986a5d25efc5644be3f1315c0c0cdb31fd4d",
-    "FloorStone-2-color.webp": "e5008ce58af4e94ca5eb1ae580cb95f702c5548e722d8625bbddb1b719179457",
+    "FloorStone-1-normal_map.webp": "a91f4341b52456ccacd87a1f610e68810dc583102b8c94a968c689dbe4da5a5b",
+    "FloorStone-1-roughness.webp": "fe42bba687407203c66fb01f3acb9a7f501bb97b9efe4dfee50859d142fc5320",
+    "FloorStone-2-albedo.webp": "7597a4c8b2f65b4bfbd6cd10a67e98ad224e65045e70a9f86385e71f573afc0a",
+    "FloorStone-2-color.webp": "087de916246d7d81819cec41d581b806b55bc3b023cfc3dea07f33e5f757ac49",
     "FloorStone-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-2-normal_map.webp": "e9a181fe9d665e0adbce15aff6dd0022b2f9df81352331e2aa7fc0204fccc0d3",
-    "FloorStone-2-roughness.webp": "4b5eafdd342982a18aef202c970488596b187f8cd3e9cd5a99e7f20b86c08f43",
-    "FloorStone-3-albedo.webp": "ff312c4e23a8d975207054852e18134c426dea3b31f5267904ababae9f321945",
-    "FloorStone-3-color.webp": "1fad5498bca514ed7f24493be189802b53a6223dd9ba4b446bee3c343146b893",
+    "FloorStone-2-normal_map.webp": "52237d354832c11ed87292a039ee423c57fa455089facce8618629b8e54e95a1",
+    "FloorStone-2-roughness.webp": "2b881f50a14df7bb20444162ba6aba856cfdc65ccc524931a7ebe3d21f17fd78",
+    "FloorStone-3-albedo.webp": "c7fd6a0771772cd28d5c3dd7391c1c97c43de4399b31bc8941e627baeebbd848",
+    "FloorStone-3-color.webp": "b24ded7c6dd6c80031d3f192d2423bef8bd956ff3eb9fdf5e3fe9b85bb91743d",
     "FloorStone-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-3-normal_map.webp": "59aeb54b97698f5328033d4820621e20adda79e60eb8cdc8f6dba9392c43ba38",
-    "FloorStone-3-roughness.webp": "103b833c9b8b4a51ebf2482d038f20b93fe82fd5326d0065fb5a90035226558b",
-    "FloorStone-4-albedo.webp": "dac960384ae713d2e6b34f5ec50a8b48e8067e2942b92efdb3440aab0f087080",
-    "FloorStone-4-color.webp": "d1a35865dc44b528ddd008588580ec589e09d7423c047010634c648640bcad72",
+    "FloorStone-3-normal_map.webp": "7262a7141c3344047776576d7f63f9523d393cddf84f8bb8ec2a3c9c77b0a43c",
+    "FloorStone-3-roughness.webp": "9c2d7c89c78737358aa828cfc7f871c11096e5f94b4ea3d4951301a786272b5d",
+    "FloorStone-4-albedo.webp": "8187d6e2a77af646b329d557a74c585ee12402161b353c9018b9bbb97cd2c30e",
+    "FloorStone-4-color.webp": "eb6ba2f193b5bd32e41f94c3441241b6ab454f124de94a40ee257a7b9ce7e28a",
     "FloorStone-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-4-normal_map.webp": "9992cbbdbd0d89818fe39285197375511edaa1d38efe2dc50599c977a5b362de",
-    "FloorStone-4-roughness.webp": "2ffe6b95597b8fa28da55a798e1938da56ff9c583d66d18041aeb4b81e16cfac",
-    "FloorStone-5-albedo.webp": "f89540d511bcfb6fdb18621a72eeb31c4cccc1e2c67696e06500113da1ce9863",
-    "FloorStone-5-color.webp": "e4bc0c622bbbd84c3966834aedab3235744ebf3ba7cbe36cd76aa1e4ff3e5b4c",
+    "FloorStone-4-normal_map.webp": "889934a9b890b2e871f469ac3b238b7d150e057d26a28d03d3a46c65c6792292",
+    "FloorStone-4-roughness.webp": "689092990dc4c5d3b633ecebb401e9ed400c71d79069fe4dc24cf16c4784fce6",
+    "FloorStone-5-albedo.webp": "fc2ffe97eec1d8576a1a0534b931dd02381149789b1d902402d25ebe3f1bfce3",
+    "FloorStone-5-color.webp": "ea7f41715b975320a8b6a0f8deefbd273f781a6a8687facf79e18a941afed813",
     "FloorStone-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-5-normal_map.webp": "f1cdb463160620076167ef68c9004dfc817837528aae20e8f04ab4b42fdca7a4",
-    "FloorStone-5-roughness.webp": "11178c33b696339b2509fd2d10242ac1defb15da8d63a2b37fcf3b552dcf7773",
-    "FloorStone-samples.json": "c9fb7ab9cd314e377e1596c1c6f1ce86a0e42f8f48184a9517cd64d9f72f8c81",
-    "FloorTimber-0-albedo.webp": "41b20e2b877b7fe2389ebae82cb94914589769cb4bafc25b55c9bf2f67b68d00",
-    "FloorTimber-0-color.webp": "cc6cc1b3e73ba10dc363a6120bd561263acb81934a0abf97d2113e235a8a0621",
+    "FloorStone-5-normal_map.webp": "d74bb71c6a80b89eca1f85b06f8f5dd14203ba18924c734adfa74fc84d2f870f",
+    "FloorStone-5-roughness.webp": "bf2b6dc843a83fd6d9297617df677db81bbcb9b8107eac44db049829a6d39fa1",
+    "FloorStone-samples.json": "27894c0d88b527f3a541eb7ec0b2cd06573540f9e0da5ae701461c2fd99ecf28",
+    "FloorTimber-0-albedo.webp": "25cf1432b629f915dae10144fe6607ca2dc9193f4dd4374e0a5092b309e588a5",
+    "FloorTimber-0-color.webp": "30d3e85a4863f59a79e372b466414bdc36b4dc66e69b8c492062c11807591886",
     "FloorTimber-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-0-normal_map.webp": "d5c991ec173139fcd63e461eae509497cd20fb0c9c4054876e5945851e616a55",
-    "FloorTimber-0-roughness.webp": "9bbf07a06bd11a995c3988af15fd75f2fe905f42e473c01c0f21122551eb603f",
-    "FloorTimber-1-albedo.webp": "2fa841697acdda8f40780695a006a3d2a491a8a0d4ea634aaf10253f42e69348",
-    "FloorTimber-1-color.webp": "bc317eb9fef733ad5b6990e5bb26fbfc66892c5c3381ef120af8d1cfddc222bc",
+    "FloorTimber-0-normal_map.webp": "abdc1e5cd095fefa74d5115a2e442b5e593b413f3518c8a429467d5a9376bf6f",
+    "FloorTimber-0-roughness.webp": "195b341966ce8532d5956df7512ebc0654746d750191cd36e4fddf875efc4e23",
+    "FloorTimber-1-albedo.webp": "97089d4163fce3b43557f45659a52d1e3b0bad22f6e16d0fbf51a8648d058a7c",
+    "FloorTimber-1-color.webp": "71abe75490db62f48f8efff471e162eae516088b7bf8406556b7770292e9ae61",
     "FloorTimber-1-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-1-normal_map.webp": "8be596f50978317ce2080c858b9f8e0153fa005fbef5fd25b45d280b90e69547",
-    "FloorTimber-1-roughness.webp": "9a51735896c72b253d6a494958242c9756f23bed723f44d2d0a0238863680fa5",
-    "FloorTimber-2-albedo.webp": "6a4d9fe92b71b6304793df9221977b4daa040cda190cbf2d7bc95f066d5fcf58",
-    "FloorTimber-2-color.webp": "96925bd4b806266e7a85245f9cc5211c365fe917f9b26808b8471b9c4850c979",
+    "FloorTimber-1-normal_map.webp": "f679533db4f56420daaf091592e9be80a8af8c277c5fdbdf4f72560a86957462",
+    "FloorTimber-1-roughness.webp": "44b81e781016e89d386fc0c1d7fc75d441967d0bc7d7ed9765be4cbba15bf1d1",
+    "FloorTimber-2-albedo.webp": "59178356e9c7694118a03b86987607a5d2eb5234aba178ba06fc47b6896bbb53",
+    "FloorTimber-2-color.webp": "b5cab081c7f447cc09a7ffeeaf7360c572b2b32d7c3a9001ed23e61d60332037",
     "FloorTimber-2-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-2-normal_map.webp": "a6b62bf77de95f0830f100da630de59bd9c505d52ea4d57c7289caf88ffa0b41",
-    "FloorTimber-2-roughness.webp": "835007e9a9f8bb6d6713984d734ee439e2d408f00455b1488f4bf36d6bd9fde2",
-    "FloorTimber-3-albedo.webp": "18969b4dde543663676d9b2be8c67c7f70eeaec81606347a8f312cdd6882b424",
-    "FloorTimber-3-color.webp": "ea3361df520ebe86c84b867f816333152ab81354885ec89d6144f5afe06dfaf2",
+    "FloorTimber-2-normal_map.webp": "9411b1123f1ce7b4fa4b63d8f2a953b45df2f1feb630deac1fb2482c8dcee3bb",
+    "FloorTimber-2-roughness.webp": "ec496a7e7b53fad6d0c77c76ac750eb5fe0179636da5d64ccced1c6937f060be",
+    "FloorTimber-3-albedo.webp": "967af965c4a01f633fd4ad0d06ab46c5bc74ac92b828e23259da9d36a9f793de",
+    "FloorTimber-3-color.webp": "492e23a0dc708e0717254dc4ee4cc2e9710fee2cafed40f35ff637a38288190d",
     "FloorTimber-3-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-3-normal_map.webp": "35acc3d3d008b283a503caf94efee35f97c2abaa17282b0d4ad4739f779d25b5",
-    "FloorTimber-3-roughness.webp": "6a8ebb5311cd03ea1155cb1cac16ea58e7e3247b2f9c399c83ff5ec8ba32bff4",
-    "FloorTimber-4-albedo.webp": "836c4d93b43b741f8c4d58f6abcf3883b54b03d556e6bee879fb43f0756fd563",
-    "FloorTimber-4-color.webp": "c6ef85c2a26c6b5dcd5694adb24b755b5a1eab9cc532000d4d4e5257d7cc8c96",
+    "FloorTimber-3-normal_map.webp": "bfe12cf87a0d1a3654f79eb3fdf7406071f7aa5b7aa5f72ffcedd046165244f5",
+    "FloorTimber-3-roughness.webp": "28f2ee01a0b3e1e5d606724fd4c9cab70e0188d62537a61d262aece9deb2a76d",
+    "FloorTimber-4-albedo.webp": "350f513e65fd696dd1be66f7501518232aabc1ed0eb432ec73549d51b207bede",
+    "FloorTimber-4-color.webp": "056d3bbfb3d78a5bc5c1263b697d2ca1cfe303ff67a94f87bda5054f1c45f931",
     "FloorTimber-4-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-4-normal_map.webp": "d536aef80f92878915f64b0ebec0df4f8176bf83801151f07bc815a21e18deb3",
-    "FloorTimber-4-roughness.webp": "ca37609b5dab9aa4bbd64fac22da00f468b52e3809b80dd30bf40cb0575f3650",
-    "FloorTimber-5-albedo.webp": "e2a944aa839f7d63bcfe70f07ad0a93f5f184baf6f01e346ad03a8ca3d94428d",
-    "FloorTimber-5-color.webp": "e45f79b160d98986d6a7b0fd6b08862f5a6c5c81ae113039809d01fd2caf91da",
+    "FloorTimber-4-normal_map.webp": "78089bdf23af837d689fe98ebf5fd718ac650d5037ae79a3ab412600f3cd4ce5",
+    "FloorTimber-4-roughness.webp": "1679f022890721f20849589e3e913d30d4bc92f6a56b48bc658b8650fa41e834",
+    "FloorTimber-5-albedo.webp": "ff1b240e28d814fd0aaaa050315cb30d6cea6f8423f0a8a9f502adeabfcf0701",
+    "FloorTimber-5-color.webp": "e30e8b4df03c5c4fd83bd95fcd0b8e8681e58840ee454206302337c23b183a3d",
     "FloorTimber-5-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-5-normal_map.webp": "b7f1bdc792b8bdcbdc149191c625791bf193ca25dbcbb078d9e6a36862e93539",
-    "FloorTimber-5-roughness.webp": "8a85097361c21d95eb9cddeafc15491a4ce0330a13fbaa9b33893323a07f7b34",
-    "FloorTimber-samples.json": "8f8fef07086d426d0905a6721643e12459890ab088cee83d1e09c2654fedaf3b",
+    "FloorTimber-5-normal_map.webp": "29b689606ef911b21105e083162c0ed1484104c079b79f0da6f77744e7bc9498",
+    "FloorTimber-5-roughness.webp": "7f91076f9dbe71a81537dfb36c0caa2cdf00534589387e2391ec3ca1e853b4a6",
+    "FloorTimber-samples.json": "3f88823fb19dd2653a3cf4f7f7023854383361af4aebbb9dcb090df7c52ec271",
     "Glass-0-albedo.webp": "a3da1f7493e81e9c1e1c49448de811d6029f9a8d539da93452276db25ebe9b63",
     "Glass-0-color.webp": "8a0ec2a717754cd7d37f51cb271312aa29bd0467bf4de9f9883e656fe14346dd",
     "Glass-0-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
@@ -70360,21 +71495,21 @@
     "WoodEdge-5-normal_map.webp": "e596f4ce26f4c1c453efc4635ecacd88f2d5cc3aabf63a09becb20612d7d64d0",
     "WoodEdge-5-roughness.webp": "921c9747b504482e932f210ff9991b3e244626d56268a27c84389fbdca8bacb9",
     "WoodEdge-samples.json": "1ce69b8c0c92f04ca8ce17b7cfb1bdc57f9f7a0de417234b57d5b7b8494b8a2c",
-    "usage.json": "5e3e4cc0b06ababbcff27253b2ca52bc0f0b113f61f0956cb8e3b009ffdbb42d"
+    "usage.json": "e0d9de5db6fea5244ecdd646b6b0dda0e3b55f84fa15d74bbbbe8419bed4281c"
   },
   "generator_identity": {
     "crate_version": "0.60.0",
-    "generator_version": 86,
+    "generator_version": 92,
     "schema_version": 1,
-    "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130"
+    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717"
   },
   "image_size": [
     384,
     384
   ],
   "map_baker": "production CPU reference maps; native Bevy PBR rendering",
-  "object_count": 18277,
-  "part_count": 68207,
+  "object_count": 18157,
+  "part_count": 68417,
   "rig": "fixed 1400/250 lux directional lights, shadows, neutral 0.35 cd/m2 reflection cube, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
   "room_count": 256,
   "sample_count": 256,

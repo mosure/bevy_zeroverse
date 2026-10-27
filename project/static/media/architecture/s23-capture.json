@@ -26,6 +26,32 @@
             0.5435490608215332
           ],
           "support_top_m": 4.464231967926025,
+          "suspension": [
+            {
+              "end": [
+                -4.208452224731445,
+                4.4622321128845215,
+                -2.789820671081543
+              ],
+              "start": [
+                -4.208452224731445,
+                4.412319660186768,
+                -2.789820671081543
+              ]
+            },
+            {
+              "end": [
+                -4.208452224731445,
+                4.4622321128845215,
+                -2.5180459022521973
+              ],
+              "start": [
+                -4.208452224731445,
+                4.412319660186768,
+                -2.5180459022521973
+              ]
+            }
+          ],
           "system": "Ventilation",
           "thickness_m": 0.020363101735711098
         },
@@ -53,6 +79,56 @@
             0.7852239608764648
           ],
           "support_top_m": 4.464231967926025,
+          "suspension": [
+            {
+              "end": [
+                5.301270484924316,
+                4.4622321128845215,
+                -4.645005702972412
+              ],
+              "start": [
+                5.301270484924316,
+                4.096606254577637,
+                -4.645005702972412
+              ]
+            },
+            {
+              "end": [
+                5.301270484924316,
+                4.4622321128845215,
+                -3.94615626335144
+              ],
+              "start": [
+                5.301270484924316,
+                4.096606254577637,
+                -3.94615626335144
+              ]
+            },
+            {
+              "end": [
+                6.259739875793457,
+                4.4622321128845215,
+                -4.645005702972412
+              ],
+              "start": [
+                6.259739875793457,
+                4.096606254577637,
+                -4.645005702972412
+              ]
+            },
+            {
+              "end": [
+                6.259739875793457,
+                4.4622321128845215,
+                -3.94615626335144
+              ],
+              "start": [
+                6.259739875793457,
+                4.096606254577637,
+                -3.94615626335144
+              ]
+            }
+          ],
           "system": "SprinklerMain",
           "thickness_m": 0.03827774152159691
         },
@@ -79,6 +155,56 @@
             1.373291254043579
           ],
           "support_top_m": 4.464231967926025,
+          "suspension": [
+            {
+              "end": [
+                -0.17641305923461914,
+                4.4622321128845215,
+                -2.4253921508789062
+              ],
+              "start": [
+                -0.17641305923461914,
+                4.212390899658203,
+                -2.4253921508789062
+              ]
+            },
+            {
+              "end": [
+                -0.17641305923461914,
+                4.4622321128845215,
+                -1.3816909790039062
+              ],
+              "start": [
+                -0.17641305923461914,
+                4.212390899658203,
+                -1.3816909790039062
+              ]
+            },
+            {
+              "end": [
+                1.079216480255127,
+                4.4622321128845215,
+                -2.4253921508789062
+              ],
+              "start": [
+                1.079216480255127,
+                4.212390899658203,
+                -2.4253921508789062
+              ]
+            },
+            {
+              "end": [
+                1.079216480255127,
+                4.4622321128845215,
+                -1.3816909790039062
+              ],
+              "start": [
+                1.079216480255127,
+                4.212390899658203,
+                -1.3816909790039062
+              ]
+            }
+          ],
           "system": "TimberSlats",
           "thickness_m": 0.025152787566185
         },
@@ -105,6 +231,32 @@
             0.6997184157371521
           ],
           "support_top_m": 4.464231967926025,
+          "suspension": [
+            {
+              "end": [
+                -5.329483985900879,
+                4.4622321128845215,
+                4.21281623840332
+              ],
+              "start": [
+                -5.329483985900879,
+                4.430962562561035,
+                4.21281623840332
+              ]
+            },
+            {
+              "end": [
+                -5.329483985900879,
+                4.4622321128845215,
+                4.562675476074219
+              ],
+              "start": [
+                -5.329483985900879,
+                4.430962562561035,
+                4.562675476074219
+              ]
+            }
+          ],
           "system": "Ventilation",
           "thickness_m": 0.029680170118808743
         }
@@ -417,6 +569,27 @@
           ]
         }
       ],
+      "tier_guard": {
+        "height": 1.1416563987731934,
+        "section": {
+          "bay_jitter": 0.10641460120677948,
+          "bottom_gap": 0.0485687181353569,
+          "frame": "Chrome",
+          "handrail": "Chrome",
+          "handrail_depth": 0.03579907491803169,
+          "handrail_width": 0.061389707028865814,
+          "infill": "Slats",
+          "infill_gap": 0.08992686122655869,
+          "infill_width": 0.024173861369490623,
+          "panel": "Wood",
+          "panel_thickness": 0.018645279109477997,
+          "post_pitch": 0.7852453589439392,
+          "post_width": 0.0370497927069664,
+          "round_handrail": true,
+          "round_posts": true,
+          "seed": 4156
+        }
+      },
       "walls": [
         {
           "edge": 0,
@@ -2663,14 +2836,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v111;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=6;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=17;seating=7;activity=3;playback=2;exterior=5;envelope=6;furnishings=13;botany=4;visual_content=6;equipment=17;palette=2;photometry=7;sun_shadow=2;material_compute=3;semantic=10;ceiling=6;floor_details=5;window_treatments=1",
+      "capture_engine": "capture-v117;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=18;seating=7;activity=3;playback=2;exterior=5;envelope=7;furnishings=15;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
       "crate_version": "0.60.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 86,
+      "generator_version": 92,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -3640,7 +3813,7 @@
         }
       ],
       "semantic_taxonomy_version": 10,
-      "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130",
+      "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -4050,7 +4223,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/86/0000000000000017",
+        "id": "procedural_indoor/92/0000000000000017",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 30
       },
@@ -4151,23 +4324,23 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 1644.2895949999995,
+      "preparation_ms": 1392.289687,
       "primary_rays": 2101248,
       "probes": 2052,
       "relocated_probes": 63,
       "texture_bytes": 98496,
-      "transport_bytes": 96281136,
-      "triangles": 821533
+      "transport_bytes": 96958256,
+      "triangles": 827309
     },
-    "elapsed_seconds": 125.269622459,
-    "image_assets": 240,
+    "elapsed_seconds": 102.808284211,
+    "image_assets": 244,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface including glass; native indoor uses direct float32 MRT",
-    "material_assets": 266,
-    "mesh_assets": 789,
+    "material_assets": 267,
+    "mesh_assets": 774,
     "reconstruction_graphs": [
       {
         "graph": {
@@ -4765,7 +4938,7 @@
       }
     ],
     "renderer": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "19044-1793076480294441838",
+    "run_id": "11325-1793102220093413616",
     "seed": 23,
     "views": [
       {
@@ -4830,13 +5003,13 @@
           "shared_pixels": 242824,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.00006640625,
+        "dark_fraction": 0.0001015625,
         "far": 50.0,
         "fov_y": 1.2013951539993286,
         "fx_pixels": 291.90203857421875,
         "fy_pixels": 291.90203857421875,
-        "luminance_std": 0.044482585,
-        "mean_luminance": 0.05159646,
+        "luminance_std": 0.0442084,
+        "mean_luminance": 0.048733942,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 22,
@@ -4957,13 +5130,13 @@
           "shared_pixels": 198773,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0005546875,
+        "dark_fraction": 0.00178125,
         "far": 50.0,
         "fov_y": 0.9669982194900513,
         "fx_pixels": 380.90411376953125,
         "fy_pixels": 380.9041442871094,
-        "luminance_std": 0.041670956,
-        "mean_luminance": 0.0464795,
+        "luminance_std": 0.040837415,
+        "mean_luminance": 0.043872096,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 22,
@@ -5084,13 +5257,13 @@
           "shared_pixels": 138740,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.00001171875,
+        "dark_fraction": 0.00009375,
         "far": 50.0,
         "fov_y": 1.9577635526657104,
         "fx_pixels": 134.46641540527344,
         "fy_pixels": 134.46641540527344,
-        "luminance_std": 0.09802223,
-        "mean_luminance": 0.056303144,
+        "luminance_std": 0.09816097,
+        "mean_luminance": 0.05111098,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 19,
@@ -5208,13 +5381,13 @@
           "shared_pixels": 240371,
           "valid_pixels": 256000
         },
-        "dark_fraction": 7.8125e-6,
+        "dark_fraction": 0.0000234375,
         "far": 50.0,
         "fov_y": 1.9349440336227417,
         "fx_pixels": 137.80563354492188,
         "fy_pixels": 137.80563354492188,
-        "luminance_std": 0.06940241,
-        "mean_luminance": 0.061291642,
+        "luminance_std": 0.06980462,
+        "mean_luminance": 0.05758257,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 17,
@@ -5330,13 +5503,13 @@
           "shared_pixels": 233037,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0000625,
+        "dark_fraction": 0.00008984375,
         "far": 50.0,
         "fov_y": 1.2013951539993286,
         "fx_pixels": 291.90203857421875,
         "fy_pixels": 291.90203857421875,
-        "luminance_std": 0.046812862,
-        "mean_luminance": 0.05124809,
+        "luminance_std": 0.04641797,
+        "mean_luminance": 0.048226003,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 18,
@@ -5453,13 +5626,13 @@
           "shared_pixels": 190659,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0006210937,
+        "dark_fraction": 0.0017539063,
         "far": 50.0,
         "fov_y": 0.9669982194900513,
         "fx_pixels": 380.90411376953125,
         "fy_pixels": 380.9041442871094,
-        "luminance_std": 0.04076179,
-        "mean_luminance": 0.045527313,
+        "luminance_std": 0.039868403,
+        "mean_luminance": 0.042949878,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 22,
@@ -5580,13 +5753,13 @@
           "shared_pixels": 135364,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.00004296875,
+        "dark_fraction": 0.00009765625,
         "far": 50.0,
         "fov_y": 1.9577635526657104,
         "fx_pixels": 134.46641540527344,
         "fy_pixels": 134.46641540527344,
-        "luminance_std": 0.08814594,
-        "mean_luminance": 0.052739635,
+        "luminance_std": 0.088125706,
+        "mean_luminance": 0.047574267,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 19,
@@ -5704,13 +5877,13 @@
           "shared_pixels": 238360,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0000234375,
+        "dark_fraction": 0.00002734375,
         "far": 50.0,
         "fov_y": 1.9349440336227417,
         "fx_pixels": 137.80563354492188,
         "fy_pixels": 137.80563354492188,
-        "luminance_std": 0.06659242,
-        "mean_luminance": 0.059418403,
+        "luminance_std": 0.066947535,
+        "mean_luminance": 0.055769444,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -5767,9 +5940,9 @@
   },
   "generator_identity": {
     "crate_version": "0.60.0",
-    "generator_version": 86,
+    "generator_version": 92,
     "schema_version": 1,
-    "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130"
+    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717"
   },
   "manifest": {
     "architecture_style": "Contemporary",
@@ -6152,6 +6325,32 @@
             0.54354906
           ],
           "support_top_m": 4.464232,
+          "suspension": [
+            {
+              "end": [
+                -4.208452,
+                4.462232,
+                -2.7898207
+              ],
+              "start": [
+                -4.208452,
+                4.4123197,
+                -2.7898207
+              ]
+            },
+            {
+              "end": [
+                -4.208452,
+                4.462232,
+                -2.518046
+              ],
+              "start": [
+                -4.208452,
+                4.4123197,
+                -2.518046
+              ]
+            }
+          ],
           "system": "Ventilation",
           "thickness_m": 0.020363102
         },
@@ -6179,6 +6378,56 @@
             0.78522396
           ],
           "support_top_m": 4.464232,
+          "suspension": [
+            {
+              "end": [
+                5.3012705,
+                4.462232,
+                -4.6450057
+              ],
+              "start": [
+                5.3012705,
+                4.0966063,
+                -4.6450057
+              ]
+            },
+            {
+              "end": [
+                5.3012705,
+                4.462232,
+                -3.9461563
+              ],
+              "start": [
+                5.3012705,
+                4.0966063,
+                -3.9461563
+              ]
+            },
+            {
+              "end": [
+                6.25974,
+                4.462232,
+                -4.6450057
+              ],
+              "start": [
+                6.25974,
+                4.0966063,
+                -4.6450057
+              ]
+            },
+            {
+              "end": [
+                6.25974,
+                4.462232,
+                -3.9461563
+              ],
+              "start": [
+                6.25974,
+                4.0966063,
+                -3.9461563
+              ]
+            }
+          ],
           "system": "SprinklerMain",
           "thickness_m": 0.03827774
         },
@@ -6205,6 +6454,56 @@
             1.3732913
           ],
           "support_top_m": 4.464232,
+          "suspension": [
+            {
+              "end": [
+                -0.17641306,
+                4.462232,
+                -2.4253922
+              ],
+              "start": [
+                -0.17641306,
+                4.212391,
+                -2.4253922
+              ]
+            },
+            {
+              "end": [
+                -0.17641306,
+                4.462232,
+                -1.381691
+              ],
+              "start": [
+                -0.17641306,
+                4.212391,
+                -1.381691
+              ]
+            },
+            {
+              "end": [
+                1.0792165,
+                4.462232,
+                -2.4253922
+              ],
+              "start": [
+                1.0792165,
+                4.212391,
+                -2.4253922
+              ]
+            },
+            {
+              "end": [
+                1.0792165,
+                4.462232,
+                -1.381691
+              ],
+              "start": [
+                1.0792165,
+                4.212391,
+                -1.381691
+              ]
+            }
+          ],
           "system": "TimberSlats",
           "thickness_m": 0.025152788
         },
@@ -6231,6 +6530,32 @@
             0.6997184
           ],
           "support_top_m": 4.464232,
+          "suspension": [
+            {
+              "end": [
+                -5.329484,
+                4.462232,
+                4.212816
+              ],
+              "start": [
+                -5.329484,
+                4.4309626,
+                4.212816
+              ]
+            },
+            {
+              "end": [
+                -5.329484,
+                4.462232,
+                4.5626755
+              ],
+              "start": [
+                -5.329484,
+                4.4309626,
+                4.5626755
+              ]
+            }
+          ],
           "system": "Ventilation",
           "thickness_m": 0.02968017
         }
@@ -6413,6 +6738,27 @@
           ]
         }
       ],
+      "tier_guard": {
+        "height": 1.1416564,
+        "section": {
+          "bay_jitter": 0.1064146,
+          "bottom_gap": 0.048568718,
+          "frame": "Chrome",
+          "handrail": "Chrome",
+          "handrail_depth": 0.035799075,
+          "handrail_width": 0.061389707,
+          "infill": "Slats",
+          "infill_gap": 0.08992686,
+          "infill_width": 0.024173861,
+          "panel": "Wood",
+          "panel_thickness": 0.01864528,
+          "post_pitch": 0.78524536,
+          "post_width": 0.037049793,
+          "round_handrail": true,
+          "round_posts": true,
+          "seed": 4156
+        }
+      },
       "walls": [
         {
           "edge": 0,
@@ -7134,7 +7480,7 @@
     "floor_style": 0,
     "furnishing_quarter_turn": 1,
     "furniture_style": 0,
-    "generator_version": 86,
+    "generator_version": 92,
     "glazing_height": 3.7032008,
     "human_density": 0.25,
     "humans": [
@@ -7265,7 +7611,7 @@
         "hair_color": 0,
         "hairstyle": 13,
         "head_yaw": 0.13878071,
-        "id": 146,
+        "id": 141,
         "joints": [
           [
             0.013233073,
@@ -7558,7 +7904,7 @@
         "hair_color": 0,
         "hairstyle": 15,
         "head_yaw": 0.12151021,
-        "id": 147,
+        "id": 142,
         "joints": [
           [
             0.013622649,
@@ -8117,7 +8463,7 @@
         "hair_color": 3,
         "hairstyle": 8,
         "head_yaw": 0.43816027,
-        "id": 148,
+        "id": 143,
         "joints": [
           [
             0.0099637285,
@@ -9201,15 +9547,15 @@
         "kind": "WallShelf",
         "neighbor": false,
         "position": [
-          7.2999763,
+          7.306346,
           1.1976948,
-          5.1424856
+          5.077406
         ],
         "seed": 12330540069725946788,
         "size": [
-          1.3273971,
-          0.271454,
-          0.20980245
+          1.5838354,
+          0.3413625,
+          0.18878803
         ],
         "solid": false,
         "support": null,
@@ -9474,41 +9820,41 @@
         "kind": "Display",
         "neighbor": false,
         "position": [
-          -6.8957667,
-          1.6193643,
-          -3.551768
+          3.0332124,
+          1.3928032,
+          -6.060594
         ],
-        "seed": 8435879561749020406,
+        "seed": 1676875473792533693,
         "size": [
-          0.9059864,
-          1.40604,
-          0.042035073
+          1.4290797,
+          0.59146506,
+          0.088147685
         ],
         "solid": false,
         "support": null,
         "variant": 2,
-        "yaw": 1.513924
+        "yaw": 0.0
       },
       {
         "id": 56,
         "interaction_target": null,
-        "kind": "LightSwitch",
+        "kind": "Clock",
         "neighbor": false,
         "position": [
-          -1.6828961,
-          1.1955919,
-          -5.4696736
+          -6.3289905,
+          1.9600518,
+          -0.45288357
         ],
-        "seed": 4614377848449325960,
+        "seed": 15801461881276068734,
         "size": [
-          0.075,
-          0.12265426,
-          0.018
+          0.21356264,
+          0.21356264,
+          0.034204252
         ],
         "solid": false,
         "support": null,
-        "variant": 3,
-        "yaw": 0.0
+        "variant": 0,
+        "yaw": 2.6818893
       },
       {
         "id": 57,
@@ -9516,20 +9862,20 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          4.4963064,
-          0.27538773,
-          -6.098368
+          0.76715904,
+          0.37376258,
+          -5.840653
         ],
-        "seed": 17145108396599427670,
+        "seed": 11099471158326605377,
         "size": [
           0.15,
-          0.10650999,
+          0.10163461,
           0.018
         ],
         "solid": false,
         "support": null,
         "variant": 3,
-        "yaw": 0.0
+        "yaw": 1.5707963
       },
       {
         "id": 58,
@@ -9537,20 +9883,20 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -7.415133,
-          0.35598302,
-          5.311586
+          6.953794,
+          0.36182258,
+          3.5481467
         ],
-        "seed": 12996365165252401778,
+        "seed": 3821467454678768103,
         "size": [
-          0.075,
-          0.102673896,
+          0.22500001,
+          0.10799695,
           0.018
         ],
         "solid": false,
         "support": null,
         "variant": 3,
-        "yaw": 1.513924
+        "yaw": -0.5137499
       },
       {
         "id": 59,
@@ -9558,20 +9904,20 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -1.539602,
-          0.33038554,
-          -5.4696736
+          6.8364367,
+          0.33866557,
+          -3.6559985
         ],
-        "seed": 11776635782854701537,
+        "seed": 9844985104631497855,
         "size": [
           0.22500001,
-          0.122703746,
+          0.116983615,
           0.018
         ],
         "solid": false,
         "support": null,
         "variant": 3,
-        "yaw": 0.0
+        "yaw": -1.5069697
       },
       {
         "id": 60,
@@ -9579,14 +9925,14 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -7.364469,
-          0.29716545,
-          4.4217143
+          -7.4422603,
+          0.26581225,
+          5.788058
         ],
-        "seed": 4599181279283266209,
+        "seed": 11287847374547514201,
         "size": [
           0.075,
-          0.11394185,
+          0.12098789,
           0.018
         ],
         "solid": false,
@@ -9600,20 +9946,20 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -0.1801697,
-          0.36390555,
-          -5.4696736
+          6.56473,
+          0.2609505,
+          3.328601
         ],
-        "seed": 8879656996703790596,
+        "seed": 13831079919693403069,
         "size": [
-          0.075,
-          0.11178951,
+          0.15,
+          0.10332687,
           0.018
         ],
         "solid": false,
         "support": null,
         "variant": 3,
-        "yaw": 0.0
+        "yaw": -0.5137499
       },
       {
         "id": 62,
@@ -9621,161 +9967,14 @@
         "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -6.159279,
-          0.2984659,
-          -5.6344967
+          -5.9178796,
+          0.37906602,
+          0.9656862
         ],
-        "seed": 11873906845151336796,
-        "size": [
-          0.22500001,
-          0.10677949,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 0.78539824
-      },
-      {
-        "id": 63,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          7.3598166,
-          0.33593395,
-          4.5328703
-        ],
-        "seed": 15896388877807888140,
+        "seed": 11317007068417338940,
         "size": [
           0.075,
-          0.10244016,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -1.5069696
-      },
-      {
-        "id": 64,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          -1.7864325,
-          0.31067353,
-          -5.4696736
-        ],
-        "seed": 15580938024304482946,
-        "size": [
-          0.15,
-          0.12412307,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 0.0
-      },
-      {
-        "id": 65,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          7.367198,
-          0.3509842,
-          4.648363
-        ],
-        "seed": 11227304134071478267,
-        "size": [
-          0.075,
-          0.12202595,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -1.5069696
-      },
-      {
-        "id": 66,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          -2.3790684,
-          0.34423795,
-          -5.902053
-        ],
-        "seed": 13184319204256946721,
-        "size": [
-          0.15,
-          0.11882833,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -1.5707963
-      },
-      {
-        "id": 67,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          0.005965352,
-          0.34742838,
-          -5.4696736
-        ],
-        "seed": 14423347190622030357,
-        "size": [
-          0.15,
-          0.114186,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 0.0
-      },
-      {
-        "id": 68,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          6.7668047,
-          0.3439811,
-          -4.7454677
-        ],
-        "seed": 14494309275734138182,
-        "size": [
-          0.075,
-          0.102637775,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -1.5069697
-      },
-      {
-        "id": 69,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          -5.9029074,
-          0.29133907,
-          0.7027076
-        ],
-        "seed": 1333115739468833374,
-        "size": [
-          0.075,
-          0.11528702,
+          0.11919589,
           0.018
         ],
         "solid": false,
@@ -9784,8 +9983,50 @@
         "yaw": 1.513924
       },
       {
+        "id": 63,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          6.232433,
+          0.36728936,
+          -2.3340306
+        ],
+        "seed": 12700315291694113509,
+        "size": [
+          0.22500001,
+          0.104755886,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
+        "yaw": -2.5001893
+      },
+      {
+        "id": 64,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          -6.1361322,
+          0.29781953,
+          -0.3604672
+        ],
+        "seed": 15201607037550275820,
+        "size": [
+          0.075,
+          0.1012784,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
+        "yaw": 2.6818893
+      },
+      {
         "finish_seed": 14304006243572215229,
-        "id": 70,
+        "id": 65,
         "interaction_target": 1,
         "kind": "Laptop",
         "neighbor": false,
@@ -9806,7 +10047,7 @@
         "yaw": -3.0732172
       },
       {
-        "id": 71,
+        "id": 66,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -9827,7 +10068,7 @@
         "yaw": 3.9134543
       },
       {
-        "id": 72,
+        "id": 67,
         "interaction_target": null,
         "kind": "DeskLamp",
         "neighbor": false,
@@ -9848,7 +10089,7 @@
         "yaw": -0.18584958
       },
       {
-        "id": 73,
+        "id": 68,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -9869,7 +10110,7 @@
         "yaw": 0.031613052
       },
       {
-        "id": 74,
+        "id": 69,
         "interaction_target": 9,
         "kind": "Laptop",
         "neighbor": false,
@@ -9890,7 +10131,7 @@
         "yaw": -0.017893892
       },
       {
-        "id": 75,
+        "id": 70,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -9911,7 +10152,7 @@
         "yaw": 0.018054903
       },
       {
-        "id": 76,
+        "id": 71,
         "interaction_target": null,
         "kind": "SodaCan",
         "neighbor": false,
@@ -9932,7 +10173,7 @@
         "yaw": -2.698055
       },
       {
-        "id": 77,
+        "id": 72,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -9953,7 +10194,7 @@
         "yaw": 2.16709
       },
       {
-        "id": 78,
+        "id": 73,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -9975,7 +10216,7 @@
       },
       {
         "finish_seed": 14730383426992358677,
-        "id": 79,
+        "id": 74,
         "interaction_target": 17,
         "kind": "Laptop",
         "neighbor": false,
@@ -9996,7 +10237,7 @@
         "yaw": 2.2673924
       },
       {
-        "id": 80,
+        "id": 75,
         "interaction_target": null,
         "kind": "DeskLamp",
         "neighbor": false,
@@ -10017,7 +10258,7 @@
         "yaw": 5.482091
       },
       {
-        "id": 81,
+        "id": 76,
         "interaction_target": 21,
         "kind": "Monitor",
         "neighbor": false,
@@ -10038,7 +10279,7 @@
         "yaw": -0.5498141
       },
       {
-        "id": 82,
+        "id": 77,
         "interaction_target": null,
         "kind": "Mouse",
         "neighbor": false,
@@ -10059,7 +10300,7 @@
         "yaw": -0.64136124
       },
       {
-        "id": 83,
+        "id": 78,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -10080,7 +10321,7 @@
         "yaw": -1.4782944
       },
       {
-        "id": 84,
+        "id": 79,
         "interaction_target": null,
         "kind": "SodaCan",
         "neighbor": false,
@@ -10101,7 +10342,7 @@
         "yaw": -3.7647533
       },
       {
-        "id": 85,
+        "id": 80,
         "interaction_target": 26,
         "kind": "Laptop",
         "neighbor": false,
@@ -10122,7 +10363,7 @@
         "yaw": -0.4461798
       },
       {
-        "id": 86,
+        "id": 81,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10143,7 +10384,7 @@
         "yaw": -0.40745413
       },
       {
-        "id": 87,
+        "id": 82,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -10164,7 +10405,7 @@
         "yaw": -0.69768375
       },
       {
-        "id": 88,
+        "id": 83,
         "interaction_target": null,
         "kind": "Laptop",
         "neighbor": true,
@@ -10185,7 +10426,7 @@
         "yaw": 3.259081
       },
       {
-        "id": 89,
+        "id": 84,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": true,
@@ -10206,7 +10447,7 @@
         "yaw": 2.6772738
       },
       {
-        "id": 90,
+        "id": 85,
         "interaction_target": null,
         "kind": "KitchenTowel",
         "neighbor": true,
@@ -10227,7 +10468,7 @@
         "yaw": 4.7862673
       },
       {
-        "id": 91,
+        "id": 86,
         "interaction_target": null,
         "kind": "PaperTowel",
         "neighbor": true,
@@ -10248,7 +10489,7 @@
         "yaw": 4.594949
       },
       {
-        "id": 92,
+        "id": 87,
         "interaction_target": null,
         "kind": "FruitBowl",
         "neighbor": true,
@@ -10269,7 +10510,7 @@
         "yaw": 4.4080367
       },
       {
-        "id": 93,
+        "id": 88,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -10290,7 +10531,7 @@
         "yaw": 0.8226218
       },
       {
-        "id": 94,
+        "id": 89,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -10311,7 +10552,7 @@
         "yaw": 8.100865
       },
       {
-        "id": 95,
+        "id": 90,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -10332,7 +10573,7 @@
         "yaw": 4.066599
       },
       {
-        "id": 96,
+        "id": 91,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -10353,20 +10594,20 @@
         "yaw": 8.243949
       },
       {
-        "id": 97,
+        "id": 92,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
         "position": [
-          7.252138,
-          1.4691488,
-          4.5796566
+          7.25152,
+          1.5390573,
+          4.3808374
         ],
         "seed": 8585632311687696731,
         "size": [
-          0.11532262,
-          0.20543253,
-          0.12194062
+          0.1001574,
+          0.17841764,
+          0.10590512
         ],
         "solid": false,
         "support": 42,
@@ -10374,7 +10615,7 @@
         "yaw": 1.5425154
       },
       {
-        "id": 98,
+        "id": 93,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -10395,7 +10636,7 @@
         "yaw": 1.5940433
       },
       {
-        "id": 99,
+        "id": 94,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -10416,7 +10657,7 @@
         "yaw": 4.25433
       },
       {
-        "id": 100,
+        "id": 95,
         "interaction_target": null,
         "kind": "SodaCan",
         "neighbor": false,
@@ -10437,7 +10678,7 @@
         "yaw": 3.7499402
       },
       {
-        "id": 101,
+        "id": 96,
         "interaction_target": null,
         "kind": "Bowl",
         "neighbor": false,
@@ -10458,7 +10699,7 @@
         "yaw": 3.5648558
       },
       {
-        "id": 102,
+        "id": 97,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10479,7 +10720,7 @@
         "yaw": -0.48672783
       },
       {
-        "id": 103,
+        "id": 98,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10500,7 +10741,7 @@
         "yaw": -0.2560587
       },
       {
-        "id": 104,
+        "id": 99,
         "interaction_target": null,
         "kind": "DeskOrganizer",
         "neighbor": false,
@@ -10521,7 +10762,7 @@
         "yaw": 1.5038965
       },
       {
-        "id": 105,
+        "id": 100,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -10542,7 +10783,7 @@
         "yaw": 0.40597665
       },
       {
-        "id": 106,
+        "id": 101,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10563,7 +10804,7 @@
         "yaw": 0.4854008
       },
       {
-        "id": 107,
+        "id": 102,
         "interaction_target": null,
         "kind": "Vase",
         "neighbor": false,
@@ -10584,7 +10825,7 @@
         "yaw": 5.433552
       },
       {
-        "id": 108,
+        "id": 103,
         "interaction_target": null,
         "kind": "TapeDispenser",
         "neighbor": false,
@@ -10605,7 +10846,7 @@
         "yaw": 4.6369534
       },
       {
-        "id": 109,
+        "id": 104,
         "interaction_target": null,
         "kind": "Stapler",
         "neighbor": false,
@@ -10626,7 +10867,7 @@
         "yaw": 6.875307
       },
       {
-        "id": 110,
+        "id": 105,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -10647,7 +10888,7 @@
         "yaw": 4.7568297
       },
       {
-        "id": 111,
+        "id": 106,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10668,7 +10909,7 @@
         "yaw": 2.56108
       },
       {
-        "id": 112,
+        "id": 107,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -10689,7 +10930,7 @@
         "yaw": 7.9769926
       },
       {
-        "id": 113,
+        "id": 108,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10710,7 +10951,7 @@
         "yaw": 8.029959
       },
       {
-        "id": 114,
+        "id": 109,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10731,7 +10972,7 @@
         "yaw": -3.4828491
       },
       {
-        "id": 115,
+        "id": 110,
         "interaction_target": null,
         "kind": "TapeDispenser",
         "neighbor": false,
@@ -10752,7 +10993,7 @@
         "yaw": -1.2040964
       },
       {
-        "id": 116,
+        "id": 111,
         "interaction_target": null,
         "kind": "Stapler",
         "neighbor": false,
@@ -10773,7 +11014,7 @@
         "yaw": -4.66611
       },
       {
-        "id": 117,
+        "id": 112,
         "interaction_target": null,
         "kind": "Pencil",
         "neighbor": false,
@@ -10794,7 +11035,7 @@
         "yaw": 0.088712096
       },
       {
-        "id": 118,
+        "id": 113,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -10815,7 +11056,7 @@
         "yaw": -4.534948
       },
       {
-        "id": 119,
+        "id": 114,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -10836,7 +11077,7 @@
         "yaw": 1.1057171
       },
       {
-        "id": 120,
+        "id": 115,
         "interaction_target": null,
         "kind": "Stapler",
         "neighbor": false,
@@ -10857,7 +11098,7 @@
         "yaw": 0.3939551
       },
       {
-        "id": 121,
+        "id": 116,
         "interaction_target": null,
         "kind": "Stapler",
         "neighbor": false,
@@ -10878,7 +11119,7 @@
         "yaw": 2.7529502
       },
       {
-        "id": 122,
+        "id": 117,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -10899,7 +11140,7 @@
         "yaw": 6.299361
       },
       {
-        "id": 123,
+        "id": 118,
         "interaction_target": null,
         "kind": "Stapler",
         "neighbor": false,
@@ -10920,7 +11161,7 @@
         "yaw": 2.7273254
       },
       {
-        "id": 124,
+        "id": 119,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10941,7 +11182,7 @@
         "yaw": 2.9698014
       },
       {
-        "id": 125,
+        "id": 120,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10962,7 +11203,7 @@
         "yaw": 2.8893628
       },
       {
-        "id": 126,
+        "id": 121,
         "interaction_target": null,
         "kind": "DeskOrganizer",
         "neighbor": false,
@@ -10983,7 +11224,7 @@
         "yaw": 6.7130156
       },
       {
-        "id": 127,
+        "id": 122,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -11004,14 +11245,14 @@
         "yaw": 6.755917
       },
       {
-        "id": 128,
+        "id": 123,
         "interaction_target": null,
         "kind": "Vase",
         "neighbor": false,
         "position": [
-          7.2554493,
-          1.4691488,
-          4.8939834
+          7.268244,
+          1.5390573,
+          4.773782
         ],
         "seed": 6858500111720593547,
         "size": [
@@ -11025,7 +11266,28 @@
         "yaw": -3.8068275
       },
       {
-        "id": 129,
+        "id": 124,
+        "interaction_target": null,
+        "kind": "Stapler",
+        "neighbor": false,
+        "position": [
+          7.3295627,
+          1.5390573,
+          5.4439445
+        ],
+        "seed": 7308662247459485906,
+        "size": [
+          0.035111148,
+          0.05617994,
+          0.13577005
+        ],
+        "solid": false,
+        "support": 42,
+        "variant": 0,
+        "yaw": 1.6308218
+      },
+      {
+        "id": 125,
         "interaction_target": null,
         "kind": "ExitSign",
         "neighbor": false,
@@ -11046,7 +11308,7 @@
         "yaw": 3.1415925
       },
       {
-        "id": 130,
+        "id": 126,
         "interaction_target": null,
         "kind": "FireAlarm",
         "neighbor": false,
@@ -11067,7 +11329,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 131,
+        "id": 127,
         "interaction_target": null,
         "kind": "Speaker",
         "neighbor": false,
@@ -11088,7 +11350,7 @@
         "yaw": -2.5001893
       },
       {
-        "id": 132,
+        "id": 128,
         "interaction_target": null,
         "kind": "Speaker",
         "neighbor": false,
@@ -11109,7 +11371,7 @@
         "yaw": -0.5137499
       },
       {
-        "id": 133,
+        "id": 129,
         "interaction_target": null,
         "kind": "Speaker",
         "neighbor": false,
@@ -11130,7 +11392,7 @@
         "yaw": -1.5069696
       },
       {
-        "id": 134,
+        "id": 130,
         "interaction_target": null,
         "kind": "FireDetector",
         "neighbor": false,
@@ -11151,7 +11413,7 @@
         "yaw": 2.6044238
       },
       {
-        "id": 135,
+        "id": 131,
         "interaction_target": null,
         "kind": "FireDetector",
         "neighbor": false,
@@ -11172,7 +11434,7 @@
         "yaw": 3.8310955
       },
       {
-        "id": 136,
+        "id": 132,
         "interaction_target": null,
         "kind": "Rug",
         "neighbor": false,
@@ -11193,7 +11455,7 @@
         "yaw": 4.738438
       },
       {
-        "id": 137,
+        "id": 133,
         "interaction_target": null,
         "kind": "Rug",
         "neighbor": false,
@@ -11214,7 +11476,7 @@
         "yaw": 3.2560668
       },
       {
-        "id": 138,
+        "id": 134,
         "interaction_target": null,
         "kind": "Rug",
         "neighbor": false,
@@ -11235,7 +11497,7 @@
         "yaw": 1.7706156
       },
       {
-        "id": 139,
+        "id": 135,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -11256,7 +11518,7 @@
         "yaw": -0.75357115
       },
       {
-        "id": 140,
+        "id": 136,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -11277,7 +11539,7 @@
         "yaw": -0.14130206
       },
       {
-        "id": 141,
+        "id": 137,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -11298,7 +11560,7 @@
         "yaw": 4.8099155
       },
       {
-        "id": 142,
+        "id": 138,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -11546,8 +11808,8 @@
             -0.14882937
           ]
         ],
-        "cable_target": 139,
-        "id": 143,
+        "cable_target": 135,
+        "id": 139,
         "interaction_target": 43,
         "kind": "Cable",
         "neighbor": false,
@@ -11570,788 +11832,434 @@
       {
         "cable_path": [
           [
-            0.8452263,
-            0.77337587,
-            -0.41293582
+            0.96471167,
+            0.742316,
+            0.08797951
           ],
           [
-            0.80672693,
-            0.77337587,
-            -0.41521928
+            0.92614174,
+            0.742316,
+            0.085691854
           ],
           [
-            0.80586433,
-            0.7733747,
-            -0.41529384
+            0.9254203,
+            0.74231464,
+            0.08562949
           ],
           [
-            0.5763297,
-            0.7727479,
-            -0.4413972
+            0.6980133,
+            0.74144983,
+            0.05976808
           ],
           [
-            0.34679508,
-            0.772121,
-            -0.46750057
+            0.47060633,
+            0.74058497,
+            0.03390667
           ],
           [
-            0.117260456,
-            0.7714942,
-            -0.49360394
+            0.24319983,
+            0.7397201,
+            0.008045286
           ],
           [
-            -0.11227417,
-            0.77086735,
-            -0.5197073
+            0.015792847,
+            0.73885524,
+            -0.017816126
           ],
           [
-            -0.11615896,
-            0.77038246,
-            -0.52006
+            0.012479305,
+            0.73842007,
+            -0.018187463
           ],
           [
-            -0.11982775,
-            0.7689783,
-            -0.5202152
+            0.00937748,
+            0.73716736,
+            -0.01852417
           ],
           [
-            -0.12305832,
-            0.7667395,
-            -0.5201636
+            0.006682396,
+            0.7351762,
+            -0.018804997
           ],
           [
-            -0.1256566,
-            0.76380086,
-            -0.51990825
+            0.004565239,
+            0.73257244,
+            -0.019012183
           ],
           [
-            -0.1274662,
-            0.7603395,
-            -0.51946455
+            0.0031590462,
+            0.72952056,
+            -0.019132674
           ],
           [
-            -0.12837791,
-            0.75656396,
-            -0.5188592
+            -0.023631573,
+            0.64485365,
+            -0.021084934
           ],
           [
-            -0.13734913,
-            0.6778862,
-            -0.5050997
+            -0.023766518,
+            0.6444493,
+            -0.02109477
           ],
           [
-            -0.13739204,
-            0.67753106,
-            -0.5050341
+            -0.053415775,
+            0.5601688,
+            -0.023255259
           ],
           [
-            -0.14796257,
-            0.5943178,
-            -0.48882157
+            -0.053578854,
+            0.55972964,
+            -0.02326715
           ],
           [
-            -0.14801502,
-            0.5939265,
-            -0.48874098
+            -0.08319664,
+            0.48409474,
+            -0.025425404
           ],
           [
-            -0.15857458,
-            0.5193534,
-            -0.47254503
+            -0.083393574,
+            0.4836194,
+            -0.02543974
           ],
           [
-            -0.15863895,
-            0.518923,
-            -0.4724462
+            -0.11297464,
+            0.4158627,
+            -0.027595311
           ],
           [
-            -0.16918564,
-            0.45215797,
-            -0.45627034
+            -0.113211155,
+            0.41535074,
+            -0.027612537
           ],
           [
-            -0.16926432,
-            0.45168588,
-            -0.45614934
+            -0.14274931,
+            0.354783,
+            -0.02976501
           ],
           [
-            -0.17979479,
-            0.39198336,
-            -0.43999797
+            -0.14303255,
+            0.35423467,
+            -0.029785663
           ],
           [
-            -0.17989111,
-            0.39146674,
-            -0.43984997
+            -0.17252016,
+            0.30023807,
+            -0.03193438
           ],
           [
-            -0.19040251,
-            0.33815897,
-            -0.4237282
+            -0.17285776,
+            0.29965493,
+            -0.031958997
           ],
           [
-            -0.19052029,
-            0.33759588,
-            -0.4235478
+            -0.20228672,
+            0.25167623,
+            -0.034103483
           ],
           [
-            -0.20100832,
-            0.29008502,
-            -0.40746158
+            -0.20268774,
+            0.25106123,
+            -0.03413269
           ],
           [
-            -0.20115137,
-            0.28947416,
-            -0.4072423
+            -0.23204947,
+            0.20860583,
+            -0.036272258
           ],
           [
-            -0.21161127,
-            0.24722587,
-            -0.39119858
+            -0.23252201,
+            0.20796421,
+            -0.03630671
           ],
           [
-            -0.21178436,
-            0.24656637,
-            -0.39093277
+            -0.26180744,
+            0.1705909,
+            -0.038440675
           ],
           [
-            -0.22221231,
-            0.20910291,
-            -0.37493962
+            -0.26236105,
+            0.16992965,
+            -0.038480997
           ],
           [
-            -0.22242117,
-            0.20839632,
-            -0.37461904
+            -0.29156065,
+            0.13724595,
+            -0.040608823
           ],
           [
-            -0.23280954,
-            0.17529115,
-            -0.35868543
+            -0.29220343,
+            0.13657504,
+            -0.040655643
           ],
           [
-            -0.23306036,
-            0.17453977,
-            -0.3583004
+            -0.32131052,
+            0.1082328,
+            -0.042776674
           ],
           [
-            -0.24340391,
-            0.14541228,
-            -0.34243608
+            -0.32204962,
+            0.10756495,
+            -0.042830527
           ],
           [
-            -0.24370337,
-            0.14462176,
-            -0.34197664
+            -0.35105753,
+            0.08325707,
+            -0.044944316
           ],
           [
-            -0.25399494,
-            0.119132034,
-            -0.3261919
+            -0.3518982,
+            0.08260773,
+            -0.04500559
           ],
           [
-            -0.2543497,
-            0.11831089,
-            -0.32564777
+            -0.3808031,
+            0.06206508,
+            -0.04711187
           ],
           [
-            -0.26458263,
-            0.09615608,
-            -0.309953
+            -0.38174677,
+            0.06145256,
+            -0.047180653
           ],
           [
-            -0.2649994,
-            0.09531606,
-            -0.3093138
+            -0.4105487,
+            0.04444225,
+            -0.04927942
           ],
           [
-            -0.275167,
-            0.07622633,
-            -0.29371876
+            -0.4115939,
+            0.04388599,
+            -0.049355596
           ],
           [
-            -0.27565145,
-            0.07538352,
-            -0.29297552
+            -0.44029808,
+            0.03020998,
+            -0.051447242
           ],
           [
-            -0.28574896,
-            0.059118804,
-            -0.27748832
+            -0.44143724,
+            0.029730804,
+            -0.051530242
           ],
           [
-            -0.2863059,
-            0.058293317,
-            -0.27663416
+            -0.47005272,
+            0.019225352,
+            -0.05361545
           ],
           [
-            -0.2963295,
-            0.044641044,
-            -0.2612601
+            -0.47127295,
+            0.018842742,
+            -0.05370438
           ],
           [
-            -0.29696083,
-            0.043856926,
-            -0.26029158
+            -0.49981546,
+            0.011378825,
+            -0.055784255
           ],
           [
-            -0.30691004,
-            0.032630406,
-            -0.24503195
+            -0.5010991,
+            0.011109944,
+            -0.055877805
           ],
           [
-            -0.30761528,
-            0.031914573,
-            -0.2439503
+            -0.52958965,
+            0.0065936632,
+            -0.057953864
           ],
           [
-            -0.31749249,
-            0.022952512,
-            -0.22880098
+            -0.53091383,
+            0.006451234,
+            -0.058050364
           ],
           [
-            -0.31826687,
-            0.022333343,
-            -0.22761339
+            -0.5593753,
+            0.004824903,
+            -0.060124367
           ],
           [
-            -0.32807875,
-            0.015500162,
-            -0.21256402
+            -0.5607147,
+            0.0048159026,
+            -0.06022197
           ],
           [
-            -0.3289132,
-            0.015005209,
-            -0.21128419
+            -0.5891752,
+            0.0060585476,
+            -0.062295854
           ],
           [
-            -0.3386712,
-            0.010192376,
-            -0.1963177
+            -0.5905032,
+            0.006183423,
+            -0.062392622
           ],
           [
-            -0.3395524,
-            0.009845758,
-            -0.19496588
+            -0.6189885,
+            0.010311089,
+            -0.064468265
           ],
           [
-            -0.34927177,
-            0.0069735427,
-            -0.18005905
+            -0.62027884,
+            0.010563716,
+            -0.06456229
           ],
           [
-            -0.350183,
-            0.006793304,
-            -0.17866115
+            -0.6488128,
+            0.01762924,
+            -0.06664163
           ],
           [
-            -0.36010218,
-            0.0057903756,
-            -0.16344832
+            -0.65004253,
+            0.017997555,
+            -0.066731244
           ],
           [
-            -0.36058426,
-            0.0057660104,
-            -0.16270876
+            -0.6786475,
+            0.028089978,
+            -0.06881568
           ],
           [
-            -0.38157845,
-            0.0057654674,
-            -0.13050838
+            -0.6797981,
+            0.028557364,
+            -0.06889951
           ],
           [
-            -0.4665203,
-            0.0057654674,
-            -0.00022657216
+            -0.7084899,
+            0.04180111,
+            -0.070990235
           ],
           [
-            -0.5514622,
-            0.0057654674,
-            0.13005523
+            -0.709548,
+            0.04234823,
+            -0.07106736
           ],
           [
-            -0.63629246,
-            0.0057654683,
-            0.2601648
+            -0.73833656,
+            0.05890236,
+            -0.07316518
           ],
           [
-            -0.63651705,
-            0.0057707527,
-            0.26050925
+            -0.73929405,
+            0.05950863,
+            -0.073234975
           ],
           [
-            -0.6465831,
-            0.006244088,
-            0.2759487
+            -0.76818514,
+            0.07956668,
+            -0.07534024
           ],
           [
-            -0.6474581,
-            0.006365849,
-            0.27729076
+            -0.76903963,
+            0.08021217,
+            -0.0754025
           ],
           [
-            -0.65718937,
-            0.008623522,
-            0.29221612
+            -0.7980337,
+            0.104002334,
+            -0.077515334
           ],
           [
-            -0.6580825,
-            0.008917624,
-            0.29358602
+            -0.79878616,
+            0.104668595,
+            -0.07757017
           ],
           [
-            -0.6678257,
-            0.013091642,
-            0.30853027
+            -0.8278804,
+            0.13245493,
+            -0.07969019
           ],
           [
-            -0.66867685,
-            0.01354073,
-            0.3098361
+            -0.82853556,
+            0.13312638,
+            -0.07973793
           ],
           [
-            -0.67847013,
-            0.019705903,
-            0.32485628
+            -0.85772324,
+            0.16521087,
+            -0.08186486
           ],
           [
-            -0.679265,
-            0.020287547,
-            0.32607573
+            -0.8582883,
+            0.16587397,
+            -0.08190602
           ],
           [
-            -0.6891203,
-            0.028543247,
-            0.34119105
+            -0.8875623,
+            0.20259914,
+            -0.08403924
           ],
           [
-            -0.6898489,
-            0.029230742,
-            0.34230828
+            -0.8880453,
+            0.20324385,
+            -0.08407444
           ],
           [
-            -0.6997738,
-            0.039703894,
-            0.35753125
+            -0.9173975,
+            0.24499592,
+            -0.08621329
           ],
           [
-            -0.70042944,
-            0.04046886,
-            0.35853702
+            -0.9178076,
+            0.24561486,
+            -0.08624315
           ],
           [
-            -0.7104287,
-            0.053312525,
-            0.37387377
+            -0.9416356,
+            0.28385395,
+            -0.087979525
           ],
           [
-            -0.7110095,
-            0.054127272,
-            0.37476492
+            -0.9433551,
+            0.28636098,
+            -0.087776005
           ],
           [
-            -0.7209568,
-            0.069325775,
-            0.3900209
+            -0.9452243,
+            0.28861785,
+            -0.08694291
           ],
           [
-            -0.7216964,
-            0.07059573,
-            0.391155
+            -0.94714737,
+            0.29050753,
+            -0.08552346
           ],
           [
-            -0.74227476,
-            0.11028634,
-            0.42271733
+            -0.94902325,
+            0.291932,
+            -0.08359125
           ],
           [
-            -0.74285555,
-            0.11152782,
-            0.42360818
+            -0.9507556,
+            0.2928173,
+            -0.081246555
           ],
           [
-            -0.75303507,
-            0.13567868,
-            0.43922126
+            -0.9522543,
+            0.2931176,
+            -0.07861096
           ],
           [
-            -0.7533517,
-            0.13648032,
-            0.43970716
-          ],
-          [
-            -0.76367855,
-            0.1643887,
-            0.45554674
-          ],
-          [
-            -0.7639446,
-            0.16515328,
-            0.45595473
-          ],
-          [
-            -0.7743192,
-            0.19692439,
-            0.4718669
-          ],
-          [
-            -0.7745414,
-            0.19764616,
-            0.4722075
-          ],
-          [
-            -0.78495693,
-            0.23364677,
-            0.48818225
-          ],
-          [
-            -0.785141,
-            0.23432176,
-            0.4884649
-          ],
-          [
-            -0.79559135,
-            0.2749631,
-            0.504493
-          ],
-          [
-            -0.79574347,
-            0.27558985,
-            0.5047266
-          ],
-          [
-            -0.80350447,
-            0.3094666,
-            0.51663035
-          ],
-          [
-            -0.80468416,
-            0.31275052,
-            0.5177599
-          ],
-          [
-            -0.80662155,
-            0.31571025,
-            0.51872826
-          ],
-          [
-            -0.80921555,
-            0.31819057,
-            0.51948446
-          ],
-          [
-            -0.8123293,
-            0.32006145,
-            0.51998895
-          ],
-          [
-            -0.8158002,
-            0.3212247,
-            0.5202153
-          ],
-          [
-            -0.8194461,
-            0.32161936,
-            0.52015156
-          ],
-          [
-            -0.8452258,
-            0.32161942,
-            0.51868385
+            -0.96471167,
+            0.29311764,
+            -0.053448975
           ]
         ],
-        "cable_target": 69,
-        "id": 144,
+        "cable_target": 64,
+        "id": 140,
         "interaction_target": 44,
         "kind": "Cable",
         "neighbor": false,
         "position": [
-          -5.0473385,
-          0.0019999999,
-          0.18461265
+          -5.166824,
+          0.033059828,
+          -0.3163027
         ],
-        "seed": 10921864104980276545,
+        "seed": 10846871933484538962,
         "size": [
-          1.701983,
-          0.7791413,
-          1.0519614
+          1.9390554,
+          0.7471319,
+          0.18559085
         ],
         "solid": false,
         "support": 13,
-        "variant": 0,
-        "yaw": 0.0
-      },
-      {
-        "cable_path": [
-          [
-            -0.355608,
-            0.4134857,
-            0.1781807
-          ],
-          [
-            -0.35724115,
-            0.4134857,
-            0.1519351
-          ],
-          [
-            -0.3570938,
-            0.4134763,
-            0.14913225
-          ],
-          [
-            -0.35631227,
-            0.4134485,
-            0.14643669
-          ],
-          [
-            -0.3549385,
-            0.41340393,
-            0.14398956
-          ],
-          [
-            -0.3530445,
-            0.41334474,
-            0.14191961
-          ],
-          [
-            -0.350729,
-            0.41327417,
-            0.14033508
-          ],
-          [
-            -0.34811354,
-            0.4131958,
-            0.13931894
-          ],
-          [
-            -0.34533596,
-            0.41311383,
-            0.13892508
-          ],
-          [
-            -0.18032551,
-            0.4082802,
-            0.13462591
-          ],
-          [
-            -0.17757463,
-            0.40789437,
-            0.13447237
-          ],
-          [
-            -0.1749878,
-            0.4069186,
-            0.13416433
-          ],
-          [
-            -0.17269802,
-            0.40540308,
-            0.13371706
-          ],
-          [
-            -0.17082357,
-            0.40342593,
-            0.13315344
-          ],
-          [
-            -0.16946077,
-            0.4010892,
-            0.13250351
-          ],
-          [
-            -0.1419549,
-            0.33802646,
-            0.115124226
-          ],
-          [
-            -0.14167309,
-            0.33742315,
-            0.114946365
-          ],
-          [
-            -0.11130905,
-            0.27648038,
-            0.09576082
-          ],
-          [
-            -0.110964775,
-            0.2758364,
-            0.095543385
-          ],
-          [
-            -0.08066845,
-            0.22285801,
-            0.07640076
-          ],
-          [
-            -0.08025122,
-            0.22217953,
-            0.076137066
-          ],
-          [
-            -0.05003214,
-            0.17642885,
-            0.057044506
-          ],
-          [
-            -0.049530983,
-            0.17572612,
-            0.056727886
-          ],
-          [
-            -0.019402027,
-            0.13656005,
-            0.037691116
-          ],
-          [
-            -0.018806934,
-            0.13584706,
-            0.03731489
-          ],
-          [
-            0.011223316,
-            0.102707565,
-            0.018340588
-          ],
-          [
-            0.011920929,
-            0.102003366,
-            0.01789999
-          ],
-          [
-            0.041846275,
-            0.07440919,
-            -0.0010075569
-          ],
-          [
-            0.042651176,
-            0.073737234,
-            -0.0015163422
-          ],
-          [
-            0.07246876,
-            0.05127856,
-            -0.020355701
-          ],
-          [
-            0.07338047,
-            0.050666213,
-            -0.02093172
-          ],
-          [
-            0.103093624,
-            0.033000648,
-            -0.039705753
-          ],
-          [
-            0.10410595,
-            0.032476842,
-            -0.040345192
-          ],
-          [
-            0.13372421,
-            0.01932764,
-            -0.059058666
-          ],
-          [
-            0.13482237,
-            0.018920839,
-            -0.059752464
-          ],
-          [
-            0.16436529,
-            0.010076076,
-            -0.07841873
-          ],
-          [
-            0.16552782,
-            0.009810567,
-            -0.07915306
-          ],
-          [
-            0.19501877,
-            0.0051244795,
-            -0.09778738
-          ],
-          [
-            0.19621801,
-            0.005017251,
-            -0.098545074
-          ],
-          [
-            0.22568893,
-            0.0044112504,
-            -0.11716509
-          ],
-          [
-            0.22689295,
-            0.004469365,
-            -0.117925644
-          ],
-          [
-            0.25637484,
-            0.007933378,
-            -0.13655329
-          ],
-          [
-            0.25755167,
-            0.008153021,
-            -0.13729668
-          ],
-          [
-            0.28707552,
-            0.015745103,
-            -0.1559515
-          ],
-          [
-            0.2881956,
-            0.01611203,
-            -0.15665913
-          ],
-          [
-            0.31534386,
-            0.026979059,
-            -0.17381191
-          ],
-          [
-            0.31739902,
-            0.027632445,
-            -0.17487049
-          ],
-          [
-            0.31965685,
-            0.028034806,
-            -0.17558527
-          ],
-          [
-            0.32203054,
-            0.028170675,
-            -0.17593002
-          ],
-          [
-            0.35724115,
-            0.028170705,
-            -0.1781807
-          ]
-        ],
-        "cable_target": 65,
-        "id": 145,
-        "interaction_target": 47,
-        "kind": "Cable",
-        "neighbor": false,
-        "position": [
-          6.999618,
-          0.35698074,
-          4.8272047
-        ],
-        "seed": 3147132833392349964,
-        "size": [
-          0.72330475,
-          0.41789693,
-          0.36518383
-        ],
-        "solid": false,
-        "support": 30,
         "variant": 2,
         "yaw": 0.0
       }
@@ -12797,9 +12705,9 @@
         {
           "coating": null,
           "color": [
-            0.13894379,
-            0.11715289,
-            0.06471149
+            0.4201327,
+            0.32669142,
+            0.25097728
           ],
           "construction": {
             "scale": 0.7897909,
@@ -12823,8 +12731,8 @@
             ],
             "basket_strips": 3,
             "cells": [
-              20,
-              2
+              37,
+              6
             ],
             "craft": {
               "chevron_rise": 1.3307562,
@@ -12835,10 +12743,26 @@
             "piece_roughness": 0.07491399,
             "piece_tone": 0.2523173,
             "piece_warmth": 0.027259532,
+            "stock": {
+              "cut_jitter": [
+                0.17955045,
+                0.24740075
+              ],
+              "joint_color": [
+                0.083823554,
+                0.08130885,
+                0.078794144
+              ],
+              "joint_roughness": 0.8136412,
+              "mottle_cells": [
+                9,
+                5
+              ]
+            },
             "tile_definition": 0.38427076
           },
-          "grain_frequency": 43.226982,
-          "joint_width": 0.001143511,
+          "grain_frequency": 54.7804,
+          "joint_width": 0.00064633135,
           "layers": {
             "bands": [
               2,
@@ -12893,13 +12817,13 @@
             14,
             1
           ],
-          "period_m": 2.8,
+          "period_m": 5.0902886,
           "phase": [
             0.09139049,
             0.64470106
           ],
-          "relief_m": 0.000094995194,
-          "roughness": 0.6359938,
+          "relief_m": 0.00009112278,
+          "roughness": 0.7075826,
           "seed": 13643048626717298417,
           "surface": "Floor",
           "textile": {
@@ -12964,10 +12888,10 @@
           "weathering": 0.0907248,
           "weave_mix": 0.75985694,
           "wood": {
-            "bleach": 0.30030936,
-            "clearcoat": 0.2918118,
-            "coat_roughness": 0.34865487,
-            "pore_fill": 0.41338414,
+            "bleach": 0.09540941,
+            "clearcoat": 0.8671245,
+            "coat_roughness": 0.30859828,
+            "pore_fill": 0.47310477,
             "ring_contrast": 0.6313304,
             "seed": 13643048626717298417,
             "stain_color": [
@@ -12975,7 +12899,7 @@
               0.17936797,
               0.17403348
             ],
-            "stain_strength": 0.32177025
+            "stain_strength": 0.5625125
           }
         },
         {
@@ -15453,7 +15377,7 @@
           4.9561954,
           4.015166
         ],
-        "object": 136,
+        "object": 132,
         "outline": [
           [
             5.991388,
@@ -15724,13 +15648,13 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000023/capture.json": "153810d103525c4b66fd1aa571122baaefdae021acd1ee8fd4a804aa9893ca19",
-    "seed_000023/manifest.json": "285c47a031ce12dd603962d4daa21556c6751e2487f95b35c9479966a9fec8a3",
-    "seed_000023/schematic.svg": "e55c65d8273493d20ff184fa7a1c9d53d2d2e5c115a78daad8e9fc6c7fa00347",
+    "seed_000023/capture.json": "c575999fb5903d4584f7dffee4537ef7763e3d97264d8505d395bb279272aced",
+    "seed_000023/manifest.json": "2cdf2d76cf65aca2bb29e9f0511f479ef1c22bdef32799c70bdfbd67b5f8a070",
+    "seed_000023/schematic.svg": "f6c2b926a64035cd81b34c140b461ccd61f7dd4015368150bd652d3de471f8b2",
     "seed_000023/view_00_co_visibility.png": "96450f91a29fb2efc9b9e2f6e3ec50a539b9e8458f255c9e378fd692ad96c465",
     "seed_000023/view_00_co_visibility_mask.png": "a8b0b38f23765eb75e42a79cb11f8a6ea00030c6f76394569ccfc979072bea43",
     "seed_000023/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_00_color.png": "906aabb6547bff9817299f7eb8c2b418ddcc18fe102e137f5bbe37d643c9ab21",
+    "seed_000023/view_00_color.png": "6d708b33805e191d1a440a942fbbbfe46ba5abf42b4cb77c13a7b1520f733a49",
     "seed_000023/view_00_depth.png": "4b1916c9c15630f8b68d72b84301b5cddce403d51fc706a259a3dfced4183d95",
     "seed_000023/view_00_normal.png": "f09f50730887095829a0cdc37d44529cad1ba327970fc110861c42445a01adb4",
     "seed_000023/view_00_position.png": "1b72d87a675d9269abed7639dc1cb88e1fb831a92f136cae7f514cad03e36520",
@@ -15738,7 +15662,7 @@
     "seed_000023/view_01_co_visibility.png": "ba8fb8459fe330d7ef0278e5b530ef9f38874f6e1c741d80e2e22ea7e881775e",
     "seed_000023/view_01_co_visibility_mask.png": "b0ffd2b9db80e4053772e83473c6da3994d5f80927fffe04572923b2a79d6758",
     "seed_000023/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_01_color.png": "f2361f626c63ac60ad81eae1fbf8b7a23c71b96f1187af98dcf712d3ceba55af",
+    "seed_000023/view_01_color.png": "4bef0d0cef2c4c20d33802400903e764b24158dfdd15d1fc835e5be2c721de6a",
     "seed_000023/view_01_depth.png": "0a7406c509940899ef0993a6c864e0a65f82d2560169912d7d409801ac0599cd",
     "seed_000023/view_01_normal.png": "975c076cefd78b5425122800860b18834a3ef6b1c99278aa83d7fbd6324d7860",
     "seed_000023/view_01_position.png": "b0362b46d186f4ad80444b1d732f868e82a680a569b6838059d6e350c469c1eb",
@@ -15746,7 +15670,7 @@
     "seed_000023/view_02_co_visibility.png": "ef3cb07ffe23100f845d1f7a782fc5648d9df172e4b2c374bfc926ba0d6c59a4",
     "seed_000023/view_02_co_visibility_mask.png": "35498a89977045dee06150d8112b32b1070dcf4c9e1937916c27d83b71abe4e0",
     "seed_000023/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_02_color.png": "7aff83e650f2ac15ba503c71a86dee06a48f4819e482cea9920198416b53b845",
+    "seed_000023/view_02_color.png": "864b2b9dc2defe5589df7b9e29e0c3450ec3325ff38201a0b97ce5f7be8bafac",
     "seed_000023/view_02_depth.png": "304740e39b12935680e64cfd11dc387ce74bc8211f6dc969a294dffef787e6a8",
     "seed_000023/view_02_normal.png": "e074a98e01003b6ab420fa703a8ef311f09f190999439e128a36527c4c249cc0",
     "seed_000023/view_02_position.png": "2e770a6d6dacf239dd10724fae1942120e9b7eb8b768e5391623066acb573433",
@@ -15754,7 +15678,7 @@
     "seed_000023/view_03_co_visibility.png": "ab210d5c25554fc15f3feff01885f479d59f0717c291785e88c401843bc5cb80",
     "seed_000023/view_03_co_visibility_mask.png": "1ad9a91885a827a1d9aeec71da65806dc488ef2d787d5adb079c8f676839c6fc",
     "seed_000023/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_03_color.png": "0d5530a836a59569da7940ed4afdaf24027304566c92ca9a6a27a832340c427d",
+    "seed_000023/view_03_color.png": "bbcb6fda827b9b7168cf209cc126ee720ca21fe833567126c6e32c6394152580",
     "seed_000023/view_03_depth.png": "2e428741c185a2d192fb3c8840f590503e71d32343fce1524e445ebbe86bc6bb",
     "seed_000023/view_03_normal.png": "6a4f06e068c4caf53733d5b9c5132238221088dfcb3497187eb6130a6aeedb4a",
     "seed_000023/view_03_position.png": "6c6b07f37906c291093a5a3abcad81ab75abd12e58009f0e61a0c98e7160a9c2",
@@ -15762,7 +15686,7 @@
     "seed_000023/view_04_co_visibility.png": "2abbe9c6a146c87d2dbfe562982e8f36b1688380c8a243d634b9034e6faa57cf",
     "seed_000023/view_04_co_visibility_mask.png": "7ac48c2c8d037ccbc7ad155d9eb0bbb870affa119ff518355481971c706c9ad6",
     "seed_000023/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_04_color.png": "09d480114599d1f78da67b3233e9c0eb9cc37e943809e3489e15b7d447fc6c58",
+    "seed_000023/view_04_color.png": "7b24e0bcb3e095f95d7ffd6ec5f9e2b3c96cb6ae46f2d75a7170167756acca33",
     "seed_000023/view_04_depth.png": "08a28ac8294d8916572af8c34146561bfd58bc3bdeede896ab738fe46d9cd3fa",
     "seed_000023/view_04_normal.png": "d3ad33063d7bad0addd00edd1620dc3568d307189ea4adc61001656e1c30d003",
     "seed_000023/view_04_position.png": "785ae2f37302b54e1fd9e40c94954ce20bb2bc612657598e0a9d0c710cac5a3e",
@@ -15770,7 +15694,7 @@
     "seed_000023/view_05_co_visibility.png": "2d42d204570fb3f9e6b0048d9020ba673729bbb81f4886776f2bf5dc1f933f69",
     "seed_000023/view_05_co_visibility_mask.png": "01e2c2f6a66688c5ec61d2ccfdbc07886f34bf3c95c940db668d828f5cedda5e",
     "seed_000023/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_05_color.png": "e92605466d4476daff46b30109e1a83da0425ad5050b5aedb23835af002bca62",
+    "seed_000023/view_05_color.png": "0dba69e0a8d572ed363d9d79c04ef5d5c50725a46cf4ab8d28d11b57de333470",
     "seed_000023/view_05_depth.png": "e60661b99cd6a66e83d98e604ab127aeb8b09c7b95bd57dd842245d5c2440a44",
     "seed_000023/view_05_normal.png": "2d18746fb9510383e798a4adaeb651d5d378bfbf373f9e981ef9045c3d02f223",
     "seed_000023/view_05_position.png": "31eb8ff3df62d3be4601d4e0642c50ef4e22b862c2037eb71e92d4b2f53b4dc0",
@@ -15778,7 +15702,7 @@
     "seed_000023/view_06_co_visibility.png": "2707f5f57d8c74175303569d8aa4d6836477f570163cd7c8791e70da669f41ea",
     "seed_000023/view_06_co_visibility_mask.png": "414421f3048cf3ada74b6b2ee07a0b04cf0d343174057cdcf530120335c0e50f",
     "seed_000023/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_06_color.png": "678684f9145f680e660dba9cca77e194fd516b7027d171772ca1482ca0914580",
+    "seed_000023/view_06_color.png": "0a4b019fdb0dfc6346fc89ef7d69febe3d49a9a011f44ac5423c5a95a1cac16f",
     "seed_000023/view_06_depth.png": "66ef24d3f06b7ad7007651e7a11fd9dcfcf9cdb5185c222b80b84c89e7d40de9",
     "seed_000023/view_06_normal.png": "3635cc2534c7c5f5f3f6ead9d7fd5ed1d6d8fc7abb9594ce551ba43e9e72c35a",
     "seed_000023/view_06_position.png": "efecdc136d0c42828e57d3f2bbfffc58ce7f28c889233f662dc1b6a5abec251e",
@@ -15786,7 +15710,7 @@
     "seed_000023/view_07_co_visibility.png": "c9fff0de88ef2330b885811289d7f2b347cb3b6963783e88b2abb95be29f0208",
     "seed_000023/view_07_co_visibility_mask.png": "7f99a0203caf696da83a244f39b8a7db742e4e04d45240ce43fcb0eadf29fa39",
     "seed_000023/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000023/view_07_color.png": "0d16b1273cdffe53663982731b582866eb0bcdf39bb271b90009b8c9323fe6b7",
+    "seed_000023/view_07_color.png": "457518b89e8df482cbc03d3de337ce1f89fef0d91598a9446e2e278776147eb5",
     "seed_000023/view_07_depth.png": "9f5d578b9eb6b8a8619b8c32082050d65899c52a0dd08e402bafa340451128d6",
     "seed_000023/view_07_normal.png": "13a0199d736457fe5151a187e2f29f8d6e8914c67bcf0ed3afe786604c12699a",
     "seed_000023/view_07_position.png": "70b2da41ed0dfb2c50251ecf9a0d9debe3d5358ae95ad80dc7fbf3379fbde7a1",
