@@ -1,22 +1,22 @@
 {
-  "checkout_revision": "892ffa7fab7dd4a8cd73d85b4c646036fe4a0874",
+  "checkout_revision": "8860228b8267237ee9e943f992f03fea8eadb9aa",
   "completed_stage_sha256": {
-    "camera-audit": "2839874cee12031eee01b5e14b70b52b2c8d122458e7baf7dd06eedd5de37eb3",
-    "camera-render": "96d3eeb8a6957a7dee38ac6471ad2641b984a6374ee08fa5d24bd2eadd964359",
-    "camera-report": "ca0bde69ccca90a8b39bea951ecbda1f49e3530bca21ac6a836a5b473d38721e",
-    "fisheye": "f0b5f8fb131384b777a34ef47589ab88e0227510dbe426c57dc5841e6417c496",
-    "pipeline-timing": "cc354e538838c47eeb3e810813ac9d23a5363a8fbf4056da9f3242e7679e6d84",
-    "room-qualification": "68b5f5cf1af94c4a66c49d221fb10038965ec9e54d3bd7f41a10e9217abb1911"
+    "camera-audit": "a809921025eb7448239a8c9d44dc1d6d2f12a83c99edeae4c50393c9707dae2c",
+    "camera-render": "2d6205edb51af5cd0309b1fff1aa8fea40fd18a9a42dcf8456a43a17b99a2601",
+    "camera-report": "be0a04a8456bf24c0fc6158bb6b621c0ba2044688dd63b92d7592b631fd1db64",
+    "fisheye": "73fec4af4da2e5f419fe77fc202b38e9b0a1ac799c0c49c8969a6a871796e551",
+    "pipeline-timing": "20471cc44516049dbc0d8b7967304c3e0a074acad472c4483c9fa5c5795688d5",
+    "room-qualification": "f16baaf286aad3931d2236952b03efc3bb963e5cbb253fa878f5e20d8cbcbcf7"
   },
   "execution": "native render commands; actual adapters are recorded in each render/timing receipt",
   "generator_identity": {
-    "crate_version": "0.59.1",
-    "generator_version": 77,
+    "crate_version": "0.60.0",
+    "generator_version": 86,
     "schema_version": 1,
-    "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596"
+    "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130"
   },
   "plan": {
-    "cache_key": "fab22429beb1984c05361231ea44fb12385d5c472d70fe00c56417afd0f356a8",
+    "cache_key": "0b74e804543960f5e2f184d5f04ee495606519722ad82f47abbc483f3a9036d1",
     "cache_policy": "exact source, tool, recipe and completed artifact hashes; never retained evidence",
     "camera_baselines": [
       0.0,
@@ -58,12 +58,12 @@
     "fisheye_rendered_views": 36,
     "gallery_rendered_views": 256,
     "generator_identity": {
-      "crate_version": "0.59.1",
-      "generator_version": 77,
+      "crate_version": "0.60.0",
+      "generator_version": 86,
       "schema_version": 1,
-      "source_sha256": "22de61e1ed76d8632c7413e6cbfdde08c631167e73235a2d42336645dc092596"
+      "source_sha256": "3774b2a00e73c0f4bd38636d3c573dc0e713255052f2b2fe9d5fd74d18bb7130"
     },
-    "publisher_sha256": "f046aa28bef26237f4751e48fa4b8c11c2d4352fc8fe99ff9c4e9acb35008cec",
+    "publisher_sha256": "90e173c50380c21a3eaa2f7cee31f68192e82299445b62d1515574a2c1f325f1",
     "recipe": {
       "camera_audit_rooms": 64,
       "camera_render_rooms": 2,
@@ -139,12 +139,13 @@
       "examples/schematic.rs": "987564f8ae480e98f1d5582d8de9b19806718397ff2c724754fc03d67d0204f1",
       "examples/support/lens_preview_clusters.rs": "7ebdbf34d962f0f657ee8bf8737ba8f402d526ce5b2f8c04681ef68c04a82e81",
       "examples/support/lens_preview_profile.rs": "71160a9c8550cf7570ad60e24a7a72e50f82e159944314a4c8556fede9ab0f87",
-      "examples/validate_fisheye.rs": "c253d8199d9854d5bf6fb2797e15509df7224df365e429bb676f85338ac0d025",
+      "examples/validate_fisheye.rs": "7a0023cb38248a4bd05c2211002c1f815d6a1c06f8326ae9c5f9c558e8de7b01",
       "examples/validate_optical_flow.rs": "fc4fa69459f8c516936ed1c23416e4193c532f45b3b8859faba27a9fe698bdac",
       "publication.toml": "d5926ac569b2f0955ecb6b12ac42412dbb727829402e81ec3d34f106b35e031c",
+      "tests/support/capture_deadline.rs": "6a79890e456116876f10cce4db35c2f023ae043301adb96074e929ebb4f904b2",
       "tests/support/ceiling_capture.rs": "217fcf21aaeb3fcf67eed198757a78cec7f02830e6dbf2e3498cba9f7cd60415",
-      "tests/support/fisheye.rs": "8d2b606591a837f604ebd7430dc5bdb843d88bfd26da70caa5bf448581b30e77",
-      "tests/support/fisheye_lighting.rs": "c0e4dd8887ae6a2ce956843240199ff0f1e8d55788f68ceb9e4620baf77cfb1a",
+      "tests/support/fisheye.rs": "113838eb3a9537ca2549ff26b58a5385b6f910a14206f190f0b3b4618e20ffca",
+      "tests/support/fisheye_lighting.rs": "a358d02a6261b62f9cd2ffb11474c0241167171d9b4e427bfc62f47fc83aaa2f",
       "tests/support/fisheye_seam_probe.rs": "4e3921ae5ce7bdfd043d90f8896e2eef533fea4553f66d97c4c2ce73277bf918",
       "tests/support/optical_flow.rs": "0b352c6b9ea06f2afcf80bf3b543d2f8352ef86736f22889bb9423a3ef71f5f0",
       "tex/arxiv.sty": "5ca551dbda41573265dd8c1e9c983ba9729f7d4070a9f1503dd8c7fd65d1dc46",
