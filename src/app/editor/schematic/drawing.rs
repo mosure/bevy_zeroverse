@@ -256,12 +256,9 @@ pub(super) fn moving(
     }
     for (pred, cameras) in [(false, &plan.cameras), (true, &predictions.cameras)] {
         for (i, camera) in cameras.iter().enumerate() {
-            let gizmo = plan::camera_gizmo(camera, options.frustum_length)?;
-            let c = color(if pred {
-                "#bb297c"
-            } else {
-                plan::camera_color(i)
-            });
+            let gizmo = plan::camera_presentation(camera, &projection, options)?;
+            let index = crate::camera::gizmo::color_index(&camera.label, i);
+            let c = crate::camera::gizmo::color(index);
             let origin = project(gizmo.origin);
             if options.camera_paths {
                 if camera.path.iter().flatten().any(|v| !v.is_finite()) {
@@ -308,7 +305,7 @@ pub(super) fn moving(
             }
             d.annotation_label(
                 origin + Vec2::new(radius + 3., -radius - 3.),
-                &gizmo.label,
+                &gizmo.caption,
                 13.,
                 c,
             );
@@ -341,7 +338,7 @@ mod tests {
             c.path.clear();
         }
         let mut predicted = plan.cameras[1].clone();
-        predicted.label = "Prediction".into();
+        predicted.label = "Pred C1".into();
         let overlay = Overlay {
             cameras: vec![predicted],
             ..default()
@@ -349,20 +346,29 @@ mod tests {
         let options = RenderOptions::default();
         let d = moving(&plan, &options, &overlay).unwrap();
         assert!(d.points.iter().flatten().all(|v| v.is_finite()));
+        for label in ["C0", "C1", "Pred C1"] {
+            assert!(d.labels.iter().any(|l| l.text == label), "{label}");
+        }
+        let full = RenderOptions {
+            camera_frustums: true,
+            ..options
+        };
+        let full_d = moving(&plan, &full, &overlay).unwrap();
         for label in [
             "C0 · pinhole",
             "C1 · fisheye 200°",
-            "Prediction · fisheye 200°",
+            "Pred C1 · fisheye 200°",
         ] {
-            assert!(d.labels.iter().any(|l| l.text == label), "{label}");
+            assert!(full_d.labels.iter().any(|l| l.text == label), "{label}");
+            // Compact SVG keeps full calibration details in accessible titles.
             assert!(plan.svg(&options, &overlay).unwrap().contains(label));
         }
         let predicted = d
             .labels
             .iter()
-            .find(|l| l.text.starts_with("Prediction"))
+            .find(|l| l.text.starts_with("Pred C1"))
             .unwrap();
-        assert_eq!(predicted.color, color("bb297c"));
+        assert_eq!(predicted.color, crate::camera::gizmo::color(1));
     }
     #[test]
     fn diagram_batches_cover_concave_rooms_and_reject_invalid_predictions() {

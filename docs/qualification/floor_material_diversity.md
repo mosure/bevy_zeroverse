@@ -12,18 +12,35 @@ and a bounded generation cost.
 | --- | --- |
 | Pigment | Independent seed domain; natural timber tones, neutral and muted pigmented mineral floors, neutral and colored carpet. Floor timber need not match furniture timber. |
 | Finish | Independent domain for polish, roughness, pore filling, clearcoat and relief. Physically related properties remain coupled, such as polished stone having smaller relief. |
-| Installation | Seven existing layouts retained. Rectangular stock spans short/long, narrow/wide and rectangular tile formats. Broken-bond installations can use independently offset end joints and variable cut lengths. |
-| Cut stock | Bounded periodic boundary displacement; neighboring pieces share boundaries. Patterned parquet and hexagonal installations retain their exact tessellations. Uniform manufactured tiles remain common. |
+| Installation | Seven layouts, each with physical scale variation. Product width/aspect, atlas extent, color and finish have separate seed domains. Small mosaics, large slabs, narrow/wide boards, parquet blocks, chevron lanes and hexagonal tiles all vary. |
+| Cut stock | Uniform manufactured products and continuously variable cut stock coexist. Bounded periodic boundary displacement preserves shared seams; minimum cut widths prevent slivers. Parquet and hexagonal installations retain their exact tessellations. |
 | Joints | Independent dark/light grout reflectance, metric widths and roughness. Area coverage filters subpixel joints; grout is mixed in linear light. Carpet retains textile seams. |
 | Carpet composition | Continuous normalized mixture of heather, striae, offset weave, clouds, stipple and yarn blocks. Six poles and their mixtures share independent dye scale, warp, shear, contrast and palette controls. |
 | Carpet microstructure | Independently sampled nap, slub and fleck frequencies; no universal fixed fiber-frequency signature. Relief, roughness and dye share the same substrate field. |
+| Carpet scale/regularity | Dye motifs are sampled in metres independently of modular tile size. Broadloom accounts for 40% of carpet draws; the rest continuously vary tile definition from subtle to pronounced. Broadloom has no tile-by-tile roughness discontinuities. |
 | Lot variation | Independent piece reflectance/warmth/roughness and variable-scale mottling rather than one universal macro-noise frequency. |
 
-Requested rectangular timber dimensions span approximately 0.08–0.34 m across
-and 0.55–2.3 m along; tile dimensions span 0.24–1.2 m by 0.30–1.4 m. Counts are
-rounded so the atlas closes exactly. These are nominal product dimensions;
-partial/random-length cuts vary within their installation. They are not
-guarantees that every visible board has the nominal dimensions.
+The sampler uses log-space physical size priors so fine products retain support
+alongside large formats. Requested dimensions are:
+
+| Product | Dimensions before periodic closure |
+| --- | --- |
+| Rectangular timber | Width 0.065–0.40 m; aspect 3.5–18; length bounded to 0.32–2.8 m |
+| Carpet tiles | Width 0.25–1.0 m; length bounded to 0.25–1.5 m |
+| Mineral tile/slab | Width 0.07–1.6 m; length bounded to 0.08–2.2 m |
+| Basket parquet | Block width 0.20–0.95 m, containing 3–5 strips |
+| Herringbone | Plank width 0.06–0.27 m for timber, 0.08–0.50 m for mineral; length 2–5 widths |
+| Chevron | Lane width 0.30–1.2 m; course height 0.065–0.28 m; varied inclination |
+| Hexagonal | Lattice width 0.08–0.80 m |
+| Carpet dye | Motif spacing 0.10–3.0 m; separate dye/warp scale 0.15–3.0 m |
+
+Square stock remains common for manufactured mineral and carpet tiles. Piece
+counts are rounded for exact periodic closure, so realized dimensions differ
+slightly from these requested values. Atlas extent is sampled over 1.6–6.4 m
+(0.55–3.2 m for seamless mineral), adjusted where necessary to fit the stock
+without collapsing narrow or large-format samples onto count limits. Variable
+cuts preserve at least 4 cm width, and timber at least 12 cm length. These are
+product dimensions, not guarantees about the visible fraction at room edges.
 
 `FloorFinish.stock` and `CarpetDesign.dye` record the new programs. Both are
 optional: archived recipes without them preserve their original evaluation.
@@ -47,20 +64,18 @@ same material shading-normal behavior as other existing PBR floors.
 
 ## Local qualification
 
-The ignored Rust test `floor_diversity_qualification` writes an opt-in study to
-`out/floor_material_study/`. It compares 1,024 matched seeds for each of the three
-floor substrates, using the retained generator-86 resolver as its reference.
-The study is not part of the public project-page publication pipeline.
-
-It checks physical descriptors and nominal dimensions, measures paired CPU map
-generation, validates every mip of complete production map triplets, tests
-serialized replay, and writes albedo/normal/roughness/GGX galleries. The GGX
-panel is a fixed directional-light diagnostic, **not a rendered Bevy room**.
-`ZEROVERSE_FLOOR_MAP_SAMPLES` controls full-map samples per substrate (2–64,
-default 16); all 1,024 recipe pairs are evaluated regardless of this setting.
+The ignored Rust test `floor_scale_qualification` writes a current-state study to
+`out/floor_scale/`: 4,096 seeds per substrate, dimension/regularity distributions,
+18 complete production-map triplets and three serialized map replays. Galleries
+cover the same **4 × 4 metre** footprint at different size quantiles; they sample
+the real mip chains rather than stretching every atlas to the same visible size.
+Rows show albedo, normal, roughness and a fixed GGX lighting diagnostic. The GGX
+panel is **not a rendered Bevy room**. Sampler and CPU map timings are recorded.
+This local study is not part of the public project-page publication pipeline.
 
 Regular tests cover seeded support, invalid authored inputs, exact tessellation
-closure, nonempty random-cut partitions, legacy serialization, and distinct
+closure, minimum cut dimensions, scale support within each layout, broadloom
+without hidden tile-gloss grids, legacy serialization, and distinct
 fixed-seed dye interventions. `export_webgpu_material_fixtures` and
 `scripts/validate_material_webgpu.mjs` exercise every dye pole, mixed programs,
 authored jitter, old recipes, all mip levels and sampled texture footprints in

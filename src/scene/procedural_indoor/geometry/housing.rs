@@ -1,11 +1,14 @@
 //! Closed rounded-section lofts for manufactured shells and storage bodies.
 use super::*;
+const N: usize = 32;
 impl Geometry {
     /// Each ring is (height, half-width/depth). Caps and side normals are separate.
     pub fn housing(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
-        const N: usize = 32;
-        let point = |i: usize, ring: (f32, Vec2)| {
-            let t = TAU * (i % N) as f32 / N as f32;
+        // Every ring shares its angular profile. Evaluate trig/powers once per
+        // side, not again for each vertex, tangent and vertical normal sample.
+        // Keep the same arithmetic order when applying metric ring dimensions.
+        let outline: [Vec2; N] = std::array::from_fn(|i| {
+            let t = TAU * i as f32 / N as f32;
             let f = |v: f32| {
                 if v.abs() < 1e-6 {
                     0.
@@ -13,7 +16,11 @@ impl Geometry {
                     v.signum() * v.abs().powf(2. / exponent)
                 }
             };
-            Vec3::new(ring.1.x * f(t.cos()), ring.0, ring.1.y * f(t.sin()))
+            Vec2::new(f(t.cos()), f(t.sin()))
+        });
+        let point = |i: usize, ring: (f32, Vec2)| {
+            let unit = outline[i % N];
+            Vec3::new(ring.1.x * unit.x, ring.0, ring.1.y * unit.y)
         };
         for pair in rings.windows(2) {
             for i in 0..N {
@@ -56,6 +63,42 @@ impl Geometry {
                 } else {
                     [start, a, b]
                 });
+            }
+        }
+    }
+    /// Soft boxing with broad, flat contact caps and a smooth side/cap normal
+    /// field. Keeps hard manufactured lofts in `housing` unchanged. Shared ring
+    /// indexing avoids a welding map and extra allocations in the hot path.
+    pub fn padded_housing(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
+        let first = self.normals.len();
+        self.housing(rings, exponent, tf);
+        let caps = first + (rings.len() - 1) * N * 4;
+        let bottom = self.normals[caps];
+        let top = self.normals[caps + N + 1];
+        for ring in 0..rings.len() {
+            for col in 0..N {
+                let prior = (col + N - 1) % N;
+                let upper = first + ring * N * 4 + col * 4;
+                let normal = if ring == 0 {
+                    bottom
+                } else if ring + 1 == rings.len() {
+                    top
+                } else {
+                    (Vec3::from_array(self.normals[upper - N * 4 + 1])
+                        + Vec3::from_array(self.normals[upper]))
+                    .normalize()
+                    .to_array()
+                };
+                if ring > 0 {
+                    let band = first + (ring - 1) * N * 4;
+                    self.normals[band + col * 4 + 1] = normal;
+                    self.normals[band + prior * 4 + 2] = normal;
+                }
+                if ring + 1 < rings.len() {
+                    let band = first + ring * N * 4;
+                    self.normals[band + col * 4] = normal;
+                    self.normals[band + prior * 4 + 3] = normal;
+                }
             }
         }
     }

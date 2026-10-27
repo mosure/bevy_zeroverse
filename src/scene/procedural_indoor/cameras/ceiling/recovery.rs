@@ -14,6 +14,7 @@ use crate::scene::procedural_indoor::{
     layout::{stream, IndoorManifest},
 };
 use rand::Rng;
+mod paths;
 
 type Prototype = (Option<crate::calibration::FisheyeSensor>, f32, f32, f32);
 struct Candidate {
@@ -34,6 +35,7 @@ pub(super) fn sample(
     let mut pools: Vec<Vec<Candidate>> = (0..count).map(|_| Vec::new()).collect();
     let mut visibility_budget = 8192;
     let mut search_budget = 8192;
+    let mut path_budget = paths::Budget::default();
     for (camera, &index) in std::mem::take(&mut scene.cameras).into_iter().zip(order) {
         let track = Track::new(&camera);
         let views = CHECK_TIMES
@@ -47,11 +49,23 @@ pub(super) fn sample(
         });
     }
     for pass in 0..2 {
-        for (index, prototype) in prototypes.iter().enumerate() {
+        let mut proposal_order: Vec<_> = (0..count).collect();
+        // Populate constrained peer paths before the broad reference can reuse them.
+        if pass == 1 {
+            proposal_order.sort_by_key(|&i| (i == 0, pools[i].len()));
+        }
+        for index in proposal_order {
+            let prototype = &prototypes[index];
             let mut rng = stream(scene.seed, 0x504f_4f4c_0000 + index as u64 * 2 + pass);
             // Domain construction is bounded independently of rejection rate.
             // Reuse successful local paths as well as independent origins.
-            for _ in 0..96 {
+            let mounted_slot = scene.camera_settings.ceiling_mounted(scene.seed, index);
+            // Busy ceilings may exclude the initial body standoff everywhere.
+            // Retry within its configured range only after that slot has no
+            // feasible paths; its mounting role, lens and roll remain fixed.
+            let redraw_standoff = mounted_slot && pass == 1 && pools[index].is_empty();
+            let attempts = if redraw_standoff { 384 } else { 96 };
+            for _ in 0..attempts {
                 if pools[index].len() >= 24 * (pass as usize + 1) {
                     break;
                 }
@@ -62,7 +76,17 @@ pub(super) fn sample(
                             .cameras
                             .push(pools[0][rng.random_range(0..pools[0].len())].camera.clone());
                     }
-                    let mut camera = mounted(scene, index, prototype, &mut rng);
+                    let mut adjusted = *prototype;
+                    if redraw_standoff {
+                        let range = scene
+                            .camera_settings
+                            .ceiling_mount
+                            .as_ref()
+                            .unwrap()
+                            .standoff_m;
+                        adjusted.2 = rng.random_range(range[0]..=range[1]);
+                    }
+                    let mut camera = mounted(scene, index, &adjusted, &mut rng);
                     if rng.random_bool(0.5) {
                         if let Some(camera) = &mut camera {
                             super::coherent::motion(
@@ -71,9 +95,21 @@ pub(super) fn sample(
                         }
                     }
                     scene.cameras.clear();
-                    camera
+                    camera.and_then(|mut camera| {
+                        space
+                            .fit_rail(scene, index, &mut camera, &mut rng)
+                            .then_some(camera)
+                    })
                 } else {
-                    let parent_slot = if !pools[index].is_empty() && rng.random_bool(0.5) {
+                    let parent_slot = if pass == 1 && index == 0 {
+                        (1..count)
+                            .filter(|&i| {
+                                !pools[i].is_empty()
+                                    && !scene.camera_settings.ceiling_mounted(scene.seed, i)
+                            })
+                            .min_by_key(|&i| pools[i].len())
+                            .unwrap_or(index)
+                    } else if !pools[index].is_empty() && rng.random_bool(0.5) {
                         index
                     } else {
                         rng.random_range(0..count)
@@ -88,14 +124,29 @@ pub(super) fn sample(
                             .cameras
                             .push(pools[parent_slot][parent].camera.clone());
                     }
-                    let camera = super::room::propose(
-                        scene,
-                        index,
-                        &mut rng,
-                        coverage,
-                        (index != 0).then_some(prototype.1),
-                        false,
-                    );
+                    let camera = if pass == 1
+                        && rng.random_bool(0.75)
+                        && scene.camera_settings.camera_moves(scene.seed, index)
+                        && scene.camera_settings.handheld.is_none()
+                    {
+                        paths::centered(
+                            scene,
+                            index,
+                            prototype.1,
+                            coverage,
+                            &mut rng,
+                            &mut path_budget,
+                        )
+                    } else {
+                        super::room::propose(
+                            scene,
+                            index,
+                            &mut rng,
+                            coverage,
+                            (index != 0).then_some(prototype.1),
+                            false,
+                        )
+                    };
                     scene.cameras.clear();
                     camera
                 };
@@ -124,6 +175,10 @@ pub(super) fn sample(
             }
         }
 
+        if pass == 1 {
+            paths::reuse(scene, coverage, prototypes, &mut pools, &mut path_budget);
+            paths::perturb(scene, coverage, &mut pools, &mut path_budget);
+        }
         if solve(
             scene,
             coverage,
@@ -135,8 +190,22 @@ pub(super) fn sample(
             return true;
         }
     }
-    scene.cameras.clear();
-    false
+    // Intrinsics are a proposal PDF. Only after fixed-calibration recovery fails,
+    // redraw room pinholes from that same PDF on already feasible paths. Explicit
+    // fixed priors, fisheye sensors, mount roles and all admission tests stay intact.
+    paths::resample_intrinsics(scene, coverage, prototypes, &mut pools, &mut path_budget);
+    let found = solve(
+        scene,
+        coverage,
+        &pools,
+        contract,
+        &mut visibility_budget,
+        &mut search_budget,
+    );
+    if !found {
+        scene.cameras.clear();
+    }
+    found
 }
 
 fn mounted(
@@ -191,11 +260,9 @@ fn solve(
     for reference in &pools[0] {
         let mut domains: Vec<Vec<&Candidate>> = (0..pools.len()).map(|_| Vec::new()).collect();
         for &index in &order {
-            let floor = contract.pair_overlap_floor(
-                &reference.camera,
-                &pools[index][0].camera,
-                scene.camera_aspect_ratio,
-            );
+            // Recovery can contain several pinhole calibrations for one slot.
+            // Never reuse a footprint cap from a different realized FOV.
+            let mut floors = std::collections::BTreeMap::new();
             for candidate in &pools[index] {
                 if super::bodies_overlap(&reference.camera, &candidate.camera)
                     || !contract.accepts_geometry(
@@ -211,6 +278,15 @@ fn solve(
                     return false;
                 }
                 *visibility_budget -= 1;
+                let floor = *floors
+                    .entry(candidate.camera.fov_degrees.to_bits())
+                    .or_insert_with(|| {
+                        contract.pair_overlap_floor(
+                            &reference.camera,
+                            &candidate.camera,
+                            scene.camera_aspect_ratio,
+                        )
+                    });
                 if contract.accepts_visibility(
                     policy,
                     &reference.camera,

@@ -216,6 +216,7 @@ impl FloorFinish {
 
 pub mod installation;
 pub(super) mod sampling;
+mod scale;
 pub mod stock;
 
 #[cfg(test)]

@@ -70,7 +70,13 @@ conditions, but does not establish transfer for this generator.
 | Drying racks | Exactly seven rails and plates concentrated at one end. | Dimension-conditioned pitch and rail count, shuffled partial occupancy, individual plate dimensions/yaw/lean, independent tray/hardware/dish finishes. Actual plate bounds fit each wire slot and touch the tray. Empty appliance contents remain empty. |
 | Utensil holders | A parity-alternating ring with monotonically increasing tool heights. | Hollow tapered/faceted holders and independently sampled spoon, spatula, slotted-spatula and fork heads. Bounded proposals vary tool heights, lean, twist, position, dimensions and materials while checking shaft/rim clearance and conservative separation. Metadata records accepted tools. |
 | Finish-key convergence | Applying a parent's automatic finish could overwrite a child mesh already using the same material/semantic key. | Convergent keys merge geometry without losing vertices or triangles. Vacant keys move the existing geometry without an extra allocation/copy. |
+| Lounge conversation groups | One centered sofa, a nearly centered table and two mirrored seat locations survived the spatial planner. | Sofa offsets, front clearances, table proportions, seating occupancy, angular spread and individual setbacks are sampled in furniture coordinates. An occasional symmetric arrangement and coordinated finishes remain plausible. Only accepted sofas/tables anchor seats, and all placements retain ordinary support/collision admission. |
+| Supplemental perimeter furnishing | Fixed-size bookcases, fixed-depth cabinets and equal-width corner plants were still appended to modern spatial programs. | Independent metric dimensions, occupancy and ordering; bounded proposals on actual envelope edges, with category-appropriate yaw and sampled setbacks. Archived layouts without a spatial program retain their existing behavior. |
+| Ottomans and poufs | Four wooden feet, two cushions and a fixed vertical crown dominated the category. | Continuous footprint/aspect, height, cushion crown/roundness, cap fraction and base dimensions; feet, sled, plinth and low upholstered constructions. Independent fabric/leather panels and wood/metal/chrome/polymer base finishes use existing bounded PBR slots. Finish interventions preserve geometry, normals and metric UV scale. |
 
+
+The lounge/perimeter programs and their qualification are documented in
+[Lounge and perimeter sampling](lounge_perimeter_sampling.md).
 
 The implementation does not resample materials or geometry independently per view.
 The capture identity records the furnishing, tabletop and public program contracts.

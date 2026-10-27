@@ -74,11 +74,9 @@ impl IndoorManifest {
                         rng.random_range(0.74..1.02),
                         rng.random_range(0.42..0.59),
                     ),
-                    ObjectKind::Ottoman => Vec3::new(
-                        rng.random_range(0.47..0.84),
-                        rng.random_range(0.35..0.47),
-                        rng.random_range(0.47..0.80),
-                    ),
+                    ObjectKind::Ottoman => {
+                        super::super::objects::services::ottoman::dimensions(&mut rng)
+                    }
                     ObjectKind::Bench => Vec3::new(
                         rng.random_range(0.95..1.70),
                         rng.random_range(0.46..0.87),

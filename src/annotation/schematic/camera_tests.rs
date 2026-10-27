@@ -116,3 +116,72 @@ fn shifted_elliptical_and_diagonal_calibrations_remain_bounded() {
         }));
     }
 }
+
+#[test]
+fn compact_symbols_bound_wide_lenses_without_changing_calibration() {
+    let mut cameras = vec![
+        angular(210., FisheyeFit::Circular),
+        angular(200., FisheyeFit::Diagonal),
+    ];
+    for aspect in [0.5, 1., 16. / 9.] {
+        let mut c = angular(200., FisheyeFit::Circular);
+        c.calibration = Some(
+            crate::calibration::CameraCalibration::centered_pinhole(
+                1024,
+                1024,
+                145_f32.to_radians(),
+                aspect,
+            )
+            .unwrap(),
+        );
+        cameras.push(c);
+    }
+    let projection = Projection {
+        schema_version: 1,
+        image_size: [1024, 1024],
+        pixels_per_metre: 120.,
+        offset: [512., 512.],
+    };
+    for size in [256, 768, 1024] {
+        let options = RenderOptions {
+            width: size,
+            height: size,
+            ..Default::default()
+        };
+        for c in &cameras {
+            let before = c.clone();
+            let g = camera_presentation(c, &projection, &options).unwrap();
+            let origin = Vec2::from_array(projection.project(g.origin));
+            for p in g.footprint.iter().chain(std::iter::once(&g.axis_end)) {
+                assert!(Vec2::from_array(projection.project(*p)).distance(origin) <= 24.001);
+            }
+            assert_eq!(g.caption, c.label);
+            assert_eq!(*c, before);
+            let full = camera_presentation(
+                c,
+                &projection,
+                &RenderOptions {
+                    camera_frustums: true,
+                    ..options
+                },
+            )
+            .unwrap();
+            let raw = camera_gizmo(c, options.frustum_length).unwrap();
+            assert_eq!(full.footprint, raw.footprint);
+            assert_eq!(full.axis_end, raw.axis_end);
+        }
+    }
+    let g = camera_presentation(&cameras[0], &projection, &RenderOptions::default()).unwrap();
+    assert!(
+        g.footprint.iter().any(|p| p[2] > 0.),
+        "keep rearward fisheye coverage in the symbol"
+    );
+}
+
+#[test]
+fn old_render_options_default_to_compact_symbols() {
+    let mut json = serde_json::to_value(RenderOptions::default()).unwrap();
+    json.as_object_mut().unwrap().remove("camera_frustums");
+    let restored: RenderOptions = serde_json::from_value(json).unwrap();
+    assert!(!restored.camera_frustums);
+}

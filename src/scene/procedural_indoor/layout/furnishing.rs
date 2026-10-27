@@ -1,5 +1,6 @@
 //! Functional furniture groups are transformed together inside the architectural zone.
 use super::*;
+mod perimeter;
 impl IndoorManifest {
     pub(super) fn furnish(&mut self, rng: &mut ChaCha8Rng) {
         use std::f32::consts::{FRAC_PI_2, PI};
@@ -160,78 +161,82 @@ impl IndoorManifest {
         }
         let w = self.room_size.x;
         let d = self.room_size.z;
-        self.add(
-            ObjectKind::Cabinet,
-            Vec3::new(0.0, 0.0, -d * 0.5 + 0.64),
-            Vec3::new(w * 0.29, 0.82, 0.55),
-            0.0,
-            rng,
-        );
-        self.add(
-            ObjectKind::Bookcase,
-            Vec3::new(w * 0.5 - 0.65, 0.0, -d * 0.20),
-            Vec3::new(1.50, 1.85, 0.36),
-            -FRAC_PI_2,
-            rng,
-        );
-        for (x, z) in [
-            (-w * 0.5 + 0.88, -d * 0.5 + 0.92),
-            (-w * 0.5 + 0.95, d * 0.5 - 0.96),
-            (w * 0.5 - 0.90, -d * 0.5 + 0.88),
-        ] {
-            if rng.random_bool((0.65 + self.density * 0.3) as f64) {
-                let h = rng.random_range(1.15..1.95);
-                self.add(
-                    ObjectKind::Plant,
-                    Vec3::new(x, 0.0, z),
-                    Vec3::new(0.9, h, 0.9),
-                    rng.random_range(0.0..std::f32::consts::TAU),
-                    rng,
-                );
-            }
-        }
-        let bin_size = super::super::objects::containers::bins::dimensions(rng);
-        self.add(
-            ObjectKind::TrashCan,
-            Vec3::new(
-                w * 0.5 - rng.random_range(0.45..0.85),
-                0.0,
-                d * 0.5 - rng.random_range(1.45..2.55),
-            ),
-            bin_size,
-            rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
-            rng,
-        );
-        if self.layout == IndoorLayout::Lounge || rng.random_bool(0.4) {
-            let size = super::super::objects::standing_lamp::dimensions(rng.random());
+        if self.program.is_some() {
+            self.furnish_perimeter_services();
+        } else {
             self.add(
-                ObjectKind::FloorLamp,
-                Vec3::new(-w * 0.5 + 0.70, 0.0, -d * 0.18),
-                size,
+                ObjectKind::Cabinet,
+                Vec3::new(0.0, 0.0, -d * 0.5 + 0.64),
+                Vec3::new(w * 0.29, 0.82, 0.55),
+                0.0,
+                rng,
+            );
+            self.add(
+                ObjectKind::Bookcase,
+                Vec3::new(w * 0.5 - 0.65, 0.0, -d * 0.20),
+                Vec3::new(1.50, 1.85, 0.36),
+                -FRAC_PI_2,
+                rng,
+            );
+            for (x, z) in [
+                (-w * 0.5 + 0.88, -d * 0.5 + 0.92),
+                (-w * 0.5 + 0.95, d * 0.5 - 0.96),
+                (w * 0.5 - 0.90, -d * 0.5 + 0.88),
+            ] {
+                if rng.random_bool((0.65 + self.density * 0.3) as f64) {
+                    let h = rng.random_range(1.15..1.95);
+                    self.add(
+                        ObjectKind::Plant,
+                        Vec3::new(x, 0.0, z),
+                        Vec3::new(0.9, h, 0.9),
+                        rng.random_range(0.0..std::f32::consts::TAU),
+                        rng,
+                    );
+                }
+            }
+            let bin_size = super::super::objects::containers::bins::dimensions(rng);
+            self.add(
+                ObjectKind::TrashCan,
+                Vec3::new(
+                    w * 0.5 - rng.random_range(0.45..0.85),
+                    0.0,
+                    d * 0.5 - rng.random_range(1.45..2.55),
+                ),
+                bin_size,
                 rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
                 rng,
             );
-        }
-        // Daylit side zones receive small potted plants without occupying the
-        // partition openings or the shared circulation route.
-        if matches!(
-            self.floor_plan,
-            super::super::floorplan::FloorPlan::WindowGallery
-                | super::super::floorplan::FloorPlan::DividedSuite
-        ) {
-            let x = if self.floor_plan == super::super::floorplan::FloorPlan::WindowGallery {
-                -w * 0.5 + 0.82
-            } else {
-                w * 0.5 - 0.86
-            };
-            for z in [-d * 0.29, d * 0.23] {
+            if self.layout == IndoorLayout::Lounge || rng.random_bool(0.4) {
+                let size = super::super::objects::standing_lamp::dimensions(rng.random());
                 self.add(
-                    ObjectKind::Plant,
-                    Vec3::new(x, 0.0, z),
-                    Vec3::new(0.65, rng.random_range(0.85..1.35), 0.65),
-                    rng.random_range(-PI..PI),
+                    ObjectKind::FloorLamp,
+                    Vec3::new(-w * 0.5 + 0.70, 0.0, -d * 0.18),
+                    size,
+                    rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
                     rng,
                 );
+            }
+            // Daylit side zones receive small potted plants without occupying the
+            // partition openings or the shared circulation route.
+            if matches!(
+                self.floor_plan,
+                super::super::floorplan::FloorPlan::WindowGallery
+                    | super::super::floorplan::FloorPlan::DividedSuite
+            ) {
+                let x = if self.floor_plan == super::super::floorplan::FloorPlan::WindowGallery {
+                    -w * 0.5 + 0.82
+                } else {
+                    w * 0.5 - 0.86
+                };
+                for z in [-d * 0.29, d * 0.23] {
+                    self.add(
+                        ObjectKind::Plant,
+                        Vec3::new(x, 0.0, z),
+                        Vec3::new(0.65, rng.random_range(0.85..1.35), 0.65),
+                        rng.random_range(-PI..PI),
+                        rng,
+                    );
+                }
             }
         }
         // Furnished neighboring office, visible through a genuine glass partition.

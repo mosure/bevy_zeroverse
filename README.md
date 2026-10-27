@@ -103,7 +103,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   wall-mounted multicolored string lights add room services. Floor finishes vary
   plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
   seamless mineral finishes, mixed tile/plank stock, carpet dye fields, staggered
-  joints, regional wear and furniture-bearing area rugs, with floor outlets and
+  joints, independently sampled physical pattern sizes, regional wear and
+  furniture-bearing area rugs, with floor outlets and
   routed cables. Cabinets, kitchen appliances, clocks, wall shelves and presentation
   equipment vary construction independently of surface finishes. Walls mix quiet
   paint with washed, woven and patterned wallpaper surfaces;
@@ -123,6 +124,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   Ceiling-mounted CCTV cameras can mix with room cameras, using downward-facing,
   calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
   trajectories preserve body and swept-path clearance around fixtures.
+  Studio and schematic camera glyphs share compact, camera-indexed colors;
+  prediction overlays use the matching color with dashed outlines.
   The baseline preset accounts for mounting height and unequal lens coverage;
   directed co-visibility and physical camera separation remain explicit in exports.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional

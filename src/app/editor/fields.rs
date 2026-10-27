@@ -139,7 +139,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             .contains(&f.path.as_str()),
             _ => true,
         });
-        append_to_section(&mut v, "view.preview", Item::Note("All capture cameras and human joints are shown. Furnishings use oriented bounds; ceilings and neighboring rooms are omitted. Predictions appear in dashed magenta.".into()));
+        append_to_section(&mut v, "view.preview", Item::Note("All capture cameras and human joints are shown. Furnishings use oriented bounds; ceilings and neighboring rooms are omitted. Camera predictions match the C-index color and use dashed lines; other predictions use magenta.".into()));
     }
     if indoor && state.view.page == Page::Cameras && !d["indoor_camera"]["ceiling_mount"].is_null()
     {

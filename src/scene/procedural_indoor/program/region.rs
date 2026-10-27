@@ -202,15 +202,53 @@ impl PrimaryRegion<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scene::procedural_indoor::layout::IndoorLayout;
+    use crate::scene::procedural_indoor::layout::{IndoorLayout, ObjectKind};
+
+    #[test]
+    fn furnished_subroom_wins_over_larger_empty_region() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(65574761, IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        let program = scene.program.as_mut().unwrap();
+        program.primary_zone = None;
+        let larger = (program.zones[0].min, program.zones[0].max);
+        let furnished = (program.zones[1].min, program.zones[1].max);
+        let centre = (furnished.0 + furnished.1) * 0.5;
+        assert_eq!(scene.primary_room_bounds(), larger);
+        // Hold the selection fixture fixed while the seeded furnishing program
+        // evolves. Three substantial objects of two classes make this subroom
+        // useful; an empty larger room must not strand the reconstruction rig.
+        let prototype = scene.objects[0].clone();
+        scene.objects = [ObjectKind::Chair, ObjectKind::Chair, ObjectKind::Table]
+            .into_iter()
+            .enumerate()
+            .map(|(id, kind)| {
+                let mut object = prototype.clone();
+                object.id = id;
+                object.kind = kind;
+                object.position = Vec3::new(centre.x, 0., centre.y + id as f32 * 0.6 - 0.6);
+                object.size = Vec3::new(0.5, 0.8, 0.5);
+                object.solid = true;
+                object.support = None;
+                object.neighbor = false;
+                object
+            })
+            .collect();
+        scene.select_primary_room();
+        assert_eq!(scene.program.as_ref().unwrap().primary_zone, Some(1));
+        assert_eq!(scene.primary_room_bounds(), furnished);
+    }
+
     #[test]
     fn primary_selection_uses_furnishings_is_archived_and_stays_fixed() {
-        for (seed, expected, legacy) in [(65574761, 1, 0), (65575086, 0, 3), (65575252, 1, 1)] {
+        for (seed, legacy) in [(65574761, 0), (65575086, 3), (65575252, 1)] {
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
                     .unwrap();
             let program = scene.program.as_ref().unwrap();
-            assert_eq!(program.primary_zone, Some(expected));
+            // Selection follows the realized furniture, rather than a permanent
+            // seed-to-zone mapping across generator versions.
+            let expected = program.primary_zone.unwrap();
             let bounds = (program.zones[expected].min, program.zones[expected].max);
             assert_eq!(scene.primary_room_bounds(), bounds);
             let bytes = serde_json::to_vec(&scene).unwrap();

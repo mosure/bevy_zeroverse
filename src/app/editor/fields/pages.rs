@@ -44,7 +44,7 @@ pub(super) fn base(page: Page) -> Vec<Item> {
             toggle("/z_depth","Use camera Z depth","Otherwise measures ray distance."),
             choices("/annotation_glass","Glass in annotations",&[("Glass surface","surface"),("Geometry behind glass","through")],"Depth, normals, position, semantic, flow and co-visibility use the same unrefracted geometric hits. RGB is unchanged."),
             section("view.overlays", "Scene overlays", "Diagnostic drawings in the editor view."),
-            toggle("/gizmos","Camera frusta & trajectories","Capture cameras only."),
+            toggle("/gizmos","Capture cameras & paths","Compact calibrated camera outlines and paths; one color per camera ID."),
             toggle("/draw_obb_gizmo","Object bounding boxes","Semantic object envelopes."),
             toggle("/draw_pose_gizmos","Human skeletons","Visible through clothing, occluded by room geometry."),
             num("/gizmos_alpha","Overlay opacity",0.,1.,0.01,"Opacity for camera gizmos."),

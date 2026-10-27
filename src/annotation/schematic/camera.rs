@@ -5,12 +5,38 @@ use super::*;
 #[path = "camera_tests.rs"]
 mod tests;
 
+#[cfg(feature = "viewer")]
+impl Camera {
+    /// Resolve the same optics for a schematic prediction and its editor-world
+    /// overlay. An explicit calibration always takes precedence over FOV fields.
+    pub(crate) fn display_calibration(
+        &self,
+    ) -> Result<crate::calibration::CameraCalibration, String> {
+        if let Some(c) = &self.calibration {
+            c.validate()?;
+            return Ok(c.clone());
+        }
+        let mut c = crate::calibration::CameraCalibration::centered_pinhole(
+            512,
+            512,
+            self.fov_y,
+            self.aspect,
+        )?;
+        let offset = self.principal_point_offset.unwrap_or_default();
+        c.k[0][2] += offset.x * 512.;
+        c.k[1][2] += offset.y * 512.;
+        c.validate()?;
+        Ok(c)
+    }
+}
+
 pub(crate) struct CameraGizmo {
     pub footprint: Vec<[f32; 3]>,
     pub origin: [f32; 3],
     pub axis_end: [f32; 3],
     pub fisheye: bool,
     pub label: String,
+    pub caption: String,
 }
 impl CameraGizmo {
     pub fn marker_radius(&self) -> f32 {
@@ -49,13 +75,47 @@ pub(crate) fn camera_gizmo(c: &Camera, length: f32) -> Result<CameraGizmo, Strin
     } else {
         ""
     };
+    let label = format!("{} · {kind}{vertical}", c.label);
     Ok(CameraGizmo {
         footprint,
         origin: m.transform_point3(Vec3::ZERO).to_array(),
         axis_end: m.transform_point3(Vec3::NEG_Z * length).to_array(),
         fisheye: lens.is_some(),
-        label: format!("{} · {kind}{vertical}", c.label),
+        caption: label.clone(),
+        label,
     })
+}
+
+/// The live 2D renderer and SVG/PNG exports share the same compact presentation.
+/// Bound the projected symbol, not the optics: axial pinhole frustums otherwise
+/// grow with tan(FOV/2), spanning whole rooms for perfectly valid wide lenses.
+/// Uniform display scaling retains heading, lens shape and rearward fisheye rays.
+pub(crate) fn camera_presentation(
+    c: &Camera,
+    projection: &Projection,
+    options: &RenderOptions,
+) -> Result<CameraGizmo, String> {
+    let mut gizmo = camera_gizmo(c, options.frustum_length)?;
+    if options.camera_frustums {
+        return Ok(gizmo);
+    }
+    let origin = Vec3::from_array(gizmo.origin);
+    let extent = gizmo
+        .footprint
+        .iter()
+        .chain(std::iter::once(&gizmo.axis_end))
+        .map(|p| Vec3::from_array(*p).xz().distance(origin.xz()))
+        .fold(0.0_f32, f32::max);
+    let pixels = (options.width.min(options.height) as f32 * 0.025).clamp(10., 24.);
+    let radius = (pixels / projection.pixels_per_metre).min(0.35);
+    let scale = (radius / extent.max(1e-6)).min(1.);
+    for point in &mut gizmo.footprint {
+        let p = origin.xz() + (Vec3::from_array(*point).xz() - origin.xz()) * scale;
+        *point = [p.x, 0., p.y];
+    }
+    gizmo.axis_end = (origin + (Vec3::from_array(gizmo.axis_end) - origin) * scale).to_array();
+    gizmo.caption = c.label.clone();
+    Ok(gizmo)
 }
 
 pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>, String> {
@@ -69,15 +129,7 @@ pub(crate) fn camera_footprint(c: &Camera, length: f32) -> Result<Vec<[f32; 3]>,
     {
         return Err("invalid schematic camera matrix or lens".into());
     }
-    let rigid = Mat3::from_mat4(m);
-    let gram = rigid.transpose() * rigid;
-    if (gram - Mat3::IDENTITY)
-        .to_cols_array()
-        .iter()
-        .any(|v| v.abs() > 0.01)
-        || (rigid.determinant() - 1.).abs() > 0.01
-        || m.row(3).distance(Vec4::W) > 0.001
-    {
+    if !crate::camera::gizmo::rigid_pose(m) {
         return Err("schematic cameras require rigid world_from_view matrices".into());
     }
     let d = length;

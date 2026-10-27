@@ -17,7 +17,10 @@ pub(super) use readiness::install;
 const LAYER: RenderLayers = RenderLayers::layer(3);
 #[derive(Component)]
 pub(super) struct SchematicView;
-/// Applications can insert model predictions here to compare them in the viewer.
+/// Model predictions for the live schematic and editor-world camera overlays.
+/// Label camera predictions with their capture ID (e.g. `Pred C7`) to match the
+/// solid capture glyph's color; predicted glyphs are dashed. Predictions supply
+/// their own calibration and pose, never inferred from the ground-truth rig.
 #[derive(Resource, Default)]
 pub struct Predictions(pub Overlay);
 #[derive(Resource, Default)]

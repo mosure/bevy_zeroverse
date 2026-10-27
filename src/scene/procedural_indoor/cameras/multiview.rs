@@ -652,17 +652,14 @@ impl IndoorManifest {
             }
             return Ok(());
         }
-        // With the shared-target policy, rigs above four views use the same
-        // proposal sequence regardless of count. Asking for one more camera just
-        // repeats the exhausted search. Spend that existing second-pass budget
-        // on an independent placement stream for the requested count instead.
+        // Large rigs can exhaust one reference domain even with viable free
+        // corridors elsewhere. Asking for another view mostly repeats that
+        // search and introduces a new slot's lens/motion requirements. Spend
+        // the existing second-pass budget on an independent placement stream
+        // for the requested count, including rigs with varied look targets.
         // The manifest seed, viewpoint prior, motion roles, geometry and all
         // requested constraints stay fixed. Ordinary successful rigs are untouched.
-        if allow_overcomplete
-            && targets.is_empty()
-            && (5..12).contains(&count)
-            && policy.target_variation == 0.
-        {
+        if allow_overcomplete && targets.is_empty() && (5..12).contains(&count) {
             return self.sample_camera_set(count, false, self.seed.wrapping_add(2), false);
         }
         // Greedy packing is not monotonic in camera count. One bounded

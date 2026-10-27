@@ -22,7 +22,13 @@ pub(super) fn propose(
     let normal = camera.ceiling_mount.as_ref().unwrap().inward_normal;
     let direction = Vec3::new(angle.cos(), 0., angle.sin());
     let tangent = (direction - normal * normal.dot(direction)).normalize();
-    camera.end = camera.start + tangent * length;
+    set_rail(camera, tangent * length);
+}
+
+/// One authoritative straight, constant-orientation rail representation for
+/// initial proposals and bounded clearance recovery.
+pub(super) fn set_rail(camera: &mut IndoorCamera, delta: Vec3) {
+    camera.end = camera.start + delta;
     camera.motion = Some(CameraMotion {
         orientations: Some([camera.ceiling_mount.as_ref().unwrap().rotation; 2]),
         control: [

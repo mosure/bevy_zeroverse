@@ -60,7 +60,9 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
         return Err("ceiling camera wall clearance leaves no mounting area".into());
     }
     let mut rng = stream(scene.seed, 0x4343_5456);
-    // Fix fisheye lens, standoff and roll per slot before placement rejection.
+    // Fix fisheye lens, initial standoff and roll per slot before placement.
+    // Bounded recovery may redraw standoff within its configured range when
+    // a slot has no clear rail; lens family and mounting role never change.
     // The pinhole reference retains the content-conditioned intrinsic sampler:
     // a narrow fixed draw may not frame a person plus the required room content.
     // Peers keep their draws; their gaze can change to find rich shared content.

@@ -1,5 +1,6 @@
 use super::*;
 use crate::scene::procedural_indoor::motion::IndoorMotionConfig;
+mod ottoman;
 
 #[test]
 fn benches_keep_ergonomic_seats_and_grounded_fitted_construction() {

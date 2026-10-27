@@ -26,12 +26,6 @@ fn points(p: &[[f32; 3]], project: &Projection) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join(" "))
 }
-pub(crate) fn color(i: usize) -> &'static str {
-    [
-        "#167a9d", "#c45d20", "#7354b8", "#178565", "#b53c63", "#647820", "#945534", "#267cc2",
-        "#a350a0", "#777133", "#368487", "#9c4850", "#384ba0", "#4e7841", "#775964", "#b66b38",
-    ][i % 16]
-}
 
 fn camera(
     s: &mut String,
@@ -41,8 +35,10 @@ fn camera(
     index: usize,
     pred: bool,
 ) -> Result<(), String> {
-    let gizmo = camera_gizmo(c, options.frustum_length)?;
-    let rgb = if pred { "#bb297c" } else { color(index) };
+    let gizmo = camera_presentation(c, p, options)?;
+    let index = crate::camera::gizmo::color_index(&c.label, index);
+    let [r, g, b] = crate::camera::gizmo::rgb(index);
+    let rgb = format!("#{r:02x}{g:02x}{b:02x}");
     let dash = if pred {
         r##" stroke-dasharray="6 4""##
     } else {
@@ -73,8 +69,8 @@ fn camera(
     );
     let q = p.project(gizmo.origin);
     let radius = gizmo.marker_radius();
-    let fill = if gizmo.fisheye { "white" } else { rgb };
-    let stroke = if gizmo.fisheye { rgb } else { "white" };
+    let fill = if gizmo.fisheye { "white" } else { &rgb };
+    let stroke = if gizmo.fisheye { &rgb } else { "white" };
     let _ = write!(
         s,
         r##"<circle cx="{}" cy="{}" r="{radius}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"{dash}/>"##,
@@ -92,8 +88,8 @@ fn camera(
         q[0] + radius + 3.,
         q[1] - radius - 3.,
         13,
-        &gizmo.label,
-        rgb,
+        &gizmo.caption,
+        &rgb,
     );
     s.push_str("</g>");
     Ok(())

@@ -5,6 +5,12 @@ use bevy_zeroverse::{
     annotation::schematic::{Overlay, RenderOptions, Schematic},
     scene::procedural_indoor::layout::{IndoorLayout, IndoorManifest},
 };
+fn options() -> RenderOptions {
+    RenderOptions {
+        camera_frustums: std::env::args().any(|a| a == "--frustums"),
+        ..Default::default()
+    }
+}
 fn main() -> anyhow::Result<()> {
     if std::env::args().any(|a| a == "--lenses") {
         return lens_examples();
@@ -15,7 +21,7 @@ fn main() -> anyhow::Result<()> {
         let plan = Schematic::from_manifest(&scene, 0.4).map_err(anyhow::Error::msg)?;
         plan.write(
             format!("out/schematic/{seed}"),
-            RenderOptions::default(),
+            options(),
             Overlay::default(),
         )?;
         let mut predicted = plan.cameras[0].clone();
@@ -28,7 +34,7 @@ fn main() -> anyhow::Result<()> {
         predicted.path.clear();
         plan.write(
             format!("out/schematic/{seed}-prediction"),
-            RenderOptions::default(),
+            options(),
             Overlay {
                 cameras: vec![predicted],
                 ..default()
@@ -53,7 +59,7 @@ fn lens_examples() -> anyhow::Result<()> {
         let plan = Schematic::from_manifest(&scene, 0.4).map_err(anyhow::Error::msg)?;
         plan.write(
             format!("out/schematic/lenses/room-{seed}"),
-            RenderOptions::default(),
+            options(),
             Overlay::default(),
         )?;
     }
@@ -121,7 +127,7 @@ fn lens_examples() -> anyhow::Result<()> {
     let options = RenderOptions {
         width: 1200,
         height: 1000,
-        ..default()
+        ..options()
     };
     plan.write(
         "out/schematic/lenses/calibration",

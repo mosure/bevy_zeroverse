@@ -1,5 +1,8 @@
 //! Compose sized furniture groups into the leaves of the spatial program.
 use super::*;
+#[cfg(test)]
+mod diversity_tests;
+mod lounge;
 mod primary;
 mod recovery;
 #[cfg(test)]
@@ -39,48 +42,8 @@ impl IndoorManifest {
                 (usable.x, usable.y)
             };
             let point = |x, y, z| tf.transform_point(Vec3::new(x, y, z));
-            let add_chair = |scene: &mut Self, x, z, yaw, rng: &mut ChaCha8Rng| {
-                scene.chair(point(x, 0.0, z), zone.orientation + yaw, rng);
-            };
             if activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
-                let sofa_width = (w * rng.random_range(0.58..0.88)).clamp(1.6, 3.4);
-                let sofa_depth = if w > 3.4 && d > 4.0 && rng.random_bool(0.52) {
-                    rng.random_range(1.45..1.95)
-                } else {
-                    rng.random_range(0.80..1.05)
-                };
-                let sofa_z = -d * 0.5 + sofa_depth * 0.5 + 0.08;
-                self.add(
-                    ObjectKind::Sofa,
-                    point(0.0, 0.0, sofa_z),
-                    Vec3::new(sofa_width, rng.random_range(0.78..1.06), sofa_depth),
-                    zone.orientation + std::f32::consts::PI,
-                    rng,
-                );
-                self.add(
-                    ObjectKind::CoffeeTable,
-                    point(
-                        rng.random_range(-0.20..0.20),
-                        0.0,
-                        sofa_z + sofa_depth * 0.5 + 0.72,
-                    ),
-                    Vec3::new(
-                        rng.random_range(0.85..1.55),
-                        rng.random_range(0.34..0.46),
-                        rng.random_range(0.5..0.75),
-                    ),
-                    zone.orientation + rng.random_range(-0.15..0.15),
-                    rng,
-                );
-                for side in [-1.0, 1.0] {
-                    add_chair(
-                        self,
-                        side * (w * 0.32).min(1.45),
-                        sofa_z + sofa_depth * 0.5 + 1.55,
-                        side * 0.42,
-                        rng,
-                    );
-                }
+                self.furnish_lounge(tf, Vec2::new(w, d), zone_index);
             } else if activity == IndoorLayout::Conference && w > 3.0 && d > 3.0 {
                 self.meeting_group(&zone, zone_index, center);
             } else {

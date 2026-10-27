@@ -17,7 +17,8 @@ use bevy::{
 };
 
 mod capture_targets;
-mod gizmo;
+pub mod gizmo;
+pub use gizmo::draw_camera_gizmo;
 pub mod lens;
 pub mod pinhole;
 pub mod playback;
@@ -47,7 +48,7 @@ use crate::{
     io,
     // plucker::PluckerCamera,
     render::RenderMode,
-    scene::{RegenerateSceneEvent, ZeroverseSceneRoot},
+    scene::RegenerateSceneEvent,
 };
 
 /// Stable dataset camera index, independent of ECS archetype iteration order.
@@ -75,13 +76,8 @@ pub struct CaptureDrawPolicy {
 pub struct ZeroverseCameraPlugin;
 impl Plugin for ZeroverseCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_gizmo_config(
-            EditorCameraGizmoConfigGroup,
-            GizmoConfig {
-                render_layers: EDITOR_CAMERA_RENDER_LAYER,
-                ..default()
-            },
-        );
+        app.insert_gizmo_config(EditorCameraGizmoConfigGroup, gizmo::config(false));
+        app.insert_gizmo_config(gizmo::PredictionCameraGizmoConfigGroup, gizmo::config(true));
         app.insert_gizmo_config(
             PoseGizmoConfigGroup,
             GizmoConfig {
@@ -433,82 +429,6 @@ pub fn update_render_pipeline(
         }
 
         // TODO: dynamic prepass camera components
-    }
-}
-
-#[allow(clippy::type_complexity)]
-pub fn draw_camera_gizmo(
-    args: Res<BevyZeroverseConfig>,
-    mut gizmos: Gizmos<EditorCameraGizmoConfigGroup>,
-    mut cameras: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            &Projection,
-            &mut ZeroverseCamera,
-            Option<&lens::LensCamera>,
-        ),
-        (With<Camera>, Without<EditorCameraMarker>),
-    >,
-    scene: Query<&GlobalTransform, With<ZeroverseSceneRoot>>,
-    mut outlines: Local<
-        std::collections::HashMap<Entity, (lens::CameraCalibration, Vec<[Vec3; 2]>)>,
-    >,
-) {
-    if !args.gizmos {
-        return;
-    }
-
-    let color = Color::srgba(1.0, 0.0, 1.0, args.gizmos_alpha.clamp(0.0, 1.0));
-
-    let trajectory_color = Color::srgba(1.0, 1.0, 1.0, args.gizmos_alpha.clamp(0.0, 1.0));
-
-    let scene_transform = match scene.single() {
-        Ok(scene_transform) => scene_transform.compute_transform(),
-        Err(_) => Transform::default(),
-    };
-
-    outlines.retain(|entity, _| cameras.get(*entity).is_ok());
-    for (entity, global_transform, projection, mut zeroverse_camera, angular) in cameras.iter_mut()
-    {
-        let transform = global_transform.compute_transform();
-
-        if let Some(angular) = angular {
-            let c = &angular.calibration;
-            let cached = outlines
-                .entry(entity)
-                .or_insert_with(|| (c.clone(), gizmo::fisheye_lines(c)));
-            if cached.0 != *c {
-                *cached = (c.clone(), gizmo::fisheye_lines(c));
-            }
-            for [a, b] in &cached.1 {
-                gizmos.line(
-                    transform.transform_point(*a * 1.5),
-                    transform.transform_point(*b * 1.5),
-                    color,
-                );
-            }
-        } else {
-            let corners = projection.get_frustum_corners(-1.5, -1.5);
-            for i in 0..4 {
-                let p = transform.transform_point(corners[i].into());
-                let next = transform.transform_point(corners[(i + 1) % 4].into());
-                gizmos.line(transform.translation, p, color);
-                gizmos.line(p, next, color);
-            }
-        }
-        gizmos
-            .arrow(
-                transform.translation,
-                transform.transform_point(Vec3::NEG_Z * 1.5),
-                color,
-            )
-            .with_tip_length(0.18);
-        gizmos.sphere(transform.translation, 0.1, color);
-
-        zeroverse_camera
-            .trajectory
-            .draw_gizmos(&mut gizmos, scene_transform, trajectory_color);
     }
 }
 

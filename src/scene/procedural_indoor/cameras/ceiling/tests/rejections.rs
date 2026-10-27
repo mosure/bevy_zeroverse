@@ -1,10 +1,52 @@
-//! Production rejection seeds: eight views, fixed lens/mount assignments and
+//! Production rejection seeds: eight views, fixed lens-family/mount assignments and
 //! moving ceiling rails. No renderer, device, assets or learned models are used.
 use super::*;
 
 #[test]
+fn production_66258278_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_258_278, 32_768, 40_000);
+}
+
+#[test]
+fn production_66258579_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_258_579, 32_768, 40_000);
+}
+
+#[test]
+fn production_66274996_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_274_996, 32_768, 40_000);
+}
+
+#[test]
+fn production_66275068_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_275_068, 32_768, 40_000);
+}
+
+#[test]
+fn production_66283662_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_283_662, 32_768, 40_000);
+}
+
+#[test]
+fn production_66283756_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_283_756, 32_768, 40_000);
+}
+
+#[test]
+fn production_66248449_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(66_248_449, 32_768, 40_000);
+}
+
+#[test]
+fn production_66242909_mixed_baseline() {
+    qualify_training_replay(66_242_909, 32_768);
+}
+
+#[test]
 fn production_65783461_mixed_baseline() {
-    qualify_training_replay(65783461, 32_768);
+    // This seed selects eight ordinary lenses. Account for both existing
+    // bounded placement passes, rather than a joint mounted-rig single pass.
+    qualify_training_replay(65783461, 65_536);
 }
 
 #[test]
@@ -14,7 +56,7 @@ fn production_65783100_mixed_baseline() {
 
 #[test]
 fn production_65716664_mixed_baseline() {
-    qualify_training_replay(65716664, 32_768);
+    qualify_training_replay(65716664, 65_536);
 }
 
 #[test]
@@ -134,12 +176,22 @@ fn qualify_mixed_training_replay(seed: u64) {
 }
 
 fn qualify_training_replay(seed: u64, peer_budget: usize) {
+    qualify_training_replay_with_reference_budget(seed, peer_budget, 32_768);
+}
+
+fn qualify_training_replay_with_reference_budget(
+    seed: u64,
+    peer_budget: usize,
+    reference_budget: usize,
+) {
     let scene = qualify_mixed_training_seed(seed);
     // Ordinary rigs have 64 anchor attempts; joint mixed rigs use a different
     // bounded search. Assert their proposal counters rather than wall-clock time
     // on shared CI machines. Recovery also has a fixed per-view budget.
     assert!(scene.camera_diagnostics.peer_proposals < peer_budget);
-    assert!(scene.camera_diagnostics.reference_proposals < 32_768);
+    assert!(scene.camera_diagnostics.reference_proposals < reference_budget);
+    assert!(scene.camera_diagnostics.recovery_path_proposals <= 16_384);
+    assert!(scene.camera_diagnostics.group_restarts <= 128);
     let mut replay = scene.clone();
     replay
         .resample_cameras(8, scene.camera_settings.clone(), 1.)
@@ -190,6 +242,7 @@ fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
     );
     validate_layout(&scene).unwrap();
     assert_eq!(scene.cameras.len(), 8);
+    let coverage = crate::scene::procedural_indoor::cameras::coverage::Coverage::new(&scene);
     for (slot, camera) in scene.cameras.iter().enumerate() {
         assert_eq!(
             camera.is_ceiling_mounted(),
@@ -198,12 +251,41 @@ fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
         assert_eq!(camera.fisheye, policy.lens_for(seed, slot));
         assert!(policy.accepts_motion(seed, slot, camera));
         assert!(scene.camera_curve_clear(camera));
-        if slot > 0 && scene.mixed_rig_contract().is_some() {
+        if !camera.is_ceiling_mounted() {
+            assert!(coverage.suitable(camera, false));
+        }
+        assert!(policy
+            .intrinsics_for(seed, slot)
+            .contains(camera.fov_degrees));
+        if slot > 0
+            && scene.mixed_rig_contract().is_some()
+            && (scene.camera_diagnostics.recovery_intrinsic_draws == 0
+                || camera.is_ceiling_mounted()
+                || camera.fisheye.is_some())
+        {
             let mut prior =
                 crate::scene::procedural_indoor::layout::stream(seed, 0x4343_0000 + slot as u64);
             assert_eq!(
                 camera.fov_degrees,
                 policy.intrinsics_for(seed, slot).sample(&mut prior)
+            );
+        }
+    }
+    assert!(scene.accepts_camera_geometry());
+    if let Some(contract) = scene.mixed_rig_contract() {
+        for pair in scene.camera_overlap() {
+            let a = &scene.cameras[pair.reference];
+            let b = &scene.cameras[pair.camera];
+            assert!(
+                contract.accepts_visibility(
+                    policy.multiview.as_ref().unwrap(),
+                    a,
+                    b,
+                    &pair.samples,
+                    contract.pair_overlap_floor(a, b, scene.camera_aspect_ratio),
+                ),
+                "seed {seed}: realized calibration must satisfy directed overlap for view {}",
+                pair.camera
             );
         }
     }

@@ -29,7 +29,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.44.0", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.45.0", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run

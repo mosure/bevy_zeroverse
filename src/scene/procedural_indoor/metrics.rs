@@ -926,9 +926,12 @@ fn export_inner(
                     | ObjectKind::Ottoman
                     | ObjectKind::RoomDivider
             ) {
-                let p = super::objects::services::parameters(object);
                 if object.kind == ObjectKind::Ottoman {
+                    let p = super::objects::services::ottoman::parameters(object);
                     numeric.push("service_roundness", p.roundness as f64)?;
+                    numeric.push("ottoman_crown", p.crown as f64)?;
+                    numeric.push("ottoman_base_height_m", p.base_height as f64)?;
+                    numeric.push("ottoman_cap_fraction", p.cap_fraction as f64)?;
                 }
                 if object.kind == ObjectKind::Bench {
                     let p = super::objects::services::bench::parameters(object);

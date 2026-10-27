@@ -48,31 +48,91 @@ impl MountSpace {
         if delta == Vec3::ZERO {
             return true;
         }
-        let body = camera.ceiling_sweep_bounds().unwrap();
-        let (a, b) = near_bounds(scene, camera);
-        let (c, d) = near_bounds(scene, &end);
-        let near = (a.min(c), b.max(d));
+        let body = camera.ceiling_mount.as_ref().unwrap().bounds();
+        let near = near_bounds(scene, camera);
         let forward = camera.ceiling_mount.as_ref().unwrap().inward_normal * 0.6;
-        let axis = [
-            camera.start,
-            end.start,
-            camera.start + forward,
-            end.start + forward,
-        ];
         let optical = (
-            axis.into_iter().fold(Vec3::splat(f32::INFINITY), Vec3::min) - Vec3::splat(1e-5),
-            axis.into_iter()
-                .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max)
-                + Vec3::splat(1e-5),
+            camera.start.min(camera.start + forward) - Vec3::splat(1e-5),
+            camera.start.max(camera.start + forward) + Vec3::splat(1e-5),
         );
-        // The rail is linear with fixed orientation. Endpoint unions therefore
-        // conservatively contain each component for every intermediate time.
-        [body, near, optical].into_iter().all(|(lo, hi)| {
-            !self
-                .obstacles
-                .iter()
-                .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())
+        // A fixed-orientation rail translates each conservative component box.
+        // Sweep the box continuously using a Minkowski-expanded obstacle. Its
+        // broad-phase endpoint union contains empty diagonal corners; treating
+        // those as collisions needlessly rejects narrow gaps between fixtures.
+        [body, near, optical]
+            .into_iter()
+            .all(|bounds| self.swept_box_clear(bounds, delta))
+    }
+
+    fn swept_box_clear(&self, (lo, hi): (Vec3, Vec3), delta: Vec3) -> bool {
+        let broad_lo = lo.min(lo + delta);
+        let broad_hi = hi.max(hi + delta);
+        !self.obstacles.iter().any(|(a, b)| {
+            broad_lo.cmplt(*b).all()
+                && broad_hi.cmpgt(*a).all()
+                && segment_hits_box(Vec3::ZERO, delta, *a - hi, *b - lo)
         })
+    }
+
+    /// Recover a requested moving rail from a clear mount, without shortening
+    /// below its configured minimum or accepting a stationary substitute.
+    pub(super) fn fit_rail(
+        &self,
+        scene: &IndoorManifest,
+        index: usize,
+        camera: &mut IndoorCamera,
+        rng: &mut impl rand::Rng,
+    ) -> bool {
+        if self.clear(scene, camera) {
+            return true;
+        }
+        if !scene.camera_settings.camera_moves(scene.seed, index) || !self.pose_clear(scene, camera)
+        {
+            return false;
+        }
+        let policy = scene.camera_settings.ceiling_mount.as_ref().unwrap();
+        let [min, max] = policy.travel_m;
+        let normal = camera.ceiling_mount.as_ref().unwrap().inward_normal;
+        for trial in 0..8 {
+            let direction = if trial == 0 {
+                (camera.end - camera.start).normalize_or_zero()
+            } else {
+                let angle = rng.random_range(0.0..std::f32::consts::TAU);
+                let v = Vec3::new(angle.cos(), 0., angle.sin());
+                (v - normal * normal.dot(v)).normalize()
+            };
+            if direction == Vec3::ZERO {
+                continue;
+            }
+            super::trajectory::set_rail(camera, direction * min);
+            if !self.clear(scene, camera) {
+                continue;
+            }
+            // Collision of a swept volume is monotonic in rail length. Keep a
+            // known-clear endpoint while finding the free interval; never
+            // export the colliding bound or clamp every rail to the minimum.
+            let mut clear = min;
+            let mut blocked = max;
+            for _ in 0..5 {
+                let length = (clear + blocked) * 0.5;
+                super::trajectory::set_rail(camera, direction * length);
+                if self.clear(scene, camera) {
+                    clear = length;
+                } else {
+                    blocked = length;
+                }
+            }
+            let length = rng.random_range(min.ln()..=clear.ln()).exp();
+            super::trajectory::set_rail(camera, direction * length);
+            if scene
+                .camera_settings
+                .accepts_motion(scene.seed, index, camera)
+                && self.clear(scene, camera)
+            {
+                return true;
+            }
+        }
+        false
     }
 
     fn pose_clear(&self, scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
@@ -281,5 +341,44 @@ mod tests {
                 "missed swept obstacle {lo:?} {hi:?}"
             );
         }
+
+        // A diagonally translated box does not occupy the entire union AABB.
+        // The former broad-phase-only test mistook its empty corners for solid
+        // camera body/lens/optical space between densely installed fixtures.
+        let mut diagonal = camera.clone();
+        let delta = Vec3::new(0.8, 0., 0.8);
+        super::super::trajectory::set_rail(&mut diagonal, delta);
+        space.obstacles = vec![(Vec3::new(0.05, 3.70, 0.65), Vec3::new(0.15, 3.85, 0.75))];
+        assert!(space.clear(&scene, &diagonal));
+        space.obstacles = vec![(Vec3::new(0.35, 3.70, 0.35), Vec3::new(0.45, 3.85, 0.45))];
+        assert!(space.pose_clear(&scene, &diagonal));
+        assert!(!space.clear(&scene, &diagonal));
+
+        // Recover a rail in a tight pocket without changing the requested
+        // 10 cm minimum, mount, calibration or final continuous clearance test.
+        let keep_clear = (Vec3::new(-0.22, 3.0, -0.22), Vec3::new(0.22, 4.1, 0.22));
+        space.obstacles = vec![
+            (Vec3::new(-5., 3., -5.), Vec3::new(keep_clear.0.x, 4.1, 5.)),
+            (Vec3::new(keep_clear.1.x, 3., -5.), Vec3::new(5., 4.1, 5.)),
+            (Vec3::new(-5., 3., -5.), Vec3::new(5., 4.1, keep_clear.0.z)),
+            (Vec3::new(-5., 3., keep_clear.1.z), Vec3::new(5., 4.1, 5.)),
+        ];
+        let mut rng = crate::scene::procedural_indoor::layout::stream(42, 88);
+        let mut fitted = camera.clone();
+        assert!(!space.clear(&scene, &fitted));
+        assert!(space.fit_rail(&scene, 0, &mut fitted, &mut rng));
+        assert_eq!(fitted.start, camera.start);
+        assert_eq!(fitted.ceiling_mount, camera.ceiling_mount);
+        assert_eq!(fitted.fisheye, camera.fisheye);
+        assert!(fitted.path_length() >= 0.1 - 1e-4);
+        assert!(fitted.path_length() < 0.14);
+        assert!(space.clear(&scene, &fitted));
+        scene
+            .camera_settings
+            .ceiling_mount
+            .as_mut()
+            .unwrap()
+            .travel_m[0] = 0.3;
+        assert!(!space.fit_rail(&scene, 0, &mut camera.clone(), &mut rng));
     }
 }

@@ -12,7 +12,7 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
         .flooring
         .as_ref()
         .is_some_and(|f| f.layout == FloorLayout::Seamless);
-    r.period_m = product.random_range(if seamless { 0.9..1.9 } else { 2.4..5.4 });
+    r.period_m = super::scale::period(r.seed, seamless);
     let hue = pigment.random_range(if style == 0 { 18.0..48.0 } else { 0.0..360.0 });
     let saturation = if style == 0 {
         pigment.random_range(0.18..0.48)
@@ -43,7 +43,6 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
             r.relief_m = finish.random_range(0.00015..0.00065);
             let c = r.carpet.as_mut().unwrap();
             c.dye = Some(CarpetDye::sample(r.seed));
-            c.repeats = [product.random_range(2..=16), product.random_range(2..=16)];
             c.contrast = pigment.random_range(0.08..0.72);
             c.line_width = product.random_range(0.035..0.34);
             c.palette[0] = r.color;
@@ -67,22 +66,9 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
     }
     r.relief_m *= r.detail_scale.unwrap_or(1.);
     let mut f = FloorFinish::sample(r.seed, style, r.period_m);
-    if matches!(f.layout, FloorLayout::Straight | FloorLayout::BrokenBond) {
-        let width: f32 = product.random_range(if style == 0 { 0.08..0.34 } else { 0.24..1.2 });
-        let length: f32 = product.random_range(if style == 0 { 0.55..2.3 } else { 0.30..1.4 });
-        f.cells = [width, length].map(|m| (r.period_m / m).round().clamp(2., 48.) as u32);
-    }
-    let variable_cuts = style != 1 && product.random_bool(if style == 0 { 0.72 } else { 0.20 });
     let tone: f32 = pigment.random_range(if style == 0 { 0.035..0.18 } else { 0.12..0.82 });
     f.stock = Some(stock::FloorStock {
-        cut_jitter: if variable_cuts {
-            [
-                product.random_range(0.0..0.20),
-                product.random_range(0.06..0.38),
-            ]
-        } else {
-            [0.; 2]
-        },
+        cut_jitter: [0.; 2],
         mottle_cells: [product.random_range(1..=11), product.random_range(1..=11)],
         joint_color: [tone, tone * 0.97, tone * 0.94],
         joint_roughness: finish.random_range(0.65..0.97),
@@ -93,4 +79,5 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
         0.001..0.006
     });
     r.flooring = Some(f);
+    super::scale::resolve(r, style);
 }

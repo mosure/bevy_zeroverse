@@ -67,7 +67,10 @@ plan.write("out/calibration", RenderOptions::default(), predictions)?;
 `Schematic::from_manifest` supports CPU-only layout audits. See
 [`examples/schematic.rs`](../examples/schematic.rs) for a runnable prediction
 example. Applications may insert `app::editor::schematic::Predictions` to display
-model outputs in the viewer. Predictions use dashed magenta; their outliers are
+model outputs in the viewer. Camera predictions use dashed lines in the matching
+capture camera's color: include its ID in the label, for example `Pred C7`.
+Sparse or reordered predictions retain their camera colors. Other predicted
+objects and poses use magenta; their outliers are
 clipped to the map viewport and never expand the ground-truth metric extent.
 
 Coordinates use world-space metres, +Y up. The view looks down onto X/Z: +X is

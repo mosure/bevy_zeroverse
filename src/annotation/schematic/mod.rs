@@ -7,11 +7,9 @@
 mod export;
 pub use export::Document;
 mod camera;
-pub(crate) use camera::camera_gizmo;
+pub(crate) use camera::camera_presentation;
 mod scene;
 mod svg;
-#[cfg(feature = "viewer")]
-pub(crate) use svg::color as camera_color;
 #[cfg(test)]
 mod tests;
 use bevy::prelude::*;
@@ -63,7 +61,8 @@ pub struct Pose {
     pub parents: Vec<i64>,
 }
 /// Predictions never change the metric extent or the ground-truth coordinates.
-/// Dashed magenta distinguishes every prediction from solid ground truth.
+/// Camera predictions use the same C-index color as ground truth, with dashed
+/// lines. Predicted poses and footprints use dashed magenta.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Overlay {
     pub cameras: Vec<Camera>,
@@ -86,7 +85,11 @@ pub struct RenderOptions {
     pub height: u32,
     pub labels: bool,
     pub camera_paths: bool,
-    /// Finite display length, not the camera's clipping plane or measured overlap.
+    /// Draw full calibrated ray hulls instead of compact camera symbols. These
+    /// are display frustums, not occlusion-aware coverage or co-visibility.
+    #[serde(default)]
+    pub camera_frustums: bool,
+    /// Finite display length for opt-in frustums, not a camera clipping plane.
     pub frustum_length: f32,
 }
 impl Default for RenderOptions {
@@ -96,6 +99,7 @@ impl Default for RenderOptions {
             height: 1024,
             labels: true,
             camera_paths: true,
+            camera_frustums: false,
             frustum_length: 1.5,
         }
     }

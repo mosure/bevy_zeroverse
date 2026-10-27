@@ -143,6 +143,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Headphones => return serde_json::json!(accessories::headphones::parameters(o)),
         Stapler => return serde_json::json!(accessories::stationery::stapler_parameters(o)),
         TapeDispenser => return serde_json::json!(accessories::stationery::tape_parameters(o)),
+        Ottoman => return serde_json::json!(services::ottoman::parameters(o)),
         Bench => return serde_json::json!(services::bench::parameters(o)),
         DrawerUnit => return serde_json::json!(services::drawers::parameters(o)),
         MobileCart => return serde_json::json!(services::cart::parameters(o)),
@@ -377,7 +378,14 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         MobileCart => &["levels", "feet_height"],
         DrawerUnit => &["drawers", "feet_height", "drawer_bias", "handle_fraction"],
         Bench => &["slats", "backed", "roundness"],
-        Ottoman => &["feet_height", "roundness"],
+        Ottoman => &[
+            "base",
+            "base_height",
+            "roundness",
+            "crown",
+            "cap_fraction",
+            "body_inset",
+        ],
         RoomDivider => &["slats", "panel_fraction"],
         StorageBox => &[
             "construction",

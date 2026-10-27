@@ -3,6 +3,13 @@
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CameraSamplingDiagnostics {
+    /// Bounded redraws from the configured pinhole PDF after fixed-lens recovery.
+    /// Fisheye assignments and explicitly fixed FOVs are never redrawn.
+    #[serde(default)]
+    pub recovery_intrinsic_draws: usize,
+    /// Derived-path/calibration trials in mixed-rig recovery (at most 16384).
+    #[serde(default)]
+    pub recovery_path_proposals: usize,
     pub reference_proposals: usize,
     pub long_reference_requests: usize,
     pub short_reference_recoveries: usize,

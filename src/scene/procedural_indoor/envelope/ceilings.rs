@@ -27,10 +27,7 @@ impl EnvelopeProgram {
             let height = roof - r.random_range(0.13..0.36);
             if height < 2.55
                 || !self.feature_clear(scene, lo, hi, 0.2)
-                || self
-                    .mezzanine
-                    .as_ref()
-                    .is_some_and(|m| m.deck.overlaps(lo, hi) && height < m.deck.height + 2.3)
+                || !self.soffit_headroom_clear(lo, hi, height)
                 || self.pillars.iter().any(|p| {
                     p.center.clamp(lo - Vec2::splat(0.4), hi + Vec2::splat(0.4)) == p.center
                 })
@@ -84,7 +81,7 @@ impl EnvelopeProgram {
                 .into_iter()
                 .fold(f32::INFINITY, f32::min);
             let height = roof - r.random_range(0.14..0.42);
-            if height < 2.62 {
+            if height < 2.62 || !self.soffit_headroom_clear(lo, hi, height) {
                 continue;
             }
             let band = half.min_element() * r.random_range(0.15..0.28);
@@ -106,6 +103,62 @@ impl EnvelopeProgram {
             }
         }
     }
+
+    /// Lowered ceilings must clear every walking surface below them, including
+    /// the stair flight and its landings. A check against the deck alone misses
+    /// beams immediately in front of the upper landing. Use actual overlapping
+    /// tread heights so lower steps still admit realistic ceiling articulation.
+    fn soffit_headroom_clear(&self, lo: Vec2, hi: Vec2, height: f32) -> bool {
+        self.mezzanine.as_ref().is_none_or(|m| {
+            m.deck
+                .overlaps(lo, hi)
+                .then_some(m.deck.height)
+                .into_iter()
+                .chain(m.stair_highest_in(lo, hi))
+                .all(|floor| height >= floor + 2.3)
+        })
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn lowered_ceilings_clear_stairs_without_removing_the_mezzanine() {
+    use crate::scene::procedural_indoor::{
+        layout::IndoorLayout,
+        validation::{validate_geometry, validate_layout},
+    };
+    let scene =
+        IndoorManifest::generate_with_humans(66_242_909, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let e = scene.envelope.as_ref().unwrap();
+    let m = e
+        .mezzanine
+        .as_ref()
+        .expect("retain the generated mezzanine");
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    // This footprint intersects the top steps but not the deck. The previous
+    // deck-only admission allowed a 4.89021 m soffit over a 2.90788 m tread.
+    let lo = Vec2::new(-2.6564257, -0.59188634);
+    let hi = Vec2::new(2.6564257, 0.59188634);
+    assert!(!m.deck.overlaps(lo, hi));
+    assert!(!e.soffit_headroom_clear(lo, hi, 4.89021));
+    assert!(e.soffit_headroom_clear(lo, hi, m.deck.height + 2.31));
+    for (a, b) in m.treads() {
+        assert!(!e.soffit_headroom_clear(
+            a.xz() + Vec2::splat(1e-4),
+            b.xz() - Vec2::splat(1e-4),
+            b.y + 2.29
+        ));
+        assert!(e.soffit_headroom_clear(
+            a.xz() + Vec2::splat(1e-4),
+            b.xz() - Vec2::splat(1e-4),
+            b.y + 2.31
+        ));
+    }
+    assert_eq!(
+        scene,
+        IndoorManifest::generate_with_humans(66_242_909, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap()
+    );
 }
 
 #[cfg(test)]

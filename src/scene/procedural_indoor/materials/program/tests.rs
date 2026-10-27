@@ -380,15 +380,15 @@ fn recorded_floor_recipes_have_physical_scale_and_finish() {
             let floor = &recipes[Surface::Floor as usize];
             assert!(floor.relief_m > 0. && floor.relief_m < 0.001);
             if style == 1 {
-                assert!((2.4..=5.4).contains(&floor.period_m));
+                assert!((1.6..=6.4).contains(&floor.period_m));
                 assert!((0.82..=0.98).contains(&floor.roughness));
             } else if floor.flooring.as_ref().unwrap().layout
                 == super::super::flooring::FloorLayout::Seamless
             {
-                assert!((0.90..1.90).contains(&floor.period_m));
+                assert!((0.55..=3.2).contains(&floor.period_m));
                 assert!((0.12..=0.95).contains(&floor.roughness));
             } else {
-                assert!((2.4..=5.4).contains(&floor.period_m));
+                assert!((1.6..=6.4).contains(&floor.period_m));
                 if style == 0 {
                     assert!((0.20..=0.85).contains(&floor.roughness));
                 } else {

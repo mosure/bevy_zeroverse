@@ -4,6 +4,7 @@ pub mod bench;
 pub mod cart;
 pub mod divider;
 pub mod drawers;
+pub mod ottoman;
 #[cfg(test)]
 mod tests;
 
@@ -56,47 +57,15 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::RoomDivider => return divider::build(a, o),
         _ => {}
     }
-    let p = parameters(o);
     match o.kind {
-        ObjectKind::Ottoman => ottoman(a, o, &p),
+        ObjectKind::Ottoman => ottoman::build(a, o),
         _ => unreachable!("non-service furniture"),
-    }
-}
-
-fn feet(a: &mut Assembly, o: &IndoorObject, height: f32, caster: bool) {
-    let s = o.size;
-    for x in [-1., 1.] {
-        for z in [-1., 1.] {
-            let pos = Vec3::new(x * s.x * 0.36, 0., z * s.z * 0.34);
-            if caster {
-                a.part(Surface::Rubber, o.kind.class_name()).ellipsoid(
-                    Vec3::new(height * 0.38, height * 0.38, height * 0.22),
-                    Transform::from_translation(pos + Vec3::Y * height * 0.38),
-                );
-                a.box_part(
-                    Surface::Metal,
-                    o.kind.class_name(),
-                    pos + Vec3::Y * height * 0.78,
-                    Vec3::new(height * 0.36, height * 0.44, height * 0.32),
-                    0.003,
-                );
-            } else {
-                a.box_part(
-                    Surface::WoodEdge,
-                    o.kind.class_name(),
-                    pos + Vec3::Y * height * 0.5,
-                    Vec3::new(0.038, height, 0.038),
-                    0.004,
-                );
-            }
-        }
     }
 }
 
 /// Categorical construction signature includes only parameters used by this
 /// object's geometry, never inactive draws from another object's program.
 pub fn construction(o: &IndoorObject) -> String {
-    let p = parameters(o);
     match o.kind {
         ObjectKind::MobileCart => {
             let p = cart::parameters(o);
@@ -126,17 +95,16 @@ pub fn construction(o: &IndoorObject) -> String {
                 p.frame, p.base, p.slats, p.backed, p.arms
             )
         }
-        ObjectKind::Ottoman => format!(
-            "ottoman/{:?}/{}",
-            p.upholstery,
-            if p.roundness < 3. {
-                "round"
-            } else if p.roundness < 5. {
-                "soft-square"
-            } else {
-                "square"
-            }
-        ),
+        ObjectKind::Ottoman => {
+            let p = ottoman::parameters(o);
+            format!(
+                "ottoman/{:?}/{:?}/base={:?}/cap={}",
+                p.body,
+                p.top,
+                p.base,
+                p.cap_fraction > 0.
+            )
+        }
         ObjectKind::RoomDivider => {
             let p = divider::parameters(o);
             format!(
@@ -149,27 +117,4 @@ pub fn construction(o: &IndoorObject) -> String {
         }
         _ => unreachable!("non-service construction"),
     }
-}
-
-fn ottoman(a: &mut Assembly, o: &IndoorObject, p: &ServiceProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    let leg = p.feet_height.min(s.y * 0.24);
-    feet(a, o, leg, false);
-    let cushion = super::super::geometry::CushionProfile {
-        roundness: p.roundness,
-        crown: 4.2,
-        dish: 0.002,
-    };
-    let top = (s.y - leg) * 0.32;
-    a.part(p.upholstery, label).cushion(
-        Vec3::new(s.x * 0.98, s.y - leg - top, s.z * 0.98),
-        cushion,
-        Transform::from_xyz(0., (s.y - top + leg) * 0.5, 0.),
-    );
-    a.part(p.upholstery, label).cushion(
-        Vec3::new(s.x, top, s.z),
-        cushion,
-        Transform::from_xyz(0., s.y - top * 0.5, 0.),
-    );
 }
