@@ -36,7 +36,7 @@ pub fn parameters(o: &IndoorObject) -> TeachingProgram {
         finish: [
             Surface::Metal,
             Surface::Wood,
-            Surface::Paint,
+            Surface::Chrome,
             Surface::Plastic,
         ][f.random_range(0..4)],
     }

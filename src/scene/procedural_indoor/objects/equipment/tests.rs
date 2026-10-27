@@ -99,7 +99,66 @@ fn equipment_connections_and_emitters_use_geometry_coordinates() {
         let mut a = Assembly::default();
         build(&mut a, &p);
         assert!(!a.parts.keys().any(|(s, _)| *s == Surface::Light));
-        assert!((power_port(&p, false).unwrap().z + p.size.z * 0.48 + 0.001).abs() < 1e-6);
+        assert_eq!(
+            power_port(&p, false).unwrap(),
+            projector::parameters(&p).power_port()
+        );
+    }
+}
+
+#[test]
+fn projector_optics_and_cable_ports_meet_actual_meshes() {
+    for seed in 0..96 {
+        let o = object(ObjectKind::Projector, Vec3::new(0.23, 0.09, 0.21), seed);
+        let p = projector::parameters(&o);
+        let a = super::super::build_object(&o);
+        super::super::audit::check(&o, &a).unwrap();
+        let glass: Vec<_> = a
+            .parts
+            .iter()
+            .filter(|((s, _), _)| *s == Surface::ContainerGlass)
+            .flat_map(|(_, g)| &g.positions)
+            .map(|v| Vec3::from_array(*v))
+            .collect();
+        let lo = glass
+            .iter()
+            .copied()
+            .fold(Vec3::splat(f32::INFINITY), Vec3::min);
+        let hi = glass
+            .iter()
+            .copied()
+            .fold(Vec3::splat(f32::NEG_INFINITY), Vec3::max);
+        let lens = p.optical_origin();
+        assert!(((lo + hi) * 0.5 - lens).xy().length() < 1e-5);
+        assert!((hi.z - lens.z).abs() < 0.0001);
+        let port = power_port(&o, false).unwrap();
+        let dir = -power_port_normal(&o, false).unwrap();
+        let origin = port - dir * 0.004;
+        let mut distance = f32::INFINITY;
+        for g in a.parts.values() {
+            for tri in g.indices.as_chunks::<3>().0 {
+                let p = tri.map(|i| Vec3::from_array(g.positions[i as usize]));
+                let e = p[1] - p[0];
+                let f = p[2] - p[0];
+                let cross = dir.cross(f);
+                let det = e.dot(cross);
+                if det.abs() < 1e-10 {
+                    continue;
+                }
+                let v = origin - p[0];
+                let u = v.dot(cross) / det;
+                let q = v.cross(e);
+                let w = dir.dot(q) / det;
+                let t = f.dot(q) / det;
+                if u >= 0. && w >= 0. && u + w <= 1. && t >= 0. {
+                    distance = distance.min(t);
+                }
+            }
+        }
+        assert!(
+            (0.003..0.007).contains(&distance),
+            "port disconnected: {seed}/{distance}"
+        );
     }
 }
 

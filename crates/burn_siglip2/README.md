@@ -6,7 +6,7 @@ The crate has its own version and can be used independently of Bevy and the scen
 generator. It was originally developed in `burn_loom`; see [ORIGIN.json](ORIGIN.json)
 for import provenance and [RELEASING.md](RELEASING.md) for the publication procedure.
 
-Production fixed-resolution SigLIP2 inference for Burn 0.22. The crate implements both image and
+Production fixed-resolution SigLIP2 inference for Burn 0.22.1. The crate implements both image and
 text towers, canonical preprocessing/tokenization, calibrated SigLIP scoring, native BPK loading,
 incremental BPK-shard loading, and a browser WebGPU interface.
 
@@ -41,7 +41,7 @@ loader rejects them.
 
 The default native backend is Burn Flex with SIMD and Rayon CPU kernels.
 `load_backend` and `load_backend_flex` both select Flex explicitly; the `ndarray`
-feature remains a compatibility alias. GPU runtimes use explicit Burn 0.22
+feature remains a compatibility alias. GPU runtimes use explicit Burn 0.22.1
 `Device` selection. GPU fusion is not enabled by this crate, so it can share
 Bevy's device with the motion renderer's unfused buffer bridge. Browser device
 initialization is asynchronous.
@@ -580,7 +580,7 @@ cargo check -p burn_siglip2 --target wasm32-unknown-unknown \
   --no-default-features --features wasm
 ```
 
-## Burn 0.22 API migration
+## Burn 0.22.1 API migration
 
 Models and tensor responses no longer take a backend type parameter: use
 `Siglip2Model`, `Siglip2Runtime`, `Tensor<4>` and `Device`. Pass an explicit device

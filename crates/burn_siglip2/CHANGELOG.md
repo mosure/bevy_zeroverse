@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (2026-10-26)
+
+- Require Burn 0.22.1 across the Flex, WGPU, storage and browser integrations.
+- Preserve model formats, preprocessing and public inference APIs.
+
 ## 0.2.0 (2026-10-08)
 
 - Migrate to Burn 0.22 runtime devices and backend-independent tensors/models.

@@ -194,10 +194,10 @@ impl IndoorManifest {
                             transform_rng.random_range(0.26..0.42),
                         ),
                     ),
-                    4 => (ObjectKind::CoatRack, {
-                        let base = transform_rng.random_range(0.48..0.76);
-                        Vec3::new(base, rng.random_range(1.45..1.95), base)
-                    }),
+                    4 => (
+                        ObjectKind::CoatRack,
+                        super::super::objects::utilities::racks::dimensions(&mut transform_rng),
+                    ),
                     5 => (
                         ObjectKind::Bag,
                         super::super::items::sizing::loose(ObjectKind::Bag, &mut transform_rng)
@@ -205,26 +205,27 @@ impl IndoorManifest {
                     ),
                     6 => (
                         ObjectKind::StorageBox,
-                        Vec3::new(
-                            rng.random_range(0.3..0.6),
-                            rng.random_range(0.2..0.45),
-                            transform_rng.random_range(0.26..0.45),
-                        ),
-                    ),
-                    _ => {
-                        let height = rng.random_range(0.4_f32..0.65);
-                        let mut shape_rng = stream(self.seed ^ height.to_bits() as u64, 6330);
-                        (
-                            ObjectKind::TrashCan,
-                            Vec3::new(
-                                shape_rng.random_range(0.27..0.46),
-                                height,
-                                shape_rng.random_range(0.26..0.42),
-                            ),
+                        super::super::items::sizing::loose(
+                            ObjectKind::StorageBox,
+                            &mut transform_rng,
                         )
-                    }
+                        .unwrap()
+                            * transform_rng.random_range(1.15..1.65),
+                    ),
+                    _ => (
+                        ObjectKind::TrashCan,
+                        super::super::objects::containers::bins::dimensions(&mut transform_rng),
+                    ),
                 };
-                let yaw = yaw + transform_rng.random_range(-0.20..0.20);
+                let yaw = if matches!(
+                    kind,
+                    ObjectKind::CoatRack | ObjectKind::StorageBox | ObjectKind::TrashCan
+                ) && transform_rng.random_bool(0.40)
+                {
+                    transform_rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
+                } else {
+                    yaw + transform_rng.random_range(-0.20..0.20)
+                };
                 self.add(kind, Vec3::new(x, 0.0, z), size, yaw, rng);
             }
         }

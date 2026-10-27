@@ -1,5 +1,6 @@
 //! Dimensioned shelf bays with independently sized upright books and flat stacks.
 use super::*;
+pub(crate) mod bay_contents;
 pub mod bookcase;
 
 #[derive(Debug, serde::Serialize)]
@@ -124,49 +125,18 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             // filling every level with upright books. Keep everything contained.
             let content = rng.random_range(0..10);
             if content <= 2 {
-                let w = (bay - 2. * t - 0.035).min(rng.random_range(0.18..0.38));
-                let h = (pitch - t - 0.025) * rng.random_range(0.46..0.78);
-                let z = s.z * 0.03;
-                let x = left + (bay - t) * 0.5;
-                if content < 2 {
-                    a.box_part(
-                        Surface::Paper,
-                        "box",
-                        Vec3::new(x, base + (h - 0.0195) * 0.5, z),
-                        Vec3::new(w, h - 0.0195, s.z * 0.77),
-                        0.003,
-                    );
-                    a.box_part(
-                        Surface::WoodEdge,
-                        "box",
-                        Vec3::new(x, base + h - 0.009, z),
-                        Vec3::new(w + 0.008, 0.018, s.z * 0.80),
-                        0.002,
-                    );
-                    a.box_part(
-                        Surface::Ink,
-                        "box",
-                        Vec3::new(x, base + h * 0.62, z + s.z * 0.39),
-                        Vec3::new(w * 0.32, 0.011, 0.001),
-                        0.001,
-                    );
-                } else {
-                    let r = (w * 0.36).min(s.z * 0.30);
-                    a.part(Surface::Ceramic, "vase").lathe(
-                        &[
-                            (0., 0.),
-                            (r * 0.64, 0.),
-                            (r, h * 0.43),
-                            (r * 0.50, h),
-                            (r * 0.44, h),
-                            (r * 0.88, h * 0.43),
-                            (r * 0.56, h * 0.06),
-                            (0., h * 0.06),
-                        ],
-                        24,
-                        Transform::from_xyz(x, base, z),
-                    );
-                }
+                bay_contents::build(
+                    a,
+                    o,
+                    rng.random(),
+                    if content < 2 {
+                        ObjectKind::StorageBox
+                    } else {
+                        ObjectKind::Vase
+                    },
+                    Vec3::new(left, base, -s.z * 0.5 + t),
+                    Vec3::new(left + bay - t, base + pitch - t - 0.012, s.z * 0.5 - 0.018),
+                );
                 continue;
             }
             if content == 3 {

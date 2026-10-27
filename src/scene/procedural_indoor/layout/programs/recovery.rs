@@ -66,8 +66,7 @@ impl IndoorManifest {
             let rejected = self.rejected_placements;
             let count = self.objects.len();
             let mut r = stream(sink.seed, 0x4b49_5443_4845_4e42);
-            let diameter = r.random_range(0.25..0.35);
-            let size = Vec3::new(diameter, r.random_range(0.40..0.64), diameter);
+            let size = super::super::super::objects::containers::bins::dimensions(&mut r) * 0.88;
             let phase = r.random_range(0.0..std::f32::consts::TAU);
             'search: for band in 0..3 {
                 for sector in 0..16 {
@@ -191,26 +190,8 @@ impl IndoorManifest {
             })
             .cloned()
             .collect();
-        let mut rng = stream(self.seed, 6133);
         for anchor in anchors {
-            let diameter = rng.random_range(0.28..0.40);
-            for (kind, size) in [
-                (
-                    ObjectKind::TrashCan,
-                    Vec3::new(diameter, rng.random_range(0.43..0.72), diameter),
-                ),
-                (
-                    ObjectKind::SideTable,
-                    Vec3::new(
-                        rng.random_range(0.38..0.60),
-                        rng.random_range(0.43..0.60),
-                        rng.random_range(0.36..0.54),
-                    ),
-                ),
-            ] {
-                // Kitchen work areas need a nearby waste bin, not a lounge side
-                // table. Keep the anchor's supported floor elevation and route
-                // every proposal through the ordinary clearance checks.
+            for (kind, domain) in [(ObjectKind::TrashCan, 0_u64), (ObjectKind::SideTable, 1)] {
                 if kind == ObjectKind::SideTable
                     && matches!(
                         anchor.kind,
@@ -230,23 +211,58 @@ impl IndoorManifest {
                 }) {
                     continue;
                 }
-                let phase = rng.random_range(0.0..std::f32::consts::TAU);
-                'placement: for band in 0..3 {
-                    let gap = 0.14 + band as f32 * 0.14 + rng.random_range(0.0..0.10);
-                    for sector in 0..16 {
-                        let angle = phase
-                            + std::f32::consts::TAU * sector as f32 / 16.
-                            + rng.random_range(-0.12..0.12);
-                        let direction = Vec2::from_angle(angle);
-                        let offset = direction
-                            * (anchor.size.xz() * 0.5 + size.xz() * 0.5 + Vec2::splat(gap));
-                        let p = anchor.position
-                            + Quat::from_rotation_y(anchor.yaw) * Vec3::new(offset.x, 0., offset.y);
-                        if self
-                            .add(kind, p, size, anchor.yaw + angle, &mut rng)
-                            .is_some()
-                        {
-                            break 'placement;
+                // An oversized first product must not exhaust recovery of an
+                // otherwise usable activity area. Sample up to three products,
+                // reserving a compact form for the last bounded attempt. Size
+                // is immutable throughout each product's clearance search.
+                let mut rng = stream(anchor.seed, 0x5349444553544f52 + domain);
+                'product: for attempt in 0..3 {
+                    let size = if kind == ObjectKind::TrashCan {
+                        let mut size =
+                            super::super::super::objects::containers::bins::dimensions(&mut rng);
+                        if attempt == 2 {
+                            let width = rng.random_range(0.23..0.31);
+                            size = Vec3::new(
+                                width,
+                                width * rng.random_range(1.25..2.0),
+                                width * rng.random_range(0.78..1.12),
+                            );
+                        }
+                        size
+                    } else {
+                        Vec3::new(
+                            if attempt == 2 {
+                                rng.random_range(0.30..0.44)
+                            } else {
+                                rng.random_range(0.38..0.60)
+                            },
+                            rng.random_range(0.43..0.60),
+                            if attempt == 2 {
+                                rng.random_range(0.29..0.43)
+                            } else {
+                                rng.random_range(0.36..0.54)
+                            },
+                        )
+                    };
+                    let phase = rng.random_range(0.0..std::f32::consts::TAU);
+                    for band in 0..3 {
+                        let gap = 0.14 + band as f32 * 0.14 + rng.random_range(0.0..0.10);
+                        for sector in 0..16 {
+                            let angle = phase
+                                + std::f32::consts::TAU * sector as f32 / 16.
+                                + rng.random_range(-0.12..0.12);
+                            let direction = Vec2::from_angle(angle);
+                            let offset = direction
+                                * (anchor.size.xz() * 0.5 + size.xz() * 0.5 + Vec2::splat(gap));
+                            let p = anchor.position
+                                + Quat::from_rotation_y(anchor.yaw)
+                                    * Vec3::new(offset.x, 0., offset.y);
+                            if self
+                                .add(kind, p, size, anchor.yaw + angle, &mut rng)
+                                .is_some()
+                            {
+                                break 'product;
+                            }
                         }
                     }
                 }

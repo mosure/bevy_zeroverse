@@ -193,7 +193,7 @@ fn kitchen_round_tubes_have_linear_mesh_cost_and_closed_seams() {
 
 // Intersect the actual triangle mesh with a downward ray, independent of the
 // analytic placement envelope. This detects a cabinet top sealing a sink hole.
-fn top_at(a: &Assembly, point: Vec2) -> f32 {
+pub(super) fn top_at(a: &Assembly, point: Vec2) -> f32 {
     let mut top = f32::NEG_INFINITY;
     for g in a.parts.values() {
         for triangle in g.indices.as_chunks::<3>().0 {

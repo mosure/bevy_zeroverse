@@ -50,7 +50,7 @@ pub fn parameters(o: &IndoorObject) -> FanProgram {
             Surface::Wood,
             Surface::Metal,
             Surface::Plastic,
-            Surface::Paint,
+            Surface::Chrome,
         ][r.random_range(0..4)],
         housing_surface: [Surface::Metal, Surface::Chrome, Surface::Plastic][r.random_range(0..3)],
     }

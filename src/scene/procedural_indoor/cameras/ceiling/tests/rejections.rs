@@ -19,21 +19,35 @@ fn production_65716664_mixed_baseline() {
 
 #[test]
 fn production_65721965_mixed_baseline() {
+    qualify_or_reject_training_seed(65721965);
+}
+
+fn qualify_or_reject_training_seed(seed: u64) {
     use crate::sample::failure::{CaptureError, SceneRejectionKind};
-    let seed = 65721965;
     let policy =
         CameraSettings::parse(include_str!("mixed_training_camera_settings.json")).unwrap();
     let mut scene =
         IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let before = scene.clone();
-    // This sparse primary room still exhausts the fixed 34--39 degree peers'
-    // mixed-mount search. A future valid solution is welcome; weakening the
-    // lens assignments, motion, overlap or geometry to force one is not.
-    match scene.resample_cameras_typed(8, policy.clone(), 1.) {
+    // A generator revision changes the geometry at a seed. These constrained
+    // eight-view rigs can exhaust the bounded search even when the room mesh
+    // and an ordinary three-view rig are valid. Accept a fully qualified rig or
+    // an atomic, typed rejection; never weaken optics or overlap to force one.
+    let result = scene.resample_cameras_typed(8, policy.clone(), 1.);
+    match result {
         Ok(()) => {
             assert_eq!(scene.cameras.len(), 8);
             assert_eq!(scene.camera_settings, policy);
             validate_layout(&scene).unwrap();
+            for (index, camera) in scene.cameras.iter().enumerate() {
+                assert_eq!(camera.fisheye, policy.lens_for(seed, index));
+                assert_eq!(
+                    camera.is_ceiling_mounted(),
+                    policy.ceiling_mounted(seed, index)
+                );
+                assert!(policy.accepts_motion(seed, index, camera));
+                assert!(scene.camera_curve_clear(camera));
+            }
         }
         Err(CaptureError::Rejected { rejection, .. }) => {
             eprintln!("BOUNDED {seed}: {}", rejection.reason);
@@ -47,6 +61,12 @@ fn production_65721965_mixed_baseline() {
         Err(error) => panic!("unexpected failure for {seed}: {error}"),
     }
     crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+    let mut ordinary = before;
+    ordinary
+        .resample_cameras(3, CameraSettings::default(), 1.)
+        .unwrap();
+    validate_layout(&ordinary).unwrap();
+    assert_eq!(ordinary.cameras.len(), 3);
 }
 
 #[test]
@@ -96,7 +116,7 @@ fn production_65575252_mixed_baseline() {
 
 #[test]
 fn production_65575086_mixed_baseline() {
-    qualify_mixed_training_replay(65575086);
+    qualify_or_reject_training_seed(65575086);
 }
 
 #[test]

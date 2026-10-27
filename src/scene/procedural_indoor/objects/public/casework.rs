@@ -35,11 +35,11 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
         levels,
         contents: r.random_bool(0.88),
         glazed_top: r.random_bool(0.64),
-        frame: [Surface::Metal, Surface::Wood, Surface::Paint][f.random_range(0..3)],
+        frame: [Surface::Metal, Surface::Wood, Surface::Plastic][f.random_range(0..3)],
         finish: [
             Surface::Wood,
             Surface::Metal,
-            Surface::Paint,
+            Surface::Plastic,
             Surface::Concrete,
         ][f.random_range(0..4)],
     }

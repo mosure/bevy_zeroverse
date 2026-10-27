@@ -7,6 +7,8 @@ mod ceiling_capture;
 mod lighting;
 // Bounded analytic and real-scene qualification. No dataset filtering or
 // quality settings are changed by the benchmark. Run with --cpu for math/WGSL.
+#[path = "../tests/support/capture_deadline.rs"]
+mod deadline;
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -23,10 +25,7 @@ use bevy_zeroverse::{
         RegenerateSceneEvent, ZeroverseSceneType,
     },
 };
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{path::PathBuf, time::Instant};
 
 fn shader_checks() {
     lighting::validate_shader();
@@ -270,6 +269,12 @@ fn main() {
     }
     app.finish();
     app.cleanup();
+    let capture_timeout = deadline::for_adapter(
+        app.world()
+            .get_resource::<bevy::render::renderer::RenderAdapterInfo>()
+            .map(|a| a.device_type),
+        120,
+    );
     let reference_settling = args.iter().any(|a| a == "--reference-settling");
     if reference_settling {
         // A full-target explicit viewport renders the same pixels but opts out
@@ -295,6 +300,7 @@ fn main() {
         let mut sampler = SamplerState::from_config(&config);
         sampler.regenerate_scene = false;
         app.insert_resource(sampler);
+        let mut next_progress = std::time::Duration::from_secs(30);
         let sample = loop {
             update_capture(&mut app);
             assert!(
@@ -310,9 +316,26 @@ fn main() {
             {
                 break s;
             }
+            let elapsed = start.elapsed();
+            if elapsed >= next_progress || elapsed >= capture_timeout {
+                let diagnostic = serde_json::json!({
+                    "seed":seed, "elapsed_seconds":elapsed.as_secs_f64(),
+                    "deadline_seconds":capture_timeout.as_secs(),
+                    "frames":app.world().resource::<bevy::diagnostic::FrameCount>().0 - first_frame,
+                    "readiness":app.world().get_resource::<bevy_zeroverse::sample::CaptureReadiness>(),
+                    "sampler":format!("{:?}", app.world().resource::<SamplerState>()),
+                });
+                eprintln!("fisheye capture progress: {diagnostic}");
+                std::fs::write(
+                    output.join("capture-progress.json"),
+                    serde_json::to_vec_pretty(&diagnostic).unwrap(),
+                )
+                .unwrap();
+                next_progress = elapsed + std::time::Duration::from_secs(30);
+            }
             assert!(
-                start.elapsed() < Duration::from_secs(120),
-                "fisheye capture stalled"
+                elapsed < capture_timeout,
+                "fisheye capture exceeded {capture_timeout:?}; see capture-progress.json"
             );
         };
         let elapsed = start.elapsed().as_secs_f64();
@@ -503,7 +526,7 @@ fn main() {
             .snapshot();
         timings.push(serde_json::json!({"seed":seed,"seconds":elapsed,"frames":frames,"settling_counts":settling_counts,"views":sample.views.len(),"measurements":measurements,"ceiling_visibility_oracle":ceiling_visibility,"fixed_timeline":fixed_timeline,"mixed_timeline":mixed_timeline,"mixed_flow":mixed_flow,"geometry_work":geometry,"metadata":sample.indoor_render_metadata,"overlap":bevy_zeroverse::sample::qualification::rendered_overlap(&sample.views,config.num_cameras,sample.aabb)}));
     }
-    std::fs::write(output.join("protocol.json"),serde_json::to_vec_pretty(&serde_json::json!({"config":config,"provenance":bevy_zeroverse::provenance::capture_provenance(),"build":{"debug_assertions":cfg!(debug_assertions),"target_arch":std::env::consts::ARCH,"profile_opt_level_override":std::env::var("CARGO_PROFILE_DEV_OPT_LEVEL").ok()},"adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),"seeds":[seed_start,seed_start+rooms],"warmup_rooms":warmup,"reference_settling":reference_settling,"concurrent_training":!args.iter().any(|a|a=="--isolated"),"timing":"completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"})).unwrap()).unwrap();
+    std::fs::write(output.join("protocol.json"),serde_json::to_vec_pretty(&serde_json::json!({"config":config,"provenance":bevy_zeroverse::provenance::capture_provenance(),"build":{"debug_assertions":cfg!(debug_assertions),"target_arch":std::env::consts::ARCH,"profile_opt_level_override":std::env::var("CARGO_PROFILE_DEV_OPT_LEVEL").ok()},"adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),"seeds":[seed_start,seed_start+rooms],"warmup_rooms":warmup,"capture_deadline_seconds":capture_timeout.as_secs(),"reference_settling":reference_settling,"concurrent_training":!args.iter().any(|a|a=="--isolated"),"timing":"completed multi-view capture excluding application startup; first room includes shader warmup; retained without filtering"})).unwrap()).unwrap();
     std::fs::write(
         output.join("timings.json"),
         serde_json::to_vec_pretty(&timings).unwrap(),

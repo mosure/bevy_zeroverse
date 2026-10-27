@@ -71,9 +71,9 @@ pub fn parameters(o: &IndoorObject) -> BookcaseProgram {
         frame: if open_frame {
             [Surface::Metal, Surface::Wood][f.random_range(0..2)]
         } else {
-            [Surface::Wood, Surface::Paint][f.random_range(0..2)]
+            [Surface::Wood, Surface::Plastic][f.random_range(0..2)]
         },
-        shelves: [Surface::Wood, Surface::Paint, Surface::Metal][f.random_range(0..3)],
+        shelves: [Surface::Wood, Surface::Plastic, Surface::Metal][f.random_range(0..3)],
     }
 }
 

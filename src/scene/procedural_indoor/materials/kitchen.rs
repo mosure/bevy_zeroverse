@@ -2,6 +2,21 @@
 //! material bakes and the symbolic transport resolver use these same handles.
 use super::super::preparation::AssetStore;
 use super::*;
+use rand::Rng;
+
+fn pigment(seed: u64, slot: usize, base: [f32; 3]) -> [f32; 3] {
+    let mut r = super::super::layout::stream(seed, 0x464f4f44434f4c52 ^ slot as u64);
+    // Ripeness and baking vary within a plausible substrate gamut. The bounded
+    // shared food palette costs the same number of maps as before.
+    let value = r.random_range(0.72..1.18);
+    let warmth = r.random_range(-0.06..0.08);
+    [
+        base[0] * value,
+        base[1] * value * (1. + warmth),
+        base[2] * value * (1. - warmth),
+    ]
+    .map(|c| c.clamp(0.015, 0.96))
+}
 pub(super) fn build(
     scene: &IndoorManifest,
     base: &[Handle<StandardMaterial>],
@@ -24,6 +39,7 @@ pub(super) fn build(
             continue;
         }
         let mut mat = materials.get(&base[surface as usize]).unwrap().clone();
+        let color = pigment(scene.material_seed(), slot, color);
         let n = 64;
         let mut pixels = Vec::with_capacity(n * n * 4);
         for y in 0..n {
@@ -49,4 +65,20 @@ pub(super) fn build(
         result.insert((surface, slot), materials.add(mat));
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn food_pigments_vary_without_changing_substrate_or_palette_capacity() {
+        let mut colors = std::collections::BTreeSet::new();
+        for seed in 0..128 {
+            let c = pigment(seed, 103, [0.53, 0.27, 0.085]);
+            assert_eq!(c, pigment(seed, 103, [0.53, 0.27, 0.085]));
+            assert!(c[0] > c[1] && c[1] > c[2]);
+            colors.insert(c.map(|v| (v * 255.).round() as u8));
+        }
+        assert!(colors.len() > 100);
+    }
 }

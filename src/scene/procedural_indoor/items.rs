@@ -118,7 +118,8 @@ impl SurfaceProgram {
                 Notepad,
                 Notebook,
                 Phone,
-            ][rng.random_range(0..8)],
+                PenHolder,
+            ][rng.random_range(0..9)],
             1 => [Books, Notebook, Plant, Vase, DeskLamp, Notepad][rng.random_range(0..6)],
             2 => [
                 Mug,
@@ -168,26 +169,6 @@ impl SurfaceProgram {
                 rng.random_range(0.19..0.28),
                 rng.random_range(0.22..0.31),
             ),
-            Speaker => Vec3::new(
-                rng.random_range(0.09..0.17),
-                rng.random_range(0.15..0.27),
-                rng.random_range(0.10..0.19),
-            ),
-            Headphones => Vec3::new(
-                rng.random_range(0.17..0.22),
-                rng.random_range(0.17..0.23),
-                rng.random_range(0.09..0.14),
-            ),
-            Stapler => Vec3::new(
-                rng.random_range(0.032..0.052),
-                rng.random_range(0.035..0.060),
-                rng.random_range(0.10..0.17),
-            ),
-            TapeDispenser => Vec3::new(
-                rng.random_range(0.045..0.065),
-                rng.random_range(0.065..0.10),
-                rng.random_range(0.11..0.16),
-            ),
             DocumentTray => Vec3::new(
                 rng.random_range(0.23..0.28),
                 rng.random_range(0.07..0.16),
@@ -217,11 +198,6 @@ impl SurfaceProgram {
                 rng.random_range(0.36..0.53),
                 rng.random_range(0.19..0.29),
                 rng.random_range(0.30..0.40),
-            ),
-            StorageBox => Vec3::new(
-                rng.random_range(0.20..0.35),
-                rng.random_range(0.13..0.24),
-                rng.random_range(0.19..0.28),
             ),
             _ => unreachable!("unsupported task item"),
         };

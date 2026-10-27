@@ -20,7 +20,7 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
         Plant => {
             // Generic supported proposals choose their compatible species
             // afterward. Include compact broad crowns as well as upright pots.
-            let d = r.random_range(0.17..0.34);
+            let d = r.random_range(0.14_f32.ln()..0.48_f32.ln()).exp();
             Vec3::new(
                 d,
                 d * r.random_range(0.65..1.80),
@@ -60,6 +60,14 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
             r.random_range(0.25..0.47),
             r.random_range(0.13..0.26),
         ),
+        StorageBox => {
+            let width = r.random_range(0.17..0.43);
+            Vec3::new(
+                width,
+                width * r.random_range(0.40..0.88),
+                width * r.random_range(0.62..1.20),
+            )
+        }
         Phone => {
             let w = r.random_range(0.058..0.086);
             Vec3::new(
@@ -78,6 +86,67 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
             Vec3::new(
                 length * r.random_range(0.50..0.68),
                 length * r.random_range(0.25..0.37),
+                length,
+            )
+        }
+        Speaker => {
+            if r.random_bool(0.28) {
+                let width = r.random_range(0.22..0.52);
+                Vec3::new(
+                    width,
+                    r.random_range(0.055..0.115),
+                    r.random_range(0.065..0.14),
+                )
+            } else {
+                let w = r.random_range(0.075..0.19);
+                Vec3::new(
+                    w,
+                    w * r.random_range(1.15..2.15),
+                    w * r.random_range(0.75..1.25),
+                )
+            }
+        }
+        Headphones => {
+            let w = r.random_range(0.16..0.24);
+            if r.random_bool(0.54) {
+                Vec3::new(
+                    w,
+                    r.random_range(0.055..0.095),
+                    w * r.random_range(0.90..1.15),
+                )
+            } else {
+                Vec3::new(
+                    w,
+                    w * r.random_range(0.87..1.14),
+                    r.random_range(0.085..0.14),
+                )
+            }
+        }
+        Microphone => {
+            let width = r.random_range(0.075..0.17);
+            Vec3::new(
+                width,
+                if r.random_bool(0.34) {
+                    r.random_range(0.016..0.040)
+                } else {
+                    r.random_range(0.16..0.38)
+                },
+                width * r.random_range(0.85..1.35),
+            )
+        }
+        Stapler => {
+            let length = r.random_range(0.08..0.19);
+            Vec3::new(
+                length * r.random_range(0.24..0.36),
+                length * r.random_range(0.24..0.43),
+                length,
+            )
+        }
+        TapeDispenser => {
+            let length = r.random_range(0.09..0.20);
+            Vec3::new(
+                length * r.random_range(0.34..0.48),
+                length * r.random_range(0.42..0.68),
                 length,
             )
         }

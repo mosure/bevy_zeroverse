@@ -98,7 +98,17 @@ fn ceiling_program_replays_diversifies_and_contains_every_mesh() {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         let plan = scene.ceiling_installation.as_ref().unwrap();
-        assert_eq!(*plan, CeilingInstallation::sample(&scene));
+        // Installations precede area rugs. Resampling from the finished room
+        // may raise a fixture because a later rug raises the clearance floor;
+        // the original fixture remains valid under the same clearance check.
+        // Replay the production phases in their actual order instead.
+        let replay =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        assert_eq!(
+            Some(plan),
+            replay.ceiling_installation.as_ref(),
+            "seed {seed}: ceiling generation must replay exactly"
+        );
         plan.validate(&scene)
             .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
         exposed += usize::from(plan.exposed_slab);

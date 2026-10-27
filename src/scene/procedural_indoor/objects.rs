@@ -177,6 +177,11 @@ pub(crate) fn build_object_with_motion(
         if super::materials::rugs::key(label).is_some_and(|(_, binding)| !binding) {
             // Whole-rug coordinates are already normalized and outline-aligned.
             continue;
+        } else if *surface == Surface::PrintedPaper && label.split('#').any(|tag| tag == "uv_local")
+        {
+            // Independently rotated pages carry their own normalized content
+            // frame. Projecting the parent's X/Z coordinates would shear it.
+            continue;
         } else if matches!(surface, Surface::PhoneScreen | Surface::PrintedPaper) {
             let mut lo = Vec2::splat(f32::INFINITY);
             let mut hi = Vec2::splat(f32::NEG_INFINITY);
@@ -273,7 +278,20 @@ pub(crate) fn build_object_with_motion(
             };
             ((surface, label), geometry)
         })
-        .collect();
+        .fold(BTreeMap::new(), |mut parts, (key, geometry)| {
+            // Explicit child finishes can coincide with the parent's assigned
+            // finish. Preserve both meshes when their material/semantic keys
+            // converge; collecting directly would silently discard one.
+            match parts.entry(key) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(geometry);
+                }
+                std::collections::btree_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().append(geometry);
+                }
+            }
+            parts
+        });
     super::motion::construction::movable(&mut a, o);
     // Finish relabeling must keep articulation references aligned with meshes.
     for (id, joint) in a.joints.iter_mut().enumerate() {

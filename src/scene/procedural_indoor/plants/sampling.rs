@@ -24,10 +24,16 @@ pub(crate) fn sample_size(variant: u32, tabletop: bool, rng: &mut impl Rng) -> V
         15 => (0.65..1.15, 0.95..1.85),
         _ => (0.52..0.92, 0.90..1.50),
     };
-    let width: f32 = rng.random_range(if tabletop { 0.17..0.34 } else { width });
+    // Log sampling keeps small desk pots common without excluding broad
+    // tabletop/sideboard plants. Surface admission fits the whole canopy.
+    let width: f32 = if tabletop {
+        rng.random_range(0.14_f32.ln()..0.48_f32.ln()).exp()
+    } else {
+        rng.random_range(width)
+    };
     let depth = width * rng.random_range(0.92..1.08);
     let height =
-        (width.min(depth) * rng.random_range(ratio)).min(if tabletop { 0.60_f32 } else { 2.12 });
+        (width.min(depth) * rng.random_range(ratio)).min(if tabletop { 0.75_f32 } else { 2.12 });
     Vec3::new(width, height, depth)
 }
 

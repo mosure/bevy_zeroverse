@@ -140,7 +140,7 @@ a fixed factor. Output dimensions and camera calibration remain unchanged.
 
 Run the native viewer using the repository's pinned `nightly-2026-08-31` Rust toolchain (crate MSRV
 1.97.1). The pin keeps native and WebGPU builds on the qualified compiler.
-Optional motion and SigLIP2 inference use Burn 0.22:
+Optional motion and SigLIP2 inference use Burn 0.22.1:
 
 ```sh
 cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \

@@ -84,7 +84,17 @@ pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>)
         )
         .random_range(0..CONTENT_COUNT)
     } else {
-        slot(finish)
+        // A collection can share timber and upholstery colors without forcing
+        // the same atlas index (and index % structure_count) across substrates.
+        // Related faces still share a family, so wood edges/faces and cloth
+        // panels keep the same finish identity.
+        let family = match surface {
+            Surface::Wood | Surface::WoodEdge => Surface::Wood,
+            Surface::Fabric | Surface::FabricAlt => Surface::Fabric,
+            Surface::Leaf | Surface::LeafLight | Surface::LeafVariegated => Surface::Leaf,
+            _ => surface,
+        };
+        stream(finish, 0x5355425354524154 ^ family as u64).random_range(0..COUNT)
     }
 }
 pub fn screen_seed(scene_seed: u64, slot: usize) -> u64 {
@@ -273,6 +283,42 @@ async fn structures(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn manufactured_products_do_not_inherit_architectural_wall_treatments() {
+        use crate::scene::procedural_indoor::objects::{audit, build_object, ObjectKind::*};
+        for kind in [
+            DrawerUnit,
+            Bookcase,
+            CoffeeMaker,
+            DrinkDispenser,
+            CeilingFan,
+            Locker,
+            ServiceCounter,
+            ExtractionHood,
+            Banquette,
+            QueueBarrier,
+            DisplayCase,
+            TrayReturn,
+            ExhibitPlinth,
+            Lectern,
+            TeachingBoard,
+            ExhibitionPanel,
+        ] {
+            for seed in 0..16 {
+                let o = audit::fixture(kind, seed);
+                let a = build_object(&o);
+                audit::check(&o, &a).unwrap();
+                assert!(
+                    a.parts.keys().all(|(s, _)| !matches!(
+                        s,
+                        Surface::Paint | Surface::Accent | Surface::Ceiling
+                    )),
+                    "architectural material on {kind:?}/{seed}"
+                );
+            }
+        }
+    }
+
     use super::*;
     #[test]
     fn matching_furniture_finishes_do_not_clone_every_document() {
@@ -292,9 +338,34 @@ mod tests {
                     object_slot(surface, seed, Some(3)),
                     object_slot(surface, seed, Some(3))
                 );
-                assert_eq!(object_slot(Surface::Plastic, seed, Some(3)), slot(3));
+                assert_eq!(
+                    object_slot(Surface::Plastic, seed, Some(3)),
+                    object_slot(Surface::Plastic, 0, Some(3))
+                );
             }
         }
+    }
+    #[test]
+    fn coordinated_finishes_do_not_lock_unrelated_substrate_structures() {
+        let mut pairs = std::collections::BTreeSet::new();
+        let mut matching_slots = 0;
+        for seed in 0..1024 {
+            let wood = object_slot(Surface::Wood, seed, None);
+            let cloth = object_slot(Surface::Fabric, seed, None);
+            assert_eq!(wood, object_slot(Surface::WoodEdge, seed + 1, Some(seed)));
+            assert_eq!(cloth, object_slot(Surface::FabricAlt, seed + 1, Some(seed)));
+            assert!(wood < COUNT && cloth < COUNT);
+            matching_slots += usize::from(wood == cloth);
+            pairs.insert((
+                wood % structure_count(Surface::Wood),
+                cloth % structure_count(Surface::Fabric),
+            ));
+        }
+        assert_eq!(pairs.len(), 6);
+        assert!(
+            (40..140).contains(&matching_slots),
+            "unrelated substrates remain coupled: {matching_slots}"
+        );
     }
     #[test]
     fn molded_plastic_pigments_span_dark_light_and_colored_devices() {

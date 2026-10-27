@@ -54,6 +54,27 @@ pub(crate) fn placements(
             });
             x += half.x * 2. + r.random_range(0.002..0.013);
         }
+        // Shelved books may be left-, right- or loosely aligned. Move the
+        // already non-overlapping row within its usable interval; no clamping
+        // or privileged first proposal creates an atom at the left divider.
+        if !result.is_empty() {
+            let left = result
+                .iter()
+                .map(|c| c.position.x - rotated_half(c.size.xz(), c.yaw).x)
+                .fold(f32::INFINITY, f32::min);
+            let right = result
+                .iter()
+                .map(|c| c.position.x + rotated_half(c.size.xz(), c.yaw).x)
+                .fold(f32::NEG_INFINITY, f32::max);
+            let lo = b.left + 0.004 - left;
+            let hi = b.right - 0.004 - right;
+            if hi > lo {
+                let shift = r.random_range(lo..hi);
+                for c in &mut result {
+                    c.position.x += shift;
+                }
+            }
+        }
         return result;
     }
     let pattern = SurfacePattern::sample(&mut r);
@@ -153,7 +174,7 @@ fn volume(a: &mut Assembly, seed: u64, s: Vec3, tf: Transform) {
     let surface = [
         Surface::FabricAlt,
         Surface::Plastic,
-        Surface::Paint,
+        Surface::Leather,
         Surface::Paper,
     ][r.random_range(0..4)];
     let label = format!(

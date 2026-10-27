@@ -599,6 +599,7 @@ impl IndoorManifest {
         if scene.layout.is_public() {
             scene.dress_public_programs();
         }
+        scene.furnish_supported_botany();
         scene.scatter_clutter();
         scene.finish_program_equipment();
         // Ceiling fixtures belong to the static furnishing stream. Place them
@@ -696,8 +697,11 @@ impl IndoorManifest {
         if matches!(kind, ObjectKind::Desk | ObjectKind::Table) {
             obj.variant = self.furniture_style;
         }
-        if kind == ObjectKind::Bench && !super::objects::services::parameters(&obj).backed {
-            obj.size.y = obj.size.y.min(0.48);
+        if kind == ObjectKind::Bench {
+            let p = super::objects::services::bench::parameters(&obj);
+            if !p.backed && !p.arms {
+                obj.size.y = p.seat_height;
+            }
         }
         if !self.placement_clear(&obj, 0.06) {
             self.rejected_placements += 1;
@@ -875,6 +879,7 @@ impl IndoorManifest {
                     | ObjectKind::DrawerUnit
                     | ObjectKind::SideTable
                     | ObjectKind::WallShelf
+                    | ObjectKind::Bookcase
             ) {
                 if surface.kind == ObjectKind::MobileCart {
                     self.appliance_group(&surface);
@@ -893,16 +898,7 @@ impl IndoorManifest {
                     0.05,
                     rng,
                 );
-                if rng.random_bool(0.72) {
-                    self.place_prop(
-                        &surface,
-                        ObjectKind::Plant,
-                        Vec3::new(surface.size.x * 0.28, 0.0, 0.0),
-                        Vec3::new(0.32, 0.46, 0.32),
-                        rng.random_range(0.0..6.0),
-                        rng,
-                    );
-                }
+                // Greenery is selected and fitted by the shared botanical pass.
                 continue;
             }
             if surface.kind == ObjectKind::Desk {

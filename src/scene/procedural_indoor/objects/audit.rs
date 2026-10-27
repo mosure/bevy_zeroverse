@@ -138,6 +138,22 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
 pub fn program(o: &IndoorObject) -> serde_json::Value {
     use ObjectKind::*;
     match o.kind {
+        Microphone => return serde_json::json!(super::super::clutter::microphone::parameters(o)),
+        Speaker => return serde_json::json!(accessories::speaker::parameters(o)),
+        Headphones => return serde_json::json!(accessories::headphones::parameters(o)),
+        Stapler => return serde_json::json!(accessories::stationery::stapler_parameters(o)),
+        TapeDispenser => return serde_json::json!(accessories::stationery::tape_parameters(o)),
+        Bench => return serde_json::json!(services::bench::parameters(o)),
+        DrawerUnit => return serde_json::json!(services::drawers::parameters(o)),
+        MobileCart => return serde_json::json!(services::cart::parameters(o)),
+        RoomDivider => return serde_json::json!(services::divider::parameters(o)),
+        Kettle => return serde_json::json!(hospitality::kettle::parameters(o)),
+        DeskFan => return serde_json::json!(accessories::fan::parameters(o)),
+        Printer => return serde_json::json!(utilities::printer::parameters(o)),
+        StorageBox => return serde_json::json!(utilities::boxes::parameters(o)),
+        CoatRack => return serde_json::json!(utilities::racks::parameters(o)),
+        TrashCan => return serde_json::json!(containers::bin_parameters(o)),
+        Projector => return serde_json::json!(equipment::projector::parameters(o)),
         Locker => return serde_json::json!(public::education::parameters(o)),
         Banquette => return serde_json::json!(public::banquette::parameters(o)),
         Bookcase => return serde_json::json!(storage::bookcase::parameters(o)),
@@ -189,6 +205,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
         Plant => serde_json::json!({"growth":super::super::plants::Growth::sample(o.seed),
             "pot":super::super::plants::PotProfile::sample(o.seed),
+            "pot_radius_height_m":super::super::plants::pot_dimensions(o, &super::super::plants::Growth::sample(o.seed)),
             "species":super::super::plants::species_name(o.variant)}),
         TrashCan => serde_json::json!(containers::bin_parameters(o)),
         TissueBox => serde_json::json!(containers::tissue_parameters(o)),
@@ -221,14 +238,20 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             serde_json::json!({"variant":o.variant,"dimensions_m":o.size,"emission":super::super::photometry::decorative_emission(o)})
         }
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
-        Speaker | Headphones | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | DeskFan => {
+        DocumentTray | DeskOrganizer => {
+            return serde_json::json!(accessories::organizers::parameters(o))
+        }
+        PowerStrip => return serde_json::json!(equipment::power_strip::parameters(o)),
+        Speaker | Headphones | Stapler | TapeDispenser | DeskFan => {
             serde_json::json!(accessories::parameters(o))
         }
-        Projector | PowerStrip | ProjectionScreen | WallShelf | NoticeBoard | WallSconce
-        | CeilingPendant => serde_json::json!(equipment::parameters(o)),
+        Projector | ProjectionScreen | WallShelf | NoticeBoard | WallSconce | CeilingPendant => {
+            serde_json::json!(equipment::parameters(o))
+        }
         WallArt => serde_json::json!(super::super::materials::art::frame_parameters(o)),
         Rug | FloorOutlet => serde_json::json!(floor::parameters(o)),
-        Cable | PenHolder => serde_json::json!({"variant":o.variant}),
+        PenHolder => return serde_json::json!(super::super::clutter::pen_holder::parameters(o)),
+        Cable => serde_json::json!({"variant":o.variant}),
     };
     // Exclude known dormant fields of shared equipment/item programs.
     let keys: &[&str] = match o.kind {
@@ -242,14 +265,39 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Lectern | ExhibitPlinth => &["finish"],
         Sculpture => &["bays", "curvature", "glazed"],
         ExhibitionPanel => &["taper"],
-        Notebook if all["opened"] == true => {
-            &["opened", "cover_fraction", "page_balance", "page_crown"]
-        }
-        Notebook => &["opened", "cover_fraction", "binding", "strap"],
+        Notebook if all["opened"] == true => &[
+            "opened",
+            "cover_fraction",
+            "page_balance",
+            "page_crown",
+            "envelope_fraction",
+            "cover",
+        ],
+        Notebook => &[
+            "opened",
+            "cover_fraction",
+            "binding",
+            "strap",
+            "envelope_fraction",
+            "cover",
+            "corner_fraction",
+            "strap_width",
+            "strap_position",
+            "strap_thickness",
+            "ring_spacing",
+            "size_variation",
+        ],
         Books => &[
             "volumes",
             "cover_fraction",
             "stack_yaw",
+            "envelope_fraction",
+            "cover",
+            "corner_fraction",
+            "strap_width",
+            "strap_position",
+            "strap_thickness",
+            "ring_spacing",
             "size_variation",
             "binding",
             "strap",
@@ -530,6 +578,10 @@ pub fn representatives(rows: &[Vec<f32>], threshold: f32) -> Vec<usize> {
 mod display_qualification;
 #[cfg(test)]
 mod furniture_qualification;
+#[cfg(test)]
+mod product_program_tests;
+#[cfg(test)]
+mod regularity_qualification;
 #[cfg(test)]
 mod seating_qualification;
 #[cfg(test)]

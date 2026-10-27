@@ -1,6 +1,7 @@
 //! Accepted functional groups and bounded, transactional meeting construction.
 //! Receipts describe actual support/seat relationships; layout names are priors.
 use super::*;
+pub mod finishes;
 mod meeting;
 mod perimeter;
 #[cfg(test)]
@@ -73,16 +74,20 @@ impl IndoorManifest {
     pub(super) fn assign_assembly_finishes(&mut self) {
         for group in &self.assembly_diagnostics.accepted {
             let seed = self.objects[group.surface].seed;
+            let finish = finishes::parameters(seed);
             self.objects[group.surface].finish_seed = Some(seed);
             for &seat in &group.seats {
-                self.objects[seat].finish_seed = Some(seed);
+                let object = &mut self.objects[seat];
+                object.finish_seed =
+                    finishes::matches(seed, object.seed, finish.seat_coherence).then_some(seed);
             }
             for object in &mut self.objects {
                 if object.support == Some(group.surface)
                     && matches!(object.kind, ObjectKind::Laptop | ObjectKind::Monitor)
-                    && !object.seed.is_multiple_of(5)
                 {
-                    object.finish_seed = Some(seed);
+                    object.finish_seed =
+                        finishes::matches(seed, object.seed, finish.device_coherence)
+                            .then_some(seed);
                 }
             }
         }

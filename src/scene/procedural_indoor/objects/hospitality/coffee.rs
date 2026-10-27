@@ -43,7 +43,7 @@ pub fn parameters(o: &IndoorObject) -> CoffeeProgram {
         controls: r.random_range(1..=4),
         tray_fraction: r.random_range(0.68..0.90),
         thermal_carafe: r.random_bool(0.42),
-        finish: [Surface::Metal, Surface::Plastic, Surface::Paint][f.random_range(0..3)],
+        finish: [Surface::Metal, Surface::Plastic, Surface::Chrome][f.random_range(0..3)],
         trim: [Surface::Chrome, Surface::Metal, Surface::Ink][f.random_range(0..3)],
     }
 }

@@ -234,6 +234,7 @@ impl IndoorManifest {
             }
         }
         if has_seats && rng.random_bool((0.12 + activity * 0.38) as f64) {
+            let size = items::sizing::loose(ObjectKind::Microphone, rng).unwrap();
             self.supported_prop(
                 surface,
                 ObjectKind::Microphone,
@@ -242,7 +243,7 @@ impl IndoorManifest {
                     0.,
                     rng.random_range(-0.20..0.20) * surface.size.z,
                 ),
-                Vec3::new(0.13, rng.random_range(0.17..0.30), 0.16),
+                size,
                 rng.random_range(-PI..PI),
                 rng,
             );

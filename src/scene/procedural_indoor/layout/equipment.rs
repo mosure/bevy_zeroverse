@@ -397,13 +397,10 @@ fn projector_axis(
     projector: &IndoorObject,
     screen: &IndoorObject,
 ) -> Option<(Vec3, Vec3)> {
-    let p = equipment::parameters(projector);
-    let foot = (projector.size.y * 0.09).min(0.013);
-    let origin = projector.transform().transform_point(Vec3::new(
-        projector.size.x * p.lens_offset,
-        foot + (projector.size.y - foot) * 0.49,
-        projector.size.z * 0.5 + 0.015,
-    ));
+    let p = equipment::projector::parameters(projector);
+    let origin = projector
+        .transform()
+        .transform_point(p.optical_origin() + Vec3::Z * 0.015);
     let target = screen.transform().transform_point(Vec3::new(
         0.,
         screen.size.y * 0.5,

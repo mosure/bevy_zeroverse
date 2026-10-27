@@ -16,6 +16,22 @@ emitted stem segments. Planters vary their neck, belly, rounded base, shoulder,
 faceting, fluting and saucer proportions. Plant selection is constrained by the
 available height and canopy width, for both floor and supported placements.
 
+Pot radius and height/diameter are sampled separately from canopy stature:
+shallow bowls, nursery pots and tall cachepots share the same growth habits.
+Root-volume and canopy-clearance limits remain coupled to the plant's metric
+envelope. Saucers are optional, with grounded pot bases in either case. The
+actual outer rim and saucer radius constrain the reserve; vining petioles clear
+the sampled pot before leaf tessellation.
+
+Supported planting runs after furniture, wall shelves and functional equipment
+exist. Desks, tables, coffee/side tables, cabinets, drawer units, bookcase tops,
+wall shelves and unused kitchen-counter areas participate. The full rotated
+canopy must fit the real supporting top and avoid peers, overhead cabinets,
+walls, sloped ceilings and installed ceiling modules. Plants on shallow shelves
+scale uniformly, retaining their growth proportions. Placement uses at most 12
+proposals per plant, with per-support deterministic streams and no mesh builds
+or navigation searches. Explicit empty-table policies still leave tables clear.
+
 Canopy envelopes correlate height and width with the growth habit. Ferns,
 shrubs and compact nursery plants sample broad forms; snake plants, bamboo and
 canes retain upright growth. Ficus and shrubs use connected secondary branches,
@@ -61,6 +77,10 @@ metrics include plant crown/leaf/planter values, polygon controls, pedestal
 profiles, shaped chair backs and stool bases. Sampled controls are not assumed
 to be statistically independent, and dormant conditional controls must not be
 multiplied together to infer dataset capacity.
+
+Plant metrics also report support-category counts, support height, pot
+height/diameter and saucer presence. The object-program API includes actual
+pot radius/height alongside the sampled shape controls.
 
 ## Local verification
 
@@ -117,3 +137,18 @@ clearance for cascading leaves, finite attributes, deterministic replay and the
 support containment, circulation and coverage of all 17 habits. Native captures
 qualify rendered appearance; a WASM compile check does not qualify browser frame
 rate or device-specific appearance.
+
+For a bounded placement study with the default clutter mixture, run:
+
+```sh
+ZEROVERSE_PLANT_REPORT=out/plant_diversity cargo test --lib \
+  default_rooms_have_elevated_plants_beyond_work_desks_with_valid_meshes -- --nocapture
+```
+
+This validates 64 consecutive Mixed rooms with density 0.65, no humans or
+cameras, and audits every main-room plant mesh. It saves support frequencies,
+metric pot distributions, manifest construction times, and fixed-scale CPU
+geometry grids (`report.json`, `pots.png`, `plants.png`). A separate support
+fixture test exercises all nine furniture categories, rotations, support contact,
+deterministic replay, and blocked overhead space. Pot tests measure variation
+under a fixed canopy rather than confounding shape differences with plant size.

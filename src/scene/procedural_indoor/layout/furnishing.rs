@@ -190,11 +190,16 @@ impl IndoorManifest {
                 );
             }
         }
+        let bin_size = super::super::objects::containers::bins::dimensions(rng);
         self.add(
             ObjectKind::TrashCan,
-            Vec3::new(w * 0.5 - 0.62, 0.0, d * 0.5 - 2.0),
-            Vec3::new(0.37, 0.55, 0.37),
-            0.0,
+            Vec3::new(
+                w * 0.5 - rng.random_range(0.45..0.85),
+                0.0,
+                d * 0.5 - rng.random_range(1.45..2.55),
+            ),
+            bin_size,
+            rng.random_range(-std::f32::consts::PI..std::f32::consts::PI),
             rng,
         );
         if self.layout == IndoorLayout::Lounge || rng.random_bool(0.4) {

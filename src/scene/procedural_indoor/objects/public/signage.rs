@@ -168,7 +168,7 @@ pub(super) fn exhibition(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     a.box_part(
-        Surface::Paint,
+        Surface::Plastic,
         label,
         Vec3::new(offset, bottom + height * 0.5, 0.),
         Vec3::new(width, height, thickness),

@@ -1,6 +1,9 @@
 # bevy_zeroverse_burn
 
-Full-quality procedural indoor datasets for Burn 0.22 and Bevy 0.20.
+Full-quality procedural indoor datasets for Burn 0.22.1 and Bevy 0.20.
+The GPU bridge uses published CubeCL 0.11.3 and WGPU 30.0.1, without patches.
+Enable the same Burn version in the training application so tensors and runtime
+devices cross the API boundary without type or allocator mismatches.
 
 For native JIT training, retain one `gpu::GpuLiveDataset` and construct your
 model and optimizer on its `device()`. A persistent worker prepares one future
@@ -26,7 +29,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.43.2", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.44.0", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run
@@ -56,6 +59,12 @@ For CUDA, enable `cuda_interop` and replace `indoor()` with `indoor_cuda()`.
 settings. `into_dataset(samples_per_epoch)` adapts either stream to Burn's
 dataset interface. If the model uses Burn fusion, also enable
 `gpu_tensor_fusion`. Static people do not initialize motion inference models.
+
+`human_motion` currently requires an unfused Burn WGPU backend. The published
+ARDY/inference 0.2.0 primitives are incompatible with `burn/fusion`, including
+`gpu_tensor_fusion`, in the same binary. Static-human capture supports either
+bridge configuration; motion generation and fused capture are qualified as
+separate feature configurations.
 
 Fisheye cameras are opt-in through `indoor_camera.lenses` in the generator
 configuration. Each view exports its full calibration and versioned lens model;

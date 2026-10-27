@@ -72,7 +72,7 @@ object_catalog! {
     Sofa => ("sofa", Seating, false, false),
     CoffeeTable => ("coffee_table", Tables, true, true),
     Cabinet => ("cabinet", Storage, true, false),
-    Bookcase => ("bookshelf", Storage, false, false),
+    Bookcase => ("bookshelf", Storage, true, false),
     Plant => ("plant", Plants, false, false),
     TrashCan => ("trash_can", Bins, false, false),
     Whiteboard => ("whiteboard", WallPanels, false, false),

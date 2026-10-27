@@ -3,9 +3,14 @@
 mod appliances;
 mod cabinet;
 pub(crate) mod contents;
+pub mod dishware;
 mod island;
+pub mod packaging;
 mod props;
 mod sink;
+pub mod supplies;
+#[cfg(test)]
+mod supply_program_tests;
 #[cfg(test)]
 mod tests;
 use super::*;
@@ -314,13 +319,20 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
             let p = props::program(o);
             match o.kind {
                 PaperTowel => serde_json::json!({"horizontal":p.horizontal}),
-                SoapDispenser => serde_json::json!({"pump":p.pump}),
+                SoapDispenser => {
+                    serde_json::json!({"pump":p.pump,"construction":supplies::dispenser::parameters(o.seed, p.pump)})
+                }
+                Bread => serde_json::json!(supplies::bread::parameters(o)),
+                KitchenTowel => serde_json::json!(supplies::towel_parameters(o)),
+                CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
                 Dishware => {
-                    serde_json::json!({"style":p.style,"stack_count":if p.style==0 {p.count} else {1}})
+                    serde_json::json!(dishware::parameters(o.size, p.style, p.count, o.seed))
                 }
                 FruitBowl => serde_json::json!({"basket":p.basket,"fruit_count":p.count}),
-                KnifeBlock | UtensilHolder | DryingRack | Bread => {
-                    serde_json::json!({"count":p.count})
+                KnifeBlock => serde_json::json!(supplies::knives::parameters(o)),
+                UtensilHolder => serde_json::json!(supplies::utensils::parameters(o)),
+                DryingRack => {
+                    serde_json::json!(supplies::rack::parameters(o.size, p.count, o.seed))
                 }
                 _ => serde_json::json!({"size_metres":o.size}),
             }

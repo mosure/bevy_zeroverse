@@ -1,6 +1,7 @@
 //! Render the same world rays on both sides of every cube-face boundary.
 //! Separate direct-light cases retain shadows; combined shading includes
 //! reflection, transmission, ambient occlusion, bloom and non-default exposure.
+use super::deadline;
 use bevy::{
     camera::{Exposure, Hdr, ImageRenderTarget, RenderTarget},
     core_pipeline::tonemapping::DebandDither,
@@ -26,10 +27,7 @@ use bevy_zeroverse::{
 #[path = "fisheye_seam_probe.rs"]
 mod seam_probe;
 pub use seam_probe::validate_shader;
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{path::PathBuf, time::Instant};
 
 fn pixels(p: &CapturedImages, source_face: bool) -> Vec<[f32; 4]> {
     if source_face {
@@ -88,6 +86,12 @@ fn capture(app: &mut App, copiers: &[ImageCopier], id: u64) -> Vec<Vec<[f32; 4]>
     for c in copiers {
         c.request(id);
     }
+    let capture_timeout = deadline::for_adapter(
+        app.world()
+            .get_resource::<bevy::render::renderer::RenderAdapterInfo>()
+            .map(|a| a.device_type),
+        40,
+    );
     let start = Instant::now();
     let mut packets: Vec<_> = copiers.iter().map(|_| None).collect();
     while packets.iter().any(Option::is_none) {
@@ -99,7 +103,7 @@ fn capture(app: &mut App, copiers: &[ImageCopier], id: u64) -> Vec<Vec<[f32; 4]>
             }
         }
         assert!(
-            start.elapsed() < Duration::from_secs(40),
+            start.elapsed() < capture_timeout,
             "lighting capture timed out"
         );
     }

@@ -174,7 +174,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("embeddings.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema_version":1,"encoder":"SigLIP2","variant":args.variant,"burn":"0.22.0",
+            "schema_version":1,"encoder":"SigLIP2","variant":args.variant,"burn":"0.22.1",
             "shape":[index.samples.len(),dimension.unwrap()],"dtype":"little-endian float32","normalization":"L2",
             "index_sha256":format!("{:x}",Sha256::digest(&bytes)),"tensor_sha256":format!("{:x}",digest.finalize()),
             "model_parts":parts,"loaded_weights":runtime.load_stats,"last_batch_execution":evidence,

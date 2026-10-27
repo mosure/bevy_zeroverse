@@ -1,5 +1,6 @@
 use super::*;
 use crate::scene::procedural_indoor::layout::ObjectKind;
+mod pots;
 mod quality;
 #[test]
 fn habit_selection_does_not_stretch_compact_plants_into_tall_floor_envelopes() {

@@ -1,5 +1,6 @@
 //! Independent analytic box intersections and f64 lens projection validate the
 //! nonlinear GPU ray pass, mixed-lens visibility and capture-time camera flow.
+use super::deadline;
 use bevy::{
     camera::{Exposure, Hdr, ImageRenderTarget, RenderTarget},
     prelude::*,
@@ -16,7 +17,7 @@ use bevy_zeroverse::{
     io::image_copy::{CapturedImages, ImageCopier},
     render::{ground_truth::GroundTruthCamera, semantic::SemanticLabel},
 };
-use std::time::{Duration, Instant};
+use std::time::Instant;
 fn pixels(bytes: &[u8]) -> Vec<[f32; 4]> {
     bytes
         .as_chunks::<16>()
@@ -286,6 +287,12 @@ pub fn run() {
         for c in &copiers {
             c.request(stamp);
         }
+        let capture_timeout = deadline::for_adapter(
+            app.world()
+                .get_resource::<bevy::render::renderer::RenderAdapterInfo>()
+                .map(|a| a.device_type),
+            60,
+        );
         let start = Instant::now();
         let mut packets: [Option<CapturedImages>; 3] = [None, None, None];
         while packets.iter().any(Option::is_none) {
@@ -297,7 +304,7 @@ pub fn run() {
                 }
             }
             assert!(
-                start.elapsed() < Duration::from_secs(60),
+                start.elapsed() < capture_timeout,
                 "analytic fisheye capture stalled"
             );
         }

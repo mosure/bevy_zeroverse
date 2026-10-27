@@ -15,15 +15,11 @@ fn quad(g: &mut Geometry, p: [Vec3; 4]) {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &BindingProgram) {
-    let s = o.size;
+    let s = o.size * p.envelope_fraction;
     let label = o.kind.class_name();
     let cover = (s.y * p.cover_fraction).min(0.002);
     a.box_part(
-        if p.binding == 1 {
-            Surface::FabricAlt
-        } else {
-            Surface::Plastic
-        },
+        p.cover,
         label,
         Vec3::Y * cover * 0.5,
         Vec3::new(s.x, cover, s.z),

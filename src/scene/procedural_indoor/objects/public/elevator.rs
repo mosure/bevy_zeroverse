@@ -78,7 +78,7 @@ pub fn parameters(o: &IndoorObject) -> ElevatorProgram {
             Surface::Concrete,
             Surface::Paint,
         ][finish.random_range(0..4)],
-        doors: [Surface::Metal, Surface::Chrome, Surface::Paint][finish.random_range(0..3)],
+        doors: [Surface::Metal, Surface::Chrome, Surface::Plastic][finish.random_range(0..3)],
         lining: [Surface::Metal, Surface::Wood, Surface::Paint][finish.random_range(0..3)],
         floor: [Surface::Concrete, Surface::Ceramic, Surface::Wood][finish.random_range(0..3)],
         lining_bays: r.random_range(2..=6),

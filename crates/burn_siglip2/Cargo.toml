@@ -1,7 +1,7 @@
 [package]
 name = "burn_siglip2"
 description = "Production SigLIP2 image/text inference in Burn for native CPU/GPU and browser WebGPU."
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.95"
 authors = ["mosure <mitchell@mosure.me>", "burn_loom contributors"]
@@ -56,9 +56,9 @@ wasm = [
 cli = ["dep:clap", "import", "bootstrap", "tokenizer"]
 
 [dependencies]
-burn = { version = "0.22.0", default-features = false, features = ["std"] }
-burn-flex = { version = "0.22.0", default-features = false, features = ["std", "simd", "rayon"], optional = true }
-burn-store = { version = "0.22.0", default-features = false, features = ["std", "safetensors"], optional = true }
+burn = { version = "0.22.1", default-features = false, features = ["std"] }
+burn-flex = { version = "0.22.1", default-features = false, features = ["std", "simd", "rayon"], optional = true }
+burn-store = { version = "0.22.1", default-features = false, features = ["std", "safetensors"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 safetensors = "0.7"
@@ -76,19 +76,19 @@ ureq = { version = "2.12", optional = true }
 url = { version = "2.5", optional = true }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "macos")))'.dependencies.burn-wgpu]
-version = "0.22.0"
+version = "0.22.1"
 default-features = false
 features = ["std", "vulkan"]
 optional = true
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies.burn-wgpu]
-version = "0.22.0"
+version = "0.22.1"
 default-features = false
 features = ["std", "metal"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.burn-wgpu]
-version = "0.22.0"
+version = "0.22.1"
 default-features = false
 features = ["std", "webgpu"]
 optional = true

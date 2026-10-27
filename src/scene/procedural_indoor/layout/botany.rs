@@ -1,7 +1,7 @@
 //! Seeded greenery programs fitted to real windows, supports and accepted furniture.
 //! Placement never relaxes portal, ceiling, support or circulation constraints.
 use super::*;
-use rand::seq::SliceRandom;
+mod surfaces;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct BotanyProgram {
@@ -21,7 +21,7 @@ impl BotanyProgram {
             abundance: rng.random_range(0.0_f32..1.0).powf(1.25),
             window_affinity: rng.random_range(0.18..0.95),
             clustering: rng.random_range(0.0..0.86),
-            tabletop_fraction: rng.random_range(0.05..0.80),
+            tabletop_fraction: rng.random_range(0.18..0.88),
             species_weights: weights,
         }
     }
@@ -250,52 +250,6 @@ impl IndoorManifest {
                 self.objects.push(plant);
                 cluster = Some(position);
                 break;
-            }
-        }
-        let mut supports: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| {
-                !o.neighbor
-                    && matches!(
-                        o.kind,
-                        ObjectKind::Desk
-                            | ObjectKind::Table
-                            | ObjectKind::SideTable
-                            | ObjectKind::Cabinet
-                            | ObjectKind::DrawerUnit
-                    )
-                    && o.size.y <= 1.5
-            })
-            .cloned()
-            .collect();
-        supports.shuffle(&mut rng);
-        for support in supports {
-            if !rng.random_bool((program.tabletop_fraction * program.abundance) as f64) {
-                continue;
-            }
-            let variant = [0, 2, 3, 4, 7, 8, 9, 11, 12, 13, 16][rng.random_range(0..11)];
-            let size = super::super::plants::sample_size(variant, true, &mut rng);
-            for _ in 0..8 {
-                let side = if rng.random_bool(0.5) { -1. } else { 1. };
-                let offset = Vec3::new(
-                    side * support.size.x * rng.random_range(0.25..0.37),
-                    0.,
-                    -support.size.z * rng.random_range(0.18..0.30),
-                );
-                let previous = self.objects.len();
-                self.prop(
-                    &support,
-                    ObjectKind::Plant,
-                    offset,
-                    size,
-                    rng.random_range(0.0..std::f32::consts::TAU),
-                    &mut rng,
-                );
-                if self.objects.len() > previous {
-                    self.objects[previous].variant = variant;
-                    break;
-                }
             }
         }
     }

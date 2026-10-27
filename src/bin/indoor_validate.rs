@@ -27,7 +27,7 @@ use std::{fs, path::PathBuf, time::Instant};
 mod calibration;
 #[path = "indoor_validate/co_visibility.rs"]
 mod co_visibility;
-#[path = "indoor_validate/deadline.rs"]
+#[path = "../../tests/support/capture_deadline.rs"]
 mod deadline;
 #[path = "motion_validate/flow.rs"]
 mod flow;

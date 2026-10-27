@@ -90,9 +90,9 @@ pub fn parameters(o: &IndoorObject) -> LockerProgram {
         contents_probability: r.random_range(0.15..0.8),
         bays,
         finish: if front == 0 {
-            Surface::Paint
+            Surface::Plastic
         } else {
-            [Surface::Wood, Surface::Paint, Surface::Metal][f.random_range(0..3)]
+            [Surface::Wood, Surface::Plastic, Surface::Metal][f.random_range(0..3)]
         },
         accent: [Surface::Metal, Surface::Chrome, Surface::Plastic][f.random_range(0..3)],
     }

@@ -308,27 +308,45 @@ mod tests {
 
     #[test]
     fn rug_support_replays_and_rejects_edge_overhang_and_tampered_contours() {
-        let scene =
-            IndoorManifest::generate_with_humans(5, IndoorLayout::Mixed, 0.7, 0, 0.25).unwrap();
-        let rug = &scene.rug_supports[0];
-        let object = scene
-            .objects
-            .iter()
-            .find(|o| {
-                o.solid
-                    && (o.position.y - rug.top).abs() < 0.001
-                    && rug.supports(o.bounds().0, o.bounds().1)
-            })
+        let mut qualified = 0;
+        // Rugs are optional and admission changes with furnishings. Exercise
+        // every admitted rug in this fixed cohort without assuming one seed
+        // must contain a rug at every human-density setting.
+        for (seed, human_density) in [(5, 0.), (5, 0.7), (924, 0.), (924, 0.7)] {
+            let scene = IndoorManifest::generate_with_humans(
+                seed,
+                IndoorLayout::Mixed,
+                0.7,
+                0,
+                human_density,
+            )
             .unwrap();
-        assert!(scene.placement_clear(object, 0.));
-        let mut shifted = object.clone();
-        shifted.position.x = rug.max.x;
-        assert!(!scene.floor_support_clear(shifted.bounds().0, shifted.bounds().1));
-        let json = serde_json::to_vec(&scene).unwrap();
-        let mut restored: IndoorManifest = serde_json::from_slice(&json).unwrap();
-        assert_eq!(scene, restored);
-        crate::scene::procedural_indoor::validation::validate_layout(&restored).unwrap();
-        restored.rug_supports[0].top += 0.01;
-        assert!(crate::scene::procedural_indoor::validation::validate_layout(&restored).is_err());
+            let Some(rug) = scene.rug_supports.first() else {
+                continue;
+            };
+            qualified += 1;
+            let object = scene
+                .objects
+                .iter()
+                .find(|o| {
+                    o.solid
+                        && (o.position.y - rug.top).abs() < 0.001
+                        && rug.supports(o.bounds().0, o.bounds().1)
+                })
+                .unwrap();
+            assert!(scene.placement_clear(object, 0.));
+            let mut shifted = object.clone();
+            shifted.position.x = rug.max.x;
+            assert!(!scene.floor_support_clear(shifted.bounds().0, shifted.bounds().1));
+            let json = serde_json::to_vec(&scene).unwrap();
+            let mut restored: IndoorManifest = serde_json::from_slice(&json).unwrap();
+            assert_eq!(scene, restored);
+            crate::scene::procedural_indoor::validation::validate_layout(&restored).unwrap();
+            restored.rug_supports[0].top += 0.01;
+            assert!(
+                crate::scene::procedural_indoor::validation::validate_layout(&restored).is_err()
+            );
+        }
+        assert!(qualified >= 2, "fixture cohort lost furniture-bearing rugs");
     }
 }

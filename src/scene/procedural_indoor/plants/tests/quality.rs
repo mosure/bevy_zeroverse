@@ -172,6 +172,7 @@ fn cascading_foliage_does_not_pass_through_pot_or_floor() {
         let o = fixture(11, seed);
         let g = Growth::sample(seed);
         let (radius, ph) = pot_dimensions(&o, &g);
+        let pot_outer = radius * PotProfile::sample(seed).outer_radius_factor().max(1.10);
         let a = build_object(&o);
         for ((s, _), mesh) in &a.parts {
             if !is_foliage(*s) {
@@ -182,7 +183,7 @@ fn cascading_foliage_does_not_pass_through_pot_or_floor() {
                 if p.y < ph - 0.012 {
                     below_rim += 1;
                     assert!(
-                        p.xz().length() >= radius * 1.10,
+                        p.xz().length() >= pot_outer,
                         "vine entered pot {seed}: {p:?}, radius={radius}"
                     );
                 }

@@ -38,7 +38,7 @@ pub fn counter_parameters(o: &IndoorObject) -> CounterProgram {
         bay_weights: (0..n).map(|_| r.random_range(0.65..1.45)).collect(),
         slats: r.random_range(8..=22),
         footrail: r.random_bool(0.42) && !matches!(structure, 1 | 5),
-        finish: [Surface::Wood, Surface::Paint, Surface::Metal][f.random_range(0..3)],
+        finish: [Surface::Wood, Surface::Plastic, Surface::Metal][f.random_range(0..3)],
         top: [
             Surface::Wood,
             Surface::Ceramic,
@@ -244,7 +244,7 @@ pub fn hood_parameters(o: &IndoorObject) -> HoodProgram {
         taper: r.random_range(0.45..0.78),
         filters: r.random_range(1..=3),
         lights: r.random_range(1..=3),
-        finish: [Surface::Metal, Surface::Paint, Surface::Chrome][f.random_range(0..3)],
+        finish: [Surface::Metal, Surface::Plastic, Surface::Chrome][f.random_range(0..3)],
     }
 }
 

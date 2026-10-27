@@ -50,7 +50,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.kind {
         ObjectKind::Notepad => notepad(a, o),
         ObjectKind::Pencil => pencil(a, o),
-        ObjectKind::Microphone => microphone(a, o),
+        ObjectKind::Microphone => super::microphone::build(a, o),
         ObjectKind::Phone => phone(a, o),
         _ => unreachable!(),
     }
@@ -247,65 +247,6 @@ fn phone(a: &mut Assembly, o: &IndoorObject) {
                 body + s.y * 0.004,
                 s.z * (0.48 - p.phone_bottom_border * 0.5),
             ),
-        );
-    }
-}
-
-fn microphone(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let p = parameters(o);
-    if o.seed.is_multiple_of(3) {
-        let h = (s.y * (0.10 + p.microphone_head)).min(0.04);
-        a.part(Surface::Metal, "other_prop").ellipsoid(
-            Vec3::new(s.x * 0.47, h * 0.48, s.z * 0.47),
-            Transform::from_xyz(0., h * 0.48, 0.),
-        );
-        a.box_part(
-            Surface::Rubber,
-            "other_prop",
-            Vec3::new(0., h * 0.90, s.z * 0.23),
-            Vec3::new(s.x * 0.25, h * 0.025, s.z * 0.2),
-            0.0006,
-        );
-        for i in -4..=4 {
-            a.box_part(
-                Surface::Ink,
-                "other_prop",
-                Vec3::new(i as f32 * s.x * 0.055, h * 0.969, 0.),
-                Vec3::new(0.001, 0.0002, s.z * 0.32),
-                0.,
-            );
-        }
-    } else {
-        a.box_part(
-            Surface::Metal,
-            "other_prop",
-            Vec3::Y * 0.008,
-            Vec3::new(s.x * 0.92, 0.016, s.z * 0.87),
-            0.006,
-        );
-        let points: Vec<_> = (0..=20)
-            .map(|i| {
-                let t = i as f32 / 20.;
-                Vec3::new(
-                    s.x * p.microphone_lateral * t * t,
-                    0.016 + t * (s.y * (1. - p.microphone_head) - 0.016),
-                    -s.z * 0.18 + t * t * s.z * p.microphone_bend,
-                )
-            })
-            .collect();
-        a.part(Surface::Rubber, "other_prop")
-            .tube(&points, 0.003, 10);
-        a.part(Surface::Rubber, "other_prop").ellipsoid(
-            Vec3::new(0.009, s.y * p.microphone_head, 0.009),
-            Transform::from_translation(*points.last().unwrap()),
-        );
-        a.box_part(
-            Surface::Plastic,
-            "other_prop",
-            Vec3::new(0., 0.0165, s.z * 0.25),
-            Vec3::new(s.x * 0.3, 0.001, 0.012),
-            0.0003,
         );
     }
 }

@@ -48,7 +48,7 @@ pub fn parameters(o: &IndoorObject) -> BanquetteProgram {
             .round()
             .clamp(4., 18.) as usize,
         upholstery: [Surface::Fabric, Surface::FabricAlt, Surface::Leather][f.random_range(0..3)],
-        frame: [Surface::Wood, Surface::Metal, Surface::Paint][f.random_range(0..3)],
+        frame: [Surface::Wood, Surface::Metal, Surface::Plastic][f.random_range(0..3)],
     }
 }
 

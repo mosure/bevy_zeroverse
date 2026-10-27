@@ -728,6 +728,22 @@ fn export_inner(
         for plant in scene.objects.iter().filter(|o| o.kind == ObjectKind::Plant) {
             let p = super::plants::Growth::sample(plant.seed);
             let pot = super::plants::PotProfile::sample(plant.seed);
+            let (pot_radius, pot_height) = super::plants::pot_dimensions(plant, &p);
+            let support = plant
+                .support
+                .and_then(|id| scene.objects.iter().find(|o| o.id == id));
+            *report
+                .categories
+                .entry("plant_support".into())
+                .or_default()
+                .entry(support.map_or_else(|| "floor".into(), |o| o.kind.class_name().into()))
+                .or_default() += 1;
+            *report
+                .categories
+                .entry("plant_pot_saucer".into())
+                .or_default()
+                .entry(pot.saucer.to_string())
+                .or_default() += 1;
             *report
                 .categories
                 .entry("plant_growth_habit".into())
@@ -741,11 +757,13 @@ fn export_inner(
                 .entry(pot.sides.to_string())
                 .or_default() += 1;
             for (key, value) in [
-                (
-                    "plant_pot_height_m",
-                    super::plants::pot_dimensions(plant, &p).1,
-                ),
+                ("plant_pot_height_m", pot_height),
                 ("plant_pot_radius_m", super::plants::pot_radius(plant, &p)),
+                (
+                    "plant_pot_height_to_diameter",
+                    pot_height / (2. * pot_radius),
+                ),
+                ("plant_support_height_m", plant.position.y),
                 ("plant_pot_taper", p.pot_taper),
                 ("plant_leaf_density", p.density),
                 ("plant_maturity", p.maturity),
@@ -909,13 +927,36 @@ fn export_inner(
                     | ObjectKind::RoomDivider
             ) {
                 let p = super::objects::services::parameters(object);
-                if object.kind == ObjectKind::Ottoman
-                    || object.kind == ObjectKind::Bench && !p.slats
-                {
+                if object.kind == ObjectKind::Ottoman {
                     numeric.push("service_roundness", p.roundness as f64)?;
                 }
+                if object.kind == ObjectKind::Bench {
+                    let p = super::objects::services::bench::parameters(object);
+                    numeric.push("bench_seat_height_m", p.seat_height as f64)?;
+                    numeric.push("bench_seat_thickness_m", p.seat_thickness as f64)?;
+                    if !p.slats {
+                        numeric.push("service_roundness", p.roundness as f64)?;
+                    }
+                }
                 if object.kind == ObjectKind::RoomDivider {
-                    numeric.push("service_panel_fraction", p.panel_fraction as f64)?;
+                    let p = super::objects::services::divider::parameters(object);
+                    numeric.push(
+                        "service_panel_fraction",
+                        ((p.top - p.bottom) / object.size.y) as f64,
+                    )?;
+                    numeric.push("divider_panel_count", p.weights.len() as f64)?;
+                    numeric.push("divider_stand_span_fraction", p.stand_span as f64)?;
+                }
+                if object.kind == ObjectKind::MobileCart {
+                    let p = super::objects::services::cart::parameters(object);
+                    numeric.push("cart_shelf_count", p.shelf_tops.len() as f64)?;
+                    numeric.push("cart_wheel_radius_m", p.wheel_radius as f64)?;
+                    for gap in p.shelf_tops.windows(2) {
+                        numeric.push(
+                            "cart_shelf_clearance_m",
+                            (gap[1] - gap[0] - p.thickness) as f64,
+                        )?;
+                    }
                 }
                 *report
                     .categories

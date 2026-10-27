@@ -336,9 +336,17 @@ pub(super) fn record_material(
 }
 
 fn finish_seed(scene: &IndoorManifest, o: &IndoorObject) -> u64 {
+    let surface = match o.kind {
+        ObjectKind::WallArt => Surface::Art,
+        ObjectKind::Whiteboard => Surface::Whiteboard,
+        ObjectKind::Phone => Surface::PhoneScreen,
+        ObjectKind::Display => Surface::Television,
+        ObjectKind::Monitor | ObjectKind::Laptop => Surface::Screen,
+        _ => unreachable!("content finish requested for a non-display object"),
+    };
     materials::variants::screen_seed(
         scene.material_seed(),
-        materials::variants::slot(o.finish_seed.unwrap_or(o.seed)),
+        materials::variants::object_slot(surface, o.seed, o.finish_seed),
     )
 }
 
@@ -382,25 +390,26 @@ fn record_equipment(
     let p = equipment::parameters(o);
     match o.kind {
         ObjectKind::Projector => {
-            let foot = (o.size.y * 0.09).min(0.013);
-            let corner = p
-                .corner_m
-                .min(o.size.x.min(o.size.y - foot).min(o.size.z * 0.91) * 0.45);
+            let p = equipment::projector::parameters(o);
             category(categories, "projector_housing", format!("{:?}", p.housing));
             for (name, value) in [
-                ("equipment_corner_m", corner),
-                ("projector_lens_fraction", p.lens_fraction),
-                ("projector_lens_offset", p.lens_offset),
+                ("projector_roundness", p.roundness),
                 (
-                    "projector_lens_radius_m",
-                    o.size.y.min(o.size.x) * p.lens_fraction,
+                    "projector_lens_fraction",
+                    p.lens_radius / p.body.y.min(p.body.x),
                 ),
-                ("equipment_vent_count", p.vent_count as f32),
+                ("projector_lens_offset", p.lens_x / p.body.x),
+                ("projector_lens_radius_m", p.lens_radius),
+                ("projector_body_width_m", p.body.x),
+                ("projector_body_height_m", p.body.y),
+                ("projector_body_depth_m", p.body.z),
+                ("equipment_vent_count", p.vents as f32),
             ] {
                 numeric.push(name, value as f64)?;
             }
         }
         ObjectKind::PowerStrip => {
+            let strip = equipment::power_strip::parameters(o);
             category(categories, "powerstrip_housing", format!("{:?}", p.housing));
             // These describe the generated pin geometry, rather than asserting
             // certification to a national electrical standard.
@@ -414,12 +423,11 @@ fn record_equipment(
                     "flat_three_pin",
                 ][(o.variant % 4) as usize],
             );
-            numeric.push("equipment_corner_m", p.corner_m.min(o.size.y * 0.22) as f64)?;
             numeric.push(
-                "equipment_socket_count",
-                p.socket_count
-                    .min((o.size.x / 0.039).floor().max(3.) as usize) as f64,
+                "equipment_corner_m",
+                (o.size.y * strip.height_fraction * strip.bevel_fraction) as f64,
             )?;
+            numeric.push("equipment_socket_count", strip.socket_count as f64)?;
         }
         ObjectKind::WallShelf => {
             category(
@@ -661,7 +669,9 @@ pub(super) fn record_object(
     if matches!(
         o.kind,
         ObjectKind::Laptop | ObjectKind::Display | ObjectKind::Monitor | ObjectKind::Phone
-    ) {
+    ) && (o.kind != ObjectKind::Phone
+        || super::super::clutter::tabletop::parameters(o).phone_face_up)
+    {
         let kind = match o.kind {
             ObjectKind::Phone => materials::screens::DisplayKind::Phone,
             ObjectKind::Display => materials::screens::DisplayKind::Television,
@@ -699,6 +709,45 @@ pub(super) fn record_object(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reported_content_seed_matches_the_constructed_material_slot() {
+        let scene =
+            IndoorManifest::generate_with_humans(0, super::super::IndoorLayout::Mixed, 0.65, 0, 0.)
+                .unwrap();
+        for (kind, surface) in [
+            (ObjectKind::WallArt, Surface::Art),
+            (ObjectKind::Whiteboard, Surface::Whiteboard),
+            (ObjectKind::Phone, Surface::PhoneScreen),
+            (ObjectKind::Display, Surface::Television),
+            (ObjectKind::Monitor, Surface::Screen),
+            (ObjectKind::Laptop, Surface::Screen),
+        ] {
+            let mut checked = 0;
+            for seed in 0..16 {
+                let mut o = super::super::super::objects::audit::fixture(kind, seed);
+                o.finish_seed = Some(17);
+                let a = super::super::super::objects::build_object(&o);
+                for ((s, label), _) in a.parts.iter().filter(|((s, _), _)| *s == surface) {
+                    checked += 1;
+                    let slot: usize = label
+                        .split('#')
+                        .find_map(|tag| tag.strip_prefix("finish"))
+                        .unwrap()
+                        .parse()
+                        .unwrap();
+                    assert_eq!(
+                        finish_seed(&scene, &o),
+                        materials::variants::screen_seed(scene.material_seed(), slot),
+                        "{kind:?}/{seed}/{s:?}"
+                    );
+                }
+            }
+            assert!(
+                checked >= 8,
+                "missing constructed content faces for {kind:?}: {checked}"
+            );
+        }
+    }
     fn object(kind: ObjectKind) -> IndoorObject {
         IndoorObject {
             finish_seed: None,
@@ -771,6 +820,23 @@ mod tests {
                 values.contains_key("equipment_diffuser_fraction"),
                 matches!(kind, ObjectKind::WallSconce | ObjectKind::CeilingPendant)
             );
+            if kind == ObjectKind::Projector {
+                let a = super::super::super::objects::build_object(&o);
+                let mut lo = f32::INFINITY;
+                let mut hi = f32::NEG_INFINITY;
+                for ((surface, _), g) in &a.parts {
+                    if *surface == Surface::ContainerGlass {
+                        for v in &g.positions {
+                            lo = lo.min(v[0]);
+                            hi = hi.max(v[0]);
+                        }
+                    }
+                }
+                // Glass uses 68% of the surrounding optical rim radius.
+                assert!(
+                    (values["projector_lens_radius_m"].mean as f32 - (hi - lo) / 1.36).abs() < 1e-5
+                );
+            }
             if kind == ObjectKind::PowerStrip {
                 let p = equipment::parameters(&o);
                 assert_eq!(
@@ -814,11 +880,16 @@ mod tests {
         ] {
             record_object(&scene, &object(kind), &mut categories, &mut numeric).unwrap();
         }
-        let actual_seed = materials::variants::screen_seed(991, materials::variants::slot(83));
-        let art = materials::art::parameters(actual_seed);
-        let board = materials::boards::parameters(actual_seed);
+        let actual_seed = |surface| {
+            materials::variants::screen_seed(
+                991,
+                materials::variants::object_slot(surface, 83, None),
+            )
+        };
+        let art = materials::art::parameters(actual_seed(Surface::Art));
+        let board = materials::boards::parameters(actual_seed(Surface::Whiteboard));
         let screen = materials::screens::parameters_for(
-            actual_seed,
+            actual_seed(Surface::Television),
             materials::screens::DisplayKind::Television,
         );
         let values = numeric.finish().unwrap();

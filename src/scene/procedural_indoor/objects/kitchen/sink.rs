@@ -108,6 +108,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 Vec3::new(unit * 0.70, (top - floor) * 0.66, depth * 0.68),
                 if basin == 0 { 0 } else { 1 },
                 p.sink_dishes,
+                o.seed ^ (0x53494e4b44495348 + basin as u64),
             );
         }
     }
@@ -203,19 +204,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     }
     let soap_size = Vec3::new(0.065, (s.y - top) * 0.44, 0.075);
     if p.hand_soap {
-        props::soap(
+        super::supplies::dispenser::build(
             a,
             Vec3::new(-s.x * 0.405, top + 0.001, z - d * 0.35),
             soap_size,
             true,
+            o.seed ^ 0x534f415048414e44,
         );
     }
     if p.dish_soap {
-        props::soap(
+        super::supplies::dispenser::build(
             a,
             Vec3::new(s.x * 0.405, top + 0.001, z - d * 0.35),
             soap_size * Vec3::new(1., 1.10, 1.),
             false,
+            o.seed ^ 0x534f415044495348,
         );
     }
     if p.sponge {
@@ -233,6 +236,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             Vec3::new(s.x * 0.35, top + 0.001, cz),
             Vec3::new(s.x * 0.23, (s.y - top) * 0.58, depth * 0.82),
             p.sink_dishes,
+            o.seed ^ 0x53494e4b5241434b,
         );
     }
 }

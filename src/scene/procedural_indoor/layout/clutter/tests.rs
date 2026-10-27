@@ -80,6 +80,7 @@ fn loose_surface_programs_are_varied_bounded_supported_and_replayable() {
     let mut counts = Vec::new();
     let mut kinds = BTreeSet::new();
     let mut angles = BTreeSet::new();
+    let mut equipment = std::collections::BTreeMap::<String, Vec<serde_json::Value>>::new();
     for seed in 0..128 {
         let mut scene = base.clone();
         let mut support = objects::audit::fixture(ObjectKind::Table, seed);
@@ -111,6 +112,25 @@ fn loose_surface_programs_are_varied_bounded_supported_and_replayable() {
             assert!((o.position.y - support.size.y).abs() < 1e-5);
             kinds.insert(format!("{:?}", o.kind));
             angles.insert(((o.yaw - support.yaw).rem_euclid(TAU) * 12. / TAU) as u32);
+            if matches!(
+                o.kind,
+                ObjectKind::Speaker
+                    | ObjectKind::Headphones
+                    | ObjectKind::Stapler
+                    | ObjectKind::TapeDispenser
+            ) {
+                let mesh = objects::build_object(o);
+                objects::audit::check(o, &mesh).unwrap();
+                let local = support
+                    .transform()
+                    .compute_affine()
+                    .inverse()
+                    .transform_point3(o.position);
+                equipment.entry(format!("{:?}",o.kind)).or_default().push(serde_json::json!({
+                    "seed":o.seed,"size":o.size,"support_uv":[local.x/support.size.x,local.z/support.size.z],
+                    "yaw":o.yaw-support.yaw,"geometry_bounds":mesh.bounds()
+                }));
+            }
         }
         counts.push(scene.objects.len() - 1);
     }
@@ -122,6 +142,41 @@ fn loose_surface_programs_are_varied_bounded_supported_and_replayable() {
     );
     assert!(kinds.len() >= 20);
     assert_eq!(angles.len(), 12);
+    assert_eq!(equipment.len(), 4);
+    let mut distributions = serde_json::Map::new();
+    for (kind, items) in &equipment {
+        let mut cells = BTreeSet::new();
+        let mut bins = [0; 12];
+        let mut near_axis = 0;
+        for item in items {
+            let uv = &item["support_uv"];
+            cells.insert((
+                ((uv[0].as_f64().unwrap() + 0.5) * 8.) as i32,
+                ((uv[1].as_f64().unwrap() + 0.5) * 8.) as i32,
+            ));
+            let yaw = item["yaw"].as_f64().unwrap();
+            bins[((yaw.rem_euclid(std::f64::consts::TAU) / std::f64::consts::TAU * 12.)
+                as usize)
+                .min(11)] += 1;
+            near_axis += usize::from((2. * yaw).sin().abs() < (4_f64.to_radians()).sin());
+        }
+        assert!(
+            items.len() > 10 && cells.len() > 8,
+            "{kind}: insufficient accepted placements"
+        );
+        distributions.insert(kind.clone(),serde_json::json!({"count":items.len(),"spatial_cells_8x8":cells.len(),"yaw_bins":bins,"axis_fraction":near_axis as f64/items.len() as f64}));
+    }
+    println!(
+        "accepted audio/stationery: {}",
+        serde_json::Value::Object(distributions.clone())
+    );
+    if let Some(path) = std::env::var_os("ZEROVERSE_OBJECT_REPORT") {
+        let path = std::path::PathBuf::from(path);
+        std::fs::create_dir_all(&path).unwrap();
+        std::fs::write(path.join("accepted-audio.json"),serde_json::to_vec_pretty(&serde_json::json!({
+            "tables":128,"physical_admission_and_replay":true,"distributions":distributions,"items":equipment
+        })).unwrap()).unwrap();
+    }
     println!("table qualification: count min/p25/median/p75/max={}/{}/{}/{}/{}, {} kinds, {} heading bins",counts[0],counts[32],counts[64],counts[96],counts[127],kinds.len(),angles.len());
 }
 

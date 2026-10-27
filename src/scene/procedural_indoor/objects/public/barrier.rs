@@ -26,7 +26,7 @@ pub fn parameters(o: &IndoorObject) -> BarrierProgram {
         frame: [
             Surface::Chrome,
             Surface::Metal,
-            Surface::Paint,
+            Surface::Plastic,
             Surface::Wood,
         ][f.random_range(0..4)],
         rail: [Surface::Fabric, Surface::FabricAlt, Surface::Rubber][f.random_range(0..3)],

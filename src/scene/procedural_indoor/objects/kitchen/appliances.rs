@@ -211,36 +211,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                         y + 0.007,
                         (s.y - toe - 0.15) / p.shelves as f32 - 0.015,
                     );
-                    for item in items {
-                        let tf = item.transform();
-                        let h = item.size.y;
-                        if item.style.is_multiple_of(2) {
-                            let radius = item.size.x.min(item.size.z) * 0.30;
-                            a.part(Surface::ContainerGlass, "drink_container").lathe(
-                                &[
-                                    (0., 0.),
-                                    (radius, 0.),
-                                    (radius, h * 0.68),
-                                    (radius * 0.42, h * 0.84),
-                                    (radius * 0.42, h),
-                                    (0., h),
-                                ],
-                                20,
-                                tf,
-                            );
-                            a.part(Surface::Drink, "drink_container").cylinder(
-                                radius * 0.92,
-                                h * 0.64,
-                                tf.mul_transform(Transform::from_translation(Vec3::Y * h * 0.32)),
-                            );
-                        } else {
-                            a.part(Surface::PrintedPaper, "food").cuboid(
-                                item.size * Vec3::new(0.72, 0.85, 0.72),
-                                0.003,
-                                tf.mul_transform(Transform::from_translation(Vec3::Y * h * 0.425)),
-                            );
-                        }
-                    }
+                    contents::build(a, &items);
                 }
             }
             let count = if p.paired { 2 } else { 1 };
@@ -334,12 +305,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 Transform::from_xyz(cx, tray_y, z),
             );
             if p.contents {
-                props::dish(
-                    a,
-                    Vec3::new(cx, tray_y + 0.005, z),
+                let mut bowl = dishware::parameters(
                     Vec3::new(w * 0.30, s.y * 0.48, d * 0.38),
                     1,
                     1,
+                    o.seed ^ 0x4d4943524f444953,
+                );
+                // Microwave contents use a microwave-safe substrate.
+                bowl.surface = Surface::Ceramic;
+                dishware::build(
+                    a,
+                    Transform::from_xyz(cx, tray_y + 0.0035, z),
+                    &bowl,
+                    o.seed,
                 );
             }
         }
@@ -373,12 +351,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 0.012,
                 label,
             );
-            for level in [0.22, 0.55] {
+            for (index, level) in [0.22, 0.55].into_iter().enumerate() {
                 props::rack(
                     a,
                     Vec3::new(0., s.y * level, z),
                     Vec3::new(w * 0.86, s.y * 0.23, d * 0.79),
                     if p.contents { 4 } else { 0 },
+                    o.seed ^ (0x444953485241434b + index as u64),
                 );
             }
         }

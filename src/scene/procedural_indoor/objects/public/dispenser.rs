@@ -33,7 +33,7 @@ pub fn parameters(o: &IndoorObject) -> DispenserProgram {
             Surface::Metal,
             Surface::Chrome,
             Surface::Plastic,
-            Surface::Paint,
+            Surface::Plastic, // More common coated/polymer housings; no wall treatment.
         ][f.random_range(0..4)],
     }
 }

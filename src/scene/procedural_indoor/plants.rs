@@ -10,6 +10,7 @@ mod pots;
 mod sampling;
 mod vines;
 mod woody;
+pub(super) use pots::dimensions as pot_dimensions;
 pub use pots::PotProfile;
 pub(super) use sampling::{sample_size, sample_species};
 
@@ -82,9 +83,9 @@ impl Growth {
         let maturity: f32 = age.random_range(0.25..1.);
         let mut growth = Self {
             maturity,
-            pot_fraction: rng.random_range(0.19..0.30),
-            pot_radius: rng.random_range(0.36..0.55),
-            pot_taper: rng.random_range(0.60..0.94),
+            pot_fraction: rng.random_range(0.22..0.48),
+            pot_radius: rng.random_range(0.38..0.88),
+            pot_taper: rng.random_range(0.52..0.98),
             density: rng.random_range(0.78..1.08),
             phyllotaxis: rng.random_range(2.18..2.62),
             leaf_aspect: rng.random_range(0.88..1.28),
@@ -132,32 +133,6 @@ fn along(points: &[Vec3], t: f32) -> Vec3 {
     let u = t.clamp(0., 1.) * (points.len() - 1) as f32;
     let i = (u.floor() as usize).min(points.len() - 2);
     points[i].lerp(points[i + 1], u - i as f32)
-}
-
-/// Root volume scales with stature as well as canopy width. The saucer and
-/// sculpted rim remain inside the existing placement reserve. Tall decorative
-/// planters retain a separate continuous aspect range, rather than stretching
-/// every tall plant's nursery pot vertically.
-pub(super) fn pot_dimensions(o: &IndoorObject, growth: &Growth) -> (f32, f32) {
-    // Cactus and succulent crowns do not have the spreading leaf canopy of a
-    // ficus. Give their root volumes broad nursery pots rather than pencil pots.
-    let form = match o.variant % SPECIES {
-        7 => 1.35,
-        8 | 9 => 1.55,
-        _ => 1.0,
-    };
-    let mut rng = stream(o.seed, 6230);
-    let width = o.size.x.min(o.size.z);
-    let radius = (width * 0.40 * growth.pot_radius * form)
-        .max(o.size.y * rng.random_range(0.055..0.085))
-        .min(width * 0.40);
-    let max_aspect = if rng.random_bool(0.22) {
-        rng.random_range(1.15..1.65)
-    } else {
-        rng.random_range(0.68..1.15)
-    };
-    let height = (o.size.y * growth.pot_fraction).min(2. * radius * max_aspect);
-    (radius, height)
 }
 
 pub(super) fn pot_radius(o: &IndoorObject, growth: &Growth) -> f32 {
@@ -289,7 +264,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
             // Snake plant: upright, stiff, gently twisted variegated swords.
             for i in 0..growth.count(15) {
                 let dir = radial(growth.angle(i));
-                let p = base + dir * r * 0.5;
+                let p = base + dir * soil_radius * 0.5;
                 blade(
                     a,
                     p,

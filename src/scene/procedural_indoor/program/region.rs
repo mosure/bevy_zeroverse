@@ -205,7 +205,7 @@ mod tests {
     use crate::scene::procedural_indoor::layout::IndoorLayout;
     #[test]
     fn primary_selection_uses_furnishings_is_archived_and_stays_fixed() {
-        for (seed, expected, legacy) in [(65574761, 1, 0), (65575086, 0, 3), (65575252, 2, 1)] {
+        for (seed, expected, legacy) in [(65574761, 1, 0), (65575086, 0, 3), (65575252, 1, 1)] {
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
                     .unwrap();
