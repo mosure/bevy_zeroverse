@@ -1,171 +1,118 @@
 <!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Zeroverse camera qualification</title><style>body{font:16px system-ui;background:#101820;color:#e9f0f4;max-width:1200px;margin:auto;padding:2rem}a{color:#8adfd8}h1{font-size:2.3rem}article{margin:2rem 0;padding:1.2rem;background:#1b2934;border-radius:1rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}figure{margin:0}img{width:100%;height:240px;object-fit:contain;background:#091118}figcaption{padding:.5rem;font-size:.9rem}select{padding:.5rem;font:inherit}pre{overflow:auto;max-height:18rem;font-size:.8rem}.error{color:#ffa18f}</style><h1>Multi-view qualification</h1><p>Matched geometry, independently varied camera and appearance factors. All planned cases are retained, including failures. This bounded check measures capture correctness and sampled diversity; it does not establish photographic realism or training transfer.</p><p><a href='receipt.json'>Qualification receipt</a> · <a href='recipe.json'>Reproducible recipe</a></p><label>Annotation <select id=mode><option value=color>RGB</option><option value=co_visibility>Co-visibility</option><option value=depth>Depth</option><option value=normal>Normal</option><option value=semantic>Semantic</option><option value=position>Position</option></select></label><p>Turbo depth: warm near, cool far; log distance on a fixed 0–15 m scale, clamped beyond 15 m. Colorized from the 8-bit axial-depth preview (15/255 m increments); black is background. Numeric training depth is unchanged.</p><p>Co-visibility colors identify peer cameras. Each case has its own deterministic legend. Black means no shared camera or invalid background; numeric validity masks distinguish them.</p><article><h2>reference</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='reference/seed_000000/view_00_' src='reference/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000000/view_01_' src='reference/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000000/view_02_' src='reference/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000000/view_03_' src='reference/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='reference/seed_000001/view_00_' src='reference/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000001/view_01_' src='reference/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000001/view_02_' src='reference/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='reference/seed_000001/view_03_' src='reference/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><article><h2>portrait</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='portrait/seed_000000/view_00_' src='portrait/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000000/view_01_' src='portrait/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000000/view_02_' src='portrait/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000000/view_03_' src='portrait/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='portrait/seed_000001/view_00_' src='portrait/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000001/view_01_' src='portrait/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000001/view_02_' src='portrait/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait/seed_000001/view_03_' src='portrait/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 1.6169278621673584,
-    &quot;mean&quot;: 1.5490376949310303,
+    &quot;max&quot;: 2.6621804237365723,
+    &quot;mean&quot;: 2.07485368847847,
     &quot;min&quot;: 1.4910613298416138,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.4910613298416138,
       1.5043840408325195,
-      1.5837775468826294,
-      1.5837775468826294,
-      1.6169278621673584
+      2.641788959503174,
+      2.641788959503174,
+      2.6621804237365723
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.676123046875,
-    &quot;mean&quot;: 0.5663909912109376,
-    &quot;min&quot;: 0.4599853515625,
+    &quot;max&quot;: 0.6764892578125,
+    &quot;mean&quot;: 0.5260040283203126,
+    &quot;min&quot;: 0.3682373046875,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.4599853515625,
-      0.5524169921875,
-      0.5749755859375,
-      0.579541015625,
-      0.676123046875
+      0.3682373046875,
+      0.4891357421875,
+      0.5616455078125,
+      0.575341796875,
+      0.6764892578125
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00006823938,
-    &quot;mean&quot;: 0.000054858044125,
-    &quot;min&quot;: 0.000045776367,
+    &quot;max&quot;: 0.000078642,
+    &quot;mean&quot;: 0.000061191058,
+    &quot;min&quot;: 0.000043158372,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.000045776367,
-      0.00004825253,
-      0.00005554283,
-      0.000061035156,
-      0.00006823938
+      0.000043158372,
+      0.000055016346,
+      0.0000629136,
+      0.00006823938,
+      0.000078642
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 22.87247053200858,
-    &quot;mean&quot;: 17.460291881905505,
-    &quot;min&quot;: 13.564692461236994,
+    &quot;max&quot;: 22.85747409592662,
+    &quot;mean&quot;: 20.941665750571133,
+    &quot;min&quot;: 19.42504561553219,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      13.564692461236994,
-      14.006147083212516,
-      19.41623265238514,
-      19.58810667927847,
-      22.87247053200858
+      19.42504561553219,
+      20.041684080962,
+      21.36203535975832,
+      21.544385760905698,
+      22.85747409592662
     ]
   }
 }</pre></details></article><article><h2>principal point</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='principal_point/seed_000000/view_00_' src='principal_point/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000000/view_01_' src='principal_point/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000000/view_02_' src='principal_point/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000000/view_03_' src='principal_point/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='principal_point/seed_000001/view_00_' src='principal_point/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000001/view_01_' src='principal_point/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000001/view_02_' src='principal_point/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='principal_point/seed_000001/view_03_' src='principal_point/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
-    &quot;min&quot;: 1.6715750694274902,
-    &quot;p05_p25_p50_p75_p95&quot;: [
-      1.6715750694274902,
-      1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
-    ]
-  },
-  &quot;overlap&quot;: {
-    &quot;count&quot;: 8,
-    &quot;max&quot;: 0.6613525390625,
-    &quot;mean&quot;: 0.49600524902343746,
-    &quot;min&quot;: 0.419775390625,
-    &quot;p05_p25_p50_p75_p95&quot;: [
-      0.419775390625,
-      0.444384765625,
-      0.4552734375,
-      0.4640625,
-      0.6613525390625
-    ]
-  },
-  &quot;reprojection_p99_pixels&quot;: {
-    &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00009650506,
-    &quot;mean&quot;: 0.00006212120675,
-    &quot;min&quot;: 0.00003411969,
-    &quot;p05_p25_p50_p75_p95&quot;: [
-      0.00003411969,
-      0.00004825253,
-      0.000055016346,
-      0.00007965322,
-      0.00009650506
-    ]
-  },
-  &quot;triangulation_degrees&quot;: {
-    &quot;count&quot;: 8,
-    &quot;max&quot;: 28.73439805152008,
-    &quot;mean&quot;: 23.466819273793448,
-    &quot;min&quot;: 19.53582630367047,
-    &quot;p05_p25_p50_p75_p95&quot;: [
-      19.53582630367047,
-      21.327236139748297,
-      23.871830022945424,
-      24.17787700558937,
-      28.73439805152008
-    ]
-  }
-}</pre></details></article><article><h2>portrait principal point</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_00_' src='portrait_principal_point/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_01_' src='portrait_principal_point/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_02_' src='portrait_principal_point/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_03_' src='portrait_principal_point/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_00_' src='portrait_principal_point/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_01_' src='portrait_principal_point/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_02_' src='portrait_principal_point/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_03_' src='portrait_principal_point/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
-  &quot;baseline_m&quot;: {
-    &quot;count&quot;: 8,
     &quot;max&quot;: 1.6894551515579224,
-    &quot;mean&quot;: 1.64043390750885,
-    &quot;min&quot;: 1.5837775468826294,
+    &quot;mean&quot;: 1.462579995393753,
+    &quot;min&quot;: 1.21990704536438,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      1.5837775468826294,
-      1.6169278621673584,
+      1.21990704536438,
+      1.2693827152252195,
       1.6715750694274902,
       1.6715750694274902,
       1.6894551515579224
@@ -173,267 +120,320 @@
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.61103515625,
-    &quot;mean&quot;: 0.495294189453125,
-    &quot;min&quot;: 0.4369140625,
+    &quot;max&quot;: 0.749560546875,
+    &quot;mean&quot;: 0.641058349609375,
+    &quot;min&quot;: 0.4447998046875,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.4369140625,
-      0.4503662109375,
-      0.5021728515625,
-      0.521484375,
-      0.61103515625
+      0.4447998046875,
+      0.6307861328125,
+      0.7130126953125,
+      0.73232421875,
+      0.749560546875
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.000086316744,
-    &quot;mean&quot;: 0.0000611199975,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00010377099,
+    &quot;mean&quot;: 0.00007433790112500001,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.000043158372,
-      0.000055016346,
-      0.0000629136,
-      0.00006823938,
-      0.000086316744
+      0.000038146973,
+      0.000053947966,
+      0.000091870075,
+      0.000091870075,
+      0.00010377099
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 30.936468792528107,
-    &quot;mean&quot;: 19.76891769158736,
-    &quot;min&quot;: 13.959688480835307,
+    &quot;max&quot;: 21.472362157176523,
+    &quot;mean&quot;: 19.311500920408744,
+    &quot;min&quot;: 15.755563961409331,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      13.959688480835307,
-      14.147006647143357,
-      20.05655191702076,
-      22.85524786359464,
-      30.936468792528107
+      15.755563961409331,
+      19.074681616100214,
+      20.36131791452381,
+      20.4539984471164,
+      21.472362157176523
+    ]
+  }
+}</pre></details></article><article><h2>portrait principal point</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_00_' src='portrait_principal_point/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_01_' src='portrait_principal_point/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_02_' src='portrait_principal_point/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000000/view_03_' src='portrait_principal_point/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_00_' src='portrait_principal_point/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_01_' src='portrait_principal_point/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_02_' src='portrait_principal_point/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='portrait_principal_point/seed_000001/view_03_' src='portrait_principal_point/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
+  &quot;baseline_m&quot;: {
+    &quot;count&quot;: 8,
+    &quot;max&quot;: 1.6894551515579224,
+    &quot;mean&quot;: 1.462579995393753,
+    &quot;min&quot;: 1.21990704536438,
+    &quot;p05_p25_p50_p75_p95&quot;: [
+      1.21990704536438,
+      1.2693827152252195,
+      1.6715750694274902,
+      1.6715750694274902,
+      1.6894551515579224
+    ]
+  },
+  &quot;overlap&quot;: {
+    &quot;count&quot;: 8,
+    &quot;max&quot;: 0.688916015625,
+    &quot;mean&quot;: 0.5693115234374999,
+    &quot;min&quot;: 0.43994140625,
+    &quot;p05_p25_p50_p75_p95&quot;: [
+      0.43994140625,
+      0.5313720703125,
+      0.5884765625,
+      0.61142578125,
+      0.688916015625
+    ]
+  },
+  &quot;reprojection_p99_pixels&quot;: {
+    &quot;count&quot;: 8,
+    &quot;max&quot;: 0.00008897326,
+    &quot;mean&quot;: 0.0000676699735,
+    &quot;min&quot;: 0.000043158372,
+    &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000043158372,
+      0.00006518557,
+      0.00007033954,
+      0.00007514082,
+      0.00008897326
+    ]
+  },
+  &quot;triangulation_degrees&quot;: {
+    &quot;count&quot;: 8,
+    &quot;max&quot;: 30.936417785628052,
+    &quot;mean&quot;: 20.04912131249887,
+    &quot;min&quot;: 12.936095644162313,
+    &quot;p05_p25_p50_p75_p95&quot;: [
+      12.936095644162313,
+      14.868678885022629,
+      20.0525702619257,
+      22.848962124310145,
+      30.936417785628052
     ]
   }
 }</pre></details></article><article><h2>connected graph</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(170,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> <span style='border-left:1rem solid rgb(0,0,255);padding:.4rem'>camera 2</span> <span style='border-left:1rem solid rgb(85,0,0);padding:.4rem'>camera 3</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_00_' src='connected_graph/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_01_' src='connected_graph/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_02_' src='connected_graph/seed_000000/view_02_color.png' alt='Rendered scene, camera 2'><figcaption>Camera 2 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_03_' src='connected_graph/seed_000000/view_03_color.png' alt='Rendered scene, camera 3'><figcaption>Camera 3 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_04_' src='connected_graph/seed_000000/view_04_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_05_' src='connected_graph/seed_000000/view_05_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_06_' src='connected_graph/seed_000000/view_06_color.png' alt='Rendered scene, camera 2'><figcaption>Camera 2 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000000/view_07_' src='connected_graph/seed_000000/view_07_color.png' alt='Rendered scene, camera 3'><figcaption>Camera 3 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_00_' src='connected_graph/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_01_' src='connected_graph/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_02_' src='connected_graph/seed_000001/view_02_color.png' alt='Rendered scene, camera 2'><figcaption>Camera 2 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_03_' src='connected_graph/seed_000001/view_03_color.png' alt='Rendered scene, camera 3'><figcaption>Camera 3 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_04_' src='connected_graph/seed_000001/view_04_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_05_' src='connected_graph/seed_000001/view_05_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_06_' src='connected_graph/seed_000001/view_06_color.png' alt='Rendered scene, camera 2'><figcaption>Camera 2 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='connected_graph/seed_000001/view_07_' src='connected_graph/seed_000001/view_07_color.png' alt='Rendered scene, camera 3'><figcaption>Camera 3 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 48,
-    &quot;max&quot;: 4.133821964263916,
-    &quot;mean&quot;: 1.8475928368667762,
+    &quot;max&quot;: 4.09871244430542,
+    &quot;mean&quot;: 1.7895154270033042,
     &quot;min&quot;: 0.34587571024894714,
     &quot;p05_p25_p50_p75_p95&quot;: [
       0.3779243528842926,
       0.5234158635139465,
-      0.988044261932373,
-      3.556525230407715,
-      4.1207451820373535
+      1.9699677228927612,
+      2.368701934814453,
+      4.090707302093506
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 48,
-    &quot;max&quot;: 0.91962890625,
-    &quot;mean&quot;: 0.5278218587239583,
-    &quot;min&quot;: 0.24267578125,
+    &quot;max&quot;: 0.9198486328125,
+    &quot;mean&quot;: 0.582398478190104,
+    &quot;min&quot;: 0.2447021484375,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.2703369140625,
-      0.4260498046875,
-      0.53994140625,
-      0.610546875,
-      0.8284912109375
+      0.3433349609375,
+      0.4575439453125,
+      0.5607421875,
+      0.6865234375,
+      0.8826171875
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 16,
-    &quot;max&quot;: 0.000076293945,
-    &quot;mean&quot;: 0.000058366164375,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00007514082,
+    &quot;mean&quot;: 0.00005148468631249999,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000046407797,
-      0.000059587477,
-      0.00006823938,
-      0.000076293945
+      0.000053947966,
+      0.000055016346,
+      0.00006823938
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 48,
-    &quot;max&quot;: 56.2761249824517,
-    &quot;mean&quot;: 18.198923595499544,
-    &quot;min&quot;: 3.050545635865546,
+    &quot;max&quot;: 22.023365482478624,
+    &quot;mean&quot;: 11.788603818282484,
+    &quot;min&quot;: 3.0513633770623643,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      3.52066580090452,
-      6.212919159913506,
-      12.903740531406507,
-      28.520038246747585,
-      50.761308585198954
+      3.518699537132921,
+      6.857950734058369,
+      12.693757958256182,
+      15.257458231334308,
+      21.54433810888478
     ]
   }
 }</pre></details></article><article><h2>wide baseline</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='wide_baseline/seed_000000/view_00_' src='wide_baseline/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000000/view_01_' src='wide_baseline/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000000/view_02_' src='wide_baseline/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000000/view_03_' src='wide_baseline/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='wide_baseline/seed_000001/view_00_' src='wide_baseline/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000001/view_01_' src='wide_baseline/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000001/view_02_' src='wide_baseline/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='wide_baseline/seed_000001/view_03_' src='wide_baseline/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 6.32936429977417,
-    &quot;mean&quot;: 4.562485158443451,
-    &quot;min&quot;: 2.7809290885925293,
+    &quot;max&quot;: 6.8194966316223145,
+    &quot;mean&quot;: 6.569668650627136,
+    &quot;min&quot;: 6.31125020980835,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      2.7809290885925293,
-      2.828397035598755,
       6.31125020980835,
-      6.31125020980835,
-      6.32936429977417
+      6.32936429977417,
+      6.818563461303711,
+      6.818563461303711,
+      6.8194966316223145
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5814208984375,
-    &quot;mean&quot;: 0.45998840332031254,
-    &quot;min&quot;: 0.3607666015625,
+    &quot;max&quot;: 0.4719482421875,
+    &quot;mean&quot;: 0.4252655029296875,
+    &quot;min&quot;: 0.3700927734375,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.3607666015625,
-      0.4293701171875,
-      0.4586669921875,
-      0.4718994140625,
-      0.5814208984375
+      0.3700927734375,
+      0.4150634765625,
+      0.42939453125,
+      0.443603515625,
+      0.4719482421875
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.0000629136,
-    &quot;mean&quot;: 0.000047955874124999994,
-    &quot;min&quot;: 0.00003833723,
+    &quot;max&quot;: 0.000055016346,
+    &quot;mean&quot;: 0.00004497821299999999,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.00003833723,
+      0.000038146973,
       0.000043158372,
       0.000043158372,
-      0.00004825253,
-      0.0000629136
+      0.000045776367,
+      0.000055016346
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 97.11586929305074,
-    &quot;mean&quot;: 56.737227547696236,
-    &quot;min&quot;: 20.121156634961142,
+    &quot;max&quot;: 97.15662010071124,
+    &quot;mean&quot;: 74.39461396815858,
+    &quot;min&quot;: 54.57349598337869,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      20.121156634961142,
-      21.66289854373236,
-      87.66430517443925,
-      89.11328332842558,
-      97.11586929305074
+      54.57349598337869,
+      56.27028965108859,
+      87.67009562858834,
+      89.0586617628468,
+      97.15662010071124
     ]
   }
 }</pre></details></article><article><h2>handheld</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='handheld/seed_000000/view_00_' src='handheld/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000000/view_01_' src='handheld/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000000/view_02_' src='handheld/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000000/view_03_' src='handheld/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='handheld/seed_000001/view_00_' src='handheld/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000001/view_01_' src='handheld/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000001/view_02_' src='handheld/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='handheld/seed_000001/view_03_' src='handheld/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 2.8016951084136963,
-    &quot;mean&quot;: 2.145579367876053,
-    &quot;min&quot;: 1.4921472072601318,
+    &quot;max&quot;: 3.361374855041504,
+    &quot;mean&quot;: 3.001823306083679,
+    &quot;min&quot;: 2.700126886367798,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      1.4921472072601318,
-      1.5883482694625854,
       2.700126886367798,
-      2.700126886367798,
-      2.8016951084136963
+      2.8016951084136963,
+      3.1440963745117188,
+      3.1440963745117188,
+      3.361374855041504
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.691796875,
-    &quot;mean&quot;: 0.5133544921875,
-    &quot;min&quot;: 0.3911376953125,
+    &quot;max&quot;: 0.50673828125,
+    &quot;mean&quot;: 0.4560760498046875,
+    &quot;min&quot;: 0.3864013671875,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.3911376953125,
-      0.4596923828125,
-      0.49833984375,
-      0.5067138671875,
-      0.691796875
+      0.3864013671875,
+      0.4396728515625,
+      0.47236328125,
+      0.4872314453125,
+      0.50673828125
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
     &quot;max&quot;: 0.00006518557,
-    &quot;mean&quot;: 0.000056673798375,
-    &quot;min&quot;: 0.000045776367,
+    &quot;mean&quot;: 0.00005655413625,
+    &quot;min&quot;: 0.00004825253,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.000045776367,
+      0.00004825253,
       0.00005340576,
-      0.000061035156,
-      0.000061035156,
+      0.00005810374,
+      0.0000629136,
       0.00006518557
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 46.31322802241693,
-    &quot;mean&quot;: 34.08727353254688,
-    &quot;min&quot;: 23.832467036933476,
+    &quot;max&quot;: 46.31318332707994,
+    &quot;mean&quot;: 37.859463034572386,
+    &quot;min&quot;: 30.151249730787356,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      23.832467036933476,
-      25.26157864559144,
+      30.151249730787356,
+      33.57779571902835,
       41.08664500528528,
       43.07279723577777,
-      46.31322802241693
+      46.31318332707994
     ]
   }
 }</pre></details></article><article><h2>low overlap</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='low_overlap/seed_000000/view_00_' src='low_overlap/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000000/view_01_' src='low_overlap/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000000/view_02_' src='low_overlap/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000000/view_03_' src='low_overlap/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='low_overlap/seed_000001/view_00_' src='low_overlap/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000001/view_01_' src='low_overlap/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000001/view_02_' src='low_overlap/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_overlap/seed_000001/view_03_' src='low_overlap/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.155968189239502,
-    &quot;mean&quot;: 3.9674037098884583,
-    &quot;min&quot;: 3.78412127494812,
+    &quot;max&quot;: 3.8038697242736816,
+    &quot;mean&quot;: 3.276826560497284,
+    &quot;min&quot;: 2.7491743564605713,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      2.7491743564605713,
+      2.7701408863067627,
       3.78412127494812,
-      3.8038697242736816,
-      4.125655651092529,
-      4.125655651092529,
-      4.155968189239502
+      3.78412127494812,
+      3.8038697242736816
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.2404541015625,
-    &quot;mean&quot;: 0.156536865234375,
-    &quot;min&quot;: 0.0993408203125,
+    &quot;max&quot;: 0.2403564453125,
+    &quot;mean&quot;: 0.14577636718749998,
+    &quot;min&quot;: 0.0505859375,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.0993408203125,
-      0.113525390625,
+      0.0505859375,
+      0.088427734375,
       0.1699951171875,
-      0.1763427734375,
-      0.2404541015625
+      0.176318359375,
+      0.2403564453125
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.0000629136,
-    &quot;mean&quot;: 0.000050542968125,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.000065630535,
+    &quot;mean&quot;: 0.000049576613999999994,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136
+      0.000055016346,
+      0.000065630535
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 94.2748018953757,
-    &quot;mean&quot;: 56.68012521790729,
-    &quot;min&quot;: 19.90151582611158,
+    &quot;max&quot;: 94.27472675594824,
+    &quot;mean&quot;: 49.95976574519348,
+    &quot;min&quot;: 6.084080337866759,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      19.90151582611158,
-      20.29010330953716,
+      6.084080337866759,
+      6.774570328940015,
       91.34719903071722,
-      92.71749734344948,
-      94.2748018953757
+      92.68060341501624,
+      94.27472675594824
     ]
   }
 }</pre></details></article><article><h2>no proxy overlap</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000000/view_00_' src='no_proxy_overlap/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000000/view_01_' src='no_proxy_overlap/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000000/view_02_' src='no_proxy_overlap/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000000/view_03_' src='no_proxy_overlap/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000001/view_00_' src='no_proxy_overlap/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000001/view_01_' src='no_proxy_overlap/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000001/view_02_' src='no_proxy_overlap/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='no_proxy_overlap/seed_000001/view_03_' src='no_proxy_overlap/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 2.7701408863067627,
-    &quot;mean&quot;: 2.473471462726593,
-    &quot;min&quot;: 2.17981481552124,
+    &quot;max&quot;: 2.18625807762146,
+    &quot;mean&quot;: 1.8669417798519135,
+    &quot;min&quot;: 1.5458639860153198,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      1.5458639860153198,
+      1.5558302402496338,
       2.17981481552124,
-      2.18625807762146,
-      2.757672071456909,
-      2.757672071456909,
-      2.7701408863067627
+      2.17981481552124,
+      2.18625807762146
     ]
   },
   &quot;overlap&quot;: {
@@ -452,13 +452,13 @@
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
     &quot;max&quot;: 0.00012207031,
-    &quot;mean&quot;: 0.000068340518125,
+    &quot;mean&quot;: 0.00006815189625,
     &quot;min&quot;: 0.00003411969,
     &quot;p05_p25_p50_p75_p95&quot;: [
       0.00003411969,
-      0.00005722046,
-      0.0000629136,
-      0.00006473756,
+      0.000038146973,
+      0.000061035156,
+      0.000090674315,
       0.00012207031
     ]
   },
@@ -468,266 +468,266 @@
 }</pre></details></article><article><h2>material seed</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='material_seed/seed_000000/view_00_' src='material_seed/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000000/view_01_' src='material_seed/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000000/view_02_' src='material_seed/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000000/view_03_' src='material_seed/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='material_seed/seed_000001/view_00_' src='material_seed/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000001/view_01_' src='material_seed/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000001/view_02_' src='material_seed/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='material_seed/seed_000001/view_03_' src='material_seed/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><article><h2>low detail</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='low_detail/seed_000000/view_00_' src='low_detail/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000000/view_01_' src='low_detail/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000000/view_02_' src='low_detail/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000000/view_03_' src='low_detail/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='low_detail/seed_000001/view_00_' src='low_detail/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000001/view_01_' src='low_detail/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000001/view_02_' src='low_detail/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='low_detail/seed_000001/view_03_' src='low_detail/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><article><h2>lighting seed</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='lighting_seed/seed_000000/view_00_' src='lighting_seed/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000000/view_01_' src='lighting_seed/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000000/view_02_' src='lighting_seed/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000000/view_03_' src='lighting_seed/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='lighting_seed/seed_000001/view_00_' src='lighting_seed/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000001/view_01_' src='lighting_seed/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000001/view_02_' src='lighting_seed/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='lighting_seed/seed_000001/view_03_' src='lighting_seed/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><article><h2>dim illumination</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='dim_illumination/seed_000000/view_00_' src='dim_illumination/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000000/view_01_' src='dim_illumination/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000000/view_02_' src='dim_illumination/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000000/view_03_' src='dim_illumination/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='dim_illumination/seed_000001/view_00_' src='dim_illumination/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000001/view_01_' src='dim_illumination/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000001/view_02_' src='dim_illumination/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='dim_illumination/seed_000001/view_03_' src='dim_illumination/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><article><h2>exposure</h2><p>Co-visibility legend: <span style='border-left:1rem solid rgb(255,0,0);padding:.4rem'>camera 0</span> <span style='border-left:1rem solid rgb(0,255,0);padding:.4rem'>camera 1</span> </p><h3>Scene seed 0</h3><div class=grid><figure><img loading=lazy data-prefix='exposure/seed_000000/view_00_' src='exposure/seed_000000/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000000/view_01_' src='exposure/seed_000000/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000000/view_02_' src='exposure/seed_000000/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000000/view_03_' src='exposure/seed_000000/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><h3>Scene seed 1</h3><div class=grid><figure><img loading=lazy data-prefix='exposure/seed_000001/view_00_' src='exposure/seed_000001/view_00_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000001/view_01_' src='exposure/seed_000001/view_01_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 0.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000001/view_02_' src='exposure/seed_000001/view_02_color.png' alt='Rendered scene, camera 0'><figcaption>Camera 0 · 2.00 s</figcaption></figure><figure><img loading=lazy data-prefix='exposure/seed_000001/view_03_' src='exposure/seed_000001/view_03_color.png' alt='Rendered scene, camera 1'><figcaption>Camera 1 · 2.00 s</figcaption></figure></div><details><summary>Measured distributions</summary><pre>{
   &quot;baseline_m&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 4.21169900894165,
-    &quot;mean&quot;: 2.945696383714676,
+    &quot;max&quot;: 3.1884570121765137,
+    &quot;mean&quot;: 2.431163042783737,
     &quot;min&quot;: 1.6715750694274902,
     &quot;p05_p25_p50_p75_p95&quot;: [
       1.6715750694274902,
       1.6894551515579224,
-      4.210056304931641,
-      4.210056304931641,
-      4.21169900894165
+      3.1751649379730225,
+      3.1751649379730225,
+      3.1884570121765137
     ]
   },
   &quot;overlap&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.5758544921875,
-    &quot;mean&quot;: 0.513616943359375,
-    &quot;min&quot;: 0.460498046875,
+    &quot;max&quot;: 0.5761962890625,
+    &quot;mean&quot;: 0.5010955810546874,
+    &quot;min&quot;: 0.3521728515625,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      0.460498046875,
-      0.482275390625,
-      0.527099609375,
-      0.5302734375,
-      0.5758544921875
+      0.3521728515625,
+      0.52763671875,
+      0.55439453125,
+      0.55576171875,
+      0.5761962890625
     ]
   },
   &quot;reprojection_p99_pixels&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 0.00007197556,
-    &quot;mean&quot;: 0.00005542072075,
-    &quot;min&quot;: 0.000043158372,
+    &quot;max&quot;: 0.00009281559,
+    &quot;mean&quot;: 0.000062626189625,
+    &quot;min&quot;: 0.000038146973,
     &quot;p05_p25_p50_p75_p95&quot;: [
+      0.000038146973,
       0.000043158372,
-      0.000045776367,
-      0.000061510145,
-      0.0000629136,
-      0.00007197556
+      0.00006518557,
+      0.00007197556,
+      0.00009281559
     ]
   },
   &quot;triangulation_degrees&quot;: {
     &quot;count&quot;: 8,
-    &quot;max&quot;: 26.009498689078605,
-    &quot;mean&quot;: 21.70223777757991,
-    &quot;min&quot;: 17.22618334686321,
+    &quot;max&quot;: 26.509243482233405,
+    &quot;mean&quot;: 21.94323490887927,
+    &quot;min&quot;: 17.2180037378108,
     &quot;p05_p25_p50_p75_p95&quot;: [
-      17.22618334686321,
-      18.603389836021464,
-      23.41593695921175,
-      23.452082702656483,
-      26.009498689078605
+      17.2180037378108,
+      18.587459410654503,
+      23.81782894822331,
+      24.103810040178335,
+      26.509243482233405
     ]
   }
 }</pre></details></article><script>document.querySelector('#mode').addEventListener('change',e=>{const mode=e.target.value==='depth'?'depth_turbo':e.target.value;for(const image of document.querySelectorAll('[data-prefix]'))image.src=image.dataset.prefix+mode+'.png'})</script></html>

@@ -9,12 +9,12 @@
   "camera_diagnostics": {
     "recovery_intrinsic_draws": 0,
     "recovery_path_proposals": 0,
-    "reference_proposals": 36,
-    "long_reference_requests": 7,
+    "reference_proposals": 34,
+    "long_reference_requests": 8,
     "short_reference_recoveries": 0,
     "reference_rejections": [
-      11,
-      3,
+      13,
+      0,
       2,
       5,
       0
@@ -31,7 +31,7 @@
       0,
       0
     ],
-    "endpoint_adjustments": 6,
+    "endpoint_adjustments": 9,
     "peer_search_succeeded": true,
     "peer_search_fallbacks": 0,
     "peer_search_discarded_proposals": 0,
@@ -164,7 +164,7 @@
     "rejected_meetings": 0,
     "accepted": []
   },
-  "generator_version": 97,
+  "generator_version": 98,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -2788,8 +2788,8 @@
     "finishes": {
       "trim": {
         "base": {
-          "height_m": 0.040630944,
-          "depth_m": 0.02999362,
+          "height_m": 0.030506078,
+          "depth_m": 0.03633724,
           "shoulder": 0.3878611,
           "tip_fraction": 0.6265125,
           "profile": "Stepped",
@@ -2798,7 +2798,7 @@
         },
         "crown": null,
         "joint_m": 0.0069977716,
-        "corner_reveal_m": 0.06920637
+        "corner_reveal_m": 0.06346831
       },
       "interior_glazing": {
         "sill_m": 0.12798123,
@@ -2852,6 +2852,7 @@
     8.468447
   ],
   "envelope": {
+    "wall_thickness_m": 0.24164891,
     "soffits": [],
     "tier_guard": {
       "height": 1.0482726,
@@ -2908,6 +2909,13 @@
         "edge": 1,
         "facade": {
           "joinery": {
+            "reveal": {
+              "wall_thickness_m": 0.24164891,
+              "lining_thickness_m": 0.004774343,
+              "lining_surface": "Paint",
+              "finish_slot": 8,
+              "surround": null
+            },
             "identity": 21326,
             "mullion_fraction": 0.3980041,
             "mullion_depth_fraction": 0.6478137,
@@ -2938,19 +2946,19 @@
                 "pitch_m": 0.0738094,
                 "duty": 0.541721,
                 "frost_roughness": 0.25834912,
-                "opening": 0.73075104
+                "opening": 0.0
               },
               "min": [
-                -3.9941027,
-                1.805507
+                -3.9324536,
+                1.0915164
               ],
               "max": [
-                -2.1288252,
-                3.5464792
+                -0.66358256,
+                2.9238627
               ],
-              "columns": 2,
+              "columns": 3,
               "transom": 0.0,
-              "operable": true
+              "operable": false
             },
             {
               "glazing": {
@@ -2969,51 +2977,23 @@
                 "opening": 0.0
               },
               "min": [
-                -1.2288251,
-                1.837424
+                0.2364173,
+                1.4272926
               ],
               "max": [
-                0.88020086,
-                3.340093
+                3.9324536,
+                2.6382866
               ],
-              "columns": 2,
-              "transom": 0.39830363,
-              "operable": true
-            },
-            {
-              "glazing": {
-                "identity": 305319251667567692,
-                "installation": 21326,
-                "thickness_m": 0.010055106,
-                "treatment": 2,
-                "band_m": [
-                  0.86424565,
-                  1.4315536
-                ],
-                "feather_m": 0.06387256,
-                "pitch_m": 0.18746114,
-                "duty": 0.44787544,
-                "frost_roughness": 0.33437073,
-                "opening": 0.0
-              },
-              "min": [
-                1.780201,
-                2.1236217
-              ],
-              "max": [
-                3.9941034,
-                3.2305868
-              ],
-              "columns": 2,
-              "transom": 0.0,
+              "columns": 4,
+              "transom": 0.27637637,
               "operable": false
             }
           ],
-          "frame": "WoodEdge",
-          "frame_width": 0.04117956,
-          "frame_depth": 0.11266941,
-          "recess": 0.11502602,
-          "sill_projection": 0.14971615,
+          "frame": "Metal",
+          "frame_width": 0.051591452,
+          "frame_depth": 0.08519728,
+          "recess": 0.17660655,
+          "sill_projection": 0.17191905,
           "treatment": {
             "identity": 6657096426297267600,
             "slat_pitch": 0.029399632,
@@ -3029,8 +3009,8 @@
             "finish_slot": 2
           },
           "shade": "Roman",
-          "shade_coverage": 0.53478247,
-          "shade_tilt": 0.16045904
+          "shade_coverage": 0.54286015,
+          "shade_tilt": 0.5600897
         }
       },
       {
@@ -3055,6 +3035,13 @@
     "facades": [
       {
         "joinery": {
+          "reveal": {
+            "wall_thickness_m": 0.24164891,
+            "lining_thickness_m": 0.01155629,
+            "lining_surface": "Ceramic",
+            "finish_slot": 0,
+            "surround": null
+          },
           "identity": 13407,
           "mullion_fraction": 0.8361547,
           "mullion_depth_fraction": 0.9420279,
@@ -3192,7 +3179,7 @@
         "frame": "Plastic",
         "frame_width": 0.028403776,
         "frame_depth": 0.07294015,
-        "recess": 0.09735815,
+        "recess": 0.1280805,
         "sill_projection": 0.15822764,
         "treatment": {
           "identity": 1137492259875339723,
@@ -3214,6 +3201,21 @@
       },
       {
         "joinery": {
+          "reveal": {
+            "wall_thickness_m": 0.24164891,
+            "lining_thickness_m": 0.011443423,
+            "lining_surface": "Ceramic",
+            "finish_slot": 5,
+            "surround": {
+              "height_m": 0.034985952,
+              "depth_m": 0.02575649,
+              "shoulder": 0.69318813,
+              "tip_fraction": 0.36941916,
+              "profile": "Round",
+              "surface": "Paint",
+              "finish_slot": 5
+            }
+          },
           "identity": 26414,
           "mullion_fraction": 0.48431167,
           "mullion_depth_fraction": 0.9216869,
@@ -3474,7 +3476,7 @@
         "frame": "Plastic",
         "frame_width": 0.06743394,
         "frame_depth": 0.07086979,
-        "recess": 0.10225968,
+        "recess": 0.16169351,
         "sill_projection": 0.064176865,
         "treatment": {
           "identity": 2769626867052297767,
@@ -3653,18 +3655,18 @@
       "id": 5,
       "kind": "Plant",
       "position": [
-        5.4172006,
+        5.508369,
         0.0,
-        -0.64367265
+        2.0870879
       ],
       "size": [
         0.88807416,
         1.0568546,
         0.932466
       ],
-      "yaw": 3.1402962,
+      "yaw": 1.6295333,
       "variant": 13,
-      "seed": 13875364421237932421,
+      "seed": 14781910199206792555,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3674,18 +3676,18 @@
       "id": 6,
       "kind": "Plant",
       "position": [
-        5.459325,
+        1.6871983,
         0.0,
-        0.5929206
+        -1.3115579
       ],
       "size": [
-        0.9710217,
-        1.7211322,
-        0.9012463
+        0.55287176,
+        1.5505804,
+        0.5519315
       ],
-      "yaw": 1.4784789,
-      "variant": 14,
-      "seed": 17644679863397795014,
+      "yaw": 5.0046453,
+      "variant": 2,
+      "seed": 8091322063947612416,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3695,18 +3697,18 @@
       "id": 7,
       "kind": "Plant",
       "position": [
-        5.5310125,
+        2.6489158,
         0.0,
-        2.3460648
+        -1.2394302
       ],
       "size": [
-        0.83217824,
-        1.6420894,
-        0.81801385
+        0.54229665,
+        0.28266692,
+        0.53964156
       ],
-      "yaw": 1.7918911,
-      "variant": 1,
-      "seed": 9051753621830128319,
+      "yaw": 2.7911844,
+      "variant": 7,
+      "seed": 13233373187605284524,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3716,18 +3718,18 @@
       "id": 8,
       "kind": "Plant",
       "position": [
-        2.656225,
+        3.2699838,
         0.0,
-        0.03741701
+        -0.7647271
       ],
       "size": [
-        0.6144924,
-        1.9902482,
-        0.63871473
+        0.53316176,
+        0.47230673,
+        0.5600486
       ],
-      "yaw": 5.343697,
-      "variant": 2,
-      "seed": 11605810059140243980,
+      "yaw": 2.9175813,
+      "variant": 8,
+      "seed": 7020724862271236528,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3737,18 +3739,18 @@
       "id": 9,
       "kind": "Plant",
       "position": [
-        5.340727,
+        3.2852569,
         0.0,
-        -3.2435958
+        0.078795195
       ],
       "size": [
-        0.7841814,
-        1.4603611,
-        0.80853903
+        0.88532245,
+        1.921829,
+        0.9473066
       ],
-      "yaw": 5.1484084,
-      "variant": 14,
-      "seed": 3806039905794517380,
+      "yaw": 1.4409915,
+      "variant": 0,
+      "seed": 13315619702941208824,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3758,18 +3760,18 @@
       "id": 10,
       "kind": "Plant",
       "position": [
-        4.7215405,
+        3.3994398,
         0.0,
-        -2.654587
+        1.0794737
       ],
       "size": [
-        0.55396044,
-        0.94458264,
-        0.54532176
+        0.6552175,
+        1.3657067,
+        0.64210176
       ],
-      "yaw": 5.368402,
+      "yaw": 2.1598346,
       "variant": 2,
-      "seed": 9267244646749517065,
+      "seed": 1509454382772493179,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3779,18 +3781,18 @@
       "id": 11,
       "kind": "Plant",
       "position": [
-        4.464267,
+        5.600373,
         0.0,
-        -3.308517
+        -2.5272896
       ],
       "size": [
-        0.41457474,
-        1.0001857,
-        0.4261502
+        0.5145602,
+        1.79529,
+        0.5232407
       ],
-      "yaw": 5.3718,
-      "variant": 2,
-      "seed": 11610719421521206171,
+      "yaw": 3.2938845,
+      "variant": 5,
+      "seed": 7401499217070974052,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3800,18 +3802,18 @@
       "id": 12,
       "kind": "Plant",
       "position": [
-        3.535457,
+        5.3271112,
         0.0,
-        -2.5208302
+        -1.6074057
       ],
       "size": [
-        0.71556664,
-        2.12,
-        0.72498095
+        0.85193545,
+        1.4122026,
+        0.8839446
       ],
-      "yaw": 3.9667058,
-      "variant": 5,
-      "seed": 5828851358614904303,
+      "yaw": 0.19535485,
+      "variant": 15,
+      "seed": 6975355672194439314,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4386,48 +4388,6 @@
     },
     {
       "id": 40,
-      "kind": "LightSwitch",
-      "position": [
-        6.2487726,
-        1.1628419,
-        -1.2315768
-      ],
-      "size": [
-        0.22500001,
-        0.10038052,
-        0.018
-      ],
-      "yaw": -1.5443742,
-      "variant": 0,
-      "seed": 267760938400216011,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 41,
-      "kind": "LightSwitch",
-      "position": [
-        6.2627225,
-        1.093262,
-        -0.70373714
-      ],
-      "size": [
-        0.15,
-        0.101933256,
-        0.018
-      ],
-      "yaw": -1.5443742,
-      "variant": 0,
-      "seed": 226661040227188986,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 42,
       "kind": "WallOutlet",
       "position": [
         -6.3806376,
@@ -4448,7 +4408,7 @@
       "interaction_target": null
     },
     {
-      "id": 43,
+      "id": 41,
       "kind": "WallOutlet",
       "position": [
         -2.2108479,
@@ -4469,7 +4429,7 @@
       "interaction_target": null
     },
     {
-      "id": 44,
+      "id": 42,
       "kind": "WallOutlet",
       "position": [
         3.8618393,
@@ -4490,7 +4450,7 @@
       "interaction_target": null
     },
     {
-      "id": 45,
+      "id": 43,
       "kind": "WallOutlet",
       "position": [
         -6.3704457,
@@ -4511,7 +4471,7 @@
       "interaction_target": null
     },
     {
-      "id": 46,
+      "id": 44,
       "kind": "WallOutlet",
       "position": [
         -6.3427596,
@@ -4532,7 +4492,7 @@
       "interaction_target": null
     },
     {
-      "id": 47,
+      "id": 45,
       "kind": "WallOutlet",
       "position": [
         2.0641105,
@@ -4553,7 +4513,7 @@
       "interaction_target": null
     },
     {
-      "id": 48,
+      "id": 46,
       "kind": "WallOutlet",
       "position": [
         -2.9631093,
@@ -4574,7 +4534,7 @@
       "interaction_target": null
     },
     {
-      "id": 49,
+      "id": 47,
       "kind": "WallOutlet",
       "position": [
         6.2815666,
@@ -4595,7 +4555,7 @@
       "interaction_target": null
     },
     {
-      "id": 50,
+      "id": 48,
       "kind": "WallOutlet",
       "position": [
         -6.374779,
@@ -4616,7 +4576,7 @@
       "interaction_target": null
     },
     {
-      "id": 51,
+      "id": 49,
       "kind": "WallOutlet",
       "position": [
         -6.3544292,
@@ -4637,7 +4597,7 @@
       "interaction_target": null
     },
     {
-      "id": 52,
+      "id": 50,
       "kind": "WallOutlet",
       "position": [
         6.315697,
@@ -4658,7 +4618,7 @@
       "interaction_target": null
     },
     {
-      "id": 53,
+      "id": 51,
       "kind": "WallOutlet",
       "position": [
         6.302992,
@@ -4679,7 +4639,7 @@
       "interaction_target": null
     },
     {
-      "id": 54,
+      "id": 52,
       "kind": "WallOutlet",
       "position": [
         6.2624016,
@@ -4700,7 +4660,7 @@
       "interaction_target": null
     },
     {
-      "id": 55,
+      "id": 53,
       "kind": "WallOutlet",
       "position": [
         -6.340564,
@@ -4721,7 +4681,7 @@
       "interaction_target": null
     },
     {
-      "id": 56,
+      "id": 54,
       "kind": "Plant",
       "position": [
         -6.2128906,
@@ -4742,7 +4702,7 @@
       "interaction_target": null
     },
     {
-      "id": 57,
+      "id": 55,
       "kind": "CeilingFan",
       "position": [
         -2.7934632,
@@ -4763,7 +4723,7 @@
       "interaction_target": null
     },
     {
-      "id": 58,
+      "id": 56,
       "kind": "ExitSign",
       "position": [
         -0.66134596,
@@ -4784,7 +4744,7 @@
       "interaction_target": null
     },
     {
-      "id": 59,
+      "id": 57,
       "kind": "FireAlarm",
       "position": [
         -6.3007474,
@@ -4805,7 +4765,7 @@
       "interaction_target": null
     },
     {
-      "id": 60,
+      "id": 58,
       "kind": "Speaker",
       "position": [
         -6.247534,
@@ -4826,7 +4786,7 @@
       "interaction_target": null
     },
     {
-      "id": 61,
+      "id": 59,
       "kind": "Speaker",
       "position": [
         5.761302,
@@ -4847,7 +4807,7 @@
       "interaction_target": null
     },
     {
-      "id": 62,
+      "id": 60,
       "kind": "Speaker",
       "position": [
         1.0222242,
@@ -4868,7 +4828,7 @@
       "interaction_target": null
     },
     {
-      "id": 63,
+      "id": 61,
       "kind": "FireDetector",
       "position": [
         4.556523,
@@ -4889,7 +4849,7 @@
       "interaction_target": null
     },
     {
-      "id": 64,
+      "id": 62,
       "kind": "FireDetector",
       "position": [
         4.852361,
@@ -4910,7 +4870,7 @@
       "interaction_target": null
     },
     {
-      "id": 65,
+      "id": 63,
       "kind": "StringLights",
       "position": [
         -6.284995,
@@ -4931,7 +4891,7 @@
       "interaction_target": null
     },
     {
-      "id": 66,
+      "id": 64,
       "kind": "FirePullStation",
       "position": [
         0.22333747,
@@ -5065,54 +5025,42 @@
         "anisotropy": 1.017143
       },
       "start": [
-        -5.7751675,
-        1.9805232,
-        2.9871168
+        -5.5025263,
+        2.5033295,
+        2.7633758
       ],
       "end": [
-        -4.348999,
-        1.9805232,
-        1.6137187
+        -5.8420534,
+        2.4963675,
+        1.9843893
       ],
       "target": [
-        -0.57781416,
-        1.55,
-        -2.339586
+        -1.4797845,
+        1.0823271,
+        -1.0431231
       ],
       "fov_degrees": 68.30835,
       "motion": {
         "control": [
           [
-            -4.3740954,
-            1.9805231,
-            3.4417374
+            -5.5934954,
+            2.5144286,
+            2.4425383
           ],
           [
-            -3.8891983,
-            1.9805231,
-            2.9747822
+            -5.708935,
+            2.5120616,
+            2.1776829
           ]
         ],
         "target_end": [
-          -0.4680658,
-          1.450865,
-          -2.475303
+          -1.2662157,
+          1.164964,
+          -0.8941629
         ],
         "roll": [
-          0.080452085,
-          -0.033614818
-        ],
-        "route": [
-          [
-            -5.7751675,
-            1.9805232,
-            2.9871168
-          ],
-          [
-            -4.348999,
-            1.9805232,
-            1.6137187
-          ]
+          -0.08918588,
+          -0.019795671
         ]
       }
     },
@@ -5131,45 +5079,45 @@
         "anisotropy": 1.0172781
       },
       "start": [
-        -4.7386484,
-        2.5747876,
-        0.52505875
+        -2.7452593,
+        2.4342031,
+        -0.7144921
       ],
       "end": [
-        -4.859748,
-        2.5719976,
-        0.20677969
+        -2.7637656,
+        2.4297597,
+        -1.2565217
       ],
       "target": [
-        -1.762913,
-        1.023141,
-        -1.2568651
+        -1.5293624,
+        0.930311,
+        -1.349715
       ],
       "fov_degrees": 105.157394,
       "motion": {
         "control": [
           [
-            -4.725343,
-            2.574464,
-            0.38918227
+            -2.702959,
+            2.4361477,
+            -0.87037873
           ],
           [
-            -4.766517,
-            2.5735154,
-            0.28096732
+            -2.7092514,
+            2.434637,
+            -1.0546689
           ]
         ],
         "target_end": [
-          -1.5493442,
-          1.1057779,
-          -1.1079049
+          -1.3157936,
+          1.0129479,
+          -1.2007549
         ],
         "roll": [
-          0.0058957115,
-          -0.020439506
+          -0.037759516,
+          -0.053637896
         ]
       }
     }
   ],
-  "rejected_placements": 41
+  "rejected_placements": 36
 }

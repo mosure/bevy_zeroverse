@@ -91,7 +91,7 @@
     "illumination_scale": 1.0,
     "exposure_ev100_offset": 1.5
   },
-  "generator_version": 97,
+  "generator_version": 98,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -2667,8 +2667,8 @@
     "finishes": {
       "trim": {
         "base": {
-          "height_m": 0.13228218,
-          "depth_m": 0.019241324,
+          "height_m": 0.14736615,
+          "depth_m": 0.015064259,
           "shoulder": 0.40535098,
           "tip_fraction": 0.5980691,
           "profile": "Round",
@@ -2677,7 +2677,7 @@
         },
         "crown": {
           "height_m": 0.148706,
-          "depth_m": 0.020524781,
+          "depth_m": 0.010127975,
           "shoulder": 0.6653217,
           "tip_fraction": 0.46032912,
           "profile": "Cove",
@@ -2739,6 +2739,7 @@
     9.345434
   ],
   "envelope": {
+    "wall_thickness_m": 0.15859862,
     "soffits": [],
     "tier_guard": {
       "height": 1.2029281,
@@ -2846,6 +2847,21 @@
         "edge": 3,
         "facade": {
           "joinery": {
+            "reveal": {
+              "wall_thickness_m": 0.15859862,
+              "lining_thickness_m": 0.0079601435,
+              "lining_surface": "Concrete",
+              "finish_slot": 10,
+              "surround": {
+                "height_m": 0.028578833,
+                "depth_m": 0.025483593,
+                "shoulder": 0.5608596,
+                "tip_fraction": 0.457384,
+                "profile": "Cove",
+                "surface": "Metal",
+                "finish_slot": 10
+              }
+            },
             "identity": 23758,
             "mullion_fraction": 0.7806742,
             "mullion_depth_fraction": 0.73590016,
@@ -2879,11 +2895,11 @@
                 "opening": 0.0
               },
               "min": [
-                -0.46646288,
-                0.18517779
+                -0.48786426,
+                0.1851778
               ],
               "max": [
-                0.46646282,
+                0.48786426,
                 1.9635991
               ],
               "columns": 1,
@@ -2907,11 +2923,11 @@
                 "opening": 0.0
               },
               "min": [
-                -0.46646288,
+                -0.48786426,
                 2.3804967
               ],
               "max": [
-                0.46646282,
+                0.48786426,
                 3.0561018
               ],
               "columns": 1,
@@ -2922,7 +2938,7 @@
           "frame": "Metal",
           "frame_width": 0.06831944,
           "frame_depth": 0.11283006,
-          "recess": 0.09568769,
+          "recess": 0.083082184,
           "sill_projection": 0.09116168,
           "treatment": {
             "identity": 7320848543367271480,
@@ -3107,6 +3123,21 @@
     "facades": [
       {
         "joinery": {
+          "reveal": {
+            "wall_thickness_m": 0.15859862,
+            "lining_thickness_m": 0.010629624,
+            "lining_surface": "Concrete",
+            "finish_slot": 6,
+            "surround": {
+              "height_m": 0.046649933,
+              "depth_m": 0.0090683345,
+              "shoulder": 0.539578,
+              "tip_fraction": 0.2181024,
+              "profile": "Round",
+              "surface": "Metal",
+              "finish_slot": 6
+            }
+          },
           "identity": 26015,
           "mullion_fraction": 0.65732265,
           "mullion_depth_fraction": 0.90624344,
@@ -3239,7 +3270,7 @@
         "frame": "Metal",
         "frame_width": 0.072471835,
         "frame_depth": 0.071963385,
-        "recess": 0.117019854,
+        "recess": 0.08370733,
         "sill_projection": 0.06678182,
         "treatment": {
           "identity": 8615182284310598809,
@@ -3943,27 +3974,6 @@
       "id": 30,
       "kind": "WallOutlet",
       "position": [
-        -3.646879,
-        0.28964466,
-        4.409275
-      ],
-      "size": [
-        0.15,
-        0.121186174,
-        0.018
-      ],
-      "yaw": 1.5028714,
-      "variant": 1,
-      "seed": 294270052150665782,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 31,
-      "kind": "WallOutlet",
-      "position": [
         0.6699461,
         0.34942633,
         -4.665417
@@ -3982,7 +3992,7 @@
       "interaction_target": null
     },
     {
-      "id": 32,
+      "id": 31,
       "kind": "WallOutlet",
       "position": [
         -2.8931863,
@@ -4003,7 +4013,7 @@
       "interaction_target": null
     },
     {
-      "id": 33,
+      "id": 32,
       "kind": "Dishware",
       "position": [
         -0.22173516,
@@ -4024,7 +4034,7 @@
       "interaction_target": null
     },
     {
-      "id": 34,
+      "id": 33,
       "kind": "Dishware",
       "position": [
         0.13583705,
@@ -4045,7 +4055,7 @@
       "interaction_target": null
     },
     {
-      "id": 35,
+      "id": 34,
       "kind": "FruitBowl",
       "position": [
         -0.108699664,
@@ -4066,7 +4076,7 @@
       "interaction_target": null
     },
     {
-      "id": 36,
+      "id": 35,
       "kind": "KitchenTowel",
       "position": [
         -0.13095373,
@@ -4087,7 +4097,7 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 36,
       "kind": "WaterBottle",
       "position": [
         -2.0641093,
@@ -4108,7 +4118,7 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 37,
       "kind": "Mug",
       "position": [
         -1.9382851,
@@ -4129,7 +4139,7 @@
       "interaction_target": null
     },
     {
-      "id": 39,
+      "id": 38,
       "kind": "PenHolder",
       "position": [
         -1.9559371,
@@ -4150,7 +4160,7 @@
       "interaction_target": null
     },
     {
-      "id": 40,
+      "id": 39,
       "kind": "TapeDispenser",
       "position": [
         -1.3853863,
@@ -4171,7 +4181,7 @@
       "interaction_target": null
     },
     {
-      "id": 41,
+      "id": 40,
       "kind": "TapeDispenser",
       "position": [
         -2.2685263,
@@ -4192,7 +4202,7 @@
       "interaction_target": null
     },
     {
-      "id": 42,
+      "id": 41,
       "kind": "Phone",
       "position": [
         -0.9893572,
@@ -4213,7 +4223,7 @@
       "interaction_target": null
     },
     {
-      "id": 43,
+      "id": 42,
       "kind": "Mug",
       "position": [
         -1.0292578,
@@ -4234,7 +4244,7 @@
       "interaction_target": null
     },
     {
-      "id": 44,
+      "id": 43,
       "kind": "WaterBottle",
       "position": [
         -1.6884246,
@@ -4255,7 +4265,7 @@
       "interaction_target": null
     },
     {
-      "id": 45,
+      "id": 44,
       "kind": "WaterBottle",
       "position": [
         -2.1831956,
@@ -4276,7 +4286,7 @@
       "interaction_target": null
     },
     {
-      "id": 46,
+      "id": 45,
       "kind": "PenHolder",
       "position": [
         -1.484834,
@@ -4297,7 +4307,7 @@
       "interaction_target": null
     },
     {
-      "id": 47,
+      "id": 46,
       "kind": "CoffeeCup",
       "position": [
         -1.1737102,
@@ -4318,7 +4328,7 @@
       "interaction_target": null
     },
     {
-      "id": 48,
+      "id": 47,
       "kind": "Stapler",
       "position": [
         -1.5220108,
@@ -4339,7 +4349,7 @@
       "interaction_target": null
     },
     {
-      "id": 49,
+      "id": 48,
       "kind": "CoffeeCup",
       "position": [
         0.16633233,
@@ -4360,7 +4370,7 @@
       "interaction_target": null
     },
     {
-      "id": 50,
+      "id": 49,
       "kind": "CoffeeCup",
       "position": [
         0.82186455,
@@ -4381,7 +4391,7 @@
       "interaction_target": null
     },
     {
-      "id": 51,
+      "id": 50,
       "kind": "WaterBottle",
       "position": [
         0.116013706,
@@ -4402,7 +4412,7 @@
       "interaction_target": null
     },
     {
-      "id": 52,
+      "id": 51,
       "kind": "Bowl",
       "position": [
         0.41233134,
@@ -4423,7 +4433,7 @@
       "interaction_target": null
     },
     {
-      "id": 53,
+      "id": 52,
       "kind": "Mug",
       "position": [
         -0.032913506,
@@ -4444,7 +4454,7 @@
       "interaction_target": null
     },
     {
-      "id": 54,
+      "id": 53,
       "kind": "Speaker",
       "position": [
         2.980604,
@@ -4465,7 +4475,7 @@
       "interaction_target": null
     },
     {
-      "id": 55,
+      "id": 54,
       "kind": "FireAlarm",
       "position": [
         -3.319072,
@@ -4486,7 +4496,7 @@
       "interaction_target": null
     },
     {
-      "id": 56,
+      "id": 55,
       "kind": "Speaker",
       "position": [
         3.359366,
@@ -4507,7 +4517,7 @@
       "interaction_target": null
     },
     {
-      "id": 57,
+      "id": 56,
       "kind": "Speaker",
       "position": [
         -1.9736885,
@@ -4528,7 +4538,7 @@
       "interaction_target": null
     },
     {
-      "id": 58,
+      "id": 57,
       "kind": "Speaker",
       "position": [
         -2.9367268,
@@ -4549,7 +4559,7 @@
       "interaction_target": null
     },
     {
-      "id": 59,
+      "id": 58,
       "kind": "FireDetector",
       "position": [
         2.6446397,
@@ -4570,7 +4580,7 @@
       "interaction_target": null
     },
     {
-      "id": 60,
+      "id": 59,
       "kind": "FireDetector",
       "position": [
         -2.0945942,
@@ -4591,7 +4601,7 @@
       "interaction_target": null
     },
     {
-      "id": 61,
+      "id": 60,
       "kind": "StringLights",
       "position": [
         -3.1063554,
@@ -4612,7 +4622,7 @@
       "interaction_target": null
     },
     {
-      "id": 62,
+      "id": 61,
       "kind": "StringLights",
       "position": [
         3.3510065,
