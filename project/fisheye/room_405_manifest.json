@@ -7,20 +7,22 @@
     "spread": 1.0
   },
   "camera_diagnostics": {
-    "reference_proposals": 71,
-    "long_reference_requests": 10,
+    "recovery_intrinsic_draws": 0,
+    "recovery_path_proposals": 0,
+    "reference_proposals": 93,
+    "long_reference_requests": 7,
     "short_reference_recoveries": 0,
     "reference_rejections": [
-      22,
-      5,
+      37,
       6,
-      9,
-      10
+      8,
+      14,
+      12
     ],
     "group_restarts": 0,
     "prefix_backtracks": 0,
     "connected_reference_recoveries": 0,
-    "peer_proposals": 74,
+    "peer_proposals": 41,
     "peer_rejections": [
       0,
       0,
@@ -29,7 +31,7 @@
       0,
       0
     ],
-    "endpoint_adjustments": 12,
+    "endpoint_adjustments": 10,
     "peer_search_succeeded": true,
     "peer_search_fallbacks": 0,
     "peer_search_discarded_proposals": 0,
@@ -43,12 +45,21 @@
     "mounts": [],
     "programs": [],
     "kitchens": [],
-    "proposed_workstations": 21,
+    "proposed_workstations": 18,
     "proposed_meetings": 0,
-    "rejected_surfaces": 13,
-    "rejected_seating": 2,
+    "rejected_surfaces": 12,
+    "rejected_seating": 0,
     "rejected_meetings": 0,
     "accepted": [
+      {
+        "role": "Workstation",
+        "surface": 1,
+        "seats": [
+          2
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
       {
         "role": "Workstation",
         "surface": 3,
@@ -87,25 +98,16 @@
       },
       {
         "role": "Workstation",
-        "surface": 12,
+        "surface": 11,
         "seats": [
-          13
-        ],
-        "requested_capacity": 1,
-        "attempts": 1
-      },
-      {
-        "role": "Workstation",
-        "surface": 14,
-        "seats": [
-          15
+          12
         ],
         "requested_capacity": 1,
         "attempts": 1
       }
     ]
   },
-  "generator_version": 92,
+  "generator_version": 97,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -543,8 +545,8 @@
               0.0
             ],
             "mottle_cells": [
-              4,
-              11
+              9,
+              2
             ],
             "joint_color": [
               0.2389731,
@@ -554,13 +556,13 @@
             "joint_roughness": 0.7350733
           },
           "cells": [
-            13,
-            6
+            3,
+            2
           ],
           "basket_strips": 4,
           "piece_tone": 0.20801505,
           "piece_warmth": 0.046441354,
-          "piece_roughness": 0.044067748,
+          "piece_roughness": 0.039882608,
           "mottling": 0.025837703,
           "accent_fraction": 0.0,
           "accent_tint": [
@@ -568,7 +570,7 @@
             0.5841422,
             0.5730516
           ],
-          "tile_definition": 0.4987009
+          "tile_definition": 0.9050294
         },
         "carpet": {
           "dye": {
@@ -582,7 +584,7 @@
             ],
             "dye_cells": [
               2,
-              10
+              1
             ],
             "grain_cells": [
               113,
@@ -598,8 +600,8 @@
           },
           "pattern": 0,
           "repeats": [
-            13,
-            3
+            7,
+            5
           ],
           "palette": [
             [
@@ -621,7 +623,7 @@
           "contrast": 0.48860002,
           "heather": 0.10268206,
           "pile": 0.64920086,
-          "line_width": 0.28276652,
+          "line_width": 0.2364424,
           "edge_variation": 0.011136398
         },
         "layers": {
@@ -732,7 +734,7 @@
           0.14666903
         ],
         "roughness": 0.866044,
-        "period_m": 4.381401,
+        "period_m": 3.0749998,
         "relief_m": 0.0002340888,
         "grain_frequency": 22.743492,
         "cross_frequency": 2.9500997,
@@ -749,7 +751,7 @@
           7,
           4
         ],
-        "joint_width": 0.0029853848
+        "joint_width": 0.005061746
       },
       {
         "construction": {
@@ -4275,170 +4277,128 @@
   "objects": [
     {
       "id": 0,
-      "kind": "CoffeeTable",
+      "kind": "Sofa",
       "position": [
-        1.9570079,
+        -1.0094755,
         0.0,
-        -1.2640343
+        0.8774915
       ],
       "size": [
-        0.9469203,
-        0.44178694,
-        0.70133245
+        2.0017302,
+        0.97581786,
+        0.95414054
       ],
-      "yaw": -0.71602714,
-      "variant": 1,
-      "seed": 1908072231134107505,
+      "yaw": -0.65228534,
+      "variant": 0,
+      "seed": 14855714886010617830,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "finish_seed": 6671291288871679397,
       "id": 1,
-      "kind": "Chair",
+      "kind": "Desk",
       "position": [
-        0.31765723,
+        2.7809043,
         0.0,
-        -1.6104001
+        -0.22988081
       ],
       "size": [
-        0.68,
-        1.0402281,
-        0.68
+        1.542165,
+        0.7354508,
+        0.636556
       ],
-      "yaw": -1.4634857,
-      "variant": 4,
-      "seed": 7061046515127040410,
+      "yaw": -1.1557615,
+      "variant": 1,
+      "seed": 6671291288871679397,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "finish_seed": 6671291288871679397,
       "id": 2,
       "kind": "Chair",
       "position": [
-        2.485473,
+        2.2928166,
         0.0,
-        0.3158852
-      ],
-      "size": [
-        0.95858204,
-        1.2701981,
-        1.6190525
-      ],
-      "yaw": -0.6559163,
-      "variant": 8,
-      "seed": 18114946653379731628,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 15555855167653508316,
-      "id": 3,
-      "kind": "Desk",
-      "position": [
-        2.4199386,
-        0.0,
-        -2.7357597
-      ],
-      "size": [
-        1.3612434,
-        0.76590157,
-        0.7597192
-      ],
-      "yaw": -1.3610516,
-      "variant": 1,
-      "seed": 15555855167653508316,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 15555855167653508316,
-      "id": 4,
-      "kind": "Chair",
-      "position": [
-        1.7458618,
-        0.0,
-        -2.6551452
+        -0.095670044
       ],
       "size": [
         0.68,
-        0.8144797,
+        1.0810018,
         0.68
       ],
-      "yaw": -1.5200275,
-      "variant": 4,
-      "seed": 7739586152137057066,
+      "yaw": -1.1804168,
+      "variant": 3,
+      "seed": 3916687410430836038,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 1
+    },
+    {
+      "finish_seed": 13022055587512465149,
+      "id": 3,
+      "kind": "Desk",
+      "position": [
+        2.3202076,
+        0.0,
+        4.2246475
+      ],
+      "size": [
+        1.1999882,
+        0.7223472,
+        0.64391273
+      ],
+      "yaw": -1.1364627,
+      "variant": 1,
+      "seed": 13022055587512465149,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 13022055587512465149,
+      "id": 4,
+      "kind": "Chair",
+      "position": [
+        1.8804067,
+        0.0,
+        4.485657
+      ],
+      "size": [
+        0.68,
+        0.87758845,
+        0.68
+      ],
+      "yaw": -1.1240312,
+      "variant": 5,
+      "seed": 15547664776174552171,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": 3
     },
     {
-      "finish_seed": 8444832983222985327,
-      "id": 5,
-      "kind": "Desk",
-      "position": [
-        -1.841286,
-        0.0,
-        -0.1579194
-      ],
-      "size": [
-        0.97306263,
-        0.7504101,
-        0.6143977
-      ],
-      "yaw": -0.4541703,
-      "variant": 1,
-      "seed": 8444832983222985327,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 8444832983222985327,
-      "id": 6,
-      "kind": "Chair",
-      "position": [
-        -2.0969682,
-        0.0,
-        0.26517397
-      ],
-      "size": [
-        0.68,
-        1.0146091,
-        0.68
-      ],
-      "yaw": -0.48728144,
-      "variant": 2,
-      "seed": 16026730436750667524,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": 5
-    },
-    {
       "finish_seed": 8369267177040687764,
-      "id": 7,
-      "kind": "Desk",
+      "id": 5,
+      "kind": "CoffeeTable",
       "position": [
-        0.67773676,
+        -1.9368343,
         0.0,
-        1.3227491
+        1.62289
       ],
       "size": [
         1.1796474,
-        0.73832273,
+        0.36633727,
         0.61464167
       ],
-      "yaw": -0.6266722,
+      "yaw": -0.24374288,
       "variant": 1,
       "seed": 8369267177040687764,
       "solid": true,
@@ -4448,195 +4408,236 @@
     },
     {
       "finish_seed": 8369267177040687764,
-      "id": 8,
+      "id": 6,
       "kind": "Chair",
       "position": [
-        0.27633232,
+        -2.2419374,
         0.0,
-        1.7228055
+        2.4643111
       ],
       "size": [
         0.68,
         1.3137475,
         0.68
       ],
-      "yaw": -0.37026876,
+      "yaw": 0.4642914,
       "variant": 5,
       "seed": 16806622740848367936,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 5
+    },
+    {
+      "finish_seed": 8800103797604865634,
+      "id": 7,
+      "kind": "Desk",
+      "position": [
+        0.1848278,
+        0.0,
+        -1.2306843
+      ],
+      "size": [
+        1.0276884,
+        0.7654384,
+        0.609274
+      ],
+      "yaw": -1.1202167,
+      "variant": 1,
+      "seed": 8800103797604865634,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 8,
+      "kind": "Chair",
+      "position": [
+        -0.35787216,
+        0.0,
+        -1.0593085
+      ],
+      "size": [
+        0.68,
+        0.79,
+        0.68
+      ],
+      "yaw": -1.1350847,
+      "variant": 7,
+      "seed": 17344670725955869442,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": 7
     },
     {
-      "finish_seed": 16173117150238263356,
+      "finish_seed": 91661826512510939,
       "id": 9,
       "kind": "Desk",
       "position": [
-        -0.6495936,
+        1.9840803,
         0.0,
-        -2.9985056
+        -3.0938036
       ],
       "size": [
-        1.1538137,
-        0.76852036,
-        0.7363078
+        1.4673245,
+        0.7439149,
+        0.5804624
       ],
-      "yaw": -1.2196045,
+      "yaw": -0.086909115,
       "variant": 1,
-      "seed": 16173117150238263356,
+      "seed": 91661826512510939,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 16173117150238263356,
+      "finish_seed": 91661826512510939,
       "id": 10,
       "kind": "Chair",
       "position": [
-        -1.2039332,
+        1.8864572,
         0.0,
-        -2.853343
+        -2.522643
       ],
       "size": [
         0.68,
-        0.8239356,
+        1.0914731,
         0.68
       ],
-      "yaw": -1.3454349,
-      "variant": 3,
-      "seed": 10097702394585599163,
+      "yaw": 0.27204105,
+      "variant": 1,
+      "seed": 2427443080167822486,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": 9
     },
     {
+      "finish_seed": 11166709212940699914,
       "id": 11,
+      "kind": "Desk",
+      "position": [
+        0.19456673,
+        0.0,
+        -3.152693
+      ],
+      "size": [
+        1.3170546,
+        0.7419156,
+        0.6578221
+      ],
+      "yaw": -0.1136418,
+      "variant": 1,
+      "seed": 11166709212940699914,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 11166709212940699914,
+      "id": 12,
+      "kind": "Chair",
+      "position": [
+        0.16705713,
+        0.0,
+        -2.6278064
+      ],
+      "size": [
+        0.68,
+        1.1988187,
+        0.68
+      ],
+      "yaw": -0.08589156,
+      "variant": 9,
+      "seed": 1469506538212872639,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 11
+    },
+    {
+      "id": 13,
       "kind": "Sofa",
       "position": [
-        -3.693182,
+        3.3587284,
         0.0,
-        -2.642865
+        4.1217184
       ],
       "size": [
-        1.6217271,
-        0.98411995,
-        1.0814137
+        1.6393487,
+        0.9899278,
+        0.8863082
       ],
-      "yaw": -0.9627857,
-      "variant": 1,
-      "seed": 5355010533618490508,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 10014627935467880084,
-      "id": 12,
-      "kind": "CoffeeTable",
-      "position": [
-        3.5135183,
-        0.0,
-        3.202147
-      ],
-      "size": [
-        1.1078037,
-        0.41863403,
-        0.5671094
-      ],
-      "yaw": -1.310139,
+      "yaw": -1.2773354,
       "variant": 0,
-      "seed": 10014627935467880084,
+      "seed": 13755654171931331207,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 10014627935467880084,
-      "id": 13,
-      "kind": "Chair",
-      "position": [
-        2.6622345,
-        0.0,
-        3.330579
-      ],
-      "size": [
-        0.68,
-        0.8853589,
-        0.68
-      ],
-      "yaw": -1.311717,
-      "variant": 5,
-      "seed": 1894411430585164077,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": 12
-    },
-    {
-      "finish_seed": 6370614931868335669,
       "id": 14,
-      "kind": "CoffeeTable",
+      "kind": "Bookcase",
       "position": [
-        -2.213851,
+        4.6922235,
         0.0,
-        2.294423
+        3.3705769
       ],
       "size": [
-        1.0695401,
-        0.35887012,
-        0.584318
+        0.7347572,
+        1.8974755,
+        0.32091743
       ],
-      "yaw": -1.0248954,
-      "variant": 0,
-      "seed": 6370614931868335669,
+      "yaw": 1.4124831,
+      "variant": 2,
+      "seed": 941250040791510927,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "finish_seed": 6370614931868335669,
       "id": 15,
-      "kind": "Chair",
+      "kind": "Bookcase",
       "position": [
-        -2.914374,
+        -3.7381463,
         0.0,
-        2.7269187
+        -4.7609377
       ],
       "size": [
-        0.68,
-        1.3391273,
-        0.68
+        0.7248829,
+        1.3588011,
+        0.2831359
       ],
-      "yaw": -0.7216525,
-      "variant": 1,
-      "seed": 774019648830046632,
+      "yaw": -0.05854754,
+      "variant": 0,
+      "seed": 433906495113599756,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": 14
+      "interaction_target": null
     },
     {
       "id": 16,
-      "kind": "Bookcase",
+      "kind": "CoffeeTable",
       "position": [
-        -4.535329,
+        -0.2404471,
         0.0,
-        -1.7035141
+        0.12448305
       ],
       "size": [
-        1.2627875,
-        1.7597418,
-        0.26811525
+        0.9649322,
+        0.37169296,
+        0.48858458
       ],
-      "yaw": -1.5415912,
-      "variant": 1,
-      "seed": 6640092068146356414,
+      "yaw": -0.686035,
+      "variant": 0,
+      "seed": 4513151944906251901,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4644,20 +4645,20 @@
     },
     {
       "id": 17,
-      "kind": "CoffeeTable",
+      "kind": "Plant",
       "position": [
-        -2.710882,
+        -2.7598786,
         0.0,
-        -3.2075996
+        -4.687729
       ],
       "size": [
-        0.9649322,
-        0.37169296,
-        0.48858458
+        0.4439684,
+        1.6272271,
+        0.3727175
       ],
-      "yaw": -0.99653536,
+      "yaw": -0.49281693,
       "variant": 0,
-      "seed": 4513151944906251901,
+      "seed": 5704004336893735870,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4667,18 +4668,18 @@
       "id": 18,
       "kind": "TrashCan",
       "position": [
-        4.706302,
+        4.2673383,
         0.0,
-        3.0795517
+        2.6935394
       ],
       "size": [
-        0.34781393,
-        0.50071,
-        0.26958096
+        0.42412633,
+        0.6058694,
+        0.43426841
       ],
-      "yaw": -2.8742456,
-      "variant": 2,
-      "seed": 13235777003380666657,
+      "yaw": -3.0666056,
+      "variant": 0,
+      "seed": 2736961170717682482,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4698,8 +4699,8 @@
         0.4
       ],
       "yaw": 3.1415927,
-      "variant": 1,
-      "seed": 8396694349962626998,
+      "variant": 0,
+      "seed": 13673977318009908112,
       "solid": true,
       "support": null,
       "neighbor": true,
@@ -4719,8 +4720,8 @@
         0.8
       ],
       "yaw": 3.1415927,
-      "variant": 15,
-      "seed": 2809609220307031280,
+      "variant": 5,
+      "seed": 11824864804455229060,
       "solid": true,
       "support": null,
       "neighbor": true,
@@ -4728,20 +4729,20 @@
     },
     {
       "id": 21,
-      "kind": "Ottoman",
+      "kind": "DrawerUnit",
       "position": [
-        -2.669108,
+        3.3475688,
         0.0,
-        -1.5995955
+        -3.2125642
       ],
       "size": [
-        0.58618104,
-        0.4335149,
-        0.47364134
+        0.5217548,
+        0.63163435,
+        0.43196607
       ],
-      "yaw": -1.0385253,
+      "yaw": -0.30572546,
       "variant": 1,
-      "seed": 3245970962898214182,
+      "seed": 17949386998076508789,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4749,20 +4750,20 @@
     },
     {
       "id": 22,
-      "kind": "DrawerUnit",
+      "kind": "SideTable",
       "position": [
-        0.016714096,
+        -0.14095736,
         0.0,
-        0.45854092
+        2.1806378
       ],
       "size": [
-        0.37788358,
-        0.5537071,
-        0.38239467
+        0.43236986,
+        0.46388528,
+        0.61835134
       ],
-      "yaw": -0.42382365,
-      "variant": 1,
-      "seed": 10847896100299169690,
+      "yaw": -0.7642653,
+      "variant": 2,
+      "seed": 6467215247587783484,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4770,20 +4771,20 @@
     },
     {
       "id": 23,
-      "kind": "SideTable",
+      "kind": "Ottoman",
       "position": [
-        -2.9786649,
+        -2.4826212,
         0.0,
-        1.4483646
+        -0.005569458
       ],
       "size": [
-        0.69632936,
-        0.50075275,
-        0.4433748
+        0.68370044,
+        0.40908343,
+        0.6835658
       ],
-      "yaw": -1.0130866,
+      "yaw": -0.8450588,
       "variant": 1,
-      "seed": 295108407566245628,
+      "seed": 10697159989850466663,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4791,20 +4792,20 @@
     },
     {
       "id": 24,
-      "kind": "MobileCart",
+      "kind": "Bench",
       "position": [
-        -1.6913376,
+        0.79485166,
         0.0,
-        3.3098447
+        1.6772125
       ],
       "size": [
-        0.80033034,
-        0.90355915,
-        0.46114692
+        1.2633678,
+        0.44141206,
+        0.5014273
       ],
-      "yaw": -1.1045929,
-      "variant": 0,
-      "seed": 14305320764826950724,
+      "yaw": -0.6477183,
+      "variant": 2,
+      "seed": 17296307356529892530,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4812,20 +4813,20 @@
     },
     {
       "id": 25,
-      "kind": "DrawerUnit",
+      "kind": "SideTable",
       "position": [
-        2.2675683,
+        2.8507216,
         0.0,
-        -4.0970745
+        2.69348
       ],
       "size": [
-        0.49959615,
-        0.68510735,
-        0.41486773
+        0.5255339,
+        0.5207068,
+        0.47173205
       ],
-      "yaw": -1.5470253,
-      "variant": 1,
-      "seed": 6555176429819767795,
+      "yaw": -1.3534012,
+      "variant": 2,
+      "seed": 14385360991395979833,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4835,18 +4836,18 @@
       "id": 26,
       "kind": "DrawerUnit",
       "position": [
-        3.7641478,
+        2.5235782,
         0.0,
-        4.36744
+        -1.5227576
       ],
       "size": [
-        0.5106138,
-        0.5282336,
-        0.5128235
+        0.36028156,
+        0.59600437,
+        0.37481037
       ],
-      "yaw": -1.1818033,
+      "yaw": -1.2526665,
       "variant": 1,
-      "seed": 7303932552347863699,
+      "seed": 17049458770095148230,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -4854,6 +4855,27 @@
     },
     {
       "id": 27,
+      "kind": "Plant",
+      "position": [
+        -1.1971413,
+        0.0,
+        -3.5196803
+      ],
+      "size": [
+        0.9532856,
+        1.23714,
+        0.9385844
+      ],
+      "yaw": 0.70088243,
+      "variant": 13,
+      "seed": 14794465574709504750,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 28,
       "kind": "NoticeBoard",
       "position": [
         4.3783073,
@@ -4874,7 +4896,7 @@
       "interaction_target": null
     },
     {
-      "id": 28,
+      "id": 29,
       "kind": "ProjectionScreen",
       "position": [
         5.178217,
@@ -4895,7 +4917,7 @@
       "interaction_target": null
     },
     {
-      "id": 29,
+      "id": 30,
       "kind": "WallShelf",
       "position": [
         0.094230294,
@@ -4916,7 +4938,7 @@
       "interaction_target": null
     },
     {
-      "id": 30,
+      "id": 31,
       "kind": "WallShelf",
       "position": [
         -5.1742163,
@@ -4937,49 +4959,70 @@
       "interaction_target": null
     },
     {
-      "id": 31,
-      "kind": "PowerStrip",
-      "position": [
-        2.7381518,
-        0.76590157,
-        -2.3720586
-      ],
-      "size": [
-        0.30960876,
-        0.03,
-        0.05279337
-      ],
-      "yaw": -1.3050058,
-      "variant": 1,
-      "seed": 1837990283233300817,
-      "solid": false,
-      "support": 3,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
       "id": 32,
       "kind": "PowerStrip",
       "position": [
-        -1.4646742,
-        0.90355915,
-        3.442256
+        3.1542523,
+        0.7354508,
+        0.1280345
       ],
       "size": [
-        0.2691955,
+        0.220338,
         0.03,
-        0.059098534
+        0.044084314
       ],
-      "yaw": -1.0663334,
+      "yaw": -1.1446567,
       "variant": 1,
-      "seed": 13100243866231792603,
+      "seed": 15424246932071895901,
       "solid": false,
-      "support": 24,
+      "support": 1,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 33,
+      "kind": "PowerStrip",
+      "position": [
+        2.4528532,
+        0.7439149,
+        -3.2335851
+      ],
+      "size": [
+        0.32341802,
+        0.03,
+        0.05267927
+      ],
+      "yaw": -0.056312457,
+      "variant": 1,
+      "seed": 6719764419080070994,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 34,
+      "kind": "CeilingPendant",
+      "position": [
+        2.8507216,
+        2.9621522,
+        2.69348
+      ],
+      "size": [
+        0.38909465,
+        0.5047524,
+        0.27443126
+      ],
+      "yaw": 0.0,
+      "variant": 2,
+      "seed": 16022747636023132866,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 35,
       "kind": "Display",
       "position": [
         3.0891602,
@@ -5000,7 +5043,7 @@
       "interaction_target": null
     },
     {
-      "id": 34,
+      "id": 36,
       "kind": "WallArt",
       "position": [
         4.2336764,
@@ -5021,7 +5064,7 @@
       "interaction_target": null
     },
     {
-      "id": 35,
+      "id": 37,
       "kind": "WallArt",
       "position": [
         4.2501845,
@@ -5042,7 +5085,7 @@
       "interaction_target": null
     },
     {
-      "id": 36,
+      "id": 38,
       "kind": "WallArt",
       "position": [
         4.6250343,
@@ -5063,7 +5106,7 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 39,
       "kind": "WallArt",
       "position": [
         4.5965195,
@@ -5084,7 +5127,7 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 40,
       "kind": "WallArt",
       "position": [
         4.9803734,
@@ -5105,7 +5148,7 @@
       "interaction_target": null
     },
     {
-      "id": 39,
+      "id": 41,
       "kind": "WallArt",
       "position": [
         4.969432,
@@ -5126,7 +5169,7 @@
       "interaction_target": null
     },
     {
-      "id": 40,
+      "id": 42,
       "kind": "Whiteboard",
       "position": [
         -4.5343914,
@@ -5147,7 +5190,7 @@
       "interaction_target": null
     },
     {
-      "id": 41,
+      "id": 43,
       "kind": "WallArt",
       "position": [
         -4.9836893,
@@ -5168,7 +5211,7 @@
       "interaction_target": null
     },
     {
-      "id": 42,
+      "id": 44,
       "kind": "WallArt",
       "position": [
         -4.952818,
@@ -5189,7 +5232,7 @@
       "interaction_target": null
     },
     {
-      "id": 43,
+      "id": 45,
       "kind": "WallArt",
       "position": [
         -4.997873,
@@ -5210,7 +5253,7 @@
       "interaction_target": null
     },
     {
-      "id": 44,
+      "id": 46,
       "kind": "WallArt",
       "position": [
         -4.5263586,
@@ -5231,7 +5274,7 @@
       "interaction_target": null
     },
     {
-      "id": 45,
+      "id": 47,
       "kind": "WallArt",
       "position": [
         -4.5731654,
@@ -5252,7 +5295,7 @@
       "interaction_target": null
     },
     {
-      "id": 46,
+      "id": 48,
       "kind": "WallArt",
       "position": [
         -4.5142355,
@@ -5273,63 +5316,21 @@
       "interaction_target": null
     },
     {
-      "id": 47,
-      "kind": "WallArt",
-      "position": [
-        -5.2761917,
-        1.7370005,
-        4.282642
-      ],
-      "size": [
-        0.6912452,
-        0.40642408,
-        0.036070548
-      ],
-      "yaw": 1.5454757,
-      "variant": 0,
-      "seed": 4746668265995134549,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 48,
-      "kind": "LightSwitch",
-      "position": [
-        -0.8850832,
-        1.1104023,
-        -4.643743
-      ],
-      "size": [
-        0.15,
-        0.122673385,
-        0.018
-      ],
-      "yaw": 0.0,
-      "variant": 1,
-      "seed": 4672269565762889515,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
       "id": 49,
-      "kind": "WallOutlet",
+      "kind": "Clock",
       "position": [
-        -5.2698092,
-        0.2274007,
-        3.5670996
+        -4.5669513,
+        2.0477567,
+        -0.49751937
       ],
       "size": [
-        0.075,
-        0.118849024,
-        0.018
+        0.27890813,
+        0.27890813,
+        0.058841035
       ],
-      "yaw": 1.5454757,
-      "variant": 1,
-      "seed": 447955805416127300,
+      "yaw": 2.762803,
+      "variant": 2,
+      "seed": 3536346394645436087,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5339,18 +5340,18 @@
       "id": 50,
       "kind": "WallOutlet",
       "position": [
-        -4.2639413,
-        0.37167278,
-        -0.37077945
+        -5.2672367,
+        0.2511439,
+        3.465534
       ],
       "size": [
-        0.075,
-        0.1085711,
+        0.22500001,
+        0.12390516,
         0.018
       ],
-      "yaw": 2.762803,
+      "yaw": 1.5454757,
       "variant": 1,
-      "seed": 11453421912239950359,
+      "seed": 16424983488655980402,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5360,18 +5361,18 @@
       "id": 51,
       "kind": "WallOutlet",
       "position": [
-        4.0360107,
-        0.33422706,
-        -5.4476323
+        -4.399944,
+        0.28742078,
+        2.9087508
       ],
       "size": [
         0.22500001,
-        0.109222,
+        0.11195755,
         0.018
       ],
-      "yaw": 0.0,
+      "yaw": 0.32814822,
       "variant": 1,
-      "seed": 2092539552858888262,
+      "seed": 9432462411018675924,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5381,18 +5382,18 @@
       "id": 52,
       "kind": "WallOutlet",
       "position": [
-        -5.2914166,
-        0.31822503,
-        4.4202757
+        5.2618885,
+        0.32070753,
+        4.0915885
       ],
       "size": [
         0.075,
-        0.10999622,
+        0.12268336,
         0.018
       ],
-      "yaw": 1.5454757,
+      "yaw": -1.5299429,
       "variant": 1,
-      "seed": 4430316069918387072,
+      "seed": 15093294645749726611,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5402,18 +5403,18 @@
       "id": 53,
       "kind": "WallOutlet",
       "position": [
-        4.257263,
-        0.22866796,
-        -5.4476323
+        5.0231133,
+        0.35415423,
+        2.241015
       ],
       "size": [
         0.075,
-        0.1056285,
+        0.11510876,
         0.018
       ],
-      "yaw": 0.0,
+      "yaw": -0.5457919,
       "variant": 1,
-      "seed": 4792326429764271166,
+      "seed": 10388550469394412705,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5423,18 +5424,18 @@
       "id": 54,
       "kind": "WallOutlet",
       "position": [
-        -1.5047191,
-        0.2239234,
-        -5.0014505
+        4.888001,
+        0.24293172,
+        -5.055231
       ],
       "size": [
         0.22500001,
-        0.10814436,
+        0.12068161,
         0.018
       ],
-      "yaw": -1.5707963,
+      "yaw": -1.5299429,
       "variant": 1,
-      "seed": 1494657681264734058,
+      "seed": 15010328783838216549,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5444,18 +5445,18 @@
       "id": 55,
       "kind": "WallOutlet",
       "position": [
-        -5.3111987,
-        0.23485826,
-        5.201372
+        4.102905,
+        0.31971726,
+        -2.39396
       ],
       "size": [
-        0.15,
-        0.100196965,
+        0.075,
+        0.1168374,
         0.018
       ],
-      "yaw": 1.5454757,
+      "yaw": -2.5140936,
       "variant": 1,
-      "seed": 13303713973963605911,
+      "seed": 17036255578971025513,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5465,18 +5466,18 @@
       "id": 56,
       "kind": "WallOutlet",
       "position": [
-        3.3170133,
-        0.30911988,
-        -5.4476323
+        1.2851261,
+        0.23606084,
+        -4.96877
       ],
       "size": [
-        0.15,
-        0.11468838,
+        0.075,
+        0.11457611,
         0.018
       ],
-      "yaw": 0.0,
+      "yaw": 1.5707963,
       "variant": 1,
-      "seed": 2521118560789648865,
+      "seed": 17274097450542843794,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5486,18 +5487,18 @@
       "id": 57,
       "kind": "WallOutlet",
       "position": [
-        -4.053796,
-        0.2862838,
-        0.40463674
+        -4.8343506,
+        0.26097813,
+        -0.597808
       ],
       "size": [
-        0.22500001,
-        0.11741063,
+        0.075,
+        0.10570411,
         0.018
       ],
-      "yaw": 1.5454756,
+      "yaw": 2.762803,
       "variant": 1,
-      "seed": 4061552532032822643,
+      "seed": 5688508774557465428,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -5505,189 +5506,188 @@
     },
     {
       "id": 58,
-      "kind": "WallOutlet",
+      "kind": "PenHolder",
       "position": [
-        5.280369,
-        0.26358548,
-        4.5436907
+        3.1015048,
+        0.7354508,
+        -0.085359424
       ],
       "size": [
-        0.15,
-        0.11964093,
-        0.018
+        0.07308256,
+        0.14666836,
+        0.07308256
       ],
-      "yaw": -1.5299429,
-      "variant": 1,
-      "seed": 15914180490678792265,
+      "yaw": -3.9558847,
+      "variant": 2,
+      "seed": 17406486714508517075,
       "solid": false,
-      "support": null,
+      "support": 1,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 59,
-      "kind": "WallOutlet",
-      "position": [
-        4.9017634,
-        0.32138956,
-        -4.7185364
-      ],
-      "size": [
-        0.15,
-        0.11989769,
-        0.018
-      ],
-      "yaw": -1.5299429,
-      "variant": 1,
-      "seed": 16291182387931656865,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 60,
-      "kind": "WallOutlet",
-      "position": [
-        -5.2810755,
-        0.32734895,
-        4.0119457
-      ],
-      "size": [
-        0.22500001,
-        0.100018896,
-        0.018
-      ],
-      "yaw": 1.5454757,
-      "variant": 1,
-      "seed": 8564237269409093261,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 61,
-      "kind": "WallOutlet",
-      "position": [
-        1.2851261,
-        0.31753242,
-        -5.188377
-      ],
-      "size": [
-        0.22500001,
-        0.10767285,
-        0.018
-      ],
-      "yaw": 1.5707963,
-      "variant": 1,
-      "seed": 822653574314842681,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 62,
       "kind": "Laptop",
       "position": [
-        2.0058954,
-        0.44178694,
-        -1.2678924
+        -1.9298667,
+        0.36633724,
+        1.5885568
       ],
       "size": [
-        0.392298,
-        0.24392447,
-        0.3063695
+        0.28554732,
+        0.26709598,
+        0.33429378
       ],
-      "yaw": -0.6955093,
-      "variant": 0,
-      "seed": 12715920899870741834,
-      "solid": false,
-      "support": 0,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 63,
-      "kind": "SodaCan",
-      "position": [
-        2.3840578,
-        0.76590157,
-        -3.2035465
-      ],
-      "size": [
-        0.07189497,
-        0.14128643,
-        0.07189497
-      ],
-      "yaw": 0.15356183,
-      "variant": 0,
-      "seed": 12230117375423781597,
-      "solid": false,
-      "support": 3,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "finish_seed": 8444832983222985327,
-      "id": 64,
-      "kind": "Laptop",
-      "position": [
-        -1.8047439,
-        0.75041014,
-        -0.17902762
-      ],
-      "size": [
-        0.3598376,
-        0.27587667,
-        0.3458712
-      ],
-      "yaw": -0.6782057,
-      "variant": 0,
-      "seed": 14145494563007343896,
+      "yaw": -0.382231,
+      "variant": 2,
+      "seed": 293544482276837798,
       "solid": false,
       "support": 5,
       "neighbor": false,
       "interaction_target": 6
     },
     {
-      "id": 65,
-      "kind": "Phone",
+      "id": 60,
+      "kind": "WaterBottle",
       "position": [
-        0.3447146,
-        0.73832273,
-        1.1573983
+        -2.318918,
+        0.36633724,
+        1.5219674
       ],
       "size": [
-        0.061334055,
-        0.013915746,
-        0.13082804
+        0.08632219,
+        0.19752844,
+        0.08632219
       ],
-      "yaw": -0.6868085,
+      "yaw": 1.442765,
+      "variant": 1,
+      "seed": 15148838764500410060,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 61,
+      "kind": "PenHolder",
+      "position": [
+        -1.6127317,
+        0.36633724,
+        1.5923123
+      ],
+      "size": [
+        0.092906676,
+        0.1672104,
+        0.092906676
+      ],
+      "yaw": 2.6836922,
       "variant": 0,
-      "seed": 10295747648217896602,
+      "seed": 10896915781531554186,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 62,
+      "kind": "WaterBottle",
+      "position": [
+        0.19192982,
+        0.7654383,
+        -1.0095977
+      ],
+      "size": [
+        0.08410084,
+        0.16932973,
+        0.08410084
+      ],
+      "yaw": 1.2267131,
+      "variant": 0,
+      "seed": 7261714319600869879,
       "solid": false,
       "support": 7,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 66,
-      "kind": "Notepad",
+      "id": 63,
+      "kind": "PenHolder",
       "position": [
-        -0.78684306,
-        0.76852036,
-        -3.1240644
+        0.1675607,
+        0.7654383,
+        -1.4665431
       ],
       "size": [
-        0.120193824,
-        0.02323765,
-        0.181619
+        0.08290839,
+        0.17640597,
+        0.08290839
       ],
-      "yaw": -1.904102,
+      "yaw": -0.78629434,
+      "variant": 1,
+      "seed": 2980080992822767106,
+      "solid": false,
+      "support": 7,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 64,
+      "kind": "Phone",
+      "position": [
+        1.5836037,
+        0.7439149,
+        -2.9689102
+      ],
+      "size": [
+        0.07305927,
+        0.008265678,
+        0.15155791
+      ],
+      "yaw": 0.4501449,
+      "variant": 1,
+      "seed": 9548964339116993273,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 65,
+      "kind": "CoffeeCup",
+      "position": [
+        2.2405193,
+        0.7439149,
+        -3.1099522
+      ],
+      "size": [
+        0.061683144,
+        0.095479324,
+        0.061683144
+      ],
+      "yaw": -0.14596516,
       "variant": 0,
-      "seed": 5218748976842424264,
+      "seed": 18100371672148163702,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 66,
+      "kind": "PenHolder",
+      "position": [
+        1.4931184,
+        0.7439149,
+        -3.208634
+      ],
+      "size": [
+        0.10401191,
+        0.14217453,
+        0.10401191
+      ],
+      "yaw": 2.8198042,
+      "variant": 0,
+      "seed": 13309982413837563294,
       "solid": false,
       "support": 9,
       "neighbor": false,
@@ -5697,39 +5697,39 @@
       "id": 67,
       "kind": "Phone",
       "position": [
-        -2.8132777,
+        -0.3598111,
         0.37169296,
-        -3.2791617
+        0.087628424
       ],
       "size": [
         0.06907414,
         0.0115760695,
         0.1350496
       ],
-      "yaw": 0.042390168,
+      "yaw": 0.35289055,
       "variant": 2,
       "seed": 2615159932103569425,
       "solid": false,
-      "support": 17,
+      "support": 16,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 68,
-      "kind": "CoffeeMaker",
+      "kind": "Kettle",
       "position": [
-        0.62844145,
+        1.4607484,
         1.2,
-        8.100461
+        8.093367
       ],
       "size": [
-        0.28740317,
-        0.315098,
-        0.3491327
+        0.1671529,
+        0.29399705,
+        0.2806888
       ],
-      "yaw": 3.1254554,
-      "variant": 1,
-      "seed": 1401220733968593316,
+      "yaw": 3.1714666,
+      "variant": 2,
+      "seed": 17255812218329887070,
       "solid": false,
       "support": 19,
       "neighbor": true,
@@ -5737,20 +5737,20 @@
     },
     {
       "id": 69,
-      "kind": "CoffeeCup",
+      "kind": "DrinkDispenser",
       "position": [
-        1.2853711,
+        0.44580948,
         1.2,
-        8.046996
+        8.110865
       ],
       "size": [
-        0.07774603,
-        0.12559825,
-        0.07774603
+        0.54773545,
+        0.6584846,
+        0.3297631
       ],
-      "yaw": 4.078491,
+      "yaw": 3.1051147,
       "variant": 2,
-      "seed": 13234902415434487221,
+      "seed": 7755050482490179604,
       "solid": false,
       "support": 19,
       "neighbor": true,
@@ -5758,20 +5758,20 @@
     },
     {
       "id": 70,
-      "kind": "Dishware",
+      "kind": "KitchenTowel",
       "position": [
-        0.9909382,
+        1.07357,
         1.2,
-        8.086752
+        8.123699
       ],
       "size": [
-        0.23344374,
-        0.10815708,
-        0.23344374
+        0.19499901,
+        0.026375897,
+        0.25101048
       ],
-      "yaw": 3.5406256,
-      "variant": 1,
-      "seed": 12884339717205672956,
+      "yaw": 0.21108937,
+      "variant": 0,
+      "seed": 2897121025717161575,
       "solid": false,
       "support": 19,
       "neighbor": true,
@@ -5779,20 +5779,20 @@
     },
     {
       "id": 71,
-      "kind": "Mug",
+      "kind": "CoffeeCup",
       "position": [
-        1.5017879,
+        1.2540339,
         1.2,
-        8.167919
+        7.971032
       ],
       "size": [
-        0.0877891,
-        0.13786495,
-        0.06650689
+        0.07459877,
+        0.13764799,
+        0.07459877
       ],
-      "yaw": 2.4165478,
-      "variant": 1,
-      "seed": 11090508932854345464,
+      "yaw": 4.892581,
+      "variant": 2,
+      "seed": 7760619862211527817,
       "solid": false,
       "support": 19,
       "neighbor": true,
@@ -5800,43 +5800,43 @@
     },
     {
       "id": 72,
-      "kind": "Plant",
+      "kind": "CoffeeCup",
       "position": [
-        0.71292186,
-        0.73832273,
-        1.3955733
+        0.8574548,
+        1.2,
+        8.161392
       ],
       "size": [
-        0.2922359,
-        0.46252105,
-        0.30157688
+        0.08567196,
+        0.10569726,
+        0.08567196
       ],
-      "yaw": 5.2501273,
-      "variant": 6,
-      "seed": 5748059210087412758,
+      "yaw": 5.8606815,
+      "variant": 0,
+      "seed": 12797855530380483543,
       "solid": false,
-      "support": 7,
-      "neighbor": false,
+      "support": 19,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 73,
       "kind": "Plant",
       "position": [
-        2.3083062,
-        0.68510735,
-        -4.057906
+        1.9784137,
+        0.7439149,
+        -3.0763042
       ],
       "size": [
-        0.1408215,
-        0.18418452,
-        0.13573597
+        0.14595355,
+        0.18348679,
+        0.13583437
       ],
-      "yaw": 1.8182484,
-      "variant": 0,
-      "seed": 14421390457284204617,
+      "yaw": 5.955912,
+      "variant": 11,
+      "seed": 17815422516855178867,
       "solid": false,
-      "support": 25,
+      "support": 9,
       "neighbor": false,
       "interaction_target": null
     },
@@ -5844,235 +5844,319 @@
       "id": 74,
       "kind": "Plant",
       "position": [
-        3.6654577,
-        0.5282335,
-        4.3620014
+        4.690889,
+        1.8974754,
+        3.399228
       ],
       "size": [
-        0.20771499,
-        0.7200409,
-        0.20101878
+        0.17972721,
+        0.3657911,
+        0.18993212
       ],
-      "yaw": 0.15007627,
-      "variant": 2,
-      "seed": 17226432104883853264,
-      "solid": false,
-      "support": 26,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 75,
-      "kind": "CoffeeCup",
-      "position": [
-        2.4930723,
-        0.76590157,
-        -2.4783852
-      ],
-      "size": [
-        0.078868575,
-        0.14076515,
-        0.078868575
-      ],
-      "yaw": 1.7036235,
-      "variant": 2,
-      "seed": 603251777754297005,
-      "solid": false,
-      "support": 3,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 76,
-      "kind": "Notebook",
-      "position": [
-        2.238066,
-        0.76590157,
-        -2.9241838
-      ],
-      "size": [
-        0.12017512,
-        0.02095281,
-        0.15342067
-      ],
-      "yaw": -3.875464,
-      "variant": 2,
-      "seed": 5549990173578937297,
-      "solid": false,
-      "support": 3,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 77,
-      "kind": "Pencil",
-      "position": [
-        0.5746569,
-        0.73832273,
-        1.1294172
-      ],
-      "size": [
-        0.009007079,
-        0.010087928,
-        0.110731296
-      ],
-      "yaw": 1.9431171,
-      "variant": 0,
-      "seed": 547758716514111988,
-      "solid": false,
-      "support": 7,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 78,
-      "kind": "Phone",
-      "position": [
-        0.45100534,
-        0.73832273,
-        0.9887918
-      ],
-      "size": [
-        0.083673924,
-        0.012118664,
-        0.17201518
-      ],
-      "yaw": 0.7673119,
-      "variant": 0,
-      "seed": 14440874710455417115,
-      "solid": false,
-      "support": 7,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 79,
-      "kind": "Stapler",
-      "position": [
-        -0.54852545,
-        0.76852036,
-        -2.7957087
-      ],
-      "size": [
-        0.057489824,
-        0.048906352,
-        0.18286195
-      ],
-      "yaw": 0.3754294,
-      "variant": 2,
-      "seed": 16834158707077942554,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 80,
-      "kind": "Headphones",
-      "position": [
-        -0.7488303,
-        0.76852036,
-        -2.7452269
-      ],
-      "size": [
-        0.19981644,
-        0.077627145,
-        0.20954773
-      ],
-      "yaw": 2.115128,
-      "variant": 1,
-      "seed": 15536681636929294635,
-      "solid": false,
-      "support": 9,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 81,
-      "kind": "CoffeeCup",
-      "position": [
-        -2.2605433,
-        0.35887012,
-        2.4304605
-      ],
-      "size": [
-        0.06506719,
-        0.086608715,
-        0.06506719
-      ],
-      "yaw": -2.599033,
-      "variant": 2,
-      "seed": 8712197691386290168,
+      "yaw": 4.5156207,
+      "variant": 5,
+      "seed": 17750181980366791777,
       "solid": false,
       "support": 14,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "id": 75,
+      "kind": "Plant",
+      "position": [
+        -3.7501972,
+        1.3588011,
+        -4.7733927
+      ],
+      "size": [
+        0.12866722,
+        0.44772252,
+        0.13354522
+      ],
+      "yaw": 5.0103235,
+      "variant": 5,
+      "seed": 9336375396439356014,
+      "solid": false,
+      "support": 15,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 76,
+      "kind": "Plant",
+      "position": [
+        3.261652,
+        0.63163435,
+        -3.2132404
+      ],
+      "size": [
+        0.21987797,
+        0.14760818,
+        0.22340181
+      ],
+      "yaw": 1.4137727,
+      "variant": 7,
+      "seed": 13201759299693535918,
+      "solid": false,
+      "support": 21,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 77,
+      "kind": "Plant",
+      "position": [
+        -0.15334094,
+        0.46388525,
+        2.208604
+      ],
+      "size": [
+        0.17772898,
+        0.25659144,
+        0.18178317
+      ],
+      "yaw": 0.40039015,
+      "variant": 3,
+      "seed": 8784654561920693236,
+      "solid": false,
+      "support": 22,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 78,
+      "kind": "Plant",
+      "position": [
+        2.5241668,
+        0.59600437,
+        -1.5083944
+      ],
+      "size": [
+        0.16256419,
+        0.5142706,
+        0.16601697
+      ],
+      "yaw": 4.263733,
+      "variant": 10,
+      "seed": 3559134847202790255,
+      "solid": false,
+      "support": 26,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 79,
+      "kind": "Bowl",
+      "position": [
+        2.9129784,
+        0.7354508,
+        0.30074644
+      ],
+      "size": [
+        0.21124314,
+        0.06039209,
+        0.21124314
+      ],
+      "yaw": -1.3780246,
+      "variant": 1,
+      "seed": 8396106416885200849,
+      "solid": false,
+      "support": 1,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 80,
+      "kind": "Pencil",
+      "position": [
+        2.3758366,
+        0.7354508,
+        -0.73573256
+      ],
+      "size": [
+        0.009968756,
+        0.011165006,
+        0.16168904
+      ],
+      "yaw": -1.1962316,
+      "variant": 1,
+      "seed": 125435028056479861,
+      "solid": false,
+      "support": 1,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 81,
+      "kind": "DeskOrganizer",
+      "position": [
+        -2.2108538,
+        0.36633724,
+        1.4135447
+      ],
+      "size": [
+        0.18469487,
+        0.17409745,
+        0.10020322
+      ],
+      "yaw": -0.43841308,
+      "variant": 1,
+      "seed": 4695041776517381544,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
       "id": 82,
+      "kind": "Phone",
+      "position": [
+        -2.0766912,
+        0.36633724,
+        1.8139348
+      ],
+      "size": [
+        0.058727674,
+        0.011599804,
+        0.11211347
+      ],
+      "yaw": 1.826446,
+      "variant": 2,
+      "seed": 16691376611117750925,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 83,
+      "kind": "Pencil",
+      "position": [
+        -1.6547467,
+        0.36633724,
+        1.8550444
+      ],
+      "size": [
+        0.009414576,
+        0.010544325,
+        0.14464091
+      ],
+      "yaw": 0.98074013,
+      "variant": 2,
+      "seed": 9009690791039235488,
+      "solid": false,
+      "support": 5,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 84,
+      "kind": "Pencil",
+      "position": [
+        0.16012879,
+        0.7654383,
+        -0.85554504
+      ],
+      "size": [
+        0.006668533,
+        0.007468757,
+        0.18052123
+      ],
+      "yaw": 0.27192008,
+      "variant": 2,
+      "seed": 3652200208917341713,
+      "solid": false,
+      "support": 7,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 85,
       "kind": "Vase",
       "position": [
-        -2.6021671,
+        0.069934465,
+        0.7654383,
+        -1.161674
+      ],
+      "size": [
+        0.15033251,
+        0.31383634,
+        0.15033251
+      ],
+      "yaw": 1.5132798,
+      "variant": 2,
+      "seed": 8792065450817149208,
+      "solid": false,
+      "support": 7,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 86,
+      "kind": "Vase",
+      "position": [
+        -0.1807827,
         0.37169296,
-        -3.3511238
+        -0.04539399
       ],
       "size": [
         0.06573281,
         0.07856876,
         0.06573281
       ],
-      "yaw": 1.8755164,
+      "yaw": 2.1860168,
       "variant": 1,
       "seed": 13875907124016220395,
       "solid": false,
-      "support": 17,
+      "support": 16,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 83,
+      "id": 87,
+      "kind": "WaterBottle",
+      "position": [
+        3.5080674,
+        0.63163435,
+        -3.1889958
+      ],
+      "size": [
+        0.08421452,
+        0.35502374,
+        0.08421452
+      ],
+      "yaw": -2.3033535,
+      "variant": 1,
+      "seed": 11372290797891085717,
+      "solid": false,
+      "support": 21,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 88,
       "kind": "Phone",
       "position": [
-        2.3821943,
-        0.68510735,
-        -4.2487307
+        0.069176555,
+        0.46388525,
+        2.0650425
       ],
       "size": [
-        0.06510368,
-        0.01565517,
-        0.1248707
+        0.060523335,
+        0.009950013,
+        0.1249842
       ],
-      "yaw": -2.6164618,
-      "variant": 0,
-      "seed": 12040183688525342268,
+      "yaw": 0.6179638,
+      "variant": 2,
+      "seed": 12564447154146794718,
       "solid": false,
-      "support": 25,
+      "support": 22,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 84,
-      "kind": "TapeDispenser",
-      "position": [
-        2.1540215,
-        0.68510735,
-        -4.059393
-      ],
-      "size": [
-        0.038385842,
-        0.043298777,
-        0.09391436
-      ],
-      "yaw": 0.7981893,
-      "variant": 0,
-      "seed": 7740615600488348246,
-      "solid": false,
-      "support": 25,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 85,
+      "id": 89,
       "kind": "Bowl",
       "position": [
         -0.47810912,
@@ -6088,12 +6172,12 @@
       "variant": 2,
       "seed": 14091050692871997442,
       "solid": false,
-      "support": 29,
+      "support": 30,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 86,
+      "id": 90,
       "kind": "Phone",
       "position": [
         -5.154784,
@@ -6109,12 +6193,12 @@
       "variant": 2,
       "seed": 6028746849274605142,
       "solid": false,
-      "support": 30,
+      "support": 31,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 87,
+      "id": 91,
       "kind": "FireAlarm",
       "position": [
         -4.503644,
@@ -6135,7 +6219,7 @@
       "interaction_target": null
     },
     {
-      "id": 88,
+      "id": 92,
       "kind": "FireDetector",
       "position": [
         -1.8337722,
@@ -6156,7 +6240,7 @@
       "interaction_target": null
     },
     {
-      "id": 89,
+      "id": 93,
       "kind": "StringLights",
       "position": [
         3.1499321,
@@ -6177,7 +6261,7 @@
       "interaction_target": null
     },
     {
-      "id": 90,
+      "id": 94,
       "kind": "FirePullStation",
       "position": [
         0.6236788,
@@ -6198,46 +6282,501 @@
       "interaction_target": null
     },
     {
-      "id": 91,
+      "id": 95,
       "kind": "Rug",
       "position": [
-        -1.1865826,
+        1.7887176,
         0.0,
-        2.0263157
+        0.98678344
       ],
       "size": [
-        1.0336925,
-        0.010249581,
-        0.8997636
+        1.403049,
+        0.0043216874,
+        1.1714319
       ],
-      "yaw": -0.9071923,
+      "yaw": -0.5119522,
       "variant": 0,
-      "seed": 15475318304218954846,
+      "seed": 5614560578292743698,
       "solid": false,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 92,
+      "id": 96,
       "kind": "FloorOutlet",
       "position": [
-        2.9056938,
+        3.1928082,
         0.0,
-        -3.1554167
+        -0.59029967
       ],
       "size": [
-        0.22354455,
+        0.20894761,
         0.006,
-        0.23441693
+        0.19832514
       ],
-      "yaw": -1.540771,
+      "yaw": -0.9758035,
       "variant": 10,
-      "seed": 12423466748849241452,
+      "seed": 1923182311158511016,
       "solid": false,
       "support": null,
       "neighbor": false,
       "interaction_target": null
+    },
+    {
+      "id": 97,
+      "kind": "FloorOutlet",
+      "position": [
+        1.4392487,
+        0.0,
+        -3.6462615
+      ],
+      "size": [
+        0.1769765,
+        0.006,
+        0.18368094
+      ],
+      "yaw": 0.0082426965,
+      "variant": 8,
+      "seed": 5926662551207091676,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 98,
+      "kind": "Cable",
+      "position": [
+        1.7929441,
+        0.0020020283,
+        -4.1057568
+      ],
+      "size": [
+        1.002485,
+        0.7552584,
+        1.7335963
+      ],
+      "yaw": 0.0,
+      "variant": 2,
+      "seed": 17553789122470902333,
+      "solid": false,
+      "support": 9,
+      "neighbor": false,
+      "interaction_target": 33,
+      "cable_path": [
+        [
+          0.4974581,
+          0.75147384,
+          0.863014
+        ],
+        [
+          0.46934187,
+          0.75147384,
+          0.861429
+        ],
+        [
+          0.466977,
+          0.75146997,
+          0.8610213
+        ],
+        [
+          0.46476638,
+          0.75145847,
+          0.8600881
+        ],
+        [
+          0.46282494,
+          0.75144005,
+          0.85867786
+        ],
+        [
+          0.46125376,
+          0.75141555,
+          0.8568642
+        ],
+        [
+          0.46013486,
+          0.75138634,
+          0.85474133
+        ],
+        [
+          0.4595269,
+          0.7513539,
+          0.85242033
+        ],
+        [
+          0.45946085,
+          0.75131994,
+          0.85002184
+        ],
+        [
+          0.47492898,
+          0.74878895,
+          0.67248535
+        ],
+        [
+          0.47503555,
+          0.7485206,
+          0.6701956
+        ],
+        [
+          0.47495186,
+          0.7477937,
+          0.6680069
+        ],
+        [
+          0.47468197,
+          0.7466432,
+          0.6660247
+        ],
+        [
+          0.474239,
+          0.74512464,
+          0.6643443
+        ],
+        [
+          0.47364414,
+          0.7433111,
+          0.66304684
+        ],
+        [
+          0.44635808,
+          0.6636143,
+          0.6183734
+        ],
+        [
+          0.44624364,
+          0.6632933,
+          0.61818624
+        ],
+        [
+          0.41717875,
+          0.58488125,
+          0.57060003
+        ],
+        [
+          0.41705143,
+          0.5845517,
+          0.57039165
+        ],
+        [
+          0.38799965,
+          0.51231694,
+          0.5228274
+        ],
+        [
+          0.3878585,
+          0.5119805,
+          0.52259636
+        ],
+        [
+          0.35882103,
+          0.44560924,
+          0.47505593
+        ],
+        [
+          0.35866487,
+          0.4452677,
+          0.47480035
+        ],
+        [
+          0.32964313,
+          0.38447115,
+          0.42728496
+        ],
+        [
+          0.32947123,
+          0.38412696,
+          0.42700338
+        ],
+        [
+          0.3004657,
+          0.32863954,
+          0.3795147
+        ],
+        [
+          0.3002771,
+          0.32829547,
+          0.37920594
+        ],
+        [
+          0.27128828,
+          0.27787432,
+          0.33174515
+        ],
+        [
+          0.27108228,
+          0.27753356,
+          0.33140802
+        ],
+        [
+          0.24211133,
+          0.23195687,
+          0.28397584
+        ],
+        [
+          0.24188745,
+          0.23162298,
+          0.2836094
+        ],
+        [
+          0.21293461,
+          0.1906897,
+          0.23620677
+        ],
+        [
+          0.21269262,
+          0.1903666,
+          0.23581076
+        ],
+        [
+          0.18375778,
+          0.15389526,
+          0.18843794
+        ],
+        [
+          0.18349779,
+          0.15358716,
+          0.18801236
+        ],
+        [
+          0.15458095,
+          0.12141523,
+          0.14066863
+        ],
+        [
+          0.15430343,
+          0.12112658,
+          0.1402142
+        ],
+        [
+          0.12540376,
+          0.093109995,
+          0.09289932
+        ],
+        [
+          0.12510931,
+          0.092845246,
+          0.09241724
+        ],
+        [
+          0.09622586,
+          0.0688579,
+          0.045128822
+        ],
+        [
+          0.095915675,
+          0.068621516,
+          0.04462099
+        ],
+        [
+          0.06704736,
+          0.04855482,
+          -0.0026431084
+        ],
+        [
+          0.06672299,
+          0.048351023,
+          -0.003174305
+        ],
+        [
+          0.037867904,
+          0.0321137,
+          -0.05041647
+        ],
+        [
+          0.037531376,
+          0.031946354,
+          -0.050967693
+        ],
+        [
+          0.008687377,
+          0.019464185,
+          -0.09819174
+        ],
+        [
+          0.008340955,
+          0.019336598,
+          -0.0987587
+        ],
+        [
+          -0.02049458,
+          0.010552304,
+          -0.14596891
+        ],
+        [
+          -0.020848155,
+          0.010467086,
+          -0.1465478
+        ],
+        [
+          -0.04964149,
+          0.0053467234,
+          -0.19368887
+        ],
+        [
+          -0.05007255,
+          0.0053028096,
+          -0.19439459
+        ],
+        [
+          -0.10815048,
+          0.0037845154,
+          -0.28948164
+        ],
+        [
+          -0.10830569,
+          0.0037846784,
+          -0.2897358
+        ],
+        [
+          -0.13724422,
+          0.004600434,
+          -0.33711433
+        ],
+        [
+          -0.13758314,
+          0.0046301424,
+          -0.3376689
+        ],
+        [
+          -0.16642165,
+          0.008876717,
+          -0.38488436
+        ],
+        [
+          -0.16677654,
+          0.008951353,
+          -0.38546562
+        ],
+        [
+          -0.1956104,
+          0.016846668,
+          -0.4326725
+        ],
+        [
+          -0.19595885,
+          0.016964188,
+          -0.4332428
+        ],
+        [
+          -0.22480047,
+          0.028546039,
+          -0.4804635
+        ],
+        [
+          -0.22513962,
+          0.02870403,
+          -0.48101902
+        ],
+        [
+          -0.25399184,
+          0.0440256,
+          -0.5282564
+        ],
+        [
+          -0.25431943,
+          0.044220902,
+          -0.52879286
+        ],
+        [
+          -0.2831843,
+          0.0633523,
+          -0.57605076
+        ],
+        [
+          -0.28349805,
+          0.06358115,
+          -0.5765643
+        ],
+        [
+          -0.31237757,
+          0.086609535,
+          -0.623847
+        ],
+        [
+          -0.31267595,
+          0.086867824,
+          -0.62433577
+        ],
+        [
+          -0.34157157,
+          0.11389752,
+          -0.6716442
+        ],
+        [
+          -0.34185338,
+          0.11418079,
+          -0.6721053
+        ],
+        [
+          -0.37076616,
+          0.14533365,
+          -0.71944237
+        ],
+        [
+          -0.37103045,
+          0.14563745,
+          -0.71987486
+        ],
+        [
+          -0.39996088,
+          0.18105322,
+          -0.7672405
+        ],
+        [
+          -0.40020716,
+          0.18137302,
+          -0.76764345
+        ],
+        [
+          -0.42915583,
+          0.22120959,
+          -0.81503916
+        ],
+        [
+          -0.429384,
+          0.22154127,
+          -0.815413
+        ],
+        [
+          -0.4556799,
+          0.26187864,
+          -0.8584652
+        ],
+        [
+          -0.45691037,
+          0.2633,
+          -0.859982
+        ],
+        [
+          -0.45858288,
+          0.2644918,
+          -0.8612542
+        ],
+        [
+          -0.4606092,
+          0.26539105,
+          -0.8622141
+        ],
+        [
+          -0.46288228,
+          0.26595035,
+          -0.8628111
+        ],
+        [
+          -0.46528196,
+          0.2661401,
+          -0.86301327
+        ],
+        [
+          -0.49745798,
+          0.26614013,
+          -0.86301327
+        ]
+      ],
+      "cable_target": 56
     }
   ],
   "human_density": 0.25,
@@ -6299,54 +6838,42 @@
         "anisotropy": 0.9742366
       },
       "start": [
-        -2.084908,
-        1.6670473,
-        0.49543
+        -0.98229074,
+        2.2403429,
+        2.9804273
       ],
       "end": [
-        -2.17451,
-        1.6670473,
-        -2.8549151
+        -0.64650804,
+        2.2476544,
+        2.5764482
       ],
       "target": [
-        0.43120992,
-        1.8275545,
-        -0.8096796
+        0.20487253,
+        0.75,
+        -1.0933771
       ],
-      "fov_degrees": 71.10596,
+      "fov_degrees": 79.77801,
       "motion": {
         "control": [
           [
-            -1.8887495,
-            1.6670471,
-            -0.17500505
+            -0.93302757,
+            2.2427557,
+            2.829179
           ],
           [
-            -1.9192141,
-            1.6670473,
-            -1.3141224
+            -0.8188615,
+            2.2452416,
+            2.6918263
           ]
         ],
         "target_end": [
-          0.43852162,
-          1.8562559,
-          -0.77251095
+          -0.036446646,
+          0.66267174,
+          -0.9834269
         ],
         "roll": [
-          -0.08687491,
-          -0.0654962
-        ],
-        "route": [
-          [
-            -2.084908,
-            1.6670473,
-            0.49543
-          ],
-          [
-            -2.17451,
-            1.6670473,
-            -2.8549151
-          ]
+          0.063428,
+          -0.058459908
         ]
       }
     },
@@ -6365,42 +6892,42 @@
         "anisotropy": 1.0
       },
       "start": [
-        1.4779401,
-        1.5737556,
-        -1.0430698
+        1.4681783,
+        1.3623871,
+        -0.36883116
       ],
       "end": [
-        1.6082178,
-        1.6912032,
-        -0.944786
+        1.4596903,
+        1.2755735,
+        -0.4493003
       ],
       "target": [
-        -0.38107944,
-        1.6338271,
-        -0.08574629
+        -0.388103,
+        1.0014029,
+        0.02680862
       ],
       "fov_degrees": 64.48346,
       "motion": {
         "control": [
           [
-            1.5065933,
-            1.6125133,
-            -1.0384798
+            1.4742497,
+            1.3337386,
+            -0.35375768
           ],
           [
-            1.5508877,
-            1.6524456,
-            -1.0050633
+            1.4713638,
+            1.304222,
+            -0.38111717
           ]
         ],
         "target_end": [
-          -0.60334843,
-          1.7591718,
-          -0.10420674
+          -0.39301515,
+          1.014357,
+          -0.16018516
         ],
         "roll": [
-          0.033808477,
-          0.08313735
+          0.016347446,
+          -0.021916695
         ]
       }
     },
@@ -6419,45 +6946,45 @@
         "anisotropy": 1.0
       },
       "start": [
-        0.86820966,
-        1.8727245,
-        -2.457141
+        -0.967255,
+        2.5771074,
+        0.7318547
       ],
       "end": [
-        1.0783676,
-        2.0339246,
-        -2.3796566
+        -0.84274924,
+        2.5832698,
+        0.30697474
       ],
       "target": [
-        -0.437724,
-        1.5618064,
-        -0.047755793
+        0.3190114,
+        0.7436327,
+        -1.0937665
       ],
       "fov_degrees": 137.5162,
       "motion": {
         "control": [
           [
-            0.92955077,
-            1.9244689,
-            -2.4737823
+            -0.96202135,
+            2.5899255,
+            0.5707401
           ],
           [
-            1.0010045,
-            1.979277,
-            -2.4474375
+            -0.9196893,
+            2.592021,
+            0.42628106
           ]
         ],
         "target_end": [
-          -0.659993,
-          1.6871512,
-          -0.066216245
+          0.077692226,
+          0.6563044,
+          -0.9838163
         ],
         "roll": [
-          0.086149275,
-          0.004126288
+          0.08329162,
+          -0.025922544
         ]
       }
     }
   ],
-  "rejected_placements": 185
+  "rejected_placements": 193
 }

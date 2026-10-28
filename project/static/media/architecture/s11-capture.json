@@ -2455,14 +2455,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v117;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=18;seating=7;activity=3;playback=2;exterior=5;envelope=7;furnishings=15;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
-      "crate_version": "0.60.0",
+      "capture_engine": "capture-v122;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=21;camera_motion=1;ceiling_camera=4;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=19;seating=7;activity=3;playback=2;exterior=5;envelope=8;furnishings=16;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
+      "crate_version": "0.61.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 92,
+      "generator_version": 97,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -2471,19 +2471,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.60.0"
+          "0.61.0"
         ],
         "bevy_zeroverse_burn": [
-          "0.44.0"
+          "0.45.0"
         ],
         "bevy_zeroverse_capture": [
-          "0.6.14"
+          "0.6.15"
         ],
         "bevy_zeroverse_ffi": [
-          "0.60.0"
+          "0.61.0"
         ],
         "bevy_zeroverse_publication": [
-          "0.9.2"
+          "0.9.3"
         ],
         "burn": [
           "0.22.1"
@@ -3432,7 +3432,7 @@
         }
       ],
       "semantic_taxonomy_version": 10,
-      "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717",
+      "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -3842,7 +3842,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/92/000000000000000b",
+        "id": "procedural_indoor/97/000000000000000b",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 8323
       },
@@ -3943,23 +3943,23 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 1465.968564,
+      "preparation_ms": 1573.885954,
       "primary_rays": 1884160,
       "probes": 1840,
-      "relocated_probes": 23,
+      "relocated_probes": 24,
       "texture_bytes": 88320,
-      "transport_bytes": 92409488,
-      "triangles": 789037
+      "transport_bytes": 82926288,
+      "triangles": 705075
     },
-    "elapsed_seconds": 112.023979414,
-    "image_assets": 247,
+    "elapsed_seconds": 136.455094754,
+    "image_assets": 249,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface including glass; native indoor uses direct float32 MRT",
-    "material_assets": 279,
-    "mesh_assets": 762,
+    "material_assets": 265,
+    "mesh_assets": 739,
     "reconstruction_graphs": [
       {
         "graph": {
@@ -4557,7 +4557,7 @@
       }
     ],
     "renderer": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "11325-1793102220093413616",
+    "run_id": "10238-1793142553328697773",
     "seed": 11,
     "views": [
       {
@@ -4627,8 +4627,8 @@
         "fov_y": 1.62506103515625,
         "fx_pixels": 189.43121337890625,
         "fy_pixels": 189.43121337890625,
-        "luminance_std": 0.06535626,
-        "mean_luminance": 0.108809136,
+        "luminance_std": 0.065237045,
+        "mean_luminance": 0.11127362,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 14,
@@ -4746,11 +4746,11 @@
         "fov_y": 0.7572145462036133,
         "fx_pixels": 502.7668151855469,
         "fy_pixels": 502.7668151855469,
-        "luminance_std": 0.06886748,
-        "mean_luminance": 0.110925585,
+        "luminance_std": 0.069499835,
+        "mean_luminance": 0.112810634,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
-        "semantic_colors": 12,
+        "semantic_colors": 11,
         "semantic_pixel_counts": {
           "blinds": 1666,
           "books": 68,
@@ -4761,8 +4761,7 @@
           "plant": 425,
           "table": 41107,
           "vase": 3,
-          "wall": 31700,
-          "wall_outlet": 150,
+          "wall": 31850,
           "window": 41647
         },
         "step_index": 0,
@@ -4863,8 +4862,8 @@
         "fov_y": 0.876933217048645,
         "fx_pixels": 426.5223083496094,
         "fy_pixels": 426.5223083496094,
-        "luminance_std": 0.06895158,
-        "mean_luminance": 0.080104485,
+        "luminance_std": 0.06883102,
+        "mean_luminance": 0.08054786,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -4984,8 +4983,8 @@
         "fov_y": 0.6787475347518921,
         "fx_pixels": 566.5201416015625,
         "fy_pixels": 566.5202026367188,
-        "luminance_std": 0.062276497,
-        "mean_luminance": 0.0688755,
+        "luminance_std": 0.06269938,
+        "mean_luminance": 0.07026745,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -5100,13 +5099,13 @@
           "shared_pixels": 205347,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0013085938,
+        "dark_fraction": 0.0010820313,
         "far": 50.0,
         "fov_y": 1.62506103515625,
         "fx_pixels": 189.43121337890625,
         "fy_pixels": 189.43121337890625,
-        "luminance_std": 0.0677972,
-        "mean_luminance": 0.099413976,
+        "luminance_std": 0.06853911,
+        "mean_luminance": 0.10211616,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 14,
@@ -5224,11 +5223,11 @@
         "fov_y": 0.7572145462036133,
         "fx_pixels": 502.7668151855469,
         "fy_pixels": 502.7668151855469,
-        "luminance_std": 0.07176364,
-        "mean_luminance": 0.11355557,
+        "luminance_std": 0.07226596,
+        "mean_luminance": 0.11514674,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
-        "semantic_colors": 10,
+        "semantic_colors": 9,
         "semantic_pixel_counts": {
           "books": 141,
           "bookshelf": 25112,
@@ -5237,8 +5236,7 @@
           "plant": 193,
           "table": 45204,
           "vase": 23,
-          "wall": 15329,
-          "wall_outlet": 182,
+          "wall": 15511,
           "window": 44060
         },
         "step_index": 1,
@@ -5334,13 +5332,13 @@
           "shared_pixels": 213619,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0015195312,
+        "dark_fraction": 0.0015273438,
         "far": 50.0,
         "fov_y": 0.876933217048645,
         "fx_pixels": 426.5223083496094,
         "fy_pixels": 426.5223083496094,
-        "luminance_std": 0.065096825,
-        "mean_luminance": 0.069685966,
+        "luminance_std": 0.06519525,
+        "mean_luminance": 0.07029916,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 15,
@@ -5454,13 +5452,13 @@
           "shared_pixels": 199376,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.0016210937,
+        "dark_fraction": 0.0016171875,
         "far": 50.0,
         "fov_y": 0.6787475347518921,
         "fx_pixels": 566.5201416015625,
         "fy_pixels": 566.5202026367188,
-        "luminance_std": 0.062267046,
-        "mean_luminance": 0.0674003,
+        "luminance_std": 0.062920935,
+        "mean_luminance": 0.06880257,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -5516,10 +5514,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.60.0",
-    "generator_version": 92,
+    "crate_version": "0.61.0",
+    "generator_version": 97,
     "schema_version": 1,
-    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717"
+    "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977"
   },
   "manifest": {
     "architecture_style": "Classic",
@@ -5654,6 +5652,8 @@
       "peer_weak_pairs_after": 0,
       "peer_weak_pairs_before": 0,
       "prefix_backtracks": 0,
+      "recovery_intrinsic_draws": 0,
+      "recovery_path_proposals": 0,
       "reference_proposals": 64,
       "reference_rejections": [
         18,
@@ -7215,7 +7215,7 @@
     "floor_style": 0,
     "furnishing_quarter_turn": 1,
     "furniture_style": 2,
-    "generator_version": 92,
+    "generator_version": 97,
     "glazing_height": 2.919097,
     "human_density": 0.25,
     "humans": [
@@ -7331,172 +7331,172 @@
           "weave_scale": 1.4188118
         },
         "bounds_max": [
-          0.48231125,
-          1.4958917,
-          0.32053685
+          0.48321617,
+          1.4964923,
+          0.3009468
         ],
         "bounds_min": [
-          -0.55135095,
+          -0.6876111,
           0.0,
-          -0.71266377
+          -0.6484529
         ],
         "build": 1.1739736,
-        "chair": 39,
+        "chair": 38,
         "glasses": true,
         "hair_color": 5,
         "hairstyle": 4,
-        "head_yaw": 0.7895847,
-        "id": 118,
+        "head_yaw": 0.3251231,
+        "id": 117,
         "joints": [
           [
-            0.025835603,
+            0.0070619173,
             0.585,
             0.015
           ],
           [
-            0.02033384,
-            0.73334527,
-            0.020907253
+            0.0061426274,
+            0.73353815,
+            0.012344068
           ],
           [
-            0.010063881,
-            1.0102564,
-            0.031934123
+            0.00442662,
+            1.0108094,
+            0.0073863305
           ],
           [
-            0.005662469,
-            1.1289326,
-            0.036659926
+            0.003691188,
+            1.1296399,
+            0.005261585
           ],
           [
-            -0.0008093151,
-            1.2576619,
-            0.036088724
+            0.002043717,
+            1.2582625,
+            -0.0029205624
           ],
           [
-            -0.17388979,
-            0.9962498,
-            0.08659975
+            -0.18590726,
+            1.0051248,
+            0.035030104
           ],
           [
-            -0.3407677,
-            0.8963084,
-            -0.12473357
+            -0.3016254,
+            0.74442023,
+            0.0012558773
           ],
           [
-            -0.37107164,
-            1.1203787,
-            -0.247968
+            -0.44809204,
+            0.7057384,
+            -0.20698383
           ],
           [
-            -0.37981316,
-            1.1850144,
-            -0.2835164
+            -0.49034205,
+            0.6945802,
+            -0.26705298
           ],
           [
-            0.19438788,
-            1.0142778,
-            -0.023129128
+            0.19482236,
+            1.0064958,
+            -0.020078667
           ],
           [
-            0.27172798,
-            0.8095578,
-            -0.20915742
+            0.27114332,
+            0.7705658,
+            -0.16502838
           ],
           [
-            0.25622523,
-            0.9236619,
-            -0.43948865
+            0.24687818,
+            0.93483865,
+            -0.36184853
           ],
           [
-            0.25175327,
-            0.9565765,
-            -0.50593036
+            0.23987861,
+            0.98222506,
+            -0.41862357
           ],
           [
-            -0.07289266,
+            -0.09166634,
             0.585,
             0.015
           ],
           [
-            -0.1303536,
-            0.50842816,
-            -0.3999862
+            -0.13890526,
+            0.5229639,
+            -0.40368664
           ],
           [
-            -0.1546093,
+            -0.109514214,
             0.10499999,
-            -0.26568845
+            -0.32739207
           ],
           [
-            -0.15741377,
+            -0.1266431,
             0.044999994,
-            -0.43403846
+            -0.49489188
           ],
           [
-            0.124563865,
+            0.10579018,
             0.585,
             0.015
           ],
           [
-            0.17257187,
-            0.53049487,
-            -0.40464622
+            0.15112749,
+            0.5248508,
+            -0.40417194
           ],
           [
-            0.15460928,
-            0.10500002,
-            -0.4078051
+            0.109514214,
+            0.10499999,
+            -0.34610143
           ],
           [
-            0.17016971,
-            0.045000017,
-            -0.57545793
+            0.14232445,
+            0.044999994,
+            -0.51124704
           ]
         ],
         "neighbor": true,
         "outfit": "Tee",
-        "pose": "SeatedTalking",
+        "pose": "SeatedWorking",
         "pose_program": {
           "arm_elevation": [
-            0.29348338,
-            -0.256724
+            -0.6814077,
+            -0.18762992
           ],
           "arm_reach": [
-            0.74844515,
-            0.79041713
+            0.8550399,
+            0.6481283
           ],
           "arm_sweep": [
-            0.22617106,
-            0.43026662
+            0.67434424,
+            0.2931182
           ],
           "elbow_pole": [
-            0.18098876,
-            0.35259932
+            0.7001534,
+            0.19271049
           ],
           "finger_curl": [
-            0.6915802,
-            0.04770405
+            0.041182883,
+            0.06391379
           ],
           "foot_splay": [
-            0.016657053,
-            0.09254827
+            0.10190789,
+            0.19612074
           ],
-          "head_pitch": -0.015425593,
-          "head_roll": 0.06339855,
+          "head_pitch": -0.17503081,
+          "head_roll": 0.012385085,
           "index_extension": [
-            0.86814564,
+            0.0,
             0.0
           ],
           "lean": [
-            -0.046897523,
-            0.027505293
+            -0.0035642646,
+            -0.01858025
           ],
-          "phase": 5.386965,
-          "stance": 0.30921856,
-          "stride": 0.090987034,
-          "torso_twist": 0.29086706,
-          "weight_shift": 0.025835603
+          "phase": 5.6890097,
+          "stance": 0.21902843,
+          "stride": 0.016709976,
+          "torso_twist": 0.14368063,
+          "weight_shift": 0.0070619173
         },
         "position": [
           -2.8302865,
@@ -7634,12 +7634,12 @@
           -0.6866174
         ],
         "build": 0.96219563,
-        "chair": 1,
+        "chair": 9,
         "glasses": false,
         "hair_color": 2,
         "hairstyle": 6,
         "head_yaw": 0.07487442,
-        "id": 119,
+        "id": 118,
         "joints": [
           [
             0.022632703,
@@ -7792,9 +7792,9 @@
           "weight_shift": 0.022632703
         },
         "position": [
-          1.0493007,
+          4.126585,
           0.0,
-          -6.7530046
+          1.847816
         ],
         "seed": 6793225252364827517,
         "shoe_color": 0,
@@ -7803,300 +7803,7 @@
         "stature": 1.8410136,
         "top_color": 9,
         "trouser_color": 2,
-        "yaw": 3.0475187
-      },
-      {
-        "appearance": {
-          "blood_tint": 0.0745499,
-          "body_program": {
-            "age": 0.9166343376951124,
-            "gender": 0.12330920041242031,
-            "muscle": 0.6347731800833002,
-            "proportions": 0.194442773229716
-          },
-          "cloth_roughness": 0.9496175,
-          "face": {
-            "brow_arch": 0.00538911,
-            "brow_thickness": 0.0042553684,
-            "brow_width": 0.04283386,
-            "frame_color": [
-              0.031229604,
-              0.05745381,
-              0.0365491
-            ],
-            "frame_metallic": 0.0,
-            "iris": [
-              0.16193378,
-              0.14017239,
-              0.08723251
-            ],
-            "lip_tint": 0.22250935,
-            "stubble": 0.7409438
-          },
-          "fold_amplitude": 0.0014229015,
-          "fold_frequency": 32.45307,
-          "footwear": {
-            "collar_raise": 0.024899429,
-            "heel_width": 0.85251534,
-            "laces": 6,
-            "leather": 0.6109643,
-            "sole_color": [
-              0.08445125,
-              0.08276223,
-              0.08022869
-            ],
-            "sole_height": 0.024316695,
-            "toe_room": 0.011781976,
-            "toe_roundness": 3.4765415,
-            "upper_color": [
-              0.10295361,
-              0.09555564,
-              0.09185665
-            ],
-            "vamp": 0.71600115
-          },
-          "garment": {
-            "collar_width": 0.045770366,
-            "drape": 0.2509141,
-            "hem_width": 1.0324517,
-            "leg_straightness": 0.5025704,
-            "neckline_depth": 0.107186,
-            "neckline_roundness": 2.0752597,
-            "neckline_width": 0.078442864,
-            "placket_width": 0.011367672,
-            "pocket": false,
-            "pocket_height": 0.084100336,
-            "pocket_width": 0.101165645,
-            "section_roundness": 2.0466528,
-            "torso_ease_m": 0.0070442855,
-            "trouser_coverage": 0.51290244,
-            "trouser_ease": 0.014101125,
-            "waist_taper": 1.015623
-          },
-          "garment_ease": 0.010771532,
-          "hair": [
-            0.26745656,
-            0.19533452,
-            0.11643921
-          ],
-          "hair_curl": 0.026502205,
-          "hair_grey": 0.0,
-          "hair_length": 0.025437806,
-          "hair_part": 0.017315626,
-          "hair_program": {
-            "bangs": 0.0,
-            "clump_width_m": 0.019803079,
-            "crown_whorl": -0.29217875,
-            "curl_radius_m": 0.020268522,
-            "drop_m": 0.19918823,
-            "flyaways": 0.2448404,
-            "layers": 0.15159631,
-            "part_curve": -0.6223869,
-            "spread": 1.1870477,
-            "sweep": 0.5709574,
-            "tie_height": 0.3155275,
-            "wave_length_m": 0.26100215
-          },
-          "hair_volume": 1.2816362,
-          "hairline_raise": 0.031489745,
-          "hem_fraction": 0.102985054,
-          "melanin": 0.9253391,
-          "skin_roughness": 0.6222313,
-          "sleeve_coverage": 0.9420135,
-          "top": [
-            0.5741228,
-            0.6738702,
-            0.6072623
-          ],
-          "trousers": [
-            0.080619,
-            0.16477248,
-            0.16569966
-          ],
-          "weave_rotation": 0.13321039,
-          "weave_scale": 1.2789996
-        },
-        "bounds_max": [
-          0.34490606,
-          1.911682,
-          0.32727906
-        ],
-        "bounds_min": [
-          -0.4866726,
-          0.0,
-          -0.49397472
-        ],
-        "build": 0.9659506,
-        "chair": null,
-        "glasses": false,
-        "hair_color": 5,
-        "hairstyle": 4,
-        "head_yaw": 0.3963927,
-        "id": 120,
-        "joints": [
-          [
-            -0.029889084,
-            0.974872,
-            0.015
-          ],
-          [
-            -0.037162747,
-            1.1276324,
-            -0.004172421
-          ],
-          [
-            -0.050740257,
-            1.4127849,
-            -0.03996094
-          ],
-          [
-            -0.056559186,
-            1.5349933,
-            -0.055298872
-          ],
-          [
-            -0.066309445,
-            1.6665877,
-            -0.07696429
-          ],
-          [
-            -0.19814996,
-            1.4133381,
-            0.06056622
-          ],
-          [
-            -0.23278342,
-            1.1343273,
-            0.15930282
-          ],
-          [
-            -0.30319136,
-            1.1291292,
-            -0.09835963
-          ],
-          [
-            -0.32350135,
-            1.1276298,
-            -0.17268534
-          ],
-          [
-            0.09714137,
-            1.4023207,
-            -0.13924418
-          ],
-          [
-            0.166794,
-            1.1126007,
-            -0.1367369
-          ],
-          [
-            -0.052074775,
-            1.0560285,
-            -0.2791106
-          ],
-          [
-            -0.11521,
-            1.0397096,
-            -0.32017994
-          ],
-          [
-            -0.12279913,
-            0.974872,
-            0.015
-          ],
-          [
-            -0.12387094,
-            0.5447855,
-            -0.08623109
-          ],
-          [
-            -0.107814394,
-            0.10500002,
-            -0.046807364
-          ],
-          [
-            -0.12650502,
-            0.045000017,
-            -0.2204858
-          ],
-          [
-            0.06302096,
-            0.974872,
-            0.015
-          ],
-          [
-            0.094207734,
-            0.53774744,
-            -0.04132764
-          ],
-          [
-            0.107814394,
-            0.10500002,
-            0.046807364
-          ],
-          [
-            0.1367001,
-            0.04500002,
-            -0.12546903
-          ]
-        ],
-        "neighbor": false,
-        "outfit": "Cardigan",
-        "pose": "StandingReading",
-        "pose_program": {
-          "arm_elevation": [
-            -0.84958684,
-            -0.91509587
-          ],
-          "arm_reach": [
-            0.6054175,
-            0.711635
-          ],
-          "arm_sweep": [
-            -0.048021123,
-            -0.14109018
-          ],
-          "elbow_pole": [
-            0.19619279,
-            0.28768778
-          ],
-          "finger_curl": [
-            0.10932997,
-            0.06513083
-          ],
-          "foot_splay": [
-            0.10720367,
-            0.16612542
-          ],
-          "head_pitch": 0.03014031,
-          "head_roll": 0.01997938,
-          "index_extension": [
-            0.0,
-            0.0
-          ],
-          "lean": [
-            0.031152606,
-            -0.12977104
-          ],
-          "phase": 2.7942083,
-          "stance": 0.21562879,
-          "stride": 0.13749096,
-          "torso_twist": 0.59891844,
-          "weight_shift": -0.029889084
-        },
-        "position": [
-          -0.1117135,
-          0.0,
-          3.7191381
-        ],
-        "seed": 11796892068840760740,
-        "shoe_color": 1,
-        "shoulder_width": 0.35671076,
-        "skin_tone": 6,
-        "stature": 1.7981894,
-        "top_color": 7,
-        "trouser_color": 4,
-        "yaw": -1.0016618
+        "yaw": 0.07107228
       }
     ],
     "layout": "Reception",
@@ -8132,9 +7839,9 @@
         "kind": "Chair",
         "neighbor": false,
         "position": [
-          1.0493007,
+          1.0833781,
           0.0,
-          -6.7530046
+          -6.4110665
         ],
         "seed": 12898099808782101581,
         "size": [
@@ -8145,7 +7852,7 @@
         "solid": true,
         "support": null,
         "variant": 0,
-        "yaw": 3.0475187
+        "yaw": 3.2167194
       },
       {
         "id": 2,
@@ -8305,9 +8012,9 @@
         "kind": "Chair",
         "neighbor": false,
         "position": [
-          4.026661,
+          4.126585,
           0.0,
-          1.5538349
+          1.847816
         ],
         "seed": 17012318828493429450,
         "size": [
@@ -8318,7 +8025,7 @@
         "solid": true,
         "support": null,
         "variant": 7,
-        "yaw": 0.2719164
+        "yaw": 0.07107228
       },
       {
         "finish_seed": 4815381492410907512,
@@ -8901,27 +8608,6 @@
       {
         "id": 37,
         "interaction_target": null,
-        "kind": "Plant",
-        "neighbor": false,
-        "position": [
-          -5.4824696,
-          0.0,
-          6.814418
-        ],
-        "seed": 2520620676306325194,
-        "size": [
-          0.9,
-          1.7638326,
-          0.9
-        ],
-        "solid": true,
-        "support": null,
-        "variant": 10,
-        "yaw": 0.29800573
-      },
-      {
-        "id": 38,
-        "interaction_target": null,
         "kind": "Desk",
         "neighbor": true,
         "position": [
@@ -8929,7 +8615,7 @@
           0.0,
           9.774418
         ],
-        "seed": 957518676457559541,
+        "seed": 9196904570154931681,
         "size": [
           1.5,
           0.74,
@@ -8941,8 +8627,8 @@
         "yaw": 3.1415927
       },
       {
-        "id": 39,
-        "interaction_target": 38,
+        "id": 38,
+        "interaction_target": 37,
         "kind": "Chair",
         "neighbor": true,
         "position": [
@@ -8950,7 +8636,7 @@
           0.0,
           8.854418
         ],
-        "seed": 56233265317210661,
+        "seed": 4781622658463248711,
         "size": [
           0.68,
           1.02,
@@ -8958,11 +8644,11 @@
         ],
         "solid": true,
         "support": null,
-        "variant": 7,
+        "variant": 2,
         "yaw": 3.1415927
       },
       {
-        "id": 40,
+        "id": 39,
         "interaction_target": null,
         "kind": "Cabinet",
         "neighbor": true,
@@ -8971,7 +8657,7 @@
           0.0,
           10.4244175
         ],
-        "seed": 11241151828262556923,
+        "seed": 12488667907088859891,
         "size": [
           1.6,
           1.2,
@@ -8979,11 +8665,11 @@
         ],
         "solid": true,
         "support": null,
-        "variant": 0,
+        "variant": 1,
         "yaw": 3.1415927
       },
       {
-        "id": 41,
+        "id": 40,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": true,
@@ -8992,7 +8678,7 @@
           0.0,
           10.074418
         ],
-        "seed": 16897435300641180884,
+        "seed": 15429348504589342229,
         "size": [
           0.8,
           1.7,
@@ -9000,11 +8686,11 @@
         ],
         "solid": true,
         "support": null,
-        "variant": 1,
+        "variant": 2,
         "yaw": 3.1415927
       },
       {
-        "id": 42,
+        "id": 41,
         "interaction_target": null,
         "kind": "SideTable",
         "neighbor": false,
@@ -9025,7 +8711,7 @@
         "yaw": 4.767112
       },
       {
-        "id": 43,
+        "id": 42,
         "interaction_target": null,
         "kind": "SideTable",
         "neighbor": false,
@@ -9046,7 +8732,7 @@
         "yaw": 4.2099137
       },
       {
-        "id": 44,
+        "id": 43,
         "interaction_target": null,
         "kind": "SideTable",
         "neighbor": false,
@@ -9067,20 +8753,20 @@
         "yaw": 4.594415
       },
       {
-        "id": 45,
+        "id": 44,
         "interaction_target": null,
-        "kind": "SideTable",
+        "kind": "DrawerUnit",
         "neighbor": false,
         "position": [
-          -4.1170683,
+          -4.0412226,
           0.0,
-          -5.3685904
+          -5.344814
         ],
         "seed": 13815302131432579786,
         "size": [
-          0.6424242,
-          0.6469964,
-          0.60329396
+          0.4834545,
+          0.68970543,
+          0.5276521
         ],
         "solid": true,
         "support": null,
@@ -9088,7 +8774,7 @@
         "yaw": 2.9476416
       },
       {
-        "id": 46,
+        "id": 45,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -9109,7 +8795,7 @@
         "yaw": 2.1221614
       },
       {
-        "id": 47,
+        "id": 46,
         "interaction_target": null,
         "kind": "Plant",
         "neighbor": false,
@@ -9130,7 +8816,7 @@
         "yaw": 5.6906652
       },
       {
-        "id": 48,
+        "id": 47,
         "interaction_target": null,
         "kind": "ProjectionScreen",
         "neighbor": false,
@@ -9151,7 +8837,7 @@
         "yaw": 1.5591274
       },
       {
-        "id": 49,
+        "id": 48,
         "interaction_target": null,
         "kind": "NoticeBoard",
         "neighbor": false,
@@ -9172,7 +8858,7 @@
         "yaw": 0.7853985
       },
       {
-        "id": 50,
+        "id": 49,
         "interaction_target": null,
         "kind": "PowerStrip",
         "neighbor": false,
@@ -9193,7 +8879,7 @@
         "yaw": 0.0695824
       },
       {
-        "id": 51,
+        "id": 50,
         "interaction_target": null,
         "kind": "PowerStrip",
         "neighbor": false,
@@ -9214,7 +8900,7 @@
         "yaw": 7.421628
       },
       {
-        "id": 52,
+        "id": 51,
         "interaction_target": null,
         "kind": "CeilingPendant",
         "neighbor": false,
@@ -9235,7 +8921,7 @@
         "yaw": 0.0
       },
       {
-        "id": 53,
+        "id": 52,
         "interaction_target": null,
         "kind": "CeilingPendant",
         "neighbor": false,
@@ -9256,7 +8942,7 @@
         "yaw": 0.0
       },
       {
-        "id": 54,
+        "id": 53,
         "interaction_target": null,
         "kind": "CeilingPendant",
         "neighbor": false,
@@ -9277,28 +8963,7 @@
         "yaw": 0.0
       },
       {
-        "id": 55,
-        "interaction_target": null,
-        "kind": "CeilingPendant",
-        "neighbor": false,
-        "position": [
-          -4.1170683,
-          3.1150613,
-          -5.3685904
-        ],
-        "seed": 18409832298339907661,
-        "size": [
-          0.36095604,
-          0.3687119,
-          0.27458882
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 2,
-        "yaw": 0.0
-      },
-      {
-        "id": 56,
+        "id": 54,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9319,7 +8984,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 57,
+        "id": 55,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9340,7 +9005,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 58,
+        "id": 56,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9361,7 +9026,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 59,
+        "id": 57,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9382,7 +9047,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 60,
+        "id": 58,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9403,7 +9068,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 61,
+        "id": 59,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9424,7 +9089,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 62,
+        "id": 60,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9445,7 +9110,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 63,
+        "id": 61,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9466,7 +9131,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 64,
+        "id": 62,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9487,7 +9152,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 65,
+        "id": 63,
         "interaction_target": null,
         "kind": "Whiteboard",
         "neighbor": false,
@@ -9508,7 +9173,7 @@
         "yaw": 0.0
       },
       {
-        "id": 66,
+        "id": 64,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9529,7 +9194,7 @@
         "yaw": 0.54289734
       },
       {
-        "id": 67,
+        "id": 65,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9550,7 +9215,7 @@
         "yaw": 0.54289734
       },
       {
-        "id": 68,
+        "id": 66,
         "interaction_target": null,
         "kind": "WallArt",
         "neighbor": false,
@@ -9571,7 +9236,7 @@
         "yaw": 0.54289734
       },
       {
-        "id": 69,
+        "id": 67,
         "interaction_target": null,
         "kind": "Display",
         "neighbor": false,
@@ -9592,7 +9257,7 @@
         "yaw": -0.78539824
       },
       {
-        "id": 70,
+        "id": 68,
         "interaction_target": null,
         "kind": "Display",
         "neighbor": false,
@@ -9613,28 +9278,112 @@
         "yaw": 2.575358
       },
       {
-        "id": 71,
+        "id": 69,
         "interaction_target": null,
-        "kind": "Clock",
+        "kind": "WallOutlet",
         "neighbor": false,
         "position": [
-          -5.856757,
-          2.1429284,
-          -7.2672873
+          -6.279142,
+          0.27909556,
+          -4.7391815
         ],
-        "seed": 1378196064814520908,
+        "seed": 2986598692662224835,
         "size": [
-          0.32531124,
-          0.32531124,
-          0.07752086
+          0.075,
+          0.123623505,
+          0.018
         ],
         "solid": false,
         "support": null,
-        "variant": 0,
+        "variant": 3,
+        "yaw": 1.5591274
+      },
+      {
+        "id": 70,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          -5.5672045,
+          0.37844148,
+          -7.58136
+        ],
+        "seed": 13778583603316912300,
+        "size": [
+          0.22500001,
+          0.12061557,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
         "yaw": 0.7853985
       },
       {
+        "id": 71,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          0.06870154,
+          0.34507486,
+          -7.1889133
+        ],
+        "seed": 10974166430399884678,
+        "size": [
+          0.22500001,
+          0.116446674,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
+        "yaw": 1.5707963
+      },
+      {
         "id": 72,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          -5.8700843,
+          0.35304394,
+          3.3056486
+        ],
+        "seed": 7166893428445996734,
+        "size": [
+          0.075,
+          0.11879796,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
+        "yaw": 0.54289734
+      },
+      {
+        "id": 73,
+        "interaction_target": null,
+        "kind": "WallOutlet",
+        "neighbor": false,
+        "position": [
+          4.3554864,
+          0.31338897,
+          -7.5386415
+        ],
+        "seed": 10632143331731864002,
+        "size": [
+          0.075,
+          0.10430563,
+          0.018
+        ],
+        "solid": false,
+        "support": null,
+        "variant": 3,
+        "yaw": -0.78539824
+      },
+      {
+        "id": 74,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -9655,7 +9404,7 @@
         "yaw": 0.0
       },
       {
-        "id": 73,
+        "id": 75,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -9676,112 +9425,7 @@
         "yaw": 0.0
       },
       {
-        "id": 74,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          0.06870154,
-          0.3748164,
-          -7.3194466
-        ],
-        "seed": 9444523173403183489,
-        "size": [
-          0.22500001,
-          0.1065155,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 1.5707963
-      },
-      {
-        "id": 75,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          4.663466,
-          0.31746417,
-          -7.230662
-        ],
-        "seed": 5224941181302440660,
-        "size": [
-          0.22500001,
-          0.10966361,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -0.78539824
-      },
-      {
         "id": 76,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          4.890079,
-          0.29873455,
-          -7.004049
-        ],
-        "seed": 7511867176282758552,
-        "size": [
-          0.15,
-          0.10531958,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": -0.78539824
-      },
-      {
-        "id": 77,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          0.06870154,
-          0.35747123,
-          -6.400201
-        ],
-        "seed": 10188917195332290762,
-        "size": [
-          0.22500001,
-          0.12166743,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 1.5707963
-      },
-      {
-        "id": 78,
-        "interaction_target": null,
-        "kind": "WallOutlet",
-        "neighbor": false,
-        "position": [
-          -5.5094676,
-          0.35413244,
-          -1.3799896
-        ],
-        "seed": 13893573134461091893,
-        "size": [
-          0.22500001,
-          0.10412891,
-          0.018
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 3,
-        "yaw": 1.5591272
-      },
-      {
-        "id": 79,
         "interaction_target": null,
         "kind": "WaterBottle",
         "neighbor": false,
@@ -9802,7 +9446,7 @@
         "yaw": 3.3453727
       },
       {
-        "id": 80,
+        "id": 77,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -9823,7 +9467,7 @@
         "yaw": 1.6498039
       },
       {
-        "id": 81,
+        "id": 78,
         "interaction_target": null,
         "kind": "SodaCan",
         "neighbor": false,
@@ -9845,7 +9489,7 @@
       },
       {
         "finish_seed": 2655473047806239206,
-        "id": 82,
+        "id": 79,
         "interaction_target": 7,
         "kind": "Laptop",
         "neighbor": false,
@@ -9866,7 +9510,7 @@
         "yaw": 0.29190344
       },
       {
-        "id": 83,
+        "id": 80,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -9888,7 +9532,7 @@
       },
       {
         "finish_seed": 3832832417193006484,
-        "id": 84,
+        "id": 81,
         "interaction_target": 9,
         "kind": "Laptop",
         "neighbor": false,
@@ -9906,11 +9550,11 @@
         "solid": false,
         "support": 8,
         "variant": 1,
-        "yaw": 0.18133369
+        "yaw": 0.19722822
       },
       {
         "finish_seed": 8654549235374395378,
-        "id": 85,
+        "id": 82,
         "interaction_target": 13,
         "kind": "Laptop",
         "neighbor": false,
@@ -9931,7 +9575,7 @@
         "yaw": 0.10716389
       },
       {
-        "id": 86,
+        "id": 83,
         "interaction_target": null,
         "kind": "Notepad",
         "neighbor": false,
@@ -9952,7 +9596,7 @@
         "yaw": -0.5588185
       },
       {
-        "id": 87,
+        "id": 84,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -9973,7 +9617,7 @@
         "yaw": 5.122348
       },
       {
-        "id": 88,
+        "id": 85,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -9994,7 +9638,7 @@
         "yaw": 5.0811176
       },
       {
-        "id": 89,
+        "id": 86,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10015,7 +9659,7 @@
         "yaw": 6.9439664
       },
       {
-        "id": 90,
+        "id": 87,
         "interaction_target": null,
         "kind": "Phone",
         "neighbor": false,
@@ -10036,7 +9680,7 @@
         "yaw": 3.2856753
       },
       {
-        "id": 91,
+        "id": 88,
         "interaction_target": null,
         "kind": "PenHolder",
         "neighbor": false,
@@ -10057,7 +9701,7 @@
         "yaw": 5.076622
       },
       {
-        "id": 92,
+        "id": 89,
         "interaction_target": null,
         "kind": "Laptop",
         "neighbor": false,
@@ -10078,7 +9722,7 @@
         "yaw": 4.208316
       },
       {
-        "id": 93,
+        "id": 90,
         "interaction_target": null,
         "kind": "CoffeeCup",
         "neighbor": false,
@@ -10099,7 +9743,7 @@
         "yaw": 3.7926335
       },
       {
-        "id": 94,
+        "id": 91,
         "interaction_target": null,
         "kind": "Notebook",
         "neighbor": false,
@@ -10118,6 +9762,69 @@
         "support": 36,
         "variant": 0,
         "yaw": 3.1002038
+      },
+      {
+        "id": 92,
+        "interaction_target": 38,
+        "kind": "Monitor",
+        "neighbor": true,
+        "position": [
+          -2.828578,
+          0.74,
+          9.899277
+        ],
+        "seed": 11612924257734683935,
+        "size": [
+          0.8094619,
+          0.3647266,
+          0.24973072
+        ],
+        "solid": false,
+        "support": 37,
+        "variant": 2,
+        "yaw": -3.1430874
+      },
+      {
+        "id": 93,
+        "interaction_target": null,
+        "kind": "Keyboard",
+        "neighbor": true,
+        "position": [
+          -2.8973231,
+          0.74,
+          9.556253
+        ],
+        "seed": 12605800973812732596,
+        "size": [
+          0.3724118,
+          0.020109598,
+          0.15756275
+        ],
+        "solid": false,
+        "support": 37,
+        "variant": 2,
+        "yaw": 3.0725653
+      },
+      {
+        "id": 94,
+        "interaction_target": null,
+        "kind": "Books",
+        "neighbor": true,
+        "position": [
+          0.8519885,
+          1.2,
+          10.430719
+        ],
+        "seed": 8385107525258245839,
+        "size": [
+          0.27963552,
+          0.07902388,
+          0.34332085
+        ],
+        "solid": false,
+        "support": 39,
+        "variant": 1,
+        "yaw": 3.1564276
       },
       {
         "id": 95,
@@ -10395,47 +10102,26 @@
       {
         "id": 108,
         "interaction_target": null,
-        "kind": "DeskOrganizer",
-        "neighbor": true,
+        "kind": "Notebook",
+        "neighbor": false,
         "position": [
-          0.37304062,
-          1.2,
-          10.353383
+          -3.934817,
+          0.6897055,
+          -5.2173
         ],
-        "seed": 2086145101955990910,
+        "seed": 16076203781081818368,
         "size": [
-          0.15537003,
-          0.13845229,
-          0.11762006
+          0.09991391,
+          0.014960044,
+          0.13380152
         ],
         "solid": false,
-        "support": 40,
+        "support": 44,
         "variant": 0,
-        "yaw": 6.1259623
+        "yaw": 3.3514447
       },
       {
         "id": 109,
-        "interaction_target": null,
-        "kind": "TissueBox",
-        "neighbor": false,
-        "position": [
-          -4.2151027,
-          0.6469964,
-          -5.3154387
-        ],
-        "seed": 15604117813074143293,
-        "size": [
-          0.23540622,
-          0.13221854,
-          0.1413945
-        ],
-        "solid": false,
-        "support": 45,
-        "variant": 2,
-        "yaw": 5.981061
-      },
-      {
-        "id": 110,
         "interaction_target": null,
         "kind": "ExitSign",
         "neighbor": false,
@@ -10456,7 +10142,7 @@
         "yaw": 3.1415925
       },
       {
-        "id": 111,
+        "id": 110,
         "interaction_target": null,
         "kind": "FireAlarm",
         "neighbor": false,
@@ -10477,7 +10163,7 @@
         "yaw": 0.0
       },
       {
-        "id": 112,
+        "id": 111,
         "interaction_target": null,
         "kind": "Speaker",
         "neighbor": false,
@@ -10498,14 +10184,14 @@
         "yaw": 0.0
       },
       {
-        "id": 113,
+        "id": 112,
         "interaction_target": null,
         "kind": "Speaker",
         "neighbor": false,
         "position": [
-          -0.5554732,
-          2.0336406,
-          -5.7374506
+          -5.776527,
+          1.929426,
+          -7.2691336
         ],
         "seed": 6335169410113167926,
         "size": [
@@ -10515,11 +10201,11 @@
         ],
         "solid": false,
         "support": null,
-        "variant": 0,
-        "yaw": 0.0
+        "variant": 2,
+        "yaw": 0.7853985
       },
       {
-        "id": 114,
+        "id": 113,
         "interaction_target": null,
         "kind": "FireDetector",
         "neighbor": false,
@@ -10540,7 +10226,7 @@
         "yaw": 4.4698987
       },
       {
-        "id": 115,
+        "id": 114,
         "interaction_target": null,
         "kind": "FirePullStation",
         "neighbor": false,
@@ -10561,7 +10247,7 @@
         "yaw": 3.1415927
       },
       {
-        "id": 116,
+        "id": 115,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -10734,9 +10420,9 @@
             -0.052806616
           ]
         ],
-        "cable_target": 50,
-        "id": 117,
-        "interaction_target": 82,
+        "cable_target": 49,
+        "id": 116,
+        "interaction_target": 79,
         "kind": "Cable",
         "neighbor": false,
         "position": [
@@ -11216,7 +10902,7 @@
             "basket_strips": 3,
             "cells": [
               19,
-              5
+              4
             ],
             "craft": {
               "chevron_rise": 2.2550898,
@@ -11229,8 +10915,8 @@
             "piece_warmth": 0.048168138,
             "stock": {
               "cut_jitter": [
-                0.0673204,
-                0.17821655
+                0.09611777,
+                0.13267833
               ],
               "joint_color": [
                 0.037747905,
@@ -11239,14 +10925,14 @@
               ],
               "joint_roughness": 0.7881984,
               "mottle_cells": [
-                5,
-                10
+                1,
+                7
               ]
             },
             "tile_definition": 0.8129395
           },
-          "grain_frequency": 20.13856,
-          "joint_width": 0.0006136501,
+          "grain_frequency": 60.90385,
+          "joint_width": 0.0009251568,
           "layers": {
             "bands": [
               12,
@@ -11301,7 +10987,7 @@
             13,
             3
           ],
-          "period_m": 4.559206,
+          "period_m": 4.4253244,
           "phase": [
             0.5457772,
             0.017808676
@@ -13690,8 +13376,8 @@
         }
       ]
     },
-    "rejected_human_placements": 4,
-    "rejected_placements": 287,
+    "rejected_human_placements": 1,
+    "rejected_placements": 289,
     "room_size": [
       12.864939,
       3.4877732,
@@ -13706,13 +13392,13 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000011/capture.json": "c9141760f72868392f782735b5d3bb05a3d3de2208b43b9f0ae0a9c5763fc03e",
-    "seed_000011/manifest.json": "19d84218c4a0757f868aae0c4dd30bfcf7fc43ace5e924b51f47ac9795c44506",
-    "seed_000011/schematic.svg": "16ef1721dd878cb87ffa0391f2b92a6f9bdf75c83f2d3bd41001e01c4a160cd7",
+    "seed_000011/capture.json": "23d7824192b53509afcb35e3581fbf8c31f274ebb52350e11b3188ce41106e7c",
+    "seed_000011/manifest.json": "381504cbe37e66e6581c94990738ce72cae3aca283d19cd5995e2bcce5362b54",
+    "seed_000011/schematic.svg": "e35d5d8a5ffad35db5a137065066ad01d5f507e5892c67aec089ab50074148c8",
     "seed_000011/view_00_co_visibility.png": "21c6af095642b4af7d5aa27d89177bf0b9f4fc42b1f9397ab13c7e6f7b98bb27",
     "seed_000011/view_00_co_visibility_mask.png": "00a22988c04668d5aea9e15ba9f9794afb678417aadddd84949892ff7cd5728a",
     "seed_000011/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_00_color.png": "b310898c4514b27ac71bbe91d66a4c017199394c7fde44474c7ee40ec7954ab1",
+    "seed_000011/view_00_color.png": "261883a808bcc99d9627298b10a8a7d15be03977f55448aee8087d7ff2f113de",
     "seed_000011/view_00_depth.png": "00fb2ffaeed63e41d890d4beb96a53172b998c48d748c2eea8524d3e5ca1ba66",
     "seed_000011/view_00_normal.png": "9f6b2ae9b7e8150dc7650fd61cd2dbf25b759f0d206dadf3943af928a2a27b83",
     "seed_000011/view_00_position.png": "956e984856daedcfe7f5705c2e630fef50c6c531e88090c8052d847799f61ea1",
@@ -13720,15 +13406,15 @@
     "seed_000011/view_01_co_visibility.png": "0290623c542b16341af771d41e587a408170df8ce1351e80a2daad2a3d1e6f40",
     "seed_000011/view_01_co_visibility_mask.png": "07878d03afb7fea92c02693a75db75ad1db557862499202429e243a237cd03a2",
     "seed_000011/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_01_color.png": "27e9e5abbd19d27dde075a0f409fb5a549430c32c6818359421e58a452db16dc",
-    "seed_000011/view_01_depth.png": "861c0953a38480be6a1b675131ac270300fb837e266564c6648884fe1a84fbcf",
-    "seed_000011/view_01_normal.png": "e6eb7955ad85741ed16167a00a4add0c06d3716b7d88e2e297d235bad493f16b",
-    "seed_000011/view_01_position.png": "ca126758e5053117e884415ce04fef79e36257ca7ea0ba00ec2299823a3c1c2b",
-    "seed_000011/view_01_semantic.png": "dbe1e7199be0029acb32001c5e8429066bb428ce5514033dea36984c280c83ff",
+    "seed_000011/view_01_color.png": "587212f2d1bc48b5d1ba03582cf971ae415f59c24d348a66e4a4176959ab2c8b",
+    "seed_000011/view_01_depth.png": "d8d89293faf11bc4fc2229c50e020dd8e8929ce0283bbcfadb9f19b812bd8b73",
+    "seed_000011/view_01_normal.png": "57bd2ecc5af96e1cb4ebc252b3c9cccfb934aacde11880a8aff6b0768be69984",
+    "seed_000011/view_01_position.png": "c2181e3f6e1389bacbb7b47308ded6bda0444e8ee86183ed7dfa937436a51da1",
+    "seed_000011/view_01_semantic.png": "dad7cf25e07c7e5f35c22b0d716e1563f4544823e1988aebc6bbb3fe672c6c66",
     "seed_000011/view_02_co_visibility.png": "62f7128b745bafa01a003a64a9434c426777949dfce9230b57865ae3aba52a81",
     "seed_000011/view_02_co_visibility_mask.png": "54248bdbf43de76eb25f6f7a321625f55ffe93908c7de76bc76e34e8eede19e9",
     "seed_000011/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_02_color.png": "3ee0ac9a49803f255bcc95f6a68e8254e9cfc980fc473623bf20075808b20c76",
+    "seed_000011/view_02_color.png": "f0dd84d31c6e6e245e8ce62c0fcbf85f320325d4017acb3ea7b16c371186a7f1",
     "seed_000011/view_02_depth.png": "3a89d9cd050cf4ddb9eb1a3ac9a7e11068e24f82c1971947e88875a705d58dae",
     "seed_000011/view_02_normal.png": "659a89922db3c14086387f86e1f83777ef57983cabeec7b6ea21b59c39ddec4c",
     "seed_000011/view_02_position.png": "e01b00afafd6caf0b97d4ef9e9735988f0a30013f78ee712f2af30e32596d778",
@@ -13736,7 +13422,7 @@
     "seed_000011/view_03_co_visibility.png": "3b3ca39c8c76e55be35deb5d0eb13f0958ee0111b5f42f8f6ad66179cb4ec6ec",
     "seed_000011/view_03_co_visibility_mask.png": "50c6c7abc2e8809f1278ae86ee8a94681d89d770410148f7334748e9b9259a6a",
     "seed_000011/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_03_color.png": "3940be99dd722279b9a67f98182c5b1992b546bcf9a418d6da0f141938126534",
+    "seed_000011/view_03_color.png": "5bce87aaf25962f4b716dc9b3c6c39de1d61d850c01a8f34289f40bc8d7ce35c",
     "seed_000011/view_03_depth.png": "f39baf687a3faf5de85e4e5cf4082861369a03a8e646bdfef9d4db42b7dbfbef",
     "seed_000011/view_03_normal.png": "4ed26ad305a1bd66011dc93136f8fb0b19cbe90119d916e5963c5070e5b7514a",
     "seed_000011/view_03_position.png": "52727883eec22727e42f9d8bccd540b89642cea70a2ddd235bdebeed6a6d048b",
@@ -13744,7 +13430,7 @@
     "seed_000011/view_04_co_visibility.png": "0e5f662e5167a69b03f426988f7cd0ecf8965f93ed80319520ddbed31083d1f7",
     "seed_000011/view_04_co_visibility_mask.png": "76ebb83b684499df6fff0cf3c9352ee4896a92413d80617c9e7155088fc43933",
     "seed_000011/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_04_color.png": "0e7c1dab7d2ae9480fa7b30375aea132016226174ba1a1c9b64a3e09242c8cba",
+    "seed_000011/view_04_color.png": "d567203f6977bb1c1c53038efd6c6b1737ae955988c29b8ac3ecd335317d5917",
     "seed_000011/view_04_depth.png": "c755ed570b32c4a15666f981e5633c73520dab5a1cf0033b0487c7e6e50d4786",
     "seed_000011/view_04_normal.png": "ed3cc8d4a944220203a36d4a33cd6755c448f8dca5112da84c1a7584dc519d77",
     "seed_000011/view_04_position.png": "ed16d9ef732936b944df78a4bba32accff4703b63c7c665d2e43982bf98ac4db",
@@ -13752,15 +13438,15 @@
     "seed_000011/view_05_co_visibility.png": "79431d38882c932ebe4e6d4facd483023c16b32d1ed6fc15d331d2492ffde28a",
     "seed_000011/view_05_co_visibility_mask.png": "b3efbcc64d97090cf23a594498ad9fa46449462876fbbaac32485ebcbd12a55d",
     "seed_000011/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_05_color.png": "34a1ffcc97e007a9dabf5dc6e774c13d768b692ad80f8cba1db8541331b0816b",
-    "seed_000011/view_05_depth.png": "e26605bce81d9e487ee5068d8338f0c1dda147d739a0e04325e03a32941f839e",
-    "seed_000011/view_05_normal.png": "8aead0191d27fd386246293268a4ed21651f8efe11242cfe20ce8eac65f48659",
-    "seed_000011/view_05_position.png": "9bc5b1cc5c4e62b8c4b9e704cdf9e7d659edd3519966e17a6c78cd7b597fac8c",
-    "seed_000011/view_05_semantic.png": "75cf58c7ac9320fa2a79e3fd7381d645712ae6deb31064013f3d666b1243a3d8",
+    "seed_000011/view_05_color.png": "1d42e123457540c727379cea2a2737b5dc8527a2b45d3164897941f83803264e",
+    "seed_000011/view_05_depth.png": "37aa28511f975c645109586f510a417088959eb6df8d7c326b77a537564b71a7",
+    "seed_000011/view_05_normal.png": "bc2c35fefe10705302136b0746b6c014dd42ae84c3c743f4844d69566c6100e1",
+    "seed_000011/view_05_position.png": "0ba5f05d350c295fa6d4734cf170875f81de54f8aced28b6ce73f8df4ade0fa1",
+    "seed_000011/view_05_semantic.png": "ff42711037e0b92649db4b3d00d006b7d824ef3edd9688250eb6f27cff0216f4",
     "seed_000011/view_06_co_visibility.png": "d472b08db06dcbcbd5c3ad606fc925cbab42abb3fa4527f7bf3d2b9f3f16687c",
     "seed_000011/view_06_co_visibility_mask.png": "f109847c420e084635fc32f98ec73701e6dbfc631b6044d0b0da4a9a61d0bd48",
     "seed_000011/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_06_color.png": "a28e93dfd3744fc0ad24806ee314ad0c7f8e7473da41749ffa2762b83ee4c809",
+    "seed_000011/view_06_color.png": "8fd622f853f351068cbb94891c65af2a424009b0936293f5c8a7f7f094e625a7",
     "seed_000011/view_06_depth.png": "5b63fddaa8c165ad9a748062cdd144ca2734b0a45a756e6866b6a34bb4533ce8",
     "seed_000011/view_06_normal.png": "866552e732b609c8d76a923ad37f3ae06fe70d3df23c08c9a0cd8811fd088f95",
     "seed_000011/view_06_position.png": "f54cbc8f298d5d80abdeaab3dc8e67e69af45035825c616ad8962e4d19c2a380",
@@ -13768,7 +13454,7 @@
     "seed_000011/view_07_co_visibility.png": "3cb07f97ea96c94db7bd69fc8fee3189498f38cced0efd98024110aaa7b04ce2",
     "seed_000011/view_07_co_visibility_mask.png": "1df34f31ffaeb3fa0d64313c0868ae9c14735c03485f756ae07ee9506d644784",
     "seed_000011/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000011/view_07_color.png": "a3b4222559c312195c36943fecef6cf388798b5bb5df227dcf65b35bea4d74f6",
+    "seed_000011/view_07_color.png": "4671c5bbb39d9e3f65d33b4c70259bad02283d09c0332a4068f877ef0363fe70",
     "seed_000011/view_07_depth.png": "0a535419db66767f2b33ff066b0f414f8bd6272a4d2b8a9c53ef48fdcd3920a5",
     "seed_000011/view_07_normal.png": "d2649fb7e6563f4c16f1f2ea453295b6d7fce2d95b48186fe60bf70a89e10b82",
     "seed_000011/view_07_position.png": "49580daec8405a0f23727efa0297b49d84da7bfd4042f7ab183692c76d69bd44",

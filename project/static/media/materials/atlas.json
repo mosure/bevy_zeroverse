@@ -1,14 +1,14 @@
 {
   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
   "build_provenance": {
-    "capture_engine": "capture-v117;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=18;seating=7;activity=3;playback=2;exterior=5;envelope=7;furnishings=15;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
-    "crate_version": "0.60.0",
+    "capture_engine": "capture-v122;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=21;camera_motion=1;ceiling_camera=4;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=19;seating=7;activity=3;playback=2;exterior=5;envelope=8;furnishings=16;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
+    "crate_version": "0.61.0",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 92,
+    "generator_version": 97,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -17,19 +17,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.60.0"
+        "0.61.0"
       ],
       "bevy_zeroverse_burn": [
-        "0.44.0"
+        "0.45.0"
       ],
       "bevy_zeroverse_capture": [
-        "0.6.14"
+        "0.6.15"
       ],
       "bevy_zeroverse_ffi": [
-        "0.60.0"
+        "0.61.0"
       ],
       "bevy_zeroverse_publication": [
-        "0.9.2"
+        "0.9.3"
       ],
       "burn": [
         "0.22.1"
@@ -978,7 +978,7 @@
       }
     ],
     "semantic_taxonomy_version": 10,
-    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717",
+    "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977",
     "target": "x86_64-unknown-linux-gnu"
   },
   "categories": [
@@ -8598,51 +8598,51 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            83,
-            46,
-            36,
-            37,
-            17,
-            18,
-            13,
-            6
+            52,
+            50,
+            45,
+            31,
+            21,
+            16,
+            11,
+            30
           ],
           "max": 48.0,
-          "median": 14.0,
-          "min": 3.0,
+          "median": 16.0,
+          "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            157,
-            15,
-            15,
-            14,
+            137,
+            40,
             22,
-            18,
-            7,
-            8
+            17,
+            11,
+            8,
+            8,
+            13
           ],
-          "max": 44.0,
-          "median": 6.0,
+          "max": 48.0,
+          "median": 7.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.craft.chevron_rise": {
           "bins": [
-            32,
-            32,
-            28,
-            29,
-            29,
+            35,
             38,
-            40,
-            28
+            35,
+            44,
+            45,
+            33,
+            2,
+            24
           ],
-          "max": 2.3900904655456543,
-          "median": 1.5568664073944092,
+          "max": 3.0,
+          "median": 1.6843281984329224,
           "min": 0.651661217212677,
           "present": 256,
           "type": "numeric"
@@ -8744,34 +8744,34 @@
         },
         "recipe.flooring.stock.cut_jitter.0": {
           "bins": [
-            98,
-            33,
-            25,
-            25,
-            17,
-            20,
-            21,
-            17
+            189,
+            16,
+            15,
+            8,
+            4,
+            18,
+            4,
+            2
           ],
-          "max": 0.19987812638282776,
-          "median": 0.04929521307349205,
+          "max": 0.19937413930892944,
+          "median": 0.0,
           "min": 0.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.stock.cut_jitter.1": {
           "bins": [
-            74,
-            18,
-            21,
+            174,
             27,
-            31,
-            31,
-            31,
-            23
+            12,
+            14,
+            11,
+            11,
+            5,
+            2
           ],
-          "max": 0.379550576210022,
-          "median": 0.169229656457901,
+          "max": 0.3690630793571472,
+          "median": 0.0,
           "min": 0.0,
           "present": 256,
           "type": "numeric"
@@ -8846,14 +8846,14 @@
         },
         "recipe.flooring.stock.mottle_cells.0": {
           "bins": [
-            53,
-            19,
-            24,
-            25,
-            50,
-            24,
-            20,
-            41
+            39,
+            17,
+            33,
+            29,
+            57,
+            21,
+            22,
+            38
           ],
           "max": 11.0,
           "median": 6.0,
@@ -8863,14 +8863,14 @@
         },
         "recipe.flooring.stock.mottle_cells.1": {
           "bins": [
-            43,
-            22,
-            27,
+            50,
+            26,
+            19,
             24,
-            40,
+            37,
+            26,
             20,
-            21,
-            59
+            54
           ],
           "max": 11.0,
           "median": 6.0,
@@ -8897,35 +8897,35 @@
         },
         "recipe.grain_frequency": {
           "bins": [
+            41,
+            35,
+            28,
             31,
             25,
-            37,
-            39,
-            37,
             35,
-            25,
-            27
+            26,
+            35
           ],
-          "max": 77.57658386230469,
-          "median": 46.97371292114258,
-          "min": 17.767549514770508,
+          "max": 77.71992492675781,
+          "median": 44.70362854003906,
+          "min": 17.209056854248047,
           "present": 256,
           "type": "numeric"
         },
         "recipe.joint_width": {
           "bins": [
-            44,
-            29,
-            21,
+            30,
+            30,
             36,
-            28,
-            35,
-            26,
-            37
+            36,
+            31,
+            31,
+            31,
+            31
           ],
-          "max": 0.0024826223962008953,
-          "median": 0.001492153387516737,
-          "min": 0.0005105345626361668,
+          "max": 0.0024942471645772457,
+          "median": 0.0014843789394944906,
+          "min": 0.0005078742979094386,
           "present": 256,
           "type": "numeric"
         },
@@ -9458,18 +9458,18 @@
         },
         "recipe.period_m": {
           "bins": [
+            42,
+            42,
             41,
-            35,
+            38,
+            33,
+            20,
             28,
-            31,
-            25,
-            35,
-            26,
-            35
+            12
           ],
-          "max": 5.386226177215576,
-          "median": 3.762473583221435,
-          "min": 2.4102816581726074,
+          "max": 6.356061935424805,
+          "median": 3.433727502822876,
+          "min": 1.605302095413208,
           "present": 256,
           "type": "numeric"
         },
@@ -10333,23 +10333,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.34980972888392525,
+                "mean_encoded": 0.34773361604980874,
                 "mip_levels": 10,
-                "std_encoded": 0.10365675704872668,
+                "std_encoded": 0.10243625896557795,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666670905219186,
+                "mean_encoded": 0.6666657192255159,
                 "mip_levels": 10,
-                "std_encoded": 0.2357073978199591,
+                "std_encoded": 0.23570836744841175,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.6674989288999683,
+                "mean_encoded": 0.6672664418014266,
                 "mip_levels": 10,
-                "std_encoded": 0.028603086398703813,
+                "std_encoded": 0.02785130697780124,
                 "width": 512
               }
             },
@@ -10359,10 +10359,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.21039359271526337,
+              0.17501963675022125,
               0.0,
               0.0,
-              0.21039359271526337,
+              0.17501963675022125,
               0.0,
               0.0
             ]
@@ -10401,11 +10401,11 @@
               ],
               "basket_strips": 4,
               "cells": [
-                6,
-                23
+                10,
+                27
               ],
               "craft": {
-                "chevron_rise": 1.816600561141968,
+                "chevron_rise": 2.396851062774658,
                 "plank_ratio": 5
               },
               "layout": "Chevron",
@@ -10415,8 +10415,8 @@
               "piece_warmth": 0.061541296541690826,
               "stock": {
                 "cut_jitter": [
-                  0.02261989191174507,
-                  0.23326773941516876
+                  0.0,
+                  0.0
                 ],
                 "joint_color": [
                   0.12553301453590393,
@@ -10425,14 +10425,14 @@
                 ],
                 "joint_roughness": 0.6921319961547852,
                 "mottle_cells": [
-                  1,
-                  10
+                  6,
+                  2
                 ]
               },
               "tile_definition": 0.9705170392990112
             },
-            "grain_frequency": 48.42995071411133,
-            "joint_width": 0.0006463010795414448,
+            "grain_frequency": 64.84425354003906,
+            "joint_width": 0.0010674733202904465,
             "layers": {
               "bands": [
                 2,
@@ -10487,7 +10487,7 @@
               13,
               2
             ],
-            "period_m": 4.752996444702148,
+            "period_m": 5.713644504547119,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
@@ -10580,23 +10580,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.6053206051089168,
+                "mean_encoded": 0.61195576486994,
                 "mip_levels": 10,
-                "std_encoded": 0.10837790574373488,
+                "std_encoded": 0.11159124398290364,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666521259382697,
+                "mean_encoded": 0.6666603786493455,
                 "mip_levels": 10,
-                "std_encoded": 0.2357204503090236,
+                "std_encoded": 0.23571214359605316,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.724249297498362,
+                "mean_encoded": 0.7240903368191355,
                 "mip_levels": 10,
-                "std_encoded": 0.0225456712752442,
+                "std_encoded": 0.019208888051243215,
                 "width": 512
               }
             },
@@ -10606,10 +10606,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3521534204483032,
+              0.3456970453262329,
               0.0,
               0.0,
-              0.3521534204483032,
+              0.3456970453262329,
               0.0,
               0.0
             ]
@@ -10648,8 +10648,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                20,
-                20
+                40,
+                40
               ],
               "craft": {
                 "chevron_rise": 1.1769280433654783,
@@ -10662,8 +10662,8 @@
               "piece_warmth": 0.07282461225986481,
               "stock": {
                 "cut_jitter": [
-                  0.17144687473773956,
-                  0.2308380156755447
+                  0.0,
+                  0.0
                 ],
                 "joint_color": [
                   0.12250451743602753,
@@ -10678,8 +10678,8 @@
               },
               "tile_definition": 0.6454686522483826
             },
-            "grain_frequency": 37.76036834716797,
-            "joint_width": 0.002202712465077638,
+            "grain_frequency": 25.93998336791992,
+            "joint_width": 0.0009259650250896811,
             "layers": {
               "bands": [
                 1,
@@ -10734,7 +10734,7 @@
               5,
               4
             ],
-            "period_m": 2.8396713733673096,
+            "period_m": 2.8927061557769775,
             "phase": [
               0.511915922164917,
               0.9297031164169312
@@ -10827,23 +10827,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.4789262011164856,
+                "mean_encoded": 0.47139068304383064,
                 "mip_levels": 10,
-                "std_encoded": 0.07401956341381812,
+                "std_encoded": 0.07232004763777053,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666950300627995,
+                "mean_encoded": 0.6666926614599232,
                 "mip_levels": 10,
-                "std_encoded": 0.2356886040864686,
+                "std_encoded": 0.23569121926191497,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.5714823853671176,
+                "mean_encoded": 0.5783874062876707,
                 "mip_levels": 10,
-                "std_encoded": 0.02554991355758869,
+                "std_encoded": 0.029559387582402827,
                 "width": 512
               }
             },
@@ -10853,10 +10853,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0,
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0
             ]
@@ -10895,8 +10895,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                14,
-                3
+                23,
+                2
               ],
               "craft": {
                 "chevron_rise": 2.3170371055603027,
@@ -10909,8 +10909,8 @@
               "piece_warmth": 0.05488727241754532,
               "stock": {
                 "cut_jitter": [
-                  0.0,
-                  0.0
+                  0.02092571370303631,
+                  0.030472496524453163
                 ],
                 "joint_color": [
                   0.14633584022521973,
@@ -10919,14 +10919,14 @@
                 ],
                 "joint_roughness": 0.8972706198692322,
                 "mottle_cells": [
-                  7,
-                  11
+                  10,
+                  7
                 ]
               },
               "tile_definition": 0.947628140449524
             },
-            "grain_frequency": 69.1553955078125,
-            "joint_width": 0.002063550055027008,
+            "grain_frequency": 32.384796142578125,
+            "joint_width": 0.0012443270534276962,
             "layers": {
               "bands": [
                 9,
@@ -10981,7 +10981,7 @@
               12,
               3
             ],
-            "period_m": 3.1566295623779297,
+            "period_m": 1.8214515447616575,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
@@ -11074,23 +11074,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3128450680411038,
+                "mean_encoded": 0.325102313672027,
                 "mip_levels": 10,
-                "std_encoded": 0.06950900885829171,
+                "std_encoded": 0.07164933974398167,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666640238045094,
+                "mean_encoded": 0.6666559206894055,
                 "mip_levels": 10,
-                "std_encoded": 0.2357095662444453,
+                "std_encoded": 0.23571529553591977,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.708654097017043,
+                "mean_encoded": 0.7103057711750324,
                 "mip_levels": 10,
-                "std_encoded": 0.02877895342164352,
+                "std_encoded": 0.027017132288402516,
                 "width": 512
               }
             },
@@ -11100,10 +11100,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0,
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0
             ]
@@ -11142,7 +11142,7 @@
               ],
               "basket_strips": 3,
               "cells": [
-                48,
+                12,
                 3
               ],
               "craft": {
@@ -11156,8 +11156,8 @@
               "piece_warmth": 0.01920603029429913,
               "stock": {
                 "cut_jitter": [
-                  0.16086573898792267,
-                  0.36999762058258057
+                  0.0,
+                  0.0
                 ],
                 "joint_color": [
                   0.08399371057748795,
@@ -11166,14 +11166,14 @@
                 ],
                 "joint_roughness": 0.7261325120925903,
                 "mottle_cells": [
-                  6,
+                  1,
                   1
                 ]
               },
               "tile_definition": 0.4589114189147949
             },
-            "grain_frequency": 21.83747673034668,
-            "joint_width": 0.0014227761421352625,
+            "grain_frequency": 71.04415893554688,
+            "joint_width": 0.0019465999212116003,
             "layers": {
               "bands": [
                 5,
@@ -11228,7 +11228,7 @@
               9,
               4
             ],
-            "period_m": 5.0579094886779785,
+            "period_m": 3.9389843940734863,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
@@ -11321,23 +11321,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.505005605860864,
+                "mean_encoded": 0.5064923205421085,
                 "mip_levels": 10,
-                "std_encoded": 0.10386587315678576,
+                "std_encoded": 0.10156528976444668,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666756673575991,
+                "mean_encoded": 0.6667006847905093,
                 "mip_levels": 10,
-                "std_encoded": 0.2357013329647803,
+                "std_encoded": 0.23568363995075683,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.31766979741111506,
+                "mean_encoded": 0.31660217584410627,
                 "mip_levels": 10,
-                "std_encoded": 0.02963859423112838,
+                "std_encoded": 0.02714395580476578,
                 "width": 512
               }
             },
@@ -11347,10 +11347,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1860630214214325,
+              0.30454152822494507,
               0.0,
               0.0,
-              0.1860630214214325,
+              0.30454152822494507,
               0.0,
               0.0
             ]
@@ -11389,8 +11389,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                22,
-                4
+                12,
+                2
               ],
               "craft": {
                 "chevron_rise": 1.7648379802703855,
@@ -11403,8 +11403,8 @@
               "piece_warmth": 0.012157578952610493,
               "stock": {
                 "cut_jitter": [
-                  0.0,
-                  0.0
+                  0.11033091694116592,
+                  0.1397935003042221
                 ],
                 "joint_color": [
                   0.12307432293891908,
@@ -11413,14 +11413,14 @@
                 ],
                 "joint_roughness": 0.8495647311210632,
                 "mottle_cells": [
-                  8,
-                  2
+                  9,
+                  8
                 ]
               },
               "tile_definition": 0.8357682228088379
             },
-            "grain_frequency": 64.12882232666016,
-            "joint_width": 0.0018327555153518915,
+            "grain_frequency": 77.48196411132812,
+            "joint_width": 0.001267037121579051,
             "layers": {
               "bands": [
                 4,
@@ -11475,7 +11475,7 @@
               5,
               5
             ],
-            "period_m": 5.374523162841797,
+            "period_m": 3.2836244106292725,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
@@ -11591,23 +11591,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.42543651605849714,
+                "mean_encoded": 0.4269782172320648,
                 "mip_levels": 10,
-                "std_encoded": 0.1627036589237113,
+                "std_encoded": 0.16473376209744667,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666698929531115,
+                "mean_encoded": 0.6666559655681964,
                 "mip_levels": 10,
-                "std_encoded": 0.2357054162144915,
+                "std_encoded": 0.2357225814605363,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.5656009898411469,
+                "mean_encoded": 0.5702951767819101,
                 "mip_levels": 10,
-                "std_encoded": 0.033059602884512033,
+                "std_encoded": 0.04211880229336719,
                 "width": 512
               }
             },
@@ -11617,10 +11617,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1955128014087677,
+              0.4388503134250641,
               0.0,
               0.0,
-              0.1955128014087677,
+              0.4388503134250641,
               0.0,
               0.0
             ]
@@ -11659,8 +11659,8 @@
               ],
               "basket_strips": 4,
               "cells": [
-                30,
-                30
+                20,
+                20
               ],
               "craft": {
                 "chevron_rise": 1.4591110944747925,
@@ -11689,8 +11689,8 @@
               },
               "tile_definition": 0.598729133605957
             },
-            "grain_frequency": 41.3027458190918,
-            "joint_width": 0.002092919545248151,
+            "grain_frequency": 72.20001220703125,
+            "joint_width": 0.00237816758453846,
             "layers": {
               "bands": [
                 5,
@@ -11745,7 +11745,7 @@
               4,
               2
             ],
-            "period_m": 5.114754676818848,
+            "period_m": 2.27868127822876,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
@@ -11855,35 +11855,35 @@
         },
         "recipe.carpet.dye.dye_cells.0": {
           "bins": [
-            45,
-            22,
-            30,
-            25,
-            46,
-            15,
-            20,
-            53
+            83,
+            54,
+            24,
+            24,
+            19,
+            12,
+            11,
+            29
           ],
-          "max": 12.0,
-          "median": 7.0,
-          "min": 2.0,
+          "max": 16.0,
+          "median": 4.0,
+          "min": 1.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.dye.dye_cells.1": {
           "bins": [
-            49,
-            17,
-            28,
+            71,
+            71,
             25,
-            46,
-            31,
-            23,
-            37
+            26,
+            21,
+            12,
+            5,
+            25
           ],
-          "max": 12.0,
-          "median": 7.0,
-          "min": 2.0,
+          "max": 16.0,
+          "median": 4.0,
+          "min": 1.0,
           "present": 256,
           "type": "numeric"
         },
@@ -12161,18 +12161,18 @@
         },
         "recipe.carpet.line_width": {
           "bins": [
-            30,
-            30,
-            36,
-            36,
+            41,
+            35,
+            28,
             31,
-            31,
-            31,
-            31
+            25,
+            35,
+            26,
+            35
           ],
-          "max": 0.3391227126121521,
-          "median": 0.18511781096458435,
-          "min": 0.03620082512497902,
+          "max": 0.33859965205192566,
+          "median": 0.1735181361436844,
+          "min": 0.03604527935385704,
           "present": 256,
           "type": "numeric"
         },
@@ -12365,35 +12365,35 @@
         },
         "recipe.carpet.repeats.0": {
           "bins": [
-            31,
-            25,
-            42,
-            22,
-            41,
-            38,
-            30,
-            27
+            69,
+            43,
+            18,
+            18,
+            23,
+            10,
+            10,
+            65
           ],
           "max": 16.0,
-          "median": 9.0,
-          "min": 2.0,
+          "median": 6.0,
+          "min": 1.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.carpet.repeats.1": {
           "bins": [
+            64,
             40,
-            33,
-            33,
-            15,
-            25,
-            38,
-            30,
-            42
+            27,
+            20,
+            8,
+            17,
+            20,
+            60
           ],
           "max": 16.0,
-          "median": 9.0,
-          "min": 2.0,
+          "median": 6.0,
+          "min": 1.0,
           "present": 256,
           "type": "numeric"
         },
@@ -12671,34 +12671,34 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            86,
-            78,
-            33,
-            26,
-            18,
-            9,
-            3,
-            3
+            65,
+            89,
+            49,
+            25,
+            19,
+            7,
+            1,
+            1
           ],
-          "max": 20.0,
-          "median": 5.0,
+          "max": 25.0,
+          "median": 6.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            81,
-            90,
-            36,
-            21,
-            14,
-            4,
-            7,
+            88,
+            70,
+            43,
+            27,
+            15,
+            8,
+            2,
             3
           ],
-          "max": 17.0,
-          "median": 4.0,
+          "max": 25.0,
+          "median": 6.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
@@ -12729,18 +12729,18 @@
         },
         "recipe.flooring.piece_roughness": {
           "bins": [
-            41,
-            28,
-            33,
-            32,
-            38,
-            30,
-            26,
-            28
+            160,
+            37,
+            21,
+            17,
+            7,
+            7,
+            5,
+            2
           ],
-          "max": 0.09975887089967728,
-          "median": 0.05734820291399956,
-          "min": 0.01836535520851612,
+          "max": 0.09752940386533736,
+          "median": 0.003645017975941301,
+          "min": 0.0,
           "present": 256,
           "type": "numeric"
         },
@@ -12882,14 +12882,14 @@
         },
         "recipe.flooring.stock.mottle_cells.0": {
           "bins": [
-            53,
-            26,
-            24,
+            39,
+            17,
+            33,
+            29,
+            57,
             21,
-            41,
-            21,
-            24,
-            46
+            22,
+            38
           ],
           "max": 11.0,
           "median": 6.0,
@@ -12899,14 +12899,14 @@
         },
         "recipe.flooring.stock.mottle_cells.1": {
           "bins": [
-            39,
-            23,
-            29,
-            23,
-            44,
-            22,
-            21,
-            55
+            50,
+            26,
+            19,
+            24,
+            37,
+            26,
+            20,
+            54
           ],
           "max": 11.0,
           "median": 6.0,
@@ -12916,17 +12916,17 @@
         },
         "recipe.flooring.tile_definition": {
           "bins": [
-            88,
-            0,
-            5,
-            33,
-            19,
-            35,
-            45,
-            31
+            141,
+            15,
+            23,
+            14,
+            13,
+            15,
+            17,
+            18
           ],
-          "max": 0.9904772043228148,
-          "median": 0.50849449634552,
+          "max": 0.9988442063331604,
+          "median": 0.06233631819486618,
           "min": 0.0,
           "present": 256,
           "type": "numeric"
@@ -12950,18 +12950,18 @@
         },
         "recipe.joint_width": {
           "bins": [
-            38,
-            34,
-            24,
-            35,
-            32,
-            37,
-            25,
+            30,
+            30,
+            36,
+            36,
+            31,
+            31,
+            31,
             31
           ],
-          "max": 0.005958649329841137,
-          "median": 0.003473704680800438,
-          "min": 0.0010263363365083933,
+          "max": 0.005985618103295565,
+          "median": 0.003460947424173355,
+          "min": 0.0010196856455877423,
           "present": 256,
           "type": "numeric"
         },
@@ -13494,18 +13494,18 @@
         },
         "recipe.period_m": {
           "bins": [
-            41,
-            35,
-            28,
-            31,
-            25,
-            35,
-            26,
-            35
+            56,
+            45,
+            37,
+            34,
+            27,
+            21,
+            18,
+            18
           ],
-          "max": 5.386226177215576,
-          "median": 3.762473583221435,
-          "min": 2.4102816581726074,
+          "max": 6.370039463043213,
+          "median": 3.1693100929260254,
+          "min": 1.6021173000335691,
           "present": 256,
           "type": "numeric"
         },
@@ -14369,23 +14369,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.2999985539038659,
+                "mean_encoded": 0.3038289537606741,
                 "mip_levels": 10,
-                "std_encoded": 0.02198381107757834,
+                "std_encoded": 0.02216521023649266,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666639091142648,
+                "mean_encoded": 0.6666640088449122,
                 "mip_levels": 10,
-                "std_encoded": 0.23570967571239423,
+                "std_encoded": 0.23570957682306476,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9088477639699186,
+                "mean_encoded": 0.9132733513440432,
                 "mip_levels": 10,
-                "std_encoded": 0.0286479979176802,
+                "std_encoded": 0.013129420595090547,
                 "width": 512
               }
             },
@@ -14395,10 +14395,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.21039359271526337,
+              0.17501963675022125,
               0.0,
               0.0,
-              0.21039359271526337,
+              0.17501963675022125,
               0.0,
               0.0
             ]
@@ -14414,8 +14414,8 @@
               "dye": {
                 "brokenness": 0.6689203977584839,
                 "dye_cells": [
-                  5,
-                  8
+                  2,
+                  7
                 ],
                 "grain_cells": [
                   215,
@@ -14438,7 +14438,7 @@
               },
               "edge_variation": 0.0058328695595264435,
               "heather": 0.11523817479610445,
-              "line_width": 0.12153969705104828,
+              "line_width": 0.274221271276474,
               "palette": [
                 [
                   0.2820473313331604,
@@ -14459,8 +14459,8 @@
               "pattern": 0,
               "pile": 0.8904047012329102,
               "repeats": [
-                9,
-                4
+                10,
+                3
               ]
             },
             "coating": null,
@@ -14491,12 +14491,12 @@
               ],
               "basket_strips": 4,
               "cells": [
-                14,
-                5
+                13,
+                13
               ],
               "layout": "Straight",
               "mottling": 0.05825033783912659,
-              "piece_roughness": 0.08991995453834534,
+              "piece_roughness": 0.0,
               "piece_tone": 0.24232688546180725,
               "piece_warmth": 0.04897297918796539,
               "stock": {
@@ -14511,14 +14511,14 @@
                 ],
                 "joint_roughness": 0.8817418813705444,
                 "mottle_cells": [
-                  1,
-                  10
+                  6,
+                  2
                 ]
               },
               "tile_definition": 0.0
             },
             "grain_frequency": 51.736122131347656,
-            "joint_width": 0.0013657526578754189,
+            "joint_width": 0.002418683376163244,
             "layers": {
               "bands": [
                 2,
@@ -14573,7 +14573,7 @@
               13,
               2
             ],
-            "period_m": 4.752996444702148,
+            "period_m": 5.713644504547119,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
@@ -14666,23 +14666,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.4676401823945775,
+                "mean_encoded": 0.4637134078283928,
                 "mip_levels": 10,
-                "std_encoded": 0.0658833078555068,
+                "std_encoded": 0.06604598009438128,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666690502291405,
+                "mean_encoded": 0.666669189852047,
                 "mip_levels": 10,
-                "std_encoded": 0.2357103006308752,
+                "std_encoded": 0.2357116409619643,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9344793431981792,
+                "mean_encoded": 0.941530728816548,
                 "mip_levels": 10,
-                "std_encoded": 0.02342373415280417,
+                "std_encoded": 0.013354227655701175,
                 "width": 512
               }
             },
@@ -14692,10 +14692,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3521534204483032,
+              0.3866305351257324,
               0.0,
               0.0,
-              0.3521534204483032,
+              0.3866305351257324,
               0.0,
               0.0
             ]
@@ -14712,7 +14712,7 @@
                 "brokenness": 0.7820886373519897,
                 "dye_cells": [
                   3,
-                  10
+                  6
                 ],
                 "grain_cells": [
                   118,
@@ -14735,7 +14735,7 @@
               },
               "edge_variation": 0.021953316405415535,
               "heather": 0.11621014028787612,
-              "line_width": 0.09995967149734496,
+              "line_width": 0.07969991862773895,
               "palette": [
                 [
                   0.5224452614784241,
@@ -14756,8 +14756,8 @@
               "pattern": 0,
               "pile": 0.19392052292823792,
               "repeats": [
-                7,
-                4
+                16,
+                16
               ]
             },
             "coating": null,
@@ -14788,12 +14788,12 @@
               ],
               "basket_strips": 5,
               "cells": [
-                3,
-                3
+                9,
+                9
               ],
               "layout": "BrokenBond",
               "mottling": 0.040001194924116135,
-              "piece_roughness": 0.05914103612303734,
+              "piece_roughness": 0.011012723669409752,
               "piece_tone": 0.29378461837768555,
               "piece_warmth": 0.022920876741409305,
               "stock": {
@@ -14812,10 +14812,10 @@
                   2
                 ]
               },
-              "tile_definition": 0.0
+              "tile_definition": 0.18621119856834412
             },
             "grain_frequency": 53.482391357421875,
-            "joint_width": 0.005256781354546547,
+            "joint_width": 0.0020649125799536705,
             "layers": {
               "bands": [
                 1,
@@ -14870,7 +14870,7 @@
               5,
               4
             ],
-            "period_m": 2.8396713733673096,
+            "period_m": 2.5864486694335938,
             "phase": [
               0.511915922164917,
               0.9297031164169312
@@ -14963,23 +14963,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.4806431240524059,
+                "mean_encoded": 0.4847249698033142,
                 "mip_levels": 10,
-                "std_encoded": 0.027920156931256747,
+                "std_encoded": 0.02542548136928106,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666669404272939,
+                "mean_encoded": 0.6666698879665794,
                 "mip_levels": 10,
-                "std_encoded": 0.23570581710196983,
+                "std_encoded": 0.2357068665436699,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.975295661482608,
+                "mean_encoded": 0.97588542863902,
                 "mip_levels": 10,
-                "std_encoded": 0.01811593492290099,
+                "std_encoded": 0.01276669355045138,
                 "width": 512
               }
             },
@@ -14989,10 +14989,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0,
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0
             ]
@@ -15008,8 +15008,8 @@
               "dye": {
                 "brokenness": 0.4890176057815552,
                 "dye_cells": [
-                  11,
-                  7
+                  1,
+                  3
                 ],
                 "grain_cells": [
                   120,
@@ -15032,7 +15032,7 @@
               },
               "edge_variation": 0.018354687839746475,
               "heather": 0.13504523038864136,
-              "line_width": 0.14850987493991852,
+              "line_width": 0.11192399263381958,
               "palette": [
                 [
                   0.4328417181968689,
@@ -15053,8 +15053,8 @@
               "pattern": 2,
               "pile": 0.6296596527099609,
               "repeats": [
-                14,
-                10
+                16,
+                3
               ]
             },
             "coating": null,
@@ -15085,12 +15085,12 @@
               ],
               "basket_strips": 5,
               "cells": [
-                12,
-                3
+                6,
+                6
               ],
               "layout": "Straight",
               "mottling": 0.05244126915931702,
-              "piece_roughness": 0.057465992867946625,
+              "piece_roughness": 0.005515682976692915,
               "piece_tone": 0.20212259888648987,
               "piece_warmth": 0.0545378252863884,
               "stock": {
@@ -15105,14 +15105,14 @@
                 ],
                 "joint_roughness": 0.8188016414642334,
                 "mottle_cells": [
-                  7,
-                  11
+                  10,
+                  7
                 ]
               },
-              "tile_definition": 0.41589319705963135
+              "tile_definition": 0.0959816873073578
             },
             "grain_frequency": 23.70928955078125,
-            "joint_width": 0.004908875562250614,
+            "joint_width": 0.0028608175925910473,
             "layers": {
               "bands": [
                 9,
@@ -15167,7 +15167,7 @@
               12,
               3
             ],
-            "period_m": 3.1566295623779297,
+            "period_m": 1.8214515447616575,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
@@ -15260,23 +15260,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3004020990095017,
+                "mean_encoded": 0.30270257588129384,
                 "mip_levels": 10,
-                "std_encoded": 0.015814580489765296,
+                "std_encoded": 0.014415505501046503,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666689504984933,
+                "mean_encoded": 0.666669189852047,
                 "mip_levels": 10,
-                "std_encoded": 0.23570760194082127,
+                "std_encoded": 0.23570963236871204,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.8822141909216654,
+                "mean_encoded": 0.883468538181662,
                 "mip_levels": 10,
-                "std_encoded": 0.019590741105468396,
+                "std_encoded": 0.01575404355842472,
                 "width": 512
               }
             },
@@ -15286,10 +15286,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0,
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0
             ]
@@ -15305,8 +15305,8 @@
               "dye": {
                 "brokenness": 0.12421345710754396,
                 "dye_cells": [
-                  7,
-                  5
+                  2,
+                  3
                 ],
                 "grain_cells": [
                   125,
@@ -15329,7 +15329,7 @@
               },
               "edge_variation": 0.0065756905823946,
               "heather": 0.1918124556541443,
-              "line_width": 0.2556065022945404,
+              "line_width": 0.3052207827568054,
               "palette": [
                 [
                   0.2893218994140625,
@@ -15350,8 +15350,8 @@
               "pattern": 0,
               "pile": 0.755852997303009,
               "repeats": [
-                3,
-                2
+                7,
+                16
               ]
             },
             "coating": null,
@@ -15382,12 +15382,12 @@
               ],
               "basket_strips": 3,
               "cells": [
-                20,
-                17
+                5,
+                3
               ],
               "layout": "Straight",
               "mottling": 0.0212909784168005,
-              "piece_roughness": 0.05415083467960358,
+              "piece_roughness": 0.03235914185643196,
               "piece_tone": 0.1877540946006775,
               "piece_warmth": 0.02263929694890976,
               "stock": {
@@ -15402,14 +15402,14 @@
                 ],
                 "joint_roughness": 0.9041783213615416,
                 "mottle_cells": [
-                  9,
-                  11
+                  1,
+                  1
                 ]
               },
-              "tile_definition": 0.7493340373039246
+              "tile_definition": 0.5975741744041443
             },
             "grain_frequency": 58.4036865234375,
-            "joint_width": 0.003363249823451042,
+            "joint_width": 0.004616499878466129,
             "layers": {
               "bands": [
                 5,
@@ -15464,7 +15464,7 @@
               9,
               4
             ],
-            "period_m": 5.0579094886779785,
+            "period_m": 3.9389843940734863,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
@@ -15557,23 +15557,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.31513056038436515,
+                "mean_encoded": 0.31778269250606944,
                 "mip_levels": 10,
-                "std_encoded": 0.009522238532490152,
+                "std_encoded": 0.009174859611041856,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666631362017474,
+                "mean_encoded": 0.6666625777101217,
                 "mip_levels": 10,
-                "std_encoded": 0.2357102195611789,
+                "std_encoded": 0.23571329784171843,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.8990885416768933,
+                "mean_encoded": 0.8979955336752793,
                 "mip_levels": 10,
-                "std_encoded": 0.02183589208243796,
+                "std_encoded": 0.0129856689656569,
                 "width": 512
               }
             },
@@ -15583,10 +15583,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1860630214214325,
+              0.3252032697200775,
               0.0,
               0.0,
-              0.1860630214214325,
+              0.3252032697200775,
               0.0,
               0.0
             ]
@@ -15602,8 +15602,8 @@
               "dye": {
                 "brokenness": 0.5307937860488892,
                 "dye_cells": [
-                  3,
-                  3
+                  16,
+                  2
                 ],
                 "grain_cells": [
                   187,
@@ -15626,7 +15626,7 @@
               },
               "edge_variation": 0.009435104206204414,
               "heather": 0.05664895102381706,
-              "line_width": 0.1519731730222702,
+              "line_width": 0.3374098241329193,
               "palette": [
                 [
                   0.31510138511657715,
@@ -15647,8 +15647,8 @@
               "pattern": 0,
               "pile": 0.5537505745887756,
               "repeats": [
-                13,
-                11
+                15,
+                10
               ]
             },
             "coating": null,
@@ -15679,12 +15679,12 @@
               ],
               "basket_strips": 3,
               "cells": [
-                12,
-                5
+                4,
+                2
               ],
               "layout": "Straight",
               "mottling": 0.01513756811618805,
-              "piece_roughness": 0.06167297065258026,
+              "piece_roughness": 0.0,
               "piece_tone": 0.207413911819458,
               "piece_warmth": 0.019234057515859604,
               "stock": {
@@ -15699,14 +15699,14 @@
                 ],
                 "joint_roughness": 0.662898063659668,
                 "mottle_cells": [
-                  8,
-                  2
+                  9,
+                  8
                 ]
               },
               "tile_definition": 0.0
             },
             "grain_frequency": 36.51171112060547,
-            "joint_width": 0.004331889096647501,
+            "joint_width": 0.002917592879384756,
             "layers": {
               "bands": [
                 4,
@@ -15761,7 +15761,7 @@
               5,
               5
             ],
-            "period_m": 5.374523162841797,
+            "period_m": 3.0749998092651367,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
@@ -15877,23 +15877,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.1760867050268212,
+                "mean_encoded": 0.17473928414069462,
                 "mip_levels": 10,
-                "std_encoded": 0.02668797716858069,
+                "std_encoded": 0.026529940854958328,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666670207104651,
+                "mean_encoded": 0.6666661480673003,
                 "mip_levels": 10,
-                "std_encoded": 0.2357074815301542,
+                "std_encoded": 0.23571724745553735,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.9105061250693828,
+                "mean_encoded": 0.9092386283245564,
                 "mip_levels": 10,
-                "std_encoded": 0.01980864212879677,
+                "std_encoded": 0.013093813257779072,
                 "width": 512
               }
             },
@@ -15903,10 +15903,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1955128014087677,
+              0.5247699022293091,
               0.0,
               0.0,
-              0.1955128014087677,
+              0.5247699022293091,
               0.0,
               0.0
             ]
@@ -15923,7 +15923,7 @@
                 "brokenness": 0.322956919670105,
                 "dye_cells": [
                   9,
-                  5
+                  2
                 ],
                 "grain_cells": [
                   120,
@@ -15946,7 +15946,7 @@
               },
               "edge_variation": 0.0211812611669302,
               "heather": 0.15235653519630432,
-              "line_width": 0.3214205801486969,
+              "line_width": 0.3110000491142273,
               "palette": [
                 [
                   0.13379335403442383,
@@ -15967,8 +15967,8 @@
               "pattern": 2,
               "pile": 0.8930467367172241,
               "repeats": [
-                7,
-                15
+                4,
+                5
               ]
             },
             "coating": null,
@@ -15999,12 +15999,12 @@
               ],
               "basket_strips": 5,
               "cells": [
-                9,
-                4
+                4,
+                8
               ],
               "layout": "BrokenBond",
               "mottling": 0.03604631498456001,
-              "piece_roughness": 0.05534612387418747,
+              "piece_roughness": 0.0047766356728971004,
               "piece_tone": 0.24994394183158877,
               "piece_warmth": 0.05690491944551468,
               "stock": {
@@ -16019,14 +16019,14 @@
                 ],
                 "joint_roughness": 0.8149737119674683,
                 "mottle_cells": [
-                  9,
-                  2
+                  5,
+                  10
                 ]
               },
-              "tile_definition": 0.46096596121788025
+              "tile_definition": 0.08630479127168655
             },
             "grain_frequency": 18.952804565429688,
-            "joint_width": 0.0014047209406271577,
+            "joint_width": 0.005695418920367956,
             "layers": {
               "bands": [
                 5,
@@ -16081,7 +16081,7 @@
               4,
               2
             ],
-            "period_m": 5.114754676818848,
+            "period_m": 1.9055970907211304,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
@@ -16429,34 +16429,34 @@
         },
         "recipe.flooring.cells.0": {
           "bins": [
-            104,
-            68,
-            38,
+            107,
+            46,
+            26,
+            23,
             19,
-            21,
-            4,
-            1,
-            1
+            10,
+            13,
+            12
           ],
-          "max": 32.0,
-          "median": 7.0,
+          "max": 48.0,
+          "median": 10.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
         },
         "recipe.flooring.cells.1": {
           "bins": [
-            143,
-            57,
-            22,
-            11,
+            125,
+            40,
+            33,
             17,
-            4,
-            1,
-            1
+            14,
+            11,
+            9,
+            7
           ],
-          "max": 32.0,
-          "median": 5.0,
+          "max": 48.0,
+          "median": 8.0,
           "min": 2.0,
           "present": 256,
           "type": "numeric"
@@ -16575,16 +16575,16 @@
         },
         "recipe.flooring.stock.cut_jitter.0": {
           "bins": [
-            222,
-            3,
-            4,
+            220,
+            9,
+            10,
+            6,
+            2,
             5,
-            4,
-            7,
-            4,
-            7
+            3,
+            1
           ],
-          "max": 0.18318207561969757,
+          "max": 0.19937413930892944,
           "median": 0.0,
           "min": 0.0,
           "present": 256,
@@ -16592,16 +16592,16 @@
         },
         "recipe.flooring.stock.cut_jitter.1": {
           "bins": [
-            215,
-            2,
-            5,
-            9,
+            209,
+            10,
+            13,
             6,
-            5,
-            2,
-            12
+            7,
+            4,
+            4,
+            3
           ],
-          "max": 0.379550576210022,
+          "max": 0.30465441942214966,
           "median": 0.0,
           "min": 0.0,
           "present": 256,
@@ -16677,14 +16677,14 @@
         },
         "recipe.flooring.stock.mottle_cells.0": {
           "bins": [
-            47,
-            20,
-            22,
-            30,
-            56,
-            18,
+            45,
+            24,
             23,
-            40
+            21,
+            53,
+            23,
+            21,
+            46
           ],
           "max": 11.0,
           "median": 6.0,
@@ -16694,14 +16694,14 @@
         },
         "recipe.flooring.stock.mottle_cells.1": {
           "bins": [
-            44,
+            46,
             24,
+            23,
             30,
-            22,
-            40,
-            22,
-            27,
-            47
+            44,
+            17,
+            26,
+            46
           ],
           "max": 11.0,
           "median": 6.0,
@@ -16745,18 +16745,18 @@
         },
         "recipe.joint_width": {
           "bins": [
-            37,
-            29,
-            28,
-            36,
-            33,
             31,
-            27,
-            35
+            36,
+            28,
+            22,
+            38,
+            34,
+            37,
+            30
           ],
-          "max": 0.0058851223438978195,
-          "median": 0.003423471003770828,
-          "min": 0.0010023704962804914,
+          "max": 0.0059840744361281395,
+          "median": 0.003725716844201088,
+          "min": 0.001001882366836071,
           "present": 256,
           "type": "numeric"
         },
@@ -17017,18 +17017,18 @@
         },
         "recipe.mineral.aggregate_radius": {
           "bins": [
+            41,
+            35,
+            28,
             31,
             25,
-            37,
-            39,
-            37,
             35,
-            25,
-            27
+            26,
+            35
           ],
-          "max": 0.4477093517780304,
-          "median": 0.28215286135673523,
-          "min": 0.1241523176431656,
+          "max": 0.4484848380088806,
+          "median": 0.2698720693588257,
+          "min": 0.12113095819950104,
           "present": 256,
           "type": "numeric"
         },
@@ -17204,23 +17204,6 @@
         },
         "recipe.mineral.vein_warp": {
           "bins": [
-            30,
-            30,
-            36,
-            36,
-            31,
-            31,
-            31,
-            31
-          ],
-          "max": 0.4188781976699829,
-          "median": 0.2219539135694504,
-          "min": 0.03153547644615173,
-          "present": 256,
-          "type": "numeric"
-        },
-        "recipe.mineral.vein_width": {
-          "bins": [
             38,
             31,
             30,
@@ -17230,9 +17213,26 @@
             28,
             42
           ],
-          "max": 0.02788698673248291,
-          "median": 0.015563810244202614,
-          "min": 0.00303284521214664,
+          "max": 0.41823697090148926,
+          "median": 0.22599542140960693,
+          "min": 0.030512383207678795,
+          "present": 256,
+          "type": "numeric"
+        },
+        "recipe.mineral.vein_width": {
+          "bins": [
+            31,
+            25,
+            37,
+            39,
+            37,
+            35,
+            25,
+            27
+          ],
+          "max": 0.027826467528939247,
+          "median": 0.015284309163689612,
+          "min": 0.003314569592475891,
           "present": 256,
           "type": "numeric"
         },
@@ -17289,18 +17289,18 @@
         },
         "recipe.period_m": {
           "bins": [
-            19,
-            14,
-            17,
-            46,
-            42,
-            34,
-            41,
-            43
+            18,
+            40,
+            58,
+            40,
+            39,
+            26,
+            18,
+            17
           ],
-          "max": 5.386226177215576,
-          "median": 3.5833044052124023,
-          "min": 0.9034271240234376,
+          "max": 6.370039463043213,
+          "median": 2.9409725666046143,
+          "min": 0.6319747567176819,
           "present": 256,
           "type": "numeric"
         },
@@ -18164,23 +18164,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.3709917953596395,
+                "mean_encoded": 0.3725485608473385,
                 "mip_levels": 10,
-                "std_encoded": 0.016735402240954777,
+                "std_encoded": 0.018003457632564182,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666660433501205,
+                "mean_encoded": 0.6666674545387816,
                 "mip_levels": 10,
-                "std_encoded": 0.2357081382639903,
+                "std_encoded": 0.23570714042734317,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.46309353698034145,
+                "mean_encoded": 0.4622805277557147,
                 "mip_levels": 10,
-                "std_encoded": 0.01319619172032658,
+                "std_encoded": 0.01341157437355216,
                 "width": 512
               }
             },
@@ -18190,10 +18190,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.5937072038650513,
+              0.3609381318092346,
               0.0,
               0.0,
-              0.5937072038650513,
+              0.3609381318092346,
               0.0,
               0.0
             ]
@@ -18256,14 +18256,14 @@
                 ],
                 "joint_roughness": 0.9475641250610352,
                 "mottle_cells": [
-                  1,
-                  10
+                  4,
+                  2
                 ]
               },
               "tile_definition": 0.9705170392990112
             },
             "grain_frequency": 51.736122131347656,
-            "joint_width": 0.0013657526578754189,
+            "joint_width": 0.0037073083221912384,
             "layers": {
               "bands": [
                 2,
@@ -18294,7 +18294,7 @@
                 ]
               ],
               "aggregate_exposure": 0.23576878011226657,
-              "aggregate_radius": 0.2900308668613434,
+              "aggregate_radius": 0.37882956862449646,
               "binder_variation": 0.06677769124507904,
               "casting": null,
               "marble_mix": 0.18885573744773865,
@@ -18310,15 +18310,15 @@
                 0.6643154621124268
               ],
               "vein_strength": 0.352719247341156,
-              "vein_warp": 0.14065730571746826,
-              "vein_width": 0.007223084568977356
+              "vein_warp": 0.09588011354207993,
+              "vein_width": 0.0158811267465353
             },
             "mineral_mix": 0.9659088850021362,
             "panel_count": [
               13,
               2
             ],
-            "period_m": 1.684332013130188,
+            "period_m": 2.7705578804016113,
             "phase": [
               0.24114108085632324,
               0.8236532807350159
@@ -18411,23 +18411,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.582317636528292,
+                "mean_encoded": 0.5604092816122369,
                 "mip_levels": 10,
-                "std_encoded": 0.09518587988103286,
+                "std_encoded": 0.0922844435113409,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666667314915875,
+                "mean_encoded": 0.6666905322106015,
                 "mip_levels": 10,
-                "std_encoded": 0.2357420727065697,
+                "std_encoded": 0.23573892917076456,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.3606237822891268,
+                "mean_encoded": 0.37560777851237376,
                 "mip_levels": 10,
-                "std_encoded": 0.04279465220057067,
+                "std_encoded": 0.05599194411740975,
                 "width": 512
               }
             },
@@ -18437,10 +18437,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3521534204483032,
+              0.3866305351257324,
               0.0,
               0.0,
-              0.3521534204483032,
+              0.3866305351257324,
               0.0,
               0.0
             ]
@@ -18479,8 +18479,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                7,
-                4
+                24,
+                14
               ],
               "craft": {
                 "chevron_rise": 1.1769280433654783,
@@ -18503,14 +18503,14 @@
                 ],
                 "joint_roughness": 0.6853582859039307,
                 "mottle_cells": [
-                  4,
-                  2
+                  3,
+                  10
                 ]
               },
               "tile_definition": 0.6722966432571411
             },
             "grain_frequency": 53.482391357421875,
-            "joint_width": 0.005256781354546547,
+            "joint_width": 0.003669343888759613,
             "layers": {
               "bands": [
                 1,
@@ -18541,7 +18541,7 @@
                 ]
               ],
               "aggregate_exposure": 0.22088712453842163,
-              "aggregate_radius": 0.2323101907968521,
+              "aggregate_radius": 0.16836383938789368,
               "binder_variation": 0.08864150196313858,
               "casting": null,
               "marble_mix": 0.32714906334877014,
@@ -18557,15 +18557,15 @@
                 0.616325855255127
               ],
               "vein_strength": 0.6029530167579651,
-              "vein_warp": 0.11306318640708923,
-              "vein_width": 0.007221600506454706
+              "vein_warp": 0.09585696458816528,
+              "vein_width": 0.01150834932923317
             },
             "mineral_mix": 0.024126529693603516,
             "panel_count": [
               5,
               4
             ],
-            "period_m": 2.8396713733673096,
+            "period_m": 2.5864486694335938,
             "phase": [
               0.511915922164917,
               0.9297031164169312
@@ -18658,23 +18658,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.6250102572991528,
+                "mean_encoded": 0.6168602488386918,
                 "mip_levels": 10,
-                "std_encoded": 0.03828614055060454,
+                "std_encoded": 0.03849010130783842,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666851517421707,
+                "mean_encoded": 0.6666686712526748,
                 "mip_levels": 10,
-                "std_encoded": 0.23569597909644455,
+                "std_encoded": 0.23591372601230423,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.20944653679427705,
+                "mean_encoded": 0.2667078953174428,
                 "mip_levels": 10,
-                "std_encoded": 0.04045525151335473,
+                "std_encoded": 0.12172043170251068,
                 "width": 512
               }
             },
@@ -18684,10 +18684,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0,
-              0.3167935907840729,
+              0.5490126609802246,
               0.0,
               0.0
             ]
@@ -18726,8 +18726,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                12,
-                3
+                18,
+                17
               ],
               "craft": {
                 "chevron_rise": 2.3170371055603027,
@@ -18750,14 +18750,14 @@
                 ],
                 "joint_roughness": 0.8494012951850891,
                 "mottle_cells": [
-                  9,
+                  5,
                   1
                 ]
               },
               "tile_definition": 0.947628140449524
             },
             "grain_frequency": 23.70928955078125,
-            "joint_width": 0.0024762980174273252,
+            "joint_width": 0.004930303432047367,
             "layers": {
               "bands": [
                 9,
@@ -18788,7 +18788,7 @@
                 ]
               ],
               "aggregate_exposure": 0.2313959151506424,
-              "aggregate_radius": 0.4021521210670471,
+              "aggregate_radius": 0.20322921872138977,
               "binder_variation": 0.08290532976388931,
               "casting": null,
               "marble_mix": 0.587594747543335,
@@ -18804,15 +18804,15 @@
                 0.5088397860527039
               ],
               "vein_strength": 0.6160233020782471,
-              "vein_warp": 0.1751437783241272,
-              "vein_width": 0.017399197444319725
+              "vein_warp": 0.2546274662017822,
+              "vein_width": 0.02437516301870346
             },
             "mineral_mix": 0.9460369348526,
             "panel_count": [
               12,
               3
             ],
-            "period_m": 3.1566295623779297,
+            "period_m": 1.8214515447616575,
             "phase": [
               0.40684616565704346,
               0.6910439729690552
@@ -18905,23 +18905,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.4127612992847216,
+                "mean_encoded": 0.4220481124598057,
                 "mip_levels": 10,
-                "std_encoded": 0.026466825934843896,
+                "std_encoded": 0.0348606799354141,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666715385087943,
+                "mean_encoded": 0.6666656444275303,
                 "mip_levels": 10,
-                "std_encoded": 0.2357062610050207,
+                "std_encoded": 0.2357084203366621,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.6056303585229554,
+                "mean_encoded": 0.5985275418092212,
                 "mip_levels": 10,
-                "std_encoded": 0.03180519078660406,
+                "std_encoded": 0.02064212075336093,
                 "width": 512
               }
             },
@@ -18931,10 +18931,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0,
-              0.19771014153957367,
+              0.2538725435733795,
               0.0,
               0.0
             ]
@@ -18973,8 +18973,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                20,
-                17
+                3,
+                3
               ],
               "craft": {
                 "chevron_rise": 2.1682567596435547,
@@ -18997,14 +18997,14 @@
                 ],
                 "joint_roughness": 0.8969093561172485,
                 "mottle_cells": [
-                  6,
+                  8,
                   1
                 ]
               },
               "tile_definition": 0.4589114189147949
             },
             "grain_frequency": 58.4036865234375,
-            "joint_width": 0.0033069406636059284,
+            "joint_width": 0.0010259452974423766,
             "layers": {
               "bands": [
                 5,
@@ -19035,7 +19035,7 @@
                 ]
               ],
               "aggregate_exposure": 0.1478724181652069,
-              "aggregate_radius": 0.1461699604988098,
+              "aggregate_radius": 0.4123699963092804,
               "binder_variation": 0.05978550761938095,
               "casting": null,
               "marble_mix": 0.09797300398349762,
@@ -19051,15 +19051,15 @@
                 0.13457171618938446
               ],
               "vein_strength": 0.4145565032958984,
-              "vein_warp": 0.31208696961402893,
-              "vein_width": 0.0035988716408610344
+              "vein_warp": 0.03934239596128464,
+              "vein_width": 0.004982572980225086
             },
             "mineral_mix": 0.9020907878875732,
             "panel_count": [
               9,
               4
             ],
-            "period_m": 5.0579094886779785,
+            "period_m": 3.9389843940734863,
             "phase": [
               0.8416653275489807,
               0.3836063742637634
@@ -19152,23 +19152,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.43037922678717505,
+                "mean_encoded": 0.4203820371970303,
                 "mip_levels": 10,
-                "std_encoded": 0.025653149835441955,
+                "std_encoded": 0.02551052544553428,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666671159532334,
+                "mean_encoded": 0.6666668611414251,
                 "mip_levels": 10,
-                "std_encoded": 0.2357078984600417,
+                "std_encoded": 0.23571308711565625,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.5316981745663031,
+                "mean_encoded": 0.5376871744739555,
                 "mip_levels": 10,
-                "std_encoded": 0.03072530487348793,
+                "std_encoded": 0.026377365201531867,
                 "width": 512
               }
             },
@@ -19178,10 +19178,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1860630214214325,
+              0.2717801034450531,
               0.0,
               0.0,
-              0.1860630214214325,
+              0.2717801034450531,
               0.0,
               0.0
             ]
@@ -19220,8 +19220,8 @@
               ],
               "basket_strips": 3,
               "cells": [
-                12,
-                5
+                4,
+                2
               ],
               "craft": {
                 "chevron_rise": 1.7648379802703855,
@@ -19234,8 +19234,8 @@
               "piece_warmth": 0.019234057515859604,
               "stock": {
                 "cut_jitter": [
-                  0.13327555358409882,
-                  0.25211578607559204
+                  0.11033091694116592,
+                  0.1397935003042221
                 ],
                 "joint_color": [
                   0.5451863408088684,
@@ -19244,14 +19244,14 @@
                 ],
                 "joint_roughness": 0.8208237290382385,
                 "mottle_cells": [
-                  1,
-                  9
+                  5,
+                  3
                 ]
               },
               "tile_definition": 0.8357682228088379
             },
             "grain_frequency": 36.51171112060547,
-            "joint_width": 0.004872601944953203,
+            "joint_width": 0.005007798317819834,
             "layers": {
               "bands": [
                 4,
@@ -19282,7 +19282,7 @@
                 ]
               ],
               "aggregate_exposure": 0.1170925870537758,
-              "aggregate_radius": 0.3749592006206513,
+              "aggregate_radius": 0.4471975266933441,
               "binder_variation": 0.05598108470439911,
               "casting": null,
               "marble_mix": 0.20789489150047305,
@@ -19298,15 +19298,15 @@
                 0.22539755702018735
               ],
               "vein_strength": 0.38541460037231445,
-              "vein_warp": 0.1795722395181656,
-              "vein_width": 0.01931293122470379
+              "vein_warp": 0.2844817042350769,
+              "vein_width": 0.022315092384815216
             },
             "mineral_mix": 0.5268648862838745,
             "panel_count": [
               5,
               5
             ],
-            "period_m": 5.374523162841797,
+            "period_m": 3.6794450283050537,
             "phase": [
               0.2423157095909119,
               0.8673446774482727
@@ -19422,23 +19422,23 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.19427684210524587,
+                "mean_encoded": 0.2014842712811039,
                 "mip_levels": 10,
-                "std_encoded": 0.020706529337911863,
+                "std_encoded": 0.024926557804143948,
                 "width": 512
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666642132927395,
+                "mean_encoded": 0.6666662328383565,
                 "mip_levels": 10,
-                "std_encoded": 0.23570943226243135,
+                "std_encoded": 0.2358474810409047,
                 "width": 512
               },
               "roughness": {
                 "has_texture": true,
-                "mean_encoded": 0.48553819843596013,
+                "mean_encoded": 0.5088282566468229,
                 "mip_levels": 10,
-                "std_encoded": 0.02408577183425397,
+                "std_encoded": 0.07422882483869261,
                 "width": 512
               }
             },
@@ -19448,10 +19448,10 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              0.1955128014087677,
+              0.5247699022293091,
               0.0,
               0.0,
-              0.1955128014087677,
+              0.5247699022293091,
               0.0,
               0.0
             ]
@@ -19490,8 +19490,8 @@
               ],
               "basket_strips": 5,
               "cells": [
-                10,
-                6
+                9,
+                5
               ],
               "craft": {
                 "chevron_rise": 1.4591110944747925,
@@ -19514,14 +19514,14 @@
                 ],
                 "joint_roughness": 0.9485588073730468,
                 "mottle_cells": [
-                  9,
-                  2
+                  11,
+                  5
                 ]
               },
               "tile_definition": 0.5939383506774902
             },
             "grain_frequency": 18.952804565429688,
-            "joint_width": 0.0014047209406271577,
+            "joint_width": 0.0054016741923987865,
             "layers": {
               "bands": [
                 5,
@@ -19552,7 +19552,7 @@
                 ]
               ],
               "aggregate_exposure": 0.11319012939929962,
-              "aggregate_radius": 0.25147387385368347,
+              "aggregate_radius": 0.4186230003833771,
               "binder_variation": 0.10299326479434968,
               "casting": null,
               "marble_mix": 0.6286967992782593,
@@ -19568,15 +19568,15 @@
                 0.20514331758022308
               ],
               "vein_strength": 0.6189893484115601,
-              "vein_warp": 0.3962426781654358,
-              "vein_width": 0.0256568044424057
+              "vein_warp": 0.3834461271762848,
+              "vein_width": 0.012960141524672508
             },
             "mineral_mix": 0.4171832799911499,
             "panel_count": [
               4,
               2
             ],
-            "period_m": 5.114754676818848,
+            "period_m": 1.9055970907211304,
             "phase": [
               0.9716820120811462,
               0.1772102117538452
@@ -70627,99 +70627,99 @@
     "FabricAlt-5-normal_map.webp": "e0d18607393cf9e1d3e374a8211a02869e7fc31b03602e736b1657438ab7fad7",
     "FabricAlt-5-roughness.webp": "705cc7f3c470c92279891e3dc03889999f0ca07e76ad2fc83814ad8c84256d66",
     "FabricAlt-samples.json": "363bee2e74dd6870c1be61fd9aecf4efc2f13e927e86bd01568c5982b3644d68",
-    "FloorCarpet-0-albedo.webp": "e7fb09d3b276cf760faca00e96d2c0e35a355239a8a08197e09f7f06bbaf86b6",
-    "FloorCarpet-0-color.webp": "c0e8d051c68f72d4467157e467dc2ca95fb9cc340cf5c8504d20f8c756f572f6",
+    "FloorCarpet-0-albedo.webp": "aab6e29ab303cf46bf492619e96cdd47c0d2c034680ffd84354612f8f93214e3",
+    "FloorCarpet-0-color.webp": "3475b9c43e2e03944e277f34a07151a41f83382da026ac720a14ce780a44c4aa",
     "FloorCarpet-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-0-normal_map.webp": "b879cdbe92acef2e0a33b5b0362440d6c681f4ec20f767f8f8db1ac89a9932da",
-    "FloorCarpet-0-roughness.webp": "738d85b9cb5c8e06db6c1815cb1401f5b818cd87f95394d025aadacf4d668778",
-    "FloorCarpet-1-albedo.webp": "425b2a4e1379b167694bba0a0c5db2ee8b4cad244069e2ddf5a446a35ececc34",
-    "FloorCarpet-1-color.webp": "daecea0fd9c8287e8f88a83b78c0eba91acf40d585d09165800c46babe0883a8",
+    "FloorCarpet-0-normal_map.webp": "a4dd2f446ee786392c40259575dd5e1c7b8a88d3618e1710ac5883eac3dd5958",
+    "FloorCarpet-0-roughness.webp": "6442d6a70f5849e038ad513d1bd188e2c1dc82f098f7fa6fee80af46664d44f3",
+    "FloorCarpet-1-albedo.webp": "c7c91c9d584763c5299affb51643f92290d60174b4c16b0b373e58a3b5a4c61b",
+    "FloorCarpet-1-color.webp": "14e7a67bf059c9e0e96a24df78a100a7628c0b3cbd5ce3739d9e2e28e0068638",
     "FloorCarpet-1-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-1-normal_map.webp": "c439ebc11ef5a6c7d4a3b3997d36c01eee0d2b6099af77f47c86679bf8b0a913",
-    "FloorCarpet-1-roughness.webp": "80bcb35df76247edb5d267e9f309c6b895280fec5bc2f62d95a3d8a08eb81499",
-    "FloorCarpet-2-albedo.webp": "e74017600872f0d199a7d519e9edb772db6f1717f5c77970536225afdcfa7300",
-    "FloorCarpet-2-color.webp": "6e648888fefee676c9fd6283dafc20dfb4da1153637b2aa1979d236394cdf165",
+    "FloorCarpet-1-normal_map.webp": "75787ce9cdaa23cb9aba68cf3c9fbf1a21a5d4339b43ea5ddd4ffbd7e2448543",
+    "FloorCarpet-1-roughness.webp": "d64506d353265eef20e8aac0fcd416d2bbfd14d6160553f78187700145405826",
+    "FloorCarpet-2-albedo.webp": "b7c4efb9b2bc24e589d6ff42bb4d6437e488198b97418a8fde771ab6142a4946",
+    "FloorCarpet-2-color.webp": "93f785f95dfb757a9a37a62393ac713026d1932e04fe9d469f4e47c6ae036906",
     "FloorCarpet-2-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-2-normal_map.webp": "8c8a4044c2da10a81a7966fe9687009edde580cbcd14cff773d272de525303c5",
-    "FloorCarpet-2-roughness.webp": "ae526954843c6a6cb10ef8668a31173e400325656ef6c222122fc3275ac53022",
-    "FloorCarpet-3-albedo.webp": "d94d434cea0a0cb328ab3f42b546915463756537dcad529dae30e36a432f3619",
-    "FloorCarpet-3-color.webp": "ff78e1295788df0cb92c24698a095b5271108be2549a6d0d268a0eb737200784",
+    "FloorCarpet-2-normal_map.webp": "617eaf7a0d00e9ef933ccfac436464dfae3b2a3a6b0bcd2facbf66686b4bb582",
+    "FloorCarpet-2-roughness.webp": "7c9250f23e996eb4a60908261dc2c5909e567c346b492ea73c91caa039dbf6cb",
+    "FloorCarpet-3-albedo.webp": "1e0e732529cefee31a9b88003d364fa1386e48079204f279952f33b428c6bd32",
+    "FloorCarpet-3-color.webp": "534dc76af4445293b13652359f6abb84cc22c73ad0609684e4657099ea36bf7a",
     "FloorCarpet-3-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-3-normal_map.webp": "77aabe2199e2f1d2efad9461a8ad5b9f9789e103a65bb4d3e9eb6ee934551e7b",
-    "FloorCarpet-3-roughness.webp": "e4b94789d7275baa40c3ee170e3a33689ca3919df1fd59d2de95dbad4d06d105",
-    "FloorCarpet-4-albedo.webp": "6377fac7b43ec02f03a2d1b43291e92cf578adc86def3aee5b8f88aba0d10eb8",
-    "FloorCarpet-4-color.webp": "ab93dd3379e56c4080556d503ce73a58e08dc1a6bf048b100a9cf411269baa7c",
+    "FloorCarpet-3-normal_map.webp": "45924d806b6dd9bf3e034628cd113978fdb468cea355ca5d1c29933eb5f567c7",
+    "FloorCarpet-3-roughness.webp": "c38220276ce840082d765282cb6575e3838a84f84e6aa66156a0d135aba04d36",
+    "FloorCarpet-4-albedo.webp": "f58e6335fb82a7f6bd88d2ec071f761fdd83ccee36e46b349b0ca46889344fb5",
+    "FloorCarpet-4-color.webp": "a7e8c6a4b6263d8524cd0a54ec34dae53fc168f2e31dea00952cdb95f85cec89",
     "FloorCarpet-4-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-4-normal_map.webp": "f284a8cc2eda9412f5da5dff47c79add9bb00b09336137d2fbd8416a727d8044",
-    "FloorCarpet-4-roughness.webp": "d53595ee374d46e3af555ab7fc6a820051809f91930b7d4c961e8dd9774e7fbb",
-    "FloorCarpet-5-albedo.webp": "d8157436b7162127c799c529e2a515d4bcaaf7909255f2a10689b8a0061c0f54",
-    "FloorCarpet-5-color.webp": "466b9fdd4b9e3ed6fe410088237797694a1a2cd6ac9d626ed16e5f1d552a56f2",
+    "FloorCarpet-4-normal_map.webp": "3348d7058450243654eb6a9d5b9ddde5b1fd3c2ea8101d5b7f2bb4732471efca",
+    "FloorCarpet-4-roughness.webp": "f54eaca7f1f7867593f17ba905e7d9918a0790f6970d5c4bf1248426fdbcd7ec",
+    "FloorCarpet-5-albedo.webp": "0f3f2614365172bfcd399e1bae704bb9a20cacade08ebb16566bc5fccbbbf2a0",
+    "FloorCarpet-5-color.webp": "253ff461a120f5edc69a9dd02d668a34c071f2d98a93b2cc751af6fbd5cf28bb",
     "FloorCarpet-5-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "FloorCarpet-5-normal_map.webp": "98f3c626a15658bc1f6ef9bb018bd348b4df1912ce53b452e9c81321b47da524",
-    "FloorCarpet-5-roughness.webp": "b889f26e2437c84efe473d6d0972b7c295a7535c85b9d0134039cccd658490d7",
-    "FloorCarpet-samples.json": "537edb98fff6c9b82a2c88d8380ce1f4586163438b8ef5beccfe89ac9804200e",
-    "FloorStone-0-albedo.webp": "6cbf4997ea11eddc7e2c1f6ed9b0a428d92c30008fbfd5097d8d9c72175821f6",
-    "FloorStone-0-color.webp": "72a62e0601ac6722702e4bab6b289fdf4b8e434364cefc4a994fd1a95cf6f2d6",
+    "FloorCarpet-5-normal_map.webp": "4dde56709b86bcf5edf667a7a600b4163e31a053dc9ba099e0164b66cc4a4fe8",
+    "FloorCarpet-5-roughness.webp": "a62c4937df4c11184043f548af81b467f0f951a702862b99eff48da0d1c2cd84",
+    "FloorCarpet-samples.json": "ad0c620d8486cb02377a741cc9559267e7555239ce33a613a006a18013376688",
+    "FloorStone-0-albedo.webp": "7a41b0aa0b17af7c796f48dd43b48fae7100bf4362ede0a778fcfdc6fe84acb5",
+    "FloorStone-0-color.webp": "fdc37b7331d2978a24939cf89abb8cb16a53dcc8e85f41c7a74710b69916c595",
     "FloorStone-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-0-normal_map.webp": "ea4dad5c0a5381177f88a7de0243e421ee077b1a6c177b82676601eb46df49c8",
-    "FloorStone-0-roughness.webp": "cf675345571835182bfad5c5a90bb439e884018b6a852698c7affa33aa8dc381",
-    "FloorStone-1-albedo.webp": "7d4b1ba0bec2bddd8276f7e678837b581cc704ef528492449ea0d40ce0262be7",
-    "FloorStone-1-color.webp": "a312f158256282f70bef8681facbcd08b3d4274a3dbd059d84c1232f774fe5bd",
+    "FloorStone-0-normal_map.webp": "0f2d7d1542612658b28f3062cb3ef83b5f3dde90763f94d4411fc107724a6928",
+    "FloorStone-0-roughness.webp": "b126bfb8f789132657bf2e8f01b578672fff07debcf3d01878fcaa00b1792aee",
+    "FloorStone-1-albedo.webp": "73ae5f05ce132c4ab618e068a64bbe05ce20aa004cd486db14ee1fea1e22dcc5",
+    "FloorStone-1-color.webp": "1c67ab19cd1399febf0f65623b3b6f945bd16c7caeeb5e161b3cdf0e36052d13",
     "FloorStone-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-1-normal_map.webp": "a91f4341b52456ccacd87a1f610e68810dc583102b8c94a968c689dbe4da5a5b",
-    "FloorStone-1-roughness.webp": "fe42bba687407203c66fb01f3acb9a7f501bb97b9efe4dfee50859d142fc5320",
-    "FloorStone-2-albedo.webp": "7597a4c8b2f65b4bfbd6cd10a67e98ad224e65045e70a9f86385e71f573afc0a",
-    "FloorStone-2-color.webp": "087de916246d7d81819cec41d581b806b55bc3b023cfc3dea07f33e5f757ac49",
+    "FloorStone-1-normal_map.webp": "d6783d1ba5519fffa6d2a24581866742d147c6214f0ada03d1842c42bfc9ddde",
+    "FloorStone-1-roughness.webp": "61048d6318d596478e9bfd0ff8758cbb6f36957fb719739b10570f6a21f2c014",
+    "FloorStone-2-albedo.webp": "4f3e9d6814856722f48d8f8684843e24175bad8fc63e8ec50ed01f13cc3849f4",
+    "FloorStone-2-color.webp": "006df16e885df2110e2487b3010d8e419ceba7260f6e1df4dc5a6c742a51fb85",
     "FloorStone-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-2-normal_map.webp": "52237d354832c11ed87292a039ee423c57fa455089facce8618629b8e54e95a1",
-    "FloorStone-2-roughness.webp": "2b881f50a14df7bb20444162ba6aba856cfdc65ccc524931a7ebe3d21f17fd78",
-    "FloorStone-3-albedo.webp": "c7fd6a0771772cd28d5c3dd7391c1c97c43de4399b31bc8941e627baeebbd848",
-    "FloorStone-3-color.webp": "b24ded7c6dd6c80031d3f192d2423bef8bd956ff3eb9fdf5e3fe9b85bb91743d",
+    "FloorStone-2-normal_map.webp": "c6ca843092ccb5ccbaf7cec3d0b69ac04086a93c262b9f98bb79b35c52816cae",
+    "FloorStone-2-roughness.webp": "c765ddf5f77e7ec83395bfe906b62bde9094d01449e110ea15c74be1fb360f60",
+    "FloorStone-3-albedo.webp": "f7d92fce1a23ff4b9a9bc67f44462317c49ba937485e627fdad565808f88d4f1",
+    "FloorStone-3-color.webp": "e6aad3a3a8c2f52ca8cac8f916207c3a6878cd9e7a17cc6513ab3e152ae7b69e",
     "FloorStone-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-3-normal_map.webp": "7262a7141c3344047776576d7f63f9523d393cddf84f8bb8ec2a3c9c77b0a43c",
-    "FloorStone-3-roughness.webp": "9c2d7c89c78737358aa828cfc7f871c11096e5f94b4ea3d4951301a786272b5d",
-    "FloorStone-4-albedo.webp": "8187d6e2a77af646b329d557a74c585ee12402161b353c9018b9bbb97cd2c30e",
-    "FloorStone-4-color.webp": "eb6ba2f193b5bd32e41f94c3441241b6ab454f124de94a40ee257a7b9ce7e28a",
+    "FloorStone-3-normal_map.webp": "c113fb7598ed419841e17ba16bcea5bfe48d6974ed594f5d36fe0369350cec69",
+    "FloorStone-3-roughness.webp": "9a00f02573e3c42627e343a11d2cde129bd6a6e46f4b2709d3ecb16b64ee799b",
+    "FloorStone-4-albedo.webp": "6eb8f9c846ba465d16f9f1887a4393bcd701a1b2cb2667ca4c375dbafa22d624",
+    "FloorStone-4-color.webp": "1884eecf6144275841b09528e8d0da62067b055e62bd023d11776ef7bdda1a80",
     "FloorStone-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-4-normal_map.webp": "889934a9b890b2e871f469ac3b238b7d150e057d26a28d03d3a46c65c6792292",
-    "FloorStone-4-roughness.webp": "689092990dc4c5d3b633ecebb401e9ed400c71d79069fe4dc24cf16c4784fce6",
-    "FloorStone-5-albedo.webp": "fc2ffe97eec1d8576a1a0534b931dd02381149789b1d902402d25ebe3f1bfce3",
-    "FloorStone-5-color.webp": "ea7f41715b975320a8b6a0f8deefbd273f781a6a8687facf79e18a941afed813",
+    "FloorStone-4-normal_map.webp": "654699a85ac3b6e3e9467417f5fa8e816039933b0f65c55119e2b26ad396ba28",
+    "FloorStone-4-roughness.webp": "5278580fbdca0b6228c07da829eb05a60f3326c060251b81176f430fba6c2511",
+    "FloorStone-5-albedo.webp": "5bd476b46902175a88560fafb3b3aec082f856208178dceaf217f376ef3dcf96",
+    "FloorStone-5-color.webp": "909f28bea80c5bdcdf3c0b765b5142b1f9be1e2da74d61933f222a9674b5ee94",
     "FloorStone-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "FloorStone-5-normal_map.webp": "d74bb71c6a80b89eca1f85b06f8f5dd14203ba18924c734adfa74fc84d2f870f",
-    "FloorStone-5-roughness.webp": "bf2b6dc843a83fd6d9297617df677db81bbcb9b8107eac44db049829a6d39fa1",
-    "FloorStone-samples.json": "27894c0d88b527f3a541eb7ec0b2cd06573540f9e0da5ae701461c2fd99ecf28",
-    "FloorTimber-0-albedo.webp": "25cf1432b629f915dae10144fe6607ca2dc9193f4dd4374e0a5092b309e588a5",
-    "FloorTimber-0-color.webp": "30d3e85a4863f59a79e372b466414bdc36b4dc66e69b8c492062c11807591886",
+    "FloorStone-5-normal_map.webp": "efa6b836cad08e24d082a539d3bcf0416cece064011334b83bc5bf1a16ee68dd",
+    "FloorStone-5-roughness.webp": "00fdb4b2c7ba2ba4cf26581a103750e50d445136b9c99bc7cf9e96ac825063a1",
+    "FloorStone-samples.json": "df0f7127748fbb23367a69cebbe7bd8b1b516a8e8ac3daab7749a5528382f2f1",
+    "FloorTimber-0-albedo.webp": "8703fdec0779a5de18d47b8a816c98825898dd29a18a7ccc32211b46a3c9f18f",
+    "FloorTimber-0-color.webp": "3a290bb1070cd95e187592cca90fa18b0135d1758761c93577ed9118f53dad15",
     "FloorTimber-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-0-normal_map.webp": "abdc1e5cd095fefa74d5115a2e442b5e593b413f3518c8a429467d5a9376bf6f",
-    "FloorTimber-0-roughness.webp": "195b341966ce8532d5956df7512ebc0654746d750191cd36e4fddf875efc4e23",
-    "FloorTimber-1-albedo.webp": "97089d4163fce3b43557f45659a52d1e3b0bad22f6e16d0fbf51a8648d058a7c",
-    "FloorTimber-1-color.webp": "71abe75490db62f48f8efff471e162eae516088b7bf8406556b7770292e9ae61",
+    "FloorTimber-0-normal_map.webp": "667128b676834464e148b330cb0fe1e7c68244ccd7c0461ac913fd244bfad979",
+    "FloorTimber-0-roughness.webp": "292cb39d84e76e1c770f193b5ea92f374b44fd476e90cb67471a29fbc800bc31",
+    "FloorTimber-1-albedo.webp": "162f47e5be9851226d411744081b6bbdbdf892a90051e683d8600302c540dcaf",
+    "FloorTimber-1-color.webp": "55b0969adaa307c3d4b50438a319cdd2d117f80acf5f01beb08fd5ad05ad6e3e",
     "FloorTimber-1-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-1-normal_map.webp": "f679533db4f56420daaf091592e9be80a8af8c277c5fdbdf4f72560a86957462",
-    "FloorTimber-1-roughness.webp": "44b81e781016e89d386fc0c1d7fc75d441967d0bc7d7ed9765be4cbba15bf1d1",
-    "FloorTimber-2-albedo.webp": "59178356e9c7694118a03b86987607a5d2eb5234aba178ba06fc47b6896bbb53",
-    "FloorTimber-2-color.webp": "b5cab081c7f447cc09a7ffeeaf7360c572b2b32d7c3a9001ed23e61d60332037",
+    "FloorTimber-1-normal_map.webp": "bc1917a709d292d456299ebd1174c7da824c16691b0a21223733dd0bc33d719a",
+    "FloorTimber-1-roughness.webp": "43f477b1e504b5df9a135210db5c00a1d38a04a8cbee8690453033c9730ffa4a",
+    "FloorTimber-2-albedo.webp": "c45e22508438215ce1566d19c77710a59a39bf02b56bbbc791954933b698318a",
+    "FloorTimber-2-color.webp": "6c5a205519351edccd4fce7a09ada54840b2cd269d2b3550f74c6ffc3ba10c88",
     "FloorTimber-2-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-2-normal_map.webp": "9411b1123f1ce7b4fa4b63d8f2a953b45df2f1feb630deac1fb2482c8dcee3bb",
-    "FloorTimber-2-roughness.webp": "ec496a7e7b53fad6d0c77c76ac750eb5fe0179636da5d64ccced1c6937f060be",
-    "FloorTimber-3-albedo.webp": "967af965c4a01f633fd4ad0d06ab46c5bc74ac92b828e23259da9d36a9f793de",
-    "FloorTimber-3-color.webp": "492e23a0dc708e0717254dc4ee4cc2e9710fee2cafed40f35ff637a38288190d",
+    "FloorTimber-2-normal_map.webp": "bb5b95ff2d2ce42e66717ae171730a6e2ff11d2b4d3dc9537808602fe609a2e9",
+    "FloorTimber-2-roughness.webp": "3af31506342e077aa5bcb1d034d11a5a1bf41e6b51b3404fa7670c30878415d6",
+    "FloorTimber-3-albedo.webp": "4119c2bb860d65c2de952a4b635668baaca8f1300e4f232d83220b4b0c126c98",
+    "FloorTimber-3-color.webp": "62ca307df32ec04690b9d5967613f5ffa95f0a4a21636778787ff52b06850dc0",
     "FloorTimber-3-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-3-normal_map.webp": "bfe12cf87a0d1a3654f79eb3fdf7406071f7aa5b7aa5f72ffcedd046165244f5",
-    "FloorTimber-3-roughness.webp": "28f2ee01a0b3e1e5d606724fd4c9cab70e0188d62537a61d262aece9deb2a76d",
-    "FloorTimber-4-albedo.webp": "350f513e65fd696dd1be66f7501518232aabc1ed0eb432ec73549d51b207bede",
-    "FloorTimber-4-color.webp": "056d3bbfb3d78a5bc5c1263b697d2ca1cfe303ff67a94f87bda5054f1c45f931",
+    "FloorTimber-3-normal_map.webp": "6b1b3819ea6a33a144b5c0c9c249bb00f633ce3b3f4377ee507111894c799253",
+    "FloorTimber-3-roughness.webp": "67a0f92d89b9ccda0591ab5586c507a86f77f1d4bc71522c77325dfa67405b26",
+    "FloorTimber-4-albedo.webp": "39bb1f8e93482279149cb78995ec4e15f6b9735b899283e64753afc23038dcdd",
+    "FloorTimber-4-color.webp": "078a518200fa2d5cdb8bd9a2fa2a9a6f3328cdeb4b52d6e0be196620dc5623e5",
     "FloorTimber-4-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-4-normal_map.webp": "78089bdf23af837d689fe98ebf5fd718ac650d5037ae79a3ab412600f3cd4ce5",
-    "FloorTimber-4-roughness.webp": "1679f022890721f20849589e3e913d30d4bc92f6a56b48bc658b8650fa41e834",
-    "FloorTimber-5-albedo.webp": "ff1b240e28d814fd0aaaa050315cb30d6cea6f8423f0a8a9f502adeabfcf0701",
-    "FloorTimber-5-color.webp": "e30e8b4df03c5c4fd83bd95fcd0b8e8681e58840ee454206302337c23b183a3d",
+    "FloorTimber-4-normal_map.webp": "53965a716ca26b7e918f3fc8c52870957398f0003268f49675385d5ca18aca1d",
+    "FloorTimber-4-roughness.webp": "a2301974a6483d51588271da51b64d4bc4a4d0b538e871d868d12aeec46fc40f",
+    "FloorTimber-5-albedo.webp": "a39258ae5430de912c74508b2803bf42db8a16fd51b1bd481554c9f8abce8978",
+    "FloorTimber-5-color.webp": "66aed9d99a5b5a4152c574395581dafac8b79b3a921082472f8bcd0526994e5f",
     "FloorTimber-5-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
-    "FloorTimber-5-normal_map.webp": "29b689606ef911b21105e083162c0ed1484104c079b79f0da6f77744e7bc9498",
-    "FloorTimber-5-roughness.webp": "7f91076f9dbe71a81537dfb36c0caa2cdf00534589387e2391ec3ca1e853b4a6",
-    "FloorTimber-samples.json": "3f88823fb19dd2653a3cf4f7f7023854383361af4aebbb9dcb090df7c52ec271",
+    "FloorTimber-5-normal_map.webp": "5befaf8c627ffcc56e25d0b258e5ccb6596f69e42207291d509a454f323e70f4",
+    "FloorTimber-5-roughness.webp": "13d8f3a82c995b144be91ff0ba6fe76b2facbbb0fc4baf0de5e939ac30a87533",
+    "FloorTimber-samples.json": "50064c94440e701bc698309da44a90a1f863cdc23a30d40f4022c25794bec565",
     "Glass-0-albedo.webp": "a3da1f7493e81e9c1e1c49448de811d6029f9a8d539da93452276db25ebe9b63",
     "Glass-0-color.webp": "8a0ec2a717754cd7d37f51cb271312aa29bd0467bf4de9f9883e656fe14346dd",
     "Glass-0-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
@@ -71495,21 +71495,21 @@
     "WoodEdge-5-normal_map.webp": "e596f4ce26f4c1c453efc4635ecacd88f2d5cc3aabf63a09becb20612d7d64d0",
     "WoodEdge-5-roughness.webp": "921c9747b504482e932f210ff9991b3e244626d56268a27c84389fbdca8bacb9",
     "WoodEdge-samples.json": "1ce69b8c0c92f04ca8ce17b7cfb1bdc57f9f7a0de417234b57d5b7b8494b8a2c",
-    "usage.json": "e0d9de5db6fea5244ecdd646b6b0dda0e3b55f84fa15d74bbbbe8419bed4281c"
+    "usage.json": "886a320b1f6ae2c4abd132d899abe16129eb217e5c7353b34252091cb0db5b38"
   },
   "generator_identity": {
-    "crate_version": "0.60.0",
-    "generator_version": 92,
+    "crate_version": "0.61.0",
+    "generator_version": 97,
     "schema_version": 1,
-    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717"
+    "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977"
   },
   "image_size": [
     384,
     384
   ],
   "map_baker": "production CPU reference maps; native Bevy PBR rendering",
-  "object_count": 18157,
-  "part_count": 68417,
+  "object_count": 18147,
+  "part_count": 67796,
   "rig": "fixed 1400/250 lux directional lights, shadows, neutral 0.35 cd/m2 reflection cube, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
   "room_count": 256,
   "sample_count": 256,

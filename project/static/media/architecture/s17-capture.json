@@ -897,14 +897,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v117;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=18;camera_motion=1;ceiling_camera=3;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=18;seating=7;activity=3;playback=2;exterior=5;envelope=7;furnishings=15;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
-      "crate_version": "0.60.0",
+      "capture_engine": "capture-v122;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=21;camera_motion=1;ceiling_camera=4;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=19;seating=7;activity=3;playback=2;exterior=5;envelope=8;furnishings=16;botany=4;visual_content=6;equipment=18;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
+      "crate_version": "0.61.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 92,
+      "generator_version": 97,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -913,19 +913,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.60.0"
+          "0.61.0"
         ],
         "bevy_zeroverse_burn": [
-          "0.44.0"
+          "0.45.0"
         ],
         "bevy_zeroverse_capture": [
-          "0.6.14"
+          "0.6.15"
         ],
         "bevy_zeroverse_ffi": [
-          "0.60.0"
+          "0.61.0"
         ],
         "bevy_zeroverse_publication": [
-          "0.9.2"
+          "0.9.3"
         ],
         "burn": [
           "0.22.1"
@@ -1874,7 +1874,7 @@
         }
       ],
       "semantic_taxonomy_version": 10,
-      "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717",
+      "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -2284,7 +2284,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/92/0000000000000011",
+        "id": "procedural_indoor/97/0000000000000011",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 4535
       },
@@ -2385,7 +2385,7 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 548.2393950000001,
+      "preparation_ms": 883.9145219999999,
       "primary_rays": 1179648,
       "probes": 1152,
       "relocated_probes": 54,
@@ -2393,7 +2393,7 @@
       "transport_bytes": 44373488,
       "triangles": 376212
     },
-    "elapsed_seconds": 42.433700381,
+    "elapsed_seconds": 55.8211502,
     "image_assets": 156,
     "image_size": [
       640,
@@ -2999,7 +2999,7 @@
       }
     ],
     "renderer": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "11325-1793102220093413616",
+    "run_id": "10238-1793142553328697773",
     "seed": 17,
     "views": [
       {
@@ -3069,8 +3069,8 @@
         "fov_y": 0.7746202945709229,
         "fx_pixels": 490.29937744140625,
         "fy_pixels": 490.29937744140625,
-        "luminance_std": 0.27488014,
-        "mean_luminance": 0.3271475,
+        "luminance_std": 0.27524933,
+        "mean_luminance": 0.3265118,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 14,
@@ -3188,8 +3188,8 @@
         "fov_y": 1.726977825164795,
         "fx_pixels": 170.9715118408203,
         "fy_pixels": 170.9715118408203,
-        "luminance_std": 0.33797914,
-        "mean_luminance": 0.41318557,
+        "luminance_std": 0.33821145,
+        "mean_luminance": 0.4128932,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 12,
@@ -3305,8 +3305,8 @@
         "fov_y": 1.465822696685791,
         "fx_pixels": 222.17921447753906,
         "fy_pixels": 222.17921447753906,
-        "luminance_std": 0.284054,
-        "mean_luminance": 0.27134585,
+        "luminance_std": 0.28481278,
+        "mean_luminance": 0.27015728,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 18,
@@ -3428,8 +3428,8 @@
         "fov_y": 1.1416229009628296,
         "fx_pixels": 311.47119140625,
         "fy_pixels": 311.47119140625,
-        "luminance_std": 0.26449478,
-        "mean_luminance": 0.29559255,
+        "luminance_std": 0.2660374,
+        "mean_luminance": 0.29313466,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 15,
@@ -3548,8 +3548,8 @@
         "fov_y": 0.7746202945709229,
         "fx_pixels": 490.29937744140625,
         "fy_pixels": 490.29937744140625,
-        "luminance_std": 0.24933356,
-        "mean_luminance": 0.22584212,
+        "luminance_std": 0.24976115,
+        "mean_luminance": 0.22453864,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 17,
@@ -3670,8 +3670,8 @@
         "fov_y": 1.726977825164795,
         "fx_pixels": 170.9715118408203,
         "fy_pixels": 170.9715118408203,
-        "luminance_std": 0.23763874,
-        "mean_luminance": 0.19894512,
+        "luminance_std": 0.23871842,
+        "mean_luminance": 0.1964992,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 16,
@@ -3791,8 +3791,8 @@
         "fov_y": 1.465822696685791,
         "fx_pixels": 222.17921447753906,
         "fy_pixels": 222.17921447753906,
-        "luminance_std": 0.2265643,
-        "mean_luminance": 0.19404438,
+        "luminance_std": 0.22717085,
+        "mean_luminance": 0.19201331,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 19,
@@ -3910,13 +3910,13 @@
           "shared_pixels": 133674,
           "valid_pixels": 256000
         },
-        "dark_fraction": 0.000015625,
+        "dark_fraction": 0.0000234375,
         "far": 50.0,
         "fov_y": 1.1416229009628296,
         "fx_pixels": 311.47119140625,
         "fy_pixels": 311.47119140625,
-        "luminance_std": 0.21410325,
-        "mean_luminance": 0.16692027,
+        "luminance_std": 0.21451518,
+        "mean_luminance": 0.16541025,
         "near": 0.10000000149011612,
         "pose_max_absolute_error": 0.0,
         "semantic_colors": 17,
@@ -3973,10 +3973,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.60.0",
-    "generator_version": 92,
+    "crate_version": "0.61.0",
+    "generator_version": 97,
     "schema_version": 1,
-    "source_sha256": "60c09abea908403c7b93750f20729a82e4682e01ef0bad79231d4da73cf32717"
+    "source_sha256": "430a03a33381b2780630141774407d9786d4ded8e49c14474cae85f5c758d977"
   },
   "manifest": {
     "architecture_style": "Timber",
@@ -4100,6 +4100,8 @@
       "peer_weak_pairs_after": 0,
       "peer_weak_pairs_before": 0,
       "prefix_backtracks": 0,
+      "recovery_intrinsic_draws": 0,
+      "recovery_path_proposals": 0,
       "reference_proposals": 45,
       "reference_rejections": [
         10,
@@ -5086,7 +5088,7 @@
     "floor_style": 1,
     "furnishing_quarter_turn": 1,
     "furniture_style": 0,
-    "generator_version": 92,
+    "generator_version": 97,
     "glazing_height": 3.6895738,
     "human_density": 0.25,
     "humans": [
@@ -7304,7 +7306,7 @@
               "brokenness": 0.77044296,
               "dye_cells": [
                 3,
-                11
+                2
               ],
               "grain_cells": [
                 154,
@@ -7327,7 +7329,7 @@
             },
             "edge_variation": 0.011441901,
             "heather": 0.100312755,
-            "line_width": 0.15154675,
+            "line_width": 0.14963475,
             "palette": [
               [
                 0.42910385,
@@ -7348,7 +7350,7 @@
             "pattern": 0,
             "pile": 0.8062302,
             "repeats": [
-              13,
+              8,
               3
             ]
           },
@@ -7380,12 +7382,12 @@
             ],
             "basket_strips": 5,
             "cells": [
-              7,
+              5,
               5
             ],
             "layout": "BrokenBond",
             "mottling": 0.031992625,
-            "piece_roughness": 0.09466631,
+            "piece_roughness": 0.025044553,
             "piece_tone": 0.2077812,
             "piece_warmth": 0.061966658,
             "stock": {
@@ -7400,14 +7402,14 @@
               ],
               "joint_roughness": 0.7866197,
               "mottle_cells": [
-                5,
-                11
+                9,
+                2
               ]
             },
-            "tile_definition": 0.0
+            "tile_definition": 0.26455614
           },
           "grain_frequency": 47.206062,
-          "joint_width": 0.0013637112,
+          "joint_width": 0.0029106024,
           "layers": {
             "bands": [
               10,
@@ -7462,7 +7464,7 @@
             9,
             1
           ],
-          "period_m": 3.527555,
+          "period_m": 2.8977022,
           "phase": [
             0.9661976,
             0.039382637
@@ -9589,13 +9591,13 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000017/capture.json": "60a8f2343e0873cb71b57d5a3dac4f1d6b8f9f96be60f18ceacc97252a595124",
-    "seed_000017/manifest.json": "dbd82b5d550e944f2e3aba7cff8714ad6f75dd7ddeae4560bfa4cf9c5b972ce2",
-    "seed_000017/schematic.svg": "bccaac62f77cccc157d7af1c605e456fada9bcf1c34b1613953fefe0e5dee3f6",
+    "seed_000017/capture.json": "21680a536f340a56d6e2594e0818627f0e7223c1b95811991ce75aa145868d41",
+    "seed_000017/manifest.json": "b8a88f88666580abc45ac2a066d2b29a13e6b51548487845bfc4adb195be7ea9",
+    "seed_000017/schematic.svg": "3f0cef9577cd7b21d032441705f8e4d1ea921c9c6056b3e6058897d784ce39a4",
     "seed_000017/view_00_co_visibility.png": "4aab3dedfe055dd3f4a99b671f27ebad0dcd0b238063ee6e1ccc054ab8a1a622",
     "seed_000017/view_00_co_visibility_mask.png": "7595f7311edd5122f6d1d62532143993c2d290916991d7f777d6fe52117d34b3",
     "seed_000017/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_00_color.png": "66e955b76635f0cf05aa1e51630c62b82afbba9b233c0ceb0018a0cdb7c007ed",
+    "seed_000017/view_00_color.png": "757810613d9ab8a47dfa10bf19576a381b35448bd8d7a80a0733173b43c6e700",
     "seed_000017/view_00_depth.png": "7a747a2ef6b0c8e3425d93050eae1571d34a46f24b5daea96d49c0a6e007e89e",
     "seed_000017/view_00_normal.png": "197a234ef2cda938bf52f600ced2d12d79f65fb034f1e214985925c3bb21c1b8",
     "seed_000017/view_00_position.png": "d84f39e521cff89f91a1a7a7d367e2a977f47a9d8d2ade1c765e7d3d25636702",
@@ -9603,7 +9605,7 @@
     "seed_000017/view_01_co_visibility.png": "53a86ed216776b86a2e54b0f3628fcc94d9e9c631ccf9c40a16baf562f23d11b",
     "seed_000017/view_01_co_visibility_mask.png": "ac39f332895b5af59f60c9dd24aafec07d7c940ec47580dfefe5ec76dce25c37",
     "seed_000017/view_01_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_01_color.png": "d7ca8e723ca29cc4c172411dab7bcc4eda49de268b02b4be95876322b4b5c302",
+    "seed_000017/view_01_color.png": "6fece42329a1f2d4360f8b419b145ae81d9eca6bcb7b9efab31cefec202ed4ed",
     "seed_000017/view_01_depth.png": "3040d7b911bb6095e3c28d2a98c972e9ebb5207031ed20ca02608b72fbae8bd8",
     "seed_000017/view_01_normal.png": "0dea70349c81a6f7dc246c11d06de7a76dc4b49139adb8a10679e361e96cabb2",
     "seed_000017/view_01_position.png": "d49e2103f9061b0e3981de226ad5678c0f026baa0bad8ce0c84c667ff6bdc73b",
@@ -9611,7 +9613,7 @@
     "seed_000017/view_02_co_visibility.png": "e2912cfd66ba68945e1c58958e4333da29ccd4ecec82d37646234d31ef5e5edb",
     "seed_000017/view_02_co_visibility_mask.png": "0d83fcde6da6b388808d75f4507c2103184c87b140e35cf85398fe0388766e66",
     "seed_000017/view_02_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_02_color.png": "4d824f318eb48790d52d8ffe7e08f31a1e5c48ecc793bf9f3c88f648e8d78774",
+    "seed_000017/view_02_color.png": "9b20e7e2623b771fa204db49ea1206604347718c7baae7c3d6cd551a59c1dc70",
     "seed_000017/view_02_depth.png": "868898befc28b0cc3447c96aa74f80f461e450ae1960a684d94e939457312eff",
     "seed_000017/view_02_normal.png": "44a1ddb74db9753518af16509fe97cdc725860a9a719999c486f8c15c296d2af",
     "seed_000017/view_02_position.png": "849495b620c995420c1379f8f5690d165b41291c3db623c37c9195f1656b4b67",
@@ -9619,7 +9621,7 @@
     "seed_000017/view_03_co_visibility.png": "7bb7ecacf0a4d497d44946273d6d2faa74a27ce91e9808d0da15c49f1889bfe0",
     "seed_000017/view_03_co_visibility_mask.png": "ead69b5369a25e44e1cfb73b5c1137e0aa0e0c02725be65de21bf4c86939d463",
     "seed_000017/view_03_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_03_color.png": "d2cc7021beeb9727767633cdb0645f26b7b6bbdd4f9a25ce59415fe17e463210",
+    "seed_000017/view_03_color.png": "8a396d9574ec69b1500efcbfe19e7b85439d2b71bb0ea1ff6f8944862c5d54a2",
     "seed_000017/view_03_depth.png": "9af90e5d1f3a597144315774501ffa4f38043555fe57540d023a671919a04c27",
     "seed_000017/view_03_normal.png": "1a31c1ffd4d8d359aaa9c7061a70114bf6344644e001972b61d057b15b188bff",
     "seed_000017/view_03_position.png": "8c3de10f408b843f8da0afe55cd3b2f6c1286d09edbd00a48862050679c1b66a",
@@ -9627,7 +9629,7 @@
     "seed_000017/view_04_co_visibility.png": "1117dcb4300b7da63bdcbad323804e26907c235749f0113fef030b949b4dd2e6",
     "seed_000017/view_04_co_visibility_mask.png": "511b216d5de6e8378ab3e106b079fa2e16a45a25394c9f86a1378cc27232152e",
     "seed_000017/view_04_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_04_color.png": "625e92afe8fa65cea602b584beac1dc742898f5c77f5be124edea44b65209ba9",
+    "seed_000017/view_04_color.png": "9a67723cdeb851904a9898248719120a61b131981dda4e716d269368bec04433",
     "seed_000017/view_04_depth.png": "0ccc81d859233ff3a651733a327d099e696c9bf5867d787e5b804a703eb74128",
     "seed_000017/view_04_normal.png": "bf7ba8fceea795f7f5ba6682e7ff2563f07c5b1d310127e151a5a704a53a2037",
     "seed_000017/view_04_position.png": "2d7c3daf6f57dddf8a581a296e6511f8b2b4e6504a9aa84e8c68f34931ed105f",
@@ -9635,7 +9637,7 @@
     "seed_000017/view_05_co_visibility.png": "e01bcbfc857a310a3ae526cbb988a4c820c1fabad3611ff8c1259430539c37ed",
     "seed_000017/view_05_co_visibility_mask.png": "e0970423b9b841b0f57c9984e1c7f57c233672fb6b71a0ed1fd289d31d8cd04c",
     "seed_000017/view_05_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_05_color.png": "dc8c1318f3c6a3000fe0b24ea683b718363102742259e237c27f3d8d3f18a091",
+    "seed_000017/view_05_color.png": "c03a123fc7ecc321accc16ab093c40f996ece7b38fe6fed6f54ef4bb44d6331c",
     "seed_000017/view_05_depth.png": "b50e552ee5cc3a108757a70668e162f12ea1c28cd9d5977fd5a733760b85f1f9",
     "seed_000017/view_05_normal.png": "f801f0dfff72e9099f4c8c6000250fb03e6c6484f5ba2cf80c4719169c0653ac",
     "seed_000017/view_05_position.png": "55ead26eb93a27d35412f53a6c1ef21c0e157d03ec5d0c44c2dabe688326980d",
@@ -9643,7 +9645,7 @@
     "seed_000017/view_06_co_visibility.png": "9f75fead5c1fdef17c00bf33ae56059d74f091c15037c789ac43d1e1e9e9e4a4",
     "seed_000017/view_06_co_visibility_mask.png": "57ddb72134c8818f14c62980fc4a75709fd9318dc8fd022f017110db460b9102",
     "seed_000017/view_06_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_06_color.png": "a6c720dce0a22bd33e744460f8b53407f322c7a56360b3062f4c49124c837f72",
+    "seed_000017/view_06_color.png": "e1fc61506b355dd5a65ac429ef542436307de770df201c24be5ba12482346cd5",
     "seed_000017/view_06_depth.png": "a4b1b3aad35eb2365a73b336bd04108932a51e3016d92ff26d692a8d3c088301",
     "seed_000017/view_06_normal.png": "568dc3d4a3018054c9594e93ed7a5fbd0297fa4ccd919fe0721f14794a282022",
     "seed_000017/view_06_position.png": "eb51beeefa03503789324db42aba5d97908bbaea98e68f5ee09ec6a693a3480d",
@@ -9651,7 +9653,7 @@
     "seed_000017/view_07_co_visibility.png": "bc22dfdb0bb691d9443e8265b23dffabdb3ebeb804b8f47f90617c2142b96c8f",
     "seed_000017/view_07_co_visibility_mask.png": "b2f272d5c5f20d811cf3d48acfc95173012b535c457f6cdd8388ed060b1600f1",
     "seed_000017/view_07_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
-    "seed_000017/view_07_color.png": "1ee9caa1a1dd6c64c5672a3b61620f8e0af73595c6f15b5bc5f4324ab0adc0b2",
+    "seed_000017/view_07_color.png": "2ed7017bc0db3c187b601eb249cc907b9cf1df7122e36bd33df99634efe3a36f",
     "seed_000017/view_07_depth.png": "31b4096b4d1a36834c7ade477add4cafc0d6cafc518156c62e8d98dec6ef0815",
     "seed_000017/view_07_normal.png": "f449ffa65424ba900151ef212968040dedf9e0218aaa21de087f7f2fb6fa33e2",
     "seed_000017/view_07_position.png": "dfe1987d976f6c3dd29534cfb20abc95ecb390e6304c5ccb130b32e5f60e1d97",
