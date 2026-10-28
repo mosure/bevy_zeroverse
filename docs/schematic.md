@@ -29,12 +29,22 @@ This is not a pinhole horizontal/vertical FOV. Circular, full-frame and elliptic
 sensors use their actual calibration and valid rays for the curved display hull,
 including rays behind the camera for domains above 180°. Ceiling-facing optical
 axes are labeled `down` (or `up`), since their direction collapses in a top-down
-projection. Prediction overlays retain the same lens markers in dashed magenta.
+projection. Prediction overlays retain the same lens markers and camera-ID colors
+with dashed outlines.
 The JSON keeps the full versioned calibration and the original camera label.
 Run `cargo run --example schematic -- --lenses` for mixed-room exports and a lens
 comparison diagram. `cargo run --example review_schematic -- --lenses` checks
 the native mixed-lens schematic and saves its screenshot under
 `out/schematic/lens-ui/`.
+
+Use **Camera glyph size · schematic** in the Studio's Room schematic viewport to
+scale camera symbols from **0.1× to 4×** (default **1×**). The viewer CLI flag is
+`--schematic-camera-gizmo-scale`, and the URL parameter is
+`schematic_camera_gizmo_scale`. This changes camera and prediction glyphs, including
+their lens rings, without changing the metric room projection or trajectory paths.
+The editor's 3D glyphs have a separate `camera_gizmo_scale` setting. Both update
+live without scene regeneration; the schematic retains its render target and
+background geometry while the slider moves.
 
 ## Dataset export
 
@@ -43,6 +53,10 @@ cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
   --scene-type procedural-indoor --output out/rooms --samples 3 \
   --cameras 3 --width 512 --height 512 --playback-steps 1 --schematic
 ```
+
+Add `--schematic-camera-gizmo-scale 0.5` for smaller symbols in exported sidecars.
+This works with both folder and chunk outputs and supervised child processes.
+Non-default exported sizes are recorded in the resume configuration.
 
 The optional export writes one JSON/SVG/PNG triplet per timestep under
 `schematics/sample_000000/000.*` for folder output, or
@@ -60,8 +74,14 @@ let plan = sample.schematic(0)?; // recorded camera/pose matrices at timestep 0
 let mut predictions = Overlay::default();
 predictions.cameras.push(predicted_camera); // world-space Camera
 predictions.poses.push(predicted_pose);     // joints + parent indices
-plan.write("out/calibration", RenderOptions::default(), predictions)?;
+let options = RenderOptions { camera_gizmo_scale: 0.5, ..Default::default() };
+plan.write("out/calibration", options, predictions)?;
 ```
+
+`RenderOptions::camera_gizmo_scale` is also available to native/Wasm API callers.
+It scales compact symbols and opt-in full display frustums; it does not change
+`Camera::world_from_view`, calibration, paths or the exported metric `Projection`.
+The chosen scale is recorded in the schematic document's `options`.
 
 `Schematic::svg`, `rgba`, and `document` also work without a filesystem on Wasm.
 `Schematic::from_manifest` supports CPU-only layout audits. See

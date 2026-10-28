@@ -10,6 +10,13 @@ pub struct FireProgram {
     pub slots: usize,
     pub grille_fraction: f32,
     pub lens_fraction: f32,
+    pub body_fraction: Vec3,
+    pub sensor_face_fraction: f32,
+    pub skirt_height: f32,
+    pub crown_fraction: f32,
+    pub control_center: f32,
+    pub control_width: f32,
+    pub control_height: f32,
 }
 
 pub fn program(o: &IndoorObject) -> FireProgram {
@@ -27,17 +34,49 @@ pub fn program(o: &IndoorObject) -> FireProgram {
         slots: r.random_range(5..=12),
         grille_fraction: r.random_range(0.50..0.78),
         lens_fraction: r.random_range(0.38..0.64),
+        body_fraction: Vec3::new(
+            r.random_range(0.80..1.),
+            r.random_range(0.68..1.),
+            r.random_range(0.68..1.),
+        ),
+        sensor_face_fraction: r.random_range(0.38..0.78),
+        skirt_height: r.random_range(0.72..0.90),
+        crown_fraction: r.random_range(0.78..0.94),
+        control_center: r.random_range(0.36..0.49),
+        control_width: r.random_range(0.55..0.77),
+        control_height: r.random_range(0.28..0.43),
     }
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = program(o);
+    let mut fitted = o.clone();
+    fitted.size *= p.body_fraction;
+    // Keep the actual mounting face fixed while varying the case within its
+    // pre-admitted envelope. Ceiling devices remain attached at the top.
+    let ceiling = o.kind == ObjectKind::FireDetector;
+    let rear = if o.kind == ObjectKind::FireAlarm && p.style == 3 {
+        0.46
+    } else {
+        0.5
+    };
+    let offset = Vec3::new(
+        0.,
+        (o.size.y - fitted.size.y) * if ceiling { 1. } else { 0.5 },
+        if ceiling {
+            0.
+        } else {
+            -rear * (o.size.z - fitted.size.z)
+        },
+    );
+    let mut parts = Assembly::default();
     match o.kind {
-        ObjectKind::FireAlarm => alarm(a, o, &p),
-        ObjectKind::FireDetector => detector(a, o, &p),
-        ObjectKind::FirePullStation => pull(a, o, &p),
+        ObjectKind::FireAlarm => alarm(&mut parts, &fitted, &p),
+        ObjectKind::FireDetector => detector(&mut parts, &fitted, &p),
+        ObjectKind::FirePullStation => pull(&mut parts, &fitted, &p),
         _ => unreachable!(),
     }
+    super::super::super::public::append_at(a, parts, Transform::from_translation(offset));
 }
 
 fn alarm(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
@@ -145,10 +184,10 @@ fn detector(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
     a.part(Surface::Plastic, &body).lathe(
         &[
             (0., s.y * underside),
-            (radius * 0.60, s.y * underside),
-            (radius * 0.82, s.y * (underside + 0.16)),
-            (radius * 0.96, s.y * 0.70),
-            (radius, s.y * 0.84),
+            (radius * p.sensor_face_fraction, s.y * underside),
+            (radius * p.crown_fraction, s.y * (underside + 0.16)),
+            (radius * 0.96, s.y * (p.skirt_height - 0.12)),
+            (radius, s.y * p.skirt_height),
             (radius, s.y),
             (0., s.y),
         ],
@@ -156,16 +195,18 @@ fn detector(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
         Transform::IDENTITY,
     );
     // Shadowed inlet band with separated louvres on the actual radial surface.
+    let inlet_height = (underside + 0.16 + p.skirt_height - 0.12) * 0.5;
+    let inlet_radius = radius * (p.crown_fraction + 0.96) * 0.5;
     for i in 0..p.slots * 2 {
         let angle = 2. * PI * i as f32 / (p.slots * 2) as f32;
         let tf = Transform::from_xyz(
-            angle.sin() * radius * 0.93,
-            s.y * 0.51,
-            angle.cos() * radius * 0.93,
+            angle.sin() * inlet_radius,
+            s.y * inlet_height,
+            angle.cos() * inlet_radius,
         )
         .with_rotation(Quat::from_rotation_y(angle));
         a.part(Surface::Ink, l)
-            .cuboid(Vec3::new(radius * 0.09, s.y * 0.15, radius * 0.03), 0., tf);
+            .cuboid(Vec3::new(radius * 0.09, s.y * 0.12, radius * 0.03), 0., tf);
     }
     if p.style == 2 {
         // Heat-sensing element with three protective struts beneath the dome.
@@ -193,7 +234,7 @@ fn detector(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
     } else {
         a.part(Surface::Plastic, &format!("{l}#finish{}", FINISH_BASE + 1))
             .cylinder(
-                radius * if p.style == 1 { 0.42 } else { 0.21 },
+                radius * p.sensor_face_fraction * if p.style == 1 { 0.60 } else { 0.31 },
                 s.y * 0.018,
                 Transform::from_xyz(radius * 0.11, s.y * 0.012, -radius * 0.12),
             );
@@ -233,23 +274,27 @@ fn pull(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
         a.box_part(
             Surface::Ink,
             l,
-            Vec3::new(0., s.y * 0.43, front + 0.0008),
-            Vec3::new(s.x * 0.68, s.y * 0.37, 0.001),
+            Vec3::new(0., s.y * p.control_center, front + 0.0008),
+            Vec3::new(s.x * p.control_width, s.y * p.control_height, 0.001),
             0.001,
         );
-        let hinge = Vec3::new(0., s.y * 0.43, front + s.z * 0.10);
+        let hinge = Vec3::new(0., s.y * p.control_center, front + s.z * 0.10);
         a.box_part(
             Surface::Plastic,
             &body,
             hinge,
-            Vec3::new(s.x * 0.62, s.y * 0.12, s.z * 0.18),
+            Vec3::new(
+                s.x * (p.control_width - 0.06),
+                s.y * p.control_height * 0.32,
+                s.z * 0.18,
+            ),
             0.002,
         );
         lettering::build(
             a,
             l,
             "PULL",
-            Vec2::new(s.x * 0.43, s.y * 0.075),
+            Vec2::new(s.x * p.control_width * 0.63, s.y * p.control_height * 0.18),
             hinge + Vec3::Z * (s.z * 0.09 + 0.0012),
             text_surface,
         );
@@ -257,8 +302,12 @@ fn pull(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
             a.box_part(
                 Surface::Metal,
                 l,
-                Vec3::new(0., s.y * 0.63, front + s.z * 0.05),
-                Vec3::new(s.x * 0.64, s.y * 0.055, s.z * 0.10),
+                Vec3::new(
+                    0.,
+                    s.y * (p.control_center + p.control_height * 0.54),
+                    front + s.z * 0.05,
+                ),
+                Vec3::new(s.x * p.control_width * 0.94, s.y * 0.045, s.z * 0.10),
                 0.001,
             );
         }
@@ -267,14 +316,14 @@ fn pull(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
         a.box_part(
             Surface::Paper,
             l,
-            Vec3::new(0., s.y * 0.45, front + 0.001),
-            Vec3::new(s.x * 0.71, s.y * 0.41, 0.0015),
+            Vec3::new(0., s.y * p.control_center, front + 0.001),
+            Vec3::new(s.x * p.control_width, s.y * p.control_height, 0.0015),
             0.001,
         );
         a.box_part(
             Surface::Ink,
             l,
-            Vec3::new(0., s.y * 0.45, front + 0.0024),
+            Vec3::new(0., s.y * p.control_center, front + 0.0024),
             Vec3::new(s.x * 0.21, s.y * 0.025, 0.0006),
             0.0002,
         );

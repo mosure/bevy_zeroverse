@@ -57,6 +57,11 @@ pub(super) fn build(
             if let Some(emission) = photometry::decorative_emission_channel(o, channel) {
                 let mut material = template.clone();
                 material.emissive = emission;
+                if o.kind == ObjectKind::ExitSign {
+                    material.base_color = objects::equipment::signals::exit::appearance(o, channel)
+                        .expect("valid exit emission channel")
+                        .0;
+                }
                 return ((o.id, channel), materials.add(material));
             }
             let power = photometry::lamp(scene, o);
@@ -73,6 +78,44 @@ pub(super) fn build(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legend_palette_is_independent_of_mount_and_correctly_bound() {
+        use crate::scene::procedural_indoor::objects::{
+            audit, build_object,
+            equipment::signals::exit::{appearance, parameters},
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(0, Default::default(), 0.6, 0, 0.).unwrap();
+        scene.objects.clear();
+        for seed in 0..32 {
+            let mut o = audit::fixture(ObjectKind::ExitSign, seed);
+            let style = parameters(&o).legend;
+            let color = appearance(&o, 0);
+            for variant in 0..4 {
+                o.variant = variant;
+                assert_eq!(parameters(&o).legend, style);
+                assert_eq!(appearance(&o, 0), color);
+            }
+            o.id = seed as usize;
+            scene.objects.push(o);
+        }
+        let mut materials = Assets::<StandardMaterial>::default();
+        let base = materials.add(StandardMaterial::default());
+        let bindings = build(&scene, &base, &mut materials);
+        for o in &scene.objects {
+            for ((s, label), _) in build_object(o).parts {
+                if s != Surface::Light {
+                    continue;
+                }
+                let key = source_key(&label).unwrap();
+                let material = materials.get(&bindings[&key]).unwrap();
+                let (base, emission) = appearance(o, key.1).unwrap();
+                assert_eq!(material.base_color, base);
+                assert_eq!(material.emissive, emission);
+                assert!(material.base_color_texture.is_none());
+            }
+        }
+    }
     #[test]
     fn colored_strands_bind_distinct_bounded_channels_without_textures() {
         let mut scene =

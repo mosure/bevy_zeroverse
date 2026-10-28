@@ -19,10 +19,6 @@ pub fn program(o: &IndoorObject) -> PropProgram {
     }
 }
 
-pub(super) fn dish(a: &mut Assembly, base: Vec3, size: Vec3, style: u8, count: u32, seed: u64) {
-    let p = dishware::parameters(size, style, count, seed);
-    dishware::build(a, Transform::from_translation(base), &p, seed);
-}
 pub(super) fn rack(a: &mut Assembly, base: Vec3, size: Vec3, plates: u32, seed: u64) {
     let p = supplies::rack::parameters(size, plates, seed);
     supplies::rack::build(a, Transform::from_translation(base), &p, seed);
@@ -30,27 +26,11 @@ pub(super) fn rack(a: &mut Assembly, base: Vec3, size: Vec3, plates: u32, seed: 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let p = program(o);
-    let label = o.kind.class_name();
     match o.kind {
         ObjectKind::SoapDispenser => {
             super::supplies::dispenser::build(a, Vec3::ZERO, s, p.pump, o.seed)
         }
-        ObjectKind::Sponge => {
-            a.box_part(
-                Surface::Fabric,
-                label,
-                Vec3::Y * s.y * 0.38,
-                Vec3::new(s.x, s.y * 0.76, s.z),
-                0.009,
-            );
-            a.box_part(
-                Surface::FabricAlt,
-                label,
-                Vec3::Y * s.y * 0.88,
-                Vec3::new(s.x * 0.98, s.y * 0.23, s.z * 0.98),
-                0.002,
-            );
-        }
+        ObjectKind::Sponge => supplies::sponge::build(a, o),
         ObjectKind::DryingRack => {
             let program = supplies::rack::parameters(s, p.count, o.seed);
             supplies::rack::build(
@@ -73,61 +53,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::KitchenTowel => super::supplies::towel(a, o),
         ObjectKind::KnifeBlock => super::supplies::knives::build(a, o),
         ObjectKind::UtensilHolder => supplies::utensils::build(a, o),
-        ObjectKind::PaperTowel => {
-            if p.horizontal {
-                a.box_part(
-                    Surface::Metal,
-                    label,
-                    Vec3::new(0., 0.004, -s.z * 0.35),
-                    Vec3::new(s.x * 0.94, 0.008, s.z * 0.18),
-                    0.002,
-                );
-                let r = (s.z * 0.43).min(s.y * 0.36);
-                let len = s.x * 0.80;
-                let y = r + 0.045;
-                a.part(Surface::Paper, label).lathe(
-                    &[(r, 0.), (r, len), (r * 0.24, len), (r * 0.24, 0.), (r, 0.)],
-                    32,
-                    Transform::from_xyz(-len * 0.5, y, 0.)
-                        .with_rotation(Quat::from_rotation_z(-FRAC_PI_2)),
-                );
-                for x in [-1., 1.] {
-                    pipe(
-                        a,
-                        Surface::Metal,
-                        label,
-                        &[
-                            Vec3::new(x * s.x * 0.46, 0.006, -s.z * 0.35),
-                            Vec3::new(x * s.x * 0.46, y, 0.),
-                            Vec3::new(x * s.x * 0.36, y, 0.),
-                        ],
-                        0.006,
-                    );
-                }
-                a.box_part(
-                    Surface::Paper,
-                    label,
-                    Vec3::new(0., y * 0.65, s.z * 0.41),
-                    Vec3::new(len * 0.98, y * 0.55, 0.001),
-                    0.0001,
-                );
-            } else {
-                let r = s.x.min(s.z) * 0.43;
-                let h = s.y * 0.88;
-                a.part(Surface::Wood, label)
-                    .cylinder(r, 0.018, Transform::from_xyz(0., 0.009, 0.));
-                a.part(Surface::Paper, label).lathe(
-                    &[(r, 0.), (r, h), (r * 0.24, h), (r * 0.24, 0.), (r, 0.)],
-                    32,
-                    Transform::from_xyz(0., 0.019, 0.),
-                );
-                a.part(Surface::Chrome, label).cylinder(
-                    r * 0.14,
-                    s.y * 0.96,
-                    Transform::from_xyz(0., s.y * 0.48, 0.),
-                );
-            }
-        }
+        ObjectKind::PaperTowel => supplies::paper_towel::build(a, o),
         ObjectKind::FruitBowl => {
             let mut bowl = dishware::parameters(Vec3::new(s.x, s.y * 0.52, s.z), 1, 1, o.seed);
             // A broad, flat interior floor supports the fruit arrangement.

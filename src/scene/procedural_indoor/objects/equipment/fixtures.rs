@@ -4,42 +4,55 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
     let s = o.size;
     let label = o.kind.class_name();
     let frame = s.x.min(s.y) * p.board_frame_fraction;
-    let frame_surface = if p.housing == Surface::Metal {
-        Surface::Metal
-    } else {
-        Surface::WoodEdge
-    };
+    let section = super::board_section::parameters(o);
+    let frame_surface = section.frame_surface;
+    let rear = -s.z * 0.5;
+    let backing_front = rear + section.backing_m;
+    let front = rear + section.depth_m;
+    let bevel = frame * section.bevel_fraction;
     // A real backing and four rails leave the pinboard exposed. A full-depth
     // solid box here would occlude both the fabric and its attached notes.
     a.box_part(
         Surface::WoodEdge,
         label,
-        Vec3::new(0., s.y * 0.5, -s.z * 0.30),
-        Vec3::new(s.x, s.y, s.z * 0.40),
-        0.001,
+        Vec3::new(0., s.y * 0.5, rear + section.backing_m * 0.5),
+        Vec3::new(s.x, s.y, section.backing_m),
+        0.,
     );
     for sign in [-1., 1.] {
         a.box_part(
             frame_surface,
             label,
-            Vec3::new(sign * (s.x - frame) * 0.5, s.y * 0.5, s.z * 0.15),
-            Vec3::new(frame, s.y, s.z * 0.70),
-            0.002,
+            Vec3::new(
+                sign * (s.x - frame) * 0.5,
+                s.y * 0.5,
+                (backing_front + front) * 0.5,
+            ),
+            Vec3::new(frame, s.y, front - backing_front),
+            bevel,
         );
         a.box_part(
             frame_surface,
             label,
-            Vec3::new(0., s.y * 0.5 + sign * (s.y - frame) * 0.5, s.z * 0.15),
-            Vec3::new(s.x - frame * 2., frame, s.z * 0.70),
-            0.002,
+            Vec3::new(
+                0.,
+                s.y * 0.5 + sign * (s.y - frame) * 0.5,
+                (backing_front + front) * 0.5,
+            ),
+            Vec3::new(s.x - frame * 2., frame, front - backing_front),
+            bevel,
         );
     }
     a.box_part(
         Surface::FabricAlt,
         label,
-        Vec3::new(0., s.y * 0.5, s.z * 0.10),
-        Vec3::new(s.x - frame * 2., s.y - frame * 2., s.z * 0.40),
-        0.001,
+        Vec3::new(0., s.y * 0.5, (backing_front + section.face_z_m) * 0.5),
+        Vec3::new(
+            s.x - frame * 2.,
+            s.y - frame * 2.,
+            section.face_z_m - backing_front,
+        ),
+        0.,
     );
     let divider = p
         .board_divider_fraction
@@ -48,8 +61,8 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
         a.box_part(
             frame_surface,
             label,
-            Vec3::new(x, s.y * 0.5, s.z * 0.35),
-            Vec3::new(frame * 0.55, s.y - frame * 2., s.z * 0.30),
+            Vec3::new(x, s.y * 0.5, (section.face_z_m + front) * 0.5),
+            Vec3::new(frame * 0.55, s.y - frame * 2., front - section.face_z_m),
             0.001,
         );
     }
@@ -57,7 +70,7 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
         let mut rng = stream(note.seed, 5731);
         let width = note.size.x;
         let height = note.size.y;
-        let center = Vec3::new(note.center.x, note.center.y, s.z * 0.309);
+        let center = Vec3::new(note.center.x, note.center.y, section.face_z_m + s.z * 0.009);
         let tf = Transform::from_translation(center).with_rotation(Quat::from_rotation_z(note.yaw));
         a.part(Surface::Paper, label)
             .cuboid(Vec3::new(width, height, s.z * 0.012), 0.0001, tf);
@@ -165,34 +178,7 @@ pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
             Transform::from_xyz(0., s.y * 0.05 + 0.003, 0.),
         );
     } else {
-        a.box_part(
-            p.housing,
-            label,
-            Vec3::new(0., s.y * 0.5, -s.z * 0.43),
-            Vec3::new(s.x * 0.49, s.y * 0.86, s.z * 0.14),
-            0.006,
-        );
-        let bottom = s.y * (0.5 - p.sconce_height * 0.5);
-        let width = s.x * p.sconce_width * 0.5;
-        a.part(p.housing, label).housing(
-            &[
-                (bottom, Vec2::new(width, s.z * 0.4)),
-                (s.y - bottom, Vec2::new(width * p.sconce_taper, s.z * 0.4)),
-            ],
-            5.,
-            Transform::from_xyz(0., 0., s.z * 0.02),
-        );
-        a.box_part(
-            Surface::Light,
-            label,
-            Vec3::new(0., bottom - 0.0011, s.z * 0.13),
-            Vec3::new(
-                s.x * p.sconce_width * p.diffuser_fraction,
-                0.002,
-                s.z * 0.50,
-            ),
-            0.001,
-        );
+        super::sconce::build(a, o);
     }
 }
 

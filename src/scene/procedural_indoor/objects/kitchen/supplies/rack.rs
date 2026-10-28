@@ -141,9 +141,18 @@ fn rotated_bounds(points: &[Vec3], rotation: Quat) -> (Vec3, Vec3) {
     (lo, hi)
 }
 pub(crate) fn build(a: &mut Assembly, tf: Transform, p: &RackProgram, seed: u64) {
+    build_with_label(a, tf, p, seed, "dishware");
+}
+pub(crate) fn build_with_label(
+    a: &mut Assembly,
+    tf: Transform,
+    p: &RackProgram,
+    seed: u64,
+    label: &str,
+) {
     let finish = |s| {
         format!(
-            "dishware#finish{}",
+            "{label}#finish{}",
             super::super::super::super::materials::variants::object_slot(s, seed, None)
         )
     };

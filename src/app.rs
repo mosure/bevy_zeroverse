@@ -1,3 +1,4 @@
+use crate::camera::gizmo::scale as gizmo_scale;
 use bevy::{
     app::AppExit,
     prelude::*,
@@ -290,6 +291,24 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
+
+    /// Editor camera glyph size multiplier (0.1..=4); does not change capture optics.
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[serde(
+        default = "gizmo_scale::default",
+        deserialize_with = "gizmo_scale::deserialize"
+    )]
+    pub camera_gizmo_scale: f32,
+
+    /// Schematic camera glyph size multiplier (0.1..=4); paths remain metric.
+    #[pyo3(get, set)]
+    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[serde(
+        default = "gizmo_scale::default",
+        deserialize_with = "gizmo_scale::deserialize"
+    )]
+    pub schematic_camera_gizmo_scale: f32,
 
     /// draw oriented bounding box gizmos
     #[pyo3(get, set)]
@@ -589,6 +608,22 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1.0")]
     pub gizmos_alpha: f32,
 
+    /// Editor camera glyph size multiplier (0.1..=4); does not change capture optics.
+    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[serde(
+        default = "gizmo_scale::default",
+        deserialize_with = "gizmo_scale::deserialize"
+    )]
+    pub camera_gizmo_scale: f32,
+
+    /// Schematic camera glyph size multiplier (0.1..=4); paths remain metric.
+    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[serde(
+        default = "gizmo_scale::default",
+        deserialize_with = "gizmo_scale::deserialize"
+    )]
+    pub schematic_camera_gizmo_scale: f32,
+
     /// draw oriented bounding box gizmos
     #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
     pub draw_obb_gizmo: bool,
@@ -803,6 +838,8 @@ impl Default for BevyZeroverseConfig {
             viewer_state: None,
             gizmos: true,
             gizmos_alpha: 1.0,
+            camera_gizmo_scale: gizmo_scale::default(),
+            schematic_camera_gizmo_scale: gizmo_scale::default(),
             draw_obb_gizmo: false,
             draw_pose_gizmos: false,
             headless: false,

@@ -22,6 +22,16 @@ pub struct KitchenAssembly {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sampling: Option<sampling::KitchenSampling>,
 }
+/// Compact cabinet modules retain a usable preparation surface. Never scale
+/// appliances to make a failed placement pass.
+fn counter_width(kind: ObjectKind, width: f32, scale: f32) -> f32 {
+    if kind == ObjectKind::KitchenCounter {
+        (width * scale).max(0.48).min(width)
+    } else {
+        width
+    }
+}
+
 impl IndoorManifest {
     pub(super) fn furnish_kitchen(
         &mut self,
@@ -52,11 +62,6 @@ impl IndoorManifest {
         let mut walls = [0, 1, 2, 3];
         walls.shuffle(&mut r);
         let seeds: Vec<u64> = (0..kinds.len()).map(|_| r.random()).collect();
-        let total: f32 = kinds
-            .iter()
-            .zip(&seeds)
-            .map(|(&k, &seed)| geometry::dimensions(k, seed).x + gap)
-            .sum();
         let extent = zone.max - zone.min;
         let center = (zone.min + zone.max) * 0.5;
         let mut candidates = Vec::new();
@@ -104,55 +109,72 @@ impl IndoorManifest {
         // opening, door-sweep and object collision checks below. A separate
         // stream leaves already-admitted kitchens unchanged.
         let mut recovery = stream(self.seed, 8062 + zone_index as u64);
-        let interior = (0..192).map(|_| {
-            let wall = walls[recovery.random_range(0..walls.len())];
-            let yaw = [
-                0.,
-                std::f32::consts::PI,
-                std::f32::consts::FRAC_PI_2,
-                -std::f32::consts::FRAC_PI_2,
-            ][wall];
-            let back = Vec3::new(
-                recovery.random_range(zone.min.x..zone.max.x),
-                0.,
-                recovery.random_range(zone.min.y..zone.max.y),
-            );
-            (back, yaw, if wall < 2 { extent.x } else { extent.y }, false)
-        });
-        'fit: for (back, yaw, along, fitted) in candidates.into_iter().chain(interior) {
-            for shift in sampling::run_shifts(along, total, &mut placement) {
-                if total > along - 0.85 {
-                    continue;
-                }
-                let q = Quat::from_rotation_y(yaw);
-                self.objects.truncate(start);
-                let mut x = -total * 0.5 + shift;
-                for (&kind, &seed) in kinds.iter().zip(&seeds) {
-                    let size = geometry::dimensions(kind, seed);
-                    let pos = back + q * Vec3::new(x + size.x * 0.5, 0., size.z * 0.5);
-                    let mut o = self.floor_candidate(kind, pos, size, yaw, &mut r);
-                    o.seed = seed;
-                    geometry::align_worktop(&mut o, worktop_height);
-                    o.position += q * Vec3::Z * ((o.size.z - size.z) * 0.5);
-                    if !self.placement_clear(&o, 0.008)
-                        || self
-                            .objects
-                            .get(start)
-                            .is_some_and(|first| (first.position.y - o.position.y).abs() > 0.001)
-                    {
-                        self.rejected_placements += 1;
-                        break;
+        // A sampled prep cabinet may be too wide for the room's supported
+        // floor strips. Keep the original run first; only a failed run tries
+        // compact cabinets. Sink/range widths, doors and clearances stay intact.
+        'fit: for counter_scale in [1.0, 0.82, 0.64] {
+            let total: f32 = kinds
+                .iter()
+                .zip(&seeds)
+                .map(|(&kind, &seed)| {
+                    counter_width(kind, geometry::dimensions(kind, seed).x, counter_scale) + gap
+                })
+                .sum();
+            let interior = (0..192).map(|_| {
+                let wall = walls[recovery.random_range(0..walls.len())];
+                let yaw = [
+                    0.,
+                    std::f32::consts::PI,
+                    std::f32::consts::FRAC_PI_2,
+                    -std::f32::consts::FRAC_PI_2,
+                ][wall];
+                let back = Vec3::new(
+                    recovery.random_range(zone.min.x..zone.max.x),
+                    0.,
+                    recovery.random_range(zone.min.y..zone.max.y),
+                );
+                (back, yaw, if wall < 2 { extent.x } else { extent.y }, false)
+            });
+            for (back, yaw, along, fitted) in candidates.iter().copied().chain(interior) {
+                for shift in sampling::run_shifts(along, total, &mut placement) {
+                    if total > along - 0.85 {
+                        continue;
                     }
-                    self.objects.push(o);
-                    x += size.x + gap;
-                }
-                if self.objects.len() == start + kinds.len() {
-                    accepted = Some((back, q, yaw, x, -total * 0.5 + shift, fitted, shift));
-                    break 'fit;
+                    let q = Quat::from_rotation_y(yaw);
+                    self.objects.truncate(start);
+                    let mut x = -total * 0.5 + shift;
+                    for (&kind, &seed) in kinds.iter().zip(&seeds) {
+                        let size = geometry::dimensions(kind, seed);
+                        let width = counter_width(kind, size.x, counter_scale);
+                        let pos = back + q * Vec3::new(x + width * 0.5, 0., size.z * 0.5);
+                        let mut o = self.floor_candidate(kind, pos, size, yaw, &mut r);
+                        o.seed = seed;
+                        geometry::align_worktop(&mut o, worktop_height);
+                        if width < size.x {
+                            geometry::resize_width(&mut o, width);
+                        }
+                        o.position += q * Vec3::Z * ((o.size.z - size.z) * 0.5);
+                        if !self.placement_clear(&o, 0.008)
+                            || self.objects.get(start).is_some_and(|first| {
+                                (first.position.y - o.position.y).abs() > 0.001
+                            })
+                        {
+                            self.rejected_placements += 1;
+                            break;
+                        }
+                        self.objects.push(o);
+                        x += width + gap;
+                    }
+                    if self.objects.len() == start + kinds.len() {
+                        accepted =
+                            Some((back, q, yaw, x, -total * 0.5 + shift, fitted, shift, total));
+                        break 'fit;
+                    }
                 }
             }
         }
-        let Some((back, q, yaw, mut x, mut left, fitted_to_wall, run_offset)) = accepted else {
+        let Some((back, q, yaw, mut x, mut left, fitted_to_wall, run_offset, total)) = accepted
+        else {
             self.objects.truncate(start);
             return false;
         };
@@ -428,7 +450,7 @@ impl IndoorManifest {
                         let size = geometry::dimensions(ObjectKind::Bread, r.random()) * 0.70;
                         let yaw = placement_rng.random_range(-0.65..0.65);
                         let Some(proposal) = pattern.propose(
-                            (-board.size.xz() * 0.5, board.size.xz() * 0.5),
+                            geometry::supplies::board_top_bounds(&board),
                             size.xz(),
                             yaw,
                             0.006,

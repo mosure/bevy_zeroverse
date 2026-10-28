@@ -48,6 +48,7 @@ pub(super) fn base(page: Page) -> Vec<Item> {
             toggle("/draw_obb_gizmo","Object bounding boxes","Semantic object envelopes."),
             toggle("/draw_pose_gizmos","Human skeletons","Visible through clothing, occluded by room geometry."),
             num("/gizmos_alpha","Overlay opacity",0.,1.,0.01,"Opacity for camera gizmos."),
+            num("/camera_gizmo_scale","Camera glyph size · editor",0.1,4.,0.05,"1× is the default. Scales capture and prediction glyphs immediately; does not change camera optics or paths."),
             section("view.timeline", "Timeline & playback","Progress spans the complete generated camera and human trajectories."),
             num("@progress","Scrub time",0.,1.,0.001,"Scrubbing pauses playback. 0 is the start; 1 is the endpoint."),
             choices("/playback_mode","Playback curve",&[("Paused","Still"),("Once","Once"),("Loop","Loop"),("Ping-pong","PingPong"),("Sine","Sin"),("Ease in","EaseIn"),("Ease out","EaseOut"),("Ease in / out","EaseInOut"),("Cubic in","EaseInCubic"),("Cubic out","EaseOutCubic"),("Cubic in / out","EaseInOutCubic")],"Sine and ping-pong reverse motion; Once keeps natural forward motion."),

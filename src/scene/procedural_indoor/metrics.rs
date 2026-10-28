@@ -875,6 +875,22 @@ fn export_inner(
                 for (task, weight) in super::items::TASKS.into_iter().zip(p.task_weights) {
                     numeric.push(&format!("surface_task_weight_{task}"), weight as f64)?;
                 }
+                numeric.push(
+                    "surface_catalog_room_coherence",
+                    p.catalog.room_coherence as f64,
+                )?;
+                for (task, name) in super::items::TASKS.iter().enumerate() {
+                    numeric.push(
+                        &format!("surface_item_prior_entropy_{name}"),
+                        p.catalog.entropy(task) as f64,
+                    )?;
+                    for (index, kind) in super::items::catalog::CATALOG[task].iter().enumerate() {
+                        numeric.push(
+                            &format!("surface_item_prior_{name}_{kind:?}"),
+                            p.catalog.probabilities[task][index] as f64,
+                        )?;
+                    }
+                }
                 for (key, value) in [
                     ("surface_occupancy", p.occupancy),
                     ("surface_clustering", p.clustering),

@@ -26,10 +26,25 @@ pub(crate) struct WorkspaceProgram {
     pub rear_fraction: f32,
     pub asymmetry_fraction: f32,
     pub accessory_affinity: f32,
+    pub monitor_gap_m: f32,
+    pub monitor_depth_scatter_m: f32,
+    pub monitor_size_scatter: f32,
+    pub workstation_heading: f32,
+    pub laptop_depth_fraction: f32,
+    pub docking_side: f32,
+}
+
+impl WorkspaceProgram {
+    fn monitor_width(&self, width: f32, rng: &mut ChaCha8Rng) -> f32 {
+        // Zero scatter is a valid coherent workstation, including when a
+        // tiny sampled spread rounds both floating-point endpoints to 1.
+        width * rng.random_range(1. - self.monitor_size_scatter..=1. + self.monitor_size_scatter)
+    }
 }
 
 pub(crate) fn workspace_parameters(support: &IndoorObject) -> WorkspaceProgram {
     let mut rng = stream(support.seed, 907);
+    let mut arrangement = stream(support.seed, 0x574f524b504f5345);
     WorkspaceProgram {
         screen_affinity: rng.random_range(0.38..0.98),
         monitor_affinity: rng.random_range(0.14..0.92),
@@ -40,6 +55,16 @@ pub(crate) fn workspace_parameters(support: &IndoorObject) -> WorkspaceProgram {
         rear_fraction: rng.random_range(0.11..0.27),
         asymmetry_fraction: rng.random_range(-0.09..0.09),
         accessory_affinity: rng.random_range(0.20..0.95),
+        monitor_gap_m: arrangement.random_range(0.025..0.16),
+        monitor_depth_scatter_m: arrangement.random_range(0.0..0.065),
+        monitor_size_scatter: arrangement.random_range(0.0..0.16),
+        workstation_heading: arrangement.random_range(-0.16..0.16),
+        laptop_depth_fraction: arrangement.random_range(-0.20..0.13),
+        docking_side: if arrangement.random_bool(0.5) {
+            -1.
+        } else {
+            1.
+        },
     }
 }
 
@@ -66,14 +91,19 @@ impl IndoorManifest {
             let count = if twin { 2 } else { 1 };
             let span = (support.size.x * p.display_span_fraction).min(1.12);
             let width = if twin {
-                ((span - 0.14) * 0.5).clamp(0.34, 0.53)
+                ((span - p.monitor_gap_m) * 0.5).clamp(0.34, 0.53)
             } else {
                 rng.random_range(0.39_f32..0.83).min(support.size.x * 0.58)
             };
             for i in 0..count {
                 let side = if twin { i as f32 * 2. - 1. } else { 0. };
-                let x = centre + side * (width * 0.5 + 0.070)
-                    - if docked { support.size.x * 0.12 } else { 0. };
+                let width = p.monitor_width(width, &mut rng);
+                let x = centre + side * (width * 0.5 + p.monitor_gap_m * 0.5)
+                    - if docked {
+                        p.docking_side * support.size.x * 0.12
+                    } else {
+                        0.
+                    };
                 // Portrait and broad displays reserve their true dimensions,
                 // including stand and tilt; there is no post-placement scale.
                 let portrait = rng.random_bool(0.17);
@@ -86,29 +116,34 @@ impl IndoorManifest {
                 self.supported_prop(
                     support,
                     ObjectKind::Monitor,
-                    Vec3::new(x, 0., rear),
+                    Vec3::new(
+                        x,
+                        0.,
+                        rear + rng
+                            .random_range(-p.monitor_depth_scatter_m..=p.monitor_depth_scatter_m),
+                    ),
                     Vec3::new(width, height, rng.random_range(0.19..0.28)),
-                    side * rng.random_range(0.08..0.25),
+                    p.workstation_heading + side * rng.random_range(0.08..0.25),
                     &mut rng,
                 );
             }
         }
         if screen && (!monitor || docked) {
             let x = if docked {
-                support.size.x * rng.random_range(0.24..0.32)
+                p.docking_side * support.size.x * rng.random_range(0.24..0.32)
             } else {
                 centre
             };
             self.supported_prop(
                 support,
                 ObjectKind::Laptop,
-                Vec3::new(x, 0., if docked { 0.025 } else { -0.035 }),
+                Vec3::new(x, 0., support.size.z * p.laptop_depth_fraction),
                 Vec3::new(
                     rng.random_range(0.27..0.40),
                     rng.random_range(0.23..0.32),
                     rng.random_range(0.30..0.39),
                 ),
-                rng.random_range(-0.16..0.16),
+                p.workstation_heading + rng.random_range(-0.16..0.16),
                 &mut rng,
             );
         }
@@ -121,11 +156,7 @@ impl IndoorManifest {
                 support,
                 ObjectKind::Keyboard,
                 Vec3::ZERO,
-                Vec3::new(
-                    rng.random_range(0.29..0.43),
-                    0.022,
-                    rng.random_range(0.11..0.17),
-                ),
+                super::super::items::sizing::loose(ObjectKind::Keyboard, &mut rng).unwrap(),
                 0.,
                 &mut rng,
             );
@@ -133,7 +164,7 @@ impl IndoorManifest {
                 support,
                 ObjectKind::Mouse,
                 Vec3::ZERO,
-                Vec3::new(0.065, 0.035, 0.105),
+                super::super::items::sizing::loose(ObjectKind::Mouse, &mut rng).unwrap(),
                 0.,
                 &mut rng,
             );
@@ -149,16 +180,14 @@ impl IndoorManifest {
                     0.,
                     support.size.z * rng.random_range(0.05..0.30),
                 ),
-                Vec3::new(
-                    rng.random_range(0.065..0.084),
-                    rng.random_range(0.007..0.013),
-                    rng.random_range(0.13..0.17),
-                ),
+                super::super::items::sizing::loose(ObjectKind::Phone, &mut rng).unwrap(),
                 rng.random_range(-1.1..1.1),
                 &mut rng,
             );
         }
         if rng.random_bool(p.paper_affinity as f64) {
+            let paper_size =
+                super::super::items::sizing::loose(ObjectKind::Notepad, &mut rng).unwrap();
             let side = if rng.random_bool(0.5) { -1. } else { 1. };
             self.place_prop(
                 support,
@@ -168,11 +197,7 @@ impl IndoorManifest {
                     ObjectKind::Notebook
                 },
                 Vec3::new(side * support.size.x * 0.27, 0., support.size.z * 0.10),
-                Vec3::new(
-                    rng.random_range(0.15..0.22),
-                    0.016,
-                    rng.random_range(0.21..0.29),
-                ),
+                paper_size,
                 rng.random_range(-0.30..0.30),
                 &mut rng,
             );
@@ -355,6 +380,23 @@ pub(super) fn scatter_proposal(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn coherent_monitor_widths_accept_zero_and_sub_ulp_spread() {
+        let support = super::super::super::objects::audit::fixture(ObjectKind::Desk, 7);
+        let mut p = workspace_parameters(&support);
+        for spread in [0., f32::EPSILON * 0.1, 0.05, 0.16] {
+            p.monitor_size_scatter = spread;
+            for seed in 0..32 {
+                let actual = p.monitor_width(0.5, &mut stream(seed, 42));
+                assert_eq!(actual, p.monitor_width(0.5, &mut stream(seed, 42)));
+                assert!(actual.is_finite());
+                assert!((actual - 0.5).abs() <= spread * 0.5 + f32::EPSILON);
+                if spread < f32::EPSILON * 0.25 {
+                    assert_eq!(actual, 0.5);
+                }
+            }
+        }
+    }
     use crate::scene::procedural_indoor::validation::validate_layout;
     use std::collections::BTreeSet;
 

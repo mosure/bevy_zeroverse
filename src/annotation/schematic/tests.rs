@@ -4,6 +4,46 @@ fn scene() -> IndoorManifest {
     IndoorManifest::generate_with_humans(47_586_113, IndoorLayout::Mixed, 0.65, 3, 0.25).unwrap()
 }
 #[test]
+fn gizmo_scale_exports_without_changing_metric_annotation() {
+    let plan = Schematic::from_manifest(&scene(), 0.3).unwrap();
+    let before = plan.clone();
+    let options = RenderOptions {
+        width: 256,
+        height: 256,
+        ..default()
+    };
+    let baseline = plan.document(options, Overlay::default()).unwrap();
+    for scale in [0.1, 0.5, 2., 4.] {
+        let options = RenderOptions {
+            camera_gizmo_scale: scale,
+            ..options
+        };
+        let document = plan.document(options, Overlay::default()).unwrap();
+        assert_eq!(document.schematic, baseline.schematic);
+        assert_eq!(document.projection, baseline.projection);
+        assert_eq!(document.options.camera_gizmo_scale, scale);
+        let decoded: Document =
+            serde_json::from_str(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert_eq!(decoded, document);
+        assert_eq!(
+            plan.rgba(&options, &Overlay::default()).unwrap().len(),
+            256 * 256 * 4
+        );
+    }
+    for invalid in [f32::NAN, f32::INFINITY, 0., 4.1] {
+        assert!(plan
+            .svg(
+                &RenderOptions {
+                    camera_gizmo_scale: invalid,
+                    ..options
+                },
+                &Overlay::default()
+            )
+            .is_err());
+    }
+    assert_eq!(plan, before);
+}
+#[test]
 fn planned_shifted_frustum_matches_full_capture_calibration() {
     let mut scene = scene();
     scene.cameras[0].principal_point_offset = Some(Vec2::new(0.15, -0.10));

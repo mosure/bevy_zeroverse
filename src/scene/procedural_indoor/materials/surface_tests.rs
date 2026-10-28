@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn standalone_selected_materials_include_camera_ready_cubemaps() {
+    use super::super::{layout::ObjectKind, objects};
+    use bevy::render::render_resource::TextureViewDimension;
+    let mut scene =
+        IndoorManifest::generate_with_humans(0, Default::default(), 0.5, 0, 0.).unwrap();
+    let o = objects::audit::fixture(ObjectKind::Sponge, 0);
+    let parts: Vec<_> = objects::build_object(&o).parts.into_keys().collect();
+    scene.objects = vec![o];
+    scene.humans.clear();
+    let (mut images, mut materials) = (Assets::default(), Assets::default());
+    let set = IndoorMaterials::build_for_parts(
+        &scene,
+        &mut images,
+        &mut materials,
+        parts
+            .iter()
+            .map(|(surface, label)| (*surface, label.as_str())),
+    );
+    for handle in [&set.environment.diffuse_map, &set.environment.specular_map] {
+        let image = images
+            .get(handle)
+            .expect("standalone environment map missing");
+        assert_eq!(image.texture_descriptor.size.depth_or_array_layers, 6);
+        assert_eq!(
+            image
+                .texture_view_descriptor
+                .as_ref()
+                .and_then(|d| d.dimension),
+            Some(TextureViewDimension::Cube)
+        );
+        assert!(image.data.as_ref().is_some_and(|data| !data.is_empty()));
+    }
+}
+
+#[test]
 fn substrate_fields_consume_the_upper_seed_bits() {
     for (x, y) in [(3, 7), (79, 19), (12, 53)] {
         assert_ne!(hash(x, y, 73), hash(x, y, 73 + (1u64 << 32)));
@@ -117,6 +152,7 @@ fn used_finish_palette_preserves_materials_and_texture_pixels() {
             (&a.base_color_texture, &b.base_color_texture),
             (&a.emissive_texture, &b.emissive_texture),
             (&a.normal_map_texture, &b.normal_map_texture),
+            (&a.clearcoat_normal_texture, &b.clearcoat_normal_texture),
             (&a.metallic_roughness_texture, &b.metallic_roughness_texture),
         ] {
             assert_eq!(ah.is_some(), bh.is_some());
@@ -157,6 +193,9 @@ fn assert_same_material(
     image!(emissive_texture);
     image!(metallic_roughness_texture);
     image!(normal_map_texture);
+    image!(clearcoat_normal_texture);
+    image!(clearcoat_roughness_texture);
+    image!(clearcoat_texture);
     image!(occlusion_texture);
     image!(depth_map);
     assert_eq!(format!("{a:?}"), format!("{b:?}"));

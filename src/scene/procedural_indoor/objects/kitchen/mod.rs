@@ -7,13 +7,14 @@ pub mod dishware;
 mod island;
 pub mod packaging;
 mod props;
-mod sink;
+pub mod sink;
 pub mod supplies;
 #[cfg(test)]
 mod supply_program_tests;
 #[cfg(test)]
 mod tests;
 use super::*;
+pub use cabinet::fronts::FrontProgram;
 pub(crate) use cabinet::{drawer_tray, shell as case_shell};
 pub use island::{configure_island, is_island, island_parameters, IslandProgram};
 use serde::Serialize;
@@ -44,6 +45,7 @@ pub struct KitchenProgram {
     pub cabinet_motion: u8,
     /// Slab, framed inset, raised field, fluted face.
     pub front_profile: u8,
+    pub front: FrontProgram,
     pub counter_doors: bool,
     pub upper_bottom_fraction: f32,
     pub upper_depth_fraction: f32,
@@ -91,6 +93,7 @@ pub fn parameters(o: &IndoorObject) -> KitchenProgram {
         ][front_rng.random_range(0..4)],
         cabinet_motion,
         front_profile: front_rng.random_range(0..4),
+        front: FrontProgram::sample(o.seed),
         counter_doors: front_rng.random_bool(0.55),
         upper_bottom_fraction: front_rng.random_range(0.60..0.72),
         upper_depth_fraction: front_rng.random_range(0.45..0.72),
@@ -136,7 +139,12 @@ pub fn parameters(o: &IndoorObject) -> KitchenProgram {
             0
         },
         draining_board: r.random_bool(0.55),
-        finish: [Surface::Wood, Surface::Plastic, Surface::Metal][finish_rng.random_range(0..3)],
+        finish: [
+            Surface::Wood,
+            Surface::Plastic,
+            Surface::Metal,
+            Surface::Paint,
+        ][finish_rng.random_range(0..4)],
         top: [
             Surface::Wood,
             Surface::Ceramic,
@@ -273,14 +281,10 @@ fn extension(o: &IndoorObject, p: &KitchenProgram) -> f32 {
     let leaf = match o.kind {
         ObjectKind::KitchenCounter | ObjectKind::KitchenSink | ObjectKind::Cooktop => return 0.,
         ObjectKind::Dishwasher => appliances::program::dishwasher_door_height(o),
-        ObjectKind::Range => o.size.y * 0.76,
-        ObjectKind::Oven => {
-            if o.size.y > 1.3 {
-                o.size.y * 0.30
-            } else {
-                o.size.y * 0.73
-            }
-        }
+        ObjectKind::Range | ObjectKind::Oven => appliances::program::oven_fronts(o, p)
+            .iter()
+            .map(|front| front.height_m)
+            .fold(0., f32::max),
         ObjectKind::KitchenCupboard | ObjectKind::Pantry => {
             o.size.x * if p.paired { 0.46 } else { 0.92 }
         }
@@ -352,13 +356,14 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
         _ => {
             let p = props::program(o);
             match o.kind {
-                PaperTowel => serde_json::json!({"horizontal":p.horizontal}),
+                PaperTowel => serde_json::json!(supplies::paper_towel::parameters(o)),
                 SoapDispenser => {
                     serde_json::json!({"pump":p.pump,"construction":supplies::dispenser::parameters(o.seed, p.pump)})
                 }
                 Bread => serde_json::json!(supplies::bread::parameters(o)),
                 KitchenTowel => serde_json::json!(supplies::towel_parameters(o)),
                 CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
+                Sponge => serde_json::json!(supplies::sponge::parameters(o)),
                 Dishware => {
                     serde_json::json!(dishware::parameters(o.size, p.style, p.count, o.seed))
                 }
@@ -372,6 +377,9 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
             }
         }
     };
+    if o.kind == KitchenSink {
+        value["washing_station"] = serde_json::json!(sink::program::parameters(o, &p));
+    }
     if matches!(
         o.kind,
         Cooktop | Range | Oven | Microwave | Dishwasher | Refrigerator
@@ -381,6 +389,12 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
             value["shelves"] =
                 serde_json::json!(appliances::program::parameters(o).shelf_levels_m.len());
         }
+    }
+    if matches!(
+        o.kind,
+        KitchenCounter | KitchenCupboard | Pantry | KitchenSink
+    ) {
+        value["front_construction"] = serde_json::json!(p.front);
     }
     value
 }

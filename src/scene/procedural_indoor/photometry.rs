@@ -52,6 +52,8 @@ pub fn emission_channels(o: &IndoorObject) -> usize {
         super::objects::equipment::signals::string_program(o)
             .colors_srgb
             .len()
+    } else if o.kind == ObjectKind::ExitSign {
+        1 + usize::from(super::objects::equipment::signals::exit::appearance(o, 1).is_some())
     } else {
         1
     }
@@ -63,13 +65,7 @@ pub fn decorative_emission(o: &IndoorObject) -> Option<LinearRgba> {
 
 pub fn decorative_emission_channel(o: &IndoorObject, channel: usize) -> Option<LinearRgba> {
     Some(match o.kind {
-        ObjectKind::ExitSign => {
-            if o.variant.is_multiple_of(2) {
-                LinearRgba::new(3., 180., 38., 1.)
-            } else {
-                LinearRgba::new(220., 5., 2., 1.)
-            }
-        }
+        ObjectKind::ExitSign => super::objects::equipment::signals::exit::appearance(o, channel)?.1,
         ObjectKind::FireAlarm | ObjectKind::FireDetector => LinearRgba::new(1.8, 0.01, 0.005, 1.),
         ObjectKind::StringLights => {
             let p = super::objects::equipment::signals::string_program(o);

@@ -168,13 +168,21 @@ pub(super) fn update(
     let options = RenderOptions {
         width: (width * scale).max(128.) as u32,
         height: (height * scale).max(128.) as u32,
+        camera_gizmo_scale: config.schematic_camera_gizmo_scale,
         ..default()
     };
     let size = Vec2::new(options.width as f32, options.height as f32);
     let transform = roots.single().map_or(Mat4::IDENTITY, |root| {
         root.to_matrix() * Mat4::from_rotation_y(-scene.world_yaw)
     });
-    if preview.options != Some(options) || preview.root.is_none() {
+    let options_changed = preview.options != Some(options);
+    // A glyph-size edit only rebuilds the moving overlay, not the render target,
+    // retained room geometry or camera calibration. This keeps slider drags cheap.
+    if preview
+        .options
+        .is_none_or(|old| old.width != options.width || old.height != options.height)
+        || preview.root.is_none()
+    {
         // Publish complete mesh assets; the retained geometry is uploaded only
         // when its contents change. The render-side readiness hook handles
         // asynchronous preparation without continuously reuploading it.
@@ -318,7 +326,7 @@ pub(super) fn update(
         plan.poses.clone(),
         predictions.0.clone(),
     );
-    if preview.last.as_ref() == Some(&current) {
+    if !options_changed && preview.last.as_ref() == Some(&current) {
         return;
     }
     match drawing::moving(&plan, &options, &predictions.0) {
@@ -336,6 +344,7 @@ pub(super) fn update(
                 *mesh = drawing.into_mesh();
             }
             preview.last = Some(current);
+            preview.options = Some(options);
         }
         Err(e) => warn!("schematic: {e}"),
     }

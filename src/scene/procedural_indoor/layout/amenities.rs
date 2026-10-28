@@ -1,6 +1,9 @@
 //! Variable service constellations, fitted beside actual accepted furniture.
 //! Rejection never moves anchors, removes furniture or relaxes circulation checks.
 use super::*;
+mod policy;
+#[cfg(test)]
+mod tests;
 impl IndoorManifest {
     pub(super) fn furnish_amenities(&mut self) {
         let mut rng = stream(self.seed, 5600);
@@ -36,7 +39,7 @@ impl IndoorManifest {
             let lounge = matches!(anchor.kind, ObjectKind::CoffeeTable | ObjectKind::Sofa);
             // Independent probabilities let a station have any subset, rather
             // than selecting one of a few complete predefined room templates.
-            let choices = [
+            let mut choices = [
                 (ObjectKind::DrawerUnit, if personal { 0.62 } else { 0.12 }),
                 (ObjectKind::SideTable, if lounge { 0.72 } else { 0.22 }),
                 (
@@ -51,6 +54,9 @@ impl IndoorManifest {
                 (ObjectKind::Bench, 0.23),
                 (ObjectKind::RoomDivider, if personal { 0.30 } else { 0.12 }),
             ];
+            // Finite room budgets must not always favor drawers over carts,
+            // benches or dividers. Preserve intent probabilities, vary priority.
+            choices.shuffle(&mut rng);
             for (kind, probability) in choices {
                 if accepted >= budget {
                     break;
@@ -59,11 +65,9 @@ impl IndoorManifest {
                     continue;
                 }
                 let size = match kind {
-                    ObjectKind::DrawerUnit => Vec3::new(
-                        rng.random_range(0.35..0.53),
-                        rng.random_range(0.51..0.70),
-                        rng.random_range(0.37..0.54),
-                    ),
+                    ObjectKind::DrawerUnit => {
+                        super::super::objects::services::drawers::dimensions(&mut rng)
+                    }
                     ObjectKind::SideTable => Vec3::new(
                         rng.random_range(0.42..0.72),
                         rng.random_range(0.42..0.66),
@@ -89,20 +93,26 @@ impl IndoorManifest {
                     ),
                     _ => unreachable!(),
                 };
+                // Shape and finish are sampled once, independent of rejected
+                // poses. The exact same product is tested on every attempt.
+                let mut object = self.candidate(kind, Vec3::ZERO, size, 0., &mut rng);
+                if kind == ObjectKind::Bench {
+                    let p = super::super::objects::services::bench::parameters(&object);
+                    if !p.backed && !p.arms {
+                        object.size.y = p.seat_height;
+                    }
+                }
+                let placement = policy::Placement::sample(&anchor, kind, &mut rng);
                 for _ in 0..12 {
-                    let side = if rng.random_bool(0.5) { -1. } else { 1. };
-                    let local = Vec3::new(
-                        side * (anchor.size.x + size.x) * 0.5 + side * rng.random_range(0.18..0.50),
-                        0.,
-                        rng.random_range(-0.55..0.55) * anchor.size.z,
-                    );
-                    let position =
-                        (anchor.position + Quat::from_rotation_y(anchor.yaw) * local).with_y(0.);
-                    let yaw = anchor.yaw + rng.random_range(-0.24..0.24);
-                    if self.add(kind, position, size, yaw, &mut rng).is_some() {
+                    let (position, yaw) = placement.propose(&anchor, object.size, &mut rng);
+                    object.position = position.with_y(self.floor_height(position.xz()));
+                    object.yaw = yaw;
+                    if self.placement_clear(&object, 0.06) {
+                        self.objects.push(object);
                         accepted += 1;
                         break;
                     }
+                    self.rejected_placements += 1;
                 }
             }
         }

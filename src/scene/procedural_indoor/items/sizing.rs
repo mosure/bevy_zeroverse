@@ -36,8 +36,8 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
             Vec3::new(d, d * r.random_range(1.9..4.4), d)
         }
         SodaCan => {
-            let d = r.random_range(0.053..0.073);
-            Vec3::new(d, d * r.random_range(1.65..2.55), d)
+            let d = r.random_range(0.049..0.078);
+            Vec3::new(d, d * r.random_range(1.2..3.15), d)
         }
         PenHolder => {
             let d = r.random_range(0.065..0.115);

@@ -75,6 +75,8 @@ pub struct GenConfig {
     pub write_mode: WriteMode,
     /// Export metric schematic JSON, SVG and PNG sidecars for each capture step.
     pub export_schematic: bool,
+    /// Camera glyph size in schematic sidecars (0.1..=4, default 1).
+    pub schematic_camera_gizmo_scale: f32,
     pub export_ovoxel: bool,
     pub ov_mode: bevy_zeroverse::app::OvoxelMode,
     pub ov_resolution: u32,
@@ -122,6 +124,7 @@ impl Default for GenConfig {
             enable_ui: false,
             write_mode: WriteMode::Chunk,
             export_schematic: false,
+            schematic_camera_gizmo_scale: 1.,
             export_ovoxel: false,
             ov_mode: bevy_zeroverse::app::OvoxelMode::CpuAsync,
             ov_resolution: 128,
@@ -154,6 +157,7 @@ impl GenConfig {
         );
         scene.indoor_seed = self.seed.map(|s| s.wrapping_add(self.sample_offset as u64));
         scene.ssaa_factor = self.ssaa_factor;
+        scene.schematic_camera_gizmo_scale = self.schematic_camera_gizmo_scale;
         scene.indoor_layout = self.indoor_layout;
         scene.indoor_density = self.indoor_density;
         scene.indoor_human_density = self.indoor_human_density;
@@ -201,6 +205,8 @@ impl GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    bevy_zeroverse::camera::gizmo::scale::validate(config.schematic_camera_gizmo_scale)
+        .map_err(anyhow::Error::msg)?;
     bevy_zeroverse::render::ssaa::validate_factor(config.ssaa_factor)
         .map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
@@ -669,6 +675,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         write_mode,
         scene_type,
         export_schematic,
+        schematic_camera_gizmo_scale,
         export_ovoxel,
         ov_mode: _,
         ov_resolution: _,
@@ -676,6 +683,11 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         main_thread_app,
         progress,
     } = config;
+
+    let schematic_options = bevy_zeroverse::annotation::schematic::RenderOptions {
+        camera_gizmo_scale: schematic_camera_gizmo_scale,
+        ..Default::default()
+    };
 
     let asset_root = asset_root
         .or_else(|| std::env::current_dir().ok())
@@ -760,14 +772,14 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                             if let Some(sensor) = &rgb_sensor {
                                 for sample in &mut batch { sensor.apply(sample, [width, height])?; }
                             }
-                            if export_schematic { for (i,sample) in batch.iter().enumerate() {sample.write_schematics(output_dir.join(format!("schematics/chunk_{index:06}/{i:04}")),Default::default())?;} }
+                            if export_schematic { for (i,sample) in batch.iter().enumerate() {sample.write_schematics(output_dir.join(format!("schematics/chunk_{index:06}/{i:04}")),schematic_options)?;} }
                             save_chunk_with_codec(&batch, &*output_dir, index, compression, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save chunk {index}"))?;
                             batch.len()
                         }
                         WriteData::Fs(mut sample, index) => {
                             if let Some(sensor) = &rgb_sensor { sensor.apply(&mut sample, [width, height])?; }
-                            if export_schematic {sample.write_schematics(output_dir.join(format!("schematics/sample_{index:06}")),Default::default())?;}
+                            if export_schematic {sample.write_schematics(output_dir.join(format!("schematics/sample_{index:06}")),schematic_options)?;}
                             save_sample_to_fs_with_codec(&sample, &*output_dir, index, width, height, export_ovoxel, color_codec)
                                 .with_context(|| format!("failed to save sample {index} to fs output"))?;
                             1
@@ -944,6 +956,24 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
 #[cfg(test)]
 mod flow_tests {
     use super::*;
+
+    #[test]
+    fn schematic_gizmo_scale_rejects_invalid_direct_api_values_before_capture() {
+        let mut config = GenConfig::indoor("unused-test-output", 17);
+        for value in [0., 0.09, 4.1, f32::NAN, f32::INFINITY] {
+            config.schematic_camera_gizmo_scale = value;
+            assert!(
+                validate_gen_config(&config)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("gizmo scale")
+            );
+        }
+        for value in [0.1, 1., 4.] {
+            config.schematic_camera_gizmo_scale = value;
+            validate_gen_config(&config).unwrap();
+        }
+    }
 
     #[test]
     fn indoor_constructor_keeps_quality_and_bounds_multiview_batches() {

@@ -12,6 +12,7 @@ mod scene;
 mod svg;
 #[cfg(test)]
 mod tests;
+use crate::camera::gizmo::scale as gizmo_scale;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -85,6 +86,13 @@ pub struct RenderOptions {
     pub height: u32,
     pub labels: bool,
     pub camera_paths: bool,
+    /// Display size multiplier for camera glyphs and prediction glyphs (0.1..=4).
+    /// Does not change projection, camera calibration, paths or scene geometry.
+    #[serde(
+        default = "gizmo_scale::default",
+        deserialize_with = "gizmo_scale::deserialize"
+    )]
+    pub camera_gizmo_scale: f32,
     /// Draw full calibrated ray hulls instead of compact camera symbols. These
     /// are display frustums, not occlusion-aware coverage or co-visibility.
     #[serde(default)]
@@ -99,6 +107,7 @@ impl Default for RenderOptions {
             height: 1024,
             labels: true,
             camera_paths: true,
+            camera_gizmo_scale: gizmo_scale::default(),
             camera_frustums: false,
             frustum_length: 1.5,
         }
@@ -147,6 +156,7 @@ impl Schematic {
         }
     }
     pub fn projection(&self, options: &RenderOptions) -> Result<Projection, String> {
+        gizmo_scale::validate(options.camera_gizmo_scale)?;
         if self.schema_version != 1
             || !self.trajectory_progress.is_finite()
             || !(0.0..=1.0).contains(&self.trajectory_progress)

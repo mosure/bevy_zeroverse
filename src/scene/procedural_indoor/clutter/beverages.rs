@@ -1,5 +1,6 @@
 //! Hollow vessels with separate rims, closures, liquids and printed sleeves.
 use super::*;
+pub mod can;
 use std::f32::consts::{PI, TAU};
 
 #[derive(Debug, serde::Serialize)]
@@ -60,11 +61,14 @@ pub fn parameters(o: &IndoorObject) -> BeverageProgram {
     }
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if o.kind == ObjectKind::SodaCan {
+        can::build(a, o);
+        return;
+    }
     let p = parameters(o);
     match o.kind {
         ObjectKind::Mug | ObjectKind::CoffeeCup => cup(a, o, &p),
         ObjectKind::WaterBottle => bottle(a, o, &p),
-        ObjectKind::SodaCan => can(a, o, &p),
         _ => unreachable!(),
     }
 }
@@ -306,74 +310,5 @@ fn bottle(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
             .collect();
         a.part(Surface::Rubber, "other_prop")
             .tube(&points, h * 0.003, 8);
-    }
-}
-fn can(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
-    let h = o.size.y;
-    let r = o.size.x.min(o.size.z) * 0.47;
-    a.part(Surface::Art, "other_prop").lathe(
-        &[
-            (0., h * 0.02),
-            (r * 0.86, 0.),
-            (r, h * p.heel_fraction),
-            (r, h * (0.81 + p.heel_fraction)),
-            (r * (0.74 + p.neck_fraction * 0.24), h * 0.96),
-            (0., h * 0.96),
-        ],
-        32,
-        Transform::IDENTITY,
-    );
-    for (y, radius) in [
-        (h * 0.022, r * 0.86),
-        (h * 0.976, r * (0.77 + p.neck_fraction * 0.20)),
-    ] {
-        a.part(Surface::Chrome, "other_prop").lathe(
-            &[
-                (radius * 0.94, y - 0.001),
-                (radius, y),
-                (radius, y + 0.0012),
-                (radius * 0.94, y + 0.0014),
-            ],
-            32,
-            Transform::IDENTITY,
-        );
-    }
-    a.part(Surface::Chrome, "other_prop").cylinder(
-        r * (0.745 + p.neck_fraction * 0.20),
-        0.0015,
-        Transform::from_xyz(0., h * 0.974, 0.),
-    );
-    let tab: Vec<_> = (0..=24)
-        .map(|i| {
-            let t = TAU * i as f32 / 24.;
-            Vec3::new(t.cos() * r * 0.23, h * 0.987, r * 0.14 + t.sin() * r * 0.34)
-        })
-        .collect();
-    a.part(Surface::Chrome, "other_prop")
-        .tube(&tab, r * 0.035, 8);
-    a.part(Surface::Chrome, "other_prop").cylinder(
-        r * 0.085,
-        0.001,
-        Transform::from_xyz(0., h * 0.987, -r * 0.20),
-    );
-    if p.lid {
-        a.part(Surface::Ink, "other_prop").ellipsoid(
-            Vec3::new(r * 0.29, 0.0003, r * 0.33),
-            Transform::from_xyz(0., h * 0.984, -r * 0.37),
-        );
-    }
-    // Abstract printed label strokes wrap around the can, without a logo asset.
-    let mut rng = stream(o.seed, 835);
-    let count = 1 + p.style;
-    let start = rng.random_range(0.2..0.38);
-    let step = 0.42 / count as f32;
-    for i in 0..count {
-        let y = start + i as f32 * step;
-        let width = rng.random_range(0.012..step * 0.7);
-        a.part(Surface::Paper, "other_prop").lathe(
-            &[(r + 0.0004, h * y), (r + 0.0004, h * (y + width))],
-            32,
-            Transform::IDENTITY,
-        );
     }
 }

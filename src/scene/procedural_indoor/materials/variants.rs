@@ -5,6 +5,7 @@ use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 use std::collections::BTreeMap;
 pub(super) mod content;
+pub mod mapping;
 
 pub const COUNT: usize = 12;
 /// Documents are independent of coordinated furniture finishes. Only slots
@@ -77,12 +78,12 @@ pub fn slot(seed: u64) -> usize {
 /// Content has its own bounded capacity and an independent object stream.
 pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>) -> usize {
     let finish = finish_seed.unwrap_or(object_seed);
-    if is_content(surface) {
+    if is_content(surface) || surface == Surface::PrintedPaper {
         stream(
             object_seed ^ finish.rotate_left(17),
             0x434f4e54454e54 + surface as u64,
         )
-        .random_range(0..CONTENT_COUNT)
+        .random_range(0..count(surface))
     } else {
         // A collection can share timber and upholstery colors without forcing
         // the same atlas index (and index % structure_count) across substrates.
@@ -148,10 +149,9 @@ pub(super) async fn build(
                     mat.anisotropy_strength = ((recipe.roughness - 0.08) * 3.).clamp(0., 0.48);
                 }
             }
+            mapping::parameters(seed, surface, index).apply(&mut mat);
             if let Some(job) = content.remove(&(surface, index)) {
                 job.apply(&mut mat, images).await;
-            } else if surface == Surface::PrintedPaper {
-                paper::apply(screen_seed(seed, index), &mut mat, images);
             } else {
                 // Upholstery and device plastics remain in the scene palette;
                 // small personal accessories can have independently chosen hues.
@@ -196,6 +196,7 @@ pub(super) async fn build(
                     mat.clearcoat_perceptual_roughness = rng.random_range(0.07..0.24);
                 }
             }
+            response::conformal_coat(&mut mat);
             result.insert((surface, index), materials.add(mat));
             if cooperative {
                 super::super::preparation::cooperate().await;

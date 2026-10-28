@@ -2,6 +2,7 @@
 //! on capture ID, never ECS order or camera count. Geometry uses calibrated rays
 //! in Bevy camera space (-Z forward, +Y up), bounded to a unit display radius.
 mod runtime;
+pub mod scale;
 mod style;
 use super::lens::CameraCalibration;
 use bevy::prelude::*;
@@ -88,10 +89,31 @@ pub fn display_radius(
     viewport: Vec2,
     origin: Vec3,
 ) -> f32 {
+    display_radius_scaled(
+        projection,
+        view_from_world,
+        viewport,
+        origin,
+        scale::default(),
+    )
+}
+
+/// Screen-aware radius with a presentation multiplier (0.1..=4). Both pixel
+/// and metric limits scale together; perspective magnification remains bounded.
+/// Invalid values from direct resource edits use 1x; parsed settings reject them.
+pub fn display_radius_scaled(
+    projection: &Projection,
+    view_from_world: Mat4,
+    viewport: Vec2,
+    origin: Vec3,
+    scale: f32,
+) -> f32 {
+    let scale = scale::validate(scale).unwrap_or_else(|_| scale::default());
+    let max_radius = MAX_RADIUS_METRES * scale;
     if !viewport.is_finite() || viewport.min_element() <= 0. {
-        return MAX_RADIUS_METRES;
+        return max_radius;
     }
-    let pixels = (viewport.min_element() * 0.025).clamp(10., MAX_RADIUS_PIXELS);
+    let pixels = (viewport.min_element() * 0.025).clamp(10., MAX_RADIUS_PIXELS) * scale;
     let radius = if let Some((p, _)) = super::pinhole::parameters(projection) {
         let view = view_from_world.transform_point3(origin);
         let depth = -view.z;
@@ -106,10 +128,10 @@ pub fn display_radius(
     } else if let Projection::Orthographic(p) = projection {
         pixels * (p.area.size() / viewport).min_element()
     } else {
-        return MAX_RADIUS_METRES;
+        return max_radius;
     };
     if radius.is_finite() {
-        radius.clamp(0., MAX_RADIUS_METRES)
+        radius.clamp(0., max_radius)
     } else {
         0.
     }

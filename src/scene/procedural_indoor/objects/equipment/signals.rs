@@ -1,6 +1,7 @@
 //! Wall-mounted life-safety and decorative electrical fixtures. Dimensions are
 //! metric placement envelopes; all faces are separated, never coplanar decals.
 use super::*;
+pub mod exit;
 mod lettering;
 
 pub mod fire;
@@ -9,7 +10,7 @@ pub use strings::program as string_program;
 
 pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.kind {
-        ObjectKind::ExitSign => exit(a, o),
+        ObjectKind::ExitSign => exit::build(a, o),
         ObjectKind::FireAlarm | ObjectKind::FireDetector | ObjectKind::FirePullStation => {
             fire::build(a, o)
         }
@@ -17,42 +18,51 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
         _ => unreachable!(),
     }
 }
-fn exit(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let l = o.kind.class_name();
-    let mut r = stream(o.seed, 0x455849545349474e);
-    let trim = [Surface::Plastic, Surface::Metal, Surface::Chrome][r.random_range(0..3)];
-    a.box_part(
-        trim,
-        l,
-        Vec3::new(0., s.y * 0.5, -s.z * 0.04),
-        s * Vec3::new(1., 1., 0.92),
-        (s.y * 0.04).min(0.008),
-    );
-    a.box_part(
-        Surface::Ink,
-        l,
-        Vec3::new(0., s.y * 0.5, s.z * 0.42 + 0.0005),
-        Vec3::new(s.x * 0.92, s.y * 0.84, 0.0008),
-        0.002,
-    );
-    lettering::build(
-        a,
-        l,
-        "EXIT",
-        Vec2::new(s.x * 0.78, s.y * 0.53),
-        Vec3::new(0., s.y * 0.5, s.z * 0.42 + 0.0014),
-        Surface::Light,
-    );
-    // Test button and indicator, beside the main legend.
-    a.part(Surface::Rubber, l).ellipsoid(
-        Vec3::splat((s.y * 0.018).min(0.002)),
-        Transform::from_xyz(s.x * 0.43, s.y * 0.13, s.z * 0.42),
-    );
-}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn safety_housings_vary_actual_geometry_and_preserve_mounting_faces() {
+        use super::super::super::audit;
+        for kind in [
+            ObjectKind::ExitSign,
+            ObjectKind::FireAlarm,
+            ObjectKind::FireDetector,
+            ObjectKind::FirePullStation,
+        ] {
+            let mut representatives: Vec<Vec<f32>> = Vec::new();
+            for seed in 0..32 {
+                let o = audit::fixture(kind, seed);
+                let a = super::super::super::build_object(&o);
+                audit::check(&o, &a).unwrap();
+                let (lo, hi) = a.bounds();
+                if kind == ObjectKind::FireDetector
+                    || (kind == ObjectKind::ExitSign && exit::mount(&o) != exit::ExitMount::Wall)
+                {
+                    assert!((hi.y - o.size.y).abs() < 1e-5, "detached ceiling detector");
+                } else {
+                    let mounting = super::super::super::wall::mount_offset(&o).unwrap() - 0.001;
+                    assert!((lo.z + mounting).abs() < 1e-5, "detached {kind:?}/{seed}");
+                }
+                let descriptor = audit::descriptor(&o, &a);
+                assert_eq!(
+                    descriptor,
+                    audit::descriptor(&o, &super::super::super::build_object(&o))
+                );
+                if representatives
+                    .iter()
+                    .all(|r| audit::distance(r, &descriptor) > 0.015)
+                {
+                    representatives.push(descriptor);
+                }
+            }
+            assert!(
+                representatives.len() >= 10,
+                "collapsed {kind:?} geometry: {}",
+                representatives.len()
+            );
+        }
+    }
     #[test]
     fn strand_reservations_contain_rendered_geometry_at_dimension_extremes() {
         for seed in 0..32 {

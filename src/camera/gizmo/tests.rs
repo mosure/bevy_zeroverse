@@ -1,6 +1,44 @@
 use super::*;
 
 #[test]
+fn scaled_glyphs_preserve_screen_bounds_at_close_range_and_wide_editor_fovs() {
+    let size = Vec2::new(1280., 720.);
+    for fov in [30_f32, 70., 140.] {
+        let p = Projection::Perspective(PerspectiveProjection {
+            fov: fov.to_radians(),
+            aspect_ratio: size.x / size.y,
+            ..default()
+        });
+        let clip = p.get_clip_from_view();
+        let screen = |v: Vec3| clip.project_point3(v).xy() * size * 0.5;
+        for depth in [0.02, 0.2, 2., 20., 100.] {
+            let origin = Vec3::new(depth * 0.6, depth * -0.4, -depth);
+            let mut previous = 0.;
+            for scale in [0.1, 0.5, 1., 2., 4.] {
+                let radius = display_radius_scaled(&p, Mat4::IDENTITY, size, origin, scale);
+                assert!(radius > previous && radius <= MAX_RADIUS_METRES * scale);
+                previous = radius;
+                for y in -8..=8 {
+                    for x in 0..32 {
+                        let phi = x as f32 * std::f32::consts::TAU / 32.;
+                        let lat = y as f32 * std::f32::consts::FRAC_PI_2 / 8.;
+                        let v = Vec3::new(phi.cos() * lat.cos(), lat.sin(), phi.sin() * lat.cos());
+                        let delta = (screen(origin + v * radius) - screen(origin)).abs();
+                        assert!(delta.max_element() <= MAX_RADIUS_PIXELS * scale + 0.01);
+                    }
+                }
+            }
+            for invalid in [f32::NAN, f32::INFINITY, -1., 0., 5.] {
+                assert_eq!(
+                    display_radius_scaled(&p, Mat4::IDENTITY, size, origin, invalid),
+                    display_radius(&p, Mat4::IDENTITY, size, origin)
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn curved_prediction_outlines_keep_visible_gaps_instead_of_solid_microsegments() {
     for fit in [
         crate::calibration::FisheyeFit::Circular,
@@ -230,6 +268,44 @@ fn editor_runtime_uses_capture_ids_for_sparse_predictions_and_excludes_source_vi
             .iter()
             .all(|p| p.x.abs() < 2. && p.z < -3.));
     }
+    let predicted_points = |app: &App| {
+        app.world()
+            .resource::<Assets<GizmoAsset>>()
+            .iter()
+            .find(|(_, a)| a.config_typeid() == TypeId::of::<PredictionCameraGizmoConfigGroup>())
+            .unwrap()
+            .1
+            .buffer()
+            .list_positions
+            .clone()
+    };
+    let original_prediction = app.world().resource::<Predictions>().0.cameras[0].clone();
+    let before = predicted_points(&app);
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .camera_gizmo_scale = 2.;
+    app.update();
+    let after = predicted_points(&app);
+    assert_eq!(
+        before.len(),
+        after.len(),
+        "scale does not retessellate glyphs"
+    );
+    let origin = Vec3::new(-1., 0.2, -4.);
+    let extent = |points: &[Vec3]| {
+        points
+            .iter()
+            .map(|p| p.distance(origin))
+            .fold(0_f32, f32::max)
+    };
+    assert!(extent(&after) > extent(&before) * 1.8);
+    assert_eq!(
+        app.world().resource::<Predictions>().0.cameras[0],
+        original_prediction
+    );
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .camera_gizmo_scale = 1.;
     // Pose changes must not alter calibration; cached outlines follow motion.
     app.world_mut().resource_mut::<Predictions>().0.cameras[0].world_from_view =
         Mat4::from_translation(Vec3::new(-1., 1., -4.)).to_cols_array_2d();

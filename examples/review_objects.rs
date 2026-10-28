@@ -37,6 +37,12 @@ struct Args {
     output: PathBuf,
     #[arg(long)]
     category: Option<String>,
+    /// Review all three exit legends across four mounting modes.
+    #[arg(long)]
+    exit_matrix: bool,
+    /// Inspect rear housings, mounting hardware and connection surfaces.
+    #[arg(long)]
+    rear: bool,
 }
 #[derive(Resource)]
 struct Materials(IndoorMaterials);
@@ -45,6 +51,7 @@ struct Batch {
     objects: Vec<IndoorObject>,
     attachments: Vec<IndoorObject>,
     install: bool,
+    rear: bool,
 }
 #[derive(Component)]
 struct ReviewRoot;
@@ -53,6 +60,7 @@ fn install(
     mut batch: ResMut<Batch>,
     materials: Res<Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut assets: ResMut<Assets<StandardMaterial>>,
     roots: Query<Entity, With<ReviewRoot>>,
     mut sampler: ResMut<SamplerState>,
 ) {
@@ -76,14 +84,57 @@ fn install(
     }
     for (i, o) in batch.objects.iter().enumerate() {
         objects::spawn_object(o, root, &mut commands, &mut meshes, &materials.0);
+        if matches!(o.kind, ObjectKind::ExitSign | ObjectKind::WallSconce) {
+            // A neutral wall/ceiling section makes the fixture's actual contact
+            // plane visible in the review. It is context, not another instance.
+            let wall = o.kind == ObjectKind::WallSconce || o.variant % 4 == 0;
+            let size = if wall {
+                Vec3::new(o.size.x * 1.6, o.size.y * 1.8, 0.05)
+            } else {
+                Vec3::new(o.size.x * 1.45, 0.05, o.size.z + 0.16)
+            };
+            let center = o.position
+                + if wall {
+                    Vec3::new(0., o.size.y * 0.5, -o.size.z * 0.5 - 0.026)
+                } else {
+                    Vec3::new(0., o.size.y + 0.026, 0.)
+                };
+            commands.spawn((
+                Mesh3d(meshes.add(Cuboid::from_size(size))),
+                MeshMaterial3d(assets.add(StandardMaterial {
+                    base_color: Color::srgb(0.62, 0.64, 0.63),
+                    perceptual_roughness: 0.85,
+                    ..default()
+                })),
+                if wall {
+                    SemanticLabel::Wall
+                } else {
+                    SemanticLabel::Ceiling
+                },
+                Transform::from_translation(center),
+                ChildOf(root),
+            ));
+        }
         let target = o.position + Vec3::Y * o.size.y * 0.48;
         let scale = o.size.max_element();
-        let forward = if matches!(o.kind, ObjectKind::Chair | ObjectKind::Sofa) {
+        let forward = if batch.rear
+            || matches!(o.kind, ObjectKind::Chair | ObjectKind::Sofa)
+            || (o.kind == ObjectKind::ExitSign && o.variant % 4 == 3)
+        {
             -1.
         } else {
             1.
         };
-        let from = target + Vec3::new(scale * 0.85, scale * 0.90, scale * 1.55 * forward);
+        // Ceiling detectors are reviewed from their visible underside, not
+        // from the hidden mounting face. Keep that camera above the studio floor.
+        let vertical = if o.kind == ObjectKind::FireDetector {
+            -0.90
+        } else if matches!(o.kind, ObjectKind::ExitSign | ObjectKind::WallSconce) {
+            0.18
+        } else {
+            0.90
+        };
+        let from = target + Vec3::new(scale * 0.85, scale * vertical, scale * 1.55 * forward);
         commands.spawn((
             CaptureCameraIndex(i),
             ZeroverseCamera {
@@ -126,6 +177,7 @@ fn main() -> Result<()> {
     setup_globals(None);
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
     let mut groups = Vec::new();
+    let mut instance_base = 0;
     for category in report["categories"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("missing categories"))?
@@ -157,6 +209,30 @@ fn main() -> Result<()> {
                 .unwrap();
             chosen.push(next);
         }
+        if args.exit_matrix {
+            ensure!(
+                name == "ExitSign",
+                "--exit-matrix requires --category ExitSign"
+            );
+            chosen.clear();
+            for legend in ["EuropeanPictogram", "AmericanRed", "AmericanGreen"] {
+                for mount in ["Wall", "CeilingCanopy", "PendantRods", "PendantCables"] {
+                    chosen.push(
+                        category["samples"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .position(|row| {
+                                row["program"]["legend"] == legend
+                                    && row["program"]["mount"] == mount
+                            })
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("missing exit {legend}/{mount}; audit more samples")
+                            })?,
+                    );
+                }
+            }
+        }
         let rows: Vec<_> = chosen
             .iter()
             .map(|&i| category["samples"][i].clone())
@@ -166,8 +242,17 @@ fn main() -> Result<()> {
             .enumerate()
             .map(|(i, r)| {
                 let mut o: IndoorObject = serde_json::from_value(r["object"].clone()).unwrap();
-                o.id = i;
+                o.id = instance_base + i;
+                if args.exit_matrix {
+                    // Display plausible mounting drops as well as fixed-envelope
+                    // audit shape. Record these exact render inputs below.
+                    o.size.y = [0.20, 0.30, 0.62, 0.62][(o.variant % 4) as usize];
+                    audit::check(&o, &objects::build_object(&o)).unwrap();
+                }
                 o.position = Vec3::X * i as f32 * 8.;
+                if o.kind == ObjectKind::FireDetector {
+                    o.position.y = o.size.max_element() * 2.;
+                }
                 o
             })
             .collect();
@@ -181,10 +266,13 @@ fn main() -> Result<()> {
                 .map(|v| serde_json::from_value(v.clone()))
                 .transpose()?
                 .unwrap_or_default();
-            let mut ids = std::collections::BTreeMap::from([(original.id, i)]);
+            let mut ids = std::collections::BTreeMap::from([(original.id, objects[i].id)]);
             for (j, child) in children.iter().enumerate() {
                 ensure!(!ids.contains_key(&child.id), "duplicate assembly instance");
-                ids.insert(child.id, objects.len() + attachments.len() + j);
+                ids.insert(
+                    child.id,
+                    instance_base + objects.len() + attachments.len() + j,
+                );
             }
             for mut child in children {
                 child.id = ids[&child.id];
@@ -200,9 +288,16 @@ fn main() -> Result<()> {
                 attachments.push(child);
             }
         }
+        instance_base += objects.len() + attachments.len();
         groups.push((name.to_string(), objects, attachments, rows));
     }
     ensure!(!groups.is_empty(), "no matching category");
+    // Emissive bindings must use the actual reviewed instances, not unrelated
+    // objects from the palette scene. IDs are unique across renderer batches.
+    let review_objects: Vec<_> = groups
+        .iter()
+        .flat_map(|(_, objects, children, _)| objects.iter().chain(children).cloned())
+        .collect();
     let mut app = create_app(
         None,
         Some(BevyZeroverseConfig {
@@ -213,7 +308,7 @@ fn main() -> Result<()> {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: 6,
+            num_cameras: groups[0].1.len(),
             width: 320.,
             height: 320.,
             render_modes: vec![RenderMode::Color, RenderMode::Normal, RenderMode::Semantic],
@@ -224,17 +319,29 @@ fn main() -> Result<()> {
     );
     app.add_systems(
         Startup,
-        |mut commands: Commands,
-         mut meshes: ResMut<Assets<Mesh>>,
-         mut images: ResMut<Assets<Image>>,
-         mut materials: ResMut<Assets<StandardMaterial>>| {
-            let scene =
+        move |mut commands: Commands,
+              mut meshes: ResMut<Assets<Mesh>>,
+              mut images: ResMut<Assets<Image>>,
+              mut materials: ResMut<Assets<StandardMaterial>>| {
+            let mut scene =
                 IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.)
                     .unwrap();
-            commands.insert_resource(Materials(IndoorMaterials::build(
+            scene.objects = review_objects.clone();
+            scene.humans.clear();
+            // Exercise the normal generator's consumed-map path. A six-product
+            // review does not need every unrelated room texture and content slot.
+            let parts: Vec<_> = scene
+                .objects
+                .iter()
+                .flat_map(|o| objects::build_object(o).parts.into_keys())
+                .collect();
+            commands.insert_resource(Materials(IndoorMaterials::build_for_parts(
                 &scene,
                 &mut *images,
                 &mut *materials,
+                parts
+                    .iter()
+                    .map(|(surface, label)| (*surface, label.as_str())),
             )));
             commands.spawn((
                 Mesh3d(meshes.add(Cuboid::new(500., 0.1, 500.))),
@@ -265,6 +372,7 @@ fn main() -> Result<()> {
         objects: groups[0].1.clone(),
         attachments: groups[0].2.clone(),
         install: true,
+        rear: args.rear,
     });
     app.add_systems(PreUpdate, install);
     app.finish();
@@ -276,6 +384,7 @@ fn main() -> Result<()> {
                 objects: objects.clone(),
                 attachments: attachments.clone(),
                 install: true,
+                rear: args.rear,
             };
         }
         let start = Instant::now();
@@ -292,7 +401,7 @@ fn main() -> Result<()> {
                 .try_recv()
             {
                 ensure!(
-                    sample.views.len() == 6
+                    sample.views.len() == objects.len()
                         && sample.object_obbs.len() == objects.len() + attachments.len(),
                     "incomplete object batch {name}"
                 );
@@ -322,9 +431,10 @@ fn main() -> Result<()> {
                     }
                     ensure!(!v.semantic.is_empty(), "missing semantics");
                 }
-                manifest.push(json!({"kind":name,"selected":rows,"selection":"farthest-spread geometry representatives from the recorded audit; correlated samples, not isolated parameter interventions","elapsed_seconds":start.elapsed().as_secs_f64()}));
+                manifest.push(json!({"kind":name,"selected":rows,"rendered_objects":objects,"selection":"farthest-spread geometry representatives from the recorded audit; correlated samples, not isolated parameter interventions","elapsed_seconds":start.elapsed().as_secs_f64()}));
                 println!(
-                    "Captured {name}: six matched studio views in {:.2}s",
+                    "Captured {name}: {} matched studio views in {:.2}s",
+                    objects.len(),
                     start.elapsed().as_secs_f64()
                 );
                 break;
@@ -334,7 +444,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("renders.json"),
         serde_json::to_vec_pretty(
-            &json!({"schema_version":1,"build_provenance":provenance,"image_size":[320,320],"lighting":"fixed 1400/250 lux directional studio lights with shadows and shared procedural PBR environment","categories":manifest}),
+            &json!({"schema_version":1,"build_provenance":provenance,"image_size":[320,320],"rear_view":args.rear,"lighting":"fixed 1400/250 lux directional studio lights with shadows and shared procedural PBR environment","categories":manifest}),
         )?,
     )?;
     Ok(())

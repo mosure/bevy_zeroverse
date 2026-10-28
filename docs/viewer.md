@@ -162,8 +162,19 @@ and supports prediction overlays.
 glyphs in the editor viewport. Each capture ID has a stable color shared with the
 schematic, a `C0`, `C1`, … label and a subdued matching trajectory. Pinhole glyphs
 retain their image-plane proportions; fisheye glyphs show their curved angular
-coverage, including rearward rays above 180°. Glyph radius is capped at 0.35 m
-and 24 display pixels, adapting to editor zoom without changing capture optics.
+coverage, including rearward rays above 180°. At the default **1×** size, glyph
+radius is capped at 0.35 m and 24 display pixels, adapting to editor zoom without
+changing capture optics.
+
+**Camera glyph size · editor** adjusts the 3D overlay; the Room schematic viewport
+offers **Camera glyph size · schematic** independently. Both range from **0.1× to
+4×**, apply immediately without regenerating the scene, and scale capture and
+prediction glyphs together. Paths, camera poses, intrinsics and image annotations
+remain unchanged. Schematic labels and line widths retain their screen size for
+readability. CLI flags are `--camera-gizmo-scale 0.5` and
+`--schematic-camera-gizmo-scale 2`; browser links use
+`?camera_gizmo_scale=0.5&schematic_camera_gizmo_scale=2`. Default values are omitted
+from shared URLs.
 
 Insert `app::editor::schematic::Predictions` for matching dashed camera overlays
 in both views. Label predictions with their capture ID (for example `Pred C7`)
@@ -172,6 +183,6 @@ Invalid poses or lenses are skipped in the 3D view. Editor overlays are
 depth-tested against room geometry and excluded from capture render layers.
 
 Custom inference viewers can reuse `camera::gizmo::{color, rgb, color_index,
-wireframe, prediction_wireframe, display_radius, config}` for the same palette, calibrated outline and
+wireframe, prediction_wireframe, display_radius_scaled, config}` for the same palette, calibrated outline and
 solid/dashed styles. Colors depend on camera ID rather than draw order or camera
 count; IDs 0–15 use distinct palette entries instead of repeating every five.

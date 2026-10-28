@@ -2,6 +2,7 @@
 use super::super::super::motion::{construction as motion, MotionKind};
 use super::*;
 pub mod cooktop;
+pub mod interior;
 pub mod notes;
 pub mod program;
 #[cfg(test)]
@@ -165,7 +166,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     );
     // A distinct inner lining makes open doors reveal a cavity rather than a dark decal.
     a.box_part(
-        Surface::Plastic,
+        if o.kind == ObjectKind::Refrigerator {
+            Surface::Plastic
+        } else {
+            Surface::Metal
+        },
         label,
         Vec3::new(0., s.y * 0.51, z - d * 0.5 + 0.025),
         Vec3::new(w * 0.91, s.y * 0.88, 0.008),
@@ -337,41 +342,54 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 label,
                 o.seed,
             );
-            for (index, level) in [0.22, 0.55].into_iter().enumerate() {
-                props::rack(
-                    a,
-                    Vec3::new(0., s.y * level, z),
-                    Vec3::new(w * 0.86, s.y * 0.23, d * 0.79),
-                    if p.contents { 4 } else { 0 },
-                    o.seed ^ (0x444953485241434b + index as u64),
+            for basket in interior::dishwasher_baskets(o, p) {
+                let mut rack = supplies::rack::parameters(
+                    basket.size,
+                    if p.contents && !basket.cutlery { 6 } else { 0 },
+                    basket.seed,
                 );
+                // Stainless or coated-steel structure belongs to the appliance;
+                // plates retain dishware semantics.
+                rack.finish = Surface::Metal;
+                rack.hardware = Surface::Metal;
+                supplies::rack::build_with_label(
+                    a,
+                    Transform::from_translation(basket.position),
+                    &rack,
+                    basket.seed,
+                    label,
+                );
+                for side in [-1., 1.] {
+                    let pos = basket.position + Vec3::new(side * rack.size.x * 0.43, -0.006, 0.);
+                    a.box_part(
+                        Surface::Metal,
+                        label,
+                        pos,
+                        Vec3::new(0.018, 0.012, rack.size.z * 0.96),
+                        0.002,
+                    );
+                    let wall = side * (w * 0.5 - 0.018);
+                    for depth_side in [-1., 1.] {
+                        let end = pos + Vec3::Z * depth_side * rack.size.z * 0.38;
+                        a.part(Surface::Metal, label)
+                            .rod(end, end.with_x(wall), 0.004);
+                    }
+                }
             }
         }
         ObjectKind::Oven | ObjectKind::Range => {
             let tall = o.kind == ObjectKind::Oven && s.y > 1.3;
-            let layers = if tall && p.stacked_ovens { 2 } else { 1 };
-            let dh = if tall { s.y * 0.28 } else { s.y * 0.73 };
+            let fronts = program::oven_fronts(o, p);
             let mut apertures = Vec::new();
-            for level in 0..layers {
-                let bottom = if tall {
-                    s.y * (if layers == 2 {
-                        0.26 + level as f32 * 0.32
-                    } else {
-                        0.47
-                    })
-                } else {
-                    toe + 0.012
-                };
+            for (level, door) in fronts.iter().enumerate() {
+                let bottom = door.bottom_m;
+                let dh = door.height_m;
+                let width = door.width_m;
+                let offset = door.center_x;
                 let mut q = p.clone();
                 if level > 0 {
                     q.opening_radians = 0.;
                 }
-                let offset = match p.controls {
-                    1 => w * 0.08,
-                    2 => -w * 0.08,
-                    _ => 0.,
-                };
-                let width = if p.controls == 0 { w * 0.92 } else { w * 0.74 };
                 apertures.push([
                     Vec2::new(offset - width * 0.5 - 0.003, bottom - 0.014),
                     Vec2::new(offset + width * 0.5 + 0.003, bottom + dh + 0.003),
@@ -387,32 +405,37 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     o.seed ^ level as u64,
                     o,
                 );
-                a.box_part(
-                    Surface::Ink,
-                    label,
-                    Vec3::new(0., bottom + 0.008, z),
-                    Vec3::new(w * 0.86, 0.016, d * 0.83),
-                    0.002,
-                );
-                let y = bottom + dh * 0.38;
-                for n in 0..9 {
-                    let x = (n as f32 / 8. - 0.5) * w * 0.80;
-                    pipe(
-                        a,
-                        Surface::Metal,
-                        label,
-                        &[Vec3::new(x, y, z - d * 0.36), Vec3::new(x, y, z + d * 0.36)],
-                        0.003,
-                    );
-                }
-                if p.contents {
+                for y in [bottom + 0.008, bottom + dh - 0.008] {
                     a.box_part(
                         Surface::Metal,
-                        "dishware",
-                        Vec3::new(0., y + 0.008, z),
-                        Vec3::new(w * 0.57, 0.011, d * 0.55),
-                        0.004,
+                        label,
+                        Vec3::new(offset, y, z),
+                        Vec3::new(width, 0.016, d * 0.86),
+                        0.002,
                     );
+                }
+                for side in [-1., 1.] {
+                    a.box_part(
+                        Surface::Metal,
+                        label,
+                        Vec3::new(offset + side * (width * 0.5 - 0.005), bottom + dh * 0.5, z),
+                        Vec3::new(0.01, dh - 0.032, d * 0.86),
+                        0.002,
+                    );
+                }
+                for rack in interior::oven_racks(o, p, door, level) {
+                    interior::build_oven_rack(a, &rack, Vec2::new(offset, z), label);
+                    // Support ledges connect each rack to the actual cavity sides.
+                    for side in [-1., 1.] {
+                        let x = offset + side * (width * 0.5 - 0.010);
+                        a.box_part(
+                            Surface::Metal,
+                            label,
+                            Vec3::new(x - side * width * 0.038, rack.y_m - rack.wire_m - 0.004, z),
+                            Vec3::new(width * 0.08, 0.008, rack.depth_m),
+                            0.001,
+                        );
+                    }
                 }
             }
             cabinet::aperture_front(
@@ -524,6 +547,7 @@ pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
         }
         ObjectKind::Dishwasher => {
             value["fascia_fraction"] = serde_json::json!(plan.fascia_fraction);
+            value["baskets"] = serde_json::json!(interior::dishwasher_baskets(o, p));
         }
         ObjectKind::Microwave => {
             value["control_fraction"] = serde_json::json!(plan.control_fraction);
@@ -537,6 +561,15 @@ pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
             value["cooktop"] = serde_json::json!(cooktop::parameters(o.seed, size, p));
         }
         _ => {}
+    }
+    if matches!(o.kind, ObjectKind::Oven | ObjectKind::Range) {
+        let fronts = program::oven_fronts(o, p);
+        value["racks"] = serde_json::json!(fronts
+            .iter()
+            .enumerate()
+            .map(|(i, door)| interior::oven_racks(o, p, door, i))
+            .collect::<Vec<_>>());
+        value["fronts"] = serde_json::json!(fronts);
     }
     value
 }

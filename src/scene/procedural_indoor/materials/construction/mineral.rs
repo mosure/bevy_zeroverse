@@ -42,7 +42,9 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample, _floor: u32)
             bleed
         );
         r.period_m = (0.4 + p.variation * 0.5) * p.scale;
-        r.relief_m = 0.00030 * (1. - m.polish * 0.88);
+        // Casting/finishing roughness is independent of aggregate color. Keep
+        // polished concrete fine while allowing a varied sanded/cast surface.
+        r.relief_m = (0.00020 + p.variation * 0.00085) * (1. - m.polish * 0.94);
         r.roughness = 0.90 - m.polish * 0.62;
     } else if r.surface == Surface::Floor {
         m.polish = (p.mix([0.18, 0.58, 0.75, 0.95]) + (p.variation - 0.5) * 0.60).clamp(0., 1.);

@@ -136,7 +136,7 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample) {
     // Paint sheen is separately specified from application texture in practice.
     c.gloss = original.gloss;
     r.period_m = p.mix([0.20, 0.26, 0.42, 0.65]) * p.scale;
-    r.relief_m = 0.000018 + c.texture_mix.powi(2) * 0.00065;
+    r.relief_m = super::super::coating::plaster_relief(c.texture_mix);
     r.roughness = 0.95 - c.gloss * 0.72;
     if let Some(w) = &mut c.wall {
         if r.surface == Surface::Accent {

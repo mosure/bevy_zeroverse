@@ -1,12 +1,23 @@
 use super::*;
 mod ceiling_mesh;
+#[cfg(test)]
+mod normal_tests;
 use crate::scene::procedural_indoor::{
     architecture, geometry::Geometry, layout::NEIGHBOR_DEPTH, materials::Surface, objects::Assembly,
 };
 
 /// Flat, metric UVs. Triangle winding and stored normals always agree, including
 /// negative floor levels, angled reveals and the underside of a sloping ceiling.
-pub fn triangle(g: &mut Geometry, mut p: [Vec3; 3], outward: Vec3) {
+pub fn triangle(g: &mut Geometry, p: [Vec3; 3], outward: Vec3) {
+    triangle_with_normal(g, p, outward, None);
+}
+
+fn triangle_with_normal(
+    g: &mut Geometry,
+    mut p: [Vec3; 3],
+    outward: Vec3,
+    planar_normal: Option<Vec3>,
+) {
     let mut n = (p[1] - p[0]).cross(p[2] - p[0]);
     if n.length_squared() < 1e-14 {
         return;
@@ -15,7 +26,7 @@ pub fn triangle(g: &mut Geometry, mut p: [Vec3; 3], outward: Vec3) {
         p.swap(1, 2);
         n = -n;
     }
-    n = n.normalize();
+    n = planar_normal.unwrap_or_else(|| n.normalize());
     let u = if n.y.abs() > 0.6 {
         (Vec3::X - n * n.x).normalize()
     } else {
@@ -30,6 +41,25 @@ pub fn triangle(g: &mut Geometry, mut p: [Vec3; 3], outward: Vec3) {
     }
     g.indices.extend([start, start + 1, start + 2]);
 }
+
+/// Clipped wall fronts share an analytic plane. A valid, micrometre-wide
+/// triangle can acquire a very different cross-product normal after its world
+/// positions round to f32. Retain every vertex/triangle and its winding, but
+/// derive shading and metric UVs from that known plane, not the ill-conditioned
+/// sliver. This is restricted to planar wall panels; general/sloping geometry
+/// continues to derive its normal from its vertices.
+fn wall_face(g: &mut Geometry, points: &[Vec3], outward: Vec3) {
+    let normal = outward.normalize();
+    for i in 1..points.len().saturating_sub(1) {
+        triangle_with_normal(
+            g,
+            [points[0], points[i], points[i + 1]],
+            outward,
+            Some(normal),
+        );
+    }
+}
+
 fn face(g: &mut Geometry, p: &[Vec3], outward: Vec3) {
     for i in 1..p.len().saturating_sub(1) {
         triangle(g, [p[0], p[i], p[i + 1]], outward);
@@ -273,7 +303,7 @@ pub(super) fn wall(
                 .collect::<Vec<_>>(),
             tf.rotation * Vec3::Z * thickness,
             |points, normal, front| {
-                face(
+                wall_face(
                     a.part(if front { surface } else { Surface::Paint }, "wall"),
                     points,
                     normal,

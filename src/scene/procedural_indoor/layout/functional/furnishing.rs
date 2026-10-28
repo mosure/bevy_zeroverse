@@ -111,6 +111,9 @@ impl IndoorManifest {
                     SpaceRole::Exhibition | SpaceRole::Demonstration => {
                         CapacityUnit::DisplayStations
                     }
+                    _ if matches!(zone.activity, IndoorLayout::Cafe | IndoorLayout::Cafeteria) => {
+                        CapacityUnit::SeatingStations
+                    }
                     _ => CapacityUnit::ChairStations,
                 },
                 parameters: parameters.clone(),
@@ -218,7 +221,7 @@ impl IndoorManifest {
                     | IndoorLayout::LectureHall
             ) && self.objects[first..]
                 .iter()
-                .filter(|o| o.kind == ObjectKind::Chair)
+                .filter(|o| self.assembly_diagnostics.programs[index].counts_toward_capacity(o))
                 .count()
                 < 2
             {
@@ -226,7 +229,9 @@ impl IndoorManifest {
                 for uv in variation::recovery_points(8, &mut r) {
                     if self.objects[first..]
                         .iter()
-                        .filter(|o| o.kind == ObjectKind::Chair)
+                        .filter(|o| {
+                            self.assembly_diagnostics.programs[index].counts_toward_capacity(o)
+                        })
                         .count()
                         >= 2
                     {

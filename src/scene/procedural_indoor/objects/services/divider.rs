@@ -20,6 +20,7 @@ pub struct DividerProgram {
 }
 pub fn parameters(o: &IndoorObject) -> DividerProgram {
     let mut r = stream(o.seed, 0x4449564944455250);
+    let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4449_5649_4649_4e49);
     let n = r.random_range(1..=3);
     DividerProgram {
         weights: (0..n).map(|_| r.random_range(0.60..1.45)).collect(),
@@ -29,13 +30,13 @@ pub fn parameters(o: &IndoorObject) -> DividerProgram {
         border: r.random_range(0.016_f32..0.035).min(o.size.x * 0.024),
         stand_span: r.random_range(0.27..0.41),
         base: r.random_range(0..3),
-        frame: [Surface::Wood, Surface::Metal, Surface::Chrome][r.random_range(0..3)],
+        frame: [Surface::Wood, Surface::Metal, Surface::Chrome][f.random_range(0..3)],
         panel: [
             Surface::Fabric,
             Surface::FabricAlt,
             Surface::Wood,
             Surface::GlassInterior,
-        ][r.random_range(0..4)],
+        ][f.random_range(0..4)],
         slats: r.random_bool(0.36),
         slat_pitch: r.random_range(0.045..0.115),
         slat_fraction: r.random_range(0.30..0.73),

@@ -9,6 +9,7 @@ pub struct FloorProgram {
     pub rug_exponent: f32,
     pub rug_taper: f32,
     pub clipped_corners: bool,
+    pub outlet_finish: Surface,
 }
 pub fn parameters(o: &IndoorObject) -> FloorProgram {
     let mut r = stream(o.seed, 7485);
@@ -18,6 +19,18 @@ pub fn parameters(o: &IndoorObject) -> FloorProgram {
         rug_exponent: r.random_range(2.0..12.),
         rug_taper: r.random_range(-0.16..0.16),
         clipped_corners: r.random_bool(0.3),
+        outlet_finish: if o.kind == ObjectKind::FloorOutlet {
+            let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x464c4f4f5246494e);
+            [
+                Surface::Metal,
+                Surface::Metal,
+                Surface::Chrome,
+                Surface::Chrome,
+                Surface::Plastic,
+            ][f.random_range(0..5)]
+        } else {
+            Surface::Metal
+        },
     }
 }
 
@@ -132,11 +145,7 @@ fn rug(a: &mut Assembly, o: &IndoorObject) {
 fn outlet(a: &mut Assembly, o: &IndoorObject) {
     let s = service_size(o);
     let round = (o.variant & 7).is_multiple_of(3);
-    let finish = if (o.variant & 7).is_multiple_of(2) {
-        Surface::Metal
-    } else {
-        Surface::Chrome
-    };
+    let finish = parameters(o).outlet_finish;
     // Raised sealed rim: plate thickness is 4 mm, independent of hinged lid height.
     if round {
         a.part(finish, "floor_outlet").cylinder(
@@ -271,4 +280,40 @@ pub(crate) fn cable_hits(o: &IndoorObject, start: Vec3, end: Vec3, radius: f32) 
             hi + Vec3::splat(radius),
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn floor_box_finishes_do_not_determine_geometry_ports_or_operating_state() {
+        let mut combinations = std::collections::BTreeSet::new();
+        for seed in 0..64 {
+            for variant in [0, 1, 2, 8, 9, 10] {
+                let mut o = super::super::audit::fixture(ObjectKind::FloorOutlet, seed);
+                o.variant = variant;
+                // The geometry audit fixture intentionally fixes appearance.
+                // This test explicitly varies the independent finish input.
+                o.finish_seed = Some(seed);
+                let p = parameters(&o);
+                combinations.insert((variant, format!("{:?}", p.outlet_finish)));
+                let a = super::super::build_object(&o);
+                super::super::audit::check(&o, &a).unwrap();
+                let port = port_local(&o);
+                let points = |a: Assembly| {
+                    let mut p: Vec<_> = a.parts.into_values().flat_map(|g| g.positions).collect();
+                    p.sort_by(|a, b| {
+                        a[0].total_cmp(&b[0])
+                            .then(a[1].total_cmp(&b[1]))
+                            .then(a[2].total_cmp(&b[2]))
+                    });
+                    p
+                };
+                o.finish_seed = Some(99);
+                assert_eq!(port, port_local(&o));
+                assert_eq!(points(a), points(super::super::build_object(&o)));
+            }
+        }
+        assert_eq!(combinations.len(), 18);
+    }
 }

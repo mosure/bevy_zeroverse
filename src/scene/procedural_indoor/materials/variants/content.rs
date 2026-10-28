@@ -6,6 +6,7 @@ enum Prepared {
     Screen(Box<screens::PreparedScreen>),
     Board(Box<boards::PreparedBoard>),
     Art(u64, Box<[Image; 3]>),
+    Paper(u64, Box<Image>),
 }
 
 impl Prepared {
@@ -21,6 +22,7 @@ impl Prepared {
             }
             Surface::Whiteboard => Self::Board(Box::new(boards::prepare(seed))),
             Surface::Art => Self::Art(seed, Box::new(art::maps(seed))),
+            Surface::PrintedPaper => Self::Paper(seed, Box::new(paper::prepare(seed))),
             _ => unreachable!("content jobs only synthesize supported surfaces"),
         }
     }
@@ -30,6 +32,7 @@ impl Prepared {
             Self::Screen(prepared) => prepared.apply(mat, images),
             Self::Board(prepared) => prepared.apply(mat, images),
             Self::Art(seed, maps) => art::apply_prepared(seed, *maps, mat, images),
+            Self::Paper(seed, map) => paper::apply_prepared(seed, *map, mat, images),
         }
     }
 }
@@ -65,6 +68,7 @@ pub(super) fn queue(
         Surface::Television,
         Surface::Whiteboard,
         Surface::Art,
+        Surface::PrintedPaper,
     ]
     .into_iter()
     .flat_map(|surface| {
@@ -122,6 +126,10 @@ pub(in super::super) fn assert_materials_equal(
         (a.base_color_texture.take(), b.base_color_texture.take()),
         (a.normal_map_texture.take(), b.normal_map_texture.take()),
         (
+            a.clearcoat_normal_texture.take(),
+            b.clearcoat_normal_texture.take(),
+        ),
+        (
             a.metallic_roughness_texture.take(),
             b.metallic_roughness_texture.take(),
         ),
@@ -158,11 +166,12 @@ mod tests {
                 Surface::Television,
                 Surface::Whiteboard,
                 Surface::Art,
+                Surface::PrintedPaper,
             ];
             let used = surfaces
                 .into_iter()
                 .enumerate()
-                .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1][i]))
+                .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1, COUNT - 1][i]))
                 .collect();
             let mut jobs = queue(seed, Some(&used));
             assert_eq!(jobs.len(), surfaces.len());
@@ -183,6 +192,7 @@ mod tests {
                     Surface::Television => screens::apply_tv(content_seed, &mut a, &mut ia),
                     Surface::Whiteboard => boards::apply(content_seed, &mut a, &mut ia),
                     Surface::Art => art::apply(content_seed, &mut a, &mut ia),
+                    Surface::PrintedPaper => paper::apply(content_seed, &mut a, &mut ia),
                     _ => unreachable!(),
                 }
                 bevy::tasks::block_on(

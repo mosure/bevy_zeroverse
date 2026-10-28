@@ -93,9 +93,30 @@ fn audit(job: &Job, args: &Args) -> Result<Value> {
             | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::CoffeeTable))
             .map(|s| json!({"id":s.id,"kind":s.kind,"size":s.size,"position":s.position,"yaw":s.yaw,
                 "program":bevy_zeroverse::scene::procedural_indoor::items::composition::parameters(&manifest,s),
+                "item_prior":bevy_zeroverse::scene::procedural_indoor::items::parameters(&manifest,s),
                 "items":manifest.objects.iter().filter(|o|o.support==Some(s.id)).collect::<Vec<_>>()})).collect::<Vec<_>>(),
         "bags": manifest.objects.iter().filter(|o|o.kind==bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Bag)
             .map(|o|json!({"object":o,"program":bevy_zeroverse::scene::procedural_indoor::objects::bags::parameters(o)})).collect::<Vec<_>>(),
+        "service_equipment": manifest.objects.iter().filter(|o| matches!(o.kind,
+            bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::PowerStrip
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::CoffeeMaker
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::DrinkDispenser))
+            .map(|o|json!({"object":o,"program":bevy_zeroverse::scene::procedural_indoor::objects::audit::program(o),
+                "support":o.support.and_then(|id|manifest.objects.iter().find(|s|s.id==id))})).collect::<Vec<_>>(),
+        "kitchen_fittings": manifest.objects.iter().filter(|o| !o.neighbor && matches!(o.kind,
+            bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::KitchenSink
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Dishwasher
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Oven
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Range))
+            .map(|o| json!({"object":o,"program":bevy_zeroverse::scene::procedural_indoor::objects::audit::program(o)})).collect::<Vec<_>>(),
+        "amenities": manifest.objects.iter().filter(|o| matches!(o.kind,
+            bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::DrawerUnit
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::SideTable
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::MobileCart
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Bench
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::RoomDivider
+            | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::Ottoman))
+            .map(|o|json!({"object":o,"program":bevy_zeroverse::scene::procedural_indoor::objects::audit::program(o)})).collect::<Vec<_>>(),
         "room_services": manifest.objects.iter().filter(|o| matches!(o.kind,
             bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::FireAlarm
             | bevy_zeroverse::scene::procedural_indoor::layout::ObjectKind::FireDetector

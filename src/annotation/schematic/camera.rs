@@ -37,14 +37,11 @@ pub(crate) struct CameraGizmo {
     pub fisheye: bool,
     pub label: String,
     pub caption: String,
+    pub scale: f32,
 }
 impl CameraGizmo {
     pub fn marker_radius(&self) -> f32 {
-        if self.fisheye {
-            7.
-        } else {
-            5.
-        }
+        self.scale * if self.fisheye { 7. } else { 5. }
     }
     pub fn lens_name(&self) -> &'static str {
         if self.fisheye {
@@ -83,6 +80,7 @@ pub(crate) fn camera_gizmo(c: &Camera, length: f32) -> Result<CameraGizmo, Strin
         fisheye: lens.is_some(),
         caption: label.clone(),
         label,
+        scale: 1.,
     })
 }
 
@@ -96,7 +94,16 @@ pub(crate) fn camera_presentation(
     options: &RenderOptions,
 ) -> Result<CameraGizmo, String> {
     let mut gizmo = camera_gizmo(c, options.frustum_length)?;
+    let display_scale = crate::camera::gizmo::scale::validate(options.camera_gizmo_scale)?;
+    gizmo.scale = display_scale;
     if options.camera_frustums {
+        let origin = Vec3::from_array(gizmo.origin);
+        for point in &mut gizmo.footprint {
+            let p = origin.xz() + (Vec3::from_array(*point).xz() - origin.xz()) * display_scale;
+            *point = [p.x, 0., p.y];
+        }
+        gizmo.axis_end =
+            (origin + (Vec3::from_array(gizmo.axis_end) - origin) * display_scale).to_array();
         return Ok(gizmo);
     }
     let origin = Vec3::from_array(gizmo.origin);
@@ -108,7 +115,7 @@ pub(crate) fn camera_presentation(
         .fold(0.0_f32, f32::max);
     let pixels = (options.width.min(options.height) as f32 * 0.025).clamp(10., 24.);
     let radius = (pixels / projection.pixels_per_metre).min(0.35);
-    let scale = (radius / extent.max(1e-6)).min(1.);
+    let scale = (radius / extent.max(1e-6)).min(1.) * display_scale;
     for point in &mut gizmo.footprint {
         let p = origin.xz() + (Vec3::from_array(*point).xz() - origin.xz()) * scale;
         *point = [p.x, 0., p.y];

@@ -102,11 +102,12 @@ pub fn draw_camera_gizmo(
         let pose = global.compute_transform();
         // Camera glyph scale is presentation-only, independent of scene-root scale.
         let matrix = Mat4::from_rotation_translation(pose.rotation, pose.translation);
-        let radius = display_radius(
+        let radius = display_radius_scaled(
             editor_projection,
             view_from_world,
             viewport,
             pose.translation,
+            args.camera_gizmo_scale,
         );
         let color = color(index).with_alpha(alpha);
         draw(&mut gizmos, &outlines[&entity].1, matrix, radius, color);
@@ -149,7 +150,13 @@ pub fn draw_camera_gizmo(
             let origin = matrix.transform_point3(Vec3::ZERO);
             let index = color_index(&camera.label, fallback);
             let color = color(index).with_alpha(alpha);
-            let radius = display_radius(editor_projection, view_from_world, viewport, origin);
+            let radius = display_radius_scaled(
+                editor_projection,
+                view_from_world,
+                viewport,
+                origin,
+                args.camera_gizmo_scale,
+            );
             draw(
                 &mut predicted,
                 &prediction_outlines[&fallback].1,

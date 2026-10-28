@@ -61,6 +61,10 @@ struct Cli {
     #[arg(long)]
     schematic: bool,
 
+    /// Schematic camera glyph size multiplier (0.1..=4); no change to capture optics.
+    #[arg(long, default_value = "1", value_parser = bevy_zeroverse::camera::gizmo::scale::parse)]
+    schematic_camera_gizmo_scale: f32,
+
     /// Output directory for generated data
     #[arg(short, long)]
     output: PathBuf,
@@ -442,7 +446,9 @@ fn main() -> Result<()> {
                     cmd.env("GLIBC_TUNABLES", "glibc.cpu.x86_non_temporal_threshold=32768:glibc.cpu.x86_rep_movsb_threshold=1073741824");
                 }
                 if cli.schematic {
-                    cmd.arg("--schematic");
+                    cmd.arg("--schematic")
+                        .arg("--schematic-camera-gizmo-scale")
+                        .arg(cli.schematic_camera_gizmo_scale.to_string());
                 }
                 cmd.arg("--output")
                     .arg(&cli.output)
@@ -667,6 +673,7 @@ fn main() -> Result<()> {
         enable_ui,
         write_mode,
         export_schematic: cli.schematic,
+        schematic_camera_gizmo_scale: cli.schematic_camera_gizmo_scale,
         export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
@@ -826,6 +833,8 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         return Ok(());
     }
     bevy_zeroverse_burn::generator::validate_gen_config(&GenConfig {
+        export_schematic: cli.schematic,
+        schematic_camera_gizmo_scale: cli.schematic_camera_gizmo_scale,
         workers: if cli.per_process { 1 } else { cli.workers },
         chunk_size: cli.chunk_size,
         width: cli.width,
@@ -885,7 +894,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
     let base_seed = *cli.seed.get_or_insert_with(rand::random);
     let mut gi_settings = bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default();
     gi_settings.bake.rays_per_probe = cli.indoor_gi_rays;
-    let spec = serde_json::json!({
+    let mut spec = serde_json::json!({
         "schema_version": 1,
         "generator_version": bevy_zeroverse::scene::procedural_indoor::layout::GENERATOR_VERSION,
         "capture_engine": bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,
@@ -933,6 +942,11 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "ovoxel_resolution": cli.ov_resolution,
         "ovoxel_max_output_voxels": cli.ov_max_output_voxels,
     });
+    // Preserve resumability of existing default-size exports. This option has
+    // no effect when sidecars are disabled; non-default exported sizes are locked.
+    if cli.schematic && cli.schematic_camera_gizmo_scale != 1. {
+        spec["schematic_camera_gizmo_scale"] = cli.schematic_camera_gizmo_scale.into();
+    }
     if let Some(previous) = previous {
         verify_generation_contract(&previous, &spec)?;
     } else {
@@ -1031,6 +1045,28 @@ fn send_progress(
 #[cfg(test)]
 mod process_limit_tests {
     use super::*;
+
+    #[test]
+    fn schematic_gizmo_scale_cli_rejects_invalid_sizes() {
+        assert_eq!(indoor(&[]).schematic_camera_gizmo_scale, 1.);
+        assert_eq!(
+            indoor(&["--schematic", "--schematic-camera-gizmo-scale", "0.5"])
+                .schematic_camera_gizmo_scale,
+            0.5
+        );
+        for value in ["0", "0.09", "4.1", "NaN", "inf"] {
+            assert!(
+                Cli::try_parse_from([
+                    "zeroverse_gen",
+                    "--output",
+                    "unused",
+                    "--schematic-camera-gizmo-scale",
+                    value
+                ])
+                .is_err()
+            );
+        }
+    }
 
     #[test]
     fn indoor_cli_defaults_to_four_connected_views_and_preserves_explicit_counts() {

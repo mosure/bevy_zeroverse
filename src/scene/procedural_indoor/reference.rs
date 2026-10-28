@@ -167,6 +167,8 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
                 "unlit":m.unlit,"uv_matrix":[uv.matrix2.x_axis.to_array(),uv.matrix2.y_axis.to_array(),uv.translation.to_array()],
                 "base_color_texture":texture(&m.base_color_texture)?,
                 "normal_map_texture":texture(&m.normal_map_texture)?,
+                "clearcoat":m.clearcoat,"clearcoat_roughness":m.clearcoat_perceptual_roughness,
+                "clearcoat_normal_texture":texture(&m.clearcoat_normal_texture)?,
                 "metallic_roughness_texture":texture(&m.metallic_roughness_texture)?,
                 "emissive_texture":texture(&m.emissive_texture)?,
             }));

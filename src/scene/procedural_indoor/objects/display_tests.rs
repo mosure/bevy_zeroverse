@@ -5,13 +5,13 @@ use crate::scene::procedural_indoor::placement::{rotated_half, Footprint};
 fn phone_covers_and_camera_islands_follow_the_rounded_case() {
     for seed in 0..256 {
         let o = audit::fixture(ObjectKind::Phone, seed);
-        let p = super::super::clutter::tabletop::parameters(&o);
-        let body = o.size.y * p.case_fraction;
+        let p = super::super::clutter::tabletop::phone::parameters(&o);
+        let body = p.body_height;
         for g in build_object(&o).parts.values() {
             for v in &g.positions {
                 if v[1] > body + 1e-6 {
-                    let boundary = (v[0].abs() / (o.size.x * 0.475)).powf(p.phone_roundness)
-                        + (v[2].abs() / (o.size.z * 0.475)).powf(p.phone_roundness);
+                    let boundary = (v[0].abs() / (p.span.x * 0.49)).powf(p.roundness)
+                        + (v[2].abs() / (p.span.y * 0.49)).powf(p.roundness);
                     assert!(boundary <= 1.0001, "phone {seed}: {v:?}; {boundary}");
                 }
             }

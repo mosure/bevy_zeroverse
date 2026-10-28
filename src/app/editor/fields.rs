@@ -140,6 +140,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             _ => true,
         });
         append_to_section(&mut v, "view.preview", Item::Note("All capture cameras and human joints are shown. Furnishings use oriented bounds; ceilings and neighboring rooms are omitted. Camera predictions match the C-index color and use dashed lines; other predictions use magenta.".into()));
+        append_to_section(&mut v, "view.preview", num("/schematic_camera_gizmo_scale", "Camera glyph size · schematic", 0.1, 4., 0.05, "1× is the default. Scales capture and prediction glyphs immediately; room dimensions, paths and calibration stay unchanged."));
     }
     if indoor && state.view.page == Page::Cameras && !d["indoor_camera"]["ceiling_mount"].is_null()
     {

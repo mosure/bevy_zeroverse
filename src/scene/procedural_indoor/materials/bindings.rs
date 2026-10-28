@@ -84,14 +84,22 @@ impl IndoorMaterials {
                 selection.direct_surfaces.insert(surface);
             }
         }
-        Self::build_with_selection(
+        let mut result = Self::build_with_selection(
             scene,
             super::super::IndoorQuality::Auto,
             images,
             materials,
             Some(&selection),
             false,
-        )
+        );
+        // Internal staged preparation supplies its transport/environment later.
+        // This public standalone helper must return usable cubemaps, like build;
+        // the default image handles resolve to D2 textures and cannot be bound
+        // as an EnvironmentMapLight on a camera.
+        let transport =
+            super::super::gi::BakeScene::from_manifest(scene, &result, materials, images);
+        result.build_environment(scene, &transport, images);
+        result
     }
 
     pub fn get(&self, surface: Surface) -> Handle<StandardMaterial> {
@@ -401,6 +409,7 @@ impl IndoorMaterials {
                 }
                 _ => (),
             }
+            response::conformal_coat(&mut mat);
             handles.push(materials.add(mat));
             if cooperative {
                 super::super::preparation::cooperate().await;
@@ -467,6 +476,7 @@ impl IndoorMaterials {
             selection.map(|s| &s.finishes),
         ));
         variants.extend(signals::build(scene, materials, selection));
+        variants.extend(supplies::build(scene, &handles, materials, selection));
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -614,6 +624,7 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
     (variants::supports(surface) && slot < variants::count(surface))
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
+        || supplies::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)

@@ -1,6 +1,6 @@
 //! Bounded actual-renderer check of editor glyphs; no generated rooms/models.
 //! Supports software Vulkan: VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-//! cargo run --example review_camera_gizmos -- 12
+//! cargo run --example review_camera_gizmos -- 12 --predictions --scale 0.5
 use bevy::{
     app::ScheduleRunnerPlugin,
     camera::{visibility::RenderLayers, RenderTarget},
@@ -14,7 +14,9 @@ use bevy::{
     winit::WinitPlugin,
 };
 use bevy_zeroverse::{
-    annotation::schematic::{Camera as PredictedCamera, Overlay},
+    annotation::schematic::{
+        Camera as PredictedCamera, Footprint, FootprintKind, Overlay, RenderOptions, Schematic,
+    },
     app::{editor::schematic::Predictions, BevyZeroverseConfig},
     camera::{
         gizmo,
@@ -22,21 +24,48 @@ use bevy_zeroverse::{
         CaptureCameraIndex, EditorCameraGizmoConfigGroup, EditorCameraMarker, ZeroverseCamera,
     },
 };
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    #[arg(default_value_t = 12)]
+    count: usize,
+    #[arg(long)]
+    predictions: bool,
+    #[arg(long, default_value = "1", value_parser = gizmo::scale::parse)]
+    scale: f32,
+    #[arg(long, default_value = "out/editor_camera_gizmos")]
+    output: std::path::PathBuf,
+}
 
 #[derive(Resource)]
 struct Review {
     count: usize,
     predictions: bool,
+    scale: f32,
+    output: std::path::PathBuf,
     image: Handle<Image>,
     frames: u32,
 }
+impl Review {
+    fn path(&self, prefix: &str) -> std::path::PathBuf {
+        self.output.join(format!(
+            "{prefix}-{}{}{}",
+            self.count,
+            if self.predictions { "-predictions" } else { "" },
+            if self.scale == 1. {
+                String::new()
+            } else {
+                format!("-scale-{:03}", (self.scale * 100.).round() as u32)
+            }
+        ))
+    }
+}
 
 fn main() {
-    let count = std::env::args()
-        .nth(1)
-        .map_or(12, |s| s.parse::<usize>().unwrap())
-        .clamp(1, 16);
-    std::fs::create_dir_all("out/editor_camera_gizmos").unwrap();
+    let args = Args::parse();
+    let count = args.count.clamp(1, 16);
+    std::fs::create_dir_all(&args.output).unwrap();
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -55,13 +84,16 @@ fn main() {
         .insert_resource(BevyZeroverseConfig {
             gizmos: true,
             gizmos_alpha: 1.,
+            camera_gizmo_scale: args.scale,
             camera_grid: false,
             room_schematic: false,
             ..default()
         })
         .insert_resource(Review {
             count,
-            predictions: std::env::args().any(|a| a == "--predictions"),
+            predictions: args.predictions,
+            scale: args.scale,
+            output: args.output,
             image: default(),
             frames: 0,
         })
@@ -130,6 +162,38 @@ fn setup(
         }
     }
     let mut predictions = Overlay::default();
+    let mut plan = Schematic {
+        schema_version: 1,
+        seed: 401,
+        trajectory_progress: 0.,
+        time_seconds: Some(0.),
+        footprints: vec![
+            Footprint {
+                label: "Floor".into(),
+                instance_id: None,
+                kind: FootprintKind::Floor,
+                points: vec![
+                    [-3.5, 0., -3.5],
+                    [3.5, 0., -3.5],
+                    [3.5, 0., 3.5],
+                    [-3.5, 0., 3.5],
+                ],
+            },
+            Footprint {
+                label: "Table".into(),
+                instance_id: None,
+                kind: FootprintKind::Furniture,
+                points: vec![
+                    [-0.9, 0., -0.6],
+                    [0.9, 0., -0.6],
+                    [0.9, 0., 0.6],
+                    [-0.9, 0., 0.6],
+                ],
+            },
+        ],
+        cameras: vec![],
+        poses: vec![],
+    };
     for id in 0..review.count {
         let phi = id as f32 * std::f32::consts::TAU / review.count as f32;
         let ceiling = id % 3 == 2;
@@ -173,6 +237,15 @@ fn setup(
             Some(lens)
         };
         let calibration = lens::calibration(&projection, fisheye, Vec2::ZERO, [512, 512]).unwrap();
+        plan.cameras.push(PredictedCamera {
+            label: format!("C{id}"),
+            world_from_view: pose.to_matrix().to_cols_array_2d(),
+            fov_y: 1.,
+            aspect: 1.,
+            principal_point_offset: None,
+            calibration: Some(calibration.clone()),
+            path: vec![],
+        });
         commands.spawn((
             Camera3d::default(),
             Camera {
@@ -205,6 +278,17 @@ fn setup(
     if !review.predictions {
         predictions.cameras.clear();
     }
+    plan.write(
+        review.path("schematic"),
+        RenderOptions {
+            width: 800,
+            height: 800,
+            camera_gizmo_scale: review.scale,
+            ..default()
+        },
+        predictions.clone(),
+    )
+    .unwrap();
     commands.insert_resource(Predictions(predictions));
 }
 
@@ -213,15 +297,7 @@ fn capture(mut commands: Commands, mut review: ResMut<Review>, mut exit: Message
     if review.frames == 60 {
         commands
             .spawn(Screenshot::image(review.image.clone()))
-            .observe(save_to_disk(format!(
-                "out/editor_camera_gizmos/editor-{}{}.png",
-                review.count,
-                if review.predictions {
-                    "-predictions"
-                } else {
-                    ""
-                }
-            )))
+            .observe(save_to_disk(review.path("editor").with_extension("png")))
             .observe(
                 |_: On<ScreenshotCaptured>, mut exit: MessageWriter<AppExit>| {
                     exit.write(AppExit::Success);

@@ -298,7 +298,7 @@ pub(super) fn moving(
                         false,
                     );
                 }
-                d.dot(origin, 2.5, c);
+                d.dot(origin, 2.5 * gizmo.scale, c);
             } else {
                 d.dot(origin, radius + 0.7, Color::WHITE);
                 d.dot(origin, radius, c);
@@ -345,6 +345,30 @@ mod tests {
         };
         let options = RenderOptions::default();
         let d = moving(&plan, &options, &overlay).unwrap();
+        let bigger = RenderOptions {
+            camera_gizmo_scale: 2.,
+            ..options
+        };
+        let scaled = moving(&plan, &bigger, &overlay).unwrap();
+        let palette = |drawing: &Drawing| {
+            drawing
+                .colors
+                .iter()
+                .map(|c| c.map(f32::to_bits))
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        assert_eq!(
+            palette(&d),
+            palette(&scaled),
+            "colors are independent of scale"
+        );
+        // Pixel-sized dashes add segments as their display length grows.
+        assert!(scaled.points.len() < d.points.len() * 3);
+        assert_ne!(d.points, scaled.points);
+        assert_eq!(
+            background(&plan, &options, &overlay).unwrap().points,
+            background(&plan, &bigger, &overlay).unwrap().points
+        );
         assert!(d.points.iter().flatten().all(|v| v.is_finite()));
         for label in ["C0", "C1", "Pred C1"] {
             assert!(d.labels.iter().any(|l| l.text == label), "{label}");

@@ -370,8 +370,8 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
                 labels.iter().map(|(s, l)| (*s, l.as_str())),
             );
             if environment.is_none() {
-                // The palette's environment handles are placeholders until the
-                // room probe bake runs. A studio uses a fixed calibrated cube.
+                // Use a fixed calibrated studio cube instead of the palette's
+                // scene-derived environment so swatches share illumination.
                 use bevy::{
                     asset::RenderAssetUsages,
                     render::render_resource::{

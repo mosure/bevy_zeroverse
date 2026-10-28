@@ -1,8 +1,14 @@
-//! Actual worktop holes, inset basins, independent taps and washing accessories.
+//! Shared washing-station construction and fitted accessory poses.
 use super::*;
+mod basin;
+pub mod program;
+#[cfg(test)]
+mod tests;
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
+    let plan = program::parameters(o, p);
+    let top = plan.worktop_m;
     let s = o.size;
-    let top = s.y * 0.69;
     let (d, z) = body(o, p);
     cabinet::open_shell(
         a,
@@ -28,17 +34,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         p,
         "cabinet",
     );
-    let width = if p.draining_board {
-        s.x * 0.59
-    } else {
-        s.x * 0.78
-    };
-    let cx = if p.draining_board { -s.x * 0.105 } else { 0. };
-    let depth = d * 0.58;
-    let cz = z + d * 0.035;
-    let lo = Vec2::new(cx - width * 0.5, cz - depth * 0.5);
-    let hi = Vec2::new(cx + width * 0.5, cz + depth * 0.5);
-    // Four disjoint slabs replace the countertop around the rectangular aperture.
+    let lo = plan.aperture_min;
+    let hi = plan.aperture_max;
     for (x0, x1, z0, z1) in [
         (-s.x * 0.5, lo.x, z - d * 0.5, z + d * 0.5),
         (hi.x, s.x * 0.5, z - d * 0.5, z + d * 0.5),
@@ -50,193 +47,78 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             "counter",
             Vec3::new((x0 + x1) * 0.5, top - 0.017, (z0 + z1) * 0.5),
             Vec3::new(x1 - x0, 0.034, z1 - z0),
-            0.002,
+            // These are regions of one slab. Bevelled shared edges create
+            // grooves under props even though the footprint is fully supported.
+            0.,
         );
     }
-    let floor = top - s.y * 0.16;
-    let material = if p.faucet.is_multiple_of(2) {
-        Surface::Metal
-    } else {
-        Surface::Ceramic
-    };
-    let wall = 0.016;
-    let unit = width / p.basins as f32;
-    for basin in 0..p.basins {
-        let x = lo.x + unit * (basin as f32 + 0.5);
-        a.box_part(
-            material,
-            "sink",
-            Vec3::new(x, floor, cz),
-            Vec3::new(unit, 0.014, depth),
-            0.006,
-        );
-        for side in [-1., 1.] {
-            a.box_part(
-                material,
-                "sink",
-                Vec3::new(x + side * (unit - wall) * 0.5, (top + floor) * 0.5, cz),
-                Vec3::new(wall, top - floor, depth),
-                0.006,
-            );
-            a.box_part(
-                material,
-                "sink",
-                Vec3::new(x, (top + floor) * 0.5, cz + side * (depth - wall) * 0.5),
-                Vec3::new(unit - 2. * wall, top - floor, wall),
-                0.006,
-            );
-        }
-        // Drain is above the bowl floor, not coplanar with it.
-        a.part(Surface::Chrome, "sink").cylinder(
-            unit.min(depth) * 0.065,
-            0.004,
-            Transform::from_xyz(x, floor + 0.009, cz),
-        );
-        for k in -1..=1 {
-            a.box_part(
-                Surface::Ink,
-                "sink",
-                Vec3::new(x + k as f32 * 0.006, floor + 0.0115, cz),
-                Vec3::new(0.002, 0.001, 0.027),
-                0.0001,
-            );
-        }
-        if p.sink_dishes > 0 {
-            props::dish(
-                a,
-                Vec3::new(x, floor + 0.010, cz),
-                Vec3::new(unit * 0.70, (top - floor) * 0.66, depth * 0.68),
-                if basin == 0 { 0 } else { 1 },
-                p.sink_dishes,
-                o.seed ^ (0x53494e4b44495348 + basin as u64),
-            );
-        }
+    for bowl in &plan.basins {
+        basin::build(a, bowl, top, plan.basin_finish);
     }
-    for side in [-1., 1.] {
-        a.box_part(
-            material,
-            "sink",
-            Vec3::new(cx + side * width * 0.5, top + 0.003, cz),
-            Vec3::new(0.018, 0.006, depth + 0.026),
-            0.002,
-        );
-        a.box_part(
-            material,
-            "sink",
-            Vec3::new(cx, top + 0.003, cz + side * depth * 0.5),
-            Vec3::new(width - 0.018, 0.006, 0.018),
-            0.002,
+    for dish in &plan.dishes {
+        dishware::build(
+            a,
+            Transform::from_translation(dish.position)
+                .with_rotation(Quat::from_rotation_y(dish.yaw)),
+            &dish.dish,
+            dish.seed,
         );
     }
-    let mount = Vec3::new(cx, top + 0.008, z - d * 0.38);
-    let fh = s.y * if p.faucet == 2 { 0.15 } else { 0.23 };
-    let reach = d * 0.36;
-    let points = match p.faucet {
-        0 => (0..=20)
-            .map(|i| {
-                let t = i as f32 / 20.;
-                mount + Vec3::new(0., fh * (PI * t * 0.82).sin(), reach * t)
-            })
-            .collect::<Vec<_>>(),
-        1 => vec![
-            mount,
-            mount + Vec3::Y * fh,
-            mount + Vec3::new(0., fh, reach),
-            mount + Vec3::new(0., fh * 0.88, reach),
-        ],
-        2 => vec![
-            mount,
-            mount + Vec3::Y * fh * 0.65,
-            mount + Vec3::new(0., fh, reach * 0.8),
-            mount + Vec3::new(0., fh * 0.82, reach),
-        ],
-        _ => (0..=20)
-            .map(|i| {
-                let t = i as f32 / 20.;
-                mount
-                    + Vec3::new(
-                        (t * PI).sin() * s.x * 0.06,
-                        fh * (PI * t * 0.83).sin(),
-                        reach * t,
-                    )
-            })
-            .collect(),
-    };
-    pipe(a, Surface::Chrome, "faucet", &points, 0.012);
-    a.part(Surface::Chrome, "faucet")
-        .cylinder(0.026, 0.018, Transform::from_translation(mount));
-    let handle_count = if p.faucet_handles == 1 { 2 } else { 1 };
-    for i in 0..handle_count {
-        let h = mount + Vec3::new(if i == 0 { -0.075 } else { 0.075 }, 0., 0.);
-        a.part(Surface::Chrome, "faucet").cylinder(
-            0.018,
+    pipe(
+        a,
+        plan.faucet_finish,
+        "faucet",
+        &plan.faucet_points,
+        plan.faucet_radius_m,
+    );
+    a.part(plan.faucet_finish, "faucet").cylinder(
+        plan.faucet_radius_m * 2.0,
+        0.018,
+        Transform::from_translation(plan.mount),
+    );
+    for &h in &plan.handles {
+        a.part(plan.faucet_finish, "faucet").cylinder(
+            0.016,
             0.035,
             Transform::from_translation(h + Vec3::Y * 0.014),
         );
-        if p.faucet_handles == 1 {
-            pipe(
-                a,
-                Surface::Chrome,
-                "faucet",
-                &[
-                    h + Vec3::new(-0.025, 0.034, 0.),
-                    h + Vec3::new(0.025, 0.034, 0.),
-                ],
-                0.004,
-            );
-        } else if p.faucet_handles == 2 {
-            pipe(
-                a,
-                Surface::Chrome,
-                "faucet",
-                &[h + Vec3::Y * 0.034, h + Vec3::new(0.045, 0.034, 0.)],
-                0.007,
-            );
-        } else {
-            pipe(
-                a,
-                Surface::Chrome,
-                "faucet",
-                &[h + Vec3::Y * 0.03, h + Vec3::new(0., 0.075, 0.015)],
-                0.006,
-            );
+        let points = match p.faucet_handles {
+            1 => [
+                h + Vec3::new(-0.025, 0.034, 0.),
+                h + Vec3::new(0.025, 0.034, 0.),
+            ],
+            2 => [h + Vec3::Y * 0.034, h + Vec3::new(0.035, 0.034, 0.)],
+            _ => [h + Vec3::Y * 0.03, h + Vec3::new(0., 0.075, 0.015)],
+        };
+        pipe(a, plan.faucet_finish, "faucet", &points, 0.004);
+    }
+    for prop in &plan.accessories {
+        let mut child = Assembly::default();
+        match prop.kind {
+            ObjectKind::SoapDispenser => {
+                supplies::dispenser::build(&mut child, Vec3::ZERO, prop.size, prop.pump, prop.seed)
+            }
+            ObjectKind::Sponge => {
+                let mut obj = o.clone();
+                obj.kind = prop.kind;
+                obj.size = prop.size;
+                obj.seed = prop.seed;
+                supplies::sponge::build(&mut child, &obj);
+            }
+            ObjectKind::DryingRack => {
+                props::rack(&mut child, Vec3::ZERO, prop.size, p.sink_dishes, prop.seed)
+            }
+            _ => unreachable!(),
         }
-    }
-    let soap_size = Vec3::new(0.065, (s.y - top) * 0.44, 0.075);
-    if p.hand_soap {
-        super::supplies::dispenser::build(
-            a,
-            Vec3::new(-s.x * 0.405, top + 0.001, z - d * 0.35),
-            soap_size,
-            true,
-            o.seed ^ 0x534f415048414e44,
-        );
-    }
-    if p.dish_soap {
-        super::supplies::dispenser::build(
-            a,
-            Vec3::new(s.x * 0.405, top + 0.001, z - d * 0.35),
-            soap_size * Vec3::new(1., 1.10, 1.),
-            false,
-            o.seed ^ 0x534f415044495348,
-        );
-    }
-    if p.sponge {
-        a.box_part(
-            Surface::Fabric,
-            "cleaning_supply",
-            Vec3::new(s.x * 0.40, top + 0.013, z + d * 0.35),
-            Vec3::new(s.x * 0.10, 0.024, d * 0.13),
-            0.004,
-        );
-    }
-    if p.draining_board {
-        props::rack(
-            a,
-            Vec3::new(s.x * 0.35, top + 0.001, cz),
-            Vec3::new(s.x * 0.23, (s.y - top) * 0.58, depth * 0.82),
-            p.sink_dishes,
-            o.seed ^ 0x53494e4b5241434b,
-        );
+        let rotation = Quat::from_rotation_y(prop.yaw);
+        for ((surface, label), mut g) in child.parts {
+            for v in &mut g.positions {
+                *v = (rotation * Vec3::from_array(*v) + prop.position).to_array();
+            }
+            for n in &mut g.normals {
+                *n = (rotation * Vec3::from_array(*n)).to_array();
+            }
+            a.part(surface, &label).append(g);
+        }
     }
 }

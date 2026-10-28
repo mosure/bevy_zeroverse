@@ -77,9 +77,10 @@ fn camera(
         q[0], q[1]
     );
     if gizmo.fisheye {
+        let inner_radius = 2.5 * gizmo.scale;
         let _ = write!(
             s,
-            r##"<circle cx="{}" cy="{}" r="2.5" fill="{rgb}"/>"##,
+            r##"<circle cx="{}" cy="{}" r="{inner_radius}" fill="{rgb}"/>"##,
             q[0], q[1]
         );
     }

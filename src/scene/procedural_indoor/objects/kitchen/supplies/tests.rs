@@ -8,6 +8,7 @@ fn supplies_fit_metric_extremes_and_keep_semantics() {
         ObjectKind::KitchenTowel,
         ObjectKind::CuttingBoard,
         ObjectKind::SoapDispenser,
+        ObjectKind::Sponge,
         ObjectKind::KnifeBlock,
     ] {
         for seed in 0..64 {

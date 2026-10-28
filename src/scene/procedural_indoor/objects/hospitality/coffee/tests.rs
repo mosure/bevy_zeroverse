@@ -48,3 +48,40 @@ fn brewer_dimensions_follow_the_constructed_machine_family() {
         }
     }
 }
+
+#[test]
+fn brewer_controls_trays_and_carafes_sample_independently_of_finish() {
+    let mut control_layouts = std::collections::BTreeSet::new();
+    let mut trays = std::collections::BTreeSet::new();
+    let mut carafes = std::collections::BTreeSet::new();
+    for seed in 0..256 {
+        let mut o = audit::fixture(ObjectKind::CoffeeMaker, seed);
+        o.size = dimensions(seed);
+        let p = parameters(&o);
+        let a = objects::build_object(&o);
+        audit::check(&o, &a).unwrap_or_else(|e| panic!("{seed}: {e}"));
+        if matches!(p.brewer, Brewer::Espresso | Brewer::Automatic) {
+            control_layouts.insert((p.control_layout, p.controls));
+            assert!(p.panel_level - p.panel_height * 0.5 > 0.);
+            assert!(p.panel_level + p.panel_height * 0.5 < 1.);
+        }
+        if p.brewer == Brewer::Filter {
+            carafes.insert((
+                (p.carafe_radius * 1000.) as u32,
+                (p.carafe_height * 1000.) as u32,
+                p.handle_side as i32,
+            ));
+        } else {
+            trays.insert((p.grille_count, p.grille_crosswise));
+        }
+        o.finish_seed = Some(714);
+        let alt = parameters(&o);
+        assert_eq!(p.brewer, alt.brewer);
+        assert_eq!(p.control_layout, alt.control_layout);
+        assert_eq!(p.tray_depth, alt.tray_depth);
+        assert_eq!(p.carafe_height, alt.carafe_height);
+    }
+    assert_eq!(control_layouts.len(), 12);
+    assert_eq!(trays.len(), 16);
+    assert!(carafes.len() > 40);
+}

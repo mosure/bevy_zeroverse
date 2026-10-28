@@ -4,6 +4,8 @@ pub mod appearance;
 pub(crate) mod body;
 pub mod contact;
 mod face;
+#[cfg(test)]
+mod floor_clearance_tests;
 pub mod footwear;
 pub mod garments;
 pub mod hair;

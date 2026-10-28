@@ -89,9 +89,10 @@ pub fn construction(o: &IndoorObject) -> String {
         ObjectKind::DrawerUnit => {
             let p = drawers::parameters(o);
             format!(
-                "drawers/{:?}/{}-drawers/base={}/hardware={}/profile={}",
+                "drawers/{:?}/{}-drawers/{}-banks/base={}/hardware={}/profile={}",
                 p.front,
                 p.weights.len(),
+                p.banks.len(),
                 p.base,
                 p.hardware,
                 p.profile

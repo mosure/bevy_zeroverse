@@ -135,25 +135,34 @@ pub struct ProgramAssembly {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CapacityUnit {
+    /// Individual chairs only. Retained for teaching programs and old receipts.
     ChairStations,
     DisplayStations,
     ElevatorCars,
+    /// One station per chair or banquette, conservatively counting a shared
+    /// bench once instead of estimating how many people fit along its length.
+    SeatingStations,
 }
 impl ProgramAssembly {
+    fn counts_toward_capacity(&self, object: &IndoorObject) -> bool {
+        match self.capacity_unit {
+            CapacityUnit::ChairStations => object.kind == ObjectKind::Chair,
+            CapacityUnit::SeatingStations => {
+                matches!(object.kind, ObjectKind::Chair | ObjectKind::Banquette)
+            }
+            CapacityUnit::DisplayStations => matches!(
+                object.kind,
+                ObjectKind::ExhibitPlinth | ObjectKind::ExhibitionPanel | ObjectKind::DisplayCase
+            ),
+            CapacityUnit::ElevatorCars => object.kind == ObjectKind::Elevator,
+        }
+    }
+
     pub fn realized_capacity(&self, objects: &[IndoorObject]) -> usize {
         self.members
             .iter()
             .filter_map(|&id| objects.get(id))
-            .filter(|o| match self.capacity_unit {
-                CapacityUnit::ChairStations => o.kind == ObjectKind::Chair,
-                CapacityUnit::DisplayStations => matches!(
-                    o.kind,
-                    ObjectKind::ExhibitPlinth
-                        | ObjectKind::ExhibitionPanel
-                        | ObjectKind::DisplayCase
-                ),
-                CapacityUnit::ElevatorCars => o.kind == ObjectKind::Elevator,
-            })
+            .filter(|o| self.counts_toward_capacity(o))
             .count()
     }
 }

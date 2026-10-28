@@ -1,6 +1,64 @@
 use super::*;
 use crate::calibration::{Fisheye, FisheyeFit};
 
+#[test]
+fn schematic_gizmo_scale_changes_only_display_geometry_for_all_lenses() {
+    let mut cameras: Vec<_> = [
+        FisheyeFit::Circular,
+        FisheyeFit::Diagonal,
+        FisheyeFit::Elliptical,
+    ]
+    .into_iter()
+    .map(|fit| angular(210., fit))
+    .collect();
+    let mut pinhole = cameras[0].clone();
+    pinhole.calibration = None;
+    pinhole.fov_y = 150_f32.to_radians();
+    cameras.push(pinhole);
+    let projection = Projection {
+        schema_version: 1,
+        image_size: [768, 768],
+        pixels_per_metre: 120.,
+        offset: [384., 384.],
+    };
+    for mut c in cameras {
+        for ceiling in [false, true] {
+            let mut pose = Transform::from_xyz(2., 2.5, 3.);
+            if ceiling {
+                pose = pose.looking_to(Vec3::NEG_Y, Vec3::Z);
+            }
+            c.world_from_view = pose.to_matrix().to_cols_array_2d();
+            c.path = vec![[2., 2.5, 3.], [3., 2.5, 3.]];
+            let before = c.clone();
+            for camera_frustums in [false, true] {
+                let options = RenderOptions {
+                    camera_frustums,
+                    ..Default::default()
+                };
+                let base = camera_presentation(&c, &projection, &options).unwrap();
+                let origin = Vec3::from_array(base.origin);
+                for scale in [0.1, 0.5, 2., 4.] {
+                    let options = RenderOptions {
+                        camera_gizmo_scale: scale,
+                        ..options
+                    };
+                    let g = camera_presentation(&c, &projection, &options).unwrap();
+                    assert_eq!(g.origin, base.origin);
+                    assert!((g.marker_radius() - base.marker_radius() * scale).abs() < 1e-6);
+                    for (a, b) in base.footprint.iter().zip(&g.footprint) {
+                        let expected =
+                            origin.xz() + (Vec3::from_array(*a).xz() - origin.xz()) * scale;
+                        assert!(expected.distance(Vec3::from_array(*b).xz()) < 1e-4);
+                    }
+                    let axis = origin + (Vec3::from_array(base.axis_end) - origin) * scale;
+                    assert!(axis.distance(Vec3::from_array(g.axis_end)) < 1e-4);
+                }
+                assert_eq!(c, before);
+            }
+        }
+    }
+}
+
 fn angular(degrees: f32, fit: FisheyeFit) -> Camera {
     Camera {
         label: "C0".into(),
@@ -182,6 +240,8 @@ fn compact_symbols_bound_wide_lenses_without_changing_calibration() {
 fn old_render_options_default_to_compact_symbols() {
     let mut json = serde_json::to_value(RenderOptions::default()).unwrap();
     json.as_object_mut().unwrap().remove("camera_frustums");
+    json.as_object_mut().unwrap().remove("camera_gizmo_scale");
     let restored: RenderOptions = serde_json::from_value(json).unwrap();
     assert!(!restored.camera_frustums);
+    assert_eq!(restored.camera_gizmo_scale, 1.);
 }

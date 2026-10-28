@@ -31,7 +31,7 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample) {
         l.nap = p.mix([0.02, 0.05, 0.92, 0.0]) * (1. - l.polish).powi(2);
         l.coat = p.mix([0.08, 0.24, 0., 0.85]) * (1. - l.nap);
         r.period_m = p.mix([0.085, 0.13, 0.06, 0.095]) * p.scale;
-        r.relief_m = p.mix([0.000035, 0.00010, 0.000055, 0.000015]);
+        r.relief_m = p.mix([0.000055, 0.00028, 0.000075, 0.000018]);
         r.roughness = (0.52 - l.polish * 0.28 + l.nap * 0.35).clamp(0.20, 0.94);
         return;
     }

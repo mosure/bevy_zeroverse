@@ -1,4 +1,5 @@
 use super::*;
+mod capacity;
 #[test]
 fn public_suites_realize_diverse_complete_adjacencies() {
     let mut pairs = std::collections::BTreeSet::new();

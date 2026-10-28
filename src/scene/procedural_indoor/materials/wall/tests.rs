@@ -73,7 +73,10 @@ fn patterned_coverings_are_not_bound_to_ceiling_services_or_fittings() {
                             .sum::<Vec3>()
                             / 3.;
                         let normal = Vec3::from(g.normals[t[0] as usize]);
-                        assert!(normal.y.abs() < 1e-5, "covering on a reveal/cap");
+                        assert!(
+                            normal.y.abs() < 1e-5,
+                            "covering on a reveal/cap: seed {seed}, {label}, normal {normal}, center {center}"
+                        );
                         assert!(
                             crate::scene::procedural_indoor::envelope::polygon::contains(
                                 &envelope.footprint,

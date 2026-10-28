@@ -17,6 +17,7 @@ pub(super) fn knit(
         base_color_texture: Some(maps[0].clone()),
         normal_map_texture: Some(maps[1].clone()),
         metallic_roughness_texture: Some(maps[2].clone()),
+        perceptual_roughness: 1.,
         occlusion_texture: Some(maps[2].clone()),
         uv_transform: bevy::math::Affine2::from_scale(recipe.period_uv().recip() * 2.),
         ..default()

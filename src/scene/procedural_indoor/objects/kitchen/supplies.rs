@@ -4,7 +4,9 @@ pub mod knives;
 use super::*;
 pub mod bread;
 pub mod dispenser;
+pub mod paper_towel;
 pub mod rack;
+pub mod sponge;
 #[cfg(test)]
 mod tests;
 pub mod utensils;
@@ -81,12 +83,22 @@ pub struct BoardProgram {
     pub handle: bool,
     pub edge_fraction: f32,
     pub finish: Surface,
+    pub body_scale: Vec2,
+    pub handle_offset: f32,
+    pub feet_fraction: f32,
 }
 pub fn board_parameters(o: &IndoorObject) -> BoardProgram {
     let mut r = stream(o.seed, 0x435554424f415244);
     BoardProgram {
+        body_scale: Vec2::new(r.random_range(0.74..1.), r.random_range(0.72..1.)),
+        handle_offset: r.random_range(-0.23..0.23),
+        feet_fraction: if r.random_bool(0.24) {
+            r.random_range(0.06..0.15)
+        } else {
+            0.
+        },
         roundness: r.random_range(2.0..10.),
-        body_fraction: r.random_range(0.68..0.86),
+        body_fraction: r.random_range(0.58..0.90),
         handle_width: r.random_range(0.17..0.36),
         handle: r.random_bool(0.40),
         edge_fraction: r.random_range(0.10..0.32),
@@ -100,21 +112,34 @@ pub fn board_parameters(o: &IndoorObject) -> BoardProgram {
 pub(super) fn board(a: &mut Assembly, o: &IndoorObject) {
     let p = board_parameters(o);
     let s = o.size;
-    let width = s.x * if p.handle { p.body_fraction } else { 1. };
-    let cx = (width - s.x) * 0.5;
-    let half = Vec2::new(width, s.z) * 0.5;
+    let width = s.x * p.body_scale.x * if p.handle { p.body_fraction } else { 1. };
+    let cx = if p.handle { (width - s.x) * 0.5 } else { 0. };
+    let half = Vec2::new(width, s.z * p.body_scale.y) * 0.5;
+    let bottom = s.y * p.feet_fraction;
     let edge = s.y * p.edge_fraction;
     let inset = Vec2::splat(edge).min(half * 0.05);
     a.part(p.finish, o.kind.class_name()).housing(
         &[
-            (0., half - inset),
-            (edge, half),
+            (bottom, half - inset),
+            (bottom + edge, half),
             (s.y - edge, half),
             (s.y, half - inset),
         ],
         p.roundness,
         Transform::from_xyz(cx, 0., 0.),
     );
+    if bottom > 0. {
+        for x in [-0.42, 0.42] {
+            for z in [-0.42, 0.42] {
+                a.part(Surface::Rubber, o.kind.class_name()).cylinder(
+                    (bottom * 1.1).min(half.min_element() * 0.10),
+                    bottom + 0.0002,
+                    Transform::from_xyz(cx + x * half.x, bottom * 0.5 + 0.0001, z * half.y),
+                );
+            }
+        }
+    }
+
     if p.handle {
         // A real attached end-grain handle, partly embedded in the board edge.
         let start = cx + width * 0.40;
@@ -122,9 +147,48 @@ pub(super) fn board(a: &mut Assembly, o: &IndoorObject) {
         a.box_part(
             p.finish,
             o.kind.class_name(),
-            Vec3::new((start + end) * 0.5, s.y * 0.5, 0.),
-            Vec3::new(end - start, s.y * 0.82, s.z * p.handle_width),
+            Vec3::new(
+                (start + end) * 0.5,
+                (s.y + bottom) * 0.5,
+                s.z * p.handle_offset * p.body_scale.y,
+            ),
+            Vec3::new(
+                end - start,
+                (s.y - bottom) * 0.82,
+                s.z * p.body_scale.y * p.handle_width,
+            ),
             edge.min(0.004),
         );
     }
+}
+
+/// Physical preparation surface excludes the handle and rounded edge corners.
+fn board_top(o: &IndoorObject) -> (Vec2, Vec2, f32) {
+    let p = board_parameters(o);
+    let width = o.size.x * p.body_scale.x * if p.handle { p.body_fraction } else { 1. };
+    let center = Vec2::new(
+        if p.handle {
+            (width - o.size.x) * 0.5
+        } else {
+            0.
+        },
+        0.,
+    );
+    let half = Vec2::new(width, o.size.z * p.body_scale.y) * 0.5;
+    let inset = Vec2::splat(o.size.y * p.edge_fraction).min(half * 0.05);
+    (center, half - inset, p.roundness)
+}
+pub fn board_top_bounds(o: &IndoorObject) -> (Vec2, Vec2) {
+    let (c, h, p) = board_top(o);
+    let h = h * 2_f32.powf(-1. / p);
+    (c - h, c + h)
+}
+pub(crate) fn board_supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
+    let (c, h, p) = board_top(o);
+    [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
+        .into_iter()
+        .all(|q| {
+            let v = ((q - c).abs() + Vec2::splat(margin)) / h;
+            v.x.powf(p) + v.y.powf(p) <= 1. + 1e-5
+        })
 }

@@ -103,3 +103,61 @@ pub(super) fn fascia_fraction(seed: u64) -> f32 {
 pub(crate) fn dishwasher_door_height(o: &IndoorObject) -> f32 {
     (o.size.y * (1. - fascia_fraction(o.seed)) - 0.075 - 0.024 - 0.012).max(0.10)
 }
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct OvenFront {
+    pub center_x: f32,
+    pub bottom_m: f32,
+    pub height_m: f32,
+    pub width_m: f32,
+}
+/// Does not call `body`: door travel uses these same measured fronts before
+/// expanding the object's occupied depth, including after worktop alignment.
+pub fn oven_fronts(o: &IndoorObject, p: &KitchenProgram) -> Vec<OvenFront> {
+    let mut r = stream(o.seed, 0x4f56454e46524f4e);
+    let tall = o.kind == ObjectKind::Oven && o.size.y > 1.3;
+    let n = if tall && p.stacked_ovens { 2 } else { 1 };
+    let h = o.size.y;
+    let w = o.size.x - 0.018;
+    let bottom = if tall {
+        h * r.random_range(if n == 2 { 0.20..0.28 } else { 0.31..0.44 })
+    } else {
+        0.087
+    };
+    let gap = h * r.random_range(0.035..0.065);
+    let span = if tall {
+        h * r.random_range(0.75..0.82) - bottom
+    } else {
+        h * r.random_range(0.68..0.73)
+    };
+    let first = if n == 2 {
+        r.random_range(0.43..0.57)
+    } else {
+        1.
+    };
+    let width = w * r.random_range(if p.controls == 0 {
+        0.88..0.95
+    } else {
+        0.68..0.77
+    });
+    let center_x = match p.controls {
+        1 => w * 0.08,
+        2 => -w * 0.08,
+        _ => 0.,
+    };
+    let free = span - gap * (n - 1) as f32;
+    let mut y = bottom;
+    (0..n)
+        .map(|i| {
+            let height = free * if i == 0 { first } else { 1. - first };
+            let f = OvenFront {
+                center_x,
+                bottom_m: y,
+                height_m: height,
+                width_m: width,
+            };
+            y += height + gap;
+            f
+        })
+        .collect()
+}

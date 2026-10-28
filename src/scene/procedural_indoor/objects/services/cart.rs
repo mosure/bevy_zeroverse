@@ -18,6 +18,7 @@ pub struct CartProgram {
 pub fn parameters(o: &IndoorObject) -> CartProgram {
     let s = o.size;
     let mut r = stream(o.seed, 0x4341525450524f47);
+    let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4341_5254_4649_4e49);
     let radius = r
         .random_range(0.024_f32..0.047)
         .min(s.y * 0.065)
@@ -47,8 +48,8 @@ pub fn parameters(o: &IndoorObject) -> CartProgram {
         ),
         post_radius: r.random_range(0.008_f32..0.016).min(s.x.min(s.z) * 0.035),
         rim_height: r.random_range(0.018..0.065),
-        frame: [Surface::Metal, Surface::Chrome, Surface::Wood][r.random_range(0..3)],
-        trays: [Surface::Metal, Surface::Wood, Surface::Plastic][r.random_range(0..3)],
+        frame: [Surface::Metal, Surface::Chrome, Surface::Wood][f.random_range(0..3)],
+        trays: [Surface::Metal, Surface::Wood, Surface::Plastic][f.random_range(0..3)],
         handles: r.random_range(0..3),
         occupancy: r.random_range(0.1..0.95),
     }

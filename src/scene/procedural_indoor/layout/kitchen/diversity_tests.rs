@@ -56,3 +56,28 @@ fn continuous_kitchen_proposals_are_bounded_replayable_and_have_no_center_atom()
     }
     assert!(positions.len() > 220);
 }
+
+#[test]
+fn compact_counter_recovery_preserves_appliances_and_stepped_floor_clearance() {
+    let scene =
+        IndoorManifest::generate_with_humans(127, IndoorLayout::Kitchen, 0.85, 3, 0.15).unwrap();
+    validation::validate_layout(&scene).unwrap();
+    validation::validate_geometry(&scene).unwrap();
+    let group = scene.assembly_diagnostics.kitchens.first().unwrap();
+    let mut compact = false;
+    for &id in &group.units {
+        let o = &scene.objects[id];
+        let original = geometry::dimensions(o.kind, o.seed).x;
+        if o.kind == ObjectKind::KitchenCounter && o.size.x < original - 0.001 {
+            compact = true;
+            assert!(o.size.x >= 0.48);
+        }
+        if matches!(o.kind, ObjectKind::KitchenSink | ObjectKind::Range) {
+            assert_eq!(o.size.x, original);
+        }
+    }
+    assert!(
+        compact,
+        "fixture must exercise the compact counter recovery"
+    );
+}

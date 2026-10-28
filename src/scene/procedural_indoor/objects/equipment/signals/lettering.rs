@@ -127,41 +127,47 @@ pub(super) fn build(
                     )
                 })
                 .collect();
-            if polygon::area(&outline) < 0. {
-                outline.reverse();
-            }
-            let vertex = |g: &mut Geometry, p: Vec3, n: Vec3| {
-                g.positions.push((p + center).to_array());
-                g.normals.push(n.to_array());
-                g.uvs.push(p.xy().to_array());
-            };
-            for mut tri in polygon::triangles(&outline) {
-                for sign in [1_f32, -1.] {
-                    if sign < 0. {
-                        tri.swap(1, 2);
-                    }
-                    let start = g.positions.len() as u32;
-                    for p in tri {
-                        vertex(g, p.extend(sign * 0.0004), Vec3::Z * sign);
-                    }
-                    g.indices.extend([start, start + 1, start + 2]);
-                }
-            }
-            for (p, q) in polygon::edges(&outline) {
-                let d = q - p;
-                let n = Vec3::new(d.y, -d.x, 0.).normalize();
-                let start = g.positions.len() as u32;
-                for v in [
-                    p.extend(-0.0004),
-                    q.extend(-0.0004),
-                    q.extend(0.0004),
-                    p.extend(0.0004),
-                ] {
-                    vertex(g, v, n);
-                }
-                g.indices
-                    .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
-            }
+            contour(g, &mut outline, center);
         }
+    }
+}
+
+/// Extruded, planar vector mark; the same watertight construction serves letters
+/// and original pictograms without bitmap assets or coplanar decals.
+pub(super) fn contour(g: &mut Geometry, outline: &mut [Vec2], center: Vec3) {
+    if polygon::area(outline) < 0. {
+        outline.reverse();
+    }
+    let vertex = |g: &mut Geometry, p: Vec3, n: Vec3| {
+        g.positions.push((p + center).to_array());
+        g.normals.push(n.to_array());
+        g.uvs.push(p.xy().to_array());
+    };
+    for mut tri in polygon::triangles(outline) {
+        for sign in [1_f32, -1.] {
+            if sign < 0. {
+                tri.swap(1, 2);
+            }
+            let start = g.positions.len() as u32;
+            for p in tri {
+                vertex(g, p.extend(sign * 0.0004), Vec3::Z * sign);
+            }
+            g.indices.extend([start, start + 1, start + 2]);
+        }
+    }
+    for (p, q) in polygon::edges(outline) {
+        let d = q - p;
+        let n = Vec3::new(d.y, -d.x, 0.).normalize();
+        let start = g.positions.len() as u32;
+        for v in [
+            p.extend(-0.0004),
+            q.extend(-0.0004),
+            q.extend(0.0004),
+            p.extend(0.0004),
+        ] {
+            vertex(g, v, n);
+        }
+        g.indices
+            .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
     }
 }

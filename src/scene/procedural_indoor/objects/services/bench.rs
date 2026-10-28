@@ -23,6 +23,7 @@ pub struct BenchProgram {
 
 pub fn parameters(o: &IndoorObject) -> BenchProgram {
     let mut r = stream(o.seed, 0x42454e4348505247);
+    let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4245_4e43_4649_4e49);
     let seat_height = o.size.y.min(r.random_range(0.41..0.52));
     let slats = r.random_bool(0.52);
     let longitudinal = r.random_bool(0.58);
@@ -49,14 +50,14 @@ pub fn parameters(o: &IndoorObject) -> BenchProgram {
         backed,
         back_tilt: r.random_range(0.035..0.16),
         arms: o.size.y > seat_height + 0.14 && wants_arms,
-        frame: if r.random_bool(0.55) {
+        frame: if f.random_bool(0.55) {
             Surface::Wood
         } else {
             Surface::Metal
         },
         seat: if slats {
             Surface::Wood
-        } else if r.random_bool(0.28) {
+        } else if f.random_bool(0.28) {
             Surface::Leather
         } else {
             Surface::FabricAlt

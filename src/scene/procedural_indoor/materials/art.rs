@@ -28,6 +28,8 @@ pub struct FrameProgram {
     pub stepped: bool,
     pub outer_fraction: f32,
     pub recess_fraction: f32,
+    pub mat_scale: Vec2,
+    pub picture_bias: Vec2,
 }
 pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram {
     let mut rng = stream(o.seed, 3094);
@@ -35,6 +37,14 @@ pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram 
     let mut section = stream(o.seed, 3095);
     FrameProgram {
         style,
+        mat_scale: Vec2::new(
+            section.random_range(0.65..1.35),
+            section.random_range(0.65..1.50),
+        ),
+        picture_bias: Vec2::new(
+            section.random_range(-0.55..0.55),
+            section.random_range(-0.35..0.65),
+        ),
         stepped: style != 0 && section.random_bool(0.56),
         outer_fraction: section.random_range(0.30..0.70),
         recess_fraction: section.random_range(0.18..0.62),
@@ -50,8 +60,8 @@ pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram 
         mat_width: if style == 0 || style == 4 || rng.random_bool(0.36) {
             0.
         } else {
-            rng.random_range(0.012..0.07_f32)
-                .min(o.size.x.min(o.size.y) * 0.12)
+            rng.random_range(0.010..0.13_f32)
+                .min(o.size.x.min(o.size.y) * 0.18)
         },
         shadow_gap: if style == 4 {
             rng.random_range(0.008..0.023_f32)
@@ -367,6 +377,7 @@ pub(super) fn apply_prepared(
     mat.metallic = 0.;
     mat.clearcoat = p.finish.varnish;
     mat.clearcoat_perceptual_roughness = p.finish.varnish_roughness;
+    response::conformal_coat(mat);
     mat.emissive = LinearRgba::BLACK;
     mat.emissive_texture = None;
     mat.uv_transform = bevy::math::Affine2::IDENTITY;
@@ -459,8 +470,24 @@ mod tests {
                     .positions
                     .iter()
                     .all(|point| point[2] < picture_z - 0.0001));
-                let image_width = size.x - 2. * (p.border_width + p.mat_width + p.shadow_gap);
+                let image_width =
+                    size.x - 2. * (p.border_width + p.mat_width * p.mat_scale.x + p.shadow_gap);
                 assert!((art.positions[1][0] - art.positions[0][0] - image_width).abs() < 0.00001);
+                let center = Vec2::new(
+                    (art.positions[0][0] + art.positions[2][0]) * 0.5,
+                    (art.positions[0][1] + art.positions[2][1]) * 0.5,
+                );
+                let expected =
+                    Vec2::new(0., size.y * 0.5) + p.mat_scale * p.mat_width * p.picture_bias;
+                assert!(center.distance(expected) < 0.00001);
+                // Asymmetry must never put the image beneath the frame rails.
+                for point in &art.positions {
+                    assert!(point[0].abs() <= size.x * 0.5 - p.border_width + 0.00001);
+                    assert!(
+                        point[1] >= p.border_width - 0.00001
+                            && point[1] <= size.y - p.border_width + 0.00001
+                    );
+                }
             }
         }
         assert_eq!(styles.len(), 6);

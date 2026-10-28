@@ -125,7 +125,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
   trajectories preserve body and swept-path clearance around fixtures.
   Studio and schematic camera glyphs share compact, camera-indexed colors;
-  prediction overlays use the matching color with dashed outlines.
+  prediction overlays use the matching color with dashed outlines. Independent
+  editor/schematic scale controls apply live and round-trip through CLI/URL
+  settings without changing capture calibration or metric trajectories.
   The baseline preset accounts for mounting height and unequal lens coverage;
   directed co-visibility and physical camera separation remain explicit in exports.
 - **People and motion:** AnnyBody meshes with procedural clothing and optional

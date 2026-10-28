@@ -104,6 +104,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
             % match kind {
                 Chair => chairs::FAMILIES as u64,
                 Plant => super::super::plants::SPECIES as u64,
+                WallArt => 6,
                 _ => 4,
             }) as u32,
         seed,
@@ -139,6 +140,12 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
 pub fn program(o: &IndoorObject) -> serde_json::Value {
     use ObjectKind::*;
     match o.kind {
+        Phone => return serde_json::json!(super::super::clutter::tabletop::phone::parameters(o)),
+        WallSconce => return serde_json::json!(equipment::sconce::parameters(o)),
+        Notepad => return serde_json::json!(super::super::clutter::tabletop::pad::parameters(o)),
+        Pencil => {
+            return serde_json::json!(super::super::clutter::tabletop::writing::parameters(o))
+        }
         Microphone => return serde_json::json!(super::super::clutter::microphone::parameters(o)),
         Speaker => return serde_json::json!(accessories::speaker::parameters(o)),
         Headphones => return serde_json::json!(accessories::headphones::parameters(o)),
@@ -164,14 +171,14 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         ServiceCounter => return serde_json::json!(public::service::counter_parameters(o)),
         ExtractionHood => return serde_json::json!(public::service::hood_parameters(o)),
         Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),
-        DisplayCase | TrayReturn | ExhibitPlinth => {
-            return serde_json::json!(public::casework::parameters(o))
-        }
+        ExhibitPlinth => return serde_json::json!(public::casework::plinth::parameters(o)),
+        DisplayCase | TrayReturn => return serde_json::json!(public::casework::parameters(o)),
         DrinkDispenser => return serde_json::json!(public::dispenser::parameters(o)),
         CoffeeMaker => return serde_json::json!(hospitality::coffee::parameters(o)),
         QueueBarrier => return serde_json::json!(public::barrier::parameters(o)),
         Vase | Bowl => return serde_json::json!(vessels::parameters(o)),
-        Mug | CoffeeCup | WaterBottle | SodaCan => {
+        SodaCan => return serde_json::json!(super::super::clutter::beverages::can::parameters(o)),
+        Mug | CoffeeCup | WaterBottle => {
             return serde_json::json!(super::super::clutter::beverages::parameters(o))
         }
         _ => {}
@@ -184,7 +191,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
     }
     if o.kind == NoticeBoard {
         let p = equipment::parameters(o);
-        return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "attachments":equipment::pinups::placements(o)});
+        return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "section":equipment::board_section::parameters(o), "attachments":equipment::pinups::placements(o)});
     }
     if matches!(o.kind, InformationStand | ExhibitionPanel) {
         return serde_json::json!(public::signage::parameters(o));
@@ -239,9 +246,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         FireAlarm | FireDetector | FirePullStation => {
             return serde_json::json!(equipment::signals::fire::program(o))
         }
-        ExitSign => {
-            serde_json::json!({"variant":o.variant,"dimensions_m":o.size,"emission":super::super::photometry::decorative_emission(o)})
-        }
+        ExitSign => return serde_json::json!(equipment::signals::exit::parameters(o)),
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
         DocumentTray | DeskOrganizer => {
             return serde_json::json!(accessories::organizers::parameters(o))
@@ -324,16 +329,17 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "trackball",
         ],
         Phone => &[
-            "case_fraction",
-            "bezel_fraction",
+            "span",
+            "body_height",
+            "case",
+            "screen_span",
             "lens_count",
-            "camera_island",
-            "phone_roundness",
-            "phone_top_border",
-            "phone_bottom_border",
-            "phone_controls",
-            "phone_surface",
-            "phone_face_up",
+            "camera_layout",
+            "roundness",
+            "button_z",
+            "buttons",
+            "shell",
+            "face_up",
         ],
         Pencil => &["tip_fraction", "barrel_sides", "binding"],
         Notepad => &["binding", "leaf_fraction"],
@@ -348,10 +354,13 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "board_divider_fraction",
         ],
         WallSconce => &[
-            "diffuser_fraction",
-            "sconce_width",
-            "sconce_height",
-            "sconce_taper",
+            "head_span",
+            "head_height",
+            "head_bottom",
+            "taper",
+            "arm_style",
+            "plate_span",
+            "plate_round",
         ],
         CeilingPendant => &["shade_fraction", "diffuser_fraction"],
         Speaker => &[
@@ -377,8 +386,8 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "neck_fraction",
         ],
         SodaCan => &["style", "lid", "heel_fraction", "neck_fraction"],
-        MobileCart => &["levels", "feet_height"],
-        DrawerUnit => &["drawers", "feet_height", "drawer_bias", "handle_fraction"],
+        MobileCart => &["shelf_tops", "wheel_radius", "post_span", "handles"],
+        DrawerUnit => &["weights", "banks", "foot", "profile", "handle_width"],
         Bench => &["slats", "backed", "roundness"],
         Ottoman => &[
             "base",
@@ -388,7 +397,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "cap_fraction",
             "body_inset",
         ],
-        RoomDivider => &["slats", "panel_fraction"],
+        RoomDivider => &["slats", "weights", "bottom", "top", "stand_span"],
         StorageBox => &[
             "construction",
             "taper",
@@ -598,3 +607,6 @@ mod regularity_qualification;
 mod seating_qualification;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod sampling_qualification;

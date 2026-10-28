@@ -263,7 +263,7 @@ impl MaterialRecipe {
             self.relief_m = if self.surface == Surface::Ceramic {
                 rng.random_range(0.000012..0.000065)
             } else {
-                0.000018 + c.texture_mix.powi(2) * 0.00065
+                materials::coating::plaster_relief(c.texture_mix)
             };
             if let Some(w) = &c.wall {
                 // A wall covering needs a mesoscale domain. Its fibrous relief

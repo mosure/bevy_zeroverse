@@ -23,6 +23,19 @@ pub struct CoffeeProgram {
     pub thermal_carafe: bool,
     pub finish: Surface,
     pub trim: Surface,
+    pub base_fraction: f32,
+    pub front: f32,
+    pub panel_width: f32,
+    pub panel_height: f32,
+    pub panel_level: f32,
+    pub control_layout: u8,
+    pub tray_depth: f32,
+    pub tray_height: f32,
+    pub grille_count: usize,
+    pub grille_crosswise: bool,
+    pub carafe_radius: f32,
+    pub carafe_height: f32,
+    pub handle_side: f32,
 }
 
 pub fn parameters(o: &IndoorObject) -> CoffeeProgram {
@@ -36,12 +49,25 @@ pub fn parameters(o: &IndoorObject) -> CoffeeProgram {
             Brewer::Filter,
         ][r.random_range(0..4)],
         body_width: r.random_range(0.78..0.96),
-        body_depth: r.random_range(0.40..0.53),
+        body_depth: r.random_range(0.34..0.56),
         shoulder_height: r.random_range(0.78..0.90),
         corner_exponent: r.random_range(2.8..7.0),
-        head_height: r.random_range(0.49..0.60),
+        head_height: r.random_range(0.44..0.65),
         controls: r.random_range(1..=4),
-        tray_fraction: r.random_range(0.68..0.90),
+        tray_fraction: r.random_range(0.60..0.93),
+        base_fraction: r.random_range(0.045..0.085),
+        front: r.random_range(0.22..0.35),
+        panel_width: r.random_range(0.56..0.85),
+        panel_height: r.random_range(0.33..0.62),
+        panel_level: r.random_range(0.40..0.65),
+        control_layout: r.random_range(0..3),
+        tray_depth: r.random_range(0.29..0.42),
+        tray_height: r.random_range(0.025..0.075),
+        grille_count: r.random_range(3..=10),
+        grille_crosswise: r.random_bool(0.5),
+        carafe_radius: r.random_range(0.24..0.31),
+        carafe_height: r.random_range(0.32..0.43),
+        handle_side: if r.random_bool(0.5) { -1. } else { 1. },
         thermal_carafe: r.random_bool(0.42),
         finish: [Surface::Metal, Surface::Plastic, Surface::Chrome][f.random_range(0..3)],
         trim: [Surface::Chrome, Surface::Metal, Surface::Ink][f.random_range(0..3)],
@@ -70,7 +96,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = o.size;
     let l = o.kind.class_name();
-    let base = s.y * 0.07;
+    let base = s.y * p.base_fraction;
     a.box_part(
         Surface::Rubber,
         l,
@@ -131,26 +157,7 @@ fn capsule(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: f32) {
         s.y * 0.035,
         Transform::from_xyz(0., s.y * (p.head_height - 0.07), s.z * 0.29),
     );
-    a.box_part(
-        p.trim,
-        l,
-        Vec3::new(0., base + s.y * 0.025, s.z * 0.29),
-        Vec3::new(s.x * p.tray_fraction, s.y * 0.05, s.z * 0.36),
-        0.004,
-    );
-    for i in 0..5 {
-        a.box_part(
-            Surface::Ink,
-            l,
-            Vec3::new(
-                (i as f32 - 2.) * s.x * p.tray_fraction * 0.16,
-                base + s.y * 0.05 + 0.0006,
-                s.z * 0.29,
-            ),
-            Vec3::new(s.x * 0.018, 0.001, s.z * 0.27),
-            0.,
-        );
-    }
+    drip_tray(a, o, p, base, s.z * 0.29);
     let lever = [
         Vec3::new(0., s.y * 0.92, -s.z * 0.20),
         Vec3::new(0., s.y * 0.97, -s.z * 0.16),
@@ -185,7 +192,7 @@ fn pressure_brewer(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: 
     );
     // The forward head joins the rear body but leaves a real open cup bay.
     let bottom = s.y * p.head_height;
-    let front = s.z * 0.29;
+    let front = s.z * p.front;
     let back = rear;
     a.box_part(
         p.finish,
@@ -194,44 +201,58 @@ fn pressure_brewer(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: 
         Vec3::new(w * 0.93, top - bottom, front - back),
         s.x * 0.035,
     );
-    let panel = Vec3::new(0., bottom + (top - bottom) * 0.56, front + 0.001);
+    let panel = Vec3::new(0., bottom + (top - bottom) * p.panel_level, front + 0.001);
     a.box_part(
         p.trim,
         l,
         panel,
-        Vec3::new(w * 0.78, (top - bottom) * 0.57, 0.002),
+        Vec3::new(w * p.panel_width, (top - bottom) * p.panel_height, 0.002),
         0.001,
     );
-    for i in 0..p.controls {
-        let x = w * 0.59 * ((i as f32 + 0.5) / p.controls as f32 - 0.5);
-        a.part(Surface::Ink, l).cylinder(
-            s.x * 0.028,
-            0.004,
-            Transform::from_xyz(x, panel.y, front + 0.004)
-                .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        );
-    }
-    let tray_top = base + s.y * 0.055;
-    a.box_part(
-        p.trim,
-        l,
-        Vec3::new(0., (base + tray_top) * 0.5, s.z * 0.27),
-        Vec3::new(s.x * p.tray_fraction, tray_top - base, s.z * 0.40),
-        0.003,
-    );
-    for i in 0..5 {
+    let panel_span = w * p.panel_width;
+    if p.control_layout == 2 {
         a.box_part(
             Surface::Ink,
             l,
+            panel + Vec3::new(-panel_span * 0.18, 0., 0.0017),
             Vec3::new(
-                (i as f32 - 2.) * s.x * p.tray_fraction * 0.16,
-                tray_top + 0.0006,
-                s.z * 0.27,
+                panel_span * 0.43,
+                (top - bottom) * p.panel_height * 0.66,
+                0.001,
             ),
-            Vec3::new(s.x * 0.018, 0.001, s.z * 0.29),
-            0.,
+            0.0003,
         );
     }
+    for i in 0..p.controls {
+        let t = (i as f32 + 0.5) / p.controls as f32;
+        let x = panel_span
+            * if p.control_layout == 2 {
+                0.12 + t * 0.30
+            } else {
+                (t - 0.5) * 0.80
+            };
+        let radius = (panel_span / p.controls as f32
+            * if p.control_layout == 2 { 0.08 } else { 0.18 })
+        .min((top - bottom) * p.panel_height * 0.20);
+        let position = Vec3::new(x, panel.y, front + 0.003);
+        if p.control_layout == 1 {
+            a.box_part(
+                Surface::Rubber,
+                l,
+                position,
+                Vec3::new(radius * 1.7, radius * 1.7, 0.003),
+                radius * 0.15,
+            );
+        } else {
+            a.part(Surface::Ink, l).cylinder(
+                radius,
+                0.004,
+                Transform::from_translation(position)
+                    .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
+            );
+        }
+    }
+    drip_tray(a, o, p, base, s.z * 0.27);
     if p.brewer == Brewer::Espresso {
         let head = Vec3::new(0., bottom - s.y * 0.035, s.z * 0.17);
         a.part(p.trim, l)
@@ -282,7 +303,7 @@ fn filter(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: f32) {
         p.corner_exponent,
         Transform::from_xyz(0., 0., rear),
     );
-    let r = (s.x * 0.30).min(s.z * 0.30);
+    let r = (s.x * p.carafe_radius).min(s.z * 0.30);
     let z = s.z * 0.16;
     // A bridge from the tank actually supports the tapered filter basket.
     a.box_part(
@@ -292,18 +313,20 @@ fn filter(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: f32) {
         Vec3::new(s.x * 0.68, s.y * 0.12, s.z * 0.52),
         0.006,
     );
+    let basket_bottom = base + 0.004 + s.y * p.carafe_height + s.y * 0.075;
+    let basket_height = s.y * 0.85 - basket_bottom;
     a.part(p.finish, l).lathe(
         &[
             (0., 0.),
             (r * 0.72, 0.),
-            (r * 1.08, s.y * 0.25),
-            (0., s.y * 0.25),
+            (r * 1.08, basket_height),
+            (0., basket_height),
         ],
         24,
-        Transform::from_xyz(0., s.y * 0.60, z),
+        Transform::from_xyz(0., basket_bottom, z),
     );
     let bottom = base + 0.004;
-    let h = s.y * 0.43;
+    let h = s.y * p.carafe_height;
     a.part(
         if p.thermal_carafe {
             p.trim
@@ -339,8 +362,46 @@ fn filter(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: f32) {
         Vec3::new(r * 0.94, bottom + h * 0.18, z),
     ];
     for edge in handle.windows(2) {
-        a.part(Surface::Plastic, l)
-            .rod(edge[0], edge[1], s.x * 0.025);
+        a.part(Surface::Plastic, l).rod(
+            edge[0] * Vec3::new(p.handle_side, 1., 1.),
+            edge[1] * Vec3::new(p.handle_side, 1., 1.),
+            s.x * 0.025,
+        );
+    }
+}
+
+fn drip_tray(a: &mut Assembly, o: &IndoorObject, p: &CoffeeProgram, base: f32, z: f32) {
+    let s = o.size;
+    let top = base + s.y * p.tray_height;
+    let span = Vec2::new(s.x * p.tray_fraction, s.z * p.tray_depth);
+    let l = o.kind.class_name();
+    a.box_part(
+        p.trim,
+        l,
+        Vec3::new(0., (base + top) * 0.5, z),
+        Vec3::new(span.x, top - base, span.y),
+        0.002,
+    );
+    for i in 0..p.grille_count {
+        let t = ((i as f32 + 0.5) / p.grille_count as f32 - 0.5) * 0.86;
+        let (offset, size) = if p.grille_crosswise {
+            (
+                Vec3::Z * span.y * t,
+                Vec3::new(span.x * 0.88, 0.001, span.y / p.grille_count as f32 * 0.20),
+            )
+        } else {
+            (
+                Vec3::X * span.x * t,
+                Vec3::new(span.x / p.grille_count as f32 * 0.20, 0.001, span.y * 0.88),
+            )
+        };
+        a.box_part(
+            Surface::Ink,
+            l,
+            Vec3::new(0., top + 0.0006, z) + offset,
+            size,
+            0.0002,
+        );
     }
 }
 

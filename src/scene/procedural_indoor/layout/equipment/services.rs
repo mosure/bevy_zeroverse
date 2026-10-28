@@ -2,6 +2,7 @@
 //! are fitted after furniture, before occupants; nothing is placed across glazing.
 use super::*;
 
+mod exits;
 mod suspended;
 use crate::scene::procedural_indoor::{architecture, objects::equipment::signals};
 
@@ -10,7 +11,7 @@ pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
         return false;
     }
     let mounted = match o.kind {
-        ObjectKind::ExitSign => exit_header_clear(scene, o),
+        ObjectKind::ExitSign => exits::mounted(scene, o),
         ObjectKind::FireDetector => suspended::detector_mounted(scene, o),
         ObjectKind::FirePullStation => pull_mounted(scene, o),
         ObjectKind::StringLights if signals::string_program(o).suspended => {
@@ -80,68 +81,10 @@ fn pull_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     })
 }
 
-/// The shared rear partition intentionally omits its edge from `walls`:
-/// side glazing is separate, but the header directly above the entry is solid.
-fn exit_header_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
-    let Some(d) = &scene.entry_door else {
-        return false;
-    };
-    let normal = o.transform().rotation * Vec3::Z;
-    let (lo, hi) = o.bounds();
-    (o.position.x - d.center.x).abs() + o.size.x * 0.5 < d.width * 0.5 - 0.03
-        && (o.position.z - (d.center.z - o.size.z * 0.5 - 0.001)).abs() < 0.001
-        && normal.dot(Vec3::NEG_Z) > 0.99999
-        && lo.y > d.center.y + d.height + 0.035
-        && [
-            lo.xz(),
-            hi.xz(),
-            Vec2::new(lo.x, hi.z),
-            Vec2::new(hi.x, lo.z),
-        ]
-        .into_iter()
-        .all(|p| hi.y < scene.ceiling_height(p) - 0.18)
-}
-
 impl IndoorManifest {
     pub(in super::super::super) fn furnish_room_services(&mut self) {
         let mut r = stream(self.seed, 0x524f4f4d535256);
-        // The exit legend denotes the real primary entry, never a random wall.
-        if let Some(door) = self.entry_door.clone() {
-            if let Some(e) = &self.envelope {
-                let frames: Vec<_> = (0..e.footprint.len())
-                    .filter(|&edge| e.shared_edge(edge, self.room_size))
-                    .map(|edge| e.wall_transform(edge))
-                    .collect();
-                for tf in frames {
-                    let q = tf.compute_affine().inverse().transform_point3(door.center);
-                    if q.z.abs() > 0.15 {
-                        continue;
-                    }
-                    let size = Vec3::new(
-                        r.random_range(0.28..0.46),
-                        r.random_range(0.13..0.20),
-                        r.random_range(0.025..0.055),
-                    );
-                    let position = tf.transform_point(Vec3::new(
-                        q.x,
-                        door.center.y + door.height + 0.07,
-                        size.z * 0.5 + 0.001,
-                    ));
-                    let mut o = self.candidate(
-                        ObjectKind::ExitSign,
-                        position,
-                        size,
-                        tf.rotation.to_euler(EulerRot::YXZ).0,
-                        &mut r,
-                    );
-                    o.solid = false;
-                    if mounted_clear(self, &o) {
-                        self.objects.push(o);
-                        break;
-                    }
-                }
-            }
-        }
+        exits::furnish(self, &mut r);
         // Speakers come in matched installations but do not force symmetrical
         // room-axis placement. Broad dimensions cover soundbars/column speakers.
         for kind in [ObjectKind::FireAlarm, ObjectKind::Speaker] {
@@ -306,6 +249,23 @@ mod tests {
                     sample_seeds.entry(name).or_insert(seed);
                     let a = super::super::super::super::objects::build_object(o);
                     super::super::super::super::objects::audit::check(o, &a).unwrap();
+                    if o.kind == ObjectKind::ExitSign {
+                        let p = signals::exit::parameters(o);
+                        for value in [
+                            format!("exit_mount_{:?}", p.mount),
+                            format!("exit_legend_{:?}", p.legend),
+                        ] {
+                            *distribution.entry(value.clone()).or_default() += 1;
+                            sample_seeds.entry(value).or_insert(seed);
+                        }
+                        let mut floating = o.clone();
+                        if p.mount == signals::exit::ExitMount::Wall {
+                            floating.position.z -= 0.1;
+                        } else {
+                            floating.position.y -= 0.1;
+                        }
+                        assert!(!mounted_clear(&scene, &floating));
+                    }
                     if o.kind == ObjectKind::StringLights {
                         let p = signals::string_program(o);
                         let mode = if p.suspended { "suspended" } else { "wall" };
@@ -400,6 +360,26 @@ mod tests {
             assert!(
                 counts.get(kind).copied().unwrap_or(0) > 3,
                 "{kind}: {counts:?}"
+            );
+        }
+        for mount in ["Wall", "CeilingCanopy", "PendantRods", "PendantCables"] {
+            assert!(
+                distribution
+                    .get(&format!("exit_mount_{mount}"))
+                    .copied()
+                    .unwrap_or(0)
+                    >= 2,
+                "{distribution:?}"
+            );
+        }
+        for legend in ["EuropeanPictogram", "AmericanRed", "AmericanGreen"] {
+            assert!(
+                distribution
+                    .get(&format!("exit_legend_{legend}"))
+                    .copied()
+                    .unwrap_or(0)
+                    >= 5,
+                "{distribution:?}"
             );
         }
         assert!(supported > 3 && max_rug_area > 5.);

@@ -72,7 +72,9 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample) {
         );
         r.grain_frequency = p.mix([24., 64., 38., 18.]) / p.scale;
         r.warp = 0.025 + p.variation * 0.10;
-        r.relief_m = p.mix([0.000035, 0.00022, 0.00012, 0.000025]);
+        // Sanded/filled veneer and lacquer remain subtle. Open grain and limed
+        // timber retain sub-millimetre pores after the finish's pore-fill mask.
+        r.relief_m = p.mix([0.000045, 0.00085, 0.00038, 0.000025]);
         r.roughness = p.mix([0.43, 0.76, 0.84, 0.21]);
         if r.surface != Surface::Floor {
             r.period_m = p.mix([0.75, 1.3, 0.9, 1.05]) * p.scale;

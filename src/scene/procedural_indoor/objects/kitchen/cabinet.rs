@@ -1,5 +1,7 @@
 //! Panel construction with visible interiors; glazed leaves contain real apertures.
 use super::*;
+pub(super) mod fronts;
+pub(super) use fronts::front_panel;
 
 pub(crate) fn shell(
     a: &mut Assembly,
@@ -287,62 +289,39 @@ pub(super) fn doors(
         let moving = a.motion_selected(MotionKind::Cabinet, seed);
         let mut part = Assembly::default();
         let dest = if moving { &mut part } else { &mut *a };
-        front_panel(
-            dest,
-            Vec2::new(leaf - 0.005, height - if lift { 0.045 } else { 0.006 }),
-            tf,
-            p,
-            label,
-        );
+        let panel_size = Vec2::new(leaf - 0.005, height - if lift { 0.045 } else { 0.006 });
+        front_panel(dest, panel_size, tf, p, label);
+        let pull = fronts::edge_pull(panel_size, p, side, lift);
         let mut hardware = Assembly::default();
         if sliding {
-            // Bypass leaves need flush pulls. A projecting knob on the rear
-            // track intersects the front leaf even in the sampled static pose.
+            // Bypass doors use thin pulls on the same 22 mm frame, never a
+            // raised knob or a pull floating over the recessed field/glass.
             if p.handles != 4 {
-                let edge = ((leaf - 0.005).min(height - 0.006) * 0.12).clamp(0.018, 0.045);
-                let inset = if p.door_style == 1 { edge * 0.5 } else { 0.055 };
-                let pull_width = if p.door_style == 1 {
-                    edge * 0.70
+                let framed = p.door_style == 1 || p.front_profile != 0;
+                let width = if framed {
+                    p.front.frame_widths(panel_size).x * 0.70
                 } else {
                     0.026
-                };
-                let x = -side * (leaf * 0.5 - inset);
-                let face = if p.door_style != 1 && p.front_profile == 2 {
-                    0.014
-                } else {
-                    0.011
                 };
                 box_at(
                     &mut hardware,
                     p.hardware,
                     "cabinet_hardware",
-                    Vec3::new(x, 0., face + 0.001),
-                    Vec3::new(pull_width, 0.11, 0.002),
+                    Vec3::new(pull.x, pull.y, 0.012),
+                    Vec3::new(width, 0.11, 0.002),
                     tf,
                 );
                 box_at(
                     &mut hardware,
                     Surface::Ink,
                     "cabinet_hardware",
-                    Vec3::new(x, 0., face + 0.0023),
-                    Vec3::new(pull_width * 0.62, 0.087, 0.0004),
+                    Vec3::new(pull.x, pull.y, 0.0133),
+                    Vec3::new(width * 0.62, 0.087, 0.0004),
                     tf,
                 );
             }
         } else {
-            handle(
-                &mut hardware,
-                tf,
-                if lift {
-                    0.
-                } else {
-                    -side * (leaf * 0.5 - 0.055)
-                },
-                if lift { -height * 0.5 + 0.075 } else { 0. },
-                p,
-                lift,
-                label,
-            );
+            handle(&mut hardware, tf, pull.x, pull.y, p, lift, label);
         }
         for ((surface, label), g) in hardware.parts {
             dest.part(if sliding { surface } else { p.hardware }, &label)
@@ -512,10 +491,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 |a| {
                     front_panel(a, Vec2::new(w - 0.014, rh - 0.006), tf, p, "cabinet");
                     drawer_tray(a, w - 0.014, rh - 0.006, d, tf, "cabinet");
-                    handle(a, tf, 0., 0., p, true, "cabinet");
+                    let pull = fronts::top_pull(Vec2::new(w - 0.014, rh - 0.006), p);
+                    handle(a, tf, pull.x, pull.y, p, true, "cabinet");
                     if row + 1 == rows && matches!(p.handles, 0 | 2) && o.seed.is_multiple_of(3) {
                         let width = if p.handles == 2 { 0.058 } else { 0.095 };
-                        props::hanging_towel(a, tf.translation + Vec3::Z * 0.036, width, rh * 0.80);
+                        props::hanging_towel(
+                            a,
+                            tf.translation + Vec3::Z * 0.036 + Vec3::Y * pull.y,
+                            width,
+                            rh * 0.80,
+                        );
                     }
                 },
             );
@@ -618,102 +603,4 @@ fn shelves(
             contents::build(a, &items);
         }
     }
-}
-
-/// Cabinet fields occupy an actual aperture; raised/fluted fields never overlay
-/// a coplanar full-size slab. Appliance glazing retains its appliance class.
-pub(super) fn front_panel(
-    a: &mut Assembly,
-    size: Vec2,
-    tf: Transform,
-    p: &KitchenProgram,
-    label: &str,
-) {
-    if p.door_style == 1 {
-        panel(a, size, tf, p.finish, label, true);
-        return;
-    }
-    if p.front_profile == 0 {
-        front_sheet(
-            a,
-            p.finish,
-            label,
-            Vec3::ZERO,
-            Vec3::new(size.x, size.y, 0.022),
-            tf,
-        );
-        return;
-    }
-    let edge = (size.min_element() * 0.13).clamp(0.018, 0.055);
-    for side in [-1., 1.] {
-        front_sheet(
-            a,
-            p.finish,
-            label,
-            Vec3::X * side * (size.x - edge) * 0.5,
-            Vec3::new(edge, size.y, 0.022),
-            tf,
-        );
-        front_sheet(
-            a,
-            p.finish,
-            label,
-            Vec3::Y * side * (size.y - edge) * 0.5,
-            Vec3::new(size.x - 2. * edge, edge, 0.022),
-            tf,
-        );
-    }
-    let inner = size - Vec2::splat(2. * edge + 0.002);
-    let t = if p.front_profile == 2 { 0.028 } else { 0.009 };
-    front_sheet(
-        a,
-        p.finish,
-        label,
-        Vec3::ZERO,
-        Vec3::new(inner.x, inner.y, t),
-        tf,
-    );
-    if p.front_profile == 3 {
-        let n = (inner.x / 0.042).floor().max(2.) as usize;
-        for i in 0..n {
-            front_sheet(
-                a,
-                p.finish,
-                label,
-                Vec3::new(
-                    -inner.x * 0.5 + (i as f32 + 0.5) * inner.x / n as f32,
-                    0.,
-                    0.008,
-                ),
-                Vec3::new(inner.x / n as f32 * 0.55, inner.y, 0.006),
-                tf,
-            );
-        }
-    }
-}
-
-/// Bevelled sheet goods use extruded rectangular profiles (32 triangles), not
-/// 108-triangle rounded solids for every frame member and narrow flute.
-fn front_sheet(
-    a: &mut Assembly,
-    surface: Surface,
-    label: &str,
-    center: Vec3,
-    size: Vec3,
-    tf: Transform,
-) {
-    let h = size.xy() * 0.5;
-    a.part(surface, label).profile_slab(
-        &[
-            Vec2::new(-h.x, -h.y),
-            Vec2::new(h.x, -h.y),
-            Vec2::new(h.x, h.y),
-            Vec2::new(-h.x, h.y),
-        ],
-        size.z,
-        size.min_element().min(0.008) * 0.20,
-        tf.mul_transform(
-            Transform::from_translation(center).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        ),
-    );
 }

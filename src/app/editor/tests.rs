@@ -2,6 +2,50 @@ use super::*;
 use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLayout};
 use bevy::ecs::system::RunSystemOnce;
 
+#[test]
+fn camera_gizmo_scale_controls_are_live_and_scoped_to_the_viewport() {
+    let mut app = App::new();
+    app.init_resource::<BevyZeroverseConfig>()
+        .init_resource::<Playback>()
+        .add_message::<RegenerateSceneEvent>();
+    let mut state = EditorState::new(app.world().resource::<BevyZeroverseConfig>());
+    state.view.page = Page::View;
+    state.draft["scene_type"] = json!("ProceduralIndoor");
+    edit(&mut state, "/indoor_density", json!(0.9)).unwrap();
+    for (schematic, path, other) in [
+        (
+            false,
+            "/camera_gizmo_scale",
+            "/schematic_camera_gizmo_scale",
+        ),
+        (true, "/schematic_camera_gizmo_scale", "/camera_gizmo_scale"),
+    ] {
+        state.draft["room_schematic"] = json!(schematic);
+        let fields = fields::items(&state);
+        assert!(fields
+            .iter()
+            .any(|i| matches!(i, fields::Item::Field(f) if f.path == path)));
+        assert!(!fields
+            .iter()
+            .any(|i| matches!(i, fields::Item::Field(f) if f.path == other)));
+        assert!(model::live(path));
+        for scale in [0.1_f32, 0.5, 2., 4.] {
+            assert!(
+                !edit(&mut state, path, json!(scale)).unwrap(),
+                "no panel rebuild during drag"
+            );
+            live_update(app.world_mut(), &mut state, path).unwrap();
+            let live = app.world().resource::<BevyZeroverseConfig>();
+            assert_eq!(model::expand(live).pointer(path), Some(&json!(scale)));
+            assert_eq!(live.indoor_density, 0.65, "do not apply pending geometry");
+            assert!(app
+                .world()
+                .resource::<Messages<RegenerateSceneEvent>>()
+                .is_empty());
+        }
+    }
+}
+
 fn decode_query(query: &str) -> impl Iterator<Item = (String, String)> + '_ {
     fn decode(s: &str) -> String {
         let bytes = s.as_bytes();

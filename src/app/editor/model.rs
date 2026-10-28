@@ -160,6 +160,8 @@ pub fn live(path: &str) -> bool {
             | "/material_grid"
             | "/gizmos"
             | "/gizmos_alpha"
+            | "/camera_gizmo_scale"
+            | "/schematic_camera_gizmo_scale"
             | "/draw_obb_gizmo"
             | "/draw_pose_gizmos"
             | "/playback_mode"

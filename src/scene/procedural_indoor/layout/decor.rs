@@ -1,40 +1,22 @@
 //! Wall displays and supported clutter use free-space rejection, not fixed anchors.
 use super::super::architecture::facade::{self, FacadeSide};
 use super::*;
+mod electrical;
+pub use electrical::{electrical_parameters, ElectricalProgram};
 
 pub(super) fn drink(rng: &mut ChaCha8Rng) -> (ObjectKind, Vec3) {
-    match rng.random_range(0..4) {
-        0 => (
-            ObjectKind::Mug,
-            Vec3::new(
-                rng.random_range(0.10..0.14),
-                rng.random_range(0.072..0.13),
-                rng.random_range(0.075..0.11),
-            ),
-        ),
-        1 => {
-            let d = rng.random_range(0.068..0.095);
-            (
-                ObjectKind::CoffeeCup,
-                Vec3::new(d, rng.random_range(0.085..0.15), d),
-            )
-        }
-        2 => {
-            let d = rng.random_range(0.055..0.09);
-            (
-                ObjectKind::WaterBottle,
-                Vec3::new(d, rng.random_range(0.16..0.31), d),
-            )
-        }
-        _ => {
-            let d = rng.random_range(0.057..0.075);
-            (
-                ObjectKind::SodaCan,
-                Vec3::new(d, rng.random_range(0.09..0.18), d),
-            )
-        }
-    }
+    let kind = [
+        ObjectKind::Mug,
+        ObjectKind::CoffeeCup,
+        ObjectKind::WaterBottle,
+        ObjectKind::SodaCan,
+    ][rng.random_range(0..4)];
+    (
+        kind,
+        super::super::items::sizing::loose(kind, rng).expect("drink size"),
+    )
 }
+
 impl IndoorManifest {
     /// Reserve an aligned service appliance before small accessories compete for
     /// its space. Sampling a big appliance as late uniform clutter almost never
@@ -120,50 +102,6 @@ impl IndoorManifest {
         }
     }
 
-    pub(super) fn wall_hardware(&mut self, rng: &mut ChaCha8Rng) {
-        let count =
-            ((self.room_size.x + self.room_size.z) * rng.random_range(0.65..0.95)).round() as usize;
-        for i in 0..count.clamp(10, 32) {
-            let switch = i < 2;
-            let kind = if switch {
-                ObjectKind::LightSwitch
-            } else {
-                ObjectKind::WallOutlet
-            };
-            let gangs = rng.random_range(1..=3);
-            let size = Vec3::new(0.075 * gangs as f32, rng.random_range(0.10..0.125), 0.018);
-            let (tf, span) = self.attachment_wall(rng);
-            let along = rng.random_range(-0.40..0.40);
-            let height = if switch {
-                rng.random_range(1.05..1.22)
-            } else {
-                rng.random_range(0.22..0.38)
-            };
-            let position = tf.transform_point(Vec3::new(along * span, height, 0.));
-            let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
-            let mut obj = self.candidate(kind, position, size, yaw, rng);
-            obj.solid = false;
-            obj.position +=
-                tf.rotation * Vec3::Z * super::super::objects::wall::mount_offset(&obj).unwrap();
-            // One electrical convention per scene; finishes/gang counts can vary.
-            obj.variant = (self.seed % 4) as u32;
-            let (lo, hi) = obj.bounds();
-            if !self.attachment_clear(tf, span, &obj)
-                || self
-                    .objects
-                    .iter()
-                    .map(IndoorObject::bounds)
-                    .chain(self.columns())
-                    .any(|(a, b)| {
-                        lo.cmplt(b + Vec3::splat(0.015)).all()
-                            && hi.cmpgt(a - Vec3::splat(0.015)).all()
-                    })
-            {
-                continue;
-            }
-            self.objects.push(obj);
-        }
-    }
     pub(super) fn wall_decorations(&mut self, rng: &mut ChaCha8Rng) {
         let h = self.room_size.y;
         let count = rng.random_range(1..=13);
@@ -243,3 +181,6 @@ impl IndoorManifest {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

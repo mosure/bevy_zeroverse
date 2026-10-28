@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::Serialize;
 
+pub mod catalog;
 pub mod composition;
 pub mod distribution;
 pub(crate) mod sizing;
@@ -21,6 +22,7 @@ pub const TASKS: [&str; 6] = [
 #[derive(Debug, Clone, Serialize)]
 pub struct SurfaceProgram {
     pub task_weights: [f32; 6],
+    pub catalog: catalog::CatalogProgram,
     pub occupancy: f32,
     pub clustering: f32,
     pub alignment: f32,
@@ -72,6 +74,7 @@ pub fn parameters(scene: &IndoorManifest, support: &IndoorObject) -> SurfaceProg
     let occupancy = 0.18 + 2.42 * rng.random_range(0.0..1.0_f32).powf(1.25);
     SurfaceProgram {
         task_weights: weights,
+        catalog: catalog::parameters(scene.seed, support.seed),
         occupancy: if distribution::is_table(support.kind) {
             2.6 * scene.clutter.sample(support.seed)
         } else {
@@ -108,40 +111,7 @@ impl SurfaceProgram {
                 t <= 0.
             })
             .unwrap_or(5);
-        let kind = match task {
-            0 => [
-                Stapler,
-                TapeDispenser,
-                DocumentTray,
-                DeskOrganizer,
-                Pencil,
-                Notepad,
-                Notebook,
-                Phone,
-                PenHolder,
-            ][rng.random_range(0..9)],
-            1 => [Books, Notebook, Plant, Vase, DeskLamp, Notepad][rng.random_range(0..6)],
-            2 => [
-                Mug,
-                CoffeeCup,
-                WaterBottle,
-                SodaCan,
-                TissueBox,
-                Bowl,
-                Kettle,
-                CoffeeMaker,
-            ][rng.random_range(0..8)],
-            3 => [Speaker, Headphones, DeskFan, Phone, Printer, StorageBox][rng.random_range(0..6)],
-            4 => [TissueBox, Vase, Bowl, Phone, Plant, Bag][rng.random_range(0..6)],
-            _ => [
-                DocumentTray,
-                StorageBox,
-                Books,
-                Printer,
-                Notebook,
-                DeskOrganizer,
-            ][rng.random_range(0..6)],
-        };
+        let kind = self.catalog.sample(task, rng);
         let service = matches!(support.kind, Cabinet | MobileCart);
         let kind = if matches!(kind, CoffeeMaker | Kettle) && !service {
             [Mug, CoffeeCup, WaterBottle][rng.random_range(0..3)]

@@ -46,6 +46,8 @@ def material(definition, directory, index):
     connect(tree, shader, "BSDF", output, "Surface")
     shader.inputs["Base Color"].default_value = definition["base_color"]
     shader.inputs["Roughness"].default_value = definition["roughness"]
+    shader.inputs["Coat Weight"].default_value = definition.get("clearcoat", 0.0)
+    shader.inputs["Coat Roughness"].default_value = definition.get("clearcoat_roughness", 0.5)
     shader.inputs["Metallic"].default_value = definition["metallic"]
     shader.inputs["Anisotropic"].default_value = definition.get("anisotropy_strength", 0.0)
     shader.inputs["Anisotropic Rotation"].default_value = definition.get("anisotropy_rotation", 0.0) / (2 * math.pi)
@@ -81,7 +83,7 @@ def material(definition, directory, index):
         connect(tree, shift, 0, combine, axis)
 
     def texture(name):
-        item = definition[name]
+        item = definition.get(name)
         if item is None:
             return None
         image = bpy.data.images.load(str(directory / item["path"]), check_existing=True)
@@ -107,6 +109,11 @@ def material(definition, directory, index):
         node = tree.nodes.new("ShaderNodeNormalMap")
         connect(tree, normal, "Color", node, "Color")
         connect(tree, node, "Normal", shader, "Normal")
+    coat_normal = texture("clearcoat_normal_texture")
+    if coat_normal:
+        node = tree.nodes.new("ShaderNodeNormalMap")
+        connect(tree, coat_normal, "Color", node, "Color")
+        connect(tree, node, "Normal", shader, "Coat Normal")
     data = texture("metallic_roughness_texture")
     if data:
         split = tree.nodes.new("ShaderNodeSeparateColor")

@@ -2,6 +2,7 @@
 //! between actual ports after all supported objects have been accepted.
 mod fans;
 mod hanging;
+mod power_strips;
 pub(crate) mod services;
 use super::super::architecture::facade::FacadeSide;
 use super::super::objects::equipment::{self, wires};
@@ -39,11 +40,8 @@ impl IndoorManifest {
                     rng.random_range(0.70..1.70),
                     rng.random_range(0.050..0.12),
                 ),
-                _ => Vec3::new(
-                    rng.random_range(0.12..0.27),
-                    rng.random_range(0.19..0.35),
-                    rng.random_range(0.08..0.15),
-                ),
+                ObjectKind::WallSconce => equipment::sconce::dimensions(&mut rng),
+                _ => unreachable!(),
             };
             for _ in 0..8 {
                 let (tf, span) = if let Some(e) = &self.envelope {
@@ -108,27 +106,7 @@ impl IndoorManifest {
         for surface in &surfaces {
             let mut station = stream(surface.seed, 5790);
             if station.random_bool(0.35 + self.density as f64 * 0.55) {
-                let x = (surface.size.x * 0.31).min(surface.size.x * 0.5 - 0.18);
-                self.prop(
-                    surface,
-                    ObjectKind::PowerStrip,
-                    Vec3::new(x, 0., -surface.size.z * 0.31),
-                    Vec3::new(
-                        station.random_range(0.22..0.34),
-                        0.030,
-                        station.random_range(0.043..0.061),
-                    ),
-                    station.random_range(-0.07..0.07),
-                    &mut station,
-                );
-                if let Some(strip) = self
-                    .objects
-                    .last_mut()
-                    .filter(|o| o.kind == ObjectKind::PowerStrip && o.support == Some(surface.id))
-                {
-                    // Match wall-hardware electrical convention throughout the scene.
-                    strip.variant = (self.seed % 4) as u32;
-                }
+                self.place_power_strip(surface, &mut station);
             }
         }
         self.pendant_equipment(&mut rng);

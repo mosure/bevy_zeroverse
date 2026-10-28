@@ -85,6 +85,25 @@ fn map_record(
         .sum::<f64>()
         / (size * size) as f64)
         .sqrt();
+    // The nearest RGBA8 codes straddle a zero tangent slope. Count samples
+    // with no resolved relief, rather than mistaking that encoding bias for
+    // useful normal variation. Inspect the full mip chain's scattering too.
+    let flat_fraction = normals
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .filter(|p| (127..=128).contains(&p[0]) && (127..=128).contains(&p[1]) && p[2] == 255)
+        .count() as f64
+        / (size * size) as f64;
+    let mut offset = 0;
+    let mut mips = Vec::new();
+    for level in 0..maps[2].texture_descriptor.mip_level_count {
+        let n = size >> level;
+        let data = &bytes[2][offset..offset + n * n * 4];
+        mips.push(json!({"level":level,"size":n,
+            "roughness_mean_sd":moments(data.as_chunks::<4>().0.iter().map(|p| p[1] as f64 / 255.))}));
+        offset += n * n * 4;
+    }
     let metal = if r.surface == Surface::Chrome { 255 } else { 0 };
     anyhow::ensure!(
         data.as_chunks::<4>().0.iter().all(|p| p[2] == metal),
@@ -125,7 +144,9 @@ fn map_record(
         }
     }
     let record = json!({"seed":seed,"surface":surface,"structure_group":group,"floor_style":floor,"width":size,"normal_map_bound":r.surface!=Surface::Chrome,"sha256":fingerprint,
-            "albedo_mean_sd":albedo,"roughness_mean_sd":roughness,"normal_slope_rms":slope,"texture_base_color":r.texture_base_color(floor),"recipe":r});
+            "albedo_mean_sd":albedo,"roughness_mean_sd":roughness,"normal_slope_rms":slope,
+            "unresolved_normal_fraction":flat_fraction,"roughness_mips":mips,
+            "texture_base_color":r.texture_base_color(floor),"recipe":r});
     Ok((surface, fingerprint, descriptor, record))
 }
 

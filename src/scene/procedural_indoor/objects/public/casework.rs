@@ -1,5 +1,6 @@
 //! Vitrines, tray stations and plinths with shared load-bearing geometry.
 use super::*;
+pub mod plinth;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct CaseProgram {
@@ -45,9 +46,11 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
     }
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if o.kind == ObjectKind::ExhibitPlinth {
+        return plinth::build(a, o);
+    }
     let p = parameters(o);
     match o.kind {
-        ObjectKind::ExhibitPlinth => plinth(a, o, &p),
         ObjectKind::DisplayCase => display(a, o, &p),
         ObjectKind::TrayReturn => trays(a, o, &p),
         _ => unreachable!(),
@@ -69,59 +72,6 @@ fn feet(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram, top: f32) {
             );
         }
     }
-}
-fn plinth(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
-    let s = o.size;
-    let l = o.kind.class_name();
-    let cap = (s.y * p.wall_fraction).clamp(0.012, 0.055).min(s.y * 0.15);
-    if p.structure == 0 {
-        a.part(p.finish, l).housing(
-            &[(0., s.xz() * 0.45), (s.y - cap, s.xz() * (0.48 * p.taper))],
-            8.,
-            Transform::IDENTITY,
-        );
-    } else if p.structure == 1 {
-        a.part(p.finish, l).housing(
-            &[
-                (0., s.xz() * 0.44),
-                (cap, s.xz() * 0.44),
-                (s.y * 0.10, s.xz() * (p.taper * 0.32)),
-                (s.y - cap, s.xz() * (p.taper * 0.32)),
-            ],
-            2.,
-            Transform::IDENTITY,
-        );
-    } else if p.structure == 2 {
-        feet(a, o, p, s.y - cap);
-        for z in [-1., 1.] {
-            a.part(p.frame, l).rod(
-                Vec3::new(
-                    -s.x * p.foot_span * 0.5,
-                    s.y * 0.18,
-                    z * s.z * p.foot_span * 0.5,
-                ),
-                Vec3::new(
-                    s.x * p.foot_span * 0.5,
-                    s.y * 0.18,
-                    z * s.z * p.foot_span * 0.5,
-                ),
-                cap * 0.2,
-            );
-        }
-    } else {
-        panel(a, o, p.finish, l, [0., 0.02, 0.], [0.94, 0.04, 0.94]);
-        for x in [-0.27, 0.27] {
-            panel(a, o, p.finish, l, [x, 0.5, 0.], [0.10, 0.95, p.taper]);
-        }
-    }
-    // The placement API promises a rectangular support at exactly size.y.
-    a.box_part(
-        p.finish,
-        l,
-        Vec3::Y * (s.y - cap * 0.5),
-        Vec3::new(s.x, cap, s.z),
-        0.002,
-    );
 }
 fn display(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
     let s = o.size;

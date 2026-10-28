@@ -248,25 +248,21 @@ fn sink_cutout_reaches_the_basin_in_the_actual_mesh() {
         if p.sink_dishes != 0 {
             continue;
         }
-        let width = o.size.x * if p.draining_board { 0.59 } else { 0.78 };
-        let cx = if p.draining_board {
-            -o.size.x * 0.105
-        } else {
-            0.
-        };
-        let unit = width / p.basins as f32;
-        let (d, z) = body(&o, &p);
-        let mesh = super::super::build_object(&o);
-        for basin in 0..p.basins {
-            let point = Vec2::new(
-                cx - width * 0.5 + unit * (basin as f32 + 0.65),
-                z + d * 0.08,
-            );
-            let floor = o.size.y * (0.69 - 0.16);
+        let plan = sink::program::parameters(&o, &p);
+        let mut mesh = super::super::build_object(&o);
+        mesh.parts.retain(|(_, label), _| {
+            matches!(
+                super::super::part_label(label),
+                "sink" | "counter" | "cabinet"
+            )
+        });
+        for (index, basin) in plan.basins.iter().enumerate() {
+            let point = basin.center + basin.floor_half() * Vec2::new(0.35, 0.25);
             let hit = top_at(&mesh, point);
             assert!(
-                (hit - (floor + 0.007)).abs() < 0.002,
-                "seed {seed} basin {basin}: ray hit {hit}, expected floor {floor}"
+                (hit - basin.floor_m).abs() < 0.001,
+                "seed {seed} basin {index}: ray hit {hit}, expected floor {}",
+                basin.floor_m
             );
             checked += 1;
         }
@@ -382,12 +378,12 @@ fn kitchen_state_distributions_are_seeded_and_cover_conditional_features() {
         controls.insert(p.controls);
         let p = parameters(&super::super::audit::fixture(ObjectKind::Oven, seed));
         double.insert(p.stacked_ovens);
+        // Check the orientation field, not the entire construction record:
+        // holder geometry and roll fullness now vary within each orientation.
         props.insert(
-            serde_json::to_string(&metadata(&super::super::audit::fixture(
-                ObjectKind::PaperTowel,
-                seed,
-            )))
-            .unwrap(),
+            metadata(&super::super::audit::fixture(ObjectKind::PaperTowel, seed))["horizontal"]
+                .as_bool()
+                .unwrap(),
         );
     }
     assert_eq!(

@@ -217,15 +217,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
                     if drawer {
                         cabinet::drawer_tray(a, bay - 0.006, rh - 0.006, d, tf, "cabinet");
                     }
-                    cabinet::handle(
-                        a,
-                        tf,
-                        0.,
-                        if !drawer { rh * 0.30 } else { 0. },
-                        finish,
-                        true,
-                        "cabinet",
+                    let pull = cabinet::fronts::top_pull(
+                        Vec2::new(bay - 0.006, rh - 0.006),
+                        &panel_finish,
                     );
+                    cabinet::handle(a, tf, pull.x, pull.y, finish, true, "cabinet");
                 },
             );
             bottom += rh;

@@ -3,6 +3,16 @@
 use super::*;
 pub mod area;
 
+fn outlet_yaw(furniture_yaw: f32, r: &mut impl Rng) -> f32 {
+    if r.random_bool(0.28) {
+        r.random_range(-std::f32::consts::PI..std::f32::consts::PI)
+    } else {
+        furniture_yaw
+            + r.random_range(0..4) as f32 * std::f32::consts::FRAC_PI_2
+            + r.random_range(-0.16..0.16)
+    }
+}
+
 pub(crate) fn detail_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     if let Some(support) = scene
         .rug_supports
@@ -159,8 +169,11 @@ impl IndoorManifest {
                 continue;
             }
             let parent = self.objects[id].clone();
+            let first_side = rng.random_range(0..4);
+            let direction = if rng.random_bool(0.5) { 1 } else { 3 };
             for attempt in 0..16 {
-                let side = attempt % 4;
+                // Stratify all sides without always favoring the desk's rear.
+                let side = (first_side + attempt * direction) % 4;
                 let size = Vec3::new(
                     rng.random_range(0.16..0.24),
                     rng.random_range(0.07..0.12),
@@ -179,7 +192,7 @@ impl IndoorManifest {
                     ObjectKind::FloorOutlet,
                     p,
                     size,
-                    parent.yaw + rng.random_range(-0.18..0.18),
+                    outlet_yaw(parent.yaw, &mut rng),
                     &mut rng,
                 );
                 o.solid = false;
@@ -217,32 +230,6 @@ mod tests {
         // wall, ceiling or unrelated piece of furniture.
         scene.objects.retain(|o| o.id != mat.id);
         assert!(scene.placement_clear(&prop, 0.025));
-    }
-    #[test]
-    fn raised_gesture_does_not_project_a_collision_onto_a_kitchen_mat() {
-        let scene =
-            IndoorManifest::generate_with_humans(87, IndoorLayout::Mixed, 0.75, 0, 0.35).unwrap();
-        let mat = scene
-            .objects
-            .iter()
-            .find(|o| o.kind == ObjectKind::Rug)
-            .unwrap();
-        assert!(detail_clear(&scene, mat));
-        let person = scene
-            .humans
-            .iter()
-            .find(|h| !h.pose.seated() && !h.neighbor)
-            .unwrap();
-        let mut at_foot = mat.clone();
-        at_foot.position = person
-            .transform()
-            .transform_point(person.joints[16])
-            .with_y(person.position.y);
-        at_foot.size = Vec3::new(0.08, 0.03, 0.08);
-        assert!(
-            !detail_clear(&scene, &at_foot),
-            "actual foot contact must remain blocked"
-        );
     }
     #[test]
     fn floor_details_have_support_clearance_and_routable_ports() {
@@ -297,6 +284,21 @@ mod tests {
 #[cfg(test)]
 mod closure_regression {
     use super::*;
+    #[test]
+    fn floor_box_orientation_includes_aligned_quarter_turns_and_free_installations() {
+        let mut quadrants = std::collections::BTreeSet::new();
+        let mut unaligned = 0;
+        let yaw = 0.73;
+        for seed in 0..512 {
+            let a = outlet_yaw(yaw, &mut stream(seed, 9123));
+            assert_eq!(a, outlet_yaw(yaw, &mut stream(seed, 9123)));
+            let quarter = (a - yaw) / std::f32::consts::FRAC_PI_2;
+            quadrants.insert((quarter.round() as i32).rem_euclid(4));
+            unaligned += usize::from((quarter - quarter.round()).abs() > 0.15);
+        }
+        assert_eq!(quadrants.len(), 4);
+        assert!(unaligned > 50 && unaligned < 200, "{unaligned}");
+    }
     #[test]
     fn closing_unused_floor_boxes_preserves_adjacent_wire_clearance() {
         let scene = IndoorManifest::generate(98, IndoorLayout::Conference, 1., 0).unwrap();

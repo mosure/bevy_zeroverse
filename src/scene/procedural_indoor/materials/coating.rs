@@ -9,6 +9,13 @@ use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+/// Nominal plaster/spray height envelope, before the coverage/knockdown field.
+/// Coverage is applied by the evaluator; squaring it here as well starved
+/// intermediate finishes of relief. Fine paint-film relief remains separate.
+pub(super) fn plaster_relief(texture_mix: f32) -> f32 {
+    0.000018 + texture_mix * 0.0012
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoatingRecipe {
     #[serde(default, skip_serializing_if = "Option::is_none")]

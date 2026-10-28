@@ -1,9 +1,11 @@
 //! Metric equipment assemblies. Connected cable centerlines are archived rather
 //! than inferred from an unrelated decorative shape at render time.
+pub mod board_section;
 mod fixtures;
 pub mod pinups;
 pub mod power_strip;
 pub mod projector;
+pub mod sconce;
 pub mod signals;
 pub mod wall_shelf;
 pub(crate) mod wires;
@@ -63,7 +65,12 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
         shade_fraction: rng.random_range(0.18..0.48),
         diffuser_fraction: rng.random_range(0.44..0.84),
     };
-    if o.kind == ObjectKind::WallShelf {
+    if o.kind == ObjectKind::PowerStrip {
+        let strip = power_strip::parameters(o);
+        p.socket_count = strip.socket_count;
+        p.housing = strip.housing;
+        p.corner_m = o.size.y * strip.height_fraction * strip.bevel_fraction;
+    } else if o.kind == ObjectKind::WallShelf {
         let shelf = wall_shelf::parameters(o);
         p.housing = shelf.board;
         p.shelf_brackets = shelf.bracket_x_m.len();
@@ -78,6 +85,13 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
         p.housing = screen.housing;
         p.screen_drop = screen.drop_fraction;
         p.screen_frame = screen.framed;
+    } else if o.kind == ObjectKind::WallSconce {
+        let fixture = sconce::parameters(o);
+        p.housing = fixture.shade.finish;
+        p.sconce_width = fixture.head_span.x / o.size.x;
+        p.sconce_height = fixture.head_height / o.size.y;
+        p.sconce_taper = fixture.taper;
+        p.diffuser_fraction = fixture.diffuser_radius * 2. / fixture.head_span.x;
     }
     p
 }
@@ -88,13 +102,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::PowerStrip => return power_strip::build(a, o),
         ObjectKind::Cable => return wires::build(a, o),
         ObjectKind::WallShelf => return wall_shelf::build(a, o),
+        ObjectKind::WallSconce => return sconce::build(a, o),
         ObjectKind::ProjectionScreen => return super::presentation::screen(a, o),
         _ => {}
     }
     let p = parameters(o);
     match o.kind {
         ObjectKind::NoticeBoard => fixtures::notice_board(a, o, &p),
-        ObjectKind::WallSconce | ObjectKind::CeilingPendant => fixtures::light(a, o, &p),
+        ObjectKind::CeilingPendant => fixtures::light(a, o, &p),
         _ => unreachable!("non-equipment object"),
     }
 }
@@ -175,21 +190,20 @@ pub(crate) fn source_power_normal(o: &IndoorObject) -> Option<Vec3> {
 /// Emitter outside its downward diffuser. The caller uses this same result for
 /// direct lighting and diffuse transport, preserving the physical contract.
 pub(crate) fn fixture_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
-    let p = parameters(o);
     let mut rng = stream(o.seed, 5720);
-    let local = if o.kind == ObjectKind::CeilingPendant {
-        Vec3::new(0., o.size.y * 0.05 - 0.003, 0.)
-    } else {
-        Vec3::new(
-            0.,
-            o.size.y * (0.5 - p.sconce_height * 0.5) - 0.003,
-            o.size.z * 0.13,
+    let (local, diffuser_fraction) = if o.kind == ObjectKind::CeilingPendant {
+        (
+            Vec3::new(0., o.size.y * 0.05 - 0.003, 0.),
+            parameters(o).diffuser_fraction,
         )
+    } else {
+        let p = sconce::parameters(o);
+        (p.emitter, p.diffuser_radius * 2. / p.head_span.x)
     };
     (
         o.transform().transform_point(local),
         super::super::materials::kelvin_rgb(rng.random_range(2400.0..6500.0)),
-        rng.random_range(350.0..1700.0) * (0.75 + p.diffuser_fraction * 0.5),
+        rng.random_range(350.0..1700.0) * (0.75 + diffuser_fraction * 0.5),
         rng.random_range(0.37..0.64),
         rng.random_range(0.82..1.18),
     )

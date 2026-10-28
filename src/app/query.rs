@@ -373,6 +373,46 @@ fn legacy(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn camera_gizmo_scales_validate_share_sparsely_and_keep_legacy_defaults() {
+        let base = web_viewer_defaults();
+        let mut old = serde_json::to_value(&base).unwrap();
+        for key in ["camera_gizmo_scale", "schematic_camera_gizmo_scale"] {
+            old.as_object_mut().unwrap().remove(key);
+        }
+        let restored: BevyZeroverseConfig = serde_json::from_value(old).unwrap();
+        assert_eq!(restored.camera_gizmo_scale, 1.);
+        assert_eq!(restored.schematic_camera_gizmo_scale, 1.);
+        assert!(!encode(&base, &Default::default()).contains("gizmo_scale"));
+        for scale in [0.1, 0.5, 1., 2., 4.] {
+            let config = BevyZeroverseConfig::try_parse_from([
+                "viewer",
+                "--camera-gizmo-scale",
+                &scale.to_string(),
+                "--schematic-camera-gizmo-scale",
+                "0.5",
+            ])
+            .unwrap();
+            assert_eq!(config.camera_gizmo_scale, scale);
+            assert_eq!(config.schematic_camera_gizmo_scale, 0.5);
+            let shared =
+                parse(base.clone(), decode(&encode(&config, &Default::default()))).unwrap();
+            assert_eq!(shared.camera_gizmo_scale, scale);
+            assert_eq!(shared.schematic_camera_gizmo_scale, 0.5);
+        }
+        for key in ["camera_gizmo_scale", "schematic_camera_gizmo_scale"] {
+            for invalid in ["NaN", "inf", "-1", "0", "0.09", "4.1"] {
+                assert!(BevyZeroverseConfig::try_parse_from([
+                    "viewer",
+                    &format!("--{}={invalid}", key.replace('_', "-")),
+                ])
+                .is_err());
+                assert!(parse(base.clone(), [(key.into(), invalid.into())]).is_err());
+            }
+        }
+        let aliases = parse(base, [("camera-gizmo-scale".into(), "2".into())]).unwrap();
+        assert_eq!(aliases.camera_gizmo_scale, 2.);
+    }
     fn decode(query: &str) -> Vec<(String, String)> {
         fn unescape(s: &str) -> String {
             let mut bytes = Vec::new();

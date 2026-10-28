@@ -311,16 +311,16 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
     // Printed/painted content is a single front-facing image domain. Metric
     // cuboid UVs are correct for timber, but crop images when the panel changes
     // aspect. The physical backing closes the solid mount behind this face.
-    let image_face = |a: &mut Assembly, surface: Surface, size: Vec2, z: f32| {
+    let image_face = |a: &mut Assembly, surface: Surface, size: Vec2, center: Vec2, z: f32| {
         let g = a.part(surface, label);
         let start = g.positions.len() as u32;
-        let y0 = (s.y - size.y) * 0.5;
+        let y0 = center.y - size.y * 0.5;
         let y1 = y0 + size.y;
         g.positions.extend([
-            [-size.x * 0.5, y0, z],
-            [size.x * 0.5, y0, z],
-            [size.x * 0.5, y1, z],
-            [-size.x * 0.5, y1, z],
+            [center.x - size.x * 0.5, y0, z],
+            [center.x + size.x * 0.5, y0, z],
+            [center.x + size.x * 0.5, y1, z],
+            [center.x - size.x * 0.5, y1, z],
         ]);
         g.normals.extend([[0., 0., 1.]; 4]);
         g.uvs.extend([[0., 1.], [1., 1.], [1., 0.], [0., 0.]]);
@@ -334,7 +334,9 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
     let p = super::materials::art::frame_parameters(o);
     let border = p.border_width;
     let inner = Vec2::new(s.x - border * 2., s.y - border * 2.);
-    let image_size = inner - Vec2::splat((p.mat_width + p.shadow_gap) * 2.);
+    let mat = p.mat_scale * p.mat_width;
+    let image_size = inner - (mat + Vec2::splat(p.shadow_gap)) * 2.;
+    let image_center = Vec2::new(0., s.y * 0.5) + mat * p.picture_bias;
     // All front surfaces have explicit depth separation. In particular, the
     // paper mat cannot share a plane with the picture or the frame front.
     let front = s.z * 0.5 - p.picture_inset;
@@ -408,7 +410,7 @@ fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
             }
         }
     }
-    image_face(a, Surface::Art, image_size, front);
+    image_face(a, Surface::Art, image_size, image_center, front);
 }
 
 #[cfg(test)]

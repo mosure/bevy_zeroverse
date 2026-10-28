@@ -2,6 +2,7 @@
 //! `cargo run --example review_materials -- out/materials 81`
 //! Add `--no-normal-prepass` to check forward/prepass PBR agreement.
 //! Add `--close-up` for 25 cm samples that resolve the textile/leather grain.
+//! `--flat-normals` and `--uniform-roughness` isolate each map's contribution.
 #![recursion_limit = "256"]
 use bevy::prelude::*;
 use bevy_zeroverse::{
@@ -73,6 +74,17 @@ fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&output)?;
     let normal_prepass = !std::env::args().any(|arg| arg == "--no-normal-prepass");
     let ibl_only = std::env::args().any(|arg| arg == "--ibl-only");
+    let flat_normals = std::env::args().any(|arg| arg == "--flat-normals");
+    let uniform_roughness = std::env::args().any(|arg| arg == "--uniform-roughness");
+    let resolution: u32 = std::env::args()
+        .find_map(|a| a.strip_prefix("--resolution=").map(str::to_owned))
+        .map(|v| v.parse())
+        .transpose()?
+        .unwrap_or(512);
+    anyhow::ensure!(
+        (128..=1024).contains(&resolution),
+        "resolution must be 128..1024"
+    );
     let variant: Option<usize> = std::env::args()
         .find_map(|arg| arg.strip_prefix("--variant=").map(str::to_owned))
         .map(|s| s.parse())
@@ -156,7 +168,8 @@ fn main() -> anyhow::Result<()> {
         output.join("review.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
             "seed": seed, "sample_width_m": scale, "normal_prepass": normal_prepass,
-            "surfaces": surfaces, "image_size": [512, 512], "png_encoding": "sRGB",
+            "surfaces": surfaces, "image_size": [resolution, resolution], "png_encoding": "sRGB",
+            "flat_normals": flat_normals, "uniform_roughness": uniform_roughness,
             "key_fill_lux": if ibl_only { [0, 0] } else { [2400, 350] },
             "reflection_target_lux": 500, "reflection_sky_radiance": [450, 500, 600],
             "uniform_ambient": false, "ibl_only": ibl_only, "camera_fovy_degrees": 39,
@@ -208,7 +221,7 @@ fn main() -> anyhow::Result<()> {
             if let Some(v) = wall_texture {
                 c.texture_mix = v;
                 if r.surface != Surface::Ceramic {
-                    r.relief_m = 0.000018 + v.powi(2) * 0.00065;
+                    r.relief_m = 0.000018 + v * 0.0012;
                 }
             }
             if r.surface == Surface::Ceramic {
@@ -305,8 +318,8 @@ fn main() -> anyhow::Result<()> {
             keybinds: false,
             image_copiers: true,
             num_cameras: surfaces.len(),
-            width: 512.0,
-            height: 512.0,
+            width: resolution as f32,
+            height: resolution as f32,
             render_modes: modes.clone(),
             playback_steps: 1,
             ..default()
@@ -330,7 +343,15 @@ fn main() -> anyhow::Result<()> {
               mut meshes: ResMut<Assets<Mesh>>,
               mut images: ResMut<Assets<Image>>,
               mut materials: ResMut<Assets<StandardMaterial>>| {
-            let set = IndoorMaterials::build(&scene, &mut *images, &mut *materials);
+            let label = variant.map_or_else(String::new, |slot| format!("review#finish{slot}"));
+            let set = IndoorMaterials::build_for_parts(
+                &scene,
+                &mut *images,
+                &mut *materials,
+                review_surfaces
+                    .iter()
+                    .map(|&surface| (surface, label.as_str())),
+            );
             let handle = |surface| {
                 variant.map_or_else(
                     || set.get(surface),
@@ -343,8 +364,42 @@ fn main() -> anyhow::Result<()> {
                 environment.data.as_ref().unwrap(),
             )
             .unwrap();
+            let mut bindings = Vec::new();
             for surface in review_surfaces.iter().copied() {
-                let material = materials.get(&handle(surface)).unwrap();
+                let mut material = materials.get_mut(&handle(surface)).unwrap();
+                if flat_normals {
+                    material.normal_map_texture = None;
+                    material.clearcoat_normal_texture = None;
+                }
+                if uniform_roughness {
+                    // Hold the mean GGX alpha-squared moment fixed. Merely
+                    // removing the map would change the overall gloss too.
+                    if let Some(data) = material
+                        .metallic_roughness_texture
+                        .as_ref()
+                        .and_then(|h| images.get(h))
+                    {
+                        let count = (data.width() * data.height()) as usize;
+                        let moment = data.data.as_ref().unwrap()[..count * 4]
+                            .as_chunks::<4>()
+                            .0
+                            .iter()
+                            .map(|p| (p[1] as f32 / 255.).powi(4))
+                            .sum::<f32>()
+                            / count as f32;
+                        material.perceptual_roughness *= moment.sqrt().sqrt();
+                        material.metallic_roughness_texture = None;
+                    }
+                }
+                bindings.push(serde_json::json!({
+                    "surface":surface,"normal":material.normal_map_texture.is_some(),
+                    "roughness_multiplier":material.perceptual_roughness,
+                    "metallic":material.metallic,"clearcoat":material.clearcoat,
+                    "coat_roughness":material.clearcoat_perceptual_roughness,
+                    "coat_follows_surface":material.clearcoat_normal_texture.is_some()
+                        && material.clearcoat_normal_texture==material.normal_map_texture,
+                    "uv_transform":material.uv_transform.to_cols_array(),
+                }));
                 for (name, handle) in [
                     ("albedo", &material.base_color_texture),
                     ("normal", &material.normal_map_texture),
@@ -362,6 +417,11 @@ fn main() -> anyhow::Result<()> {
                     }
                 }
             }
+            std::fs::write(
+                maps_output.join("bindings.json"),
+                serde_json::to_vec_pretty(&bindings).unwrap(),
+            )
+            .unwrap();
             let root = commands
                 .spawn((
                     ZeroverseSceneRoot,
@@ -480,7 +540,7 @@ fn main() -> anyhow::Result<()> {
         enabled: true,
         regenerate_scene: false,
         render_modes: modes,
-        warmup_frames: 25,
+        warmup_frames: 8,
         frames: 3,
         timesteps: vec![],
         ..default()
@@ -517,7 +577,7 @@ fn main() -> anyhow::Result<()> {
                         })
                     })
                     .collect();
-                image::RgbImage::from_raw(512, 512, rgb)
+                image::RgbImage::from_raw(resolution, resolution, rgb)
                     .unwrap()
                     .save(output.join(format!("{surface:?}.png")))?;
                 std::fs::write(

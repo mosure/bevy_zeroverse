@@ -4,6 +4,7 @@ pub mod assemblies;
 pub(crate) mod botany;
 mod clutter;
 mod decor;
+pub use decor::{electrical_parameters, ElectricalProgram};
 pub(crate) mod equipment;
 pub(crate) mod floor;
 pub mod functional;
@@ -1055,6 +1056,11 @@ impl IndoorManifest {
             {
                 return false;
             }
+        }
+        if support.kind == ObjectKind::CuttingBoard
+            && !super::objects::kitchen::supplies::board_supports(support, lo, hi, margin)
+        {
+            return false;
         }
         if support.kind.has_table_outline()
             && !super::objects::tables::supports(support, lo, hi, margin)

@@ -7,7 +7,12 @@ use super::super::{
     metrics_sort::NumericCollector,
     objects::equipment,
 };
+use bevy::math::Vec3Swizzles;
 use std::{collections::BTreeMap, io};
+
+mod kitchen_fittings;
+mod service_equipment;
+mod service_furniture;
 
 type Categories = BTreeMap<String, BTreeMap<String, usize>>;
 
@@ -24,6 +29,25 @@ pub(super) fn record_scene(
     numeric: &mut NumericCollector,
     categories: &mut Categories,
 ) -> io::Result<()> {
+    let installation = super::super::layout::electrical_parameters(scene);
+    category(categories, "electrical_standard", installation.standard);
+    for (key, value) in [
+        (
+            "electrical_outlet_height_prior_m",
+            installation.outlet_height,
+        ),
+        (
+            "electrical_switch_height_prior_m",
+            installation.switch_height,
+        ),
+        ("electrical_plate_depth_prior_m", installation.plate_depth),
+        (
+            "electrical_worktop_probability",
+            installation.worktop_probability,
+        ),
+    ] {
+        numeric.push(key, value as f64)?;
+    }
     for object in scene
         .objects
         .iter()
@@ -368,6 +392,40 @@ fn record_equipment(
     categories: &mut Categories,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
+    if o.kind == ObjectKind::FloorOutlet {
+        let p = super::super::objects::floor::parameters(o);
+        category(
+            categories,
+            "floor_outlet_finish",
+            format!("{:?}", p.outlet_finish),
+        );
+        numeric.push("floor_outlet_yaw_rad", o.yaw as f64)?;
+        return Ok(());
+    }
+    if o.kind == ObjectKind::ExitSign {
+        let p = equipment::signals::exit::parameters(o);
+        category(categories, "exit_legend", format!("{:?}", p.legend));
+        category(categories, "exit_mount", format!("{:?}", p.mount));
+        category(categories, "exit_double_sided", p.double_sided);
+        category(categories, "exit_rail_housing", p.rail_mounted);
+        for (key, value) in [
+            ("exit_panel_width_m", p.body.x),
+            ("exit_panel_height_m", p.body.y),
+            ("exit_panel_depth_m", p.body.z),
+            (
+                "exit_drop_m",
+                if p.double_sided {
+                    o.size.y - p.body.y
+                } else {
+                    0.
+                },
+            ),
+            ("exit_emission_scale", p.luminance),
+        ] {
+            numeric.push(key, value as f64)?;
+        }
+        return Ok(());
+    }
     if o.kind == ObjectKind::CeilingFan {
         let p = super::super::objects::fans::parameters(o);
         category(categories, "fan_style", p.style);
@@ -423,7 +481,38 @@ fn record_equipment(
         }
         ObjectKind::PowerStrip => {
             let strip = equipment::power_strip::parameters(o);
-            category(categories, "powerstrip_housing", format!("{:?}", p.housing));
+            category(
+                categories,
+                "powerstrip_housing",
+                format!("{:?}", strip.housing),
+            );
+            category(categories, "powerstrip_socket_rows", strip.rows);
+            category(categories, "powerstrip_plate", format!("{:?}", strip.plate));
+            category(categories, "powerstrip_end_caps", strip.end_caps);
+            numeric.push("powerstrip_socket_yaw_rad", strip.socket_yaw as f64)?;
+            numeric.push(
+                "powerstrip_height_m",
+                (o.size.y * strip.height_fraction) as f64,
+            )?;
+            if let Some(support) = o
+                .support
+                .and_then(|id| scene.objects.iter().find(|s| s.id == id))
+            {
+                let local = support
+                    .transform()
+                    .compute_affine()
+                    .inverse()
+                    .transform_point3(o.position);
+                numeric.push(
+                    "powerstrip_support_x_fraction",
+                    (local.x / support.size.x) as f64,
+                )?;
+                numeric.push(
+                    "powerstrip_support_z_fraction",
+                    (local.z / support.size.z) as f64,
+                )?;
+                numeric.push("powerstrip_support_yaw_rad", (o.yaw - support.yaw) as f64)?;
+            }
             // These describe the generated pin geometry, rather than asserting
             // certification to a national electrical standard.
             category(
@@ -513,10 +602,30 @@ fn record_equipment(
                     (o.size.x.min(o.size.z) * 0.46 * p.diffuser_fraction) as f64,
                 )?;
             } else {
+                let fixture = equipment::sconce::parameters(o);
                 numeric.push(
                     "equipment_diffuser_width_m",
-                    (o.size.x * p.diffuser_fraction) as f64,
+                    (fixture.diffuser_radius * 2.) as f64,
                 )?;
+                category(categories, "sconce_shade_shape", fixture.shade.shape);
+                category(categories, "sconce_arm_style", fixture.arm_style);
+                category(categories, "sconce_plate_round", fixture.plate_round);
+                category(
+                    categories,
+                    "sconce_trim",
+                    format!("{:?}", fixture.shade.trim),
+                );
+                for (name, value) in [
+                    ("sconce_head_width_m", fixture.head_span.x),
+                    ("sconce_head_depth_m", fixture.head_span.y),
+                    ("sconce_head_height_m", fixture.head_height),
+                    ("sconce_head_offset_x_m", fixture.head_bottom.x),
+                    ("sconce_plate_width_m", fixture.plate_span.x),
+                    ("sconce_plate_height_m", fixture.plate_span.y),
+                    ("sconce_arm_radius_m", fixture.arm_radius),
+                ] {
+                    numeric.push(name, value as f64)?;
+                }
             }
             let (position, color, flux, inner, outer) =
                 super::super::architecture::object_fixture_photometry(scene, o);
@@ -546,6 +655,9 @@ pub(super) fn record_object(
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
     record_equipment(scene, o, categories, numeric)?;
+    service_equipment::record(o, categories, numeric)?;
+    service_furniture::record(o, categories, numeric)?;
+    kitchen_fittings::record(o, categories, numeric)?;
     if o.kind == ObjectKind::Cabinet {
         let p = super::super::objects::storage::parameters(o);
         category(categories, "cabinet_front", p.front);
@@ -605,7 +717,74 @@ pub(super) fn record_object(
             }
         }
     }
+    if matches!(
+        o.kind,
+        ObjectKind::KitchenCounter
+            | ObjectKind::KitchenCupboard
+            | ObjectKind::Pantry
+            | ObjectKind::KitchenSink
+    ) {
+        let kitchen = super::super::objects::kitchen::parameters(o);
+        let p = kitchen.front;
+        if kitchen.door_style == 1 {
+            category(categories, "cabinet_glazing_requested_rows", p.glazing_rows);
+            category(
+                categories,
+                "cabinet_glazing_requested_columns",
+                p.glazing_columns,
+            );
+        }
+        if kitchen.front_profile != 0 || kitchen.door_style == 1 {
+            numeric.push("cabinet_stile_fraction", p.frame_fraction.x as f64)?;
+            numeric.push("cabinet_rail_fraction", p.frame_fraction.y as f64)?;
+        }
+        if kitchen.front_profile == 3 && kitchen.door_style != 1 {
+            category(categories, "cabinet_reeds_horizontal", p.horizontal);
+            numeric.push("cabinet_reed_pitch_m", p.flute_pitch_m as f64)?;
+            numeric.push("cabinet_reed_fill", p.flute_fill as f64)?;
+        }
+    }
     match o.kind {
+        ObjectKind::Notepad => {
+            let p = super::super::clutter::tabletop::pad::parameters(o);
+            category(categories, "pad_binding", p.binding);
+            numeric.push("pad_body_height_m", p.height as f64)?;
+            numeric.push("pad_ring_pitch_m", p.ring_pitch as f64)?;
+            let slot =
+                materials::variants::object_slot(Surface::PrintedPaper, o.seed, o.finish_seed);
+            let paper = materials::paper::parameters(materials::variants::screen_seed(
+                scene.material_seed(),
+                slot,
+            ));
+            category(categories, "paper_layout", paper.layout);
+            numeric.push("paper_ruling_spacing_texels", paper.spacing as f64)?;
+            numeric.push("paper_writing_fraction", paper.writing as f64)?;
+            numeric.push("paper_roughness", paper.roughness as f64)?;
+        }
+        ObjectKind::Pencil => {
+            let p = super::super::clutter::tabletop::writing::parameters(o);
+            category(categories, "writing_mechanism", p.mechanism);
+            category(categories, "writing_clip", p.clip);
+            numeric.push("writing_length_m", p.length as f64)?;
+            numeric.push("writing_radius_m", p.radius as f64)?;
+        }
+        ObjectKind::ExhibitPlinth => {
+            let p = super::super::objects::public::casework::plinth::parameters(o);
+            category(categories, "plinth_structure", p.structure);
+            category(
+                categories,
+                "plinth_cap_finish",
+                format!("{:?}", p.cap_finish),
+            );
+            for (key, value) in [
+                ("plinth_cap_height_m", p.cap_height),
+                ("plinth_base_height_m", p.base_height),
+                ("plinth_waist_fraction", p.waist_height),
+                ("plinth_roundness", p.roundness),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         ObjectKind::TrashCan => {
             let p = super::super::objects::containers::bin_parameters(o);
             category(categories, "bin_lid", p.lid);
@@ -621,6 +800,33 @@ pub(super) fn record_object(
             numeric.push("tissue_sheet_fold", p.fold as f64)?;
             numeric.push("tissue_sheet_lean", p.lean as f64)?;
         }
+        ObjectKind::SodaCan => {
+            let p = super::super::clutter::beverages::can::parameters(o);
+            category(categories, "can_opened", p.opened);
+            category(categories, "can_bare", p.bare);
+            for (key, value) in [
+                ("can_radius_fraction", p.radius_fraction),
+                ("can_neck_fraction", p.neck),
+                ("can_shoulder_fraction", p.shoulder),
+                ("can_label_coverage", p.label_top - p.label_bottom),
+                ("can_lid_yaw_rad", p.lid_yaw),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
+        ObjectKind::Sponge => {
+            let p = super::super::objects::kitchen::supplies::sponge::parameters(o);
+            category(categories, "sponge_scouring", p.scouring);
+            category(categories, "sponge_color", p.color);
+            numeric.push("sponge_roundness", p.roundness as f64)?;
+            numeric.push("sponge_waist", p.waist as f64)?;
+        }
+        ObjectKind::CuttingBoard => {
+            let p = super::super::objects::kitchen::supplies::board_parameters(o);
+            category(categories, "cutting_board_handle", p.handle);
+            category(categories, "cutting_board_feet", p.feet_fraction > 0.);
+            numeric.push("cutting_board_handle_offset", p.handle_offset as f64)?;
+        }
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => {
             let p = super::super::objects::wall::parameters(o);
             let name = if o.kind == ObjectKind::WallOutlet {
@@ -628,6 +834,19 @@ pub(super) fn record_object(
             } else {
                 "switch"
             };
+            for (key, value) in [
+                ("case_width_fraction", p.case_fraction.x),
+                ("case_height_fraction", p.case_fraction.y),
+                ("control_width_fraction", p.control_fraction.x),
+                ("control_height_fraction", p.control_fraction.y),
+                (
+                    "height_above_floor_m",
+                    o.position.y - scene.floor_height(o.position.xz()),
+                ),
+                ("depth_m", o.size.z),
+            ] {
+                numeric.push(&format!("{name}_{key}"), value as f64)?;
+            }
             category(categories, &format!("{name}_construction"), p.style);
             category(categories, &format!("{name}_gangs"), p.gangs);
             category(
@@ -645,10 +864,39 @@ pub(super) fn record_object(
         numeric.push("display_width_m", d.width_m as f64)?;
         numeric.push("display_height_m", d.height_m as f64)?;
         numeric.push("display_bezel_m", d.bezel_m as f64)?;
+        numeric.push("display_rear_width_fraction", p.back_fraction.x as f64)?;
+        numeric.push("display_rear_height_fraction", p.back_fraction.y as f64)?;
         if o.kind == ObjectKind::Monitor {
             numeric.push("display_curvature_radius_m", d.curvature_radius_m as f64)?;
             numeric.push("display_tilt_radians", d.tilt_radians as f64)?;
             category(categories, "display_stand", p.stand);
+            category(categories, "display_riser", p.mount.riser_style);
+            category(
+                categories,
+                "display_support_finish",
+                format!("{:?}", p.mount.finish),
+            );
+            numeric.push("display_base_height_m", p.mount.base_height as f64)?;
+            numeric.push(
+                "display_riser_radius_requested_m",
+                p.mount.riser_radius as f64,
+            )?;
+        }
+    }
+    if o.kind == ObjectKind::PaperTowel {
+        let p = super::super::objects::kitchen::supplies::paper_towel::parameters(o);
+        category(categories, "roll_horizontal", p.horizontal);
+        category(categories, "roll_base_style", p.base_style);
+        category(categories, "roll_holder_finish", format!("{:?}", p.finish));
+        for (key, value) in [
+            ("roll_radius_m", p.radius),
+            ("roll_fullness_radius_ratio", p.radius / p.full_radius),
+            ("roll_core_radius_m", p.core_radius),
+            ("roll_length_m", p.length),
+            ("roll_tail_drop_m", p.tail_drop),
+            ("roll_base_height_m", p.base_height),
+        ] {
+            numeric.push(key, value as f64)?;
         }
     }
     if matches!(o.kind, ObjectKind::Desk | ObjectKind::CoffeeTable) {
@@ -663,6 +911,15 @@ pub(super) fn record_object(
             ("workspace_rear_fraction", p.rear_fraction),
             ("workspace_asymmetry_fraction", p.asymmetry_fraction),
             ("workspace_accessory_affinity", p.accessory_affinity),
+            ("workspace_monitor_gap_m", p.monitor_gap_m),
+            (
+                "workspace_monitor_depth_scatter_m",
+                p.monitor_depth_scatter_m,
+            ),
+            ("workspace_monitor_size_scatter", p.monitor_size_scatter),
+            ("workspace_heading_radians", p.workstation_heading),
+            ("workspace_laptop_depth_fraction", p.laptop_depth_fraction),
+            ("workspace_docking_side", p.docking_side),
         ] {
             numeric.push(key, value as f64)?;
         }
@@ -720,9 +977,38 @@ pub(super) fn record_object(
             ("art_brush", p.brush),
             ("art_border_m", frame.border_width),
             ("art_mat_m", frame.mat_width),
+            ("art_mat_aspect", frame.mat_scale.x / frame.mat_scale.y),
+            ("art_picture_bias_x", frame.picture_bias.x),
+            ("art_picture_bias_y", frame.picture_bias.y),
             ("art_shadow_gap_m", frame.shadow_gap),
         ] {
             numeric.push(key, value as f64)?;
+        }
+    }
+    if o.kind == ObjectKind::Phone {
+        let p = super::super::clutter::tabletop::phone::parameters(o);
+        category(categories, "phone_case", p.case);
+        category(categories, "phone_shell", format!("{:?}", p.shell));
+        category(categories, "phone_face_up", p.face_up);
+        for (name, value) in [
+            ("phone_body_width_m", p.span.x),
+            ("phone_body_length_m", p.span.y),
+            ("phone_body_height_m", p.body_height),
+            ("phone_roundness", p.roundness),
+            ("phone_button_length_m", p.button_length),
+            ("phone_button_z_m", p.button_z),
+        ] {
+            numeric.push(name, value as f64)?;
+        }
+        if p.face_up {
+            numeric.push("phone_screen_width_m", p.screen_span.x as f64)?;
+            numeric.push("phone_screen_length_m", p.screen_span.y as f64)?;
+        } else {
+            category(categories, "phone_camera_layout", p.camera_layout);
+            category(categories, "phone_lens_count", p.lens_count);
+            category(categories, "phone_back", format!("{:?}", p.back));
+            numeric.push("phone_lens_radius_m", p.lens_radius as f64)?;
+            numeric.push("phone_camera_island_width_m", p.island_span.x as f64)?;
         }
     }
     if o.kind == ObjectKind::Whiteboard {
@@ -967,10 +1253,7 @@ mod tests {
             }
             if kind == ObjectKind::PowerStrip {
                 let p = equipment::parameters(&o);
-                assert_eq!(
-                    values["equipment_socket_count"].mean,
-                    p.socket_count.min(4) as f64
-                );
+                assert_eq!(values["equipment_socket_count"].mean, p.socket_count as f64);
             }
             if matches!(kind, ObjectKind::WallSconce | ObjectKind::CeilingPendant) {
                 let (position, _, lumens, _, _) =

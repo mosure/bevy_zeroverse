@@ -4,6 +4,23 @@ const N: usize = 32;
 impl Geometry {
     /// Each ring is (height, half-width/depth). Caps and side normals are separate.
     pub fn housing(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
+        self.housing_sections(rings, exponent, tf, true);
+    }
+
+    /// Closed cross-section for a hollow rim. Repeat the first section last;
+    /// unlike a solid housing, no disk caps fill or overlap its aperture.
+    pub fn housing_loop(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
+        debug_assert_eq!(rings.first(), rings.last());
+        self.housing_sections(rings, exponent, tf, false);
+    }
+
+    fn housing_sections(
+        &mut self,
+        rings: &[(f32, Vec2)],
+        exponent: f32,
+        tf: Transform,
+        caps: bool,
+    ) {
         // Every ring shares its angular profile. Evaluate trig/powers once per
         // side, not again for each vertex, tangent and vertical normal sample.
         // Keep the same arithmetic order when applying metric ring dimensions.
@@ -47,6 +64,9 @@ impl Geometry {
                 self.indices
                     .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
             }
+        }
+        if !caps {
+            return;
         }
         for (ring, sign) in [(rings[0], -1.), (*rings.last().unwrap(), 1.)] {
             let start = self.positions.len() as u32;
