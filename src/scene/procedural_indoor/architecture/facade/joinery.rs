@@ -3,6 +3,9 @@ use super::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowJoinery {
+    /// Absent in old manifests, preserving their 18 cm shell and original detail.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reveal: Option<super::reveal::RevealProgram>,
     pub identity: u64,
     pub mullion_fraction: f32,
     pub mullion_depth_fraction: f32,
@@ -23,6 +26,7 @@ impl WindowJoinery {
     pub fn sample(seed: u64) -> Self {
         let mut r = stream(seed, 3161);
         Self {
+            reveal: None,
             identity: seed,
             mullion_fraction: r.random_range(0.38..0.98),
             mullion_depth_fraction: r.random_range(0.60..0.98),

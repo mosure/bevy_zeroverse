@@ -180,20 +180,31 @@ impl PrimaryRegion<'_> {
     /// Enclosing architectural shell used by scene AABB / O-voxel crop. This is
     /// a conservative box; exact point membership is contains_surface.
     pub fn shell_bounds(&self) -> (Vec3, Vec3) {
+        let wall = self.scene.envelope.as_ref().map_or_else(
+            || {
+                self.scene.exterior.as_ref().map_or(0.20, |p| {
+                    p.facades
+                        .iter()
+                        .map(|f| f.wall_thickness_m() + 0.02)
+                        .fold(0.20, f32::max)
+                })
+            },
+            |e| (e.wall_thickness() + 0.02).max(0.20),
+        );
         (
             Vec3::new(
-                self.min.x - 0.20,
+                self.min.x - wall,
                 self.scene
                     .envelope
                     .as_ref()
                     .map_or(0., |e| e.minimum_floor())
                     - 0.20,
-                self.min.y - 0.20,
+                self.min.y - wall,
             ),
             Vec3::new(
-                self.max.x + 0.20,
+                self.max.x + wall,
                 self.scene.room_size.y + 0.14,
-                self.max.y + 0.20,
+                self.max.y + wall,
             ),
         )
     }

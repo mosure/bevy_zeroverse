@@ -209,6 +209,7 @@ fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
     for scale in [1. / 64., 1., 32.] {
         let size = Vec3::new(13.436966, 4.199328, 14.30445) * scale;
         let envelope = EnvelopeProgram {
+            wall_thickness_m: None,
             soffits: vec![],
             tier_guard: None,
             ceiling_drop: Vec2::new(0.819709, 0.47927946) * scale,
@@ -582,8 +583,7 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
         for w in &clear_e.walls {
             construction::wall(
                 &mut shell,
-                clear_e,
-                clear.room_size,
+                &clear,
                 w.edge,
                 w.facade.as_ref().map_or(&[][..], |f| f.openings.as_slice()),
                 architecture::trim::TrimProgram::for_scene(&clear),
@@ -617,14 +617,14 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
                                 [t[0], t[1], t[2]].map(|i| Vec3::from(g.positions[i as usize])),
                             )
                         })
-                        .any(|t| t < 0.6);
+                        .any(|t| t < e.wall_thickness() + 0.25);
                     if *surface == Surface::Glass {
                         glass |= hit;
                     } else {
                         assert!(
                             !hit,
                             "blocked aperture seed {seed} edge {} {label}/{surface:?} origin={origin:?} opening={o:?} distances={:?}",
-                            wall.edge, g.indices.as_chunks::<3>().0.iter().filter_map(|t| ray_triangle(origin, direction, [t[0],t[1],t[2]].map(|i| Vec3::from(g.positions[i as usize])))).filter(|&t|t<0.6).collect::<Vec<_>>()
+                            wall.edge, g.indices.as_chunks::<3>().0.iter().filter_map(|t| ray_triangle(origin, direction, [t[0],t[1],t[2]].map(|i| Vec3::from(g.positions[i as usize])))).filter(|&t|t<e.wall_thickness()+0.25).collect::<Vec<_>>()
                         );
                     }
                 }

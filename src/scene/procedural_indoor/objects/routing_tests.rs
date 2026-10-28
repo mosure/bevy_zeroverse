@@ -63,6 +63,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::DrawerUnit
         | ObjectKind::Bench
         | ObjectKind::Ottoman
+        | ObjectKind::BaseboardHeater
         | ObjectKind::RoomDivider => services::build(a, o),
         ObjectKind::DeskLamp
         | ObjectKind::Speaker

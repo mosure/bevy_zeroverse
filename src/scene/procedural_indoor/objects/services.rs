@@ -4,6 +4,7 @@ pub mod bench;
 pub mod cart;
 pub mod divider;
 pub mod drawers;
+pub mod heater;
 pub mod ottoman;
 #[cfg(test)]
 mod tests;
@@ -52,6 +53,7 @@ pub fn parameters(o: &IndoorObject) -> ServiceProgram {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     match o.kind {
         ObjectKind::DrawerUnit => return drawers::build(a, o),
+        ObjectKind::BaseboardHeater => return heater::build(a, o),
         ObjectKind::Bench => return bench::build(a, o),
         ObjectKind::MobileCart => return cart::build(a, o),
         ObjectKind::RoomDivider => return divider::build(a, o),
@@ -67,6 +69,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 /// object's geometry, never inactive draws from another object's program.
 pub fn construction(o: &IndoorObject) -> String {
     match o.kind {
+        ObjectKind::BaseboardHeater => {
+            let p = heater::parameters(o);
+            format!(
+                "heater/{:?}/hydronic={}/left={}",
+                p.surface, p.hydronic, p.control_left
+            )
+        }
         ObjectKind::MobileCart => {
             let p = cart::parameters(o);
             format!(

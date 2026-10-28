@@ -14,6 +14,7 @@ pub(super) fn record(
     let Some(e) = &scene.envelope else {
         return Ok(());
     };
+    numeric.push("exterior_wall_thickness_m", e.wall_thickness() as f64)?;
     let doors = scene.door_installations();
     let finishes = scene.program.as_ref().and_then(|p| p.finishes.as_ref());
     if let Some(trim) = finishes.and_then(|f| f.trim.as_ref()) {

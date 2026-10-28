@@ -239,13 +239,19 @@ fn trim_endpoints_clear_acute_and_rectangular_corners() {
 
 pub(super) fn wall(
     a: &mut Assembly,
-    e: &EnvelopeProgram,
-    size: Vec3,
+    scene: &IndoorManifest,
     edge: usize,
     holes: &[architecture::facade::WindowOpening],
     trim: Option<&architecture::trim::TrimProgram>,
     surface: Surface,
 ) {
+    let e = scene.envelope.as_ref().unwrap();
+    let size = scene.room_size;
+    let thickness = if e.shared_edge(edge, size) {
+        0.18
+    } else {
+        e.wall_thickness()
+    };
     let p = e.footprint[edge];
     let q = e.footprint[(edge + 1) % e.footprint.len()];
     let length = p.distance(q);
@@ -265,7 +271,7 @@ pub(super) fn wall(
             &p.iter()
                 .map(|p| tf.transform_point(Vec3::new(p.x, p.y, 0.)))
                 .collect::<Vec<_>>(),
-            tf.rotation * Vec3::Z * 0.18,
+            tf.rotation * Vec3::Z * thickness,
             |points, normal, front| {
                 face(
                     a.part(if front { surface } else { Surface::Paint }, "wall"),
@@ -283,13 +289,19 @@ pub(super) fn wall(
                 .find(|w| w.edge == edge)
                 .and_then(|w| w.facade.as_ref())
                 .map(architecture::facade::Facade::trim_openings);
+            let cutouts = architecture::trim::fitted_openings(
+                scene,
+                tf,
+                section,
+                cutouts.as_deref().unwrap_or(holes),
+            );
             architecture::trim::build(
                 a,
                 tf,
                 trim_span(e, edge, section.depth_m, trim.corner_reveal_m),
                 Vec2::splat(trim.joint_m),
                 section,
-                cutouts.as_deref().unwrap_or(holes),
+                &cutouts,
                 false,
             );
         }
@@ -448,8 +460,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             .map_or(&[][..], |f| f.openings.as_slice());
         wall(
             &mut a,
-            e,
-            size,
+            scene,
             entry.edge,
             holes,
             architecture::trim::TrimProgram::for_scene(scene),
@@ -657,8 +668,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
     openings.extend(f.openings.iter().cloned());
     wall(
         a,
-        e,
-        size,
+        scene,
         edge,
         &openings,
         architecture::trim::TrimProgram::for_scene(scene),

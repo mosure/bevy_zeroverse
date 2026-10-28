@@ -1,5 +1,6 @@
 //! Functional furniture groups are transformed together inside the architectural zone.
 use super::*;
+mod heaters;
 mod perimeter;
 impl IndoorManifest {
     pub(super) fn furnish(&mut self, rng: &mut ChaCha8Rng) {

@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 fn continuous_sections_cover_scale_profiles_and_absence() {
     let mut profiles = BTreeSet::new();
     let mut heights = Vec::new();
+    let mut base_scales = Vec::new();
     let mut missing = [0; 2];
     for seed in 0..1024 {
         let p = TrimProgram::sample(seed);
@@ -16,6 +17,9 @@ fn continuous_sections_cover_scale_profiles_and_absence() {
         );
         for (i, s) in [&p.base, &p.crown].into_iter().enumerate() {
             if let Some(s) = s {
+                if i == 0 {
+                    base_scales.push((s.height_m, s.depth_m));
+                }
                 profiles.insert(format!("{:?}", s.profile));
                 heights.push(s.height_m);
             } else {
@@ -28,6 +32,66 @@ fn continuous_sections_cover_scale_profiles_and_absence() {
     assert!(missing[0] > 40 && missing[1] > 200);
     assert!(heights[heights.len() / 20] < 0.05);
     assert!(heights[heights.len() * 19 / 20] > 0.24);
+    assert!(base_scales.iter().filter(|&&(h, _)| h > 0.30).count() > 80);
+    assert!(base_scales.iter().filter(|&&(_, d)| d > 0.045).count() > 100);
+    assert!(
+        base_scales
+            .iter()
+            .filter(|&&(h, d)| h < 0.055 && d < 0.015)
+            .count()
+            > 60
+    );
+}
+
+#[test]
+fn deep_skirting_terminates_at_fitted_cabinets_but_not_clear_furniture() {
+    use crate::scene::procedural_indoor::{
+        layout::IndoorLayout,
+        objects::{audit, ObjectKind},
+    };
+    let mut scene =
+        IndoorManifest::generate_with_humans(3, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let section = TrimSection {
+        height_m: 0.40,
+        depth_m: 0.07,
+        shoulder: 0.6,
+        tip_fraction: 0.4,
+        profile: TrimProfile::Stepped,
+        surface: Surface::Paint,
+        finish_slot: 0,
+    };
+    // A rotated real wall frame verifies the test is not axis-specific.
+    let tf = Transform::from_xyz(2., 0., -3.).with_rotation(Quat::from_rotation_y(0.4));
+    let mut cabinet = audit::fixture(ObjectKind::Cabinet, 3);
+    cabinet.size = Vec3::new(1., 1.2, 0.5);
+    cabinet.yaw = 0.4;
+    cabinet.position = tf.transform_point(Vec3::new(0., 0., 0.295));
+    scene.objects = vec![cabinet.clone()];
+    let cutouts = fitted_openings(&scene, tf, &section, &[]);
+    assert_eq!(cutouts.len(), 1);
+    assert!(cutouts[0].min.x < -0.5 && cutouts[0].max.x > 0.5);
+    let mut a = Assembly::default();
+    build(
+        &mut a,
+        Transform::IDENTITY,
+        Vec2::new(-2., 2.),
+        Vec2::splat(0.006),
+        &section,
+        &cutouts,
+        true,
+    );
+    for g in a.parts.values() {
+        for t in g.indices.as_chunks::<3>().0 {
+            let p = t
+                .map(|i| Vec3::from(g.positions[i as usize]))
+                .into_iter()
+                .sum::<Vec3>()
+                / 3.;
+            assert!(p.x <= -0.505 || p.x >= 0.505);
+        }
+    }
+    scene.objects[0].position = tf.transform_point(Vec3::new(0., 0., 0.40));
+    assert!(fitted_openings(&scene, tf, &section, &[]).is_empty());
 }
 
 #[test]

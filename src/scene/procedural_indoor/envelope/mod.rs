@@ -80,6 +80,9 @@ pub struct EnvelopeWall {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeProgram {
+    /// Exterior structural wall section; old manifests retain 18 cm shells.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wall_thickness_m: Option<f32>,
     /// Flat underside of lowered ceiling regions, in metres. The outer roof
     /// remains planar; these are solid, closed soffits rather than decals.
     #[serde(default)]
@@ -98,6 +101,10 @@ pub struct EnvelopeProgram {
 }
 
 impl EnvelopeProgram {
+    pub fn wall_thickness(&self) -> f32 {
+        self.wall_thickness_m.unwrap_or(0.18)
+    }
+
     pub fn floor_height(&self, p: Vec2) -> f32 {
         self.floor_patches
             .iter()

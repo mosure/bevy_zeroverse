@@ -92,6 +92,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
             }
         }
         FloorOutlet => [0.18, 0.13, 0.16],
+        BaseboardHeater => services::heater::dimensions(seed).to_array(),
     };
     let mut o = IndoorObject {
         id: 0,
@@ -189,6 +190,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         return serde_json::json!(public::signage::parameters(o));
     }
     let all = match o.kind {
+        BaseboardHeater => serde_json::json!(services::heater::parameters(o)),
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
         | Lectern | Locker | TeachingBoard | ExhibitPlinth | Sculpture | InformationStand
         | ExhibitionPanel | ExtractionHood | Banquette => serde_json::json!(public::parameters(o)),

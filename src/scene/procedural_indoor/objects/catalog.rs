@@ -172,4 +172,5 @@ object_catalog! {
     StringLights => ("string_lights", Signals, false, false),
     FireDetector => ("fire_detector", Signals, false, false),
     FirePullStation => ("fire_pull_station", Signals, false, false),
+    BaseboardHeater => ("appliance", Services, false, false),
 }

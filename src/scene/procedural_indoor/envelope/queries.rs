@@ -274,6 +274,12 @@ impl EnvelopeProgram {
     }
 
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if self
+            .wall_thickness_m
+            .is_some_and(|t| !(0.15..=0.72).contains(&t))
+        {
+            return Err("invalid exterior wall thickness".into());
+        }
         if let Some(g) = &self.tier_guard {
             g.validate()?;
         }
@@ -309,6 +315,17 @@ impl EnvelopeProgram {
                 return Err("invalid or duplicated envelope wall".into());
             }
             if let Some(f) = &w.facade {
+                if self.wall_thickness_m.is_some()
+                    && (f.recess + f.frame_depth * 0.5 > self.wall_thickness() + 0.002
+                        || f.joinery
+                            .as_ref()
+                            .and_then(|j| j.reveal.as_ref())
+                            .is_some_and(|r| {
+                                (r.wall_thickness_m - self.wall_thickness()).abs() > 1e-5
+                            }))
+                {
+                    return Err("window frame exceeds recorded wall section".into());
+                }
                 let a = self.footprint[w.edge];
                 let b = self.footprint[(w.edge + 1) % self.footprint.len()];
                 let span = a.distance(b);

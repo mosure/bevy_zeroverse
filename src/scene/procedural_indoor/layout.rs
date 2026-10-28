@@ -255,7 +255,9 @@ impl IndoorObject {
     }
 
     pub(crate) fn wall_clearance(&self) -> f32 {
-        if super::objects::kitchen::is_island(self) {
+        if self.kind == ObjectKind::BaseboardHeater {
+            0.006
+        } else if super::objects::kitchen::is_island(self) {
             0.90
         } else if self.kind.is_kitchen() && self.solid {
             0.045
@@ -606,6 +608,7 @@ impl IndoorManifest {
         // before occupancy-dependent seating, floor details and cable routes so
         // toggling people cannot renumber or resample an unrelated fixture.
         // Pin the reconstruction room before its fixtures and occupants use it.
+        scene.add_baseboard_heaters();
         scene.select_primary_room();
         scene.furnish_ceiling_fans();
         scene.furnish_room_services();

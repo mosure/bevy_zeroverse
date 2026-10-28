@@ -13,6 +13,7 @@ pub(super) fn fixture() -> (IndoorManifest, EnvelopeProgram) {
     scene.envelope = None;
     scene.objects.clear();
     let e = EnvelopeProgram {
+        wall_thickness_m: None,
         footprint: vec![
             Vec2::splat(-9.),
             Vec2::new(9., -9.),

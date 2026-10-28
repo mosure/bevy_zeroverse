@@ -206,7 +206,7 @@ fn wall_complement_preserves_area_without_filling_apertures() {
     }
 }
 
-fn intersects(origin: Vec3, dir: Vec3, p: [Vec3; 3]) -> bool {
+fn intersects(origin: Vec3, dir: Vec3, p: [Vec3; 3], distance: f32) -> bool {
     let e1 = p[1] - p[0];
     let e2 = p[2] - p[0];
     let h = dir.cross(e2);
@@ -219,7 +219,7 @@ fn intersects(origin: Vec3, dir: Vec3, p: [Vec3; 3]) -> bool {
     let q = s.cross(e1);
     let v = dir.dot(q) / det;
     let t = e2.dot(q) / det;
-    (0.0..=1.0).contains(&u) && v >= 0. && u + v <= 1. && (0.0..=0.7).contains(&t)
+    (0.0..=1.0).contains(&u) && v >= 0. && u + v <= 1. && (0.0..=distance).contains(&t)
 }
 
 #[test]
@@ -255,6 +255,7 @@ fn inset_glass_is_visible_through_actual_meshes_on_every_side() {
                             origin,
                             dir,
                             t.map(|i| Vec3::from_array(g.positions[i as usize])),
+                            f.wall_thickness_m() + 0.26,
                         )
                     });
                     if *surface == Surface::Glass {

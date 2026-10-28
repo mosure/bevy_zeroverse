@@ -49,9 +49,17 @@ impl TrimProgram {
             // Tall fitted furnishings reserve 30 cm below the roof. Keep crown
             // relief within that budget, including its reveal and roof slope.
             height_m: r
-                .random_range(0.035_f32.ln()..if crown { 0.25_f32.ln() } else { 0.29_f32.ln() })
+                .random_range(
+                    if crown {
+                        0.035_f32.ln()
+                    } else {
+                        0.025_f32.ln()
+                    }..if crown { 0.25_f32.ln() } else { 0.42_f32.ln() },
+                )
                 .exp(),
-            depth_m: r.random_range(0.008..if crown { 0.065 } else { 0.038 }),
+            depth_m: r
+                .random_range(0.006_f32.ln()..if crown { 0.065_f32.ln() } else { 0.07_f32.ln() })
+                .exp(),
             shoulder: r.random_range(0.36..0.85),
             tip_fraction: r.random_range(0.18..0.72),
             profile: [
@@ -106,7 +114,7 @@ impl TrimProgram {
         if !(0.002..=0.015).contains(&self.joint_m)
             || !(0.04..=0.09).contains(&self.corner_reveal_m)
             || self.base.iter().chain(&self.crown).any(|s| {
-                !(0.025..=0.30).contains(&s.height_m)
+                !(0.025..=0.42).contains(&s.height_m)
                     || !(0.005..=0.07).contains(&s.depth_m)
                     || !(0.3..=0.9).contains(&s.shoulder)
                     || !(0.1..=0.8).contains(&s.tip_fraction)
@@ -121,7 +129,6 @@ impl TrimProgram {
                             | Surface::Ceramic
                     )
             })
-            || self.base.as_ref().is_some_and(|s| s.depth_m > 0.04)
             || self
                 .crown
                 .as_ref()
@@ -136,7 +143,7 @@ impl TrimProgram {
 impl TrimSection {
     /// A small bounded section, with continuous dimensions and profile curvature.
     /// Each consecutive pair bounds disjoint surface area, including at steps.
-    fn knots(&self) -> Vec<Vec2> {
+    pub(crate) fn knots(&self) -> Vec<Vec2> {
         let s = self.shoulder;
         let t = self.tip_fraction;
         let mut result = vec![Vec2::new(0., 1.)];
@@ -240,3 +247,50 @@ pub(crate) fn build(
 
 #[cfg(test)]
 mod tests;
+
+/// Fitted cabinets terminate the skirting instead of intersecting a deeper
+/// plinth. Navigation envelopes need not move when this architectural join changes.
+pub(crate) fn fitted_openings(
+    scene: &IndoorManifest,
+    tf: Transform,
+    section: &TrimSection,
+    holes: &[WindowOpening],
+) -> Vec<WindowOpening> {
+    let mut cutouts = holes.to_vec();
+    for object in scene
+        .objects
+        .iter()
+        .filter(|o| o.solid && !o.neighbor && o.support.is_none())
+    {
+        let mut lo = Vec3::splat(f32::INFINITY);
+        let mut hi = Vec3::splat(f32::NEG_INFINITY);
+        let object_tf = object.transform();
+        for x in [-0.5, 0.5] {
+            for y in [0., 1.] {
+                for z in [-0.5, 0.5] {
+                    let p = tf.rotation.inverse()
+                        * (object_tf.transform_point(object.size * Vec3::new(x, y, z))
+                            - tf.translation);
+                    lo = lo.min(p);
+                    hi = hi.max(p);
+                }
+            }
+        }
+        if lo.z < section.depth_m + 0.005
+            && hi.z > 0.
+            && lo.y < section.height_m + 0.02
+            && hi.y > 0.
+        {
+            cutouts.push(WindowOpening {
+                min: lo.truncate() - Vec2::splat(0.006),
+                max: hi.truncate() + Vec2::splat(0.006),
+                columns: 1,
+                transom: 0.,
+                transoms: vec![],
+                glazing: None,
+                operable: false,
+            });
+        }
+    }
+    cutouts
+}

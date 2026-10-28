@@ -114,7 +114,7 @@ that identity must also match the compiled generator. Historical studies,
 release comparisons and proposed implementation plans stay outside this bundle.
 Camera-count and baseline studies use the same identity gate as the room gallery.
 
-The object atlas audits all 100 furnishing/prop categories on 256 construction
+The object atlas audits every registered furnishing/prop category on 256 construction
 seeds each at fixed metric envelopes. The Rust refresh command builds
 `audit_objects` and `review_objects`, checks the real triangles, selects six
 depth-map-spread examples per category and captures them with one persistent

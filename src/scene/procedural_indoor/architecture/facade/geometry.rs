@@ -98,7 +98,15 @@ pub(in super::super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
         return legacy::shell(a, scene);
     };
     let Vec3 { x: w, y: h, z: d } = scene.room_size;
-    let (hx, hz, t) = (w * 0.5, d * 0.5, 0.18);
+    let (hx, hz, t) = (
+        w * 0.5,
+        d * 0.5,
+        exterior
+            .facades
+            .iter()
+            .map(Facade::wall_thickness_m)
+            .fold(0.0_f32, f32::max),
+    );
     for side in FacadeSide::ALL {
         let f = exterior.facade(side);
         let tf = side.transform(scene.room_size);
@@ -130,6 +138,8 @@ pub(in super::super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
         // Base trim also stops at full-height apertures.
         if let Some(trim) = super::super::trim::TrimProgram::for_scene(scene) {
             if let Some(section) = &trim.base {
+                let openings = f.map_or_else(|| holes.to_vec(), Facade::trim_openings);
+                let openings = super::super::trim::fitted_openings(scene, tf, section, &openings);
                 super::super::trim::build(
                     a,
                     tf,
@@ -139,7 +149,7 @@ pub(in super::super) fn shell(a: &mut Assembly, scene: &IndoorManifest) {
                     ),
                     Vec2::splat(trim.joint_m),
                     section,
-                    &f.map_or_else(|| holes.to_vec(), Facade::trim_openings),
+                    &openings,
                     false,
                 );
             }
@@ -214,6 +224,7 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
     for o in &f.openings {
         let c = (o.min + o.max) * 0.5;
         let size = o.max - o.min;
+        super::reveal::build(a, tf, f, o);
         for x in [o.min.x + fw * 0.5, o.max.x - fw * 0.5] {
             part(
                 a,
@@ -317,11 +328,15 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 tf,
                 surface,
                 &frame_label,
-                Vec3::new(c.x, y, (f.sill_projection - 0.174) * 0.5),
+                Vec3::new(
+                    c.x,
+                    y,
+                    (f.sill_projection - (f.wall_thickness_m() - 0.006)) * 0.5,
+                ),
                 Vec3::new(
                     size.x + 2. * extension,
                     thickness,
-                    0.174 + f.sill_projection,
+                    f.wall_thickness_m() - 0.006 + f.sill_projection,
                 ),
                 0.003,
             );

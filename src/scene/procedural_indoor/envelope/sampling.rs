@@ -63,7 +63,9 @@ impl EnvelopeProgram {
             slope * fraction * if r.random_bool(0.5) { 1. } else { -1. },
             slope * (1. - fraction) * if r.random_bool(0.5) { 1. } else { -1. },
         );
+        let wall_thickness = super::super::architecture::facade::reveal::wall_thickness(scene.seed);
         let mut result = Self {
+            wall_thickness_m: Some(wall_thickness),
             footprint: ceilings::articulate(scene.seed, footprint, size),
             soffits: vec![],
             tier_guard: Some(guardrail::GuardProgram::sample(
@@ -199,14 +201,15 @@ impl EnvelopeProgram {
             let height = result
                 .ceiling_height(size, a)
                 .min(result.ceiling_height(size, b));
-            let facade = if span > 1.5 && r.random_bool(exposure) {
-                let mut sampled = ExteriorProgram::sample(
+            let facade = if span > (2. * wall_thickness + 1.2).max(1.5) && r.random_bool(exposure) {
+                let mut sampled = ExteriorProgram::sample_for_wall(
                     scene.seed.wrapping_add(edge as u64 * 7919),
                     Vec3::new(span, height, span),
-                    // Keep apertures beyond the full 18 cm adjacent wall cap,
+                    // Keep apertures beyond the full adjacent wall cap,
                     // including re-entrant corners. A frame inside that cap
                     // produces competing coplanar faces and obstructed glazing.
-                    0.18,
+                    wall_thickness,
+                    wall_thickness,
                 );
                 let mut f = sampled.facades.remove(0);
                 f.side = FacadeSide::Rear;

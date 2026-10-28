@@ -92,6 +92,24 @@ pub(super) fn record(
             numeric.push("exterior_shade_coverage", f.shade_coverage as f64)?;
         }
         if let Some(j) = &f.joinery {
+            if let Some(r) = &j.reveal {
+                category("window_lining_material", format!("{:?}", r.lining_surface));
+                category(
+                    "window_surround_profile",
+                    r.surround
+                        .as_ref()
+                        .map_or_else(|| "Absent".into(), |s| format!("{:?}", s.profile)),
+                );
+                numeric.push(
+                    "window_reveal_depth_m",
+                    (f.recess - f.frame_depth * 0.5) as f64,
+                )?;
+                numeric.push("window_lining_thickness_m", r.lining_thickness_m as f64)?;
+                if let Some(s) = &r.surround {
+                    numeric.push("window_surround_width_m", s.height_m as f64)?;
+                    numeric.push("window_surround_projection_m", s.depth_m as f64)?;
+                }
+            }
             category("exterior_sill_material", format!("{:?}", j.sill_surface));
             category(
                 "exterior_frame_finish_slot",

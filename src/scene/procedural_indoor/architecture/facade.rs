@@ -4,6 +4,7 @@ mod joinery;
 pub use joinery::WindowJoinery;
 mod legacy;
 mod pane;
+pub mod reveal;
 #[cfg(test)]
 mod tests;
 pub mod treatments;
@@ -114,6 +115,13 @@ pub struct Facade {
 }
 
 impl Facade {
+    pub fn wall_thickness_m(&self) -> f32 {
+        self.joinery
+            .as_ref()
+            .and_then(|j| j.reveal.as_ref())
+            .map_or(0.18, |r| r.wall_thickness_m)
+    }
+
     /// Keep the complete sash sweep clear of installed tracks and fabric.
     pub fn allows_open_sash(&self) -> bool {
         self.shade == Shade::None
@@ -130,6 +138,15 @@ pub struct ExteriorProgram {
 }
 impl ExteriorProgram {
     pub fn sample(seed: u64, size: Vec3, column_width: f32) -> Self {
+        Self::sample_for_wall(seed, size, column_width, reveal::wall_thickness(seed))
+    }
+
+    pub(crate) fn sample_for_wall(
+        seed: u64,
+        size: Vec3,
+        column_width: f32,
+        wall_thickness: f32,
+    ) -> Self {
         let mut rng = stream(seed, 3090);
         let exposure_probability = rng.random_range(0.35..0.85);
         let mut sides: Vec<_> = FacadeSide::ALL
@@ -214,6 +231,14 @@ impl ExteriorProgram {
         for facade in &mut facades {
             let identity = seed.wrapping_add(facade.side as u64 * 13007);
             facade.joinery = Some(WindowJoinery::sample(identity));
+            let (reveal, recess) = reveal::RevealProgram::sample(
+                identity,
+                wall_thickness,
+                facade.frame_depth,
+                facade.frame_width,
+            );
+            facade.recess = recess;
+            facade.joinery.as_mut().unwrap().reveal = Some(reveal);
             let mut articulation = stream(identity, 3162);
             let relief = if articulation.random_bool(0.45) {
                 articulation.random_range(0.04..0.38)
@@ -281,7 +306,7 @@ impl ExteriorProgram {
                 )
                 || !(0.02..=0.08).contains(&f.frame_width)
                 || !(0.04..=0.14).contains(&f.frame_depth)
-                || !(0.03..=0.14).contains(&f.recess)
+                || !(0.03..=0.70).contains(&f.recess)
                 || !(0.0..=0.20).contains(&f.sill_projection)
                 || !(0.0..=1.0).contains(&f.shade_coverage)
                 || !(-1.2..=1.2).contains(&f.shade_tilt)
@@ -293,6 +318,16 @@ impl ExteriorProgram {
             }
             if let Some(joinery) = &f.joinery {
                 joinery.validate()?;
+                if let Some(reveal) = &joinery.reveal {
+                    reveal.validate(f.frame_depth, f.recess)?;
+                    if reveal
+                        .surround
+                        .as_ref()
+                        .is_some_and(|s| s.height_m > f.frame_width)
+                    {
+                        return Err("window surround covers the clear pane rectangle".into());
+                    }
+                }
             }
             for (i, o) in f.openings.iter().enumerate() {
                 if let Some(glazing) = &o.glazing {
