@@ -17,7 +17,7 @@ impl Default for Budget {
     }
 }
 impl Budget {
-    fn path(&mut self, scene: &mut IndoorManifest) -> bool {
+    pub(super) fn path(&mut self, scene: &mut IndoorManifest) -> bool {
         if self.paths == 0 {
             return false;
         }

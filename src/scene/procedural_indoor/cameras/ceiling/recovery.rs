@@ -14,7 +14,9 @@ use crate::scene::procedural_indoor::{
     layout::{stream, IndoorManifest},
 };
 use rand::Rng;
+mod mounts;
 mod paths;
+mod solver;
 
 type Prototype = (Option<crate::calibration::FisheyeSensor>, f32, f32, f32);
 struct Candidate {
@@ -33,8 +35,7 @@ pub(super) fn sample(
 ) -> bool {
     let count = prototypes.len();
     let mut pools: Vec<Vec<Candidate>> = (0..count).map(|_| Vec::new()).collect();
-    let mut visibility_budget = 8192;
-    let mut search_budget = 8192;
+    let mut solver = solver::Solver::default();
     let mut path_budget = paths::Budget::default();
     for (camera, &index) in std::mem::take(&mut scene.cameras).into_iter().zip(order) {
         let track = Track::new(&camera);
@@ -179,29 +180,35 @@ pub(super) fn sample(
             paths::reuse(scene, coverage, prototypes, &mut pools, &mut path_budget);
             paths::perturb(scene, coverage, &mut pools, &mut path_budget);
         }
-        if solve(
+        if solver.solve(
             scene,
             coverage,
             &pools,
             contract,
-            &mut visibility_budget,
-            &mut search_budget,
+            if pass == 0 { 6144 } else { 3072 },
         ) {
             return true;
         }
+    }
+    // Ceiling fixtures can leave only small connected mounting patches. Reuse
+    // those patches across slots, with each slot's own optics and orientation,
+    // instead of treating one unlucky independent draw as an impossible rig.
+    mounts::expand(
+        scene,
+        coverage,
+        space,
+        prototypes,
+        &mut pools,
+        &mut path_budget,
+    );
+    if solver.solve(scene, coverage, &pools, contract, 2048) {
+        return true;
     }
     // Intrinsics are a proposal PDF. Only after fixed-calibration recovery fails,
     // redraw room pinholes from that same PDF on already feasible paths. Explicit
     // fixed priors, fisheye sensors, mount roles and all admission tests stay intact.
     paths::resample_intrinsics(scene, coverage, prototypes, &mut pools, &mut path_budget);
-    let found = solve(
-        scene,
-        coverage,
-        &pools,
-        contract,
-        &mut visibility_budget,
-        &mut search_budget,
-    );
+    let found = solver.solve(scene, coverage, &pools, contract, 0);
     if !found {
         scene.cameras.clear();
     }
@@ -219,6 +226,23 @@ fn mounted(
     let lo = lo + Vec2::splat(mounting.wall_clearance_m);
     let hi = hi - Vec2::splat(mounting.wall_clearance_m);
     let p = Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y));
+    Some(mounted_at(
+        scene,
+        index,
+        &(lens, fov, standoff, roll),
+        p,
+        rng,
+    ))
+}
+
+fn mounted_at(
+    scene: &IndoorManifest,
+    index: usize,
+    &(lens, fov, standoff, roll): &Prototype,
+    p: Vec2,
+    rng: &mut impl Rng,
+) -> IndoorCamera {
+    let mounting = scene.camera_settings.ceiling_mount.as_ref().unwrap();
     let (surface, normal) = surface(scene, p);
     let start = surface + normal * standoff;
     let rotation =
@@ -240,197 +264,5 @@ fn mounted(
         motion: None,
     };
     super::trajectory::propose(scene, index, &mut camera, rng);
-    Some(camera)
-}
-
-fn solve(
-    scene: &mut IndoorManifest,
-    coverage: &Coverage,
-    pools: &[Vec<Candidate>],
-    contract: MixedRigContract,
-    visibility_budget: &mut usize,
-    search_budget: &mut usize,
-) -> bool {
-    if pools.iter().any(Vec::is_empty) {
-        return false;
-    }
-    let policy = scene.camera_settings.multiview.as_ref().unwrap();
-    let mut order: Vec<_> = (1..pools.len()).collect();
-    order.sort_by_key(|i| pools[*i].len());
-    for reference in &pools[0] {
-        let mut domains: Vec<Vec<&Candidate>> = (0..pools.len()).map(|_| Vec::new()).collect();
-        for &index in &order {
-            // Recovery can contain several pinhole calibrations for one slot.
-            // Never reuse a footprint cap from a different realized FOV.
-            let mut floors = std::collections::BTreeMap::new();
-            for candidate in &pools[index] {
-                if super::bodies_overlap(&reference.camera, &candidate.camera)
-                    || !contract.accepts_geometry(
-                        policy,
-                        &[&reference.camera, &candidate.camera],
-                        &[&reference.track, &candidate.track],
-                        false,
-                    )
-                {
-                    continue;
-                }
-                if *visibility_budget == 0 {
-                    return false;
-                }
-                *visibility_budget -= 1;
-                let floor = *floors
-                    .entry(candidate.camera.fov_degrees.to_bits())
-                    .or_insert_with(|| {
-                        contract.pair_overlap_floor(
-                            &reference.camera,
-                            &candidate.camera,
-                            scene.camera_aspect_ratio,
-                        )
-                    });
-                if contract.accepts_visibility(
-                    policy,
-                    &reference.camera,
-                    &candidate.camera,
-                    &pair_samples_cached(
-                        coverage,
-                        &reference.camera,
-                        &reference.views,
-                        &candidate.camera,
-                        &candidate.views,
-                    ),
-                    floor,
-                ) {
-                    domains[index].push(candidate);
-                }
-            }
-            if domains[index].is_empty() {
-                break;
-            }
-        }
-        if domains.iter().skip(1).any(Vec::is_empty) {
-            continue;
-        }
-        order.sort_by_key(|i| domains[*i].len());
-        let mut selected = vec![reference];
-        if assign(
-            &domains,
-            &order,
-            &mut selected,
-            policy,
-            contract,
-            search_budget,
-        ) {
-            let mut result: Vec<_> = selected
-                .into_iter()
-                .zip(std::iter::once(0).chain(order.iter().copied()))
-                .collect();
-            result.sort_by_key(|(_, index)| *index);
-            scene.cameras = result.into_iter().map(|(c, _)| c.camera.clone()).collect();
-            return true;
-        }
-    }
-
-    false
-}
-
-fn assign<'a>(
-    domains: &[Vec<&'a Candidate>],
-    order: &[usize],
-    selected: &mut Vec<&'a Candidate>,
-    policy: &super::super::multiview::MultiViewSettings,
-    contract: MixedRigContract,
-    budget: &mut usize,
-) -> bool {
-    if selected.len() == domains.len() {
-        return true;
-    }
-    let slot = order[selected.len() - 1];
-    for &candidate in &domains[slot] {
-        if *budget == 0 {
-            return false;
-        }
-        *budget -= 1;
-        if selected
-            .iter()
-            .any(|c| super::bodies_overlap(&c.camera, &candidate.camera))
-        {
-            continue;
-        }
-        selected.push(candidate);
-        let cameras: Vec<_> = selected.iter().map(|c| &c.camera).collect();
-        let tracks: Vec<_> = selected.iter().map(|c| &c.track).collect();
-        if contract.accepts_geometry(policy, &cameras, &tracks, selected.len() == domains.len())
-            && assign(domains, order, selected, policy, contract, budget)
-        {
-            return true;
-        }
-        selected.pop();
-    }
-    false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::scene::procedural_indoor::cameras::multiview::MultiViewSettings;
-
-    fn candidate(x: f32, z: f32) -> Candidate {
-        let start = Vec3::new(x, 1.5, z);
-        let camera = IndoorCamera {
-            ceiling_mount: None,
-            fisheye: None,
-            principal_point_offset: None,
-            start,
-            end: start,
-            target: start + Vec3::NEG_Z * 2.,
-            fov_degrees: 60.,
-            motion: None,
-        };
-        Candidate {
-            track: Track::new(&camera),
-            camera,
-            views: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn assignment_backtracks_instead_of_accepting_a_colliding_or_partial_rig() {
-        let policy = MultiViewSettings::from_baseline(0.5).unwrap();
-        let contract = MixedRigContract::new(&policy).unwrap();
-        let reference = candidate(0., 0.);
-        let a = candidate(1.5, 0.);
-        let b = candidate(0., 1.5);
-        let domains = vec![vec![], vec![&a, &b], vec![&a]];
-        let mut selected = vec![&reference];
-        assert!(assign(
-            &domains,
-            &[1, 2],
-            &mut selected,
-            &policy,
-            contract,
-            &mut 16
-        ));
-        assert!(std::ptr::eq(selected[1], &b));
-        assert!(std::ptr::eq(selected[2], &a));
-        let mut selected = vec![&reference];
-        assert!(!assign(
-            &domains,
-            &[1, 2],
-            &mut selected,
-            &policy,
-            contract,
-            &mut 0
-        ));
-        assert_eq!(selected.len(), 1);
-        let impossible = vec![vec![], vec![&a], vec![&a]];
-        assert!(!assign(
-            &impossible,
-            &[1, 2],
-            &mut selected,
-            &policy,
-            contract,
-            &mut 16
-        ));
-        assert_eq!(selected.len(), 1);
-    }
+    camera
 }

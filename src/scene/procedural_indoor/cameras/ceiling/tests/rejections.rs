@@ -3,6 +3,31 @@
 use super::*;
 
 #[test]
+fn production_67354233_mixed_baseline() {
+    qualify_training_replay(67_354_233, 32_768);
+}
+
+#[test]
+fn production_67331663_mixed_baseline() {
+    qualify_training_replay(67_331_663, 32_768);
+}
+
+#[test]
+fn production_67314561_mixed_baseline() {
+    qualify_training_replay(67_314_561, 32_768);
+}
+
+#[test]
+fn production_673_reported_neighbors() {
+    for seed in [
+        67_354_232, 67_354_234, 67_331_662, 67_331_664, 67_314_560, 67_314_562,
+    ] {
+        let scene = qualify_mixed_training_seed(seed);
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+    }
+}
+
+#[test]
 fn production_66258278_mixed_baseline() {
     qualify_training_replay_with_reference_budget(66_258_278, 32_768, 40_000);
 }
