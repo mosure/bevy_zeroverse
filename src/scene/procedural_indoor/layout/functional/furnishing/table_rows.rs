@@ -136,17 +136,31 @@ impl IndoorManifest {
             return false;
         };
         let table = self.objects[id].clone();
-        let sides: &[f32] = if row.double_sided { &[-1., 1.] } else { &[1.] };
+        let mut sides = [1., -1.];
+        if row.double_sided {
+            sides.shuffle(r);
+        }
+        let sides = &sides[..if row.double_sided { 2 } else { 1 }];
         self.assembly_diagnostics.programs[index].requested_capacity += seats * sides.len();
         let regular = parameters.lecture_seating.regular;
+        // A dining row needs usable seating on both sides, not a compulsory pair
+        // on each edge. Per-table occupancy and independent vacancies also allow
+        // realistic unbalanced counts, while lecture rows keep their shared desks.
+        let minimum = if row.double_sided { 1 } else { 2 };
+        let occupancy = parameters.occupancy
+            * if row.double_sided {
+                r.random_range(0.40..1.0)
+            } else {
+                1.
+            };
         for &side in sides {
             let mut accepted = 0;
             let mut stations: Vec<_> = (0..seats).collect();
             stations.shuffle(r);
             for (attempt, seat) in stations.into_iter().enumerate() {
-                // Preserve two potential stations per side, then sample vacancies.
+                // Preserve the minimum potential stations, then sample vacancies.
                 // Random order avoids consistently filling one end of every top.
-                if attempt > 1 && !r.random_bool(parameters.occupancy as f64) {
+                if attempt >= minimum && !r.random_bool(occupancy as f64) {
                     continue;
                 }
                 let size = collection.chair(r);
@@ -207,7 +221,7 @@ impl IndoorManifest {
                     accepted += 1;
                 }
             }
-            if accepted < 2 {
+            if accepted < minimum {
                 self.objects.truncate(start);
                 return false;
             }

@@ -1,7 +1,7 @@
 //! Arc-length seating on the actual convex tabletop, including curved/tapered ends.
 use super::*;
 
-pub(super) struct SeatPath {
+pub(in super::super) struct SeatPath {
     points: Vec<Vec2>,
     lengths: Vec<f32>,
     pub length: f32,

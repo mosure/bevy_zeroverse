@@ -4,6 +4,7 @@ use super::*;
 pub mod finishes;
 mod meeting;
 mod perimeter;
+pub(super) use perimeter::SeatPath;
 #[cfg(test)]
 mod tests;
 

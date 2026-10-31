@@ -13,6 +13,9 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
         let mut realized = 0;
         let mut alternatives = 0;
         let mut samples = 0;
+        let mut single_seat_sides = 0;
+        let mut multiple_seat_sides = 0;
+        let mut asymmetric = 0;
         for seed in 0..128 {
             let density = [0., 0.35, 0.65, 1.][seed as usize % 4];
             let generation = std::time::Instant::now();
@@ -34,7 +37,9 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
                 .iter()
                 .filter_map(|&id| {
                     let table = &scene.objects[id];
-                    if !matches!(table.kind, ObjectKind::Table | ObjectKind::Desk) {
+                    if !matches!(table.kind, ObjectKind::Table | ObjectKind::Desk)
+                        || table.variant != objects::tables::SHARED_ROW_VARIANT
+                    {
                         return None;
                     }
                     let seats: Vec<_> = scene
@@ -42,13 +47,7 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
                         .iter()
                         .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(id))
                         .collect();
-                    (seats.len()
-                        >= if layout == IndoorLayout::Cafeteria {
-                            4
-                        } else {
-                            2
-                        })
-                    .then_some((table, seats))
+                    Some((table, seats))
                 })
                 .collect();
             realized += usize::from(!groups.is_empty());
@@ -59,6 +58,7 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
                 );
             }
             for (table, seats) in &groups {
+                assert!(seats.len() >= 2, "shared table without usable seating");
                 let inv = table.transform().compute_affine().inverse();
                 let mut sides = [0, 0];
                 for chair in seats {
@@ -74,7 +74,10 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
                         chair.id, table.id);
                 }
                 if layout == IndoorLayout::Cafeteria {
-                    assert!(sides.iter().all(|&n| n >= 2), "one-sided dining row");
+                    assert!(sides.iter().all(|&n| n >= 1), "one-sided dining row");
+                    single_seat_sides += sides.iter().filter(|&&n| n == 1).count();
+                    multiple_seat_sides += sides.iter().filter(|&&n| n > 1).count();
+                    asymmetric += usize::from(sides[0] != sides[1]);
                 } else {
                     assert_eq!(sides[0], 0);
                 }
@@ -115,6 +118,14 @@ fn shared_table_rows_have_seats_support_routes_and_replay() {
             }));
         }
         assert!(selected >= 45 && alternatives >= 30);
+        if layout == IndoorLayout::Cafeteria {
+            assert!(single_seat_sides >= 20 && multiple_seat_sides >= 20,
+                "dining rows collapsed to fixed side counts: single={single_seat_sides} multiple={multiple_seat_sides}");
+            assert!(
+                asymmetric >= 20,
+                "every table should not have mirrored chair counts"
+            );
+        }
         assert!(
             realized >= selected * 3 / 4,
             "{layout:?}: only {realized}/{selected} table-row rooms realized"

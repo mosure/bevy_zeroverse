@@ -61,6 +61,10 @@ fn special_parts(surface: &str, row: &Value) -> Result<u64> {
                     | ("Terracotta", "103")
                     | ("Paper", "104")
                     | ("Plastic" | "Metal", "300" | "301" | "302" | "303" | "304")
+                    | (
+                        "Plastic" | "Fabric",
+                        "320" | "321" | "322" | "323" | "324" | "325" | "326" | "327"
+                    )
             ),
             "unregistered special finish {surface}/{slot}"
         );
@@ -513,6 +517,30 @@ mod tests {
             ("Paper", json!({"104":1.5})),
             ("Paper", json!([])),
         ] {
+            assert!(special_parts(surface, &json!({"special_slots":slots})).is_err());
+        }
+    }
+    #[test]
+    fn cleaning_supply_finishes_match_the_reserved_production_palette() {
+        // Sponge foam and abrasive fabric reuse PBR maps with a dedicated
+        // eight-color palette. These are not upholstery's ordinary slots.
+        for surface in ["Plastic", "Fabric"] {
+            let slots: serde_json::Map<String, Value> = (320..328)
+                .map(|slot| (slot.to_string(), json!(2)))
+                .collect();
+            assert_eq!(
+                special_parts(surface, &json!({"special_slots":slots})).unwrap(),
+                16
+            );
+        }
+        for (surface, slot) in [
+            ("Fabric", 319),
+            ("Fabric", 328),
+            ("Plastic", 328),
+            ("FabricAlt", 321),
+            ("Metal", 321),
+        ] {
+            let slots = serde_json::Map::from_iter([(slot.to_string(), json!(1))]);
             assert!(special_parts(surface, &json!({"special_slots":slots})).is_err());
         }
     }

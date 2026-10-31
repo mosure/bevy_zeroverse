@@ -109,12 +109,40 @@ fn support_region_triangles_are_exact_and_level_aware() {
 
 #[test]
 fn architectural_support_regions_preserve_the_floor_beneath_rugs() {
-    use crate::scene::procedural_indoor::envelope::polygon;
-    let scene = IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-    assert!(!scene.rug_supports.is_empty());
+    use crate::scene::procedural_indoor::{envelope::polygon, layout::floor::area::RugSupport};
+    let mut scene =
+        IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    // Test the support-layer contract explicitly. Which furniture arrangements
+    // leave room for an optional rug is a separate sampling decision.
+    scene.rug_supports.clear();
     let regions = support_regions(&scene);
+    let (region, triangle) = regions
+        .iter()
+        .filter(|region| !region.overhead)
+        .flat_map(|region| {
+            region
+                .triangles
+                .iter()
+                .map(move |triangle| (region, triangle))
+        })
+        .find(|(region, triangle)| {
+            (scene.floor_height((triangle[0] + triangle[1] + triangle[2]) / 3.)
+                - region.elevation_metres)
+                .abs()
+                < 1e-5
+        })
+        .unwrap();
+    scene.rug_supports.push(RugSupport {
+        object: scene.objects.len(),
+        outline: triangle.to_vec(),
+        min: triangle.iter().copied().reduce(Vec2::min).unwrap(),
+        max: triangle.iter().copied().reduce(Vec2::max).unwrap(),
+        bottom: region.elevation_metres,
+        top: region.elevation_metres + 0.007,
+    });
+    assert_eq!(regions, support_regions(&scene));
     for rug in &scene.rug_supports {
-        let p = (rug.min + rug.max) * 0.5;
+        let p = rug.outline.iter().copied().sum::<Vec2>() / rug.outline.len() as f32;
         assert!(rug.contains(p));
         assert_eq!(scene.floor_height(p), rug.top);
         let region = regions

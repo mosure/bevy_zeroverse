@@ -1,4 +1,8 @@
+use super::super::super::assemblies::SeatPath;
 use super::*;
+use rand::seq::SliceRandom;
+#[cfg(test)]
+mod tests;
 impl IndoorManifest {
     pub(super) fn dining_program(&mut self, index: usize, r: &mut ChaCha8Rng) {
         let p = self.assembly_diagnostics.programs[index].clone();
@@ -90,63 +94,100 @@ impl IndoorManifest {
         yaw: f32,
         r: &mut ChaCha8Rng,
     ) {
-        self.assembly_diagnostics.programs[index].requested_capacity += 2;
         let collection = variation::Collection::sample(self.seed, index);
         let table_size = collection.table(width, r);
         let start = self.objects.len();
         let Some(id) = self.public_fit(index, ObjectKind::Table, pos, table_size, yaw, r) else {
+            self.assembly_diagnostics.programs[index].requested_capacity += 2;
             return;
         };
         let table = self.objects[id].clone();
-        for side in [-1., 1.] {
-            if side < 0.
-                && self.assembly_diagnostics.programs[index].activity == IndoorLayout::Cafe
-                && r.random_bool(0.48)
-            {
-                let depth = r.random_range(0.63..0.76);
-                let p = table.position
-                    + Quat::from_rotation_y(yaw)
-                        * Vec3::new(
-                            r.random_range(-0.10..0.10),
-                            0.,
-                            -(table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
-                        );
-                if self
-                    .public_fit(
-                        index,
-                        ObjectKind::Banquette,
-                        p,
-                        Vec3::new(width.max(1.15), r.random_range(0.96..1.17), depth),
-                        yaw,
-                        r,
-                    )
-                    .is_some()
-                {
-                    continue;
-                }
+        // Capacity follows usable tabletop perimeter, not the longer offset
+        // chair path. This keeps small cafe tops from becoming six-seat tables.
+        let perimeter = SeatPath::new(&table, 0.).length;
+        let occupancy = self.assembly_diagnostics.programs[index]
+            .parameters
+            .occupancy;
+        let capacity =
+            (perimeter / r.random_range(0.70..0.92) * occupancy * r.random_range(0.65..1.0))
+                .round()
+                .clamp(2., 8.) as usize;
+        self.assembly_diagnostics.programs[index].requested_capacity += capacity;
+        let bench_side = if self.assembly_diagnostics.programs[index].activity == IndoorLayout::Cafe
+            && r.random_bool(0.48)
+        {
+            self.assembly_diagnostics.programs[index].requested_capacity += 1;
+            let side = if r.random_bool(0.5) { -1. } else { 1. };
+            let depth = r.random_range(0.63..0.76);
+            let offset = Vec3::new(
+                r.random_range(-0.10..0.10),
+                0.,
+                side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
+            );
+            self.public_fit_with(
+                index,
+                FloorProposal {
+                    kind: ObjectKind::Banquette,
+                    position: table.transform().transform_point(offset),
+                    size: Vec3::new(table.size.x.max(1.15), r.random_range(0.96..1.17), depth),
+                    yaw: yaw + if side > 0. { PI } else { 0. },
+                },
+                r,
+                |o| station_clear(&table, o, offset.xz()),
+            )
+            .map(|_| side)
+        } else {
+            None
+        };
+        let path = SeatPath::new(&table, r.random_range(0.46..0.57));
+        let phase = r.random_range(0.0..1.0);
+        let mut stations: Vec<_> = (0..capacity).collect();
+        // Neither a world axis nor the outline's first edge gets first refusal
+        // when a doorway, neighboring table or bench blocks some of the seats.
+        stations.shuffle(r);
+        for station in stations {
+            let fraction = phase + (station as f32 + r.random_range(-0.14..0.14)) / capacity as f32;
+            let (point, facing) = path.sample(fraction);
+            if bench_side.is_some_and(|side| point.y * side > table.size.z * 0.25) {
+                continue;
             }
             let size = collection.chair(r);
-            let p = table.position
-                + Quat::from_rotation_y(yaw)
-                    * Vec3::new(
-                        r.random_range(-0.16..0.16),
-                        0.,
-                        side * (table.size.z * 0.5 + size.z * 0.5 + r.random_range(0.12..0.27)),
-                    );
-            if let Some(chair) = self.public_fit(
+            let variant = if r.random_bool(0.5) { 3 } else { 4 };
+            self.public_fit_with(
                 index,
-                ObjectKind::Chair,
-                p,
-                size,
-                yaw + if side < 0. { PI } else { 0. } + r.random_range(-0.16..0.16),
+                FloorProposal {
+                    kind: ObjectKind::Chair,
+                    position: table
+                        .transform()
+                        .transform_point(Vec3::new(point.x, 0., point.y)),
+                    size,
+                    yaw: table.yaw + facing + r.random_range(-0.22..0.22),
+                },
                 r,
-            ) {
-                self.objects[chair].variant = if r.random_bool(0.5) { 3 } else { 4 };
-                self.objects[chair].interaction_target = Some(id);
-            }
+                |o| {
+                    // Admit the final chair geometry and pairing, so leg/top
+                    // clearance is checked before this station is accepted.
+                    o.variant = variant;
+                    o.interaction_target = Some(id);
+                    station_clear(&table, o, point)
+                },
+            );
         }
         if self.objects.len() == start + 1 {
             self.objects.truncate(start);
         }
     }
+}
+
+/// Local recovery may move a seat slightly, but not across the tabletop or onto
+/// another floor level. The shared placement gate checks all physical clearance.
+fn station_clear(table: &IndoorObject, seat: &IndoorObject, station: Vec2) -> bool {
+    let local = table
+        .transform()
+        .compute_affine()
+        .inverse()
+        .transform_point3(seat.position);
+    local.xz().distance_squared(station) < 0.40_f32.powi(2)
+        && local.xz().dot(station) > 0.
+        && (table.position.y - seat.position.y).abs() < 0.015
 }
