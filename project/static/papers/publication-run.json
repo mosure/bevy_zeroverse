@@ -1,22 +1,22 @@
 {
-  "checkout_revision": "8b1f66442ef4527ffb9401dce24e6b716e7f4a28",
+  "checkout_revision": "2bd5c20bf190350194aa4f97f9e2c212a0431d4e",
   "completed_stage_sha256": {
-    "camera-audit": "6e27498ce14483094e1c1050045d12eb5bba1c9a03ef36494566eef4cf2ddebd",
-    "camera-render": "b35c2c8b64aaea5231d47cff500d763015054bd12b037676a6278ae64c1aa081",
-    "camera-report": "796c084a2513c7d7bf8b7df14da4db5d75daa672575bee47a38e7d698891152e",
-    "fisheye": "146d5e6e56bae3c265f96aab79d4ab4d7f09c46b15566ab35e51b15a6af8a29a",
-    "pipeline-timing": "12a2d72e7d34dd6e010f991e018729eaf86bceeac6849878fa62a6c65081b705",
-    "room-qualification": "95822d7f603ca6e310f557a8a1e9793dc7b411e20ba5dc2670595cecc9e2724f"
+    "camera-audit": "c9533943b2c56bc09209af90769aae3e5225b4fd5a97f9622924b472c365502c",
+    "camera-render": "c6fc7d3bb5a1c1802fa99d5e0faeffcb28cef62afb865142a160c7809a1e381c",
+    "camera-report": "03bf580ccce743d366840f9b8310f2a5ad19095c860b744c6bfb23a5ffe1805c",
+    "fisheye": "c9aff3ddf1cca8cb76f51f80c9a792834bfdb3be2f80412444893923fc80c66f",
+    "pipeline-timing": "78d1fd260675bfb0e79944db937b6c7cdaae19668b9b014855b8883790c5db10",
+    "room-qualification": "60808e68136e4eb2818ddf71d0b981cdcf2a41a35129afef2c7b7f486a200b27"
   },
   "execution": "native render commands; actual adapters are recorded in each render/timing receipt",
   "generator_identity": {
-    "crate_version": "0.61.0",
-    "generator_version": 98,
+    "crate_version": "0.62.2",
+    "generator_version": 112,
     "schema_version": 1,
-    "source_sha256": "0e4fca2e51c37278489389a150a2a727248535034d425c20aa0e0ba9a03c9320"
+    "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce"
   },
   "plan": {
-    "cache_key": "b0ab1384ee0fc0fae819f9004bdf6808525fc5a781604e99da19efe716b3e9c0",
+    "cache_key": "c619b37fbc46ff3f92550c0bb4a166763bd164e39fd6ef12e68d04d1d3567e75",
     "cache_policy": "exact source, tool, recipe and completed artifact hashes; never retained evidence",
     "camera_baselines": [
       0.0,
@@ -58,12 +58,12 @@
     "fisheye_rendered_views": 36,
     "gallery_rendered_views": 256,
     "generator_identity": {
-      "crate_version": "0.61.0",
-      "generator_version": 98,
+      "crate_version": "0.62.2",
+      "generator_version": 112,
       "schema_version": 1,
-      "source_sha256": "0e4fca2e51c37278489389a150a2a727248535034d425c20aa0e0ba9a03c9320"
+      "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce"
     },
-    "publisher_sha256": "5221712a9304241f45427ff4f9560c8390e7915b0ec30c124a67c5f0d8c5736a",
+    "publisher_sha256": "a3cf2ee58ecf74c77ccac1464ca72b02ed472f8dad1794fa0ab5724e40b92c08",
     "recipe": {
       "camera_audit_rooms": 64,
       "camera_render_rooms": 2,
@@ -99,20 +99,21 @@
       "examples/audit_cameras.rs": "96b486f16e02f4cd34b936713e877226d19d488beffce8faa81c0cffc9c9d4f9",
       "examples/audit_cameras/wire.rs": "077ce25b35a28981b807cd073946dac45b1faa5afc4edf9c9ad0974cd45f086c",
       "examples/audit_capacity.rs": "f84239f46e9fb74bd187db9c2f15d9d9e05267727bd76f1f506c3199781994ee",
+      "examples/audit_dining_seating.rs": "b2dc3ff021b3be4a031f0a36498d1e1b2d914dacc2ca1b4532077fe3e2bd5c62",
       "examples/audit_display_materials.rs": "a003a340bea9996600d57be67cf47a9523bb3351121e22f3dee3bef4185236e8",
-      "examples/audit_materials.rs": "13d3283ca4bd482ff9fc44cb9902a7ef246e358a338cbe1bfaffd4028b8744c0",
+      "examples/audit_materials.rs": "fce39c1a288fe807c594993aa4fdfd0b8fb7994a6f0d5cbeca3bea93fa0d3e35",
       "examples/audit_objects.rs": "3b3f11948dd2e61926dfb92a2ced93bc89b26ac220d8922ef22be67d3ad3f2bf",
       "examples/audit_plants.rs": "b3991a59376c448c1e28c78a09308130e60013e77d842ea99f3bbbddc651cfd9",
       "examples/audit_public_cameras.rs": "1fa864274dacecf334edaf2cbceaae4006cfe6dfaa4d69c0c48d75f12127694c",
       "examples/audit_public_programs.rs": "257cfd7ded0954cf99b2f461046e3250694ca45a6bf394c4213d4f821bfdae1a",
-      "examples/audit_room_geometry.rs": "2e8d3de302f36bb489043e11b0fe7c1b380e45a31a6672ab34826a1d9ab5cb22",
+      "examples/audit_room_geometry.rs": "e39bb3552f3f174ca6b7d50de44e881332a52f1576683a9180e98fa4214a01d6",
       "examples/bench_lens_preview.rs": "84067548f278f058e76344bb77a2b4f2f77202cb016e18ed55242f25dbcf2643",
       "examples/capture_endurance.rs": "3f5cb4998788c00f46ea2f1ef76da0d220cfcdaf72b1533d0e3ba1199390a4cb",
       "examples/material_study/audit.rs": "bd65feb050ed413f80a390cb58c063e87d77cd78959bc685b2993b73dddbf0ae",
-      "examples/material_study/studio.rs": "a4551aad4df9d1738fd6c56b4ca0dedb5e563c84e321d06224f65d98198b0831",
+      "examples/material_study/studio.rs": "0858332fc072926a02aab832339e9ff0c28a8497ebc775139cfb45eab25fbb9c",
       "examples/qualify_materials.rs": "c8a7a90e6a8b9d2a6b12dbc147281984262e2ab1027cc38f0eb43d0622052c03",
       "examples/review_camera_controls.rs": "b877857092913902c70419b9e6db2526ba2c9a0d4aeac0bf92cedcd4bb54df6b",
-      "examples/review_camera_gizmos.rs": "e5bd7c1197aedcccdc75981d7f797184ca6f7d12a6ba26ee23a0cfebac3b7e01",
+      "examples/review_camera_gizmos.rs": "bf981749584024449cb8b296dba62dd385b95f3ae4f4c15fa29e925158bca26e",
       "examples/review_ceilings.rs": "3941b36f87e771c303b9f332ced42d80b7cddf0f66c434e6ed7804dbf6a0c7fe",
       "examples/review_clearance.rs": "6192da50a95889fcbc90aad1ec73acaa8795b78dc428c3201bbb622ea3f90c99",
       "examples/review_doors.rs": "24126d909b29a8ee33a141d15eaf040757ba2e6848657b6218e86748437e04b3",
@@ -129,8 +130,8 @@
       "examples/review_kitchens.rs": "651976a182d4c162b6be115d29ab9abe3ac9005e6506d5f903d50f336a7b6b6e",
       "examples/review_light_occlusion.rs": "3480c240d4ea4dc471e494d380cdf211fd8cd2a7d3463f5d6e5c2d0c3358aa73",
       "examples/review_luminaires.rs": "9329bf1ef1f1c2018853e4027ff30b5af22af16c619f41114773ba82a25416a5",
-      "examples/review_materials.rs": "1c425076abd2ef9a7a1701297c0b4944f0bc6a5f918d9830c6905f4740890e2b",
-      "examples/review_objects.rs": "3a1194fc1ff73ff8d52e3e897df8c794d7c8bb1cb840d04bfd3b7b52b973376b",
+      "examples/review_materials.rs": "0db7d26f7aef4c8ec218a32707bde38fe2054c89afd7707d0ceba64256ebe3aa",
+      "examples/review_objects.rs": "8a8672dd0b419b566933991bea482481d568350860946fa9422432b785988780",
       "examples/review_room_context.rs": "47a63ab0c38204702ab445cdba41f42dd6c67528c4a8de540eedb1d02cbd33f8",
       "examples/review_schematic.rs": "51c0c3092ea805bfc9222d0575b60b4a9886f5841429a393b2f990bab27a5fb4",
       "examples/review_static_poses.rs": "17206dcbccaa07fc71eb3bd86401e03ac19b93135676c61993fbacc850452baf",

@@ -1,14 +1,14 @@
 {
   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
   "build_provenance": {
-    "capture_engine": "capture-v123;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=53;public_programs=9;kitchens=7;doors=1;multiview=21;camera_motion=1;ceiling_camera=4;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=12;finishes=19;seating=7;activity=3;playback=2;exterior=5;envelope=9;furnishings=16;botany=4;visual_content=6;equipment=19;palette=2;photometry=7;sun_shadow=2;material_compute=4;semantic=10;ceiling=7;floor_details=5;window_treatments=1",
-    "crate_version": "0.61.0",
+    "capture_engine": "capture-v137;ssaa=1;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=55;public_programs=13;kitchens=11;doors=1;multiview=22;camera_motion=1;ceiling_camera=5;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=17;finishes=22;seating=7;activity=3;playback=2;exterior=5;envelope=10;furnishings=18;botany=4;visual_content=8;equipment=25;palette=2;photometry=8;sun_shadow=2;material_compute=4;semantic=11;ceiling=7;floor_details=6;window_treatments=1",
+    "crate_version": "0.62.2",
     "features": {
       "human_motion": false,
       "multi_threaded": true,
       "web": false
     },
-    "generator_version": 98,
+    "generator_version": 112,
     "locked_package_versions": {
       "bevy": [
         "0.20.0"
@@ -17,19 +17,19 @@
         "0.7.0"
       ],
       "bevy_zeroverse": [
-        "0.61.0"
+        "0.62.2"
       ],
       "bevy_zeroverse_burn": [
-        "0.45.0"
+        "0.46.2"
       ],
       "bevy_zeroverse_capture": [
-        "0.6.15"
+        "0.6.18"
       ],
       "bevy_zeroverse_ffi": [
-        "0.61.0"
+        "0.62.2"
       ],
       "bevy_zeroverse_publication": [
-        "0.9.3"
+        "0.9.6"
       ],
       "burn": [
         "0.22.1"
@@ -978,7 +978,7 @@
       }
     ],
     "semantic_taxonomy_version": 10,
-    "source_sha256": "0e4fca2e51c37278489389a150a2a727248535034d425c20aa0e0ba9a03c9320",
+    "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce",
     "target": "x86_64-unknown-linux-gnu"
   },
   "categories": [
@@ -2077,18 +2077,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            133,
-            60,
-            22,
-            14,
-            12,
-            7,
-            5,
-            3
+            108,
+            30,
+            20,
+            39,
+            23,
+            16,
+            13,
+            7
           ],
-          "max": 0.0004150931490585208,
-          "median": 0.000051462295232340693,
-          "min": 3.7716356473538326e-6,
+          "max": 0.0009559307945892216,
+          "median": 0.00018143985653296113,
+          "min": 0.000012320538189669604,
           "present": 256,
           "type": "numeric"
         },
@@ -2198,9 +2198,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666644725924229,
+                "mean_encoded": 0.6666663874208539,
                 "mip_levels": 9,
-                "std_encoded": 0.23570924891796055,
+                "std_encoded": 0.23571997407654327,
                 "width": 256
               },
               "roughness": {
@@ -2303,7 +2303,7 @@
               0.9195293188095092,
               0.6213016510009766
             ],
-            "relief_m": 0.00009927315113600343,
+            "relief_m": 0.0004423245263751596,
             "roughness": 0.8111239671707153,
             "seed": 2304224580301692344,
             "surface": "Paint",
@@ -2351,9 +2351,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666678035960477,
+                "mean_encoded": 0.6666679232728242,
                 "mip_levels": 9,
-                "std_encoded": 0.2357071680508802,
+                "std_encoded": 0.23578172659963245,
                 "width": 256
               },
               "roughness": {
@@ -2456,7 +2456,7 @@
               0.029887735843658447,
               0.011390089988708496
             ],
-            "relief_m": 0.00004960448859492317,
+            "relief_m": 0.0002826055570039898,
             "roughness": 0.42745858430862427,
             "seed": 702774355584228181,
             "surface": "Paint",
@@ -2504,9 +2504,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666677038653965,
+                "mean_encoded": 0.6662404577717352,
                 "mip_levels": 9,
-                "std_encoded": 0.2358380083953736,
+                "std_encoded": 0.2360968177634065,
                 "width": 256
               },
               "roughness": {
@@ -2609,7 +2609,7 @@
               0.023123443126678467,
               0.29178476333618164
             ],
-            "relief_m": 0.00028405338525772095,
+            "relief_m": 0.0007857308955863118,
             "roughness": 0.4728841781616211,
             "seed": 4639956782674225386,
             "surface": "Paint",
@@ -2657,9 +2657,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666691200405936,
+                "mean_encoded": 0.6666696785322195,
                 "mip_levels": 9,
-                "std_encoded": 0.2357059627478754,
+                "std_encoded": 0.2357058356409576,
                 "width": 256
               },
               "roughness": {
@@ -2762,7 +2762,7 @@
               0.67914217710495,
               0.8885602355003357
             ],
-            "relief_m": 0.0000240914541791426,
+            "relief_m": 0.00013416761066764593,
             "roughness": 0.8530572652816772,
             "seed": 11800546720364944427,
             "surface": "Paint",
@@ -2810,9 +2810,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666633556091713,
+                "mean_encoded": 0.6666570326861233,
                 "mip_levels": 9,
-                "std_encoded": 0.2357100387067573,
+                "std_encoded": 0.2357145093249806,
                 "width": 256
               },
               "roughness": {
@@ -2940,7 +2940,7 @@
               0.05891364812850952,
               0.15932804346084595
             ],
-            "relief_m": 0.00003577161260182038,
+            "relief_m": 0.00012299221998546273,
             "roughness": 0.7302165627479553,
             "seed": 8773852546636435649,
             "surface": "Paint",
@@ -2988,9 +2988,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666685615489683,
+                "mean_encoded": 0.6666680230034752,
                 "mip_levels": 9,
-                "std_encoded": 0.23570879279235513,
+                "std_encoded": 0.23579482911968833,
                 "width": 256
               },
               "roughness": {
@@ -3093,7 +3093,7 @@
               0.3969663381576538,
               0.27492445707321167
             ],
-            "relief_m": 0.00013531403965316713,
+            "relief_m": 0.0005277997115626931,
             "roughness": 0.8540452122688293,
             "seed": 6089340362165492524,
             "surface": "Paint",
@@ -4205,18 +4205,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            200,
-            34,
-            9,
-            6,
+            174,
+            44,
+            4,
+            14,
+            10,
+            4,
             3,
-            1,
-            2,
-            1
+            3
           ],
-          "max": 0.0004372925905045122,
-          "median": 0.00002655610478541348,
-          "min": 4.034906396555016e-6,
+          "max": 0.0009817916434258225,
+          "median": 0.00010538740752963348,
+          "min": 0.00001748153408698272,
           "present": 256,
           "type": "numeric"
         },
@@ -4326,9 +4326,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666667584188623,
+                "mean_encoded": 0.6660647124247955,
                 "mip_levels": 9,
-                "std_encoded": 0.23579798418052375,
+                "std_encoded": 0.23611857141005807,
                 "width": 256
               },
               "roughness": {
@@ -4431,7 +4431,7 @@
               0.33839887380599976,
               0.6294383406639099
             ],
-            "relief_m": 0.0001483380765421316,
+            "relief_m": 0.0005553537048399448,
             "roughness": 0.942727029323578,
             "seed": 95750180268439422,
             "surface": "Accent",
@@ -4479,9 +4479,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666635550704653,
+                "mean_encoded": 0.6665561052709064,
                 "mip_levels": 9,
-                "std_encoded": 0.23578149386108976,
+                "std_encoded": 0.23612119644137217,
                 "width": 256
               },
               "roughness": {
@@ -4584,7 +4584,7 @@
               0.8266481161117554,
               0.6855194568634033
             ],
-            "relief_m": 0.0002645255299285054,
+            "relief_m": 0.0007570189773105085,
             "roughness": 0.7514286637306213,
             "seed": 5910537079940774577,
             "surface": "Accent",
@@ -4632,9 +4632,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666825238396111,
+                "mean_encoded": 0.666678694182749,
                 "mip_levels": 9,
-                "std_encoded": 0.23569697476914303,
+                "std_encoded": 0.2356997301412906,
                 "width": 256
               },
               "roughness": {
@@ -4762,7 +4762,7 @@
               0.704459547996521,
               0.06772732734680176
             ],
-            "relief_m": 0.00007899061165517196,
+            "relief_m": 0.00018636717868503183,
             "roughness": 0.9315059185028076,
             "seed": 6390795332935730459,
             "surface": "Accent",
@@ -4810,9 +4810,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666627771714172,
+                "mean_encoded": 0.6666672451044225,
                 "mip_levels": 9,
-                "std_encoded": 0.2357104477014022,
+                "std_encoded": 0.23570728851541095,
                 "width": 256
               },
               "roughness": {
@@ -4940,7 +4940,7 @@
               0.58747398853302,
               0.10699492692947388
             ],
-            "relief_m": 0.000012998383681406269,
+            "relief_m": 0.00006813067011535168,
             "roughness": 0.9259005188941956,
             "seed": 983179030789734263,
             "surface": "Accent",
@@ -4988,9 +4988,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666612413194456,
+                "mean_encoded": 0.6666589475145543,
                 "mip_levels": 9,
-                "std_encoded": 0.23571153364228617,
+                "std_encoded": 0.23571315547386912,
                 "width": 256
               },
               "roughness": {
@@ -5118,7 +5118,7 @@
               0.8062871694564819,
               0.2089506983757019
             ],
-            "relief_m": 0.00003128709795419127,
+            "relief_m": 0.00011435882333898915,
             "roughness": 0.9410864114761353,
             "seed": 4598908822718730602,
             "surface": "Accent",
@@ -5166,9 +5166,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666621987336626,
+                "mean_encoded": 0.6666605232587854,
                 "mip_levels": 9,
-                "std_encoded": 0.23571085669386932,
+                "std_encoded": 0.2357120413496318,
                 "width": 256
               },
               "roughness": {
@@ -5296,7 +5296,7 @@
               0.9207901358604432,
               0.4439966678619385
             ],
-            "relief_m": 5.4272845773084555e-6,
+            "relief_m": 0.00003205396205885336,
             "roughness": 0.4778158366680145,
             "seed": 14095480339634311178,
             "surface": "Accent",
@@ -5745,18 +5745,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            51,
-            47,
-            37,
             55,
-            18,
+            48,
+            38,
+            58,
             13,
+            9,
             13,
             22
           ],
-          "max": 0.00021410918270703405,
-          "median": 0.00009443869930692016,
-          "min": 0.000026622328732628375,
+          "max": 0.0008242501644417644,
+          "median": 0.00029889526194892824,
+          "min": 0.00003107454176642932,
           "present": 256,
           "type": "numeric"
         },
@@ -6019,9 +6019,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666336558223643,
+                "mean_encoded": 0.666632838031056,
                 "mip_levels": 9,
-                "std_encoded": 0.2357323755935674,
+                "std_encoded": 0.23575731405580264,
                 "width": 256
               },
               "roughness": {
@@ -6038,12 +6038,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.498147487640381,
+              2.8932526111602783,
               0.0,
               0.0,
-              0.7994071841239929,
-              0.0,
-              0.0
+              0.9258408546447754,
+              0.5647744536399841,
+              0.7939916849136353
             ]
           },
           "column": 0,
@@ -6096,7 +6096,7 @@
               0.4322889447212219,
               0.11863183975219728
             ],
-            "relief_m": 0.00013277301331982017,
+            "relief_m": 0.00047065294347703457,
             "roughness": 0.5980135202407837,
             "seed": 15806399321720306860,
             "surface": "Wood",
@@ -6157,9 +6157,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6665653802211305,
+                "mean_encoded": 0.6665899737987819,
                 "mip_levels": 9,
-                "std_encoded": 0.23578218538450857,
+                "std_encoded": 0.23581921957285393,
                 "width": 256
               },
               "roughness": {
@@ -6176,12 +6176,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.0936365127563477,
+              2.448505401611328,
               0.0,
               0.0,
-              0.6699637174606323,
-              0.0,
-              0.0
+              0.7835217714309692,
+              0.18696582317352295,
+              0.0949966311454773
             ]
           },
           "column": 1,
@@ -6234,7 +6234,7 @@
               0.9438082575798036,
               0.6375808119773865
             ],
-            "relief_m": 0.00017317796300631016,
+            "relief_m": 0.0006473069079220295,
             "roughness": 0.6652451753616333,
             "seed": 12182290195118626777,
             "surface": "Wood",
@@ -6295,9 +6295,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666636149088573,
+                "mean_encoded": 0.6666611814810594,
                 "mip_levels": 9,
-                "std_encoded": 0.23570985536345368,
+                "std_encoded": 0.23571235678478827,
                 "width": 256
               },
               "roughness": {
@@ -6314,12 +6314,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.630089282989502,
+              2.609722375869751,
               0.0,
               0.0,
-              0.8416285514831543,
-              0.0,
-              0.0
+              0.835111141204834,
+              0.33865952491760254,
+              0.8556633591651917
             ]
           },
           "column": 2,
@@ -6372,7 +6372,7 @@
               0.2661343812942505,
               0.04827094078063965
             ],
-            "relief_m": 0.000056075088650686666,
+            "relief_m": 0.00013385505008045584,
             "roughness": 0.4885921478271485,
             "seed": 1308252042806454671,
             "surface": "Wood",
@@ -6433,9 +6433,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666039759816912,
+                "mean_encoded": 0.6666032379749002,
                 "mip_levels": 9,
-                "std_encoded": 0.2357520130079073,
+                "std_encoded": 0.23575253454927456,
                 "width": 256
               },
               "roughness": {
@@ -6452,12 +6452,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              3.5334551334381104,
+              4.25174617767334,
               0.0,
               0.0,
-              1.1307055950164795,
-              0.0,
-              0.0
+              1.3605587482452393,
+              0.7800895571708679,
+              0.2154877781867981
             ]
           },
           "column": 3,
@@ -6510,7 +6510,7 @@
               0.5671252012252808,
               0.8304510116577148
             ],
-            "relief_m": 0.000036001081753056496,
+            "relief_m": 0.00006984744686633348,
             "roughness": 0.25483790040016174,
             "seed": 8265336047943326688,
             "surface": "Wood",
@@ -6571,9 +6571,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666276919296401,
+                "mean_encoded": 0.666631302179078,
                 "mip_levels": 9,
-                "std_encoded": 0.23573525168844783,
+                "std_encoded": 0.23573394308421053,
                 "width": 256
               },
               "roughness": {
@@ -6590,12 +6590,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              3.570895195007324,
+              4.118973731994629,
               0.0,
               0.0,
-              1.1426864862442017,
-              0.0,
-              0.0
+              1.3180716037750244,
+              0.33399254083633423,
+              0.6338415145874023
             ]
           },
           "column": 4,
@@ -6648,7 +6648,7 @@
               0.4206182360649109,
               0.9229252338409424
             ],
-            "relief_m": 0.00005273529313853942,
+            "relief_m": 0.00012134292046539484,
             "roughness": 0.46523237228393555,
             "seed": 5740516542925881254,
             "surface": "Wood",
@@ -6709,9 +6709,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666303647110046,
+                "mean_encoded": 0.6666285097209624,
                 "mip_levels": 9,
-                "std_encoded": 0.23573336209890436,
+                "std_encoded": 0.23573617940508557,
                 "width": 256
               },
               "roughness": {
@@ -6728,12 +6728,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              1.8497828245162964,
+              2.3730380535125732,
               0.0,
               0.0,
-              0.5919305086135864,
-              0.0,
-              0.0
+              0.7593721747398376,
+              0.7125626802444458,
+              0.04343628883361816
             ]
           },
           "column": 5,
@@ -6786,7 +6786,7 @@
               0.19151145219802856,
               0.3570820689201355
             ],
-            "relief_m": 0.00008557841647416353,
+            "relief_m": 0.00027816169313155115,
             "roughness": 0.4066479802131653,
             "seed": 16223029496777342515,
             "surface": "Wood",
@@ -7248,18 +7248,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            51,
-            47,
-            37,
             55,
-            18,
+            48,
+            38,
+            58,
             13,
+            9,
             13,
             22
           ],
-          "max": 0.00021410918270703405,
-          "median": 0.00009443869930692016,
-          "min": 0.000026622328732628375,
+          "max": 0.0008242501644417644,
+          "median": 0.00029889526194892824,
+          "min": 0.00003107454176642932,
           "present": 256,
           "type": "numeric"
         },
@@ -7522,9 +7522,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666316612094073,
+                "mean_encoded": 0.6666381038092334,
                 "mip_levels": 9,
-                "std_encoded": 0.2357336710493653,
+                "std_encoded": 0.23575249357392983,
                 "width": 256
               },
               "roughness": {
@@ -7541,12 +7541,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.498147487640381,
+              2.8932526111602783,
               0.0,
               0.0,
-              0.7994071841239929,
-              0.0,
-              0.0
+              0.9258408546447754,
+              0.5647744536399841,
+              0.7939916849136353
             ]
           },
           "column": 0,
@@ -7599,7 +7599,7 @@
               0.2493460774421692,
               0.8074840307235718
             ],
-            "relief_m": 0.00013277301331982017,
+            "relief_m": 0.00047065294347703457,
             "roughness": 0.5980135202407837,
             "seed": 9027989056285096494,
             "surface": "WoodEdge",
@@ -7660,9 +7660,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666797513276105,
+                "mean_encoded": 0.6666689604715565,
                 "mip_levels": 9,
-                "std_encoded": 0.2357014200934784,
+                "std_encoded": 0.23576114106140544,
                 "width": 256
               },
               "roughness": {
@@ -7679,12 +7679,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.0936365127563477,
+              2.448505401611328,
               0.0,
               0.0,
-              0.6699637174606323,
-              0.0,
-              0.0
+              0.7835217714309692,
+              0.18696582317352295,
+              0.0949966311454773
             ]
           },
           "column": 1,
@@ -7737,7 +7737,7 @@
               0.9126362204551696,
               0.3080741763114929
             ],
-            "relief_m": 0.00017317796300631016,
+            "relief_m": 0.0006473069079220295,
             "roughness": 0.6652451753616333,
             "seed": 12216653788497077820,
             "surface": "WoodEdge",
@@ -7798,9 +7798,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666590233098472,
+                "mean_encoded": 0.6665878196168036,
                 "mip_levels": 9,
-                "std_encoded": 0.23576172438787044,
+                "std_encoded": 0.23576428737899963,
                 "width": 256
               },
               "roughness": {
@@ -7817,12 +7817,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              2.630089282989502,
+              2.609722375869751,
               0.0,
               0.0,
-              0.8416285514831543,
-              0.0,
-              0.0
+              0.835111141204834,
+              0.33865952491760254,
+              0.8556633591651917
             ]
           },
           "column": 2,
@@ -7875,7 +7875,7 @@
               0.5789489150047302,
               0.677262008190155
             ],
-            "relief_m": 0.000056075088650686666,
+            "relief_m": 0.00013385505008045584,
             "roughness": 0.4885921478271485,
             "seed": 3908432041490922735,
             "surface": "WoodEdge",
@@ -7936,9 +7936,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.666701971315853,
+                "mean_encoded": 0.666701073740026,
                 "mip_levels": 9,
-                "std_encoded": 0.2356827299768845,
+                "std_encoded": 0.23568336484343735,
                 "width": 256
               },
               "roughness": {
@@ -7955,12 +7955,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              3.5334551334381104,
+              4.25174617767334,
               0.0,
               0.0,
-              1.1307055950164795,
-              0.0,
-              0.0
+              1.3605587482452393,
+              0.7800895571708679,
+              0.2154877781867981
             ]
           },
           "column": 3,
@@ -8013,7 +8013,7 @@
               0.21658223867416385,
               0.325445294380188
             ],
-            "relief_m": 0.000036001081753056496,
+            "relief_m": 0.00006984744686633348,
             "roughness": 0.25483790040016174,
             "seed": 11143184575950739325,
             "surface": "WoodEdge",
@@ -8074,9 +8074,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666720521216268,
+                "mean_encoded": 0.6666712143841886,
                 "mip_levels": 9,
-                "std_encoded": 0.23570389872056305,
+                "std_encoded": 0.23570584739732203,
                 "width": 256
               },
               "roughness": {
@@ -8093,12 +8093,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              3.570895195007324,
+              4.118973731994629,
               0.0,
               0.0,
-              1.1426864862442017,
-              0.0,
-              0.0
+              1.3180716037750244,
+              0.33399254083633423,
+              0.6338415145874023
             ]
           },
           "column": 4,
@@ -8151,7 +8151,7 @@
               0.38374191522598267,
               0.7873737812042236
             ],
-            "relief_m": 0.00005273529313853942,
+            "relief_m": 0.00012134292046539484,
             "roughness": 0.46523237228393555,
             "seed": 3468152548671773875,
             "surface": "WoodEdge",
@@ -8212,9 +8212,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6667088926227983,
+                "mean_encoded": 0.6667067384408133,
                 "mip_levels": 9,
-                "std_encoded": 0.2356778342795548,
+                "std_encoded": 0.2356807367204332,
                 "width": 256
               },
               "roughness": {
@@ -8231,12 +8231,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              1.8497828245162964,
+              2.3730380535125732,
               0.0,
               0.0,
-              0.5919305086135864,
-              0.0,
-              0.0
+              0.7593721747398376,
+              0.7125626802444458,
+              0.04343628883361816
             ]
           },
           "column": 5,
@@ -8289,7 +8289,7 @@
               0.12679451704025269,
               0.5278743505477905
             ],
-            "relief_m": 0.00008557841647416353,
+            "relief_m": 0.00027816169313155115,
             "roughness": 0.4066479802131653,
             "seed": 17815801973915479302,
             "surface": "WoodEdge",
@@ -20451,18 +20451,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            59,
-            93,
-            52,
+            17,
+            25,
+            61,
+            68,
+            42,
             16,
-            16,
-            9,
-            6,
-            5
+            17,
+            10
           ],
-          "max": 0.00022871437249705195,
-          "median": 0.00005470647010952234,
-          "min": 9.279010555474088e-6,
+          "max": 0.0004770728701259941,
+          "median": 0.0002236529253423214,
+          "min": 0.0000423838610004168,
           "present": 256,
           "type": "numeric"
         },
@@ -20572,9 +20572,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666709351383774,
+                "mean_encoded": 0.6666650709763077,
                 "mip_levels": 9,
-                "std_encoded": 0.23570467927076383,
+                "std_encoded": 0.2357411952856729,
                 "width": 256
               },
               "roughness": {
@@ -20677,7 +20677,7 @@
               0.007128298282623291,
               0.8933866620063782
             ],
-            "relief_m": 0.0000738360540708527,
+            "relief_m": 0.0002640956954564899,
             "roughness": 0.8932196497917175,
             "seed": 4537823722261934902,
             "surface": "Ceiling",
@@ -20725,9 +20725,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666708952461186,
+                "mean_encoded": 0.6666641135620915,
                 "mip_levels": 9,
-                "std_encoded": 0.23570516544088752,
+                "std_encoded": 0.2357521734545706,
                 "width": 256
               },
               "roughness": {
@@ -20830,7 +20830,7 @@
               0.672636091709137,
               0.3551119565963745
             ],
-            "relief_m": 0.00004365772474557161,
+            "relief_m": 0.0001963772374438122,
             "roughness": 0.700501561164856,
             "seed": 15719818742048155608,
             "surface": "Ceiling",
@@ -20878,9 +20878,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666689604715571,
+                "mean_encoded": 0.6666680429495999,
                 "mip_levels": 9,
-                "std_encoded": 0.23570621595430988,
+                "std_encoded": 0.23572152622543616,
                 "width": 256
               },
               "roughness": {
@@ -20983,7 +20983,7 @@
               0.4088221192359924,
               0.9638173580169678
             ],
-            "relief_m": 0.0000200038957700599,
+            "relief_m": 0.00011703699419740587,
             "roughness": 0.9499366283416748,
             "seed": 9861979272285786199,
             "surface": "Ceiling",
@@ -21031,9 +21031,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666656095218038,
+                "mean_encoded": 0.6666680628957312,
                 "mip_levels": 9,
-                "std_encoded": 0.23570908947190464,
+                "std_encoded": 0.23575351986284024,
                 "width": 256
               },
               "roughness": {
@@ -21136,7 +21136,7 @@
               0.5498042702674866,
               0.6220080256462097
             ],
-            "relief_m": 0.000046849258069414645,
+            "relief_m": 0.00020464522822294384,
             "roughness": 0.8840162754058838,
             "seed": 8553374744600402737,
             "surface": "Ceiling",
@@ -21184,9 +21184,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666712143841904,
+                "mean_encoded": 0.6666695588554434,
                 "mip_levels": 9,
-                "std_encoded": 0.23570448181086356,
+                "std_encoded": 0.23572456976145387,
                 "width": 256
               },
               "roughness": {
@@ -21289,7 +21289,7 @@
               0.4210107922554016,
               0.2780240774154663
             ],
-            "relief_m": 0.000056799624871928245,
+            "relief_m": 0.00022844014165457335,
             "roughness": 0.8504713773727417,
             "seed": 17203966129003883809,
             "surface": "Ceiling",
@@ -21337,9 +21337,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666690203099469,
+                "mean_encoded": 0.6666725707209967,
                 "mip_levels": 9,
-                "std_encoded": 0.23570751831263895,
+                "std_encoded": 0.2357523366350465,
                 "width": 256
               },
               "roughness": {
@@ -21442,7 +21442,7 @@
               0.4831293821334839,
               0.012564539909362791
             ],
-            "relief_m": 0.000028305541491135955,
+            "relief_m": 0.00015002733562141657,
             "roughness": 0.641933262348175,
             "seed": 11058190638103141060,
             "surface": "Ceiling",
@@ -22099,12 +22099,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.612797260284424,
+              7.855246067047119,
               0.0,
               0.0,
-              6.612797260284424,
-              0.0,
-              0.0
+              7.855246067047119,
+              0.33419644832611084,
+              0.2800254225730896
             ]
           },
           "column": 0,
@@ -22232,12 +22232,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.217369079589844,
+              5.47484016418457,
               0.0,
               0.0,
-              6.217369079589844,
-              0.0,
-              0.0
+              5.47484016418457,
+              0.8326287865638733,
+              0.3489701747894287
             ]
           },
           "column": 1,
@@ -22365,12 +22365,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              5.281457424163818,
+              4.617110729217529,
               0.0,
               0.0,
-              5.281457424163818,
-              0.0,
-              0.0
+              4.617110729217529,
+              0.7225052118301392,
+              0.2648327350616455
             ]
           },
           "column": 2,
@@ -22498,12 +22498,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.25887393951416,
+              7.126248836517334,
               0.0,
               0.0,
-              9.25887393951416,
-              0.0,
-              0.0
+              7.126248836517334,
+              0.4542419314384461,
+              0.4015986919403076
             ]
           },
           "column": 3,
@@ -22631,12 +22631,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              10.338555335998535,
+              6.801668167114258,
               0.0,
               0.0,
-              10.338555335998535,
-              0.0,
-              0.0
+              6.801668167114258,
+              0.17211401462554932,
+              0.4991055727005005
             ]
           },
           "column": 4,
@@ -22764,12 +22764,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.287662506103516,
+              6.709280014038086,
               0.0,
               0.0,
-              9.287662506103516,
-              0.0,
-              0.0
+              6.709280014038086,
+              0.2111797332763672,
+              0.3591451048851013
             ]
           },
           "column": 5,
@@ -23487,12 +23487,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              8.441969871520996,
+              7.746216297149658,
               0.0,
               0.0,
-              8.441969871520996,
-              0.0,
-              0.0
+              7.746216297149658,
+              0.8631290793418884,
+              0.8064676523208618
             ]
           },
           "column": 0,
@@ -23620,12 +23620,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              4.840446472167969,
+              3.162912130355835,
               0.0,
               0.0,
-              4.840446472167969,
-              0.0,
-              0.0
+              3.162912130355835,
+              0.9450023174285888,
+              0.04570728540420532
             ]
           },
           "column": 1,
@@ -23753,12 +23753,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              8.201652526855469,
+              6.011394500732422,
               0.0,
               0.0,
-              8.201652526855469,
-              0.0,
-              0.0
+              6.011394500732422,
+              0.5580705404281616,
+              0.4693592786788941
             ]
           },
           "column": 2,
@@ -23886,12 +23886,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              5.367676258087158,
+              4.712483882904053,
               0.0,
               0.0,
-              5.367676258087158,
-              0.0,
-              0.0
+              4.712483882904053,
+              0.6101719737052917,
+              0.22003591060638428
             ]
           },
           "column": 3,
@@ -24019,12 +24019,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.677677154541016,
+              11.822842597961426,
               0.0,
               0.0,
-              9.677677154541016,
-              0.0,
-              0.0
+              11.822842597961426,
+              0.6662204265594482,
+              0.26253217458724976
             ]
           },
           "column": 4,
@@ -24152,12 +24152,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              8.188131332397461,
+              8.14474868774414,
               0.0,
               0.0,
-              8.188131332397461,
-              0.0,
-              0.0
+              8.14474868774414,
+              0.17776340246200562,
+              0.4150083661079407
             ]
           },
           "column": 5,
@@ -24875,12 +24875,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              4.645104885101318,
+              6.237915992736816,
               0.0,
               0.0,
-              4.645104885101318,
-              0.0,
-              0.0
+              6.237915992736816,
+              0.588815450668335,
+              0.3695477247238159
             ]
           },
           "column": 0,
@@ -25008,12 +25008,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              4.92195463180542,
+              5.916511058807373,
               0.0,
               0.0,
-              4.92195463180542,
-              0.0,
-              0.0
+              5.916511058807373,
+              0.088753342628479,
+              0.6747751832008362
             ]
           },
           "column": 1,
@@ -25141,12 +25141,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.682367324829102,
+              8.151488304138184,
               0.0,
               0.0,
-              6.682367324829102,
-              0.0,
-              0.0
+              8.151488304138184,
+              0.9460821747779846,
+              0.7341798543930054
             ]
           },
           "column": 2,
@@ -25274,12 +25274,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              3.322889566421509,
+              2.0890676975250244,
               0.0,
               0.0,
-              3.322889566421509,
-              0.0,
-              0.0
+              2.0890676975250244,
+              0.1808266639709473,
+              0.462060272693634
             ]
           },
           "column": 3,
@@ -25407,12 +25407,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.877932071685791,
+              4.416410446166992,
               0.0,
               0.0,
-              6.877932071685791,
-              0.0,
-              0.0
+              4.416410446166992,
+              0.4653379321098328,
+              0.11164021492004396
             ]
           },
           "column": 4,
@@ -25540,12 +25540,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              11.26864528656006,
+              13.241880416870115,
               0.0,
               0.0,
-              11.26864528656006,
-              0.0,
-              0.0
+              13.241880416870115,
+              0.8867707848548889,
+              0.40531450510025024
             ]
           },
           "column": 5,
@@ -26753,12 +26753,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              13.417240142822266,
+              13.786979675292969,
               0.0,
               0.0,
-              13.417240142822266,
-              0.0,
-              0.0
+              13.786979675292969,
+              0.29495352506637573,
+              0.09549754858016968
             ]
           },
           "column": 0,
@@ -26935,12 +26935,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              12.231707572937012,
+              8.84315299987793,
               0.0,
               0.0,
-              12.231707572937012,
-              0.0,
-              0.0
+              8.84315299987793,
+              0.5797083377838135,
+              0.9173454642295836
             ]
           },
           "column": 1,
@@ -27094,12 +27094,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              12.004109382629396,
+              8.63045597076416,
               0.0,
               0.0,
-              12.004109382629396,
-              0.0,
-              0.0
+              8.63045597076416,
+              0.7313973307609558,
+              0.5227020978927612
             ]
           },
           "column": 2,
@@ -27253,12 +27253,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              12.127737045288086,
+              10.827446937561035,
               0.0,
               0.0,
-              12.127737045288086,
-              0.0,
-              0.0
+              10.827446937561035,
+              0.07487106323242188,
+              0.44206684827804565
             ]
           },
           "column": 3,
@@ -27435,12 +27435,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              22.726028442382812,
+              16.5939884185791,
               0.0,
               0.0,
-              22.726028442382812,
-              0.0,
-              0.0
+              16.5939884185791,
+              0.9179753065109252,
+              0.0317118763923645
             ]
           },
           "column": 4,
@@ -27617,12 +27617,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              16.118375778198242,
+              15.83351230621338,
               0.0,
               0.0,
-              16.118375778198242,
-              0.0,
-              0.0
+              15.83351230621338,
+              0.9223461151123048,
+              0.504055917263031
             ]
           },
           "column": 5,
@@ -28879,12 +28879,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.109353065490724,
+              9.360379219055176,
               0.0,
               0.0,
-              9.109353065490724,
-              0.0,
-              0.0
+              9.360379219055176,
+              0.29495352506637573,
+              0.09549754858016968
             ]
           },
           "column": 0,
@@ -29038,12 +29038,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.47304916381836,
+              6.848726272583008,
               0.0,
               0.0,
-              9.47304916381836,
-              0.0,
-              0.0
+              6.848726272583008,
+              0.5797083377838135,
+              0.9173454642295836
             ]
           },
           "column": 1,
@@ -29220,12 +29220,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              8.605239868164062,
+              6.18681001663208,
               0.0,
               0.0,
-              8.605239868164062,
-              0.0,
-              0.0
+              6.18681001663208,
+              0.7313973307609558,
+              0.5227020978927612
             ]
           },
           "column": 2,
@@ -29402,12 +29402,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              10.05867862701416,
+              8.980224609375,
               0.0,
               0.0,
-              10.05867862701416,
-              0.0,
-              0.0
+              8.980224609375,
+              0.07487106323242188,
+              0.44206684827804565
             ]
           },
           "column": 3,
@@ -29561,12 +29561,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              11.198638916015623,
+              8.176971435546875,
               0.0,
               0.0,
-              11.198638916015623,
-              0.0,
-              0.0
+              8.176971435546875,
+              0.9179753065109252,
+              0.0317118763923645
             ]
           },
           "column": 4,
@@ -29743,12 +29743,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              10.058554649353027,
+              9.88078784942627,
               0.0,
               0.0,
-              10.058554649353027,
-              0.0,
-              0.0
+              9.88078784942627,
+              0.9223461151123048,
+              0.504055917263031
             ]
           },
           "column": 5,
@@ -32189,12 +32189,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.367455005645752,
+              7.752340793609619,
               0.0,
               0.0,
-              6.367455005645752,
-              0.0,
-              0.0
+              7.752340793609619,
+              0.6804560422897339,
+              0.05929267406463623
             ]
           },
           "column": 0,
@@ -32352,12 +32352,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              7.202354907989502,
+              7.580716609954834,
               0.0,
               0.0,
-              7.202354907989502,
-              0.0,
-              0.0
+              7.580716609954834,
+              0.8627913594245911,
+              0.6738983988761902
             ]
           },
           "column": 1,
@@ -32515,12 +32515,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.454073429107666,
+              5.767218589782715,
               0.0,
               0.0,
-              6.454073429107666,
-              0.0,
-              0.0
+              5.767218589782715,
+              0.8803304433822632,
+              0.06868994235992432
             ]
           },
           "column": 2,
@@ -32678,12 +32678,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.415543556213379,
+              7.554476737976074,
               0.0,
               0.0,
-              6.415543556213379,
-              0.0,
-              0.0
+              7.554476737976074,
+              0.8305611610412598,
+              0.936732530593872
             ]
           },
           "column": 3,
@@ -32841,12 +32841,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.947112560272217,
+              9.51170539855957,
               0.0,
               0.0,
-              6.947112560272217,
-              0.0,
-              0.0
+              9.51170539855957,
+              0.7127668857574463,
+              0.2691596746444702
             ]
           },
           "column": 4,
@@ -33004,12 +33004,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              6.039828777313232,
+              8.536905288696289,
               0.0,
               0.0,
-              6.039828777313232,
-              0.0,
-              0.0
+              8.536905288696289,
+              0.754778265953064,
+              0.7957669496536255
             ]
           },
           "column": 5,
@@ -44715,17 +44715,17 @@
         "recipe.relief_m": {
           "bins": [
             10,
-            14,
-            21,
-            30,
-            46,
-            52,
-            45,
-            38
+            22,
+            29,
+            37,
+            62,
+            48,
+            34,
+            14
           ],
-          "max": 0.0003000000142492354,
-          "median": 0.00020878015493508428,
-          "min": 0.0000360000049113296,
+          "max": 0.0006999749457463622,
+          "median": 0.00041735704871825874,
+          "min": 0.000054965617891866714,
           "present": 256,
           "type": "numeric"
         },
@@ -44835,9 +44835,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666681476667807,
+                "mean_encoded": 0.6666666018417455,
                 "mip_levels": 10,
-                "std_encoded": 0.23570700490130045,
+                "std_encoded": 0.2357082038888902,
                 "width": 512
               },
               "roughness": {
@@ -44961,7 +44961,7 @@
               0.5056183338165283,
               0.6956368088722229
             ],
-            "relief_m": 0.0001435653684893623,
+            "relief_m": 0.0004145501006860286,
             "roughness": 0.5326155424118042,
             "seed": 18237892233934949242,
             "surface": "Concrete",
@@ -45009,9 +45009,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666671254276451,
+                "mean_encoded": 0.6666662378248827,
                 "mip_levels": 10,
-                "std_encoded": 0.23572941168762576,
+                "std_encoded": 0.23573804021823175,
                 "width": 512
               },
               "roughness": {
@@ -45135,7 +45135,7 @@
               0.7309805154800415,
               0.8681847453117371
             ],
-            "relief_m": 0.00024134399427566677,
+            "relief_m": 0.00027825916185975075,
             "roughness": 0.7622472047805786,
             "seed": 1545377300512373686,
             "surface": "Concrete",
@@ -45183,9 +45183,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666658987406818,
+                "mean_encoded": 0.6666671403872423,
                 "mip_levels": 10,
-                "std_encoded": 0.23570824167646295,
+                "std_encoded": 0.23570736496659453,
                 "width": 512
               },
               "roughness": {
@@ -45309,7 +45309,7 @@
               0.10125893354415894,
               0.4377939701080322
             ],
-            "relief_m": 0.00006093945194152184,
+            "relief_m": 0.0001280968135688454,
             "roughness": 0.33856987953186035,
             "seed": 4397847812488873956,
             "surface": "Concrete",
@@ -45357,9 +45357,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666627921310136,
+                "mean_encoded": 0.6666638841816033,
                 "mip_levels": 10,
-                "std_encoded": 0.2357109882411302,
+                "std_encoded": 0.23571062483972,
                 "width": 512
               },
               "roughness": {
@@ -45483,7 +45483,7 @@
               0.23498022556304932,
               0.26608723402023315
             ],
-            "relief_m": 0.00016627521836198866,
+            "relief_m": 0.00044076546328142285,
             "roughness": 0.5859493613243103,
             "seed": 17991723423276620751,
             "surface": "Concrete",
@@ -45531,9 +45531,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666694591247956,
+                "mean_encoded": 0.6666703367544929,
                 "mip_levels": 10,
-                "std_encoded": 0.23570574239229172,
+                "std_encoded": 0.2357057606336045,
                 "width": 512
               },
               "roughness": {
@@ -45657,7 +45657,7 @@
               0.28232067823410034,
               0.7775543928146362
             ],
-            "relief_m": 0.00016951111319940537,
+            "relief_m": 0.0005247931112535298,
             "roughness": 0.5935487747192383,
             "seed": 9004695285895231231,
             "surface": "Concrete",
@@ -45705,9 +45705,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666694940305212,
+                "mean_encoded": 0.6666664123535151,
                 "mip_levels": 10,
-                "std_encoded": 0.23570775670188632,
+                "std_encoded": 0.23571548791653457,
                 "width": 512
               },
               "roughness": {
@@ -45831,7 +45831,7 @@
               0.14333337545394895,
               0.6352502107620239
             ],
-            "relief_m": 0.00026575149968266487,
+            "relief_m": 0.00044639347470365465,
             "roughness": 0.8195677995681763,
             "seed": 9711838411779226213,
             "surface": "Concrete",
@@ -60466,9 +60466,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.9170108371312548,
+                "mean_encoded": 0.953826704838146,
                 "mip_levels": 9,
-                "std_encoded": 0.07212154927118368,
+                "std_encoded": 0.03207182970930871,
                 "width": 256
               },
               "normal_map": {
@@ -60480,7 +60480,7 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.8705882352941177,
                 "mip_levels": 1,
                 "std_encoded": 0.0,
                 "width": 1
@@ -60488,7 +60488,7 @@
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.8709964156150818,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -60502,7 +60502,7 @@
           },
           "column": 0,
           "content": null,
-          "finish_slot": 7,
+          "finish_slot": 10,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -60581,9 +60581,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.92294128019045,
+                "mean_encoded": 0.8934080834467969,
                 "mip_levels": 9,
-                "std_encoded": 0.07722960630946349,
+                "std_encoded": 0.09940814711464072,
                 "width": 256
               },
               "normal_map": {
@@ -60595,7 +60595,7 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.9607843137254902,
                 "mip_levels": 1,
                 "std_encoded": 0.0,
                 "width": 1
@@ -60603,7 +60603,7 @@
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.9612244963645936,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -60617,7 +60617,7 @@
           },
           "column": 1,
           "content": null,
-          "finish_slot": 10,
+          "finish_slot": 3,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -60696,9 +60696,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.9308783238230324,
+                "mean_encoded": 0.8694285673231673,
                 "mip_levels": 9,
-                "std_encoded": 0.05991337685605207,
+                "std_encoded": 0.10520757019119008,
                 "width": 256
               },
               "normal_map": {
@@ -60710,15 +60710,15 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.9294117647058824,
                 "mip_levels": 1,
-                "std_encoded": 0.0,
+                "std_encoded": 1.1102230246251563e-16,
                 "width": 1
               }
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.9277989268302916,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -60732,7 +60732,7 @@
           },
           "column": 2,
           "content": null,
-          "finish_slot": 2,
+          "finish_slot": 8,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -60811,9 +60811,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.9234505447686808,
+                "mean_encoded": 0.9115160973232148,
                 "mip_levels": 9,
-                "std_encoded": 0.07523147391428701,
+                "std_encoded": 0.10289936159049996,
                 "width": 256
               },
               "normal_map": {
@@ -60825,7 +60825,7 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.8470588235294118,
                 "mip_levels": 1,
                 "std_encoded": 0.0,
                 "width": 1
@@ -60833,7 +60833,7 @@
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.8477550745010376,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -60847,7 +60847,7 @@
           },
           "column": 3,
           "content": null,
-          "finish_slot": 8,
+          "finish_slot": 10,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -60926,9 +60926,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.928145923489847,
+                "mean_encoded": 0.8813261942128608,
                 "mip_levels": 9,
-                "std_encoded": 0.07251638784574935,
+                "std_encoded": 0.07986750530271544,
                 "width": 256
               },
               "normal_map": {
@@ -60940,15 +60940,15 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.945098039215686,
                 "mip_levels": 1,
-                "std_encoded": 0.0,
+                "std_encoded": 1.1102230246251563e-16,
                 "width": 1
               }
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.9452241659164428,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -60962,7 +60962,7 @@
           },
           "column": 4,
           "content": null,
-          "finish_slot": 5,
+          "finish_slot": 7,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -61041,9 +61041,9 @@
             "maps": {
               "albedo": {
                 "has_texture": true,
-                "mean_encoded": 0.9174263549008468,
+                "mean_encoded": 0.9700601415722986,
                 "mip_levels": 9,
-                "std_encoded": 0.07870274700551082,
+                "std_encoded": 0.0802497012149502,
                 "width": 256
               },
               "normal_map": {
@@ -61055,15 +61055,15 @@
               },
               "roughness": {
                 "has_texture": false,
-                "mean_encoded": 0.9019607843137256,
+                "mean_encoded": 0.9411764705882352,
                 "mip_levels": 1,
-                "std_encoded": 0.0,
+                "std_encoded": 1.1102230246251563e-16,
                 "width": 1
               }
             },
             "metallic": 0.0,
             "reflectance": 0.5,
-            "roughness_multiplier": 0.8999999761581421,
+            "roughness_multiplier": 0.9413871169090272,
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
@@ -61077,7 +61077,7 @@
           },
           "column": 5,
           "content": null,
-          "finish_slot": 1,
+          "finish_slot": 7,
           "glass": null,
           "name": "PrintedPaper",
           "recipe": {
@@ -61751,18 +61751,18 @@
         },
         "recipe.relief_m": {
           "bins": [
-            32,
-            31,
-            53,
-            66,
-            20,
-            16,
+            36,
+            93,
+            55,
+            11,
+            12,
+            14,
             17,
-            21
+            18
           ],
-          "max": 0.00009724777919473128,
-          "median": 0.00005063786738901399,
-          "min": 0.00001769397931639105,
+          "max": 0.00026871004956774414,
+          "median": 0.00008405782136833295,
+          "min": 0.00002276515806443058,
           "present": 256,
           "type": "numeric"
         },
@@ -61872,9 +61872,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666626176023738,
+                "mean_encoded": 0.6662821850746247,
                 "mip_levels": 9,
-                "std_encoded": 0.23591515302597693,
+                "std_encoded": 0.23604793763698004,
                 "width": 256
               },
               "roughness": {
@@ -61891,12 +61891,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              9.290682792663574,
+              9.424546241760254,
               0.0,
               0.0,
-              11.71439266204834,
-              0.0,
-              0.0
+              11.883177757263184,
+              0.00006014108657836914,
+              0.4241153597831726
             ]
           },
           "column": 0,
@@ -61963,7 +61963,7 @@
               0.7683305740356445,
               0.4008334279060364
             ],
-            "relief_m": 0.00005767281982116401,
+            "relief_m": 0.00011798286868724972,
             "roughness": 0.5123007297515869,
             "seed": 17970497405357530106,
             "surface": "Leather",
@@ -62011,9 +62011,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666662477979463,
+                "mean_encoded": 0.6666658887676138,
                 "mip_levels": 9,
-                "std_encoded": 0.2358010060127421,
+                "std_encoded": 0.23589879263991792,
                 "width": 256
               },
               "roughness": {
@@ -62030,12 +62030,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              11.780884742736816,
+              13.170870780944824,
               0.0,
               0.0,
-              11.2188720703125,
-              0.0,
-              0.0
+              12.542548179626465,
+              0.20462125539779663,
+              0.22029495239257812
             ]
           },
           "column": 1,
@@ -62102,7 +62102,7 @@
               0.2318901419639587,
               0.22016096115112305
             ],
-            "relief_m": 0.00005444568523671478,
+            "relief_m": 0.00007774490950396284,
             "roughness": 0.6656354069709778,
             "seed": 16472659414061721516,
             "surface": "Leather",
@@ -62150,9 +62150,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666515275543817,
+                "mean_encoded": 0.6662206712112723,
                 "mip_levels": 9,
-                "std_encoded": 0.23595439743778873,
+                "std_encoded": 0.236118265717766,
                 "width": 256
               },
               "roughness": {
@@ -62169,12 +62169,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              12.71554946899414,
+              13.025650024414062,
               0.0,
               0.0,
-              11.9100980758667,
-              0.0,
-              0.0
+              12.200555801391602,
+              0.8294190764427185,
+              0.764672040939331
             ]
           },
           "column": 2,
@@ -62241,7 +62241,7 @@
               0.09521198272705078,
               0.672833263874054
             ],
-            "relief_m": 0.000054170181101653725,
+            "relief_m": 0.000105857354355976,
             "roughness": 0.45949411392211914,
             "seed": 9057018563882176605,
             "surface": "Leather",
@@ -62289,9 +62289,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6665190453623132,
+                "mean_encoded": 0.6652622197969412,
                 "mip_levels": 9,
-                "std_encoded": 0.23595382100454587,
+                "std_encoded": 0.2367909380200906,
                 "width": 256
               },
               "roughness": {
@@ -62308,12 +62308,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              8.875495910644531,
+              7.966068744659424,
               0.0,
               0.0,
-              10.33384895324707,
-              0.0,
-              0.0
+              9.274991989135742,
+              0.5908374190330505,
+              0.5960786938667297
             ]
           },
           "column": 3,
@@ -62380,7 +62380,7 @@
               0.2278081774711609,
               0.10300356149673462
             ],
-            "relief_m": 0.00008370031719096005,
+            "relief_m": 0.00021959720470476896,
             "roughness": 0.4760694801807403,
             "seed": 2357926364328843087,
             "surface": "Leather",
@@ -62428,9 +62428,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666688407947823,
+                "mean_encoded": 0.6666689604715588,
                 "mip_levels": 9,
-                "std_encoded": 0.2357492478856108,
+                "std_encoded": 0.2358481839322928,
                 "width": 256
               },
               "roughness": {
@@ -62447,12 +62447,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              7.20185661315918,
+              8.725726127624512,
               0.0,
               0.0,
-              10.702839851379396,
-              0.0,
-              0.0
+              12.967495918273926,
+              0.3147646188735962,
+              0.7859442234039307
             ]
           },
           "column": 4,
@@ -62519,7 +62519,7 @@
               0.4881823062896729,
               0.942126214504242
             ],
-            "relief_m": 0.000026601810532156375,
+            "relief_m": 0.00004773210457642563,
             "roughness": 0.3058188557624817,
             "seed": 4385647022416423069,
             "surface": "Leather",
@@ -62567,9 +62567,9 @@
               },
               "normal_map": {
                 "has_texture": true,
-                "mean_encoded": 0.6666633755553021,
+                "mean_encoded": 0.6666627971175458,
                 "mip_levels": 9,
-                "std_encoded": 0.23574114499944676,
+                "std_encoded": 0.23578905427310837,
                 "width": 256
               },
               "roughness": {
@@ -62586,12 +62586,12 @@
             "specular_transmission": 0.0,
             "thickness_m": 0.0,
             "uv_transform": [
-              7.204259395599365,
+              8.576104164123535,
               0.0,
               0.0,
-              10.849320411682127,
-              0.0,
-              0.0
+              12.91526222229004,
+              0.5255081653594971,
+              0.77370285987854
             ]
           },
           "column": 5,
@@ -62658,7 +62658,7 @@
               0.3697825074195862,
               0.5853747129440308
             ],
-            "relief_m": 0.00002294294972671196,
+            "relief_m": 0.000035870791180059314,
             "roughness": 0.354769229888916,
             "seed": 15407334378675576382,
             "surface": "Leather",
@@ -70287,43 +70287,43 @@
   ],
   "files": {
     "Accent-0-albedo.webp": "e124d95e9785406507b32323629da990b28515a3ebc4789367eae4dd5ab0a558",
-    "Accent-0-color.webp": "5f6f951ea6d5657c68a9d6edcc68f937e30c628ad9e6013de59a678032313fbd",
+    "Accent-0-color.webp": "2eef104415e94af48aeb58ccc96f8fc497a430812e25714908fd1f22238d1c7f",
     "Accent-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-0-normal_map.webp": "1d2559d20c47a933447c40cdc40f3e02ca42bb0491ef6ab37a138f17e5189b1f",
+    "Accent-0-normal_map.webp": "c9600a696002201218667a1d8997dee178ac4816480ac0daea4ea21e93357666",
     "Accent-0-roughness.webp": "c22f44a50184be77fdf21f4548fe7279d009967cc6e56572f940210b4c93a682",
     "Accent-1-albedo.webp": "99bc5e00dc74a02cb904545d5a737c9c39001ef328b1571fe68bd687fb82cfc7",
-    "Accent-1-color.webp": "42dd706d9ffcda24d77624154d4bf2d5fd68cb9f6246aaa29a4078cea1efb9db",
+    "Accent-1-color.webp": "31b5e6b8dd70a0e1372d87971b2a06117ffab5afa1613a6fabdad862a1c1eb44",
     "Accent-1-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-1-normal_map.webp": "24e6a4fd86303f009ad8f6354f949809f8bd42de9bbd73aa8d5e8cd0ed605e2c",
+    "Accent-1-normal_map.webp": "6639d5588db22faf368f51b7c0e0d8feaa5b0eef43427050f3e6dff5f42ac97e",
     "Accent-1-roughness.webp": "b3882c9d7de904cbefcb55f290cc8a976088e5b3324318fadde828c570f1ee98",
     "Accent-2-albedo.webp": "ed977a428569526fdfc4de6d5f0ee5462187f48895bf2c7135cd6cc14bc78679",
-    "Accent-2-color.webp": "8cbfe4a6e9a60f3b1607ab783581f31b99d10d3ceeac20d364d87cae4fecb6d8",
+    "Accent-2-color.webp": "f460c47c3346f184146843ea24f1d41fbd5e62b7b7a52655a8b7896ee7639411",
     "Accent-2-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-2-normal_map.webp": "b92a1cce7d930c37693cfc68b57f4c2e0dcb57423990be3937376a0257f77511",
+    "Accent-2-normal_map.webp": "db2325db9332af5841e6f775afd5be75b9292060380ef6585d0c0df0ab636fee",
     "Accent-2-roughness.webp": "0392d3878559ced98a69bd1493978a65d829531786a8c9fcb2a8d472b92eeca6",
     "Accent-3-albedo.webp": "4a1cb021cc0378422dd8ad7e329d788ff4866a9c381b0693b3b96af2472a8ae0",
-    "Accent-3-color.webp": "3971a0e9edf24365ebc06ccef46b438fe69d2815d5422f9b1ec08e096b1242b1",
+    "Accent-3-color.webp": "f14a07abc695f0ce86b45169de04274e2cf41aec559d3ea120754be16d1e841e",
     "Accent-3-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-3-normal_map.webp": "79046c680248f927908f0b0018486fbca21b1dcf332bf3a3e0d56c970f88aaf7",
+    "Accent-3-normal_map.webp": "ffac6af35f4bca1fce1f605c2c16894b793fc0e1d672e64c7caa3ee2579c8b7c",
     "Accent-3-roughness.webp": "f3b7ddcab4a3351efcb2bffde39752cf0e4c5147d1588245280f2b3631e6804b",
     "Accent-4-albedo.webp": "3a7dde21d618361b64149ab47adc963c6be55a72f964deceb249bdea0100e7d5",
-    "Accent-4-color.webp": "308d1c73f80f30edb5b39c59d8aa224c92fde1c898e2f2135f99a426b928e9e7",
+    "Accent-4-color.webp": "3dd014fb1c030feae045e59f34e0189688e4b2dee077f0cc8313bd9b6f2cc67c",
     "Accent-4-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-4-normal_map.webp": "96950acd90bcceebbd39285be9cd57f30ee6fcc5e91f463dacac1a3887b473a7",
+    "Accent-4-normal_map.webp": "217b95d4d48d0408858d2b9f9632dcbb7d2fb561e19aa3e509ea257e448cb105",
     "Accent-4-roughness.webp": "504022419c52d4a322f066a0363b19161c1e548fdb25b01e2601bf72a67584fb",
     "Accent-5-albedo.webp": "e9f3936110af103e088a56e04bcb99d726a1f29e36ed6fa8273ec6b228ba4ea4",
-    "Accent-5-color.webp": "131ad3d192a1732113a45a515e5ff590ddf1f48a46f17d898379183762a03ff6",
+    "Accent-5-color.webp": "cf682e767aea27e7d0acdbb5494777e7f3babc67ce2d3694498cf4d90acadbf1",
     "Accent-5-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
-    "Accent-5-normal_map.webp": "62a8136e3a54c3fd6755c919a347c82cdf902cdb1fd5b37deda79f83efb22c46",
+    "Accent-5-normal_map.webp": "6bc9a8144c45e8afa8acbee261ac0a5c48da9a72032242463735542c0ecd6cab",
     "Accent-5-roughness.webp": "081890571d07c52aee9a7346b495253cd2f6e12ff32c274c32a8c084bfdecedc",
-    "Accent-samples.json": "1e2043391d38ffff4482ff5b1275d6257c6f6caf88e0693af40737b3707fd702",
+    "Accent-samples.json": "152b8922386b02568fc999620f33212e56ee08d6f61b0f5a97a2d5a3a05c2724",
     "Art-0-albedo.webp": "6b9d89216bfd31a1e0eb26ad70a9c8356a47789a30974cbe8b98fce1048084db",
-    "Art-0-color.webp": "111be74bd3ed4839a4f5ed459e51362a4cb35dbfcd8de6405e03eb842a3e7fc3",
+    "Art-0-color.webp": "ff7b05db10c47fc9b235321706cfe9502c75ff640f53c6efa1aab2fc29573f97",
     "Art-0-normal.webp": "5c009b4c3a831cfb5b6a4cd9fb97effff370a07dfbe3d2d96a8b21ebe245a7e8",
     "Art-0-normal_map.webp": "d00d9e96a695108e49f4066cd557be0ace5a29c7356fbe29400304501a00bba3",
     "Art-0-roughness.webp": "aceba2baa8a3ef446da0510fcf29629aebd96fa6d14eff33273cd710f08158fa",
     "Art-1-albedo.webp": "e5097395399335aea1b36c068b6b492eb8e153e98c9fbf96b517d6859ea1585e",
-    "Art-1-color.webp": "4004ae23ba2f497728d7fbcf19129cd136121bdcf0f06fbb7ee021762e23556e",
+    "Art-1-color.webp": "b0a90344d495e0ac86a93b15720bfa85cabede0d9108e21d08873d22867b223a",
     "Art-1-normal.webp": "5c009b4c3a831cfb5b6a4cd9fb97effff370a07dfbe3d2d96a8b21ebe245a7e8",
     "Art-1-normal_map.webp": "781f200ad6caf06fa8a33f9052362ce6f6de6a3f9a578720410dbf7e499ffa84",
     "Art-1-roughness.webp": "1c4048f5a8044bd46ac4fc4594b35468935ae7daf911af9e95c3950876b33f4b",
@@ -70343,7 +70343,7 @@
     "Art-4-normal_map.webp": "cde7cc9b2977112ea9097a659896723314cf6b04f060faf207e988c8a6e1427e",
     "Art-4-roughness.webp": "c15323a5da5af60a43fde625a538ccc8eda3dc7618bafdb0f8880a33f8f960b8",
     "Art-5-albedo.webp": "5262596c46a3f47a3d2a7f316427159bad5604eeb8faeb060471dc1be369407e",
-    "Art-5-color.webp": "e38d2600eaf42f810f3fa870bf9ebe84f8df39b13c8bc56ec8cd119fbf8fffc5",
+    "Art-5-color.webp": "4bf53d023b1e42c6976fc82d48a69d2b8f979fe4684a36518fff3f0dcc6b4857",
     "Art-5-normal.webp": "5c009b4c3a831cfb5b6a4cd9fb97effff370a07dfbe3d2d96a8b21ebe245a7e8",
     "Art-5-normal_map.webp": "439facbdf8cccd8a764efa14eb2b10b96f7c8db74d0ff71395ed4ab5294842fb",
     "Art-5-roughness.webp": "eca07c6e18fef9a27fe62f2d5182ade333069e8d679e9d7ca538b1b753605d09",
@@ -70380,129 +70380,129 @@
     "Bark-5-roughness.webp": "776d50b756468eb1fd4902e1bc53aabd6946bfc3098d7afdfb866c90e719d309",
     "Bark-samples.json": "5d6a83049d1400e32a9b5325befbd70cc2657bd6526ca7a57bbaa1055c9d3cc8",
     "Ceiling-0-albedo.webp": "80608d05d177e478e81a505534fa1d8af32e07ebffbdca4fea5248fc231e27b8",
-    "Ceiling-0-color.webp": "3b9e8a05eb747b520ba64e6c3a61c44623ff3e3f2cfafecdcf4c54669145cee3",
+    "Ceiling-0-color.webp": "297e69c65b08e6e3c61b8eae6e4fdedacec7c95f66293c219e7609c584c9d29c",
     "Ceiling-0-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-0-normal_map.webp": "9d172b7a0e87014eba070b9b6e82bbad6ceb0e4a76c9a5584efef963c25a355b",
+    "Ceiling-0-normal_map.webp": "3d9fdc3987acec20a7d96010837e16be4b74741143a6d7bfce5ffb427e38972b",
     "Ceiling-0-roughness.webp": "39ede47548da5324374394132daa6e7f3c04bb6d65431ed815b7070a63ebe06c",
     "Ceiling-1-albedo.webp": "fa099225730e98eb3263aa06f13df2637d2373b9350f673c3309ac660868ea34",
-    "Ceiling-1-color.webp": "7ac458c1ab5c5d6c38d63625fa87e4282f95d9c3295760bfcea516d47ecf06ab",
+    "Ceiling-1-color.webp": "086f52b93cba04d429a51040f330fdc41098b5f21b381ec0b49d399d50fe1395",
     "Ceiling-1-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-1-normal_map.webp": "d5a6fa0877db59cecb5322f9779138aa0ad5928069c20d81d7e61bdbec0b50f0",
+    "Ceiling-1-normal_map.webp": "4286030e9b92be749947291fe17b5d874fa9c04514aa294590112e700f1caabb",
     "Ceiling-1-roughness.webp": "3aacff803d57b343cbefb212b1e0b1bf754273eece1a237f1367e0cc678c7287",
     "Ceiling-2-albedo.webp": "2e5e8e1cd20b2ea04abc9c77697ce9c01b6eeca1d6cb11a2839655258c5820e3",
-    "Ceiling-2-color.webp": "2f8e62fc38927c273e084276d1f67d7c70acf23750cfbf91855d5809ff33869a",
+    "Ceiling-2-color.webp": "3bba3f94c5d88428a0cda4b5fc04f73b29d940e88179bba5fba618123230b4f4",
     "Ceiling-2-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-2-normal_map.webp": "0e632e16e5783de932522d5a3086ea4e5e92092b602ec74c57ad24a41a15d1f4",
+    "Ceiling-2-normal_map.webp": "361b89aab60f520ce23578bbb4d24203994ae35bee434b501fbd01a0c929742c",
     "Ceiling-2-roughness.webp": "f38ec69344b7f37f4197bf41f21b022ee37fe517bf64b7f068734b4686637f54",
     "Ceiling-3-albedo.webp": "aa6d46aaea532661ded5b26fd0681e7c8337dbd13ee6c7879510866f101ba396",
-    "Ceiling-3-color.webp": "e9c953cd87405331306bb30c9325a39697459b1124965a9ea7095ab5f71d7356",
+    "Ceiling-3-color.webp": "94c9e1a5a0a1b48c6d43b6370c11468cb815f4c23c0263f7661490d294fd2d5f",
     "Ceiling-3-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-3-normal_map.webp": "cab459469212c170bdbaf7836541c7156f10ce532e60a04344254a3a179fc505",
+    "Ceiling-3-normal_map.webp": "32076a45988f82d45e61cfc1f1071e654d9c8639a9c9802771c9ba7c8727a0eb",
     "Ceiling-3-roughness.webp": "d1ce7a0c1c5ac7d527f3552aafe832be0e652bf19624ad3f8017c7909f6b3329",
     "Ceiling-4-albedo.webp": "2acbdcf628cfd65c45848b31e73d904925311ad947d0dbd12b746315fedd6ba8",
-    "Ceiling-4-color.webp": "25b21648125ebb0ffa6e5fb97d3ac351c9f78dc7b704bd7a5d704654502a8048",
+    "Ceiling-4-color.webp": "a5add70d928f31da32d57fceeb671494df5b357a9433a12ffc34f2881b4b06b7",
     "Ceiling-4-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-4-normal_map.webp": "a15aa01146fc7c291e3ae4e3eb8d985f79cd1d35f75c81eec844d7c14a161d91",
+    "Ceiling-4-normal_map.webp": "6f93f87f7ad67c16deed491e39dfccaf66eccf1295866bf03a93a5d4330e4492",
     "Ceiling-4-roughness.webp": "caae92bb078b89d28d019e0fb3ad7b3e0d3b48bff41988dd8def60f71c4d9c41",
     "Ceiling-5-albedo.webp": "18577a7ba47eb49349cf3f75d53c25b58827673fb73dc93ad77382eb6e4b6a60",
-    "Ceiling-5-color.webp": "bef6bc0ef79d6989505c570f9af765e13b25b302e9f6159c023cfba7f0fabe29",
+    "Ceiling-5-color.webp": "57afcad123d1ac2461c2c6f6d6ac72bae4ec8bdaf4cff570b4bb6781455369c7",
     "Ceiling-5-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
-    "Ceiling-5-normal_map.webp": "0f7d100c873f1aa78dbe36b7574135526b9c34f973f0cc48e46f69fc375d8eaf",
+    "Ceiling-5-normal_map.webp": "8dc1d89540106a8c9ec2ac30e2cb666e409027c779837b5bc78ef5b8119f9883",
     "Ceiling-5-roughness.webp": "1bd655e0ea379ec8528ed5fbf26a47c294e8256e284ab87cab164fd753ff13cd",
-    "Ceiling-samples.json": "7d37c85db96cd4564309df676eeeb4b4ba17b634bc12b783ee99d8d3ebc3a579",
+    "Ceiling-samples.json": "57543b76b36cd5aedbf7c4a3f9866474661bf0ddc308fd5f27e23e602f2519a4",
     "Ceramic-0-albedo.webp": "3cd4c3ad8cc569427e42b56b0b67727c0856177ed2445b0db9ca5d38a7edad6f",
-    "Ceramic-0-color.webp": "a019b0f5db918108a75e1fce2c5ce054c929caf5ce451ca420abe31d9bdf8e94",
+    "Ceramic-0-color.webp": "f9ebac0cb4013679122abccb32e490fc069ccd6c3068bdfd15aba1947425816a",
     "Ceramic-0-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-0-normal_map.webp": "ca553dc88f14656ad0dab9d5f8aac1c46f2be39737d937eba5f59d6d75eaa2ef",
     "Ceramic-0-roughness.webp": "46bd4e7785b1d8dcec65558c1733a34b9ecb20f409a03f710cc87fb6fd7e7be7",
     "Ceramic-1-albedo.webp": "d728ae3785796eae1ac1a0285f87e6f1595767ba97db1c03c6097f0fd0502689",
-    "Ceramic-1-color.webp": "fe3ba22ae71c20b71c56de29df2cb0402b22a285eccad7710a01dd59ba7977be",
+    "Ceramic-1-color.webp": "bbcf02fdb5d0f1541f2de791219edf2ef73d484893398537aebd53df80ace7f0",
     "Ceramic-1-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-1-normal_map.webp": "b5643c4a7db203d419ebe900ae15d711abf9c26c10c2c678e327b9fbdcc1637a",
     "Ceramic-1-roughness.webp": "c7aa5fe7872c8de9b30be831415b03dc8edf38368cc008cb870a4bdbeecef260",
     "Ceramic-2-albedo.webp": "be99f573499fae69d4a6c720441e3165647dbbfc423ee489fe4ab029164ae9e2",
-    "Ceramic-2-color.webp": "528897a87ccc28d051593ea5a616722032b89e3c44d821a50eb00daf4c2f56a3",
+    "Ceramic-2-color.webp": "8b139a707a1b63f745c7392cc711e6fb57a0e69803f8555aa6a3bda2c50d0c2f",
     "Ceramic-2-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-2-normal_map.webp": "43d830fdec2bc5d16e302e5add4eba6618aebe9fc91ab92ec386ca6ae69ab9fa",
     "Ceramic-2-roughness.webp": "9491ba8cd97833fb6b4b710846c5d44a4126640f00ed5f66d186d0d31163d627",
     "Ceramic-3-albedo.webp": "26f156718f8a4037f79b03b7cb7b1cc3fc71188094a0c1a3fecb7c44220660d4",
-    "Ceramic-3-color.webp": "18d7f2e972fcf42c8b09a1c94dd4107c3d037d833e0535dcf514f87fc06eed99",
+    "Ceramic-3-color.webp": "2dd9895f579e8e555a38f3e3045bc1d8fe0877d17b618cf47c040433b1fe5903",
     "Ceramic-3-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-3-normal_map.webp": "88ad6ba7b9a3b7c3b9bd2ea4e4dd9ba6e1fa866575efddaa68e391c6a12d34f2",
     "Ceramic-3-roughness.webp": "c9783961d4beea30eecd7ae9ee743b0555ec67ba8b33c44da493ae76481a63fa",
     "Ceramic-4-albedo.webp": "111606ebf3d188a9bbb311aa3b5d04797af0f87626c586075caa4d7a1c307082",
-    "Ceramic-4-color.webp": "1e3241d6bd4380061274b56b12fdeb255ef0ccb88ca100fbb8ec0067e680574d",
+    "Ceramic-4-color.webp": "503e3c2663442cbae8a5cd7d112344d4510bd070d3e879c7842e720912496bc7",
     "Ceramic-4-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-4-normal_map.webp": "83cdc256a9021ec1be5beda465cbbe84f632e9d6eb5712cd28d2212f65c3d1f8",
     "Ceramic-4-roughness.webp": "619e591d2541ff1393f938954c08854136156a47af023fd636e7292557028848",
     "Ceramic-5-albedo.webp": "feb8708b165ee95c2a09105edb7e181a7a450c0aa224ad672f8273efbe8f744c",
-    "Ceramic-5-color.webp": "880fbe3751635cbde5a18384337e9311c8a7680aca7e32b11b71d65095f30c9a",
+    "Ceramic-5-color.webp": "9193f2a4954f1ea6c1fe77ba36e08972850f6606874e9759b1c7f8b95f53513b",
     "Ceramic-5-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Ceramic-5-normal_map.webp": "05191a85662f30a6538a2f2a8d10bc71a77a7b8080a97fcbfe5ee8cc1f24ae19",
     "Ceramic-5-roughness.webp": "ca287a201a698d4c01c05b033c2228763b686c888c6a4a6ff9b7c9877b019c1d",
     "Ceramic-samples.json": "de9f36fc42f135774ba0738b826013791e64986c8dd3be1d31aa189328a2ee72",
     "Chrome-0-albedo.webp": "739a8cd89733914ac1aed2d88a6035cb75463ea6232ddb82a14f276ab696ed93",
-    "Chrome-0-color.webp": "bf70a682710cae513ec99863877785cf924337a995f8574b5bfe237f93af6dfb",
+    "Chrome-0-color.webp": "53f77264b4690db6d2a4a9327529bd4923fddf7e3bd1ebafca1c5a93ee5247a8",
     "Chrome-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-0-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-0-roughness.webp": "62d97aef120c030c2b400b4086db5dfcbc55e86becee1fa3a0dd48c3e39b8b1e",
     "Chrome-1-albedo.webp": "bf78dba89867a00feabe6ba064b1ca6cf4d7b06bfdb3dbfc985ff7e4a0f61e36",
-    "Chrome-1-color.webp": "4996b49356a3c76466c159d768015e3d3d0bb7c534cd2290e945316938e4b56c",
+    "Chrome-1-color.webp": "7fad5290b4a6c9d5d6b4d556214f4950419393914cab6cd94db6a8a46e32239d",
     "Chrome-1-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-1-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-1-roughness.webp": "62faee811121c33b98bbb793887c649dcba378237f6a42bd4b9ac46a5a7f09b0",
     "Chrome-2-albedo.webp": "b1eed9afc595e0dcc9f5e65246a99b0a7a11c64346bc4ea08ab183acd4f8d2b5",
-    "Chrome-2-color.webp": "0c25716f999bdaa2459ff072a8b24da30b6a44ad944ef6814e2d4d7ab22a74fe",
+    "Chrome-2-color.webp": "e8384cff3a71a586f9dafd2314d2b57d1165d5a866319e44ecf6fd9e118b2886",
     "Chrome-2-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-2-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-2-roughness.webp": "e04d3ff5df6c9d431c8157241ddd6530a029c8d16f9bf0631ca405a63acae72e",
     "Chrome-3-albedo.webp": "18c0efeabc41dba5913ef738d238af0e7723e64013e0a46b1321ad75c74410f3",
-    "Chrome-3-color.webp": "0241187bb1fac4aab8b12898227c58540d111ec56c9021ac963680ede1e3bbaa",
+    "Chrome-3-color.webp": "1660748081ebbf3facacafe09ed696e7ba5e94a44da7dff4af3c1ace02aef7d0",
     "Chrome-3-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-3-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-3-roughness.webp": "4f21151c032497e4d0de6f40ca5d8db7bd5e76a8d92ea5b2550544cb8e07d29f",
     "Chrome-4-albedo.webp": "0f4a990959b724d5066e14d1b4cc3136d250fdc0928a34671860e589ce790c67",
-    "Chrome-4-color.webp": "1d833c8b02d0e5bf814f80bb66372555c7a3954dd8d119938fb10d11055e28aa",
+    "Chrome-4-color.webp": "733743391446367e7e9df746086df9252d354f77e7e04ad3e039d552b53f037f",
     "Chrome-4-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-4-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-4-roughness.webp": "6cbedc0099443bbbbf9efc42ead2a378658d9c79fc1e171e810339221b53ddd9",
     "Chrome-5-albedo.webp": "91c52bf1c6934af1fcc43d4c5e1d411de2d9c06612cfedf82d18d0306b5e97f2",
-    "Chrome-5-color.webp": "4e1fb9e6471c3f75eaa5d9cf06134c270d76f362aa114d691d7e64d16f550f19",
+    "Chrome-5-color.webp": "7dccff4faaaade8222b2d49f8f5485e0ba63922de14e6a1a1944d27ea7fe1290",
     "Chrome-5-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "Chrome-5-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
     "Chrome-5-roughness.webp": "3609ee41f6baf65ae97bfd8e8f80c6d1c6e2720bcd58b9543663cc1a20f8963b",
     "Chrome-samples.json": "710ce168df9b6298dc8a3be8ffad52325526a29a10a46b427f64015eaf2f9e33",
     "Concrete-0-albedo.webp": "f85d969a5806299de3fca91a0caf5be0e8248600ed051a442c3a070478098272",
-    "Concrete-0-color.webp": "9570b18e27afaeaec492e603c2626f9ad66d93e45629d6a4f8f3f7f553eb9024",
+    "Concrete-0-color.webp": "250e08306006e270345b4a37deec278ac500ca1e2eba3c1c0d394c619148b0fb",
     "Concrete-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-0-normal_map.webp": "32e8035ec8e78b14aaa16d7feaeb7f03de8521f5c088bce72b20fe505625b613",
+    "Concrete-0-normal_map.webp": "db4d1493ece444e3b11261eb7d225ae720268a5830b24bccb4b5de91cac33311",
     "Concrete-0-roughness.webp": "c36d84bfa67f7866b97f488b9ed95200617c2a9e448aa4b1216e6647fead1445",
     "Concrete-1-albedo.webp": "6663cfb6d75d8ecfb0e9bfee80670ce517d32439bb3cb2054bc2ba06191cf465",
-    "Concrete-1-color.webp": "92481a36329c7c7b0163624239c339f7ae8f905f4ba8317a4f100b0c41c8ddfe",
+    "Concrete-1-color.webp": "3a7b6847b3a1f172e9ad5ea44f0e18144f9d7cda2bf08e9e097b7091f8127c06",
     "Concrete-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-1-normal_map.webp": "fc128815663a75137c7d659cda0242fbd331fc6ae7b904042a1befce62281629",
+    "Concrete-1-normal_map.webp": "8c0ee05dfffe46ec72309c4e0f4aa298f0ca2d903ed972c201fe245b7f038830",
     "Concrete-1-roughness.webp": "66d4ddb6938975f11a18a0c4fb1fa0504aaaa222b0a3d06c6ecdf69674cc5843",
     "Concrete-2-albedo.webp": "4ff59ca3b5f63562b45c036d5a9994f18ac7793e279df4a52626e9a8adb06fcf",
-    "Concrete-2-color.webp": "267906e2dadbb7f517135e8e123f951cf566f4d058d555e7c14fe6eb06af0230",
+    "Concrete-2-color.webp": "99109de271b91d2743a31375541c30242ec96d8d74a07ed078ff48319a133205",
     "Concrete-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-2-normal_map.webp": "5e213d116c4ff389f773736fe50cf8375c6781401cd720e4a0fb8d4f0094b74e",
+    "Concrete-2-normal_map.webp": "fadebcc96996855ca3df40626b835f7b247f6fff0f4eb86242050de1ac0976d2",
     "Concrete-2-roughness.webp": "2acaf2371e8694f2eaa2027c2b5aa1b49688ed73858619518f1362f55cc9f75d",
     "Concrete-3-albedo.webp": "95555c3c808fd86835ad4779114b9a82a67a53a1467a951ba982512efb2b1c4c",
-    "Concrete-3-color.webp": "cf4f9ee08b5bd669b1e2ce1393e5c5403db670640f7358141ae55a3c95a684d0",
+    "Concrete-3-color.webp": "ac1151f3d3b2d687c39b5d2956a14eacdf86e6ebba1fd501190ba2713a1e9b6b",
     "Concrete-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-3-normal_map.webp": "0ba0819f0fb0c5d29f043f4457c2fb39a07c98f10d3f061b48de7344cdf5b1b5",
+    "Concrete-3-normal_map.webp": "64886c8934a530c432a8a92aa5c811312e24d296ccaa4e599cdf9b9d8c29bd9e",
     "Concrete-3-roughness.webp": "7b6926ca75a3f7dd4909ae82278a5a6c7ab982b96289eb662520f15d13251e45",
     "Concrete-4-albedo.webp": "7aff854cc2f263f8efdd8e197a9a4f61bf6858ad43ef0e81e06c2df69e7d1746",
-    "Concrete-4-color.webp": "248f16fa594df305e7e1654b8448f0ecd2afbac6d1fa7de04678474def04c69e",
+    "Concrete-4-color.webp": "ef20a725ccda7854803e00a02fcf3c5816a7d04af0cd0e3ff8e16b279681f53d",
     "Concrete-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-4-normal_map.webp": "2cd99bf7664bcfb4315c0dded0d11bf8cb62049012e2a3b6e7a58550926f88e3",
+    "Concrete-4-normal_map.webp": "619f2712607cb9573a6512a2ffbda8c2b99c17625e6137a469ef74df4133f45a",
     "Concrete-4-roughness.webp": "124c1ff88b51c44483b851cd2abcf64d962b20007b9a35f74fe46193cc194d6f",
     "Concrete-5-albedo.webp": "0808ff6bb49c159c4abbe48954009448949459cc3de84ab0a68afe344c5f5684",
-    "Concrete-5-color.webp": "a0dcd11ec8a3c171d22966404c2c59c55ca72d409fa05d5d526d8d5cc05fc72b",
+    "Concrete-5-color.webp": "0e9bbaf62d5d181310667f74d5c36e93e76674be3b5f2511147914ba1c8a9ed2",
     "Concrete-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Concrete-5-normal_map.webp": "df3a0c1881fb8bda10c376c380aca175f062dff9067aabfa076895fdbcd0349c",
+    "Concrete-5-normal_map.webp": "29def51a4cb024f4eb9346e042e82a261721db7bb28956bd57782c1c7348b4cc",
     "Concrete-5-roughness.webp": "e885b737de31223cf109846cba16b671aba751cac09e52bc19991376ad913c13",
-    "Concrete-samples.json": "962f5af1dea19a3c60935753f1f6b13d9efc2ef96e29fc2f4f3a5ac20bb5f048",
+    "Concrete-samples.json": "b7a73ce44ac874e65a6897a742964185b1cd03e321d1a60fc4562a550eab18ad",
     "ContainerGlass-0-albedo.webp": "e9bb766cc9baf2720b4f3a97739df1beb7e6da4749978c75c08aab3aaec78422",
     "ContainerGlass-0-color.webp": "6c1c377271e83bacd3067d1d2a02cf1fcefb3197d95715ec896ae0e695afe26f",
     "ContainerGlass-0-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
@@ -70566,63 +70566,63 @@
     "Drink-5-roughness.webp": "03fca4cbef62f96f736fbfd80660238277190c72b44e52624eb428e7393303a9",
     "Drink-samples.json": "88f90aba5a2d02df7a59c0afefe9571444aee0cb159368875079846fa89e281a",
     "Fabric-0-albedo.webp": "70b31e08b371c09839443f6353ffb543b79861635678278a343ed69508e3cfcd",
-    "Fabric-0-color.webp": "b57383fd6c18da862c6ac06b9358c2133946debf033b413e14795f3e8d846954",
+    "Fabric-0-color.webp": "023b52711e0e0430a6a185a4bcd72db83b87d59856cf9baf6622269ddd897580",
     "Fabric-0-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-0-normal_map.webp": "1e4eb7fe14ba3c69930735295f0e928726c3c84734c47b39ffc35b083f7e47c0",
     "Fabric-0-roughness.webp": "750b6a62a017977e5380185ce0970d6685ea5748e90ae77fd58a53526e00432b",
     "Fabric-1-albedo.webp": "5653f298cb55a7d300d073081e814248d2435073d3fab6b371b2f1a49eb9b7eb",
-    "Fabric-1-color.webp": "4f02574ef2daae48b775360c18f90acb01af9d1c334a6886a739f1ad623692ac",
+    "Fabric-1-color.webp": "e06bc018bff0bd28459dd2643982aebdf3276cad116e463de0f3b7155f9d4db3",
     "Fabric-1-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-1-normal_map.webp": "eba4f0646b32d9cf2c062ec237c44f7a28a8cf89f874117bd92dc5f8c4e1ed2e",
     "Fabric-1-roughness.webp": "fad3237511fb65954c4af5a74e8d584a7c64d754ad60c815df377df95dde241a",
     "Fabric-2-albedo.webp": "58ee38e37e07e2f88c33866d12ab88d0c51b54058ec2a7c156c06d0c6c762fdf",
-    "Fabric-2-color.webp": "ef43975de1bf10a2f66600498fdd5e498f06ed28c47b3cefe8e004ff90f6efdb",
+    "Fabric-2-color.webp": "6a9eb579e8160fc9b5bed1778f854631aa434f5324cd96951c1256cdaf7f03db",
     "Fabric-2-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-2-normal_map.webp": "85ef57947eae07c5153252e2a64d0e9fc6640bcefb8e0d1e14697a03236151da",
     "Fabric-2-roughness.webp": "43cdfde45a1c0de358666c1d515f192dc2ece87ae0235a018369a5e218dc8a0d",
     "Fabric-3-albedo.webp": "484c43bf212522214e4510f7611c70eb81b44526c00bb14e01dc1133f3538daa",
-    "Fabric-3-color.webp": "8c61f9ce62a731329af2b315d3cf3a3ec00811b7c8de4e01cb3053e3973e200b",
+    "Fabric-3-color.webp": "04aae630a7fe20e419e7ba8df5edd2e8b94f8e3dbe8bf703b1e0fc9fc3685ce6",
     "Fabric-3-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-3-normal_map.webp": "14dd8fe6a727c3058782aadfee1a53d3a09ff1be4143e62b0581ddd59b9d7bdb",
     "Fabric-3-roughness.webp": "fa6dccd92204d14ee2f893fdffdfe97314de7dcc5345eb041d55b4ea0efc6fb4",
     "Fabric-4-albedo.webp": "5d2ffd3e64199bf60e59e54bdfef71b8938d7c2ebcc133f83555aecc8e5e11af",
-    "Fabric-4-color.webp": "02d3a7075e5081dbc1d1d65adda2be0d137e7cf6d700bed675189157cedfb47b",
+    "Fabric-4-color.webp": "99eca2bd3fe82c81b72200bde1196210889a238e9f8c443ce960f363bb9246fe",
     "Fabric-4-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-4-normal_map.webp": "e099601c83e72c2ae3a34e88f09131f33976306d8ec27669ab5ccf158f1b6df7",
     "Fabric-4-roughness.webp": "b1c5f6fcbf519cdc682db950de22b2378dd2a052bca2d7ebc15743efb6fee80a",
     "Fabric-5-albedo.webp": "dcb5ee3afc68b24f904b8db6ee06d7920881d2ccc8ba9c6806eb88a09afe3b82",
-    "Fabric-5-color.webp": "6a086ea37be1cd0a98efd602058826fb5eb9eac8cd23a55c1ba942c2b007df0f",
+    "Fabric-5-color.webp": "1a1c68dccaff19aa791b65ee0d38f03a7fa6d5a7e16ff811e2f120c8841e117a",
     "Fabric-5-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
     "Fabric-5-normal_map.webp": "98c5d0a9dc6a3a1e4fdd8790109255965a368c94593b4f40f7837702ba4c8b71",
     "Fabric-5-roughness.webp": "0ff936a4df6b8d122aa6899bb6dce661ab0be69b0afb2ceed3e56c415aab6802",
     "Fabric-samples.json": "93e08df811f67244acb4383d2f58045a875c48640bec9794efa2a63e0098cc79",
     "FabricAlt-0-albedo.webp": "9203e33e784061056fbe34ca985d6fc311fdee40e2e3799126925ea89136531f",
-    "FabricAlt-0-color.webp": "06e81af96ff3e28dac95d535bd6d9f3b0996b399b8ba48e3e1511885ae61fd12",
+    "FabricAlt-0-color.webp": "19a29c7257ff8bf16366b801406394063618335f382a08a3c31984cbc65687c7",
     "FabricAlt-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-0-normal_map.webp": "6d4dff8e6bc5b761ba73ce0a8bbb0b357bbc545b65f27c5f3d254087edf8621b",
     "FabricAlt-0-roughness.webp": "5bea483d9dd4634ab7769e123e46375dcc970fc2b6b1489e163c4f2bae4592ed",
     "FabricAlt-1-albedo.webp": "8c1219392b253b88d894377ea32af0ad6694b1651516600f25d19a71088c2f82",
-    "FabricAlt-1-color.webp": "af661215ff3e5283ea5b46a13f3fdb136494d60533d043ac2fb06eec3cbf9e97",
+    "FabricAlt-1-color.webp": "ff073451a1a77c567efa4810fde7a1ae48e158a347c637386c221c66115089bf",
     "FabricAlt-1-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-1-normal_map.webp": "64a877fb7487f0156c34fa6ce252a177f3f4794aeb4ef6bfce3a396e19f8cc8f",
     "FabricAlt-1-roughness.webp": "8be3fe704c589059ab82a8662787d41b5ba5198845cf797b1c2f7136c1b2262a",
     "FabricAlt-2-albedo.webp": "ddea0e40c0afb36c99d44120876335a324fac1c33fec12d1b820d40a491189a3",
-    "FabricAlt-2-color.webp": "546df66f1d747175a082278dbff224529bc539a66d03f407eb29846dd5d17579",
+    "FabricAlt-2-color.webp": "bcd8e150a1120b1a11037ae64ec53e3d3ae4cbe3fc14c963fd0c443f7073a589",
     "FabricAlt-2-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-2-normal_map.webp": "996a7629f673959cc3f2dc6ab6249052064bc79ae50f8fe400bbe7bdc59fba28",
     "FabricAlt-2-roughness.webp": "852fce1262b5a86df65bcb8e79a4df9197cf2c23291f3f13db0e579d33c3b938",
     "FabricAlt-3-albedo.webp": "2ce80eb8d5f8df7998b9afc2cb50f34ca335e645f0a1e272ea9c10b5eeedfcbb",
-    "FabricAlt-3-color.webp": "ef8870b60cab8bb07012db3d1654fbc8c171ad5d5c8de852afc13ee6dcd8c3cf",
+    "FabricAlt-3-color.webp": "4ba811a2a7e31e7642034beffcc50441660bd4ebf4de3c2c67aeed2eeeff050a",
     "FabricAlt-3-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-3-normal_map.webp": "ea63a52ec9d703434b087393347f8a700cb45d81b3d2c6b95ea7ee92a7792935",
     "FabricAlt-3-roughness.webp": "ebd69dcad1978e0c194489d76fac80a7cfe33bc4ad25bb584d92a68426e71d7c",
     "FabricAlt-4-albedo.webp": "b80855aa7c27b8dc39b164b4063b097640af8040950288563fd881309c19288f",
-    "FabricAlt-4-color.webp": "dde9f221fd55617ac2fd18145b97533b8ea8fcc172dbe223999b1f7f46ab4455",
+    "FabricAlt-4-color.webp": "fc6c79789bd826691d02b6f51dae4ff49e245324a409c187f3cee3d38674b801",
     "FabricAlt-4-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-4-normal_map.webp": "b0bf52e78cba889869e4b3ae8642507cea1d0b04b7dec300313b3dfd5ee1159c",
     "FabricAlt-4-roughness.webp": "3b82e9393d958b17d0290f3f53e1dbf0ad6bfb851da3bda2218c307ffb29ba56",
     "FabricAlt-5-albedo.webp": "8058fbb76c2cc1f99c8d0e63446d6df617413450501591bcdcbd6d0a2c8a8073",
-    "FabricAlt-5-color.webp": "aa79d45dcbb93270c682bd37b07e7428ceb9e6eb557835fb3edcdf2378723953",
+    "FabricAlt-5-color.webp": "c05b70e31c944f12e13ad6333109aea6661e0f6189791b1901a701a0fa42b9d8",
     "FabricAlt-5-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FabricAlt-5-normal_map.webp": "e0d18607393cf9e1d3e374a8211a02869e7fc31b03602e736b1657438ab7fad7",
     "FabricAlt-5-roughness.webp": "705cc7f3c470c92279891e3dc03889999f0ca07e76ad2fc83814ad8c84256d66",
@@ -70690,32 +70690,32 @@
     "FloorStone-5-roughness.webp": "00fdb4b2c7ba2ba4cf26581a103750e50d445136b9c99bc7cf9e96ac825063a1",
     "FloorStone-samples.json": "df0f7127748fbb23367a69cebbe7bd8b1b516a8e8ac3daab7749a5528382f2f1",
     "FloorTimber-0-albedo.webp": "8703fdec0779a5de18d47b8a816c98825898dd29a18a7ccc32211b46a3c9f18f",
-    "FloorTimber-0-color.webp": "3a290bb1070cd95e187592cca90fa18b0135d1758761c93577ed9118f53dad15",
+    "FloorTimber-0-color.webp": "ca9cb9542b2f7a3d683916388588d79fa3f6505211455753723db4b96b4a6736",
     "FloorTimber-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-0-normal_map.webp": "667128b676834464e148b330cb0fe1e7c68244ccd7c0461ac913fd244bfad979",
     "FloorTimber-0-roughness.webp": "292cb39d84e76e1c770f193b5ea92f374b44fd476e90cb67471a29fbc800bc31",
     "FloorTimber-1-albedo.webp": "162f47e5be9851226d411744081b6bbdbdf892a90051e683d8600302c540dcaf",
-    "FloorTimber-1-color.webp": "55b0969adaa307c3d4b50438a319cdd2d117f80acf5f01beb08fd5ad05ad6e3e",
+    "FloorTimber-1-color.webp": "d227778f3f70ce23da386be6049db530a3ca22d8dc55629e9e691866ef78c421",
     "FloorTimber-1-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-1-normal_map.webp": "bc1917a709d292d456299ebd1174c7da824c16691b0a21223733dd0bc33d719a",
     "FloorTimber-1-roughness.webp": "43f477b1e504b5df9a135210db5c00a1d38a04a8cbee8690453033c9730ffa4a",
     "FloorTimber-2-albedo.webp": "c45e22508438215ce1566d19c77710a59a39bf02b56bbbc791954933b698318a",
-    "FloorTimber-2-color.webp": "6c5a205519351edccd4fce7a09ada54840b2cd269d2b3550f74c6ffc3ba10c88",
+    "FloorTimber-2-color.webp": "dda44f6aea38080d00d0b56db7635b20951d3432ea9d91cba39a90026d291eb5",
     "FloorTimber-2-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-2-normal_map.webp": "bb5b95ff2d2ce42e66717ae171730a6e2ff11d2b4d3dc9537808602fe609a2e9",
     "FloorTimber-2-roughness.webp": "3af31506342e077aa5bcb1d034d11a5a1bf41e6b51b3404fa7670c30878415d6",
     "FloorTimber-3-albedo.webp": "4119c2bb860d65c2de952a4b635668baaca8f1300e4f232d83220b4b0c126c98",
-    "FloorTimber-3-color.webp": "62ca307df32ec04690b9d5967613f5ffa95f0a4a21636778787ff52b06850dc0",
+    "FloorTimber-3-color.webp": "25b2a1159c00b1652a2cbed92f961b03574ba031f0efc3fcec07c3a0cd3010cc",
     "FloorTimber-3-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-3-normal_map.webp": "6b1b3819ea6a33a144b5c0c9c249bb00f633ce3b3f4377ee507111894c799253",
     "FloorTimber-3-roughness.webp": "67a0f92d89b9ccda0591ab5586c507a86f77f1d4bc71522c77325dfa67405b26",
     "FloorTimber-4-albedo.webp": "39bb1f8e93482279149cb78995ec4e15f6b9735b899283e64753afc23038dcdd",
-    "FloorTimber-4-color.webp": "078a518200fa2d5cdb8bd9a2fa2a9a6f3328cdeb4b52d6e0be196620dc5623e5",
+    "FloorTimber-4-color.webp": "1e933275cc5ac41749fce519f2e42a9ae874595d36feac87bdf0fb11ebe016b9",
     "FloorTimber-4-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-4-normal_map.webp": "53965a716ca26b7e918f3fc8c52870957398f0003268f49675385d5ca18aca1d",
     "FloorTimber-4-roughness.webp": "a2301974a6483d51588271da51b64d4bc4a4d0b538e871d868d12aeec46fc40f",
     "FloorTimber-5-albedo.webp": "a39258ae5430de912c74508b2803bf42db8a16fd51b1bd481554c9f8abce8978",
-    "FloorTimber-5-color.webp": "66aed9d99a5b5a4152c574395581dafac8b79b3a921082472f8bcd0526994e5f",
+    "FloorTimber-5-color.webp": "f585488066936d509439ae3ffaa13753f934a89b7c9bd9aa26b539a89bd7feb2",
     "FloorTimber-5-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
     "FloorTimber-5-normal_map.webp": "5befaf8c627ffcc56e25d0b258e5ccb6596f69e42207291d509a454f323e70f4",
     "FloorTimber-5-roughness.webp": "13d8f3a82c995b144be91ff0ba6fe76b2facbbb0fc4baf0de5e939ac30a87533",
@@ -70814,129 +70814,129 @@
     "Ink-5-roughness.webp": "4a3daeb82c0e6b658e973001667f72088c4098a929d5a0b7c26ce12130aae51e",
     "Ink-samples.json": "c0b0743c4e9a6597dd30080391d9f32e9aa363c3d58324f86c704970cdc5091c",
     "Leaf-0-albedo.webp": "5c2e9a22f94c41602cfdacd26c7260c96723f3893048cabb1006af6b9e8558a7",
-    "Leaf-0-color.webp": "f045c854f06037ffc8dcd74b2b9ce452fec80186f8598e12c4c3f51de2610526",
+    "Leaf-0-color.webp": "8163a5102fb657356a240ef5b5184c0a6a79c0f4f6db03348bca07dbd619b016",
     "Leaf-0-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-0-normal_map.webp": "0fdd98be451297f4ecb237d7f1df170ac6ae5626cbd79176e71f210fc47e7d90",
     "Leaf-0-roughness.webp": "725572511cf9f1786a66cbf244848ac55c851a808d7d1f89b7988186d7ab551a",
     "Leaf-1-albedo.webp": "004a545da63d5a5f19fe72260bda8971d2d8333a760fcb41cfc90509492da04c",
-    "Leaf-1-color.webp": "f5dfabe0cdd18e2e347473a230aeef5194464ea957af9b3fc7db620e1865ff83",
+    "Leaf-1-color.webp": "36afeb2cfd814ba8e015eb85a523b74200f0076bc19cb3fb2fd59c03fddc9ff2",
     "Leaf-1-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-1-normal_map.webp": "50aded8699e6da6b62e1ec612041d44e538248900820c287121ac22e5a5e63e0",
     "Leaf-1-roughness.webp": "2325b1a88c6bfc9b78c4f60c26825dda2f0488aff612dc1c67ec8fa7e420d126",
     "Leaf-2-albedo.webp": "bf371c66fff36c21ca3879b1c227603d08989ce01400af32cab6c304e5833fa9",
-    "Leaf-2-color.webp": "6110301d5289fd1897761fa01fdc4b5bf8590ea77865ede9cec903612cce9a45",
+    "Leaf-2-color.webp": "6569bf348d7a286799c92ed1f0280cb077c42c00ab6e4a8f0e6b2fd3af91eb95",
     "Leaf-2-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-2-normal_map.webp": "74a3aae00b71bd4ac912ff95e231e3c0156ddf68525e51461220ade60aba8034",
     "Leaf-2-roughness.webp": "1a591a2641c3a4be11a3b7ec9322cfca6890b7979c05126f34ae270d686e2de8",
     "Leaf-3-albedo.webp": "49c60e872a177ca912e4ca55acd50b64361c53c5198592485a57a887c022fa4b",
-    "Leaf-3-color.webp": "7faa671e1e026fa57ebac91660fec364045da3a7a8b0b043b8198448a8966b2e",
+    "Leaf-3-color.webp": "b6d8b99c99237db28badb11b56a76700ce747e16543a6727b6641682e10e1025",
     "Leaf-3-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-3-normal_map.webp": "f167609f00c099bd7a3d64de07fcfe061f55854ba78ed15e264cac74827d5855",
     "Leaf-3-roughness.webp": "2c6c8417550f609651baf0a465dd52f60e2e8a41938446935456b60ef42eb328",
     "Leaf-4-albedo.webp": "9ebaa6d076b29c0054910567d085defcc6df11e7908c3f66eb2957ffc86c7fcd",
-    "Leaf-4-color.webp": "f335f77cd1512747a5cdbbd6d718a6e848b46844bd6c24d65be60a1a67f11d44",
+    "Leaf-4-color.webp": "be222e4dd4b4a4e4a9ff2c8f939dab8cbe640ea4592dd67259154627154bf244",
     "Leaf-4-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-4-normal_map.webp": "3094f70b94e99b599bd9aa6c50914b65f18aa30e72cdf1e47f7ad4ab6c3ba733",
     "Leaf-4-roughness.webp": "0babc603442fbe079e46769297c62b1ad702c2638c41c444c04c5234c211243a",
     "Leaf-5-albedo.webp": "802c877f86137de337893d723f6683713507face2a86c94b4032dc57edd82d15",
-    "Leaf-5-color.webp": "b9afae9cd336a5205665c9ec47251e5c96ddd2ca82252f1523e87685bedd6acf",
+    "Leaf-5-color.webp": "0d80eaf7b28c55e3788699405bcfb35b70b0d7225d6293bde03b78b5b4b5d3d4",
     "Leaf-5-normal.webp": "1fdc8e7eddb66e1c1294bddfeb90302b8a6059d92dffc0e4256af80ec7612f98",
     "Leaf-5-normal_map.webp": "ac48615326b121bfdeee1400baf0c3b410e6189c8d99fff8685df755e85d428e",
     "Leaf-5-roughness.webp": "b4c385fa1ff3110f0b313fd30663880049c8faa1b0b56093bef130e88672ec02",
     "Leaf-samples.json": "0650656de7eaee69c2119edc1a931020eb68db7de317a6f4b09002cd3c6b8adc",
     "LeafLight-0-albedo.webp": "f6af5ae80728cb51af374604340f01d9b8b35a42581e3f9b60b05a855bae172c",
-    "LeafLight-0-color.webp": "6592c05bb23cc95486215e860679d338118c56d51772ff1d745c9307f97e9033",
+    "LeafLight-0-color.webp": "f8a8e0c7db8d365b65c1023f0c4e2060390a5e19de7f5952c4d36a307cd7ecee",
     "LeafLight-0-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-0-normal_map.webp": "1ba892af74df6aae20646a9312fd42ba82d3cc01bd73043e6dbc4d0f6df49931",
     "LeafLight-0-roughness.webp": "e39b1b172383d4fcbd46cc81fb062cbae121a4b17e238f35eb6c71cef40652fc",
     "LeafLight-1-albedo.webp": "0d5ed7f58388df39f1168c3f3b582268e495f86eacaf8aaad7d396fe3e6d366a",
-    "LeafLight-1-color.webp": "78f1fe577f56d0fded5115811caac8deabea08d1a4a566d548660b30496c2647",
+    "LeafLight-1-color.webp": "a365be2924ef92ef1bd07736d82143f9bfae090d0e8f22e2b4e90a7431541369",
     "LeafLight-1-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-1-normal_map.webp": "def2fef7f4a75559c5c3b79b1c8dc109ff3cd20313927bdff36ea21e45eb7ef7",
     "LeafLight-1-roughness.webp": "6dc2a517a6cafbd0cae97cdeba51a0b864b4b56b2ddb4dd20290323ca8268fe5",
     "LeafLight-2-albedo.webp": "a840be1b93d5e739cc387b5317596ce2a6271e5d01605c5546c039b1969f3b48",
-    "LeafLight-2-color.webp": "adf6b36f5fb9ef7421cb728d47fed6ff997ca4a88ba2c1d1b9fc8937f35882da",
+    "LeafLight-2-color.webp": "50b400b56ae5a80dccebc3142681ebb9b1858c835a4a98cef1a550a60ed9da87",
     "LeafLight-2-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-2-normal_map.webp": "0e04cd3925d8b78abed3c5403f7a75916bfbfc01b9fb9896e2016f3ac219fe7b",
     "LeafLight-2-roughness.webp": "4ee409961627e1bace69bd7e4313ef6ad4011fe399e6561f9a2ea72b4f20d3c4",
     "LeafLight-3-albedo.webp": "bc437c6d2a4430557eeaba967c9ffcebd3466a75b5a36c0d1baa1e4864e3f3e1",
-    "LeafLight-3-color.webp": "528071986367721613249510ac26a19601fd4ffde60ee5e25b973aab9a1e70c5",
+    "LeafLight-3-color.webp": "587de89094266db3dd075ae2d976502f65e82e33a32259b79fc28ecaa0afe8f5",
     "LeafLight-3-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-3-normal_map.webp": "72a493c2a7472867a5419c2434e04a35f9a212aa2e5cc317b9062b1f6ce74a81",
     "LeafLight-3-roughness.webp": "e3b96fbf8967e4351c973bdd16d3108104dd4c1a611aef4a89e4be124862f90e",
     "LeafLight-4-albedo.webp": "5997bec7c6d86a6b2c76250237c6b0c3a786442c551fb36c343b45dc3d20f2b9",
-    "LeafLight-4-color.webp": "0d3f6ee5c402149049d23f51e6bb1c397582fabb985e28f3c0d6a5b4c201813b",
+    "LeafLight-4-color.webp": "732dcda676ba23164e3a133acfb864c75e4cf6c9c5756cd29412848d5bf41f90",
     "LeafLight-4-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-4-normal_map.webp": "06858836f2ba78cb6cbecf55f1a18dca8208a4c6729ce4759a488c5edb44f2e1",
     "LeafLight-4-roughness.webp": "f38f20d75f3b64c7b922644e0c19708f1aaad7a4c3734cc631c71ddc6b8f83fd",
     "LeafLight-5-albedo.webp": "f9ff77da39f6a6861fead13388d8740ff7b5df1601016dea75ca4d9600d118de",
-    "LeafLight-5-color.webp": "45074c4cca0d0e98d63a3b4eec1d1cce75877a32b813cf0d97bd8fd2134fba61",
+    "LeafLight-5-color.webp": "59efa1397b96ac467b025b499f910a180b9faf1e5652e0c843a8a0f6831c552d",
     "LeafLight-5-normal.webp": "c7fa733c18ed86b91b8b87930634121a5971faa559a116324b610d0a0f198172",
     "LeafLight-5-normal_map.webp": "049c356cd08a4b76b27a23054dc67e686aec2f2642e64178b94b6211770f3a2b",
     "LeafLight-5-roughness.webp": "2fa26485a2568d7b3382285f1604a3b7fc4fa2ef0e5c774394f9c4606e1d22b5",
     "LeafLight-samples.json": "0b6822f558a24226f8d0501c7d6ed52e39a67e5a5c68e8a31ea56d6edafc7711",
     "LeafVariegated-0-albedo.webp": "c7f5c76dc504feeb7c46b9c725d0fdfb4f0de1619ceca359d9bccf3ac7f6843c",
-    "LeafVariegated-0-color.webp": "009ed203f6e5af286be7ade469f90ae744eecc680f0f642af18dd660c59b4fad",
+    "LeafVariegated-0-color.webp": "32e68052d9753481c518a2553978c91f81ad48505332a3f04d9e2c396025a4f9",
     "LeafVariegated-0-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-0-normal_map.webp": "685d8b8b171c928a6cc8419478fed34570ba78cab63a7c7c9f8ca5e2da6bb3e1",
     "LeafVariegated-0-roughness.webp": "c41e3977c3284f6621625530b649f4060d5a73c12c47a5ef56ee6e01a966c88b",
     "LeafVariegated-1-albedo.webp": "136e5e8820c1e99ce5b26c95671e074a07f386166e07e08154c345122bc2a1c1",
-    "LeafVariegated-1-color.webp": "756f94a2f8062222748e597221c0f9a3ea448a070b72dcb5a082a15125f08ec7",
+    "LeafVariegated-1-color.webp": "9f5cc98c7c55f6efadfbe64ee1b95f70e46f98f237646375cddedb2c589f73c2",
     "LeafVariegated-1-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-1-normal_map.webp": "4c0de4c37315e06f4b9584fcf03667faa33674de4f19c6cc552e3a0a1638d12b",
     "LeafVariegated-1-roughness.webp": "74aebf88f48da8cd2e6e42a53d6c991e540ae59365676b16344a7e3d7e98af3f",
     "LeafVariegated-2-albedo.webp": "ce5d37bb6e7ff57c3792ffce56d8ef2c78d009f71bf5941ebad1f8e472a28cef",
-    "LeafVariegated-2-color.webp": "f8cfce8a82096c8f2d6f41a27ccdec1af1ef6d22fcd8c1b6d0e773277b17a9ee",
+    "LeafVariegated-2-color.webp": "efc297ff1079c2dcbdbf6ee613fae4fc4589e940a7876eafdf20f241ad38642b",
     "LeafVariegated-2-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-2-normal_map.webp": "49e12be9a9d7ce48fcb9ec0b029f76f24d3ae62e1981baf3d688db870ebcf8a4",
     "LeafVariegated-2-roughness.webp": "937776a7d4f516e4dc06243968b0b92db9725ca236108c4042f7d3d83f9ff299",
     "LeafVariegated-3-albedo.webp": "eb545f8e46e2be912bb39c3a32f3bcadb00c6dd252023fc833cdf9419532ca1d",
-    "LeafVariegated-3-color.webp": "718de14c21d62eb6fa59fe01f3b28b6fec1192340c6643527577ea5ddd7c30c6",
+    "LeafVariegated-3-color.webp": "3069981718874d9bacecbe0e38ebb8da9a37adcfa982ed5564f2617685f63f76",
     "LeafVariegated-3-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-3-normal_map.webp": "6b275c9dcfd5a72b0c5c3fda476b4e897de293daa4ae86696ef8eb8c1275d03c",
     "LeafVariegated-3-roughness.webp": "747dce2e23fc09d96fa9fa34addc758194192b4bde144538496d87bf41113bdd",
     "LeafVariegated-4-albedo.webp": "ea16af6e277cdbe2ee77da78dd86f86912c8ce9e814737fb4df352fa3065cdca",
-    "LeafVariegated-4-color.webp": "22986d7d3a7c5688af757ddc2f42669fb1fbd5f6d58f63e85035feb92471ead9",
+    "LeafVariegated-4-color.webp": "400c5f255f53e2a774779d8794288df1b9e3d565d3654c5393cf62b643e2a372",
     "LeafVariegated-4-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-4-normal_map.webp": "b95823f3103c2ae3240dcffee6c0070d219553c15628bf6c816ba46cc28e7420",
     "LeafVariegated-4-roughness.webp": "d60eeb9ec79cafe233e67a1b3f95f40c2a3e481c1c6057e84ee1a840f6f9e5ea",
     "LeafVariegated-5-albedo.webp": "0c8fd92052f47403395733bd10a4d8de3ae4be6c49a6fc4ba3aa41c9c60e1ab1",
-    "LeafVariegated-5-color.webp": "6e623de04c718f436d772a55fb5d12631be34c460e350c8009ef8e4c507e97bd",
+    "LeafVariegated-5-color.webp": "c771b8025b8d68a76acefaa4a747856cd1982ce971043a4f67b910ebdf05567e",
     "LeafVariegated-5-normal.webp": "07a6ce67c93ffb5e539b9076d8c9de2ba22945c3c41c8434281771eafa92b91b",
     "LeafVariegated-5-normal_map.webp": "ae1976fc56d6dde73b052497c3e630b2cad9b18ea3da65de1cd765ba334bdc00",
     "LeafVariegated-5-roughness.webp": "42ffa0cd213babeb1fe9d7627a3879f2a76402ba8b32eeec6c16186a1cd58e1e",
     "LeafVariegated-samples.json": "b38b54c308d30c50d5fd1d35f7614b63012366032d2b9bcac97d1fe877ddb252",
     "Leather-0-albedo.webp": "f529199b99ee15f98768b0a67036802bac40a2e7b34195c29d056d29480f7216",
-    "Leather-0-color.webp": "7718ef5bfdc7a4c623e1a21992f4f907dd26097fb4b63e58c528d3426a3724fc",
+    "Leather-0-color.webp": "78edb155ccd7cc49b64697a5dfb153e4c316b1e75694da30a1ce0ffc686ca445",
     "Leather-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-0-normal_map.webp": "4dd556d64a3015c9a180080057dfbf5a3fdace646540bc67b3de4e1e467a6eef",
+    "Leather-0-normal_map.webp": "98bbfdad01ea7570eefa9bd3e403fa9787dbbb98cc926dc8af9e0af4109da73d",
     "Leather-0-roughness.webp": "4ba3ef3ade3465d834f76f76f28ca6ccf3c25a3df5a2f152be8b3318173b345b",
     "Leather-1-albedo.webp": "cf1bfb7f6bf7061e670758ebdc0237ea6872fb57332f3fd4cc2879dd2ceea572",
-    "Leather-1-color.webp": "66d7a7fd37440999bf9b67625e4b7c988c54fade5331f3e58c1ed819fd334914",
+    "Leather-1-color.webp": "1c9c49a5d57027a47d8b39ff716d319d399a1604c66b61122319d1166435ff7f",
     "Leather-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-1-normal_map.webp": "625a0ea550594e862d202ae61911906041d6c554692dd9f8a8a15908db12f3b6",
+    "Leather-1-normal_map.webp": "2312827205b48a8b593675d262a32fcf558a536891168280eeb2f90376cbd9a4",
     "Leather-1-roughness.webp": "a0879475eccd2ce6df0a219c758434691c0e9bd797f917b2e3b1a2b674d5b33e",
     "Leather-2-albedo.webp": "d80b7971519b7d4f2cfe4845f23e4d9b7f4ad66ab92b07038672008e84a62bb9",
-    "Leather-2-color.webp": "0d1b707a961ba9a567d7eb31caa085d5235c26cda5f57677b9d120bf92a0c157",
+    "Leather-2-color.webp": "5a53d704bcd7cef1b2742f7142166667d1de88d3e694a567d95175aaf3205a13",
     "Leather-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-2-normal_map.webp": "ff9a444a926ea6608967184027129403a8f336c41a106b9dfb4b814458464122",
+    "Leather-2-normal_map.webp": "a2c70b6253dde7da69cb0bf797d06959c8e9ea97ad0fde7065fe526573f73049",
     "Leather-2-roughness.webp": "503064fb37824a9b9af4c419f5ef3fbaf51c30437dd93f06ae2072c4f30136ec",
     "Leather-3-albedo.webp": "ee4a004c02f34b7db260216198476b2e93337b53e3af97943e93ffa2997cf539",
-    "Leather-3-color.webp": "580af45d9d45af46257916177d3f338b45df3952ede7f5b4028cc6f81129cc83",
+    "Leather-3-color.webp": "a12d1013bf8ae85156c687adc5356aef78a4499a7951a4eb06e28ba00358db2e",
     "Leather-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-3-normal_map.webp": "0475d185b02037e7e1e0e8885c2cbea2a72191a16c92465e68848b1951edff9f",
+    "Leather-3-normal_map.webp": "7985e3e1a50e6267f97b3e96a3545a0224be6194d85cbb9467c78d1743bff9f8",
     "Leather-3-roughness.webp": "0590433a6a5ca1d299033cce3e53e73405f06212200d6e758b6af1162d7a7ace",
     "Leather-4-albedo.webp": "5568e8a399989772eddc9e349430c4d2110cccdc3d94795d25f2dc5fae413987",
-    "Leather-4-color.webp": "78e2a36340d6acb03c29096e99c3e493c03192cedd47c89767992a80bacf0254",
+    "Leather-4-color.webp": "c086379d3e42ea035dc2366d2fc2c2c114705f5fbf46b25e77b61f918daf8dce",
     "Leather-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-4-normal_map.webp": "5a6288d884ae1f6334818298a4ac7e365d11f2304d17a75ea380e7129a67336d",
+    "Leather-4-normal_map.webp": "d1cc036c93bc217a666f05f58b8186900930d6dc6f3b617161a636bce8f8f343",
     "Leather-4-roughness.webp": "16d675fa4255e7220d15086359d134c71ec1a0c831447848dd5dd0c5e7eec6b2",
     "Leather-5-albedo.webp": "49b85b87bd0575449b74011ba1dc16eb11af7adbee092bec7a955c55d34b94d8",
-    "Leather-5-color.webp": "8fe8cbb57d00a6c6bacac0b626a31820dc61464b9e6808b3b3bd4dc5172d2d5b",
+    "Leather-5-color.webp": "14646d8698859841f85ec923485df20dccd12e7fa19f26de92a84f89d683ed02",
     "Leather-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Leather-5-normal_map.webp": "3547004eb8e613eb9baf72bb765a840a116cfc6814ab04c84735d1e3d339aa97",
+    "Leather-5-normal_map.webp": "0c3432d1d05dc0cd8753819ead40c87482aaeb3fbc4b93aa19a8e2bc0b88e846",
     "Leather-5-roughness.webp": "7a35709e37b338d6ffca9012b011a1d84005ef93725ba294f35adb12cf3e5c0a",
-    "Leather-samples.json": "4603e57f09892150402cb640d890752442057aec1c20bf75041d1ae5598a26a1",
+    "Leather-samples.json": "16d33b07ef4acab684384653b5e48487467e8f4a07306e38bcc70f86cbccabe1",
     "Light-0-albedo.webp": "de276fdf5429a562a147ac46b36f4508ef14d2a9cd62d84222fbf74130f889ec",
     "Light-0-color.webp": "790a25b130ecc575067308e47e202413923e4a23f99a70530f53c8e3cd0907a4",
     "Light-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
@@ -71000,67 +71000,67 @@
     "Liquid-5-roughness.webp": "698c3d6291eafe0370d2edaf9fa68fea29f7c8d4e6ecaa7dd221cd2b03c03f8d",
     "Liquid-samples.json": "ad180a2ee7d650b016410b742cc8d236deff39337ffabe8f4d9ed124fb31cd4d",
     "Metal-0-albedo.webp": "c007295b211eb74db4e8033ee9859692ecceeada5bb379998b3eb54f71957486",
-    "Metal-0-color.webp": "91733778fb86cb1b05fbf4f9ad0aacf62a388cc3139e04891d5524185c06aa33",
+    "Metal-0-color.webp": "2d40a37c920d48d8b68dff97a4f6091f24f85a4abe5e01ac48a458083146a6bd",
     "Metal-0-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-0-normal_map.webp": "bb3251eb8144d2416cd45e60a7c1e9064183ddb0b87e5b3706fa704fb0abef71",
     "Metal-0-roughness.webp": "19ad682ee6f65bbfe83a786c9ce9656364f960784a648a8595d0da8ba22e658f",
     "Metal-1-albedo.webp": "e0fe28a44b38bd4db675d3a6b7f9c5459dfc29d37af6bf8600ba30c3ea8fbe4d",
-    "Metal-1-color.webp": "fe45a3f6d1093248d393b2d11a6ed91152250f1702c743fd72c7b2a6acae7f48",
+    "Metal-1-color.webp": "3bf89de2caf1c297939bbc84bdc8a6f8d32c3b95199a0e5162a8aa8614b2a17d",
     "Metal-1-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-1-normal_map.webp": "3bde297ccebb5dc37b32718ff61f5ce6b6399c5352dc8062eac90cc821fec075",
     "Metal-1-roughness.webp": "164d1bbffe0f7f6b5589a1c2ae9095656ab13e3e1a4515e01a62b0bae9d35301",
     "Metal-2-albedo.webp": "707e36145fe6229e22013aa1c0b47be55bd8ba5451badd05badd913d3a9089e3",
-    "Metal-2-color.webp": "8f7d8e8c8b45930655e2b2a5d0c902fd1fae36e8f706c2fcb3f66821f30e113e",
+    "Metal-2-color.webp": "1ee210c9e34018a942a2d9ddb1bb47367546f8fb0def6ad02e0e53ac1b6e4d3c",
     "Metal-2-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-2-normal_map.webp": "94d63829878b318f6fe7296aa47567e51e6da695e52562038923cab93ad8db4e",
     "Metal-2-roughness.webp": "46efd041af75b5b92f6f9ecfabec25aad4f616ae27277edbe8c9e831ce2b12ad",
     "Metal-3-albedo.webp": "814dc4da4327053b7797aeb97ff13bc23245f7e610d25c0426bb10b599571ce0",
-    "Metal-3-color.webp": "e9269dec8adc9061f4e8754caa6cdfbe805cd4af8f2b0aaa676ea131c825e649",
+    "Metal-3-color.webp": "8fb8a93f05712f5e0aaa750e6c0450e67816a32c7401057be484bac1b7eff955",
     "Metal-3-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-3-normal_map.webp": "a46a41d79f01185cd5337b70a850f45bf25027a5c01b60bc2800656b75884e53",
     "Metal-3-roughness.webp": "97c40fd6772efc77098da847718ae0183a6b099e30e4b76ba70311699d022f9f",
     "Metal-4-albedo.webp": "c3e38a814a40bf43642a6afea78ed4da4e68562a79c106518fc40f8d63876f3e",
-    "Metal-4-color.webp": "61c6e533968170428887de6a3d0937d33f2142c391ffd31f13ee3c6158b21af4",
+    "Metal-4-color.webp": "be87888e9f782410aae4260aae83e0d6036eaa345fed4159b903f7b44d5c723a",
     "Metal-4-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-4-normal_map.webp": "830d7ba88d0d8f863752ef2e8a8e46af9b6c9c488d850d4c3f9e0a27bb761881",
     "Metal-4-roughness.webp": "bad824cec752d15f0543728cbb6607e0b28391c0d63f989a691a46d32b93fd1d",
     "Metal-5-albedo.webp": "920ed69e5c0bdef1648656e3d15a5604ed85e04e675f824e67e4ca2946b32bc3",
-    "Metal-5-color.webp": "d46dc21a356c472a480229613460d81f2868426d6a2edfa6eeead611091e08f9",
+    "Metal-5-color.webp": "caf9acaf8b1a1a42b3d7cc12b42a3394c21f8f068a1208c4762169108771cdd0",
     "Metal-5-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
     "Metal-5-normal_map.webp": "a5f5e3e7817d5ec24d1f7516e53ca675583e03663b061ab1b73f7b2f0e370d6e",
     "Metal-5-roughness.webp": "91a54ef0196f15c7ac87e7dc788fd33bb6887fee61f05b13ad7f7ec9191183aa",
     "Metal-samples.json": "5f72ccb994cbd7088131440f3e30f1f31b643ac3f54a8241e6af2d491b5db6f0",
     "Paint-0-albedo.webp": "b6500e3bd443d8770350ceec1b3ac3531d7797198442500686506f29606c1c3a",
-    "Paint-0-color.webp": "37618e55f872b771388cf0d94a8990b1871fafb795fd069ae3cf19a05d829f9a",
+    "Paint-0-color.webp": "c3ad4a6ef6d3a99ed11629eb9da702033c2783ae42aa4ccf8771a66698083d41",
     "Paint-0-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-0-normal_map.webp": "3a0c7a86fc8f511fb3bb330107e8bf372da1f4a392e36c71f36aae9a83f4845b",
+    "Paint-0-normal_map.webp": "88a2789b416f00c14325eb72bb3187d8e672d8ed824b70fc655408904988a1cc",
     "Paint-0-roughness.webp": "76498884b90f838d1d292798e7d762e1437c09b00f4824751c2c46c49e83d4ab",
     "Paint-1-albedo.webp": "c027b55e62847b531749f7a2ccda2ece563c4246245f68249180411994109700",
-    "Paint-1-color.webp": "6bde56e7061beaa2d6128d5e221a64ece782233396e0b5cb4157840a2d862472",
+    "Paint-1-color.webp": "b372581eb1f42d5df02e2d43f05d9ffc2950ef8b367340018993b40cc5f961f7",
     "Paint-1-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-1-normal_map.webp": "4f8c575f707fda1ca12c689c04f009184fd3088a5685fa9f7466d9d8349d4e9d",
+    "Paint-1-normal_map.webp": "ea85a121207b0ded4d08d4d16bd387a536c19fac33a6043d27f95a2dbaaa153c",
     "Paint-1-roughness.webp": "c6a8ad886fcbdced03da9cd6784600912c8306a0e8cc31fae50df8c0f037e2ac",
     "Paint-2-albedo.webp": "5445eb87c5356399128ecb9b6cc86d4081e3a958dba2d7a22c701fe90ad14e89",
-    "Paint-2-color.webp": "f05e97cad83aea6fb9376ec779f60d912496449c3c4bfe350248d157acac1a84",
+    "Paint-2-color.webp": "1ab340bf31ddcddb2c0c8ad86aa0f37aaf37007c5630c26033758471ac0bfa42",
     "Paint-2-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-2-normal_map.webp": "6bac6cea1b2580a7268a154f2410f94e8196f9a2c7d06fdb6cc30b1ec81ad4d6",
+    "Paint-2-normal_map.webp": "c3b50f1713c4e65d224993ea5c2a948f061e2a2fdd737ba975993e7d2ff9ffe0",
     "Paint-2-roughness.webp": "cf624057f9adb4724842d31d5701459e3141dfc67fb20259bbb4b63a09691735",
     "Paint-3-albedo.webp": "2954d4d8e097432c3039e9592e2d9b8589a1dfa4881538cdf961b53b17204a70",
-    "Paint-3-color.webp": "5372b2781db49d2cf53cd648443875995d1e092729f048bafa28e8a043ca4938",
+    "Paint-3-color.webp": "af1d69c284ad46e8898240bbb9d4f6912dc60e7d8788b01acf2f04eb7cf33eaf",
     "Paint-3-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-3-normal_map.webp": "69f6d70a592b27c9d2e785be6743ab77f24ff04eb8d80146b6679682f0645284",
+    "Paint-3-normal_map.webp": "34ba2d0b26bea6fa1677e595cd2adc602016a73a4b9b9f6ab34f553962eec564",
     "Paint-3-roughness.webp": "810bd3c2064c173511f60f4f4a5f8f74c1f37cbcc0c3bc8b980393bb9a16a870",
     "Paint-4-albedo.webp": "9ae3bdcb19b98944c40d7273ce1d7145c7a8e398458bf4a236778935e4350efa",
-    "Paint-4-color.webp": "7a6bfe6d90204a429143c0df26f64e518c8535cd5a6c030843c1f005f187bdc6",
+    "Paint-4-color.webp": "30bbf35221c257acb5a490f57a792db3cf45880e9f01cb514f68ae698265eb77",
     "Paint-4-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-4-normal_map.webp": "a7fa8fb136ddb1030516883f161656cbf673c8cefbf1f003df0b4c274f34751a",
+    "Paint-4-normal_map.webp": "da0ab1a60988e2579e7b96e57b07288c62ea4322f23559121242690d77a9537f",
     "Paint-4-roughness.webp": "8da1999017be846bd10041e33f79f1532e0b81d4803d4501163949fcf6cdb59f",
     "Paint-5-albedo.webp": "33c5d76b4c233077450fd342188cbcb554b283a96aedebcf45e1309e0533cf6d",
-    "Paint-5-color.webp": "3789a045ee6960c48c017060d3bd61c5eb31e692cd7e603e570287848a4dd5c2",
+    "Paint-5-color.webp": "c6d50273c57d96495df2c03269a8883642d6297be4873008e7dd7da5fe0a1c6b",
     "Paint-5-normal.webp": "8b783af371cc17f19ac3f8e12f748e0bcf5fca5fc75f5134a2236be439b3a2aa",
-    "Paint-5-normal_map.webp": "92f7b7d274546b1a083510cee21d0f09aa454c3edc47ff649883ae934c99f34f",
+    "Paint-5-normal_map.webp": "2439c7e432d456d0252f51f1e75764ade6cc85f9d8894000a11be463f2763fef",
     "Paint-5-roughness.webp": "f3b31e50165137e1d205c32b2ac637e44ba1a829a4a96f39deb386de22699ca3",
-    "Paint-samples.json": "87dd98e836ebece013d9a07a1625775942fc4e347dfd916f87a31b43234f296e",
+    "Paint-samples.json": "4a7f10c500ecfc05c8aff03063741b790ddc5d3a40478667222d231e92ccc7d9",
     "Paper-0-albedo.webp": "f4758dab7789099025e104b2c5b19b42b50cbcff12933bd78a8bea4b521a09b8",
     "Paper-0-color.webp": "69f0c94f3ced108e33bdf6fc81cd1098125920cf9e080d6f0202c1941f2a6292",
     "Paper-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
@@ -71124,67 +71124,67 @@
     "PhoneScreen-5-roughness.webp": "5012ed6d6ce4a889fb15b34d409b03ad67c914273fac8c88714a5130b429d7a9",
     "PhoneScreen-samples.json": "8f41e18f8dfd254ec6b442930d29862264f6e7bdb3d8fd428ca8bce1d4c1a517",
     "Plastic-0-albedo.webp": "75de805313ed2a5b73414e47142327c920f706cab4dba7196797cc21a66fb3ba",
-    "Plastic-0-color.webp": "bfdcdf51db538140409aa25acea1129d96e50e73f8fd17b5713ac3ab9d3cd8f3",
+    "Plastic-0-color.webp": "390f6c2b425dab1363ef1d8d64856fc1ad81f52ae0994cd45d0c6563b7b80eed",
     "Plastic-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-0-normal_map.webp": "25469aee4c7b3727c53c0d7017a697c74a9a3b6973af95108b0b36fa2c57e315",
     "Plastic-0-roughness.webp": "6920077bc1ea56300c896b57ccc40f9e7a4cfa682ecc54a5260cb0db44701a22",
     "Plastic-1-albedo.webp": "7dfb6f002957ff3e0f845d21e63d6bc9a1a0eaec62cda4b71bd2c5cf8422e637",
-    "Plastic-1-color.webp": "60d2327b02800988006b2ee6a0d8d5bb872b2d1c5e0a887fa51fcc22692fa84c",
+    "Plastic-1-color.webp": "dae1973848716748ec4bf80ee3f64b9950142c9ec6c2e4ccab2e1ae0488c5fe3",
     "Plastic-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-1-normal_map.webp": "58ce328f39638f80dc0b03e89fe0a00614afa002e93b8552bc2b115e04da4a92",
     "Plastic-1-roughness.webp": "a5389b820bc918f003d965b1c070ec378cc99058aecb9bd0fe5b67549bd4c4c5",
     "Plastic-2-albedo.webp": "d4bdc414ef3363fd0d9852e7b76630209de4250e7d13695f5d6d102a3a5197e1",
-    "Plastic-2-color.webp": "617de4d066a465409c82e3ba83fcc714f805233f2acb23c501ff2d25fe1db6ca",
+    "Plastic-2-color.webp": "7ca6eff5034a5fbc6b783eccef0f0ed390ba5cee75c3147afdb9871b12dfaf5f",
     "Plastic-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-2-normal_map.webp": "5a9c903efad37e7678fd420ed87607267d754203e18868e483119215f342c967",
     "Plastic-2-roughness.webp": "c66a88aac4872aa63329b800f80760c71f25ae0f6b7313ee28b7dcb0a25ee84e",
     "Plastic-3-albedo.webp": "f85d26c4017281fb7bbdf67c76d35dcb9f5f2acad1b79e341ada4ee50e067c41",
-    "Plastic-3-color.webp": "d70b920f9af3a401327f3bc0cfc185126fcaaa8388628270f6ac45dcccb63421",
+    "Plastic-3-color.webp": "05914dd8df33d17ab153f7cefb98a2ebd96a354681282c0188baec230bd4ba27",
     "Plastic-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-3-normal_map.webp": "602d0be36cea531898d3ec1b73732258c442b29ce5a669fd1501bbdea10740ac",
     "Plastic-3-roughness.webp": "2212a6a93da39fc6f06c2d7c15dda9c7fa3a1116cf98f10c6c0d4017a59378fc",
     "Plastic-4-albedo.webp": "2046e2becc7bccfb351a4a8a842a388c3e758d4091ddc9ee6d948339ce7457a6",
-    "Plastic-4-color.webp": "0910a71252914afe6d74f12e30dcf1cfc0dd19192237a628a661d7a6faae48d2",
+    "Plastic-4-color.webp": "67debf9dcc7f7a5f8e0f9291ddbcaf810bc6ff5c843f23afcce5f73b6f1ceb05",
     "Plastic-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-4-normal_map.webp": "907a4fed25891c976955e1cb8260f0e86576a5ecad2d83be337a9adc94ca6f20",
     "Plastic-4-roughness.webp": "ea1dd99be4991d996792c0d4d0d60d7a1581f239795e9184e21f42ebf021430f",
     "Plastic-5-albedo.webp": "417397203da0f541792985a2ecaf7b9a54620fb71538bd22a4026279fb2541bb",
-    "Plastic-5-color.webp": "5aa6f26233a32df2b84c94479195fb5cf4b7950045a653bc95c88d398c17a56a",
+    "Plastic-5-color.webp": "f4a9255adc3f0e053e19ecf5531e6cb5c452938e5351e02251e6bbc240ac4e5b",
     "Plastic-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
     "Plastic-5-normal_map.webp": "b2cd376280344e255392d670851a950c1eb1bd91ace0ae09d22ff44044d53659",
     "Plastic-5-roughness.webp": "21fc411097c00080a150dd4a8bcfbe817362d15e129349358170622cedb4fb25",
     "Plastic-samples.json": "dfde7e11f7a0a58700a5e09402d773a561253f6a8dd3062dcc699f70cca879ed",
-    "PrintedPaper-0-albedo.webp": "51f973c654bbd0bb137ac09ee219634c19be169cbffcc3aca58d971786790fef",
-    "PrintedPaper-0-color.webp": "33b03fe0f4f83f7013eb0df96dc356015a9b85278cc8afca10d0f18a169d3fb4",
+    "PrintedPaper-0-albedo.webp": "cc2f16dc4a1d72e30929427f86c6dc8fa2352085a2edfd459e06176bb85e01a6",
+    "PrintedPaper-0-color.webp": "1ccacebb644a7c29e860886021996d233e4916b37bb5f738404eef823d9e7d04",
     "PrintedPaper-0-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-0-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-0-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-1-albedo.webp": "ba88abbda81ff95c0eac36375741a0c7c7dd0dac9f4f358b95f7a8ce13c50a19",
-    "PrintedPaper-1-color.webp": "d0beb795db6e51550e9c3df90b78890072b4164b18ed2a7c40ee6d7466ff29ce",
+    "PrintedPaper-0-roughness.webp": "a80ef309eb2b88bba9056768c4e37f091d48cb32806aad5590c53772d41d9114",
+    "PrintedPaper-1-albedo.webp": "06cdd9a72119c1c20aa46de2441224371c91b0d805e079e29a293afb579ce6e8",
+    "PrintedPaper-1-color.webp": "26f317cd507f4a36a8dfb7c4fa3d7bea310300ea6605d66a596d40f2678fb8ea",
     "PrintedPaper-1-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-1-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-1-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-2-albedo.webp": "e84e60e65064159e93b0bee59fadb6101b3cfc222652d07ec1e1c1cffcdb9250",
-    "PrintedPaper-2-color.webp": "ef04aba1ee832760b2728fa337565c80cd6142a1fabb37bfb03de25116c6dccd",
+    "PrintedPaper-1-roughness.webp": "63e9319bb548dbaab868b2be00585c4ee37a6cb0bd35944f202635b604b9de1d",
+    "PrintedPaper-2-albedo.webp": "d6f0f546c2a6852be69ce233eb21af2ace97c7d0b87e1b2a90ef4144fdcc3bac",
+    "PrintedPaper-2-color.webp": "42c159fe7f3e37d318cd5a2cbc538067c5fe0bb38925d5951b0a6975771c2b31",
     "PrintedPaper-2-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-2-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-2-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-3-albedo.webp": "97ec5428adbdea1482c167f85a42bb0e613337d66b4a55d74052b60f57af0a10",
-    "PrintedPaper-3-color.webp": "7ddc6046eea87278c60046a78e5665a8970590589c7f5eaa2e866c56fae8d7df",
+    "PrintedPaper-2-roughness.webp": "a148d232ee0370bfabf1291c6acb0f849a6c9292cdeadba4956c793167112adc",
+    "PrintedPaper-3-albedo.webp": "cf1b2daa59d012e0e7611cd510df4c511e5200efec756aea0f6cc53eaff389ff",
+    "PrintedPaper-3-color.webp": "996879052bac5520e732d922b596811388cabaf08aa05f74ddeee57e115edbc3",
     "PrintedPaper-3-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-3-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-3-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-4-albedo.webp": "cc05fd499e5425360f88700613e6968fbc3cfe2d3e8e10abdfb107662f9282bd",
-    "PrintedPaper-4-color.webp": "d17c6c32e8158c69375f7afb54488cc58e389b1791ab711a80da76f5e1d8ccbd",
+    "PrintedPaper-3-roughness.webp": "91b1897c3d879564dca1620ccb0fe307b835480df1922cf15ebbd5958f5f9a30",
+    "PrintedPaper-4-albedo.webp": "958dabdd1852fd6ee96fc85dc0ed29062a94d8d3d3d4e1bf4fd5d1df0ae477d4",
+    "PrintedPaper-4-color.webp": "bc3378b5311110543852b1a5347518b8155e07c0dee3596d9329b40949de82a4",
     "PrintedPaper-4-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-4-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-4-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-5-albedo.webp": "461abd7b466060c9fe7a064e5da0167e2acbb8dad553bdf2de6a57f0788cf31b",
-    "PrintedPaper-5-color.webp": "bef935a7e618d1154d096f28b8ee070f3cb7d4467db098985af893c606031f3a",
+    "PrintedPaper-4-roughness.webp": "c151b371838131a5a1a9676b8c2fa9daf655f8d64ef1e9f7038af67ddd08a98e",
+    "PrintedPaper-5-albedo.webp": "0bb94b32e82cbae68609d490593109c04946dd96b1316f35caa77dba0dc22630",
+    "PrintedPaper-5-color.webp": "79e1fb75a72dc5676b8e99b34bbdac6ebdc6aaf11bac5d842ab4733a3086b572",
     "PrintedPaper-5-normal.webp": "83ad92b2bc649a6f05306418840b4f44c0e1a4216e054b3d9cc4ffa2def58fa3",
     "PrintedPaper-5-normal_map.webp": "5ee72b80112d6b2694a27ccda94685e2b6ca62598853b611c30564bb744d378e",
-    "PrintedPaper-5-roughness.webp": "bf20820af6a3307e14f5f937aeddc18dbfa228a841e5d0194f101db66668fca7",
-    "PrintedPaper-samples.json": "171940adac59590614d79ed42e9e0e5e23d4a2f53ce2d3e6249679b14ef69737",
+    "PrintedPaper-5-roughness.webp": "f336a9214e9d5d469cd5a4e29abf49261a778db5117c52fdca2d4fe910cb5d2f",
+    "PrintedPaper-samples.json": "551facdd106a53dba4a7b14e521347e160de9e9249630cdf1c70cc03bd9c6c68",
     "Rubber-0-albedo.webp": "a1b2b83f628436e47389bfb9bc76af07cbfb8f00a078a38d07d2690fa6a9fedf",
     "Rubber-0-color.webp": "15c46068c2e0fb484cd6c8fe7badcba707c5fec2e69f058e3289b2308a16d0e8",
     "Rubber-0-normal.webp": "cad2066f9896eff0385f90e4821f1e5e2803d7404bb4ab86102ab370cb4f9040",
@@ -71310,32 +71310,32 @@
     "Soil-5-roughness.webp": "6d0f606da78e8818d42b0f1b369dd5c9a04f02ecbdc3d755c6d4797bf9879605",
     "Soil-samples.json": "182d9ba9d1d865d39cd8bbfe2e05b19decbdabd56092d43170b1597fe12bb3d5",
     "Succulent-0-albedo.webp": "ecf16f5c4915b8228aacdd86da81d76e256aab6fe1160ae4dd5d5d186b53e7e9",
-    "Succulent-0-color.webp": "75e68fccefdddc9cf1d59619a7ac25ec0a238121e990d42d36eb5ccff60d25ab",
+    "Succulent-0-color.webp": "d008e839e94755a428170316b0fdbcd6f343c187b1d05846495faabafe8de345",
     "Succulent-0-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-0-normal_map.webp": "58f302a6d99dfa84e96068919b4c6965c06e13c48559c2c83bd1736c1e41ebb2",
     "Succulent-0-roughness.webp": "96faa2085cbf2de190cab579646f9166d458451c5687142a0bc2eb172e385017",
     "Succulent-1-albedo.webp": "6f8af239102bc3a9cdf79169b10a3569eb7c516ece95e5f4a69992aee234c468",
-    "Succulent-1-color.webp": "7521897021146d3e092d0348c079f2d9cc5884a18ce697e44ccd85f60daa2ec0",
+    "Succulent-1-color.webp": "f71d2ed878a798603c875794b4360c0877d250ca82a0e7c641152e363bb58778",
     "Succulent-1-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-1-normal_map.webp": "59dda27dbc84955651a6735ee892bf35f44a3c79c697fbc086414d3aa159cde8",
     "Succulent-1-roughness.webp": "077925a4b35818516a7863ffe1de3ede40b1132ad03340d07c43910a0a544879",
     "Succulent-2-albedo.webp": "f62f64b6219a40b9dbae175ce978b9a9e3c43c1110f7b66dc580e70dcef7537c",
-    "Succulent-2-color.webp": "823228d5542dc7744a3b72914132755a0ee4ff00681e81f0f2eb5b182e8d687c",
+    "Succulent-2-color.webp": "590629db129950bb3554b5c26ffac12a01556c3c32fc83e3795426ffe07aad10",
     "Succulent-2-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-2-normal_map.webp": "a3a06db8068bbd6d21a0ab9431e031dbcec681c496aa9007f366b38cb49ba511",
     "Succulent-2-roughness.webp": "c1cb012f85fc569e4dcf0170387151009b6a9553e1c0429b84719ff0f45c5b0f",
     "Succulent-3-albedo.webp": "41ad26671e3fd9dd342b9e4b8c4040c0628ef574104bcd8c92ab315b44f73731",
-    "Succulent-3-color.webp": "4da10e6fb5f32287dc05b35d1c90bc3d465de07147b4794bdd15c9a52b977ccb",
+    "Succulent-3-color.webp": "6ff4939c9653ce96915cc3806551d51f8db1adff75c6d5bbb66201d39826b821",
     "Succulent-3-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-3-normal_map.webp": "bc69382c8689c6c5e576c1be1834c006c65df0562c7de9c0cefe1071f960a9a8",
     "Succulent-3-roughness.webp": "fc950f80d5ed48eb6934cfcfe048888066bae8310771ce7f460ff0aa3ac04efb",
     "Succulent-4-albedo.webp": "bca26930a6a82f579a2980477c7ddf383dd5a75547b8cc3df9b73dc33b468a26",
-    "Succulent-4-color.webp": "8e2e3e355e19ea38111762ebead94be46b0c09d9a082c9b0dc965272634e0686",
+    "Succulent-4-color.webp": "dd137f2eb4e3eb5f328a447a7c2d633da33eb0464f379ea512e274f69938b56f",
     "Succulent-4-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-4-normal_map.webp": "a5c5e7bc1c5cf543d4697642563eed050b705e0f9dcdf82e5e1a67d47d9c3432",
     "Succulent-4-roughness.webp": "bcfbb6f813f6f08c089f1731e29a2fd6cf22c0264a85524920f49b86b7f06a5d",
     "Succulent-5-albedo.webp": "f7fae58f747d286ac8a93cb57adaa83408c138bcf9895939f7959d1996991d91",
-    "Succulent-5-color.webp": "24bd31e24d812c8b52b57b107cdb117725232f22b3fa6a383ffb13da18763471",
+    "Succulent-5-color.webp": "5a2133505748c05e96fb030cca9e0d81ca6d47f74fcd9cf1463d5f6492940d4c",
     "Succulent-5-normal.webp": "32f9c3f745f027b1980332af62bdfbd7d6435ac1e5348bec4c4787523ed62b1d",
     "Succulent-5-normal_map.webp": "3f1db70c4f24583683fa2efc780c1d6a8898c2e8abc56be56b9119edfbb41dda",
     "Succulent-5-roughness.webp": "b54209e62bda39212b43912fa369348494ad1102c93f37ccea78089100152135",
@@ -71434,82 +71434,82 @@
     "Whiteboard-5-roughness.webp": "dc24c1bbbbe69aea31191b9bcfe03448c94dd9576a17438020143d5d8d7cff89",
     "Whiteboard-samples.json": "1dd9500a7b6bf8b68930abb309ae045cd415b4708f9e62b72038a13239324ba9",
     "Wood-0-albedo.webp": "c2ea5ce9304a898f510d66ecea8c3ca4e72e884d97638eeb97165b179adf1fba",
-    "Wood-0-color.webp": "51b908a5229c25c0ff74ccd37811e478bdbd68f57e220c84e2695e8bb56d0d87",
+    "Wood-0-color.webp": "8fe4780004ebafacb71bf99874af3f882cceef2ed7b4a43000cd0e9deaca6b36",
     "Wood-0-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-0-normal_map.webp": "55cb2d5e27af49e54c06cc8f8fad1f7b6cc5ddc82fd742ae619a07d100214f94",
+    "Wood-0-normal_map.webp": "060f9bd711e2ca7ff877a75859827f183c23dce64fbabe851d9cb02a02e74e07",
     "Wood-0-roughness.webp": "4a21e6b0dc54cadf47c22d1b656a187406da822552cc4063367033aaaae88e93",
     "Wood-1-albedo.webp": "be5464e0577afe49b09fa87666690bb02539bde3e153e17bf380fde135eac6dc",
-    "Wood-1-color.webp": "ee7776f08deeaa68427809c4b9cb32c553205a17bb9f21107e8135a15c1278b4",
+    "Wood-1-color.webp": "199a04290bb2b5bd30775b51f743070aae7697f9ba4b192e1cc102cd359b92a0",
     "Wood-1-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-1-normal_map.webp": "f8c73fc10a877a4838f7d058ef61f0a318f7278281576590b1a933ee6b31280b",
+    "Wood-1-normal_map.webp": "bdace26970fb818526f9d12c8cba0fd9d713fbd79cceaa746f5afd134c5daf4c",
     "Wood-1-roughness.webp": "53b042665848a39660f4dfb8b054ca52d88f021b02e09cbd55dc38c9b489344a",
     "Wood-2-albedo.webp": "8d39eeb40728d2a898a2ac00f8dbac59f3ce3f19aeef645df0d26926e7e894ff",
-    "Wood-2-color.webp": "27c9279e901a1d90179576dad5fd7189ac279dfc11dee1f9330caa4adb584b31",
+    "Wood-2-color.webp": "f4b5994073d1bfe55ede2bbb57039cee0458d2289a82e91557ce8be1a8ded7d9",
     "Wood-2-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-2-normal_map.webp": "e6fd2cb2c0679ab75291951d21f0aa6f5a161e5b0eff1856ff431ec56cb0bf29",
+    "Wood-2-normal_map.webp": "d8eddfa8791f3319bfa908b42073f1c9287679efb6444d286522ec21e8d69af8",
     "Wood-2-roughness.webp": "2f7da28fe879a1ebddf0591cf6210c7544df980200dbb3061f745b56d5599474",
     "Wood-3-albedo.webp": "2f87ed3dcbd0a5cab683aee1551c6b4c54ef849df15628051e224cc640ca88dc",
-    "Wood-3-color.webp": "f9b6a422fd42f652ee0f3c3d213c310e8e03b386fa6bb2b73238224bd0c88219",
+    "Wood-3-color.webp": "39c21e2423ddaf7073c458274ad802cca007fe0a0d571b6e9746bdbe920a1a5f",
     "Wood-3-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-3-normal_map.webp": "424baee8280bf21504db49c777a8aff2209e3e8095b5e5f44a0caae8afd8eaf3",
+    "Wood-3-normal_map.webp": "c584643701c8907ea1e7bfd9bee20e8f66e6e0ffd4a7f39db8e56b93c177ce10",
     "Wood-3-roughness.webp": "34961790077541571976ff0749134a350c68e39c5bfc2304003e89200a570bfb",
     "Wood-4-albedo.webp": "bda3270728ceeddc5e71df0e136ab8772d0cdf844a6f6737b70a30cf6bd5b32a",
-    "Wood-4-color.webp": "5bb517923227e7553212c90a61d44a68504bc9cd395b42db159a8a5c7ce60f01",
+    "Wood-4-color.webp": "a46e7aa646f31be928040a14b0c96bc0da4714eda36df1836de41194b77d01a1",
     "Wood-4-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-4-normal_map.webp": "4a0d485a823e5db0d053d6307aa6215aa36b3c2b671654a2f2569de45200a366",
+    "Wood-4-normal_map.webp": "cbbddf223174e9d111a77eb2a6d32d84a838d575beff36987a168f6f733c5f7c",
     "Wood-4-roughness.webp": "a6c23319423d20c36e8768c40027c46e6da2d796bc1acab3946a0b1ffd2d41d4",
     "Wood-5-albedo.webp": "91eb70fbe9009eae29f21a0774a7a92f9f98795272a811037deba1be33aa537b",
-    "Wood-5-color.webp": "83687956b895c501bc7c483af774845b6adbe949dbb0badbddc9d830244cb3f1",
+    "Wood-5-color.webp": "8a2768525785d482f8dc9440ad0af42dc5ad6f708e856bb1ef6fbc05de62321d",
     "Wood-5-normal.webp": "d220f53bb5440891f451ae1486ba892377449104db10061fd0a397793b1f7e32",
-    "Wood-5-normal_map.webp": "1ca9501a2328a0ac28e31fdb2b252025c64dc4710df486f4f05e6ab4762a7494",
+    "Wood-5-normal_map.webp": "28a64bcb11bd5e78436df1defb1c20096edc4275603a7a564af6f5b572fe3cfc",
     "Wood-5-roughness.webp": "32933d4092723780796b1a497ab6f3e84bd9ba6c13dbe0ffc2a627eb847af073",
-    "Wood-samples.json": "c68edce351f3dc0d7daf68d3b8216e4a6640bba42135ea8c0b166180cffd2561",
+    "Wood-samples.json": "7542ab259032430184fbb080d2bac3ffe4d0847119ffa35b27bc36b61563d99d",
     "WoodEdge-0-albedo.webp": "ca523c17fb62390a5da3f72a98c3622b786b6c898cc977a245b870130070081f",
-    "WoodEdge-0-color.webp": "0568c92fb9d9d9c1376de124774c0c3263e26768b8dc1a8933f65e16047a2085",
+    "WoodEdge-0-color.webp": "1296ee38eae48c72db7a2786787d66e7df77af93b95761ad2803acd4a0e8aa38",
     "WoodEdge-0-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-0-normal_map.webp": "7cd938ace07abca9c821ae0866123581b991fa6e0faa25483d1f4b1f16402e4b",
+    "WoodEdge-0-normal_map.webp": "5b961771ba53bdece360712a103b7f98399c26499f7720d24d3757c31d9d7903",
     "WoodEdge-0-roughness.webp": "28e8fed559f3d5eb7acd7c7884d43b2c51f2de4bffd0ab8b3fa0aa7d55a8bf42",
     "WoodEdge-1-albedo.webp": "f8acf6d86b212b7aeb3671167fcb6de2ef542e1ccccb28cb3360b510311509be",
-    "WoodEdge-1-color.webp": "50e26846315223e5715037e904c75528507989edb18998ff366da520ef85fe8b",
+    "WoodEdge-1-color.webp": "9b113cb0e95598ebbfd68e075ca4b30858ee95fa32939e0ca1434aaf55e09896",
     "WoodEdge-1-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-1-normal_map.webp": "dca3fd3d75cbf01ca22c9e6527aaca544df8b7dfa6aea8b0c36f63615b9e3e0c",
+    "WoodEdge-1-normal_map.webp": "c652a8a3bcf4f5ea8b7919519acf1f99805fec1b3c9c225fbc8e1c760b5890ad",
     "WoodEdge-1-roughness.webp": "1e63343a19b45b50d04fde125d026e8dc111bb63a52c5d1f16022ede5d2e920c",
     "WoodEdge-2-albedo.webp": "9c286069f83aa25d9e0695a744700699eebed1814ff992b517a442d43ff169c0",
-    "WoodEdge-2-color.webp": "cc200f8c705eef6a7df99caee87ea5af6fae056c6e13033a4755572bbc211470",
+    "WoodEdge-2-color.webp": "1f07ab2bc6c9b870967aa90ae0e1c2493ce9f57e98d33b6d9a07caa4dd29f6c2",
     "WoodEdge-2-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-2-normal_map.webp": "161b194ca8176ca46e4e0bcc4e66d809a38460c5ef0eeccf37b87055a02fba3b",
+    "WoodEdge-2-normal_map.webp": "bda7563979098a4dbecb5a83206b4a3a5f9f207f1ca97477c2a9454ad2809511",
     "WoodEdge-2-roughness.webp": "e840e20de8b91606b7c03b4e05aa81e2c9f92a2de93781e55e30f607393331aa",
     "WoodEdge-3-albedo.webp": "ec91aa171d2a4918536516ffed6a17e1bd1cf46904f02d1ead987aa5caf31f94",
-    "WoodEdge-3-color.webp": "1956a96465b1d8db6d92f0aa85953dae04a97c1d67f2ba17aad00d58539cdbf0",
+    "WoodEdge-3-color.webp": "98a5466f25f8b65f52ea88fadcb4a1f04f9a68235ee90114ef3192fabde351f2",
     "WoodEdge-3-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-3-normal_map.webp": "21d9efc9e1434d2e9d20957898d90d685ed397329219f3f9bca59206b2489f82",
+    "WoodEdge-3-normal_map.webp": "9050e1790992df64a7cb7587f05b3f33d7c5cfb17f74863301d91bb99a457f88",
     "WoodEdge-3-roughness.webp": "c6610dd7c38d16bad336bcdee8eebc85aefceb2a455ab647325b33d9f6eef7cd",
     "WoodEdge-4-albedo.webp": "5af0d2e285b59a6c7ee3970666d4a8dfa921cc880d5c32127ef132a4f72c0393",
-    "WoodEdge-4-color.webp": "2489ca949abab0d6f70086f2450a634ea568e9feefdcc3c8ba5efdfaaf114412",
+    "WoodEdge-4-color.webp": "17ba008d89eebbc74eaa2e12db3de4a2312331c6d062f7987b3a11a571cd10fb",
     "WoodEdge-4-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-4-normal_map.webp": "0653eccfada7a36f061def7bbe0c57bb16d6179618e80936eca0f1f832a31a89",
+    "WoodEdge-4-normal_map.webp": "5ad22d5b1c5991845146dbbd548a803712685e73b29c3f28e04637df4c761092",
     "WoodEdge-4-roughness.webp": "14e79da73ce7aef1fcaa95e4de3d9c72df88dd6d71ca0a45313db5afa9478145",
     "WoodEdge-5-albedo.webp": "c0189029a64bbb5f91d8422022c1dcea9e4d7bba8bcdc5abf3a2f7160467903f",
-    "WoodEdge-5-color.webp": "d076fad9c65425f949faecb69182b79db53829d586024d731fca24e22f87a2c1",
+    "WoodEdge-5-color.webp": "7a8c129247bd512145d3a0e8fbfc9f5dbb016ed409adeedb1b176f53fa8d3793",
     "WoodEdge-5-normal.webp": "7f236463d3a9a0f70b16c97209482ca44fafecc48c194bd91bd14ecc7a85d1c2",
-    "WoodEdge-5-normal_map.webp": "e596f4ce26f4c1c453efc4635ecacd88f2d5cc3aabf63a09becb20612d7d64d0",
+    "WoodEdge-5-normal_map.webp": "f3b3ef4928f24ea69257b8e62ccd9ddfdf67cfdf8fef958d909aac9968c5218f",
     "WoodEdge-5-roughness.webp": "921c9747b504482e932f210ff9991b3e244626d56268a27c84389fbdca8bacb9",
-    "WoodEdge-samples.json": "1ce69b8c0c92f04ca8ce17b7cfb1bdc57f9f7a0de417234b57d5b7b8494b8a2c",
-    "usage.json": "3b3b99ad40824315d1ef5466e0b7fa0bb72dd537111d1289d780487f4f9750e2"
+    "WoodEdge-samples.json": "ca8dbefc64fb36d576ab1eed47783698eba287c8b8f09869938804be86c9df41",
+    "usage.json": "8cd6c8fd94987e3d098d759f046850cf7eabc3be2abd4945feecc21ef9b01b95"
   },
   "generator_identity": {
-    "crate_version": "0.61.0",
-    "generator_version": 98,
+    "crate_version": "0.62.2",
+    "generator_version": 112,
     "schema_version": 1,
-    "source_sha256": "0e4fca2e51c37278489389a150a2a727248535034d425c20aa0e0ba9a03c9320"
+    "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce"
   },
   "image_size": [
     384,
     384
   ],
   "map_baker": "production CPU reference maps; native Bevy PBR rendering",
-  "object_count": 18216,
-  "part_count": 68244,
+  "object_count": 18259,
+  "part_count": 68590,
   "rig": "fixed 1400/250 lux directional lights, shadows, neutral 0.35 cd/m2 reflection cube, default capture exposure, 40 degree vertical FOV; metric sphere/beveled panel for repeating materials, normalized planes for screen/phone/TV/board/art, production whole-rug fields, normalized production leaf blades",
   "room_count": 256,
   "sample_count": 256,
@@ -71524,7 +71524,7 @@
   ],
   "tool_sources": {
     "examples/material_study/audit.rs": "bd65feb050ed413f80a390cb58c063e87d77cd78959bc685b2993b73dddbf0ae",
-    "examples/material_study/studio.rs": "a4551aad4df9d1738fd6c56b4ca0dedb5e563c84e321d06224f65d98198b0831",
+    "examples/material_study/studio.rs": "0858332fc072926a02aab832339e9ff0c28a8497ebc775139cfb45eab25fbb9c",
     "examples/qualify_materials.rs": "c8a7a90e6a8b9d2a6b12dbc147281984262e2ab1027cc38f0eb43d0622052c03"
   }
 }
