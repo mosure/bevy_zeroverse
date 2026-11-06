@@ -66,6 +66,11 @@ pub struct ChairProgram {
     pub spoke_arch_m: f32,
     pub waterfall_drop_m: f32,
     pub front_bolster_fraction: f32,
+    pub headrest_gap_m: f32,
+    pub headrest_post_span: f32,
+    pub back_panel_fraction: f32,
+    pub back_gap_fraction: f32,
+    pub mesh_roundness: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
     let mut rng = stream(o.seed, 73);
@@ -121,10 +126,10 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         lumbar: rng.random_range(0.012..0.050),
         shoulder_flare: rng.random_range(-0.12..0.10),
         seat_roundness: rng.random_range(2.5..7.0),
-        seat_width_fraction: rng.random_range(0.66..0.80),
-        seat_depth_fraction: rng.random_range(0.60..0.76),
-        back_width_fraction: rng.random_range(0.76..1.01),
-        arm_pad_length: rng.random_range(0.18..0.29),
+        seat_width_fraction: rng.random_range(0.63..0.80),
+        seat_depth_fraction: rng.random_range(0.54..0.79),
+        back_width_fraction: rng.random_range(0.68..1.08),
+        arm_pad_length: rng.random_range(0.16..0.33),
         base_radius_fraction: rng.random_range(0.34..0.43),
         leg_splay: rng.random_range(0.04..0.16),
         spoke_count: if rng.random_bool(0.85) { 5 } else { 4 },
@@ -133,10 +138,10 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         frame_bend_m: rng.random_range(0.025..0.065),
         mesh_pitch_m: rng.random_range(0.035..0.060),
         arm_support: rng.random_range(0..3),
-        arm_pad_width_m: rng.random_range(0.040..0.055),
+        arm_pad_width_m: rng.random_range(0.032..0.072),
         arm_pad_roundness: rng.random_range(2.2..7.8),
-        headrest_width_fraction: rng.random_range(0.52..0.75),
-        headrest_height_m: rng.random_range(0.11..0.14),
+        headrest_width_fraction: rng.random_range(0.40..0.90),
+        headrest_height_m: rng.random_range(0.075..0.19),
         headrest_curvature_m: rng.random_range(0.012..0.035),
         back_waist: detail.random_range(0.0..0.22),
         crest_rounding: detail.random_range(0.0..0.065),
@@ -172,6 +177,11 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         spoke_arch_m: 0.,
         waterfall_drop_m: 0.,
         front_bolster_fraction: 0.,
+        headrest_gap_m: 0.,
+        headrest_post_span: 0.,
+        back_panel_fraction: 0.,
+        back_gap_fraction: 0.,
+        mesh_roundness: 4.,
     };
     // Independent construction stream: new choices do not perturb the shared
     // seating datum or reinterpret the long-standing family IDs.
@@ -202,6 +212,27 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         p.crest_rounding = p.crest_rounding.min(0.025);
         p.back_waist = p.back_waist.min(0.16);
     }
+    let mut proportions = stream(o.seed, 0x434841495250524f);
+    p.headrest_gap_m = proportions.random_range(0.020..0.065);
+    p.headrest_post_span = proportions.random_range(0.28..0.72);
+    p.back_panel_fraction = proportions.random_range(0.18..0.39);
+    p.back_gap_fraction = proportions.random_range(0.10..0.29);
+    p.mesh_roundness = proportions.random_range(2.4..6.8);
+    if matches!(family, 0 | 1 | 5 | 9) && proportions.random_bool(0.60) {
+        p.back_construction = if family != 9 && proportions.random_bool(0.55) {
+            0
+        } else {
+            2
+        };
+        if p.back_construction == 0 {
+            p.back_surface = Surface::FabricAlt;
+        }
+    }
+    // Arms occupy the remainder of the sampled envelope, even for narrow
+    // workstations. Keep the shared seating/pelvis datum at 0.47 m.
+    p.arm_pad_width_m = p
+        .arm_pad_width_m
+        .min((o.size.x * (1. - p.seat_width_fraction) - 0.080).max(0.024));
     p
 }
 
@@ -287,12 +318,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let mut rng = stream(o.seed, 70);
     let family = o.variant % FAMILIES;
     let program = parameters(o);
-    let width = rng
-        .random_range(0.43..0.52_f32)
-        .min(o.size.x * program.seat_width_fraction);
-    let depth = rng
-        .random_range(0.42..0.49_f32)
-        .min(o.size.z * program.seat_depth_fraction);
+    // Consume the historical stream positions used by clearance_boxes, but use
+    // the actual sampled product proportions, not two almost-fixed metric caps.
+    let _ = rng.random_range(0.43..0.52_f32);
+    let _ = rng.random_range(0.42..0.49_f32);
+    let width = (o.size.x * program.seat_width_fraction).min(0.56);
+    let depth = (o.size.z * program.seat_depth_fraction).min(0.55);
     let label = "chair";
     let seat = 0.47;
     let padding = if family == 4 {
@@ -318,7 +349,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     // Reserve that rise before constructing the frame, keeping metric thickness.
     let rise = (-program.recline.sin()).max(0.)
         * (program.curvature + program.shell_thickness + (o.size.y - back_bottom) * 0.13);
-    let back_top = o.size.y - 0.018 - rise - if program.headrest { 0.20 } else { 0.0 };
+    let back_top = o.size.y
+        - 0.018
+        - rise
+        - if program.headrest {
+            program.headrest_gap_m + program.headrest_height_m + 0.012
+        } else {
+            0.0
+        };
     let back_height = back_top - back_bottom;
     let back_width = width * program.back_width_fraction;
     let recline = program.recline;
@@ -346,7 +384,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             if v.abs() < 1e-6 {
                 0.
             } else {
-                v.signum() * v.abs().sqrt()
+                v.signum() * v.abs().powf(2. / program.mesh_roundness)
             }
         };
         let rim: Vec<_> = (0..=64)
@@ -362,7 +400,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             let path: Vec<_> = (0..=10)
                 .map(|i| {
                     let v = row as f32 / rows as f32;
-                    let width = (1. - (v * 2. - 1.).powi(4)).powf(0.25);
+                    let width = (1. - (v * 2. - 1.).abs().powf(program.mesh_roundness))
+                        .max(0.)
+                        .powf(1. / program.mesh_roundness);
                     point((-1.0 + i as f32 * 0.2) * width, v)
                 })
                 .collect();
@@ -372,7 +412,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             let path: Vec<_> = (0..=8)
                 .map(|i| {
                     let x = -1.0 + 2.0 * col as f32 / cols as f32;
-                    let height = (1. - x.powi(4)).powf(0.25);
+                    let height = (1. - x.abs().powf(program.mesh_roundness))
+                        .max(0.)
+                        .powf(1. / program.mesh_roundness);
                     point(x, 0.5 + (i as f32 / 8.0 - 0.5) * height)
                 })
                 .collect();

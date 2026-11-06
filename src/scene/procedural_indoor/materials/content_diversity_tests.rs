@@ -2,6 +2,58 @@ use super::*;
 use crate::scene::procedural_indoor::layout::IndoorLayout;
 
 #[test]
+fn displayed_content_is_independent_of_furniture_finish_and_media_namespace() {
+    let surfaces = [
+        Surface::Screen,
+        Surface::PhoneScreen,
+        Surface::Television,
+        Surface::Whiteboard,
+        Surface::Art,
+        Surface::PrintedPaper,
+    ];
+    for seed in [0, 17, 1_000_000_010, u64::MAX] {
+        let mut unique = std::collections::BTreeSet::new();
+        for surface in surfaces {
+            let expected = variants::object_slot(surface, seed, None);
+            for finish in [Some(0), Some(1), Some(seed), Some(u64::MAX)] {
+                assert_eq!(expected, variants::object_slot(surface, seed, finish));
+            }
+            for slot in 0..variants::count(surface) {
+                let value = variants::content_seed(seed, surface, slot);
+                assert_eq!(value, variants::content_seed(seed, surface, slot));
+                assert!(unique.insert(value), "{seed}: {surface:?}/{slot}");
+            }
+        }
+        assert_eq!(
+            variants::screen_seed(seed, 19),
+            variants::content_seed(seed, Surface::Screen, 19)
+        );
+    }
+    // Check the mesh-to-material binding too: collection finishes must not
+    // recolor the document or couple its label to the room's furniture palette.
+    use crate::scene::procedural_indoor::{layout::ObjectKind, objects};
+    for kind in [
+        ObjectKind::WallArt,
+        ObjectKind::Whiteboard,
+        ObjectKind::Laptop,
+        ObjectKind::Phone,
+    ] {
+        let mut object = objects::audit::fixture(kind, 73);
+        let content_labels = |o: &crate::scene::procedural_indoor::layout::IndoorObject| {
+            objects::build_object(o)
+                .parts
+                .into_keys()
+                .filter(|(s, _)| variants::is_content(*s))
+                .collect::<Vec<_>>()
+        };
+        let expected = content_labels(&object);
+        assert!(!expected.is_empty());
+        object.finish_seed = Some(992);
+        assert_eq!(expected, content_labels(&object));
+    }
+}
+
+#[test]
 fn content_regions_remain_inside_the_document_and_do_not_overlap() {
     for seed in 0..1024 {
         for bounds in [[0.02, 0.03, 0.95, 0.90], [0.1, 0.1, 0.06, 0.08]] {
@@ -104,8 +156,9 @@ fn expanded_content_finishes_resolve_without_baking_unused_slots() {
         .get(mat.base_color_texture.as_ref().unwrap())
         .unwrap();
     assert_eq!(image.texture_descriptor.mip_level_count, 9);
-    let expected = art::pixels(variants::screen_seed(
+    let expected = art::pixels(variants::content_seed(
         scene.material_seed(),
+        Surface::Art,
         variants::CONTENT_COUNT - 1,
     ));
     assert_eq!(&image.data.as_ref().unwrap()[..256 * 256 * 4], expected);

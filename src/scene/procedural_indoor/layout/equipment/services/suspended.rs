@@ -46,14 +46,15 @@ pub(super) fn string_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
 }
 
 impl IndoorManifest {
-    pub(super) fn furnish_suspended_services(&mut self) {
-        let mut r = stream(self.seed, 0x53555350454e44);
+    pub(in super::super::super::super) fn furnish_detectors(&mut self) {
+        let mut r = sampling::Domain::Detectors.rng(self.seed);
         let count = if self.room_size.x * self.room_size.z > 60. && r.random_bool(0.65) {
             2
         } else {
             1
         };
-        for _ in 0..count {
+        for ordinal in 0..count {
+            let mut r = sampling::Domain::Detectors.proposal(self.seed, ordinal);
             for _ in 0..24 {
                 let radius = r.random_range(0.045..0.092);
                 let size = Vec3::new(radius * 2., r.random_range(0.025..0.067), radius * 2.);
@@ -78,6 +79,9 @@ impl IndoorManifest {
                 }
             }
         }
+    }
+    pub(in super::super::super::super) fn furnish_string_lights(&mut self) {
+        let mut r = sampling::Domain::StringLights.rng(self.seed);
         let social = matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Gallery);
         if !r.random_bool(if social { 0.78 } else { 0.32 }) {
             return;
@@ -87,7 +91,8 @@ impl IndoorManifest {
         } else {
             r.random_range(1..=2)
         };
-        for _ in 0..runs {
+        for ordinal in 0..runs {
+            let mut r = sampling::Domain::StringLights.proposal(self.seed, ordinal);
             let suspended = r.random_bool(0.68);
             for attempt in 0..32 {
                 // Wall runs are an explicit alternative, not a floating fallback.

@@ -44,6 +44,13 @@ pub struct SofaProgram {
     pub recliner: bool,
     /// Static mechanism position; never creates a per-frame system.
     pub recliner_extension: f32,
+    /// Independent back/seat subdivisions avoid one back pad per seat always.
+    pub back_modules: usize,
+    pub back_padding_m: f32,
+    pub back_channel_pitch_m: f32,
+    pub back_arch: f32,
+    pub return_depth_m: f32,
+    pub double_return: bool,
 }
 pub fn parameters(o: &IndoorObject) -> SofaProgram {
     let mut rng = stream(o.seed, 3031);
@@ -88,6 +95,12 @@ pub fn parameters(o: &IndoorObject) -> SofaProgram {
         back_division: 0.,
         recliner: is_recliner(o),
         recliner_extension: 0.,
+        back_modules: 1,
+        back_padding_m: 0.18,
+        back_channel_pitch_m: 0.18,
+        back_arch: 0.,
+        return_depth_m: o.size.z.min(0.94),
+        double_return: false,
     };
     let mut structure = stream(o.seed, 6434);
     p.arm_style = structure.random_range(0..6);
@@ -101,6 +114,17 @@ pub fn parameters(o: &IndoorObject) -> SofaProgram {
     p.arm_sweep_m = structure.random_range(0.035..0.09);
     p.back_division = structure.random_range(0.32..0.55);
     p.recliner_extension = structure.random_range(0.0..1.0);
+    let mut shaping = stream(o.seed, 0x534f464153484150);
+    p.back_modules = if o.kind == ObjectKind::Chair {
+        1
+    } else {
+        shaping.random_range(1..=p.modules.saturating_add(1).min(6))
+    };
+    p.back_padding_m = shaping.random_range(0.095..0.215);
+    p.back_channel_pitch_m = shaping.random_range(0.09..0.26);
+    p.back_arch = shaping.random_range(0.0..0.32);
+    p.return_depth_m = shaping.random_range(0.78_f32..1.08).min(o.size.z);
+    p.double_return = p.chaise && p.modules >= 3 && o.size.x > 2.4 && shaping.random_bool(0.24);
     if p.arm_style == 5 && !p.recliner {
         p.arm_width = 0.025;
     }
@@ -138,6 +162,33 @@ fn module_widths_for(o: &IndoorObject, p: &SofaProgram) -> Vec<f32> {
         .map(|w| w / total * (o.size.x - p.arm_width * 2.))
         .collect()
 }
+
+/// Shared by geometry and loose-cushion support queries.
+fn module_depth(o: &IndoorObject, p: &SofaProgram, index: usize) -> f32 {
+    if !p.chaise
+        || index == if p.left_return { 0 } else { p.modules - 1 }
+        || (p.double_return && (index == 0 || index + 1 == p.modules))
+    {
+        o.size.z
+    } else {
+        p.return_depth_m
+    }
+}
+
+/// Metric dimensions sampled before placement, including compact loveseats and
+/// deep returns. No rescaling after a clearance rejection.
+pub(crate) fn dimensions(r: &mut impl rand::Rng) -> Vec3 {
+    let width = r.random_range(1.25..3.45);
+    Vec3::new(
+        width,
+        r.random_range(0.76..1.12),
+        if width > 2.0 && r.random_bool(0.32) {
+            r.random_range(1.35..2.05)
+        } else {
+            r.random_range(0.78..1.15)
+        },
+    )
+}
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     build_program(a, o, p);
@@ -155,14 +206,13 @@ fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram) {
     } else {
         p.upholstery
     };
-    let base_depth = if p.chaise { s.z.min(0.94) } else { s.z };
+    let base_depth = if p.chaise { p.return_depth_m } else { s.z };
     // Unequal cushions are sampled as a normalized construction programme,
     // leaving the outer footprint and seating datum exactly unchanged.
     let widths = module_widths_for(o, &p);
     let mut cursor = -s.x * 0.5 + p.arm_width;
     for (index, &module_width) in widths.iter().enumerate() {
-        let is_return = p.chaise && index == if p.left_return { 0 } else { p.modules - 1 };
-        let depth = if is_return { s.z } else { base_depth };
+        let depth = module_depth(o, &p, index);
         let z = (s.z - depth) * 0.5;
         let x = cursor + module_width * 0.5;
         cursor += module_width;
@@ -189,7 +239,11 @@ fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram) {
             );
         }
         structure::feet(a, o, &p, x, z, module_width, depth);
-        upholstery::back(a, o, &p, x, module_width, base_top);
+    }
+    let back_width = (s.x - p.arm_width * 2.) / p.back_modules as f32;
+    for i in 0..p.back_modules {
+        let x = (i as f32 - (p.back_modules - 1) as f32 * 0.5) * back_width;
+        upholstery::back(a, o, &p, x, back_width, p.seat_height - p.cushion);
     }
     structure::arms(a, o, &p, base_depth);
     for pillow in pillows::build(o, &p, &widths) {

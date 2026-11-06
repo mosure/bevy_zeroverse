@@ -107,16 +107,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             }
             continue;
         }
-        let wall_service = matches!(
-            object.kind,
-            super::layout::ObjectKind::ExitSign
-                | super::layout::ObjectKind::FireAlarm
-                | super::layout::ObjectKind::FireDetector
-                | super::layout::ObjectKind::FirePullStation
-                | super::layout::ObjectKind::StringLights
-        ) || (object.kind == super::layout::ObjectKind::Speaker
-            && object.support.is_none()
-            && !object.solid);
+        let wall_service = super::layout::equipment::services::is_wall_service(object);
         if wall_service && !super::layout::equipment::services::mounted_clear(scene, object) {
             return fail(&format!(
                 "room service fixture {:?}/{} lacks backing or intersects another installation",
@@ -163,6 +154,16 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
                         | super::layout::ObjectKind::Table
                         | super::layout::ObjectKind::CoffeeTable
                 )
+            } else if object.kind == super::layout::ObjectKind::TrashCan {
+                use super::objects::containers::bins::{RECYCLING, WASTE_STATION};
+                other.kind == super::layout::ObjectKind::TrashCan
+                    && object.variant == WASTE_STATION | RECYCLING
+                    && other.variant == WASTE_STATION
+                    && object.seed == other.seed
+                    && object.size == other.size
+                    && object.yaw == other.yaw
+                    && object.position.distance(other.position) < object.size.x + 0.25
+                    && other.interaction_target.is_none()
             } else {
                 matches!(
                     object.kind,

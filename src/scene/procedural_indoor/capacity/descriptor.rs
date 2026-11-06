@@ -285,7 +285,7 @@ fn assigned_materials(
             slot.map_or_else(|| base.clone(), |i| base.variant(i))
         };
         let content = slot
-            .map(|i| materials::variants::screen_seed(scene.material_seed(), i))
+            .map(|i| materials::variants::content_seed(scene.material_seed(), *role, i))
             .map(|seed| match role {
                 Surface::Screen => json!(materials::screens::parameters_for(
                     seed,

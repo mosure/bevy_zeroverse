@@ -12,9 +12,11 @@ mod furnishing;
 pub mod kitchen;
 mod programs;
 pub(crate) mod refreshments;
+mod sampling;
 mod seating;
 pub(crate) mod surfaces;
 pub(crate) mod wall_composition;
+mod waste;
 pub(crate) use seating::furniture_overlap;
 #[cfg(test)]
 mod tests;
@@ -162,6 +164,7 @@ pub struct IndoorObject {
     pub support: Option<usize>,
     pub neighbor: bool,
     /// Chair -> work surface; display/laptop -> intended seated user (chair id).
+    /// Recycling bin -> its coordinated general-waste partner.
     #[serde(default)]
     pub interaction_target: Option<usize>,
     /// Seeded local centreline of a routed wire. Non-cables never carry a path.
@@ -597,8 +600,8 @@ impl IndoorManifest {
         }
         scene.furnish_botany();
         scene.furnish_equipment();
-        scene.compose_wall_groups();
-        scene.decorate(&mut rng);
+        scene.furnish_waste_stations();
+        scene.decorate_surfaces();
         if scene.layout.is_public() {
             scene.dress_public_programs();
         }
@@ -612,7 +615,7 @@ impl IndoorManifest {
         scene.add_baseboard_heaters();
         scene.select_primary_room();
         scene.furnish_ceiling_fans();
-        scene.furnish_room_services();
+        scene.furnish_wall_installations();
         scene.furnish_area_rugs();
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
@@ -862,9 +865,7 @@ impl IndoorManifest {
         }
     }
 
-    fn decorate(&mut self, rng: &mut ChaCha8Rng) {
-        self.wall_decorations(rng);
-        self.wall_hardware(rng);
+    fn decorate_surfaces(&mut self) {
         if self.layout.is_public() {
             return;
         }
@@ -875,6 +876,8 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for surface in surfaces {
+            let mut local = sampling::Domain::SurfaceDressing.rng(surface.seed);
+            let rng = &mut local;
             // Refreshment carts, personal drawers and lounge side tables use
             // their own task program rather than inheriting a laptop workstation.
             if matches!(

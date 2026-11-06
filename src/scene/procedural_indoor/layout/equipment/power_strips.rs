@@ -15,6 +15,11 @@ impl IndoorManifest {
         // more axis-aligned products through repeated shape resampling.
         let size = equipment::power_strip::dimensions(r);
         let seed = r.random();
+        // A room's socket convention may be coherent, but must not repeat in
+        // a four-seed cycle shared with arbitrary seed-modulo decisions.
+        let variant = sampling::Domain::PowerStandard
+            .rng(self.seed)
+            .random_range(0..4);
         let pattern = SurfacePattern::sample(r);
         let edge = r.random_bool(0.72).then(|| r.random_range(0..4));
         // Reversing a strip preserves edge alignment but changes the inlet end.
@@ -50,7 +55,7 @@ impl IndoorManifest {
             let mut o =
                 self.candidate(ObjectKind::PowerStrip, position, size, support.yaw + yaw, r);
             o.seed = seed;
-            o.variant = (self.seed % 4) as u32;
+            o.variant = variant;
             o.solid = false;
             o.support = Some(support.id);
             o.neighbor = support.neighbor;

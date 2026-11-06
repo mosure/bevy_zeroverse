@@ -20,6 +20,27 @@ impl Default for Solver {
 }
 
 impl Solver {
+    /// Rank reference domains by the number of supported destination slots,
+    /// not by raw edge count (one easy ceiling slot may have many edges).
+    pub(super) fn ranked_references(&self, count: usize, slots: usize) -> Vec<usize> {
+        let mut supported = vec![vec![false; slots]; count];
+        for (&[reference, slot, _], &accepted) in &self.visibility {
+            if accepted {
+                supported[reference][slot] = true;
+            }
+        }
+        let mut order: Vec<_> = (0..count).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(supported[i].iter().filter(|&&yes| yes).count()));
+        order
+    }
+    pub(super) fn compatible_candidates(&self, reference: usize) -> Vec<(usize, usize)> {
+        self.visibility
+            .iter()
+            .filter_map(|(&[r, slot, candidate], &accepted)| {
+                (r == reference && accepted).then_some((slot, candidate))
+            })
+            .collect()
+    }
     fn cached_visibility(
         &mut self,
         key: [usize; 3],
@@ -56,7 +77,8 @@ impl Solver {
         // trying one assignment spends most ray tests on candidates never needed.
         // Widen on failure; cached pair decisions keep this bounded and exact.
         for width in [8, 32, usize::MAX] {
-            for (reference_index, reference) in pools[0].iter().enumerate() {
+            for reference_index in self.ranked_references(pools[0].len(), pools.len()) {
+                let reference = &pools[0][reference_index];
                 let mut domains: Vec<Vec<&Candidate>> =
                     (0..pools.len()).map(|_| Vec::new()).collect();
                 for &index in &order {
@@ -192,6 +214,24 @@ fn assign<'a>(
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::cameras::multiview::MultiViewSettings;
+
+    #[test]
+    fn reference_priority_counts_supported_slots_and_keeps_stable_ties() {
+        let mut solver = Solver::default();
+        for candidate in 0..32 {
+            solver.visibility.insert([0, 1, candidate], true);
+        }
+        for slot in 1..4 {
+            solver.visibility.insert([1, slot, 0], true);
+        }
+        for slot in 1..3 {
+            solver.visibility.insert([2, slot, 0], true);
+        }
+        solver.visibility.insert([3, 1, 0], false);
+        assert_eq!(solver.ranked_references(5, 4), [1, 2, 0, 3, 4]);
+        assert_eq!(solver.compatible_candidates(1), [(1, 0), (2, 0), (3, 0)]);
+        assert!(solver.compatible_candidates(3).is_empty());
+    }
 
     #[test]
     fn visibility_cache_reuses_decisions_and_reserves_later_passes() {

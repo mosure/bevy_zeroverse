@@ -2,6 +2,35 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, objects::audit};
 
 #[test]
+fn ring_apertures_cover_broad_bands_and_thin_hoops_without_clamp_piles() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut fractions = Vec::new();
+    for seed in 0..768 {
+        scene.seed = seed;
+        if parameters(&scene).shape != FixtureShape::Ring {
+            continue;
+        }
+        for x in [-1.3, 0.25, 1.8] {
+            let p = parameters_at(&scene, Vec3::new(x, 2.8, 0.7));
+            assert!(p.opening_fraction > 0.24 && p.opening_fraction < 0.94);
+            fractions.push(p.opening_fraction);
+        }
+    }
+    fractions.sort_by(f32::total_cmp);
+    let lo = fractions[fractions.len() / 20];
+    let hi = fractions[fractions.len() * 19 / 20];
+    assert!(
+        fractions.len() > 200 && lo < 0.40 && hi > 0.82,
+        "{lo}..{hi}"
+    );
+    println!(
+        "ring aperture p05={lo} p95={hi}; {} fixtures",
+        fractions.len()
+    );
+}
+
+#[test]
 fn expanded_ceiling_rooms_keep_clear_multiview_trajectories() {
     for seed in 0..16 {
         let scene = IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25)

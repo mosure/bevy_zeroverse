@@ -3,6 +3,31 @@ use super::*;
 use std::collections::BTreeSet;
 
 #[test]
+fn rounded_arm_carriers_keep_valid_bend_radii_at_short_pad_extremes() {
+    let o = audit::fixture(ObjectKind::Chair, 69_430_991);
+    for style in [1, 4] {
+        for height in [0.61, 0.655, 0.70] {
+            for length in [0.16, 0.20, 0.33] {
+                for width in [0.40, 0.48, 0.52] {
+                    let mut p = parameters(&o);
+                    p.armrests = true;
+                    p.arm_support = style;
+                    p.arm_height = height;
+                    p.arm_pad_length = length;
+                    let mut a = Assembly::default();
+                    upper::arms(&mut a, &p, width, 2);
+                    audit::check(&o, &a).unwrap_or_else(|e| {
+                        panic!(
+                            "style={style}, height={height}, length={length}, width={width}: {e}"
+                        )
+                    });
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn audience_seats_fit_short_and_deep_metric_envelopes_including_folded_states() {
     let mut folded = 0;
     for seed in 0..128 {

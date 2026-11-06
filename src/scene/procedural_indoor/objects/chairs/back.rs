@@ -61,7 +61,7 @@ pub(super) fn segmented(
         );
     }
     let count = if p.back_construction == 3 {
-        3
+        (height / p.slat_pitch_m).round().clamp(2., 6.) as usize
     } else if p.back_construction == 4 {
         2
     } else {
@@ -70,7 +70,7 @@ pub(super) fn segmented(
     let gap = if count == 2 {
         height * p.back_aperture
     } else {
-        height / count as f32 * 0.25
+        height / count as f32 * p.back_gap_fraction
     };
     let panel_height = (height - gap * (count - 1) as f32) / count as f32;
     for i in 0..count {
@@ -167,8 +167,8 @@ pub(super) fn constructed(
             }
         }
         7 => {
-            let aperture = height * (0.18 + p.back_aperture);
-            let lower = height * 0.22;
+            let aperture = height * p.back_gap_fraction;
+            let lower = height * p.back_panel_fraction;
             panel(0., 0., width, lower, p.curvature);
             panel(
                 0.,

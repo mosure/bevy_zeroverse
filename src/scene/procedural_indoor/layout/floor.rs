@@ -122,11 +122,13 @@ impl IndoorManifest {
                 continue;
             }
             for _ in 0..10 {
-                let size = Vec3::new(
-                    rng.random_range(0.85..2.7),
-                    rng.random_range(0.004..0.011),
-                    rng.random_range(0.65..1.8),
-                );
+                // Log-scale sampling retains small mats, long runners and broad
+                // accent rugs without concentrating proposals on large areas.
+                let width = rng.random_range(0.60_f32.ln()..3.8_f32.ln()).exp();
+                let aspect = rng
+                    .random_range((0.45 / width).max(0.28).ln()..(2.8 / width).min(1.35).ln())
+                    .exp();
+                let size = Vec3::new(width, rng.random_range(0.004..0.011), width * aspect);
                 let side = if rng.random_bool(0.5) { 1. } else { -1. };
                 let p = anchor
                     .transform()

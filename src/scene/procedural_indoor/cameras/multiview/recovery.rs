@@ -349,7 +349,15 @@ pub(super) fn complete(
                 } else {
                     0
                 };
-                let nearby_end = replay_slots + NEARBY_ATTEMPTS;
+                // Dense rigs need new curves inside the already visible free pockets.
+                // Reserve at most half of the remaining proposal slots for this;
+                // preserve room-space exploration and the original total budget.
+                let derived_attempts = if count >= 6 && scene.camera_settings.handheld.is_none() {
+                    96.min(attempts.saturating_sub(replay_slots + NEARBY_ATTEMPTS) / 2)
+                } else {
+                    0
+                };
+                let nearby_end = replay_slots + NEARBY_ATTEMPTS + derived_attempts;
                 for attempt in 0..attempts {
                     if beam {
                         let parent = &parents[attempt % parents.len()];
@@ -374,6 +382,15 @@ pub(super) fn complete(
                             continue;
                         }
                         camera
+                    } else if beam
+                        && attempt >= replay_slots + NEARBY_ATTEMPTS
+                        && attempt < nearby_end
+                    {
+                        let index = 1
+                            + (attempt - replay_slots - NEARBY_ATTEMPTS)
+                                % (scene.cameras.len() - 1).max(1);
+                        let template = scene.cameras.get(index).unwrap_or(&reference);
+                        super::super::motion::nearby_path(template, rng)
                     } else if beam && attempt < nearby_end {
                         // Valid counterpart paths reveal small navigable pockets in
                         // furnished rooms. Preserve their optical framing while the

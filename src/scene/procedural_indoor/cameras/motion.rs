@@ -3,6 +3,30 @@ use super::{CameraMotion, CameraSettings, IndoorCamera};
 use bevy::prelude::*;
 use rand::Rng;
 
+/// Small deformation of an already navigable trajectory. Its gaze and optical
+/// metadata are retained; every caller must requalify the resulting curve.
+pub(super) fn nearby_path(source: &IndoorCamera, rng: &mut impl Rng) -> IndoorCamera {
+    let mut camera = source.clone();
+    let center = (camera.start + camera.end) * 0.5;
+    let rotation = Quat::from_rotation_y(rng.random_range(-0.35..0.35));
+    let scale = rng.random_range(0.94..1.06);
+    let offset = Vec3::new(
+        rng.random_range(-0.65..0.65),
+        rng.random_range(-0.35..0.35),
+        rng.random_range(-0.65..0.65),
+    );
+    let point = |p| center + rotation * (p - center) * scale + offset;
+    camera.start = point(camera.start);
+    camera.end = point(camera.end);
+    if let Some(m) = &mut camera.motion {
+        m.control = m.control.map(point);
+        for p in &mut m.route {
+            *p = point(*p);
+        }
+    }
+    camera
+}
+
 impl CameraSettings {
     /// Seeded Bernoulli assignment; stable when adding views or retrying placement.
     /// The fraction is a dataset probability, not a rounded count in a small rig.

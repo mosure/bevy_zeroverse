@@ -2,6 +2,7 @@
 //! relaxed: every derived path uses its destination slot's calibration, motion
 //! role and full clearance/content checks before joining the constraint solver.
 use super::*;
+pub(super) use crate::scene::procedural_indoor::cameras::motion::nearby_path;
 use crate::scene::procedural_indoor::cameras::CameraMotion;
 
 pub(super) struct Budget {
@@ -165,24 +166,7 @@ pub(super) fn perturb(
             } else {
                 &sources[rng.random_range(0..sources.len())]
             };
-            let mut camera = source.clone();
-            let center = (camera.start + camera.end) * 0.5;
-            let rotation = Quat::from_rotation_y(rng.random_range(-0.35..0.35));
-            let scale = rng.random_range(0.94..1.06);
-            let offset = Vec3::new(
-                rng.random_range(-0.65..0.65),
-                rng.random_range(-0.35..0.35),
-                rng.random_range(-0.65..0.65),
-            );
-            let point = |p| center + rotation * (p - center) * scale + offset;
-            camera.start = point(camera.start);
-            camera.end = point(camera.end);
-            if let Some(m) = &mut camera.motion {
-                m.control = m.control.map(point);
-                for p in &mut m.route {
-                    *p = point(*p);
-                }
-            }
+            let camera = nearby_path(source, &mut rng);
             if !acceptable(scene, index, &camera, coverage) {
                 continue;
             }
@@ -250,7 +234,7 @@ pub(super) fn resample_intrinsics(
 
 /// Reuse cannot turn a requested moving camera into a stationary view, even if
 /// the requested minimum travel is zero. Explicit zero-length paths remain valid.
-fn acceptable(
+pub(super) fn acceptable(
     scene: &IndoorManifest,
     index: usize,
     camera: &IndoorCamera,

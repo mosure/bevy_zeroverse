@@ -368,17 +368,8 @@ impl IndoorManifest {
                 .map_or(zone.activity, |mix| mix.choose(rng))
                 == IndoorLayout::Lounge;
             if lounge && rng.random_bool(0.55) {
-                self.add(
-                    ObjectKind::Sofa,
-                    p,
-                    Vec3::new(
-                        rng.random_range(1.30..2.25),
-                        rng.random_range(0.78..1.02),
-                        rng.random_range(0.80..1.10),
-                    ),
-                    yaw,
-                    rng,
-                );
+                let sofa_size = super::super::objects::seating::dimensions(rng);
+                self.add(ObjectKind::Sofa, p, sofa_size, yaw, rng);
             }
             self.workstation(
                 if lounge {

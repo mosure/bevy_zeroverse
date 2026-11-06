@@ -46,7 +46,14 @@ pub fn parameters(scene: &IndoorManifest) -> FixtureProgram {
         finish: r.random_range(0..12),
         depth_m: r.random_range(0.045..0.12),
         border_fraction: r.random_range(0.05..0.13),
-        opening_fraction: r.random_range(0.60..0.82),
+        opening_fraction: if shape == FixtureShape::Ring {
+            // A continuous eased prior gives both broad bands and slim hoops
+            // meaningful mass instead of mostly medium-width annuli.
+            let t: f32 = r.random();
+            0.24 + 0.70 * t * t * (3. - 2. * t)
+        } else {
+            r.random_range(0.60..0.82)
+        },
         louver_pitch_m: r.random_range(0.07..0.18),
     }
 }
@@ -57,7 +64,13 @@ pub fn parameters_at(scene: &IndoorManifest, position: Vec3) -> FixtureProgram {
     let mut p = parameters(scene);
     let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
     let mut r = stream(scene.seed ^ key, 0x4649585441504552);
-    p.opening_fraction = (p.opening_fraction + r.random_range(-0.14..0.12)).clamp(0.42, 0.93);
+    p.opening_fraction = if p.shape == FixtureShape::Ring {
+        // Convex variation avoids clamped piles at either end of the annulus
+        // prior. Keep thin luminous hoops as well as broad washer-like fixtures.
+        p.opening_fraction * 0.75 + r.random_range(0.24..0.94) * 0.25
+    } else {
+        (p.opening_fraction + r.random_range(-0.14..0.12)).clamp(0.42, 0.93)
+    };
     p.border_fraction *= r.random_range(0.65..1.35);
     p.louver_pitch_m *= r.random_range(0.65..1.40);
     p

@@ -1,6 +1,6 @@
 use super::*;
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorObject;
-use bevy_zeroverse::scene::procedural_indoor::materials::{screens, variants};
+use bevy_zeroverse::scene::procedural_indoor::materials::{boards, screens, variants, Surface};
 
 pub fn objects(template: &IndoorObject, scene_seed: u64) -> Vec<IndoorObject> {
     let mut cases = vec![
@@ -82,12 +82,25 @@ pub fn objects(template: &IndoorObject, scene_seed: u64) -> Vec<IndoorObject> {
             if matches!(kind, ObjectKind::Display | ObjectKind::Whiteboard) {
                 o.seed = (0..2000)
                     .find(|&seed| {
-                        let image_seed = variants::screen_seed(scene_seed, variants::slot(seed));
+                        let surface = if kind == ObjectKind::Display {
+                            Surface::Television
+                        } else {
+                            Surface::Whiteboard
+                        };
+                        let image_seed = variants::content_seed(
+                            scene_seed,
+                            surface,
+                            variants::object_slot(surface, seed, None),
+                        );
                         if kind == ObjectKind::Display {
-                            let layout = screens::parameters(image_seed).layout;
+                            let layout = screens::parameters_for(
+                                image_seed,
+                                screens::DisplayKind::Television,
+                            )
+                            .layout;
                             layout != 7 && display_layouts.insert(layout)
                         } else {
-                            board_layouts.insert(image_seed % 8)
+                            board_layouts.insert(boards::parameters(image_seed).layout)
                         }
                     })
                     .expect("scene finish palette must cover the requested gallery layouts");

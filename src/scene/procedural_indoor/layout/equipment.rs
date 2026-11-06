@@ -15,9 +15,10 @@ impl IndoorManifest {
     /// Call before ordinary supported clutter, reserving useful presentation and
     /// electrical equipment rather than hoping they fit as late random props.
     pub(super) fn furnish_equipment(&mut self) {
-        let mut rng = stream(self.seed, 5780);
-        let count = (self.density * rng.random_range(2.0..6.0)).round() as usize;
-        for _ in 0..count {
+        let mut count_rng = sampling::Domain::WallEquipment.rng(self.seed);
+        let count = (self.density * count_rng.random_range(2.0..6.0)).round() as usize;
+        for ordinal in 0..count {
+            let mut rng = sampling::Domain::WallEquipment.proposal(self.seed, ordinal);
             let kind = [
                 ObjectKind::WallShelf,
                 ObjectKind::NoticeBoard,
@@ -109,7 +110,7 @@ impl IndoorManifest {
                 self.place_power_strip(surface, &mut station);
             }
         }
-        self.pendant_equipment(&mut rng);
+        self.pendant_equipment(&mut sampling::Domain::Pendants.rng(self.seed));
     }
 
     fn projector_equipment(&mut self, surfaces: &[IndoorObject]) {

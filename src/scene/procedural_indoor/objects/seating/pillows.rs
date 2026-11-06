@@ -4,7 +4,7 @@ use super::*;
 use crate::scene::procedural_indoor::{geometry::Geometry, placement::Footprint};
 
 pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Geometry> {
-    if !p.pillows || o.size.x <= 1.2 {
+    if !p.pillows || o.kind == ObjectKind::Chair {
         return vec![];
     }
     let mut r = stream(o.seed, 3033);
@@ -27,12 +27,7 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
                     + widths[..index].iter().sum::<f32>()
                     + module_width * 0.5
             };
-            let is_return = p.chaise && index == if p.left_return { 0 } else { p.modules - 1 };
-            let depth = if is_return {
-                o.size.z
-            } else {
-                o.size.z.min(0.94)
-            };
+            let depth = module_depth(o, p, index);
             let z = (o.size.z - depth) * 0.5;
             let mut seat_size = Vec3::new(module_width - p.cushion_gap_m, p.cushion, depth - 0.19);
             let mut seat = Vec3::new(x, p.seat_height - p.cushion * 0.5, z - 0.085);
@@ -50,9 +45,9 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
             let width = r.random_range(min_width..max_width);
             let size = Vec3::new(
                 width,
-                width * r.random_range(0.20..0.34),
+                width * r.random_range(0.16..0.40),
                 // A continuous lumbar-to-square throw-pillow aspect range.
-                width * r.random_range(0.46..1.08),
+                width * r.random_range(0.38..1.20),
             );
             let incline = r.random_range(0.04..1.48);
             let resting_on_back = incline > 0.55;
@@ -97,8 +92,8 @@ pub(super) fn build(o: &IndoorObject, p: &SofaProgram, widths: &[f32]) -> Vec<Ge
             g.cushion(
                 size,
                 super::super::super::geometry::CushionProfile {
-                    roundness: 3.,
-                    crown: 2.8,
+                    roundness: r.random_range(2.0..5.5),
+                    crown: r.random_range(2.1..4.2),
                     dish: 0.,
                 },
                 Transform::from_xyz(center.x, 0., center.y).with_rotation(rotation),

@@ -2,6 +2,55 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::floor::detail_clear, objects::audit::fixture};
 
 #[test]
+fn people_respect_the_same_wall_service_gap_as_fixture_admission() {
+    let mut scene = IndoorManifest::generate_with_humans(
+        87,
+        super::super::layout::IndoorLayout::Mixed,
+        0.75,
+        0,
+        0.,
+    )
+    .unwrap();
+    scene.room_size = Vec3::new(10., 4., 10.);
+    scene.envelope = None;
+    scene.program = None;
+    scene.ceiling_installation = None;
+    scene.objects.clear();
+    scene.rug_supports.clear();
+    let person = sample_person(
+        42,
+        0,
+        Vec3::ZERO,
+        0.,
+        HumanPoseKind::StandingPresenting,
+        None,
+        false,
+    );
+    assert!(placement_clear(&scene, &person));
+    let (lo, hi) = person.bounds();
+    let mut speaker = fixture(ObjectKind::Speaker, 73);
+    speaker.size = Vec3::new(0.2, 0.2, 0.06);
+    speaker.yaw = 0.;
+    speaker.solid = false;
+    speaker.support = None;
+    speaker.position = Vec3::new(
+        hi.x + speaker.size.x * 0.5 + 0.020,
+        (lo.y + hi.y) * 0.5,
+        (lo.z + hi.z) * 0.5,
+    );
+    scene.objects.push(speaker);
+    assert!(
+        !placement_clear(&scene, &person),
+        "20 mm must not bypass the 25 mm service reservation"
+    );
+    scene.objects[0].position.x += 0.010;
+    assert!(
+        placement_clear(&scene, &person),
+        "30 mm clears the service reservation"
+    );
+}
+
+#[test]
 fn raised_gesture_does_not_project_a_collision_onto_floor_detail() {
     // Explicit support/pose fixture: the test must not depend on a particular
     // generated room continuing to contain a rug and a standing person.

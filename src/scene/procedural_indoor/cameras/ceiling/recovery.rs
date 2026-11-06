@@ -14,6 +14,7 @@ use crate::scene::procedural_indoor::{
     layout::{stream, IndoorManifest},
 };
 use rand::Rng;
+mod conditioned;
 mod mounts;
 mod paths;
 mod solver;
@@ -208,6 +209,18 @@ pub(super) fn sample(
     // redraw room pinholes from that same PDF on already feasible paths. Explicit
     // fixed priors, fisheye sensors, mount roles and all admission tests stay intact.
     paths::resample_intrinsics(scene, coverage, prototypes, &mut pools, &mut path_budget);
+    if solver.solve(scene, coverage, &pools, contract, 1024) {
+        return true;
+    }
+    conditioned::expand(
+        scene,
+        coverage,
+        prototypes,
+        &mut pools,
+        &solver,
+        contract,
+        &mut path_budget,
+    );
     let found = solver.solve(scene, coverage, &pools, contract, 0);
     if !found {
         scene.cameras.clear();

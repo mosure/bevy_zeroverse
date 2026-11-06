@@ -182,7 +182,7 @@ pub(super) fn arms(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, base_dep
     for side in [-1., 1.] {
         let mut arm = Assembly::default();
         let target = &mut arm;
-        let is_return = p.chaise && ((side < 0.) == p.left_return);
+        let is_return = p.chaise && (p.double_return || ((side < 0.) == p.left_return));
         let depth = if is_return { s.z } else { base_depth };
         let height = (p.seat_height + p.arm_rise_m + if p.arm_style == 4 { 0.12 } else { 0. })
             .min(s.y - 0.08);

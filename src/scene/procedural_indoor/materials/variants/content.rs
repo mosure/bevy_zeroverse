@@ -74,7 +74,7 @@ pub(super) fn queue(
     .flat_map(|surface| {
         (0..count(surface))
             .filter(move |&slot| used.is_none_or(|keys| keys.contains(&(surface, slot))))
-            .map(move |slot| ((surface, slot), screen_seed(seed, slot)))
+            .map(move |slot| ((surface, slot), content_seed(seed, surface, slot)))
     })
     .collect();
     #[cfg(not(target_arch = "wasm32"))]
@@ -176,7 +176,7 @@ mod tests {
             let mut jobs = queue(seed, Some(&used));
             assert_eq!(jobs.len(), surfaces.len());
             for (surface, slot) in used {
-                let content_seed = screen_seed(seed, slot);
+                let content_seed = content_seed(seed, surface, slot);
                 let mut a = StandardMaterial {
                     base_color: Color::srgb(0.2, 0.4, 0.6),
                     metallic: 0.7,

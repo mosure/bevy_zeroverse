@@ -102,17 +102,21 @@ impl IndoorManifest {
                 }
             }
             for _ in 0..12 {
-                let extra = r.random_range(0.18..0.65);
                 let span = group_hi - group_lo;
+                // Independently sized borders and an off-centre furniture group:
+                // rugs need not reproduce the group's bounding rectangle. The
+                // exact rotated contour still has to support every lifted leg.
+                let margin = Vec2::new(r.random_range(0.12..1.15), r.random_range(0.12..1.05));
                 let size = Vec3::new(
-                    (span.x + extra * 2.).min(7.5),
+                    (span.x + margin.x * 2.).min(8.5),
                     r.random_range(0.004..MAX_THICKNESS_M),
-                    (span.y + extra * 2.).min(6.5),
+                    (span.y + margin.y * 2.).min(7.5),
                 );
-                let local = (group_lo + group_hi) * 0.5;
+                let local = (group_lo + group_hi) * 0.5
+                    + margin * Vec2::new(r.random_range(-0.55..0.55), r.random_range(-0.55..0.55));
                 let center = tf.transform_point(Vec3::new(local.x, 0., local.y));
-                let mut rug =
-                    self.floor_candidate(ObjectKind::Rug, center, size, anchor.yaw, &mut r);
+                let yaw = anchor.yaw + r.random_range(-0.18..0.18);
+                let mut rug = self.floor_candidate(ObjectKind::Rug, center, size, yaw, &mut r);
                 rug.solid = false;
                 let (lo, hi) = rug.bounds();
                 let support = RugSupport::from_object(&rug);

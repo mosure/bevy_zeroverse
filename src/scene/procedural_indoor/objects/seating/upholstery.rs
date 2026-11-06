@@ -3,12 +3,7 @@ use super::*;
 use crate::scene::procedural_indoor::geometry::CushionProfile;
 
 pub(super) fn maximum_back_padding(p: &SofaProgram) -> f32 {
-    match p.back_style {
-        1 | 3 => 0.20,
-        2 => 0.125,
-        4 => 0.14,
-        _ => 0.18,
-    }
+    p.back_padding_m
 }
 
 pub(super) fn seat(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, center: Vec3, size: Vec3) {
@@ -78,7 +73,8 @@ pub(super) fn back(
     } else {
         p.upholstery
     };
-    let top = (s.y - 0.04).max(base_top + 0.08);
+    let top = (s.y - 0.04 - (s.y - p.seat_height) * p.back_arch * (2. * x / s.x).powi(2))
+        .max(base_top + 0.08);
     if p.back_style == 4 {
         for side in [-1., 1.] {
             a.part(Surface::WoodEdge, label).rod(
@@ -103,7 +99,7 @@ pub(super) fn back(
             p.roundness.min(0.035),
         );
     }
-    let h = (s.y - p.seat_height + 0.015).max(0.18);
+    let h = (top - p.seat_height + 0.055).max(0.18);
     let tf = Transform::from_xyz(
         x,
         p.seat_height + h * 0.5 - 0.04,
@@ -129,18 +125,38 @@ pub(super) fn back(
     match p.back_style {
         1 => {
             let lower = h * p.back_division;
-            pad(0., -(h - lower) * 0.5, width, lower - 0.006, 3., 0.20);
-            pad(0., lower * 0.5, width, h - lower - 0.006, 3., 0.14);
+            pad(
+                0.,
+                -(h - lower) * 0.5,
+                width,
+                lower - 0.006,
+                3.,
+                p.back_padding_m,
+            );
+            pad(
+                0.,
+                lower * 0.5,
+                width,
+                h - lower - 0.006,
+                3.,
+                p.back_padding_m * 0.70,
+            );
         }
         2 => {
-            for i in 0..3 {
+            // Share a room-independent geometric budget across the whole back,
+            // rather than multiplying eight channels by every seating module.
+            let max_channels = (16 / p.back_modules).clamp(2, 8);
+            let count = (width / p.back_channel_pitch_m)
+                .round()
+                .clamp(2., max_channels as f32) as usize;
+            for i in 0..count {
                 pad(
-                    (i as f32 - 1.) * width / 3.,
+                    (i as f32 - (count - 1) as f32 * 0.5) * width / count as f32,
                     0.,
-                    width / 3. - 0.006,
+                    width / count as f32 - 0.006,
                     h,
                     2.8,
-                    0.125,
+                    p.back_padding_m * 0.70,
                 );
             }
         }
@@ -152,11 +168,18 @@ pub(super) fn back(
                 width,
                 h - crest - 0.006,
                 profile.roundness,
-                0.11,
+                p.back_padding_m * 0.55,
             );
-            pad(0., (h - crest) * 0.5, width, crest - 0.006, 2., 0.20);
+            pad(
+                0.,
+                (h - crest) * 0.5,
+                width,
+                crest - 0.006,
+                2.,
+                p.back_padding_m,
+            );
         }
-        4 => pad(0., -h * 0.10, width, h * 0.80, 3., 0.14),
-        _ => pad(0., 0., width, h, profile.roundness, 0.18),
+        4 => pad(0., -h * 0.10, width, h * 0.80, 3., p.back_padding_m * 0.70),
+        _ => pad(0., 0., width, h, profile.roundness, p.back_padding_m),
     }
 }

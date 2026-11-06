@@ -32,7 +32,7 @@ pub fn recipe(category: &Category, seed: u64) -> program::MaterialRecipe {
 }
 pub fn record(category: &Category, seed: u64) -> Value {
     let r = recipe(category, seed);
-    let content_seed = variants::screen_seed(seed, finish_slot(category, seed));
+    let content_seed = variants::content_seed(seed, category.surface, finish_slot(category, seed));
     let content = match category.surface {
         Surface::Screen => json!(screens::parameters_for(
             content_seed,

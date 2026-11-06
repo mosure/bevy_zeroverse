@@ -29,12 +29,21 @@ pub fn electrical_parameters(scene: &IndoorManifest) -> ElectricalProgram {
     }
 }
 impl IndoorManifest {
-    pub(in super::super) fn wall_hardware(&mut self, rng: &mut ChaCha8Rng) {
+    pub(in super::super) fn wall_hardware(&mut self) {
+        let mut count_rng = sampling::Domain::Electrical.rng(self.seed);
         let electrical = electrical_parameters(self);
         let worktops = worktop_anchors(self);
-        let count =
-            ((self.room_size.x + self.room_size.z) * rng.random_range(0.65..0.95)).round() as usize;
+        let mut occupied: Vec<_> = self
+            .objects
+            .iter()
+            .map(IndoorObject::bounds)
+            .chain(self.columns())
+            .collect();
+        let count = ((self.room_size.x + self.room_size.z) * count_rng.random_range(0.65..0.95))
+            .round() as usize;
         for i in 0..count.clamp(10, 32) {
+            let mut local = sampling::Domain::Electrical.proposal(self.seed, i);
+            let rng = &mut local;
             let switch = i < electrical.switches;
             let kind = if switch {
                 ObjectKind::LightSwitch
@@ -94,18 +103,17 @@ impl IndoorManifest {
             obj.variant = electrical.standard;
             let (lo, hi) = obj.bounds();
             if !self.attachment_clear(tf, span, &obj)
-                || self
-                    .objects
-                    .iter()
-                    .map(IndoorObject::bounds)
-                    .chain(self.columns())
-                    .any(|(a, b)| {
-                        lo.cmplt(b + Vec3::splat(0.015)).all()
-                            && hi.cmpgt(a - Vec3::splat(0.015)).all()
-                    })
+                || occupied.iter().copied().any(|(a, b)| {
+                    // Either installation can arrive first. Match the
+                    // service/fan reservation instead of admitting a late
+                    // socket that invalidates an earlier speaker/alarm.
+                    let gap = Vec3::splat(equipment::services::INSTALLATION_GAP);
+                    lo.cmplt(b + gap).all() && hi.cmpgt(a - gap).all()
+                })
             {
                 continue;
             }
+            occupied.push((lo, hi));
             self.objects.push(obj);
         }
     }

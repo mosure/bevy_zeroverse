@@ -598,6 +598,8 @@ pub fn representatives(rows: &[Vec<f32>], threshold: f32) -> Vec<usize> {
 #[cfg(test)]
 mod display_qualification;
 #[cfg(test)]
+mod furnishing_diversity;
+#[cfg(test)]
 mod furniture_qualification;
 #[cfg(test)]
 mod product_program_tests;

@@ -79,11 +79,7 @@ pub fn slot(seed: u64) -> usize {
 pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>) -> usize {
     let finish = finish_seed.unwrap_or(object_seed);
     if is_content(surface) || surface == Surface::PrintedPaper {
-        stream(
-            object_seed ^ finish.rotate_left(17),
-            0x434f4e54454e54 + surface as u64,
-        )
-        .random_range(0..count(surface))
+        stream(object_seed, 0x434f4e54454e54 + surface as u64).random_range(0..count(surface))
     } else {
         // A collection can share timber and upholstery colors without forcing
         // the same atlas index (and index % structure_count) across substrates.
@@ -99,7 +95,14 @@ pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>)
     }
 }
 pub fn screen_seed(scene_seed: u64, slot: usize) -> u64 {
-    let mut rng = stream(scene_seed, 900 + slot as u64);
+    content_seed(scene_seed, Surface::Screen, slot)
+}
+/// Stable content identity shared by baking, metrics and capacity estimates.
+/// Equal slot numbers in an artwork, board and device do not share a latent
+/// document. This does not increase the bounded number of cached textures.
+pub fn content_seed(scene_seed: u64, surface: Surface, slot: usize) -> u64 {
+    let mut rng = stream(scene_seed, 0x434f_4e54_454e_5400 ^ surface as u64);
+    rng.set_word_pos(slot as u128 * 2);
     rng.random()
 }
 #[allow(clippy::too_many_arguments)]

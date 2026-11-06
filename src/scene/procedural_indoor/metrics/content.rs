@@ -380,8 +380,9 @@ fn finish_seed(scene: &IndoorManifest, o: &IndoorObject) -> u64 {
         ObjectKind::Monitor | ObjectKind::Laptop => Surface::Screen,
         _ => unreachable!("content finish requested for a non-display object"),
     };
-    materials::variants::screen_seed(
+    materials::variants::content_seed(
         scene.material_seed(),
+        surface,
         materials::variants::object_slot(surface, o.seed, o.finish_seed),
     )
 }
@@ -752,8 +753,9 @@ pub(super) fn record_object(
             numeric.push("pad_ring_pitch_m", p.ring_pitch as f64)?;
             let slot =
                 materials::variants::object_slot(Surface::PrintedPaper, o.seed, o.finish_seed);
-            let paper = materials::paper::parameters(materials::variants::screen_seed(
+            let paper = materials::paper::parameters(materials::variants::content_seed(
                 scene.material_seed(),
+                Surface::PrintedPaper,
                 slot,
             ));
             category(categories, "paper_layout", paper.layout);
@@ -1151,7 +1153,7 @@ mod tests {
                         .unwrap();
                     assert_eq!(
                         finish_seed(&scene, &o),
-                        materials::variants::screen_seed(scene.material_seed(), slot),
+                        materials::variants::content_seed(scene.material_seed(), *s, slot),
                         "{kind:?}/{seed}/{s:?}"
                     );
                 }
@@ -1292,8 +1294,9 @@ mod tests {
             record_object(&scene, &object(kind), &mut categories, &mut numeric).unwrap();
         }
         let actual_seed = |surface| {
-            materials::variants::screen_seed(
+            materials::variants::content_seed(
                 991,
+                surface,
                 materials::variants::object_slot(surface, 83, None),
             )
         };

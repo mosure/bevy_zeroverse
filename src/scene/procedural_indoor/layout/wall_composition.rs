@@ -149,8 +149,15 @@ impl WallComposition {
 impl IndoorManifest {
     pub(super) fn compose_wall_groups(&mut self) {
         let program = WallComposition::sample(self);
-        let mut rng = stream(self.seed, 5811);
-        let groups = (rng.random_range(0.5..5.5) * (0.40 + self.density)).round() as usize;
+        let mut count_rng = sampling::Domain::WallGroups.rng(self.seed);
+        let groups = (count_rng.random_range(0.5..5.5) * (0.40 + self.density)).round() as usize;
+        if groups == 0 {
+            return;
+        }
+        // Bounds and architectural reservations are immutable during this pass.
+        // Only accepted groups extend occupancy; failed proposals leave no trace.
+        let mut occupied: Vec<_> = self.objects.iter().map(IndoorObject::bounds).collect();
+        let columns = self.columns();
         let walls: Vec<_> = if let Some(e) = &self.envelope {
             e.walls
                 .iter()
@@ -166,7 +173,8 @@ impl IndoorManifest {
                 .map(|side| (side.transform(self.room_size), side.span(self.room_size)))
                 .collect()
         };
-        for _ in 0..groups {
+        for ordinal in 0..groups {
+            let mut rng = sampling::Domain::WallGroups.proposal(self.seed, ordinal);
             let family = program.choose(&mut rng);
             for _ in 0..20 {
                 let (tf, span) = walls[rng.random_range(0..walls.len())];
@@ -234,12 +242,11 @@ impl IndoorManifest {
                     let (lo, hi) = o.bounds();
                     if lo.y <= self.floor_height(o.position.xz()) + 0.12
                         || !self.wall_attachment_clear(&o)
-                        || self
-                            .objects
+                        || occupied
                             .iter()
-                            .chain(group.iter())
-                            .map(IndoorObject::bounds)
-                            .chain(self.columns())
+                            .copied()
+                            .chain(group.iter().map(IndoorObject::bounds))
+                            .chain(columns.iter().copied())
                             .any(|(a, b)| {
                                 lo.cmplt(b + Vec3::splat(0.025)).all()
                                     && hi.cmpgt(a - Vec3::splat(0.025)).all()
@@ -251,6 +258,7 @@ impl IndoorManifest {
                     group.push(o);
                 }
                 if !group.is_empty() {
+                    occupied.extend(group.iter().map(IndoorObject::bounds));
                     self.objects.extend(group);
                     break;
                 }

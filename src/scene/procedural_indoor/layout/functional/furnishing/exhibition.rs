@@ -55,7 +55,6 @@ impl IndoorManifest {
         }
     }
     pub(in crate::scene::procedural_indoor::layout) fn dress_public_programs(&mut self) {
-        let mut r = stream(self.seed, 8250);
         let surfaces: Vec<_> = self
             .objects
             .iter()
@@ -63,6 +62,7 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for support in surfaces {
+            let mut r = super::super::super::sampling::Domain::PublicDressing.rng(support.seed);
             let kind = match support.kind {
                 ObjectKind::ExhibitPlinth => {
                     if self.assembly_diagnostics.programs.iter().any(|p| {

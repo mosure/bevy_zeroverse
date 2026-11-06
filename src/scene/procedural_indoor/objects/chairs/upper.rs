@@ -60,10 +60,26 @@ pub(super) fn seat(a: &mut Assembly, p: &ChairProgram, width: f32, depth: f32, p
 pub(super) fn headrest(a: &mut Assembly, p: &ChairProgram, width: f32, height: f32, tf: Transform) {
     let w = width * p.headrest_width_fraction;
     for side in [-1., 1.] {
-        let x = side * w * 0.28;
+        let x = side * w * p.headrest_post_span * 0.5;
+        // Terminate the post inside the actual curved shell (or pad), rather
+        // than at a fixed depth that can miss a strongly cupped headrest.
+        let v = 0.55_f32;
+        let end_z = if p.headrest_style == 0 {
+            let factor = 1. + 0.05 * (PI * v).sin();
+            let t = x / (w * 0.5 * factor);
+            p.headrest_curvature_m * (1. - t * t) + p.headrest_height_m * v * 0.05
+                - 0.008 * (PI * v).sin()
+                + 0.015
+        } else {
+            0.025
+        };
         a.part(Surface::Chrome, "chair").rod(
             tf.transform_point(Vec3::new(x, height - 0.04, 0.045)),
-            tf.transform_point(Vec3::new(x, height + 0.10, 0.045)),
+            tf.transform_point(Vec3::new(
+                x,
+                height + p.headrest_gap_m + p.headrest_height_m * 0.55,
+                end_z,
+            )),
             0.008,
         );
     }
@@ -72,7 +88,7 @@ pub(super) fn headrest(a: &mut Assembly, p: &ChairProgram, width: f32, height: f
             w,
             p.headrest_height_m,
             [p.headrest_curvature_m, 0., 0.05, 0.035, 0.008, 0.05],
-            tf.with_translation(tf.transform_point(Vec3::new(0., height + 0.055, 0.))),
+            tf.with_translation(tf.transform_point(Vec3::new(0., height + p.headrest_gap_m, 0.))),
         );
     } else {
         let count = if p.headrest_style == 1 { 1 } else { 2 };
@@ -87,7 +103,7 @@ pub(super) fn headrest(a: &mut Assembly, p: &ChairProgram, width: f32, height: f
                 },
                 Transform::from_translation(tf.transform_point(Vec3::new(
                     x,
-                    height + 0.055 + p.headrest_height_m * 0.5,
+                    height + p.headrest_gap_m + p.headrest_height_m * 0.5,
                     0.025,
                 )))
                 .with_rotation(tf.rotation * Quat::from_rotation_x(-FRAC_PI_2)),
@@ -147,22 +163,34 @@ pub(super) fn arms(a: &mut Assembly, p: &ChairProgram, width: f32, family: u32) 
                 }
             }
             4 => {
-                let path: Vec<_> = (0..=10)
-                    .map(|i| {
-                        let t = i as f32 / 10.;
-                        Vec3::new(
-                            x * (0.80 + 0.20 * (PI * t).sin()),
-                            0.42 + (top - 0.42) * (PI * t).sin(),
-                            (2. * t - 1.) * half,
-                        )
-                    })
-                    .collect();
-                a.part(frame, "chair").tube(&path, 0.015, 10);
-                a.part(frame, "chair").rod(
-                    Vec3::new(x, top, -half),
-                    Vec3::new(x, top, half),
-                    0.010,
-                );
+                // Short pads cannot support a tall sine arch with a 30 mm
+                // tube: its crest radius can be smaller than the tube radius.
+                // Two explicit quarter bends keep a physically realizable
+                // radius, a flat pad carrier, and valid inside triangles.
+                let bend = (half * 0.60).min(0.045);
+                let mut path = vec![
+                    Vec3::new(x * 0.80, 0.42, -half),
+                    Vec3::new(x, top - bend, -half),
+                ];
+                for i in 1..=6 {
+                    let t = FRAC_PI_2 * i as f32 / 6.;
+                    path.push(Vec3::new(
+                        x,
+                        top - bend + bend * t.sin(),
+                        -half + bend * (1. - t.cos()),
+                    ));
+                }
+                path.push(Vec3::new(x, top, half - bend));
+                for i in 1..=6 {
+                    let t = FRAC_PI_2 * i as f32 / 6.;
+                    path.push(Vec3::new(
+                        x,
+                        top - bend + bend * t.cos(),
+                        half - bend + bend * t.sin(),
+                    ));
+                }
+                path.push(Vec3::new(x * 0.80, 0.42, half));
+                a.part(frame, "chair").tube(&path, 0.012, 10);
             }
             _ => {
                 // Upholstered side panel, recessed inside the arm pad.

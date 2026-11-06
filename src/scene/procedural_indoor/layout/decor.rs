@@ -48,7 +48,7 @@ impl IndoorManifest {
             let b = e.footprint[(wall.edge + 1) % e.footprint.len()];
             (e.wall_transform(wall.edge), a.distance(b))
         } else {
-            let side = FacadeSide::ALL[rng.random_range(0..3)];
+            let side = FacadeSide::ALL[rng.random_range(0..FacadeSide::ALL.len())];
             (side.transform(self.room_size), side.span(self.room_size))
         }
     }
@@ -102,51 +102,74 @@ impl IndoorManifest {
         }
     }
 
-    pub(super) fn wall_decorations(&mut self, rng: &mut ChaCha8Rng) {
-        let h = self.room_size.y;
-        let count = rng.random_range(1..=13);
-        for _ in 0..count {
+    /// Preserve each category's former proposal-count marginal, but remove the
+    /// shared categorical draw that made extra pictures imply fewer displays.
+    pub(super) fn wall_decoration_count(&self, kind: ObjectKind) -> usize {
+        let public = self.layout.is_public()
+            && !matches!(
+                self.layout,
+                IndoorLayout::Classroom | IndoorLayout::LectureHall
+            );
+        let dining = matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Cafeteria);
+        let (domain, probability) = match kind {
+            ObjectKind::WallArt => (
+                sampling::Domain::WallArt,
+                if public && !dining { 0.6 } else { 0.2 },
+            ),
+            ObjectKind::Display => (
+                sampling::Domain::Displays,
+                if public && dining { 0.6 } else { 0.2 },
+            ),
+            ObjectKind::Whiteboard => (
+                sampling::Domain::Whiteboards,
+                if public { 0.0 } else { 0.4 },
+            ),
+            ObjectKind::Clock => (sampling::Domain::Clocks, 0.2),
+            _ => unreachable!("not standalone wall decor"),
+        };
+        let mut r = domain.rng(self.seed);
+        let opportunities = r.random_range(1..=13);
+        (0..opportunities)
+            .filter(|_| r.random_bool(probability))
+            .count()
+    }
+
+    pub(super) fn wall_decoration_kind(&mut self, kind: ObjectKind) {
+        let domain = match kind {
+            ObjectKind::WallArt => sampling::Domain::WallArt,
+            ObjectKind::Display => sampling::Domain::Displays,
+            ObjectKind::Whiteboard => sampling::Domain::Whiteboards,
+            ObjectKind::Clock => sampling::Domain::Clocks,
+            _ => unreachable!("not standalone wall decor"),
+        };
+        let count = self.wall_decoration_count(kind);
+        if count == 0 {
+            return;
+        }
+        let mut occupied: Vec<_> = self
+            .objects
+            .iter()
+            .map(IndoorObject::bounds)
+            .chain(self.columns())
+            .collect();
+        for ordinal in 0..count {
+            let mut local = domain.proposal(self.seed, ordinal);
+            let rng = &mut local;
             let (tf, span) = self.attachment_wall(rng);
-            let mut choice = rng.random_range(0..5);
-            if self.layout.is_public()
-                && !matches!(
-                    self.layout,
-                    IndoorLayout::Classroom | IndoorLayout::LectureHall
-                )
-                && matches!(choice, 1 | 2)
-            {
-                choice = if matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Cafeteria) {
-                    0
-                } else {
-                    3
-                };
-            }
-            let (kind, size) = match choice {
-                0 => (
-                    ObjectKind::Display,
-                    super::wall_composition::standalone_size(ObjectKind::Display, rng),
-                ),
-                1 | 2 => (
-                    ObjectKind::Whiteboard,
-                    super::wall_composition::standalone_size(ObjectKind::Whiteboard, rng),
-                ),
-                3 => (
-                    ObjectKind::WallArt,
-                    super::wall_composition::standalone_size(ObjectKind::WallArt, rng),
-                ),
-                _ => (
-                    ObjectKind::Clock,
-                    super::super::objects::clocks::dimensions(rng),
-                ),
+            let size = if kind == ObjectKind::Clock {
+                super::super::objects::clocks::dimensions(rng)
+            } else {
+                super::wall_composition::standalone_size(kind, rng)
             };
             if span < size.x + 0.72 {
                 continue;
             }
             let along = rng
                 .random_range(-span * 0.5 + size.x * 0.5 + 0.35..span * 0.5 - size.x * 0.5 - 0.35);
+            let anchor = tf.transform_point(Vec3::new(along, 0., 0.));
+            let floor = self.floor_height(anchor.xz());
+            let roof = self.ceiling_height(anchor.xz());
             let y = if kind == ObjectKind::WallArt {
-                let anchor = tf.transform_point(Vec3::new(along, 0., 0.));
-                let floor = self.floor_height(anchor.xz());
                 let lo = (floor + 1.15).max(floor + 0.25 + size.y * 0.5);
                 let hi = (floor + 2.05).min(self.ceiling_height(anchor.xz()) - 0.25 - size.y * 0.5);
                 if lo >= hi {
@@ -154,7 +177,11 @@ impl IndoorManifest {
                 }
                 rng.random_range(lo..hi) - size.y * 0.5
             } else {
-                rng.random_range(0.95..(h - size.y - 0.3).clamp(0.96, 2.15))
+                let high = (roof - size.y - 0.30).min(floor + 2.15);
+                if high <= floor + 0.95 {
+                    continue;
+                }
+                rng.random_range(floor + 0.95..high)
             };
             let position = tf.transform_point(Vec3::new(along, y, 0.));
             let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
@@ -166,17 +193,12 @@ impl IndoorManifest {
             if !self.attachment_clear(tf, span, &object) {
                 continue;
             }
-            if self
-                .objects
-                .iter()
-                .map(IndoorObject::bounds)
-                .chain(self.columns())
-                .any(|(a, b)| {
-                    lo.cmplt(b + Vec3::splat(0.06)).all() && hi.cmpgt(a - Vec3::splat(0.06)).all()
-                })
-            {
+            if occupied.iter().copied().any(|(a, b)| {
+                lo.cmplt(b + Vec3::splat(0.06)).all() && hi.cmpgt(a - Vec3::splat(0.06)).all()
+            }) {
                 continue;
             }
+            occupied.push((lo, hi));
             self.objects.push(object);
         }
     }

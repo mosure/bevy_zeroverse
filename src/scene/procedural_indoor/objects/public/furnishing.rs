@@ -16,6 +16,11 @@ pub struct TeachingProgram {
     pub tray: bool,
     pub microphone: bool,
     pub finish: Surface,
+    /// Post span relative to panel width, independent of the panel's frame.
+    pub post_span: f32,
+    pub post_splay: f32,
+    pub foot_depth: f32,
+    pub crossbar_height: f32,
 }
 pub fn parameters(o: &IndoorObject) -> TeachingProgram {
     let mut r = stream(o.seed, 0x5445414348494e47);
@@ -39,6 +44,10 @@ pub fn parameters(o: &IndoorObject) -> TeachingProgram {
             Surface::Chrome,
             Surface::Plastic,
         ][f.random_range(0..4)],
+        post_span: r.random_range(0.38..0.91),
+        post_splay: r.random_range(-0.035..0.055),
+        foot_depth: r.random_range(0.65..0.95),
+        crossbar_height: r.random_range(0.20..0.72),
     }
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
@@ -158,22 +167,34 @@ fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
     let tf =
         Transform::from_xyz(0., bottom + h * 0.5, z).with_rotation(Quat::from_rotation_x(tilt));
     let post = s.x.min(s.z) * 0.022;
+    let mount = tf.transform_point(Vec3::new(0., -h * 0.5 - post * 0.45, 0.));
+    // A carrier below the frame joins split leaves and inset posts without
+    // running metal through either writing face.
+    a.part(p.finish, l).cuboid(
+        Vec3::new(w, post, d.max(post)),
+        0.001,
+        tf.with_translation(mount),
+    );
     for sign in [-1., 1.] {
-        let x = sign * w * 0.47;
-        let support_y = bottom + h * 0.46;
+        let x = sign * w * p.post_span * 0.5;
+        let foot_x = x + sign * w * p.post_splay;
+        let support_y = mount.y;
         a.box_part(
             p.finish,
             l,
-            Vec3::new(x, 0.025, 0.),
-            Vec3::new(post * 2.8, 0.05, s.z * 0.90),
+            Vec3::new(foot_x, 0.025, 0.),
+            Vec3::new(post * 2.8, 0.05, s.z * p.foot_depth),
             0.004,
         );
-        a.part(p.finish, l)
-            .rod(Vec3::new(x, 0.04, 0.), Vec3::new(x, support_y, z), post);
+        a.part(p.finish, l).rod(
+            Vec3::new(foot_x, 0.04, 0.),
+            Vec3::new(x, support_y, mount.z),
+            post,
+        );
         if p.structure == 2 {
             a.part(p.finish, l).rod(
-                Vec3::new(x, 0.04, -s.z * 0.39),
-                Vec3::new(x, support_y, z),
+                Vec3::new(foot_x, 0.04, -s.z * p.foot_depth * 0.44),
+                Vec3::new(x, support_y, mount.z),
                 post * 0.65,
             );
         }
@@ -181,11 +202,21 @@ fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
             for side in [-1., 1.] {
                 a.part(Surface::Rubber, l).ellipsoid(
                     Vec3::new(post, 0.025, 0.025),
-                    Transform::from_xyz(x, 0.025, side * s.z * 0.40),
+                    Transform::from_xyz(foot_x, 0.025, side * s.z * p.foot_depth * 0.44),
                 );
             }
         }
     }
+    // A lower stretcher joins the inset posts beneath the writing surface.
+    // Its endpoints follow the post splay instead of floating beside the legs.
+    let support_y = mount.y;
+    let t = p.crossbar_height;
+    let x = w * (p.post_span * 0.5 + p.post_splay * (1. - t));
+    a.part(p.finish, l).rod(
+        Vec3::new(-x, 0.04 + (support_y - 0.04) * t, mount.z * t),
+        Vec3::new(x, 0.04 + (support_y - 0.04) * t, mount.z * t),
+        post * 0.7,
+    );
     let count = if p.structure == 3 { p.panels } else { 1 };
     let gap = (p.leaf_gap * s.x).min(w * 0.04);
     let leaf = (w - (count - 1) as f32 * gap) / count as f32;

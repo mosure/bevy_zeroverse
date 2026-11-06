@@ -1,8 +1,21 @@
 //! Waste containers with independent metric walls, rim, lid and support details.
 use super::*;
 
+/// Deliberately coordinated station identities. Ordinary bins retain variants
+/// 0..3; these flags carry the role through manifests and annotation replay.
+pub const WASTE_STATION: u32 = 1 << 30;
+pub const RECYCLING: u32 = 1 << 31;
+
+#[derive(Debug, Clone, Copy, serde::Serialize, PartialEq, Eq)]
+pub enum WasteStream {
+    Unspecified,
+    General,
+    Recycling,
+}
+
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct BinProgram {
+    pub waste_stream: WasteStream,
     pub squareness: f32,
     pub taper: f32,
     pub rim_width: f32,
@@ -27,8 +40,20 @@ pub fn parameters(o: &IndoorObject) -> BinProgram {
     let mut r = stream(o.seed, 0x42494e50524f4752);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x42494e46494e4953);
     let s = o.size;
-    let lid = r.random_range(0..5);
-    let lid_height = if matches!(lid, 1 | 2) {
+    let sampled_lid = r.random_range(0..5);
+    let waste_stream = if o.variant & WASTE_STATION == 0 {
+        WasteStream::Unspecified
+    } else if o.variant & RECYCLING != 0 {
+        WasteStream::Recycling
+    } else {
+        WasteStream::General
+    };
+    let lid = if waste_stream == WasteStream::Unspecified {
+        sampled_lid
+    } else {
+        5
+    };
+    let lid_height = if matches!(lid, 1 | 2 | 5) {
         s.y * r.random_range(0.025..0.10)
     } else {
         0.
@@ -42,6 +67,7 @@ pub fn parameters(o: &IndoorObject) -> BinProgram {
         s.z * r.random_range(0.85..0.94),
     );
     BinProgram {
+        waste_stream,
         squareness: r.random_range(2.0..8.5),
         taper: r.random_range(0.64..0.98),
         rim_width: r.random_range(0.025..0.075),
@@ -115,20 +141,49 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     );
     if p.lid_height > 0. {
         let y = top + p.seam;
-        a.part(p.hardware, l).housing(
-            &[
-                (y, half * 1.015),
-                (y + p.lid_height * 0.65, half * 1.018),
-                (y + p.lid_height, half * 0.94),
-            ],
-            p.squareness,
-            Transform::IDENTITY,
-        );
+        if p.lid == 5 {
+            // A genuine aperture, never a black rectangle over a closed cap.
+            // Paper/recycling uses a wide slot; general waste a larger opening.
+            let hole = half
+                * if p.waste_stream == WasteStream::Recycling {
+                    Vec2::new(0.65, 0.22)
+                } else {
+                    Vec2::new(0.57, 0.65)
+                };
+            let slot = if p.waste_stream == WasteStream::Recycling {
+                5
+            } else {
+                1
+            };
+            a.part(Surface::Plastic, &format!("{l}#finish{slot}"))
+                .housing_loop(
+                    &[
+                        (y, half * 1.015),
+                        (y + p.lid_height, half * 0.96),
+                        (y + p.lid_height, hole),
+                        (y, hole),
+                        (y, half * 1.015),
+                    ],
+                    p.squareness,
+                    Transform::IDENTITY,
+                );
+        } else {
+            a.part(p.hardware, l).housing(
+                &[
+                    (y, half * 1.015),
+                    (y + p.lid_height * 0.65, half * 1.018),
+                    (y + p.lid_height, half * 0.94),
+                ],
+                p.squareness,
+                Transform::IDENTITY,
+            );
+        }
         // A connected rear hinge spans the seam; surfaces remain separated.
+        let hinge_radius = p.seam * 0.7 + p.lid_height * 0.16;
         a.part(p.hardware, l).cylinder(
-            p.seam * 0.7 + p.lid_height * 0.16,
+            hinge_radius,
             p.body.x * 0.27,
-            Transform::from_xyz(0., top + p.seam * 0.5, -half.y * 0.96)
+            Transform::from_xyz(0., top + p.seam * 0.5, -half.y + hinge_radius)
                 .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
         );
         if p.lid == 1 {
@@ -141,7 +196,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 Vec3::new(p.body.x * p.pedal_width, p.floor * 0.68, depth),
                 p.floor * 0.12,
             );
-        } else {
+        } else if p.lid == 2 {
             a.box_part(
                 Surface::Ink,
                 l,
@@ -189,10 +244,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 }
 
 pub(crate) fn dimensions(r: &mut impl Rng) -> Vec3 {
-    let width = r.random_range(0.24..0.46);
+    // Independently sample capacity and aspect: compact desk baskets, slim
+    // kitchen bins and commercial stations, rather than uniformly scaled bins.
+    let width = r.random_range(0.22_f32.ln()..0.58_f32.ln()).exp();
     Vec3::new(
         width,
-        width * r.random_range(1.05..1.95),
-        width * r.random_range(0.74..1.22),
+        r.random_range(0.28..0.92),
+        width * r.random_range(0.62..1.35),
     )
 }

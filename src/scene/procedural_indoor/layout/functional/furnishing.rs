@@ -3,6 +3,7 @@ mod dining;
 mod exhibition;
 mod lecture;
 mod queue;
+mod recovery;
 mod table_rows;
 mod teaching;
 mod transit;
@@ -190,6 +191,11 @@ impl IndoorManifest {
                         && !self.objects[first..].iter().any(|o| o.kind == kind)
                     {
                         self.recover_elevator_anchor(index, size, &mut r);
+                    }
+                    if kind == ObjectKind::DisplayCase
+                        && !self.objects[first..].iter().any(|o| o.kind == kind)
+                    {
+                        self.recover_display_anchor(index, size, &mut r);
                     }
                 }
             }

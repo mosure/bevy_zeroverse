@@ -6,6 +6,19 @@ mod exits;
 mod suspended;
 use crate::scene::procedural_indoor::{architecture, objects::equipment::signals};
 
+pub(crate) const INSTALLATION_GAP: f32 = 0.025;
+
+pub(crate) fn is_wall_service(o: &IndoorObject) -> bool {
+    matches!(
+        o.kind,
+        ObjectKind::ExitSign
+            | ObjectKind::FireAlarm
+            | ObjectKind::FireDetector
+            | ObjectKind::FirePullStation
+            | ObjectKind::StringLights
+    ) || (o.kind == ObjectKind::Speaker && o.support.is_none() && !o.solid)
+}
+
 pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     if o.solid || o.neighbor || o.support.is_some() {
         return false;
@@ -30,7 +43,8 @@ pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     // Match the existing fan/pendant reservation margin in both directions.
     // A late service must not invalidate an already accepted fixture (seed 66).
     let overlaps = |lo: Vec3, hi: Vec3, a: Vec3, b: Vec3| {
-        lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
+        lo.cmplt(b + Vec3::splat(INSTALLATION_GAP)).all()
+            && hi.cmpgt(a - Vec3::splat(INSTALLATION_GAP)).all()
     };
     let reservations: Vec<_> = o.obstacle_bounds().collect();
     if reservations
@@ -82,99 +96,90 @@ fn pull_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
 }
 
 impl IndoorManifest {
-    pub(in super::super::super) fn furnish_room_services(&mut self) {
-        let mut r = stream(self.seed, 0x524f4f4d535256);
-        exits::furnish(self, &mut r);
-        // Speakers come in matched installations but do not force symmetrical
-        // room-axis placement. Broad dimensions cover soundbars/column speakers.
-        for kind in [ObjectKind::FireAlarm, ObjectKind::Speaker] {
-            if kind == ObjectKind::Speaker && !r.random_bool(0.72) {
-                continue;
+    pub(in super::super::super) fn furnish_exit_signs(&mut self) {
+        exits::furnish(self, &mut sampling::Domain::ExitSigns.rng(self.seed));
+    }
+
+    pub(in super::super::super) fn furnish_wall_service(&mut self, kind: ObjectKind) {
+        let domain = match kind {
+            ObjectKind::FireAlarm => sampling::Domain::Alarms,
+            ObjectKind::Speaker => sampling::Domain::Speakers,
+            _ => unreachable!("not a wall service"),
+        };
+        let mut product = domain.rng(self.seed);
+        if kind == ObjectKind::Speaker && !product.random_bool(0.72) {
+            return;
+        }
+        let count = if kind == ObjectKind::Speaker {
+            product.random_range(1..=3)
+        } else {
+            1
+        };
+        // Matched speakers are an intentional installation. Neither their
+        // product nor the alarm changes when an unrelated exit sign retries.
+        let size = if kind == ObjectKind::FireAlarm {
+            Vec3::new(
+                product.random_range(0.10..0.18),
+                product.random_range(0.13..0.24),
+                product.random_range(0.035..0.07),
+            )
+        } else if product.random_bool(0.35) {
+            Vec3::new(
+                product.random_range(0.50..1.10),
+                product.random_range(0.09..0.18),
+                product.random_range(0.07..0.13),
+            )
+        } else {
+            Vec3::new(
+                product.random_range(0.14..0.32),
+                product.random_range(0.23..0.65),
+                product.random_range(0.10..0.25),
+            )
+        };
+        let mut model = self.candidate(kind, Vec3::ZERO, size, 0., &mut product);
+        model.solid = false;
+        if kind == ObjectKind::FireAlarm {
+            model.variant = product.random_range(0..4);
+            if model.variant == 3 {
+                model.size.y = model.size.x;
             }
-            let count = if kind == ObjectKind::Speaker {
-                r.random_range(1..=3)
-            } else {
-                1
-            };
-            let size = match kind {
-                ObjectKind::FireAlarm => Vec3::new(
-                    r.random_range(0.10..0.18),
-                    r.random_range(0.13..0.24),
-                    r.random_range(0.035..0.07),
-                ),
-                ObjectKind::Speaker => {
-                    if r.random_bool(0.35) {
-                        Vec3::new(
-                            r.random_range(0.50..1.10),
-                            r.random_range(0.09..0.18),
-                            r.random_range(0.07..0.13),
-                        )
-                    } else {
-                        Vec3::new(
-                            r.random_range(0.14..0.32),
-                            r.random_range(0.23..0.65),
-                            r.random_range(0.10..0.25),
-                        )
-                    }
+        }
+        for ordinal in 0..count {
+            let mut r = domain.proposal(self.seed, ordinal);
+            for _ in 0..16 {
+                let (tf, span) = self.attachment_wall(&mut r);
+                if size.x + 0.25 >= span {
+                    continue;
                 }
-                _ => unreachable!(),
-            };
-            let product_seed = r.random();
-            for _ in 0..count {
-                for _ in 0..16 {
-                    let (tf, span) = self.attachment_wall(&mut r);
-                    if size.x + 0.25 >= span {
-                        continue;
-                    }
-                    let x =
-                        r.random_range((-span + size.x) * 0.5 + 0.10..(span - size.x) * 0.5 - 0.10);
-                    let offset = if kind == ObjectKind::Speaker {
-                        0.46
-                    } else {
-                        0.5
-                    };
-                    let mut p = tf.transform_point(Vec3::new(x, 0., size.z * offset + 0.001));
-                    let roof = self.ceiling_height(p.xz());
-                    p.y = r.random_range(1.80_f32..2.15).min(roof - size.y - 0.28);
-                    if p.y < 1.55 {
-                        continue;
-                    }
-                    let mut o = self.candidate(
-                        kind,
-                        p,
-                        size,
-                        tf.rotation.to_euler(EulerRot::YXZ).0,
-                        &mut r,
-                    );
-                    o.solid = false;
-                    if kind == ObjectKind::Speaker {
-                        o.seed = product_seed;
-                    } else {
-                        o.variant = r.random_range(0..4);
-                    }
-                    if kind == ObjectKind::FireAlarm && o.variant == 3 {
-                        o.size.y = o.size.x;
-                    }
-                    // A bell's rear face is shallower than a rectangular alarm
-                    // enclosure. Fit the sampled geometry, not the nominal box.
-                    let mounting = super::super::super::objects::wall::mount_offset(&o)
-                        .expect("wall service has a mounting plane");
-                    o.position += tf.rotation * Vec3::Z * (mounting - size.z * offset - 0.001);
-                    if mounted_clear(self, &o) {
-                        self.objects.push(o);
-                        break;
-                    }
+                let x = r.random_range((-span + size.x) * 0.5 + 0.10..(span - size.x) * 0.5 - 0.10);
+                let mut o = model.clone();
+                o.id = self.objects.len();
+                o.yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
+                let mounting = super::super::super::objects::wall::mount_offset(&o)
+                    .expect("wall service has a mounting plane");
+                o.position = tf.transform_point(Vec3::new(x, 0., mounting));
+                let floor = self.floor_height(o.position.xz());
+                let roof = self.ceiling_height(o.position.xz());
+                let high = (floor + 2.15).min(roof - o.size.y - 0.28);
+                let low = (floor + 1.80).min(high - 0.05).max(floor + 1.55);
+                if high <= low {
+                    continue;
+                }
+                // Sample the feasible interval; clamping used to stack fixtures
+                // at exactly roof - height - 0.28 under lower ceilings.
+                o.position.y = r.random_range(low..high);
+                if mounted_clear(self, &o) {
+                    self.objects.push(o);
+                    break;
                 }
             }
         }
-        self.furnish_suspended_services();
-        self.furnish_pull_station();
     }
-    fn furnish_pull_station(&mut self) {
+    pub(in super::super::super) fn furnish_pull_station(&mut self) {
         let Some(door) = self.entry_door.clone() else {
             return;
         };
-        let mut r = stream(self.seed, 0x50554c4c535441);
+        let mut r = sampling::Domain::PullStations.rng(self.seed);
         for i in 0..32 {
             let size = Vec3::new(
                 r.random_range(0.085..0.14),

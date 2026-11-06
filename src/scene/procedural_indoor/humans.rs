@@ -952,13 +952,19 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         {
             continue;
         }
-        if object.kind == ObjectKind::CeilingFan {
+        if object.kind == ObjectKind::CeilingFan
+            || super::layout::equipment::services::is_wall_service(object)
+        {
             // The complete rotor disk stays clear even when the sampled fan
             // is static. Raised hands cannot enter between stationary blades.
-            // Match fixture admission's reserve and margin in both directions.
-            if object.obstacle_bounds().any(|(a, b)| {
-                lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
-            }) {
+            // Wall-service admission also reserves the whole person envelope.
+            // Match that contract in both directions (lecture hall seed 62),
+            // before the smaller capsule broad-phase margin can skip a fixture.
+            let gap = Vec3::splat(super::layout::equipment::services::INSTALLATION_GAP);
+            if object
+                .obstacle_bounds()
+                .any(|(a, b)| lo.cmplt(b + gap).all() && hi.cmpgt(a - gap).all())
+            {
                 return false;
             }
             continue;

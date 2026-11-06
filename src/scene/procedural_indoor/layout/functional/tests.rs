@@ -182,11 +182,15 @@ fn public_motion_plans_use_level_floor_and_leave_static_people_supported() {
 #[test]
 fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
     use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
-    for (seed, density, people) in [63_069_510, 65_437_985].into_iter().flat_map(|seed| {
-        [0., 0.65, 1.]
+    for (seed, density, people) in
+        [63_069_510, 65_437_985, 69_608_412]
             .into_iter()
-            .flat_map(move |density| [0., 0.5, 1.].map(move |people| (seed, density, people)))
-    }) {
+            .flat_map(|seed| {
+                [0., 0.65, 1.].into_iter().flat_map(move |density| {
+                    [0., 0.5, 1.].map(move |people| (seed, density, people))
+                })
+            })
+    {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
                 .unwrap();
@@ -233,6 +237,38 @@ fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
 }
 
 #[test]
+fn rejected_cafe_cases_fit_narrow_bays_without_shrinking_products_or_aisles() {
+    use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+    for seed in [69_430_992, 69_531_153] {
+        for density in [0., 0.65, 1.] {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, 0.5)
+                    .unwrap();
+            validate_layout(&scene).unwrap();
+            validate_geometry(&scene).unwrap();
+            let program = scene
+                .functional_programs()
+                .iter()
+                .find(|p| p.activity == IndoorLayout::Cafe)
+                .unwrap();
+            let case = program
+                .members
+                .iter()
+                .map(|&id| &scene.objects[id])
+                .find(|o| o.kind == ObjectKind::DisplayCase)
+                .unwrap();
+            assert!((0.80..1.95).contains(&case.size.x));
+            assert!((0.88..1.92).contains(&case.size.y));
+            assert!((0.48..0.84).contains(&case.size.z));
+            assert!(scene.placement_clear(case, 0.035));
+            let aisle = &program.reservations[0];
+            assert!(((aisle.max.x - aisle.min.x) - program.parameters.aisle_metres).abs() < 1e-5);
+            assert!(program.rejected_candidates < 2_000);
+        }
+    }
+}
+
+#[test]
 fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() {
     use crate::scene::procedural_indoor::{
         architecture::ceiling::CeilingSystem,
@@ -271,4 +307,38 @@ fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() 
         );
     }
     assert!(scene.functional_programs()[0].rejected_candidates < 20_000);
+}
+
+#[test]
+fn archived_landing_moves_aisle_instead_of_removing_roof_structure() {
+    use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+    let mut scene: IndoorManifest =
+        serde_json::from_str(include_str!("fixtures/elevator_circulation_69608412.json")).unwrap();
+    scene.generator_version = GENERATOR_VERSION;
+    let envelope = scene.envelope.clone();
+    let ceiling = scene.ceiling_installation.clone();
+    scene.furnish_public_programs();
+    validate_layout(&scene).unwrap();
+    validate_geometry(&scene).unwrap();
+    assert_eq!(scene.envelope, envelope);
+    assert_eq!(scene.ceiling_installation, ceiling);
+    let p = &scene.functional_programs()[0];
+    let aisle = &p.reservations[0];
+    assert!(((aisle.max.x - aisle.min.x) - p.parameters.aisle_metres).abs() < 1e-5);
+    assert!(((aisle.min.x + aisle.max.x) - (p.min.x + p.max.x)).abs() > 0.1);
+    let floor = scene.floor_height((aisle.min + aisle.max) * 0.5);
+    assert!(scene
+        .structural_obstacles_with_ceiling(true)
+        .iter()
+        .all(|&(lo, hi)| lo.y >= floor + 2.0 || hi.y <= floor + 0.02 || !aisle.overlaps(lo, hi)));
+    assert!(p.rejected_candidates < 20_000);
+    let elevator = scene
+        .objects
+        .iter()
+        .find(|o| o.kind == ObjectKind::Elevator)
+        .unwrap();
+    assert!(elevator.size.x >= 2.05 && elevator.size.z >= 1.50);
+    assert!(
+        crate::scene::procedural_indoor::objects::public::elevator::car_height(elevator) >= 2.50
+    );
 }

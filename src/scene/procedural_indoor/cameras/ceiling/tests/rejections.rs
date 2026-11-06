@@ -3,6 +3,42 @@
 use super::*;
 
 #[test]
+fn production_69391845_mixed_baseline() {
+    qualify_training_replay(69_391_845, 32_768);
+}
+
+#[test]
+fn production_69329109_mixed_baseline() {
+    qualify_training_replay_with_reference_budget(69_329_109, 32_768, 40_000);
+}
+
+#[test]
+fn production_69430992_mixed_baseline() {
+    qualify_training_replay(69_430_992, 32_768);
+}
+
+#[test]
+fn production_69531153_mixed_baseline() {
+    qualify_training_replay(69_531_153, 32_768);
+}
+
+#[test]
+fn production_69608412_mixed_baseline() {
+    qualify_training_replay(69_608_412, 32_768);
+}
+
+#[test]
+fn production_69_reported_neighbors() {
+    for seed in [
+        69_608_411, 69_608_413, 69_531_152, 69_531_154, 69_430_991, 69_430_993, 69_391_844,
+        69_391_846, 69_329_108, 69_329_110,
+    ] {
+        let scene = qualify_mixed_training_seed(seed);
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+    }
+}
+
+#[test]
 fn production_67354233_mixed_baseline() {
     qualify_training_replay(67_354_233, 32_768);
 }

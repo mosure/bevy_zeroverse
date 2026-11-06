@@ -85,10 +85,11 @@ impl IndoorManifest {
                     }
                 }
                 IndoorLayout::Lounge | IndoorLayout::Reception | IndoorLayout::Breakroom => {
+                    let sofa_size = super::super::objects::seating::dimensions(rng);
                     self.add_work(
                         ObjectKind::Sofa,
                         Vec3::new(0.0, 0.0, -1.45),
-                        Vec3::new(rng.random_range(2.2..2.85), 0.88, 0.91),
+                        sofa_size,
                         PI,
                         rng,
                     );

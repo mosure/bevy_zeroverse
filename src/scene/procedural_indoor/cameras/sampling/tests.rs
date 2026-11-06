@@ -428,10 +428,14 @@ fn person_fallback_keeps_authored_handheld_orientations_reversal_and_duration() 
     let base = Transform::from_translation(camera.end)
         .looking_at(camera.target, Vec3::Y)
         .rotation;
-    assert!(
-        orientation[1].angle_between(base) < 1e-5,
-        "reverse preserves original starting orientation at the endpoint"
-    );
+    // acos(dot(q, q)) can amplify a one-ULP norm error into a nonzero
+    // angle. Compare the actual frame at the same tolerance instead.
+    for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
+        assert!(
+            (orientation[1] * axis).distance(base * axis) < 1e-5,
+            "reverse preserves original starting orientation at the endpoint"
+        );
+    }
     assert!(
         orientation[0].angle_between(base) > 0.01,
         "authored endpoint rotation must survive reversal"
@@ -481,7 +485,9 @@ fn person_fallback_accepts_authored_rotation_only_handheld_with_zero_minimum_pat
     let base = Transform::from_translation(camera.start)
         .looking_at(camera.target, Vec3::Y)
         .rotation;
-    assert!(orientations[1].angle_between(base) < 1e-5);
+    for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
+        assert!((orientations[1] * axis).distance(base * axis) < 1e-5);
+    }
     assert!(orientations[0].angle_between(base) > 0.01);
     for step in 0..=64 {
         assert!(
