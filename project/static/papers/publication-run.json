@@ -1,22 +1,22 @@
 {
-  "checkout_revision": "2bd5c20bf190350194aa4f97f9e2c212a0431d4e",
+  "checkout_revision": "884a18c791fa5ad6cbd01e8525c49743f3d603b9",
   "completed_stage_sha256": {
-    "camera-audit": "c9533943b2c56bc09209af90769aae3e5225b4fd5a97f9622924b472c365502c",
-    "camera-render": "c6fc7d3bb5a1c1802fa99d5e0faeffcb28cef62afb865142a160c7809a1e381c",
-    "camera-report": "03bf580ccce743d366840f9b8310f2a5ad19095c860b744c6bfb23a5ffe1805c",
-    "fisheye": "c9aff3ddf1cca8cb76f51f80c9a792834bfdb3be2f80412444893923fc80c66f",
-    "pipeline-timing": "78d1fd260675bfb0e79944db937b6c7cdaae19668b9b014855b8883790c5db10",
-    "room-qualification": "60808e68136e4eb2818ddf71d0b981cdcf2a41a35129afef2c7b7f486a200b27"
+    "camera-audit": "5554745caaad75652cbce8a2f7f6da87c508017be304308370b17b159d505092",
+    "camera-render": "92ebbca4765c7a967965ae292fd0e647ede893786c382ef098b2f92011cf2e2d",
+    "camera-report": "6c3b89985392f068e4261de6768e2b50fee865927e0c971a5251f4a826cf349e",
+    "fisheye": "81fe4dbe9ec52adc48eff7aff3349732a8767b3d0ee94669fe0f7fa2863eb71d",
+    "pipeline-timing": "9520eb3481ec41202ab9d4b21bc86499e7ed0f44fd869037358b70808174a6d7",
+    "room-qualification": "0804962650b80aefa54d9d3436b2474b16e1582d6a5dbf1ed6c9d080a2b66266"
   },
   "execution": "native render commands; actual adapters are recorded in each render/timing receipt",
   "generator_identity": {
-    "crate_version": "0.62.2",
-    "generator_version": 112,
+    "crate_version": "0.62.3",
+    "generator_version": 115,
     "schema_version": 1,
-    "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce"
+    "source_sha256": "90f0e2d6fe3b2e6e5b4731c31016c92aa33534a257f307eacfdc13f01bb1e8b0"
   },
   "plan": {
-    "cache_key": "c619b37fbc46ff3f92550c0bb4a166763bd164e39fd6ef12e68d04d1d3567e75",
+    "cache_key": "2e9b26533ac648d78533ad8b7150fd44958f30e5b0d39af5162e95b000ffc2a7",
     "cache_policy": "exact source, tool, recipe and completed artifact hashes; never retained evidence",
     "camera_baselines": [
       0.0,
@@ -58,12 +58,12 @@
     "fisheye_rendered_views": 36,
     "gallery_rendered_views": 256,
     "generator_identity": {
-      "crate_version": "0.62.2",
-      "generator_version": 112,
+      "crate_version": "0.62.3",
+      "generator_version": 115,
       "schema_version": 1,
-      "source_sha256": "b305c983efe328b7887fab566d9e02bd96da9700c444956209339f33dc6882ce"
+      "source_sha256": "90f0e2d6fe3b2e6e5b4731c31016c92aa33534a257f307eacfdc13f01bb1e8b0"
     },
-    "publisher_sha256": "a3cf2ee58ecf74c77ccac1464ca72b02ed472f8dad1794fa0ab5724e40b92c08",
+    "publisher_sha256": "1257cf0e2f4f6db392765278e86f45de061ea9dfff12471675151fbcf1477e28",
     "recipe": {
       "camera_audit_rooms": 64,
       "camera_render_rooms": 2,
@@ -103,13 +103,14 @@
       "examples/audit_display_materials.rs": "a003a340bea9996600d57be67cf47a9523bb3351121e22f3dee3bef4185236e8",
       "examples/audit_materials.rs": "fce39c1a288fe807c594993aa4fdfd0b8fb7994a6f0d5cbeca3bea93fa0d3e35",
       "examples/audit_objects.rs": "3b3f11948dd2e61926dfb92a2ced93bc89b26ac220d8922ef22be67d3ad3f2bf",
+      "examples/audit_placement_sampling.rs": "2c5695ab60520ed10c59c875b150e85bc5ca6965fe0991b34778da8d74d8cfc2",
       "examples/audit_plants.rs": "b3991a59376c448c1e28c78a09308130e60013e77d842ea99f3bbbddc651cfd9",
       "examples/audit_public_cameras.rs": "1fa864274dacecf334edaf2cbceaae4006cfe6dfaa4d69c0c48d75f12127694c",
       "examples/audit_public_programs.rs": "257cfd7ded0954cf99b2f461046e3250694ca45a6bf394c4213d4f821bfdae1a",
       "examples/audit_room_geometry.rs": "e39bb3552f3f174ca6b7d50de44e881332a52f1576683a9180e98fa4214a01d6",
       "examples/bench_lens_preview.rs": "84067548f278f058e76344bb77a2b4f2f77202cb016e18ed55242f25dbcf2643",
       "examples/capture_endurance.rs": "3f5cb4998788c00f46ea2f1ef76da0d220cfcdaf72b1533d0e3ba1199390a4cb",
-      "examples/material_study/audit.rs": "bd65feb050ed413f80a390cb58c063e87d77cd78959bc685b2993b73dddbf0ae",
+      "examples/material_study/audit.rs": "3842227e9800010654ff9e0c53a4d7180ebae8ef03ed5ad041a88042b223de58",
       "examples/material_study/studio.rs": "0858332fc072926a02aab832339e9ff0c28a8497ebc775139cfb45eab25fbb9c",
       "examples/qualify_materials.rs": "c8a7a90e6a8b9d2a6b12dbc147281984262e2ab1027cc38f0eb43d0622052c03",
       "examples/review_camera_controls.rs": "b877857092913902c70419b9e6db2526ba2c9a0d4aeac0bf92cedcd4bb54df6b",
@@ -123,7 +124,7 @@
       "examples/review_furniture/bags.rs": "fd09af6a38d49f2065a888591de67369b4912fdef76e03bc29995ddadf53ba47",
       "examples/review_furniture/conference.rs": "5e2d59cea060ac7eed7cfa4aa558435e9260e5a72301d88a5ac016de9ac0592e",
       "examples/review_furniture/fixtures.rs": "d678cfabf182a00c48b180c47ca41c53515ee3041ac28eb2adc969c06962d61e",
-      "examples/review_furniture/seating.rs": "6d272ead1238305a62dc4c528e2ee1807298435c0c6f36d539895059a2c58079",
+      "examples/review_furniture/seating.rs": "fa36a50e7aa891e50f66a2d010cded7600634aa21eaa2f1a4f8d4c24b2ae8239",
       "examples/review_furniture/services.rs": "19e4615253a2709961c3325f901a6165e6776c4324af879981c4bf25152c76c1",
       "examples/review_furniture/tabletop.rs": "b0b9a12fb1d5a2e49b3eb194581425a28057177ab17a15e3045cce9e1beb8ce8",
       "examples/review_humans.rs": "bc00d8ae7e9de5ba2dba6f5d65ccd9353aa5bff7477f660096270a9a9ad5fe30",

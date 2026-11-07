@@ -9,20 +9,20 @@
   "camera_diagnostics": {
     "recovery_intrinsic_draws": 0,
     "recovery_path_proposals": 0,
-    "reference_proposals": 222,
-    "long_reference_requests": 4,
+    "reference_proposals": 104,
+    "long_reference_requests": 8,
     "short_reference_recoveries": 0,
     "reference_rejections": [
-      84,
-      15,
-      17,
-      41,
-      56
+      37,
+      14,
+      11,
+      16,
+      9
     ],
     "group_restarts": 0,
     "prefix_backtracks": 0,
     "connected_reference_recoveries": 0,
-    "peer_proposals": 55,
+    "peer_proposals": 65,
     "peer_rejections": [
       0,
       0,
@@ -31,7 +31,7 @@
       0,
       0
     ],
-    "endpoint_adjustments": 32,
+    "endpoint_adjustments": 12,
     "peer_search_succeeded": true,
     "peer_search_fallbacks": 0,
     "peer_search_discarded_proposals": 0,
@@ -45,10 +45,10 @@
     "mounts": [],
     "programs": [],
     "kitchens": [],
-    "proposed_workstations": 17,
+    "proposed_workstations": 25,
     "proposed_meetings": 0,
-    "rejected_surfaces": 11,
-    "rejected_seating": 5,
+    "rejected_surfaces": 14,
+    "rejected_seating": 7,
     "rejected_meetings": 0,
     "accepted": [
       {
@@ -59,10 +59,37 @@
         ],
         "requested_capacity": 1,
         "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 2,
+        "seats": [
+          3
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 4,
+        "seats": [
+          5
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
+      },
+      {
+        "role": "Workstation",
+        "surface": 6,
+        "seats": [
+          7
+        ],
+        "requested_capacity": 1,
+        "attempts": 1
       }
     ]
   },
-  "generator_version": 112,
+  "generator_version": 115,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -3284,21 +3311,22 @@
       "interaction_target": 0
     },
     {
+      "finish_seed": 12613192252607257110,
       "id": 2,
-      "kind": "Sofa",
+      "kind": "CoffeeTable",
       "position": [
         -0.9124627,
         0.0,
         -0.29478598
       ],
       "size": [
-        1.88133,
-        0.92417747,
-        1.0365858
+        1.2401731,
+        0.44124803,
+        0.71416986
       ],
       "yaw": 4.8014836,
       "variant": 0,
-      "seed": 11067334531399558391,
+      "seed": 12613192252607257110,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3306,41 +3334,42 @@
     },
     {
       "id": 3,
-      "kind": "Sofa",
+      "kind": "Chair",
       "position": [
-        1.3779047,
+        -1.7854526,
         0.0,
-        -1.1814771
+        -0.24504611
       ],
       "size": [
-        2.1507638,
-        0.9690747,
-        0.8455889
+        0.68,
+        0.83882624,
+        0.68
       ],
-      "yaw": 4.2297444,
+      "yaw": 4.9093385,
       "variant": 2,
-      "seed": 1896782831985359926,
+      "seed": 18150434804005459930,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": null
+      "interaction_target": 2
     },
     {
+      "finish_seed": 6941915299191643787,
       "id": 4,
-      "kind": "Cabinet",
+      "kind": "CoffeeTable",
       "position": [
-        -3.105821,
+        1.8114293,
         0.0,
-        -1.1695457
+        -1.0564513
       ],
       "size": [
-        0.86501825,
-        1.1531701,
-        0.45980766
+        1.2661779,
+        0.39208254,
+        0.75297046
       ],
-      "yaw": -1.5802145,
-      "variant": 1,
-      "seed": 13114238734460937307,
+      "yaw": 4.25404,
+      "variant": 2,
+      "seed": 6941915299191643787,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3348,83 +3377,85 @@
     },
     {
       "id": 5,
-      "kind": "Bookcase",
+      "kind": "Chair",
       "position": [
-        -2.0592556,
+        0.913516,
         0.0,
-        -2.910849
+        -1.4273102
       ],
       "size": [
-        1.0141275,
-        1.6011273,
-        0.33832738
+        0.68,
+        0.85761416,
+        0.68
       ],
-      "yaw": 0.10451694,
-      "variant": 2,
-      "seed": 8157790765450528969,
+      "yaw": 4.530339,
+      "variant": 1,
+      "seed": 11856847756827110972,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": null
+      "interaction_target": 4
     },
     {
+      "finish_seed": 4804757500729632053,
       "id": 6,
-      "kind": "Cabinet",
+      "kind": "CoffeeTable",
       "position": [
-        -1.5493615,
+        -1.8298287,
         0.0,
-        3.0943139
+        -1.7413349
       ],
       "size": [
-        0.9016875,
-        1.0322444,
-        0.36307213
+        1.4788682,
+        0.40034997,
+        0.6823073
       ],
-      "yaw": 3.2668014,
-      "variant": 1,
-      "seed": 10141583572245693485,
+      "yaw": 4.1714787,
+      "variant": 2,
+      "seed": 4804757500729632053,
       "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
+      "finish_seed": 4804757500729632053,
       "id": 7,
-      "kind": "Bag",
+      "kind": "Chair",
       "position": [
-        1.1563478,
+        -2.5903673,
         0.0,
-        -2.8618102
+        -2.177898
       ],
       "size": [
-        0.34444126,
-        0.44253182,
-        0.1858708
+        0.68,
+        0.48,
+        0.68
       ],
-      "yaw": -0.050126836,
-      "variant": 1,
-      "seed": 4067587380884483216,
+      "yaw": 4.232915,
+      "variant": 7,
+      "seed": 12535253697737923850,
       "solid": true,
       "support": null,
       "neighbor": false,
-      "interaction_target": null
+      "interaction_target": 6
     },
     {
       "id": 8,
-      "kind": "CoffeeTable",
+      "kind": "Bookcase",
       "position": [
-        0.13634229,
+        -1.2614336,
         0.0,
-        -0.6732036
+        3.1046062
       ],
       "size": [
-        1.1056896,
-        0.43512404,
-        0.51321304
+        1.1989511,
+        1.7300646,
+        0.32401574
       ],
-      "yaw": 4.7561183,
-      "variant": 1,
-      "seed": 18241505858389131204,
+      "yaw": 2.9665897,
+      "variant": 0,
+      "seed": 5107642189209314708,
       "solid": true,
       "support": null,
       "neighbor": false,
@@ -3432,6 +3463,27 @@
     },
     {
       "id": 9,
+      "kind": "StorageBox",
+      "position": [
+        3.1806703,
+        0.0,
+        2.0757763
+      ],
+      "size": [
+        0.36092687,
+        0.27626076,
+        0.27169868
+      ],
+      "yaw": 1.8849156,
+      "variant": 0,
+      "seed": 16441425891653472830,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 10,
       "kind": "Plant",
       "position": [
         0.097774714,
@@ -3452,7 +3504,28 @@
       "interaction_target": null
     },
     {
-      "id": 10,
+      "id": 11,
+      "kind": "TrashCan",
+      "position": [
+        -2.2971964,
+        0.0,
+        -2.9932094
+      ],
+      "size": [
+        0.23384386,
+        0.6721896,
+        0.18360285
+      ],
+      "yaw": -0.31016606,
+      "variant": 1073741824,
+      "seed": 15055291438043359677,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 12,
       "kind": "Desk",
       "position": [
         -1.7357404,
@@ -3466,14 +3539,14 @@
       ],
       "yaw": 3.1415927,
       "variant": 2,
-      "seed": 2409445215292961712,
+      "seed": 15709653265175185658,
       "solid": true,
       "support": null,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 11,
+      "id": 13,
       "kind": "Chair",
       "position": [
         -1.7357404,
@@ -3487,14 +3560,14 @@
       ],
       "yaw": 3.1415927,
       "variant": 0,
-      "seed": 11443255498047073597,
+      "seed": 13757510001299319786,
       "solid": true,
       "support": null,
       "neighbor": true,
-      "interaction_target": 10
+      "interaction_target": 12
     },
     {
-      "id": 12,
+      "id": 14,
       "kind": "Cabinet",
       "position": [
         0.6311783,
@@ -3507,15 +3580,15 @@
         0.4
       ],
       "yaw": 3.1415927,
-      "variant": 1,
-      "seed": 10828570967409434804,
+      "variant": 2,
+      "seed": 9609657808553364747,
       "solid": true,
       "support": null,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 13,
+      "id": 15,
       "kind": "Plant",
       "position": [
         -3.2448647,
@@ -3529,26 +3602,26 @@
       ],
       "yaw": 3.1415927,
       "variant": 10,
-      "seed": 16269672805588538430,
+      "seed": 12892125497825440054,
       "solid": true,
       "support": null,
       "neighbor": true,
       "interaction_target": null
     },
     {
-      "id": 14,
+      "id": 16,
       "kind": "SideTable",
       "position": [
-        -0.074172884,
+        -2.9053078,
         0.0,
-        -1.8584749
+        -0.8653288
       ],
       "size": [
         0.4855911,
         0.47935316,
         0.526379
       ],
-      "yaw": 4.6288896,
+      "yaw": 4.4638886,
       "variant": 2,
       "seed": 14048950265718028496,
       "solid": true,
@@ -3557,469 +3630,261 @@
       "interaction_target": null
     },
     {
-      "id": 15,
-      "kind": "SideTable",
-      "position": [
-        0.78202355,
-        0.0,
-        -2.3440933
-      ],
-      "size": [
-        0.6014203,
-        0.616056,
-        0.5118787
-      ],
-      "yaw": 4.2169156,
-      "variant": 0,
-      "seed": 13257956724336432976,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 16,
-      "kind": "SideTable",
-      "position": [
-        -0.9867874,
-        0.0,
-        -1.7398983
-      ],
-      "size": [
-        0.44712222,
-        0.65403515,
-        0.5513916
-      ],
-      "yaw": 4.777017,
-      "variant": 2,
-      "seed": 13865683483337350647,
-      "solid": true,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
       "id": 17,
-      "kind": "WallShelf",
+      "kind": "SideTable",
       "position": [
-        -3.145349,
-        1.4771101,
-        -2.761468
+        2.2307339,
+        0.0,
+        -2.2501597
       ],
       "size": [
-        0.785355,
-        0.16766155,
-        0.36722085
+        0.64531493,
+        0.5263119,
+        0.41291666
       ],
-      "yaw": 0.78539807,
-      "variant": 2,
-      "seed": 17336396501809737239,
-      "solid": false,
+      "yaw": 4.3911595,
+      "variant": 1,
+      "seed": 17314527308615527794,
+      "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 18,
-      "kind": "NoticeBoard",
+      "kind": "MobileCart",
       "position": [
-        3.450447,
-        1.2954415,
-        -0.83390033
+        -0.7564882,
+        0.0,
+        -1.520627
       ],
       "size": [
-        1.5279058,
-        0.8119689,
-        0.02950375
+        0.70959634,
+        1.0152916,
+        0.54132116
       ],
-      "yaw": -1.4650528,
-      "variant": 0,
-      "seed": 13537489468583272827,
-      "solid": false,
+      "yaw": 4.732814,
+      "variant": 1,
+      "seed": 5171211608153217716,
+      "solid": true,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 19,
-      "kind": "PowerStrip",
+      "kind": "WallShelf",
       "position": [
-        -1.6274207,
-        1.0322446,
-        3.1004012
+        3.6531472,
+        1.631979,
+        2.7983565
       ],
       "size": [
-        0.382407,
-        0.042569745,
-        0.06402806
+        1.2196642,
+        0.22110754,
+        0.39311334
       ],
-      "yaw": 0.83157325,
+      "yaw": -1.4650528,
       "variant": 2,
-      "seed": 15678086497800448072,
+      "seed": 2873544009273129892,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 20,
+      "kind": "PowerStrip",
+      "position": [
+        -0.64843273,
+        1.0152916,
+        -1.6167077
+      ],
+      "size": [
+        0.22152264,
+        0.04844515,
+        0.09332699
+      ],
+      "yaw": 4.834225,
+      "variant": 3,
+      "seed": 17112169781567427048,
+      "solid": false,
+      "support": 18,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 21,
+      "kind": "TrashCan",
+      "position": [
+        -1.9102478,
+        0.0,
+        -2.8527741
+      ],
+      "size": [
+        0.23384386,
+        0.6721896,
+        0.18360285
+      ],
+      "yaw": -0.31016606,
+      "variant": 3221225472,
+      "seed": 15055291438043359677,
+      "solid": true,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": 11
+    },
+    {
+      "finish_seed": 12613192252607257110,
+      "id": 22,
+      "kind": "Laptop",
+      "position": [
+        -0.9895625,
+        0.44124803,
+        -0.36950323
+      ],
+      "size": [
+        0.2730084,
+        0.25921106,
+        0.3766226
+      ],
+      "yaw": -1.4640917,
+      "variant": 3,
+      "seed": 18212916148710759716,
+      "solid": false,
+      "support": 2,
+      "neighbor": false,
+      "interaction_target": 3
+    },
+    {
+      "id": 23,
+      "kind": "Phone",
+      "position": [
+        -0.952055,
+        0.44124803,
+        0.13190812
+      ],
+      "size": [
+        0.07690865,
+        0.010445056,
+        0.16333394
+      ],
+      "yaw": 5.00019,
+      "variant": 0,
+      "seed": 17117586072275177930,
+      "solid": false,
+      "support": 2,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "finish_seed": 6941915299191643787,
+      "id": 24,
+      "kind": "Laptop",
+      "position": [
+        1.9310775,
+        0.39208254,
+        -1.068557
+      ],
+      "size": [
+        0.28302348,
+        0.23557818,
+        0.36950016
+      ],
+      "yaw": -2.0053217,
+      "variant": 2,
+      "seed": 7283598217179913510,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": 5
+    },
+    {
+      "id": 25,
+      "kind": "Laptop",
+      "position": [
+        -1.6927215,
+        0.40034997,
+        -1.7720277
+      ],
+      "size": [
+        0.36748904,
+        0.24734402,
+        0.3520802
+      ],
+      "yaw": -2.0935712,
+      "variant": 3,
+      "seed": 1791689277457273069,
+      "solid": false,
+      "support": 6,
+      "neighbor": false,
+      "interaction_target": 7
+    },
+    {
+      "id": 26,
+      "kind": "PenHolder",
+      "position": [
+        -1.8367809,
+        0.40034997,
+        -1.4557847
+      ],
+      "size": [
+        0.09601936,
+        0.1780931,
+        0.09601936
+      ],
+      "yaw": 7.0546026,
+      "variant": 2,
+      "seed": 741299763434740265,
       "solid": false,
       "support": 6,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 20,
-      "kind": "Whiteboard",
-      "position": [
-        -3.0378938,
-        1.6990451,
-        -3.0794175
-      ],
-      "size": [
-        0.7083178,
-        0.24329719,
-        0.06953705
-      ],
-      "yaw": 0.78539807,
-      "variant": 2,
-      "seed": 4842218131434907766,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 21,
-      "kind": "Clock",
-      "position": [
-        2.7323794,
-        1.1582594,
-        -3.0477345
-      ],
-      "size": [
-        0.3773404,
-        0.3773404,
-        0.049327403
-      ],
-      "yaw": -0.78539807,
-      "variant": 0,
-      "seed": 1494051683627010108,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 22,
-      "kind": "Display",
-      "position": [
-        3.7211902,
-        1.2835283,
-        1.7552642
-      ],
-      "size": [
-        1.689284,
-        0.7304219,
-        0.037597656
-      ],
-      "yaw": -1.4650528,
-      "variant": 1,
-      "seed": 8380020752012922354,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 23,
-      "kind": "Clock",
-      "position": [
-        2.8584993,
-        1.8774706,
-        -2.9094644
-      ],
-      "size": [
-        0.345921,
-        0.2717991,
-        0.07717162
-      ],
-      "yaw": -0.78539807,
-      "variant": 0,
-      "seed": 13938410750394497597,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 24,
-      "kind": "LightSwitch",
-      "position": [
-        -3.2784653,
-        1.1227944,
-        -2.8779376
-      ],
-      "size": [
-        0.21935286,
-        0.10175752,
-        0.020362072
-      ],
-      "yaw": 0.78539807,
-      "variant": 1,
-      "seed": 1138039742936639081,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 25,
-      "kind": "WallOutlet",
-      "position": [
-        3.4136014,
-        0.3233886,
-        -1.2532886
-      ],
-      "size": [
-        0.073443525,
-        0.09659674,
-        0.020362072
-      ],
-      "yaw": -1.4650528,
-      "variant": 1,
-      "seed": 3129204951027534959,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 26,
-      "kind": "WallOutlet",
-      "position": [
-        3.6985576,
-        0.3276544,
-        1.4314438
-      ],
-      "size": [
-        0.07299335,
-        0.09794794,
-        0.020362072
-      ],
-      "yaw": -1.4650528,
-      "variant": 1,
-      "seed": 396135373478783616,
-      "solid": false,
-      "support": null,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
       "id": 27,
-      "kind": "WallOutlet",
+      "kind": "Notepad",
       "position": [
-        3.092166,
-        0.3271497,
-        -2.691983
+        -2.073154,
+        0.74,
+        5.6211233
       ],
       "size": [
-        0.14142108,
-        0.10213244,
-        0.020362072
+        0.089372694,
+        0.0074814227,
+        0.11251653
       ],
-      "yaw": -0.78539807,
-      "variant": 1,
-      "seed": 1475678120191315799,
+      "yaw": 2.569294,
+      "variant": 2,
+      "seed": 3179277608563784917,
       "solid": false,
-      "support": null,
-      "neighbor": false,
+      "support": 12,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 28,
       "kind": "Kettle",
       "position": [
-        -1.2514101,
-        1.0322446,
-        3.0581214
+        -0.77505904,
+        1.0152916,
+        -1.3745239
       ],
       "size": [
-        0.173521,
-        0.24898651,
-        0.3096614
+        0.16392666,
+        0.21517979,
+        0.23504078
       ],
-      "yaw": 3.20277,
-      "variant": 0,
-      "seed": 7131784606530542672,
+      "yaw": 4.6962037,
+      "variant": 1,
+      "seed": 3541157734978799209,
       "solid": false,
-      "support": 6,
+      "support": 18,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 29,
-      "kind": "Mug",
-      "position": [
-        -1.880578,
-        1.0322446,
-        3.0957587
-      ],
-      "size": [
-        0.12491637,
-        0.1363099,
-        0.09463361
-      ],
-      "yaw": 1.8804512,
-      "variant": 0,
-      "seed": 9327079350690127767,
-      "solid": false,
-      "support": 6,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 30,
-      "kind": "Phone",
-      "position": [
-        0.0912696,
-        0.43512404,
-        -0.50589323
-      ],
-      "size": [
-        0.06924287,
-        0.014047604,
-        0.13804837
-      ],
-      "yaw": 3.6842694,
-      "variant": 1,
-      "seed": 10791751951326829984,
-      "solid": false,
-      "support": 8,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 31,
-      "kind": "Monitor",
-      "position": [
-        -1.6472633,
-        0.74,
-        5.8549223
-      ],
-      "size": [
-        0.31401208,
-        0.40548152,
-        0.21978897
-      ],
-      "yaw": -3.2197962,
-      "variant": 0,
-      "seed": 6255485301338266558,
-      "solid": false,
-      "support": 10,
-      "neighbor": true,
-      "interaction_target": 11
-    },
-    {
-      "id": 32,
-      "kind": "Monitor",
-      "position": [
-        -2.014163,
-        0.74,
-        5.8385653
-      ],
-      "size": [
-        0.31454065,
-        0.36010802,
-        0.21697259
-      ],
-      "yaw": 2.8924763,
-      "variant": 2,
-      "seed": 17817135102010716600,
-      "solid": false,
-      "support": 10,
-      "neighbor": true,
-      "interaction_target": 11
-    },
-    {
-      "id": 33,
-      "kind": "Keyboard",
-      "position": [
-        -1.8329102,
-        0.74,
-        5.5008984
-      ],
-      "size": [
-        0.33591798,
-        0.016693981,
-        0.11733554
-      ],
-      "yaw": 3.1565428,
-      "variant": 0,
-      "seed": 10788718890569831387,
-      "solid": false,
-      "support": 10,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 34,
-      "kind": "Mouse",
-      "position": [
-        -1.5804514,
-        0.74,
-        5.5618362
-      ],
-      "size": [
-        0.04642623,
-        0.027887423,
-        0.09030696
-      ],
-      "yaw": 3.092102,
-      "variant": 2,
-      "seed": 2371707043532593685,
-      "solid": false,
-      "support": 10,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 35,
-      "kind": "CoffeeCup",
-      "position": [
-        -1.4083917,
-        0.74,
-        5.5171328
-      ],
-      "size": [
-        0.08768478,
-        0.16372508,
-        0.08768478
-      ],
-      "yaw": 2.158073,
-      "variant": 2,
-      "seed": 2877052446091744668,
-      "solid": false,
-      "support": 10,
-      "neighbor": true,
-      "interaction_target": null
-    },
-    {
-      "id": 36,
-      "kind": "Plant",
-      "position": [
-        -2.188457,
-        1.6011271,
-        -2.8990355
-      ],
-      "size": [
-        0.22206192,
-        0.23257568,
-        0.2218494
-      ],
-      "yaw": 0.4426511,
-      "variant": 15,
-      "seed": 17450880587914896363,
-      "solid": false,
-      "support": 5,
-      "neighbor": false,
-      "interaction_target": null
-    },
-    {
-      "id": 37,
       "kind": "Notepad",
       "position": [
         2.0231824,
@@ -4040,7 +3905,7 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 30,
       "kind": "Notepad",
       "position": [
         1.9140012,
@@ -4061,231 +3926,399 @@
       "interaction_target": null
     },
     {
-      "id": 39,
-      "kind": "WaterBottle",
+      "id": 31,
+      "kind": "CoffeeCup",
       "position": [
-        -3.1309614,
-        1.1531702,
-        -1.4708467
+        1.9666723,
+        0.39208254,
+        -1.4211814
       ],
       "size": [
-        0.08926752,
-        0.3212283,
-        0.08926752
+        0.07340782,
+        0.13607654,
+        0.07340782
       ],
-      "yaw": -0.09915757,
-      "variant": 1,
-      "seed": 7588157754737961530,
+      "yaw": 7.4994807,
+      "variant": 0,
+      "seed": 17285475860016605660,
       "solid": false,
       "support": 4,
       "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 32,
+      "kind": "Vase",
+      "position": [
+        2.107092,
+        0.39208254,
+        -1.3074543
+      ],
+      "size": [
+        0.06542047,
+        0.08924942,
+        0.06542047
+      ],
+      "yaw": 2.4051285,
+      "variant": 2,
+      "seed": 16881942464043665359,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 33,
+      "kind": "CoffeeCup",
+      "position": [
+        1.9797103,
+        0.39208254,
+        -0.7179558
+      ],
+      "size": [
+        0.06702678,
+        0.080515474,
+        0.06702678
+      ],
+      "yaw": 7.3484735,
+      "variant": 2,
+      "seed": 14238504954309739994,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 34,
+      "kind": "Mug",
+      "position": [
+        1.862813,
+        0.39208254,
+        -0.5674459
+      ],
+      "size": [
+        0.09505002,
+        0.06299426,
+        0.07335418
+      ],
+      "yaw": 7.26311,
+      "variant": 1,
+      "seed": 7610555408078607500,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 35,
+      "kind": "CoffeeCup",
+      "position": [
+        1.4863114,
+        0.39208254,
+        -0.6384715
+      ],
+      "size": [
+        0.09909127,
+        0.17490792,
+        0.09909127
+      ],
+      "yaw": 6.9728556,
+      "variant": 1,
+      "seed": 4406896976365528738,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 36,
+      "kind": "Notepad",
+      "position": [
+        1.857621,
+        0.39208254,
+        -1.5634906
+      ],
+      "size": [
+        0.10316031,
+        0.017376063,
+        0.13460255
+      ],
+      "yaw": 5.6704197,
+      "variant": 1,
+      "seed": 2708547983036994005,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 37,
+      "kind": "CoffeeCup",
+      "position": [
+        1.6421245,
+        0.39208254,
+        -0.56855506
+      ],
+      "size": [
+        0.07855928,
+        0.123082705,
+        0.07855928
+      ],
+      "yaw": 5.033556,
+      "variant": 1,
+      "seed": 509492420692874996,
+      "solid": false,
+      "support": 4,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 38,
+      "kind": "DeskLamp",
+      "position": [
+        -1.8704412,
+        0.74,
+        5.758815
+      ],
+      "size": [
+        0.19965473,
+        0.546976,
+        0.2079463
+      ],
+      "yaw": 6.1002727,
+      "variant": 0,
+      "seed": 5346770391842694432,
+      "solid": false,
+      "support": 12,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 39,
+      "kind": "Vase",
+      "position": [
+        -1.8207744,
+        0.74,
+        5.491238
+      ],
+      "size": [
+        0.09898179,
+        0.19462551,
+        0.09898179
+      ],
+      "yaw": 4.751743,
+      "variant": 1,
+      "seed": 1872151701046854788,
+      "solid": false,
+      "support": 12,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 40,
-      "kind": "WaterBottle",
+      "kind": "Phone",
       "position": [
-        -3.2500968,
-        1.1531702,
-        -0.8808563
+        -2.2374642,
+        0.74,
+        5.765382
       ],
       "size": [
-        0.054234028,
-        0.13416725,
-        0.054234028
+        0.06607186,
+        0.011230115,
+        0.13359354
       ],
-      "yaw": -0.8357012,
-      "variant": 2,
-      "seed": 6963076297450988867,
+      "yaw": 4.6245966,
+      "variant": 1,
+      "seed": 1517664558291915337,
       "solid": false,
-      "support": 4,
-      "neighbor": false,
+      "support": 12,
+      "neighbor": true,
       "interaction_target": null
     },
     {
       "id": 41,
-      "kind": "Books",
+      "kind": "Mug",
       "position": [
-        -3.0100508,
-        1.1531702,
-        -0.8602673
+        3.5260358,
+        1.8530865,
+        2.3885415
       ],
       "size": [
-        0.16483945,
-        0.09842193,
-        0.20474109
+        0.12024885,
+        0.14835271,
+        0.0966171
       ],
-      "yaw": 1.5039504,
-      "variant": 0,
-      "seed": 12592693536769576793,
+      "yaw": -4.5398417,
+      "variant": 1,
+      "seed": 16304699656471081532,
       "solid": false,
-      "support": 4,
+      "support": 19,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 42,
-      "kind": "Vase",
+      "kind": "Clock",
       "position": [
-        0.2690407,
-        0.43512404,
-        -0.46929497
+        2.6290188,
+        1.6684226,
+        -3.1565278
       ],
       "size": [
-        0.07790695,
-        0.11986089,
-        0.07790695
+        0.24975942,
+        0.27662277,
+        0.038768597
       ],
-      "yaw": 3.7069125,
+      "yaw": -0.78539807,
       "variant": 0,
-      "seed": 13774281147362690251,
+      "seed": 10909603916670155999,
       "solid": false,
-      "support": 8,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 43,
-      "kind": "Phone",
+      "kind": "Clock",
       "position": [
-        0.02695255,
-        0.43512404,
-        -0.75533503
+        -3.0686214,
+        1.4861692,
+        -3.0696
       ],
       "size": [
-        0.0754361,
-        0.007741766,
-        0.1426081
+        0.37255582,
+        0.37255582,
+        0.07877363
       ],
-      "yaw": 2.8472664,
+      "yaw": 0.78539807,
       "variant": 1,
-      "seed": 6326515548754032766,
+      "seed": 16190623096787897868,
       "solid": false,
-      "support": 8,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 44,
-      "kind": "TissueBox",
+      "kind": "FirePullStation",
       "position": [
-        0.11938036,
-        0.43512404,
-        -0.29771516
+        0.053203225,
+        1.1432806,
+        3.6529343
       ],
       "size": [
-        0.14922544,
-        0.1131868,
-        0.1278451
+        0.1310914,
+        0.1473159,
+        0.042219315
       ],
-      "yaw": 3.186592,
+      "yaw": 3.1415927,
       "variant": 0,
-      "seed": 14714384364317323629,
+      "seed": 17331690061064269253,
       "solid": false,
-      "support": 8,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 45,
-      "kind": "Books",
+      "kind": "ExitSign",
       "position": [
-        0.77783734,
-        1.2,
-        6.270881
+        1.0860153,
+        2.3638303,
+        3.6498303
       ],
       "size": [
-        0.15503515,
-        0.13192062,
-        0.21995942
+        0.52070457,
+        0.17532507,
+        0.04842692
       ],
-      "yaw": 3.1369429,
+      "yaw": 3.1415927,
       "variant": 0,
-      "seed": 17652832387578287669,
+      "seed": 15668128688799404255,
       "solid": false,
-      "support": 12,
-      "neighbor": true,
+      "support": null,
+      "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 46,
-      "kind": "DeskOrganizer",
+      "kind": "Whiteboard",
       "position": [
-        1.0770645,
-        1.2,
-        6.382982
+        3.4271095,
+        1.3884593,
+        -0.8883064
       ],
       "size": [
-        0.20703068,
-        0.16099077,
-        0.1174453
+        1.6586084,
+        0.7045897,
+        0.06443374
       ],
-      "yaw": 3.547097,
-      "variant": 1,
-      "seed": 17962219513906852125,
+      "yaw": -1.4650528,
+      "variant": 3,
+      "seed": 3132843353658432230,
       "solid": false,
-      "support": 12,
-      "neighbor": true,
+      "support": null,
+      "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 47,
-      "kind": "Bowl",
+      "kind": "WallArt",
       "position": [
-        -3.326103,
-        1.6447717,
-        -2.70466
+        3.6655457,
+        1.1626321,
+        1.1771474
       ],
       "size": [
-        0.12732595,
-        0.030834477,
-        0.12732595
+        0.7022549,
+        0.2600944,
+        0.026228106
       ],
-      "yaw": -0.950887,
-      "variant": 0,
-      "seed": 11111571651100101239,
+      "yaw": -1.4650528,
+      "variant": 2,
+      "seed": 15936384468365819356,
       "solid": false,
-      "support": 17,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 48,
-      "kind": "PenHolder",
+      "kind": "WallArt",
       "position": [
-        -3.169649,
-        1.6447717,
-        -2.6515532
+        3.67275,
+        1.5195656,
+        1.3772706
       ],
       "size": [
-        0.088617526,
-        0.18054679,
-        0.088617526
+        1.2860941,
+        0.4763311,
+        0.054145053
       ],
-      "yaw": 3.2765224,
-      "variant": 1,
-      "seed": 3310250113639235771,
+      "yaw": -1.4650528,
+      "variant": 3,
+      "seed": 545118931294761912,
       "solid": false,
-      "support": 17,
+      "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
       "id": 49,
-      "kind": "FireAlarm",
+      "kind": "WallArt",
       "position": [
-        -2.7997563,
-        2.0429366,
-        -3.331505
+        -3.0656438,
+        1.9733243,
+        -3.0662763
       ],
       "size": [
-        0.16571844,
-        0.16571844,
-        0.054139744
+        0.7405556,
+        0.48185557,
+        0.04887694
       ],
       "yaw": 0.78539807,
-      "variant": 3,
-      "seed": 2717280172974179443,
+      "variant": 4,
+      "seed": 17863974761165256321,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4293,20 +4326,20 @@
     },
     {
       "id": 50,
-      "kind": "Speaker",
+      "kind": "WallOutlet",
       "position": [
-        3.3068864,
-        2.132976,
-        -1.5606996
+        -2.7026296,
+        0.28638053,
+        -3.453773
       ],
       "size": [
-        0.18599403,
-        0.43889108,
-        0.19272652
+        0.20857908,
+        0.09723205,
+        0.020362072
       ],
-      "yaw": -1.4650528,
-      "variant": 2,
-      "seed": 10440379538598754200,
+      "yaw": 0.78539807,
+      "variant": 1,
+      "seed": 8804365761641833786,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4314,20 +4347,20 @@
     },
     {
       "id": 51,
-      "kind": "Speaker",
+      "kind": "WallOutlet",
       "position": [
-        1.6271553,
-        2.0100336,
-        -3.5932443
+        -3.716424,
+        0.31011534,
+        -1.1221831
       ],
       "size": [
-        0.18599403,
-        0.43889108,
-        0.19272652
+        0.06819866,
+        0.10170821,
+        0.020362072
       ],
-      "yaw": 0.0,
+      "yaw": 1.5249051,
       "variant": 1,
-      "seed": 10440379538598754200,
+      "seed": 3039880991927334086,
       "solid": false,
       "support": null,
       "neighbor": false,
@@ -4335,77 +4368,1090 @@
     },
     {
       "id": 52,
-      "kind": "FloorOutlet",
+      "kind": "WallOutlet",
       "position": [
-        -0.88989663,
-        0.0,
-        2.9669733
+        -2.0242438,
+        0.28565112,
+        -3.666917
       ],
       "size": [
-        0.18915424,
-        0.006,
-        0.18064287
+        0.1426266,
+        0.09961669,
+        0.020362072
       ],
-      "yaw": 6.5442815,
-      "variant": 9,
-      "seed": 1521705807036887454,
+      "yaw": 0.0,
+      "variant": 1,
+      "seed": 2007422244521763950,
       "solid": false,
       "support": null,
       "neighbor": false,
       "interaction_target": null
+    },
+    {
+      "id": 53,
+      "kind": "WallOutlet",
+      "position": [
+        2.425114,
+        0.30996996,
+        -3.359035
+      ],
+      "size": [
+        0.21798931,
+        0.09692558,
+        0.020362072
+      ],
+      "yaw": -0.78539807,
+      "variant": 1,
+      "seed": 2813476546532536369,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 54,
+      "kind": "WallOutlet",
+      "position": [
+        3.7953677,
+        0.29793206,
+        2.3435473
+      ],
+      "size": [
+        0.20595518,
+        0.09802908,
+        0.020362072
+      ],
+      "yaw": -1.4650528,
+      "variant": 1,
+      "seed": 6729838690672938007,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 55,
+      "kind": "FireAlarm",
+      "position": [
+        -2.6436162,
+        2.0467582,
+        -3.4875064
+      ],
+      "size": [
+        0.11000151,
+        0.21555571,
+        0.05000493
+      ],
+      "yaw": 0.78539807,
+      "variant": 2,
+      "seed": 10995539658148107615,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 56,
+      "kind": "Speaker",
+      "position": [
+        3.4924266,
+        2.0423875,
+        0.25790882
+      ],
+      "size": [
+        0.21330827,
+        0.57812,
+        0.20064811
+      ],
+      "yaw": -1.4650528,
+      "variant": 0,
+      "seed": 10683885891063293970,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 57,
+      "kind": "Speaker",
+      "position": [
+        2.2394495,
+        2.0149465,
+        -3.4299822
+      ],
+      "size": [
+        0.21330827,
+        0.57812,
+        0.20064811
+      ],
+      "yaw": -0.78539807,
+      "variant": 0,
+      "seed": 10683885891063293970,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 58,
+      "kind": "Speaker",
+      "position": [
+        3.5375843,
+        2.144285,
+        0.68336475
+      ],
+      "size": [
+        0.21330827,
+        0.57812,
+        0.20064811
+      ],
+      "yaw": -1.4650528,
+      "variant": 0,
+      "seed": 10683885891063293970,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 59,
+      "kind": "Rug",
+      "position": [
+        2.9276924,
+        0.0,
+        0.955974
+      ],
+      "size": [
+        1.1200345,
+        0.007620168,
+        0.5368721
+      ],
+      "yaw": 4.6127367,
+      "variant": 2,
+      "seed": 4069967249834126817,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 60,
+      "kind": "FloorOutlet",
+      "position": [
+        -0.96930367,
+        0.0,
+        -2.1285455
+      ],
+      "size": [
+        0.17460693,
+        0.11584668,
+        0.19744064
+      ],
+      "yaw": 7.7843747,
+      "variant": 0,
+      "seed": 1521219387572655591,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 61,
+      "kind": "Cable",
+      "position": [
+        -0.80695045,
+        0.013135716,
+        -1.9274857
+      ],
+      "size": [
+        0.29759824,
+        1.0247681,
+        0.4074191
+      ],
+      "yaw": 0.0,
+      "variant": 2,
+      "seed": 2387285681290642044,
+      "solid": false,
+      "support": 18,
+      "neighbor": false,
+      "interaction_target": 20,
+      "cable_path": [
+        [
+          0.14493483,
+          1.0209038,
+          0.1998452
+        ],
+        [
+          0.1402747,
+          1.0209038,
+          0.1617856
+        ],
+        [
+          0.1401816,
+          1.0208591,
+          0.16047978
+        ],
+        [
+          0.13682526,
+          1.0096447,
+          -0.0038249493
+        ],
+        [
+          0.1367361,
+          1.0091804,
+          -0.0063045025
+        ],
+        [
+          0.13657564,
+          1.0081546,
+          -0.008605361
+        ],
+        [
+          0.13635284,
+          1.0066241,
+          -0.01060009
+        ],
+        [
+          0.1360799,
+          1.0046732,
+          -0.012178659
+        ],
+        [
+          0.13577205,
+          1.0024102,
+          -0.01325357
+        ],
+        [
+          0.13544625,
+          0.9999599,
+          -0.013765454
+        ],
+        [
+          0.12783921,
+          0.94214696,
+          -0.018813968
+        ],
+        [
+          0.11904001,
+          0.87911123,
+          -0.024653673
+        ],
+        [
+          0.11024088,
+          0.8196985,
+          -0.030493379
+        ],
+        [
+          0.10144168,
+          0.76370656,
+          -0.036333084
+        ],
+        [
+          0.092642546,
+          0.7109449,
+          -0.04217279
+        ],
+        [
+          0.083860934,
+          0.66133314,
+          -0.048000813
+        ],
+        [
+          0.08382428,
+          0.66113526,
+          -0.04802513
+        ],
+        [
+          0.06627333,
+          0.5704432,
+          -0.05967319
+        ],
+        [
+          0.06621337,
+          0.5701519,
+          -0.059713006
+        ],
+        [
+          0.048682153,
+          0.48981935,
+          -0.07134807
+        ],
+        [
+          0.04860705,
+          0.48949587,
+          -0.0713979
+        ],
+        [
+          0.031092763,
+          0.41839492,
+          -0.0830214
+        ],
+        [
+          0.030998826,
+          0.41803664,
+          -0.08308387
+        ],
+        [
+          0.013505459,
+          0.35519618,
+          -0.09469366
+        ],
+        [
+          0.0133882165,
+          0.354801,
+          -0.094771385
+        ],
+        [
+          -0.0040792823,
+          0.2993617,
+          -0.10636401
+        ],
+        [
+          -0.0042250752,
+          0.29892778,
+          -0.10646081
+        ],
+        [
+          -0.021661103,
+          0.25012994,
+          -0.118032455
+        ],
+        [
+          -0.021841764,
+          0.24965642,
+          -0.11815238
+        ],
+        [
+          -0.039239287,
+          0.20682949,
+          -0.12969851
+        ],
+        [
+          -0.03946203,
+          0.20631665,
+          -0.12984633
+        ],
+        [
+          -0.056813538,
+          0.16886912,
+          -0.14136195
+        ],
+        [
+          -0.057086647,
+          0.16831899,
+          -0.14154315
+        ],
+        [
+          -0.07438338,
+          0.13573027,
+          -0.15302277
+        ],
+        [
+          -0.07471579,
+          0.13514724,
+          -0.1532433
+        ],
+        [
+          -0.09194845,
+          0.10695985,
+          -0.16468
+        ],
+        [
+          -0.09234959,
+          0.10635112,
+          -0.16494632
+        ],
+        [
+          -0.10950893,
+          0.08216383,
+          -0.17633438
+        ],
+        [
+          -0.109987974,
+          0.08154032,
+          -0.1766522
+        ],
+        [
+          -0.12706524,
+          0.06100227,
+          -0.1879859
+        ],
+        [
+          -0.12763011,
+          0.06037885,
+          -0.18836069
+        ],
+        [
+          -0.14175689,
+          0.04608076,
+          -0.19773626
+        ],
+        [
+          -0.14309669,
+          0.044393733,
+          -0.19862533
+        ],
+        [
+          -0.1441015,
+          0.042399403,
+          -0.19929242
+        ],
+        [
+          -0.14472401,
+          0.04019178,
+          -0.19970536
+        ],
+        [
+          -0.14493483,
+          0.037874937,
+          -0.19984531
+        ],
+        [
+          -0.14493483,
+          0.0038642846,
+          -0.19984531
+        ]
+      ],
+      "cable_target": 60
     }
   ],
   "human_density": 0.25,
   "humans": [
     {
-      "id": 53,
-      "seed": 3424138590051757379,
+      "id": 62,
+      "seed": 3960783129104954354,
       "position": [
-        -2.9210904,
+        1.1895118,
         0.0,
-        0.4666989
+        0.9826814
       ],
-      "yaw": 0.041778564,
-      "stature": 1.687532,
-      "build": 0.9205572,
-      "shoulder_width": 0.37695688,
-      "head_yaw": -0.41755748,
-      "pose": "StandingWalking",
+      "yaw": 5.3149953,
+      "stature": 1.9370068,
+      "build": 1.0994592,
+      "shoulder_width": 0.4012482,
+      "head_yaw": -0.6665931,
+      "pose": "SeatedTalking",
       "pose_program": {
         "lean": [
-          0.0067312866,
-          -0.0017246157
+          -0.018942531,
+          -0.037482165
         ],
-        "torso_twist": 0.093582764,
-        "weight_shift": -0.020664517,
-        "stance": 0.2538442,
-        "stride": 0.1063001,
-        "phase": 5.202167,
+        "torso_twist": 0.15233639,
+        "weight_shift": -0.018155688,
+        "stance": 0.31268734,
+        "stride": 0.0037034655,
+        "phase": 0.7281023,
         "arm_reach": [
-          0.978731,
-          0.7209828
+          0.80808234,
+          0.9222431
         ],
         "arm_elevation": [
-          -1.2489585,
-          -0.34185708
+          -0.33471727,
+          -1.1162143
         ],
         "arm_sweep": [
-          0.044652175,
-          0.44025588
+          0.5003505,
+          0.05844005
         ],
         "elbow_pole": [
-          0.6150053,
-          0.10378388
+          0.27119258,
+          0.19805698
         ],
         "foot_splay": [
-          0.21177506,
-          0.11164883
+          0.03381908,
+          0.19410469
         ],
-        "head_pitch": -0.012923107,
-        "head_roll": -0.07149625,
+        "head_pitch": 0.17225236,
+        "head_roll": 0.09305861,
         "finger_curl": [
-          0.07298221,
-          0.0816275
+          0.7315804,
+          0.09522611
+        ],
+        "index_extension": [
+          0.9243537,
+          0.0
+        ]
+      },
+      "appearance": {
+        "melanin": 0.71737933,
+        "blood_tint": 0.018355908,
+        "skin_roughness": 0.49246526,
+        "top": [
+          0.6937251,
+          0.69944084,
+          0.72712517
+        ],
+        "trousers": [
+          0.31868476,
+          0.34050488,
+          0.362325
+        ],
+        "hair": [
+          0.29618007,
+          0.25445074,
+          0.13895802
+        ],
+        "garment_ease": 0.019059263,
+        "fold_amplitude": 0.0032366056,
+        "fold_frequency": 47.952316,
+        "cloth_roughness": 0.9092766,
+        "hair_length": 0.050109934,
+        "hair_part": -0.577461,
+        "hair_curl": 0.031295236,
+        "sleeve_coverage": 0.3173139,
+        "hem_fraction": 0.16625975,
+        "weave_scale": 0.7992414,
+        "weave_rotation": -0.27195436,
+        "garment": {
+          "torso_ease_m": 0.012057656,
+          "waist_taper": 0.9098837,
+          "neckline_width": 0.109109476,
+          "neckline_depth": 0.08468511,
+          "neckline_roundness": 1.7007437,
+          "drape": 0.7962791,
+          "section_roundness": 2.010983,
+          "trouser_coverage": 0.9774786,
+          "trouser_ease": 0.014408946,
+          "leg_straightness": 0.8415674,
+          "hem_width": 0.7923455,
+          "collar_width": 0.045569062,
+          "placket_width": 0.021161065,
+          "pocket_width": 0.09648959,
+          "pocket_height": 0.09388179,
+          "pocket": true
+        },
+        "face": {
+          "iris": [
+            0.14209218,
+            0.24529283,
+            0.25066495
+          ],
+          "brow_width": 0.039484464,
+          "brow_thickness": 0.0042255544,
+          "brow_arch": 0.0015862772,
+          "lip_tint": 0.42030224,
+          "stubble": 0.0,
+          "frame_metallic": 0.0,
+          "frame_color": [
+            0.16797206,
+            0.17540467,
+            0.17083657
+          ]
+        },
+        "hair_volume": 1.2029741,
+        "hairline_raise": 0.016323,
+        "hair_grey": 0.0,
+        "footwear": {
+          "sole_height": 0.02292265,
+          "toe_room": 0.007562656,
+          "toe_roundness": 4.1973505,
+          "collar_raise": 0.048075408,
+          "heel_width": 0.9293865,
+          "vamp": 0.6350389,
+          "laces": 3,
+          "leather": 0.71225333,
+          "upper_color": [
+            0.2853707,
+            0.26848513,
+            0.2600423
+          ],
+          "sole_color": [
+            0.14095001,
+            0.13813101,
+            0.1339025
+          ]
+        },
+        "hair_program": {
+          "part_curve": -0.13313788,
+          "crown_whorl": 0.36743015,
+          "drop_m": 0.3135662,
+          "layers": 0.8137299,
+          "spread": 1.217338,
+          "sweep": -0.13143802,
+          "wave_length_m": 0.13886683,
+          "curl_radius_m": 0.019229576,
+          "clump_width_m": 0.019740906,
+          "bangs": 0.3632986,
+          "tie_height": 0.2490417,
+          "flyaways": 0.34966066
+        },
+        "body_program": {
+          "gender": 0.4799627912893525,
+          "age": 0.8339477358365398,
+          "muscle": 0.14449071470603442,
+          "proportions": 0.49308848175973474
+        }
+      },
+      "chair": 1,
+      "neighbor": false,
+      "outfit": "Knitwear",
+      "skin_tone": 2,
+      "top_color": 3,
+      "trouser_color": 4,
+      "hair_color": 1,
+      "hairstyle": 5,
+      "shoe_color": 2,
+      "glasses": false,
+      "joints": [
+        [
+          -0.018155688,
+          0.585,
+          0.015
+        ],
+        [
+          -0.02220805,
+          0.75088274,
+          0.009328701
+        ],
+        [
+          -0.029772457,
+          1.0605307,
+          -0.0012577241
+        ],
+        [
+          -0.03301435,
+          1.1932368,
+          -0.0057947626
+        ],
+        [
+          -0.03753347,
+          1.336753,
+          -0.017269533
+        ],
+        [
+          -0.22789396,
+          1.0517377,
+          0.029492643
+        ],
+        [
+          -0.3775203,
+          0.79326147,
+          -0.088135466
+        ],
+        [
+          -0.5060282,
+          0.87078077,
+          -0.33368793
+        ],
+        [
+          -0.54309773,
+          0.8931421,
+          -0.4045204
+        ],
+        [
+          0.16859312,
+          1.0593325,
+          -0.031666506
+        ],
+        [
+          0.22797164,
+          0.7455619,
+          -0.064171635
+        ],
+        [
+          0.1578136,
+          0.54640734,
+          -0.25970894
+        ],
+        [
+          0.13757569,
+          0.4889589,
+          -0.31611395
+        ],
+        [
+          -0.1249309,
+          0.585,
+          0.015
+        ],
+        [
+          -0.18125588,
+          0.5737412,
+          -0.45747158
+        ],
+        [
+          -0.15634367,
+          0.10499996,
+          -0.3787972
+        ],
+        [
+          -0.16270606,
+          0.044999965,
+          -0.56685597
+        ],
+        [
+          0.08861953,
+          0.585,
+          0.015
+        ],
+        [
+          0.1458095,
+          0.5734514,
+          -0.45736066
+        ],
+        [
+          0.15634367,
+          0.10500002,
+          -0.37386826
+        ],
+        [
+          0.19263873,
+          0.04500002,
+          -0.558501
+        ]
+      ],
+      "bounds_min": [
+        -0.725745,
+        0.0,
+        -0.71372545
+      ],
+      "bounds_max": [
+        0.41712072,
+        1.5965223,
+        0.2903963
+      ]
+    },
+    {
+      "id": 63,
+      "seed": 17586889188514146974,
+      "position": [
+        -1.7357404,
+        0.0,
+        4.755044
+      ],
+      "yaw": 3.1415927,
+      "stature": 1.8063678,
+      "build": 0.9054828,
+      "shoulder_width": 0.36931166,
+      "head_yaw": -0.03180176,
+      "pose": "SeatedTalking",
+      "pose_program": {
+        "lean": [
+          0.029555254,
+          -0.009132698
+        ],
+        "torso_twist": 0.3232687,
+        "weight_shift": -0.00017696619,
+        "stance": 0.25769514,
+        "stride": 0.0060295914,
+        "phase": 4.634996,
+        "arm_reach": [
+          0.6834773,
+          0.53698397
+        ],
+        "arm_elevation": [
+          -0.1026933,
+          0.07438538
+        ],
+        "arm_sweep": [
+          0.10813576,
+          0.46999934
+        ],
+        "elbow_pole": [
+          0.46863216,
+          0.22516224
+        ],
+        "foot_splay": [
+          0.061152324,
+          0.019603875
+        ],
+        "head_pitch": 0.1204136,
+        "head_roll": -0.013612434,
+        "finger_curl": [
+          0.048286326,
+          0.70119387
+        ],
+        "index_extension": [
+          0.0,
+          0.92045426
+        ]
+      },
+      "appearance": {
+        "melanin": 0.9706993,
+        "blood_tint": 0.050519288,
+        "skin_roughness": 0.5934283,
+        "top": [
+          0.57841796,
+          0.70758605,
+          0.7862426
+        ],
+        "trousers": [
+          0.3901571,
+          0.43885761,
+          0.4410922
+        ],
+        "hair": [
+          0.15960738,
+          0.1351946,
+          0.07998179
+        ],
+        "garment_ease": 0.020357102,
+        "fold_amplitude": 0.00092531124,
+        "fold_frequency": 27.243614,
+        "cloth_roughness": 0.7417154,
+        "hair_length": 0.008563464,
+        "hair_part": -0.32833773,
+        "hair_curl": 0.046978854,
+        "sleeve_coverage": 0.992615,
+        "hem_fraction": 0.122473,
+        "weave_scale": 1.3765805,
+        "weave_rotation": -0.17671394,
+        "garment": {
+          "torso_ease_m": 0.008949416,
+          "waist_taper": 0.9418456,
+          "neckline_width": 0.05990398,
+          "neckline_depth": 0.07862893,
+          "neckline_roundness": 2.074274,
+          "drape": 0.69374835,
+          "section_roundness": 2.0544453,
+          "trouser_coverage": 0.84704864,
+          "trouser_ease": 0.01341437,
+          "leg_straightness": 0.49845257,
+          "hem_width": 0.8089566,
+          "collar_width": 0.048747078,
+          "placket_width": 0.01635754,
+          "pocket_width": 0.07475966,
+          "pocket_height": 0.10293862,
+          "pocket": false
+        },
+        "face": {
+          "iris": [
+            0.18001394,
+            0.41694784,
+            0.44474423
+          ],
+          "brow_width": 0.0483478,
+          "brow_thickness": 0.0040339534,
+          "brow_arch": 0.0026421756,
+          "lip_tint": 0.18982467,
+          "stubble": 0.0,
+          "frame_metallic": 0.0,
+          "frame_color": [
+            0.13401163,
+            0.10796865,
+            0.09858835
+          ]
+        },
+        "hair_volume": 1.3640802,
+        "hairline_raise": 0.037933018,
+        "hair_grey": 0.0,
+        "footwear": {
+          "sole_height": 0.02077373,
+          "toe_room": 0.0054446715,
+          "toe_roundness": 2.8118293,
+          "collar_raise": 0.04866279,
+          "heel_width": 0.81704116,
+          "vamp": 0.30525708,
+          "laces": 0,
+          "leather": 0.56204855,
+          "upper_color": [
+            0.22127686,
+            0.17537458,
+            0.15242346
+          ],
+          "sole_color": [
+            0.07448856,
+            0.072998784,
+            0.07076413
+          ]
+        },
+        "hair_program": {
+          "part_curve": -0.07987851,
+          "crown_whorl": 0.12508011,
+          "drop_m": 0.16594921,
+          "layers": 0.500115,
+          "spread": 1.1198001,
+          "sweep": 0.3970834,
+          "wave_length_m": 0.20809707,
+          "curl_radius_m": 0.02568844,
+          "clump_width_m": 0.011293498,
+          "bangs": 0.0,
+          "tie_height": 0.68919533,
+          "flyaways": 0.2094757
+        },
+        "body_program": {
+          "gender": 0.44339460088019855,
+          "age": 0.9541357758879081,
+          "muscle": 0.33950032393238444,
+          "proportions": 0.8712264499925167
+        }
+      },
+      "chair": 13,
+      "neighbor": true,
+      "outfit": "Shirt",
+      "skin_tone": 3,
+      "top_color": 0,
+      "trouser_color": 0,
+      "hair_color": 2,
+      "hairstyle": 12,
+      "shoe_color": 2,
+      "glasses": true,
+      "joints": [
+        [
+          -0.00017696619,
+          0.585,
+          0.015
+        ],
+        [
+          0.0037124662,
+          0.7397574,
+          0.012206355
+        ],
+        [
+          0.010972739,
+          1.0286379,
+          0.006991554
+        ],
+        [
+          0.014084285,
+          1.1524439,
+          0.004756639
+        ],
+        [
+          0.01548781,
+          1.2865105,
+          -0.0035367366
+        ],
+        [
+          -0.16418327,
+          1.0290968,
+          0.06566808
+        ],
+        [
+          -0.29850224,
+          0.8085822,
+          -0.08578063
+        ],
+        [
+          -0.32655862,
+          0.9870653,
+          -0.28422853
+        ],
+        [
+          -0.3346518,
+          1.0385509,
+          -0.3414731
+        ],
+        [
+          0.18587755,
+          1.0181837,
+          -0.05150454
+        ],
+        [
+          0.2660258,
+          0.79564166,
+          -0.23496094
+        ],
+        [
+          0.23085289,
+          1.0342848,
+          -0.35259262
+        ],
+        [
+          0.22070685,
+          1.1031243,
+          -0.38652483
+        ],
+        [
+          -0.090541095,
+          0.585,
+          0.015
+        ],
+        [
+          -0.14273474,
+          0.5415987,
+          -0.42362887
+        ],
+        [
+          -0.12884757,
+          0.10499999,
+          -0.34493986
+        ],
+        [
+          -0.13957164,
+          0.04499999,
+          -0.5200876
+        ],
+        [
+          0.09018716,
+          0.585,
+          0.015
+        ],
+        [
+          0.14233068,
+          0.543578,
+          -0.42382622
+        ],
+        [
+          0.12884757,
+          0.10499999,
+          -0.35696298
+        ],
+        [
+          0.13228735,
+          0.04499999,
+          -0.53240496
+        ]
+      ],
+      "bounds_min": [
+        -0.47791883,
+        0.0,
+        -0.6730784
+      ],
+      "bounds_max": [
+        0.43044898,
+        1.6250577,
+        0.4521167
+      ]
+    },
+    {
+      "id": 64,
+      "seed": 3246878252459907114,
+      "position": [
+        0.913516,
+        0.0,
+        -1.4273102
+      ],
+      "yaw": 4.530339,
+      "stature": 1.6286185,
+      "build": 0.93053913,
+      "shoulder_width": 0.36772284,
+      "head_yaw": 0.49572384,
+      "pose": "SeatedListening",
+      "pose_program": {
+        "lean": [
+          0.028742611,
+          -0.10842715
+        ],
+        "torso_twist": -0.33879668,
+        "weight_shift": 0.018721197,
+        "stance": 0.27212182,
+        "stride": 0.012511639,
+        "phase": 0.40104085,
+        "arm_reach": [
+          0.97983795,
+          0.9472317
+        ],
+        "arm_elevation": [
+          -1.2879266,
+          -1.2921108
+        ],
+        "arm_sweep": [
+          0.17065214,
+          0.083383314
+        ],
+        "elbow_pole": [
+          0.114604056,
+          0.6269293
+        ],
+        "foot_splay": [
+          0.09105066,
+          0.18202555
+        ],
+        "head_pitch": -0.13935286,
+        "head_roll": 0.066301726,
+        "finger_curl": [
+          0.020511502,
+          0.050659828
         ],
         "index_extension": [
           0.0,
@@ -4413,245 +5459,245 @@
         ]
       },
       "appearance": {
-        "melanin": 0.045876026,
-        "blood_tint": 0.030905966,
-        "skin_roughness": 0.45613858,
+        "melanin": 0.19479728,
+        "blood_tint": 0.052145906,
+        "skin_roughness": 0.5177828,
         "top": [
-          0.67182004,
-          0.6973363,
-          0.6960888
+          0.44005787,
+          0.5836782,
+          0.42035708
         ],
         "trousers": [
-          0.3746112,
-          0.268582,
-          0.54055697
+          0.377627,
+          0.34319744,
+          0.30876788
         ],
         "hair": [
-          0.24298455,
-          0.24298455,
-          0.24298455
+          0.37811428,
+          0.19876824,
+          0.109057516
         ],
-        "garment_ease": 0.018525697,
-        "fold_amplitude": 0.0034851758,
-        "fold_frequency": 34.778347,
-        "cloth_roughness": 0.73361516,
-        "hair_length": 0.047995318,
-        "hair_part": 0.114773214,
-        "hair_curl": 0.013093893,
-        "sleeve_coverage": 0.44750857,
-        "hem_fraction": 0.18382405,
-        "weave_scale": 1.8375523,
-        "weave_rotation": -0.18545179,
+        "garment_ease": 0.024928354,
+        "fold_amplitude": 0.0020541942,
+        "fold_frequency": 35.03818,
+        "cloth_roughness": 0.859231,
+        "hair_length": 0.0082890615,
+        "hair_part": -0.040136456,
+        "hair_curl": 0.012884623,
+        "sleeve_coverage": 0.31738925,
+        "hem_fraction": 0.076147266,
+        "weave_scale": 1.4608495,
+        "weave_rotation": 0.054712117,
         "garment": {
-          "torso_ease_m": 0.0178974,
-          "waist_taper": 0.9781093,
-          "neckline_width": 0.10467893,
-          "neckline_depth": 0.11355596,
-          "neckline_roundness": 3.2115347,
-          "drape": 0.70707124,
-          "section_roundness": 1.9830219,
-          "trouser_coverage": 0.45934218,
-          "trouser_ease": 0.007895647,
-          "leg_straightness": 0.63703775,
-          "hem_width": 1.2959087,
-          "collar_width": 0.037291836,
-          "placket_width": 0.016243061,
-          "pocket_width": 0.09713535,
-          "pocket_height": 0.077222645,
+          "torso_ease_m": 0.005784585,
+          "waist_taper": 0.93006736,
+          "neckline_width": 0.07825017,
+          "neckline_depth": 0.07170221,
+          "neckline_roundness": 1.2013923,
+          "drape": 0.5996236,
+          "section_roundness": 1.994438,
+          "trouser_coverage": 0.85375214,
+          "trouser_ease": 0.01881968,
+          "leg_straightness": 0.7526665,
+          "hem_width": 1.0835146,
+          "collar_width": 0.044908214,
+          "placket_width": 0.018257884,
+          "pocket_width": 0.0683525,
+          "pocket_height": 0.084811434,
           "pocket": false
         },
         "face": {
           "iris": [
-            0.25198215,
-            0.33900845,
-            0.24723072
+            0.22667065,
+            0.25820327,
+            0.14629805
           ],
-          "brow_width": 0.04293509,
-          "brow_thickness": 0.0030106178,
-          "brow_arch": 0.0015328364,
-          "lip_tint": 0.28851315,
+          "brow_width": 0.046752166,
+          "brow_thickness": 0.004058594,
+          "brow_arch": 0.006247132,
+          "lip_tint": 0.46615943,
           "stubble": 0.0,
-          "frame_metallic": 0.83007574,
+          "frame_metallic": 0.9035484,
           "frame_color": [
-            0.028228361,
-            0.049102187,
-            0.040074106
+            0.07690629,
+            0.050088298,
+            0.10246962
           ]
         },
-        "hair_volume": 0.7970145,
-        "hairline_raise": 0.0069010565,
-        "hair_grey": 0.4861857,
+        "hair_volume": 1.4712484,
+        "hairline_raise": -0.004434292,
+        "hair_grey": 0.24508297,
         "footwear": {
-          "sole_height": 0.021749882,
-          "toe_room": 0.006204662,
-          "toe_roundness": 3.2683525,
-          "collar_raise": 0.038092244,
-          "heel_width": 0.7825312,
-          "vamp": 0.47027785,
-          "laces": 3,
-          "leather": 0.4581554,
+          "sole_height": 0.010112926,
+          "toe_room": 0.014025245,
+          "toe_roundness": 3.5677907,
+          "collar_raise": 0.022607064,
+          "heel_width": 0.9459704,
+          "vamp": 0.595933,
+          "laces": 5,
+          "leather": 0.3130716,
           "upper_color": [
-            0.16486822,
-            0.11992257,
-            0.09744975
+            0.13888636,
+            0.12879188,
+            0.123744644
           ],
           "sole_color": [
-            0.09289449,
-            0.091036595,
-            0.088249765
+            0.8427781,
+            0.82592255,
+            0.80063915
           ]
         },
         "hair_program": {
-          "part_curve": -0.48908657,
-          "crown_whorl": 0.27120346,
-          "drop_m": 0.49799258,
-          "layers": 0.38275543,
-          "spread": 1.226902,
-          "sweep": 0.4314723,
-          "wave_length_m": 0.24458155,
-          "curl_radius_m": 0.026330352,
-          "clump_width_m": 0.014087435,
+          "part_curve": 0.11028606,
+          "crown_whorl": -0.09049207,
+          "drop_m": 0.20762196,
+          "layers": 0.6175877,
+          "spread": 1.1880097,
+          "sweep": -0.20138606,
+          "wave_length_m": 0.24919055,
+          "curl_radius_m": 0.015650103,
+          "clump_width_m": 0.021452658,
           "bangs": 0.0,
-          "tie_height": 0.3669926,
-          "flyaways": 0.21040753
+          "tie_height": 0.47924933,
+          "flyaways": 0.2434047
         },
         "body_program": {
-          "gender": 0.8372607929330944,
-          "age": 0.9679643707519225,
-          "muscle": 0.7191221382110764,
-          "proportions": 0.6476902277238312
+          "gender": 0.5745807409417467,
+          "age": 0.89379303504725,
+          "muscle": 0.7530319017384126,
+          "proportions": 0.7430624244542695
         }
       },
-      "chair": null,
+      "chair": 5,
       "neighbor": false,
-      "outfit": "Shirt",
-      "skin_tone": 1,
-      "top_color": 10,
-      "trouser_color": 7,
-      "hair_color": 4,
-      "hairstyle": 13,
-      "shoe_color": 1,
+      "outfit": "Tee",
+      "skin_tone": 2,
+      "top_color": 3,
+      "trouser_color": 2,
+      "hair_color": 0,
+      "hairstyle": 12,
+      "shoe_color": 2,
       "glasses": false,
       "joints": [
         [
-          -0.020664517,
-          0.9138482,
+          0.018721197,
+          0.585,
           0.015
         ],
         [
-          -0.019718444,
-          1.0584903,
-          0.0146606555
+          0.0275235,
+          0.72371876,
+          0.0020915903
         ],
         [
-          -0.017952442,
-          1.328489,
-          0.014027214
+          0.04395447,
+          0.9826604,
+          -0.022004105
         ],
         [
-          -0.017195582,
-          1.4442027,
-          0.013755738
+          0.050996307,
+          1.0936354,
+          -0.032330837
         ],
         [
-          -0.016916316,
-          1.5695492,
-          0.0077011413
+          0.060469873,
+          1.2132541,
+          -0.04875362
         ],
         [
-          -0.20563482,
-          1.3247578,
-          0.031648967
+          -0.12950897,
+          0.9829447,
+          -0.08316259
         ],
         [
-          -0.23980428,
-          1.0497134,
-          -0.0055808425
+          -0.17438956,
+          0.7175067,
+          -0.102306694
         ],
         [
-          -0.23148042,
-          0.8321016,
-          -0.129822
+          -0.13668521,
+          0.49012172,
+          -0.17594105
         ],
         [
-          -0.2290793,
-          0.76932895,
-          -0.1656608
+          -0.12580894,
+          0.42452985,
+          -0.19718175
         ],
         [
-          0.16966452,
-          1.3222203,
-          -0.0035710782
+          0.21678737,
+          0.97243893,
+          0.040079072
         ],
         [
-          0.2588088,
-          1.0834436,
-          -0.1186453
+          0.2424207,
+          0.7065822,
+          0.0788248
         ],
         [
-          0.29122806,
-          1.192438,
-          -0.34209377
+          0.24177058,
+          0.49453148,
+          -0.03771569
         ],
         [
-          0.30057976,
-          1.2238787,
-          -0.40655008
+          0.24158305,
+          0.433363,
+          -0.07133314
         ],
         [
-          -0.105783656,
-          0.9138482,
+          -0.06387052,
+          0.585,
           0.015
         ],
         [
-          -0.12635607,
-          0.5017983,
-          -0.026554607
+          -0.11596127,
+          0.5013317,
+          -0.37284797
         ],
         [
-          -0.1269221,
-          0.10500002,
-          0.093803175
+          -0.13606091,
+          0.10499999,
+          -0.32130152
         ],
         [
-          -0.16137983,
-          0.045000024,
-          -0.06646616
+          -0.15044601,
+          0.04499999,
+          -0.47885484
         ],
         [
-          0.064454615,
-          0.9138482,
+          0.101312906,
+          0.585,
           0.015
         ],
         [
-          0.10298402,
-          0.5188084,
-          -0.10497597
+          0.14713669,
+          0.5002092,
+          -0.3733949
         ],
         [
-          0.1269221,
-          0.10500002,
-          -0.09380318
+          0.13606091,
+          0.10499999,
+          -0.31153306
         ],
         [
-          0.14518687,
-          0.04500002,
-          -0.25671417
+          0.16470017,
+          0.044999994,
+          -0.46712795
         ]
       ],
       "bounds_min": [
-        -0.40475988,
+        -0.34449866,
         0.0,
-        -0.5811549
+        -0.6110979
       ],
       "bounds_max": [
-        0.44047084,
-        1.9095272,
-        0.46063894
+        0.41252977,
+        1.5619845,
+        0.41343617
       ]
     }
   ],
-  "rejected_human_placements": 6,
+  "rejected_human_placements": 0,
   "camera_settings": {
     "lenses": {
       "probability": 1.0,
@@ -4708,53 +5754,98 @@
         "anisotropy": 0.9994219
       },
       "start": [
-        -0.59431934,
-        2.9452457,
-        -1.8341097
+        -2.4972563,
+        2.0842998,
+        -0.08483958
       ],
       "end": [
-        -2.2770255,
-        2.9452457,
-        -0.22573936
+        1.0184205,
+        2.0842998,
+        2.8414507
       ],
       "target": [
-        -2.9384413,
-        1.328489,
-        0.4814637
+        0.92719865,
+        0.9826604,
+        -1.3800983
       ],
-      "fov_degrees": 127.2766,
+      "fov_degrees": 65.72844,
       "motion": {
         "control": [
           [
-            -1.6056811,
-            2.9452457,
-            -1.765039
+            -1.2104926,
+            2.0842998,
+            1.2155205
           ],
           [
-            -2.1778011,
-            2.9452457,
-            -1.218193
+            -0.015162528,
+            2.0842998,
+            2.2104592
           ]
         ],
         "target_end": [
-          -2.7719564,
-          1.3708073,
-          0.2496973
+          0.8482249,
+          1.0103745,
+          -1.1774942
         ],
         "roll": [
-          0.019842833,
-          0.07752058
+          -0.08644086,
+          0.06882651
         ],
         "route": [
           [
-            -0.59431934,
-            2.9452457,
-            -1.8341097
+            -2.4972563,
+            2.0842998,
+            -0.08483958
           ],
           [
-            -2.2770255,
-            2.9452457,
-            -0.22573936
+            -1.2045964,
+            2.0842998,
+            0.4181353
+          ],
+          [
+            -1.1152835,
+            2.0842998,
+            0.4561243
+          ],
+          [
+            -1.0296428,
+            2.0842998,
+            0.49915898
+          ],
+          [
+            -0.9476746,
+            2.0842998,
+            0.54723924
+          ],
+          [
+            -0.8693785,
+            2.0842998,
+            0.6003652
+          ],
+          [
+            -0.79475486,
+            2.0842998,
+            0.6585368
+          ],
+          [
+            -0.72380346,
+            2.0842998,
+            0.7217541
+          ],
+          [
+            -0.6565244,
+            2.0842998,
+            0.79001695
+          ],
+          [
+            -0.5929176,
+            2.0842998,
+            0.86332554
+          ],
+          [
+            1.0184205,
+            2.0842998,
+            2.8414507
           ]
         ]
       }
@@ -4774,53 +5865,98 @@
         "anisotropy": 1.0
       },
       "start": [
-        2.369692,
-        2.9974384,
-        0.92882717
+        0.23736525,
+        2.726613,
+        0.67084944
       ],
       "end": [
-        0.72202075,
-        2.9974384,
-        1.6608512
+        2.3167279,
+        2.726613,
+        3.161119
       ],
       "target": [
-        -2.937607,
-        1.2920495,
-        0.59002423
+        0.8523536,
+        0.9006709,
+        -1.4360363
       ],
       "fov_degrees": 114.26034,
       "motion": {
         "control": [
           [
-            1.7087159,
-            3.002581,
-            0.7847186
+            1.3889624,
+            2.643048,
+            1.3577781
           ],
           [
-            1.1485078,
-            3.002581,
-            1.0336068
+            2.0959458,
+            2.643048,
+            2.2044697
           ]
         ],
         "target_end": [
-          -2.7711222,
-          1.3343679,
-          0.3582578
+          0.7733798,
+          0.928385,
+          -1.2334322
         ],
         "roll": [
-          -0.07397674,
-          -0.026983924
+          -0.0040050074,
+          0.012280807
         ],
         "route": [
           [
-            2.369692,
-            2.9974384,
-            0.92882717
+            0.23736525,
+            2.726613,
+            0.67084944
           ],
           [
-            0.72202075,
-            2.9974384,
-            1.6608512
+            1.0750365,
+            2.726613,
+            1.1867299
+          ],
+          [
+            1.1325002,
+            2.726613,
+            1.2246319
+          ],
+          [
+            1.1867578,
+            2.726613,
+            1.2655854
+          ],
+          [
+            1.2378093,
+            2.726613,
+            1.3095906
+          ],
+          [
+            1.2856548,
+            2.726613,
+            1.3566474
+          ],
+          [
+            1.3302944,
+            2.726613,
+            1.4067556
+          ],
+          [
+            1.371728,
+            2.726613,
+            1.4599155
+          ],
+          [
+            1.4099555,
+            2.726613,
+            1.516127
+          ],
+          [
+            1.444977,
+            2.726613,
+            1.5753901
+          ],
+          [
+            2.3167279,
+            2.726613,
+            3.161119
           ]
         ]
       }
@@ -4840,57 +5976,102 @@
         "anisotropy": 0.9772958
       },
       "start": [
-        -1.8751184,
-        3.081262,
-        0.27107704
+        -1.1494282,
+        2.6217093,
+        -1.381022
       ],
       "end": [
-        -2.9569626,
-        3.081262,
-        2.3136735
+        2.7737613,
+        2.6217093,
+        2.2559898
       ],
       "target": [
-        -2.936302,
-        1.3138334,
-        0.47917834
+        0.8329135,
+        1.0182259,
+        -1.3879157
       ],
       "fov_degrees": 117.89892,
       "motion": {
         "control": [
           [
-            -2.888451,
-            3.037175,
-            0.79861677
+            0.22663662,
+            2.703441,
+            0.37574786
           ],
           [
-            -3.256278,
-            3.037175,
-            1.4930996
+            1.5605211,
+            2.703441,
+            1.6123321
           ]
         ],
         "target_end": [
-          -2.769817,
-          1.3561517,
-          0.24741194
+          0.75393975,
+          1.04594,
+          -1.1853116
         ],
         "roll": [
-          -0.08756537,
-          -0.06364882
+          0.081449315,
+          0.08043648
         ],
         "route": [
           [
-            -1.8751184,
-            3.081262,
-            0.27107704
+            -1.1494282,
+            2.6217093,
+            -1.381022
           ],
           [
-            -2.9569626,
-            3.081262,
-            2.3136735
+            0.32883704,
+            2.6217093,
+            -0.7129139
+          ],
+          [
+            0.4307717,
+            2.6217093,
+            -0.66297185
+          ],
+          [
+            0.52810276,
+            2.6217093,
+            -0.60736644
+          ],
+          [
+            0.6208298,
+            2.6217093,
+            -0.54609776
+          ],
+          [
+            0.70895314,
+            2.6217093,
+            -0.47916555
+          ],
+          [
+            0.79247284,
+            2.6217093,
+            -0.4065699
+          ],
+          [
+            0.87138855,
+            2.6217093,
+            -0.32831085
+          ],
+          [
+            0.94570076,
+            2.6217093,
+            -0.24438834
+          ],
+          [
+            1.0154089,
+            2.6217093,
+            -0.15480244
+          ],
+          [
+            2.7737613,
+            2.6217093,
+            2.2559898
           ]
         ]
       }
     }
   ],
-  "rejected_placements": 100
+  "rejected_placements": 162
 }
