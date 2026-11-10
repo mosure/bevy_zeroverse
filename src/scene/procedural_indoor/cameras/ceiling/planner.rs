@@ -1,7 +1,7 @@
 //! Joint search for mixed room/ceiling rigs. Roles and lenses are fixed before
 //! search; all cameras share synchronized geometry and visibility constraints.
-use super::placement::{surface, MountSpace};
 use super::*;
+use super::{placement::MountSpace, proposal::Prototype};
 use crate::scene::procedural_indoor::{
     cameras::{
         coverage::{Coverage, VisibilityView},
@@ -60,33 +60,22 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
         return Err("ceiling camera wall clearance leaves no mounting area".into());
     }
     let mut rng = stream(scene.seed, 0x4343_5456);
-    // Fix fisheye lens, initial standoff and roll per slot before placement.
+    // Fix lens, initial standoff, tilt and roll per slot before placement.
     // Bounded recovery may redraw standoff within its configured range when
     // a slot has no clear rail; lens family and mounting role never change.
     // The pinhole reference retains the content-conditioned intrinsic sampler:
     // a narrow fixed draw may not frame a person plus the required room content.
     // Peers keep their draws; their gaze can change to find rich shared content.
     let prototypes: Vec<_> = (0..count)
-        .map(|index| {
-            let mut prior = stream(scene.seed, 0x4343_0000 + index as u64);
-            (
-                scene.camera_settings.lens_for(scene.seed, index),
-                scene
-                    .camera_settings
-                    .intrinsics_for(scene.seed, index)
-                    .sample(&mut prior),
-                prior.random_range(mounting.standoff_m[0]..=mounting.standoff_m[1]),
-                prior.random_range(0.0..std::f32::consts::TAU),
-            )
-        })
+        .map(|index| Prototype::sample(scene, index, &mounting))
         .collect();
     let narrowest_room_fov = prototypes
         .iter()
         .enumerate()
-        .filter(|(i, (lens, ..))| {
-            *i > 0 && lens.is_none() && !scene.camera_settings.ceiling_mounted(scene.seed, *i)
+        .filter(|(i, p)| {
+            *i > 0 && p.lens.is_none() && !scene.camera_settings.ceiling_mounted(scene.seed, *i)
         })
-        .map(|(_, (_, fov, ..))| *fov)
+        .map(|(_, p)| p.fov_degrees)
         .min_by(f32::total_cmp);
     // Keep camera zero as the reference, then place constrained mounts before
     // free room paths. Slot identities remain fixed; restore export order below.
@@ -128,9 +117,9 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
             // useful paths. Slot identities/calibrations remain fixed, and the
             // original order is still tried first for already-feasible rigs.
             let angle = |i: usize| {
-                prototypes[i]
-                    .0
-                    .map_or(prototypes[i].1, |l| 2. * l.lens.max_angle.to_degrees())
+                prototypes[i].lens.map_or(prototypes[i].fov_degrees, |l| {
+                    2. * l.lens.max_angle.to_degrees()
+                })
             };
             order[1..].sort_by(|&a, &b| {
                 scene
@@ -152,7 +141,8 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
         while scene.cameras.len() < count && proposals < 384 * count {
             let stage = scene.cameras.len();
             let index = order[stage];
-            let (lens, fov, standoff, roll) = prototypes[index];
+            let prototype = prototypes[index];
+            let fov = prototype.fov_degrees;
             let mut pool: Vec<Candidate> = Vec::with_capacity(4);
             let mut first = None;
             for attempt in 0..384 {
@@ -187,6 +177,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                             &coverage,
                             contract.filter(|_| index != 0).map(|_| fov),
                             contract.is_some() && stage > 0 && attempt >= 64,
+                            mounted && contract.is_some(),
                         )
                     };
                     let Some(mut camera) = proposed else {
@@ -263,7 +254,16 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                     }
                     camera
                 } else {
-                    let p = if let Some(contract) =
+                    let guided = if contract.is_some() && stage > 0 && attempt % 4 == 0 {
+                        views.first().and_then(|v| v.first()).and_then(|view| {
+                            super::coherent::mounted_point(scene, prototype, view, &mut rng)
+                        })
+                    } else {
+                        None
+                    };
+                    let p = if let Some(p) = guided {
+                        p
+                    } else if let Some(contract) =
                         contract.filter(|_| stage > 0 && attempt % 4 != 3)
                     {
                         super::coherent::point(scene, true, contract, &mut rng).unwrap()
@@ -280,27 +280,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                     if p.cmplt(lo).any() || p.cmpgt(hi).any() {
                         continue;
                     }
-                    let (surface, normal) = surface(scene, p);
-                    let start = surface + normal * standoff;
-                    let rotation = Transform::IDENTITY.looking_to(normal, Vec3::Z).rotation
-                        * Quat::from_rotation_z(roll);
-                    let mut camera = IndoorCamera {
-                        ceiling_mount: Some(CeilingCameraMount {
-                            surface,
-                            inward_normal: normal,
-                            rotation,
-                            standoff_m: standoff,
-                            body_radius_m: mounting.body_radius_m,
-                        }),
-                        fisheye: lens,
-                        principal_point_offset: None,
-                        start,
-                        end: start,
-                        target: start + normal * 2.,
-                        fov_degrees: fov,
-                        motion: None,
-                    };
-                    super::trajectory::propose(scene, index, &mut camera, &mut rng);
+                    let mut camera = prototype.mounted_at(scene, index, p, &mut rng);
                     if let Some(contract) = contract {
                         super::coherent::motion(
                             scene,

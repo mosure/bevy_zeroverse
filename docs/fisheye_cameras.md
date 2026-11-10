@@ -14,14 +14,26 @@ configurations. `ceiling_mount.probability=0` uses the unchanged room-only sampl
 omitting `ceiling_mount` retains the library default. Fractions are Bernoulli
 probabilities across the dataset, not exact quotas in small rigs.
 
-The optical axis is perpendicular to the actual local ceiling and points inward.
-Sloping roofs use their analytic surface normal; flat soffits use a downward
-normal. A sampled in-plane rotation avoids aligning every image with the room.
+The optical axis samples a small angular offset from the actual local ceiling
+normal. Sloping roofs use their analytic surface normal; flat soffits use a
+downward normal. The independent `tilt_degrees` range defaults to **[0, 12]**:
+a bounded Rayleigh radial prior favors modest mounting misalignment, with uniform
+azimuth and no preferred tilt direction. This is a designed prior, not a measured
+installation distribution. Its scale is one third of the interval width; both
+bounds can range from 0 to 45 degrees. **[0, 0]** restores exact ceiling-normal
+alignment; equal nonzero bounds give a fixed tilt magnitude with varied azimuth.
+An independent in-plane rotation avoids aligning every image with the room.
 The optical center sits 0.12–0.24 m below the surface, with a 0.055 m body radius.
 Mounts avoid fixtures and their suspension, ducts, structural members, furniture,
 people and available motion reservations. Subsequent object-motion planning
 reserves the mounting body as well as the optical center. No visible camera body
 is added to the room.
+
+Studio exposes minimum/maximum mounting tilt in **Cameras → Ceiling mix &
+mounting**. Sparse URLs use `camera.ceiling_mount.tilt_degrees.0=2` and
+`camera.ceiling_mount.tilt_degrees.1=18`; default values are omitted. CLI/data
+users set the same typed fields through `--indoor-camera` JSON, for example
+`--indoor-camera '{"ceiling_mount":{"tilt_degrees":[2,18]}}'`.
 
 The mounting policy has its own calibrated lens priors:
 
@@ -35,6 +47,7 @@ The mounting policy has its own calibrated lens priors:
     "motion_fraction": 0.5,
     "travel_m": [0.1, 3.0],
     "standoff_m": [0.12, 0.24],
+    "tilt_degrees": [0.0, 12.0],
     "body_radius_m": 0.055,
     "wall_clearance_m": 0.35,
     "lenses": {
@@ -59,7 +72,7 @@ controls. A 180° diameter fisheye sees a hemisphere, including every azimuth
 around a downward optical axis; this is the ceiling overview commonly marketed
 as a 360° panoramic camera ([Axis panoramic camera documentation](https://whitepapers.axis.com/en-us/panoramic-cameras)).
 
-Mounting, lens and motion assignments, standoff and roll are seeded before placement
+Mounting, lens and motion assignments, standoff, tilt and roll are seeded before placement
 retries, independently of the number of cameras. Mounted motion follows a straight
 rail on one supporting plane, with constant normal offset and orientation. Travel
 is sampled log-uniformly within `travel_m`; rails can follow a sloped ceiling but
@@ -77,10 +90,17 @@ or quietly substitute walkthrough poses. Sampling is bounded, and a failed
 `resample_cameras` restores the previous camera set.
 
 Each `IndoorCamera` archives `ceiling_mount` with its surface contact, inward
-normal, rotation, standoff and body radius in room-local coordinates. Existing
+normal, rotation, standoff and body radius in room-local coordinates. The support
+normal defines the mounting/rail plane; `optical_axis()` and `tilt_degrees()` expose
+the realized viewing direction and its departure from that normal. The target,
+clearance, overview and calibrated visibility all use the actual tilted optical
+axis. Near-plane corners and rail sweeps are checked against the room envelope. Existing
 view exports retain world-space extrinsics (including world-yaw augmentation),
 full calibration, ray validity and the correct radial/axial depth convention.
 The exact same trajectory drives RGB, geometry labels, flow and co-visibility.
+
+See the [ceiling mounting qualification](qualification/ceiling_mount_tilt.md) for
+tilt distributions, clearance/calibration checks and bounded CPU timing evidence.
 `ceiling_mount` describes the initial attachment; `start`, `end`, and `motion`
 archive the rail. `runtime_trajectory()` / `transform_at(progress)` supply the
 live pose; `ceiling_sweep_bounds()` supplies the conservative mounting reservation.

@@ -124,6 +124,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   Ceiling-mounted CCTV cameras can mix with room cameras, using downward-facing,
   calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
   trajectories preserve body and swept-path clearance around fixtures.
+  Mounting tilt defaults to a continuous 0–12° offset around the actual ceiling
+  normal; `ceiling_mount.tilt_degrees` controls the range independently of roof
+  slope, lens choice and trajectory motion.
   Studio and schematic camera glyphs share compact, camera-indexed colors;
   prediction overlays use the matching color with dashed outlines. Independent
   editor/schematic scale controls apply live and round-trip through CLI/URL

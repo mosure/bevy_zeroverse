@@ -76,7 +76,7 @@ impl Solver {
         // Try small viable domains first. Enumerating every possible peer before
         // trying one assignment spends most ray tests on candidates never needed.
         // Widen on failure; cached pair decisions keep this bounded and exact.
-        for width in [8, 32, usize::MAX] {
+        for width in [1, 4, 16, usize::MAX] {
             for reference_index in self.ranked_references(pools[0].len(), pools.len()) {
                 let reference = &pools[0][reference_index];
                 let mut domains: Vec<Vec<&Candidate>> =
@@ -124,7 +124,9 @@ impl Solver {
                                 )
                             },
                         ) else {
-                            return false;
+                            // Exhausting new ray tests cannot invalidate cached
+                            // compatible paths later in this or another domain.
+                            continue;
                         };
                         if accepted {
                             domains[index].push(candidate);
@@ -282,6 +284,33 @@ mod tests {
             camera,
             views: Vec::new(),
         }
+    }
+
+    #[test]
+    fn exhausted_visibility_budget_still_assembles_previously_qualified_paths() {
+        use crate::scene::procedural_indoor::layout::IndoorLayout;
+        let mut scene =
+            IndoorManifest::generate_with_humans(12, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        let policy = MultiViewSettings::from_baseline(0.5).unwrap();
+        let contract = MixedRigContract::new(&policy).unwrap();
+        scene.camera_settings.multiview = Some(policy);
+        let coverage = Coverage::for_ceiling_search(&scene);
+        let pools = vec![
+            vec![candidate(0., 0.)],
+            vec![candidate(-1.5, 0.), candidate(1.5, 0.)],
+            vec![candidate(0., -1.5), candidate(0., 1.5)],
+        ];
+        let mut solver = Solver {
+            visibility_left: 0,
+            ..Default::default()
+        };
+        solver.visibility.insert([0, 1, 1], true);
+        solver.visibility.insert([0, 2, 1], true);
+        assert!(solver.solve(&mut scene, &coverage, &pools, contract, 0));
+        assert_eq!(scene.cameras.len(), 3);
+        assert_eq!(scene.cameras[1], pools[1][1].camera);
+        assert_eq!(scene.cameras[2], pools[2][1].camera);
+        assert_eq!(solver.visibility_left, 0);
     }
 
     #[test]

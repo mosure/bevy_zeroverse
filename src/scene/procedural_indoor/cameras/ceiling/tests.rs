@@ -29,6 +29,9 @@ fn mounting_policy_is_explicit_validated_and_archived() {
         r#"{"body_radius_m":0}"#,
         r#"{"wall_clearance_m":-1}"#,
         r#"{"lenses":{"fov_degrees":[200,190]}}"#,
+        r#"{"tilt_degrees":[-1,12]}"#,
+        r#"{"tilt_degrees":[12,5]}"#,
+        r#"{"tilt_degrees":[0,46]}"#,
     ] {
         assert!(CameraSettings::parse(&format!(r#"{{"ceiling_mount":{json}}}"#)).is_err());
     }
@@ -42,6 +45,8 @@ fn ceiling_rigs_are_safe_seeded_and_spread_across_one_to_twelve_views() {
     let started = std::time::Instant::now();
     let mut mounted = 0;
     let mut slopes = 0;
+    let mut tilts = Vec::new();
+    let mut flat_tilted = 0;
     let mut min_overlap = 1.0_f32;
     for seed in 0..32 {
         let mut scene = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.65, 0).unwrap();
@@ -57,6 +62,28 @@ fn ceiling_rigs_are_safe_seeded_and_spread_across_one_to_twelve_views() {
             for (index, camera) in scene.cameras.iter().enumerate() {
                 let mount = camera.ceiling_mount.as_ref().unwrap();
                 slopes += usize::from(mount.inward_normal.distance(Vec3::NEG_Y) > 0.01);
+                let tilt = mount.tilt_degrees();
+                assert!(tilt > 0. && tilt < 12.0001);
+                tilts.push(tilt);
+                flat_tilted += usize::from(mount.inward_normal == Vec3::NEG_Y && tilt > 0.1);
+                let expected = proposal::Prototype::sample(
+                    &scene,
+                    index,
+                    scene.camera_settings.ceiling_mount.as_ref().unwrap(),
+                );
+                assert_eq!(
+                    mount.rotation,
+                    Transform::IDENTITY
+                        .looking_to(mount.inward_normal, Vec3::Z)
+                        .rotation
+                        * expected.local_rotation
+                );
+                assert!(
+                    camera
+                        .target
+                        .distance(camera.start + mount.optical_axis() * 2.)
+                        < 1e-5
+                );
                 assert_eq!(camera.fisheye, policy().lens_for(seed, index));
                 assert!(camera.fisheye.is_some());
                 assert!((mount.standoff_m - camera.start.distance(mount.surface)).abs() < 1e-5);
@@ -97,6 +124,15 @@ fn ceiling_rigs_are_safe_seeded_and_spread_across_one_to_twelve_views() {
         assert_eq!(archive, scene);
     }
     assert!(slopes > 50, "sloped mounting coverage: {slopes}");
+    assert!(
+        flat_tilted > 50,
+        "flat ceilings must also have mounting error: {flat_tilted}"
+    );
+    tilts.sort_by(f32::total_cmp);
+    eprintln!(
+        "realized ceiling tilt: p05/p50/p95={:?}, flat tilted={flat_tilted}",
+        [0.05, 0.5, 0.95].map(|q| tilts[(q * (tilts.len() - 1) as f32) as usize])
+    );
     eprintln!("ceiling qualification: 384 rigs, {mounted} cameras, {slopes} sloped, minimum directed overlap {min_overlap:.4}, {:.2}s", started.elapsed().as_secs_f32());
 }
 
@@ -306,7 +342,16 @@ fn mixed_ceiling_room_rails_qualify_across_rig_sizes() {
                         let support = pose.translation - mount.inward_normal * mount.standoff_m;
                         let (point, normal) = placement::surface(&scene, support.xz());
                         assert!(point.distance(support) < 1e-4);
-                        assert!((pose.rotation * Vec3::NEG_Z).distance(normal) < 1e-5);
+                        assert!(normal.distance(mount.inward_normal) < 1e-5);
+                        assert!((*pose.forward()).distance(mount.optical_axis()) < 1e-5);
+                        assert!(mount.tilt_degrees() > 0. && mount.tilt_degrees() < 12.0001);
+                        if step % 16 == 0 {
+                            assert_calibrated_pose(
+                                camera,
+                                scene.camera_aspect_ratio,
+                                step as f32 / 64.,
+                            );
+                        }
                     }
                 }
             }
@@ -328,6 +373,47 @@ fn mixed_ceiling_room_rails_qualify_across_rig_sizes() {
         "mixed rig qualification: 96 rigs, combinations={combinations:?}, {:.3}s",
         started.elapsed().as_secs_f32()
     );
+}
+
+/// The same archived pose is consumed by RGB, annotation projection and gizmos.
+/// Exercise both lens models through moving and static mounts and world yaw.
+fn assert_calibrated_pose(camera: &IndoorCamera, aspect: f32, progress: f32) {
+    let size = [576, (576. / aspect).round() as u32];
+    let offset = camera.principal_point_offset.unwrap_or(Vec2::ZERO);
+    let calibration = if let Some(lens) = camera.fisheye {
+        lens.calibration(size, offset.to_array()).unwrap()
+    } else {
+        let mut c = crate::calibration::CameraCalibration::centered_pinhole(
+            size[0],
+            size[1],
+            camera.fov_degrees.to_radians(),
+            aspect,
+        )
+        .unwrap();
+        c.k[0][2] += offset.x * size[0] as f32;
+        c.k[1][2] += offset.y * size[1] as f32;
+        c
+    };
+    let pose = camera.transform_at(progress);
+    let world_from_view = Mat4::from_rotation_y(1.27) * pose.to_matrix();
+    let view_from_world = world_from_view.inverse();
+    let mut valid = 0;
+    for normalized in [[0.5, 0.5], [0.4, 0.55], [0.6, 0.45]] {
+        let pixel = [
+            normalized[0] * size[0] as f32,
+            normalized[1] * size[1] as f32,
+        ];
+        let Some(ray) = calibration.ray(pixel) else {
+            continue;
+        };
+        let world = world_from_view.transform_point3(Vec3::from_array(ray) * 3.);
+        let projected = calibration
+            .project(view_from_world.transform_point3(world).to_array())
+            .unwrap();
+        assert!(Vec2::from_array(projected).distance(Vec2::from_array(pixel)) < 0.002);
+        valid += 1;
+    }
+    assert!(valid >= 2);
 }
 
 #[test]

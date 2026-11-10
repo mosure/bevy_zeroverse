@@ -40,6 +40,28 @@ pub(super) fn point(
     Some(anchor.start.xz() + Vec2::new(angle.cos(), angle.sin()) * distance)
 }
 
+/// A tilted camera's useful footprint is displaced from the mount's vertical
+/// projection. Guide some proposals toward actual shared surfaces, with metric
+/// jitter so the proxy ray grid does not become a placement grid. Independent
+/// proposals remain available; full rig geometry and occlusion decide admission.
+pub(super) fn mounted_point(
+    scene: &IndoorManifest,
+    prototype: proposal::Prototype,
+    reference: &VisibilityView,
+    rng: &mut impl Rng,
+) -> Option<Vec2> {
+    let target = reference
+        .surfaces()
+        .filter(|p| scene.in_primary_room(*p, 0.) && p.y + 1.2 < scene.ceiling_height(p.xz()))
+        .choose(rng)?;
+    let angle = rng.random_range(0.0..std::f32::consts::TAU);
+    let radius = 0.4 * rng.random::<f32>().sqrt();
+    prototype.overlooking(
+        scene,
+        target + Vec3::new(angle.cos(), 0., angle.sin()) * radius,
+    )
+}
+
 /// A narrow rig needs compatible travel before any peer exists. Choose a
 /// proposal cap inside the requested ranges, accounting for fixed peers. This
 /// is not admission: the exact requested minimum and maximum still apply.

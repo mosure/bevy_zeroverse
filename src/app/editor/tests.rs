@@ -84,6 +84,7 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
     let query = share::query(&state.config().unwrap(), &state.view);
     assert!(decode_query(&query)
         .any(|(key, v)| key == "camera.ceiling_mount.probability" && v == "0.5"));
+    assert!(!decode_query(&query).any(|(key, _)| key.contains("tilt_degrees")));
     for (path, v) in [
         (
             "/indoor_camera/ceiling_mount/lenses/probability",
@@ -94,6 +95,8 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
         ("/indoor_camera/ceiling_mount/motion_fraction", json!(0.7)),
         ("/indoor_camera/ceiling_mount/travel_m/1", json!(1.5)),
         ("/indoor_camera/ceiling_mount/standoff_m/1", json!(0.35)),
+        ("/indoor_camera/ceiling_mount/tilt_degrees/0", json!(2.)),
+        ("/indoor_camera/ceiling_mount/tilt_degrees/1", json!(18.)),
     ] {
         assert!(!edit(&mut state, path, v).unwrap());
     }
@@ -105,6 +108,7 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
         .iter()
         .any(|i| matches!(i, fields::Item::Field(f) if f.path == "@camera_motion_percent")));
     assert!(fields.iter().any(|i| matches!(i, fields::Item::Field(f) if f.path == "/indoor_camera/ceiling_mount/lenses/fov_degrees/0")));
+    assert!(fields.iter().any(|i| matches!(i, fields::Item::Field(f) if f.path == "/indoor_camera/ceiling_mount/tilt_degrees/1")));
     let query = share::query(&state.config().unwrap(), &state.view);
     let parsed =
         super::super::config_with_query(BevyZeroverseConfig::default(), decode_query(&query))
@@ -114,6 +118,7 @@ fn ceiling_mount_controls_preserve_walkthrough_policy_and_share_compactly() {
     assert_eq!(ceiling.lenses.probability, 0.8);
     assert_eq!(ceiling.intrinsics.bias, 0.3);
     assert_eq!(ceiling.standoff_m, [0.12, 0.35]);
+    assert_eq!(ceiling.tilt_degrees, [2., 18.]);
     assert_eq!(ceiling.probability, 0.5);
     assert_eq!(ceiling.motion_fraction, 0.7);
     assert_eq!(ceiling.travel_m, [0.1, 1.5]);

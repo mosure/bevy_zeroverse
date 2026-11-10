@@ -438,8 +438,10 @@ impl IndoorManifest {
             .filter(|o| !o.neighbor && o.solid && o.kind == ObjectKind::Sofa)
             .cloned()
             .collect();
-        let mut rng = stream(self.seed, 6130);
         for sofa in sofas {
+            // Completing one sofa must not change the candidates for another
+            // when the already-complete group is skipped on a later check.
+            let mut rng = stream(sofa.seed, 6130);
             let rotation = Quat::from_rotation_y(sofa.yaw);
             if self.objects.iter().any(|o| {
                 if o.neighbor

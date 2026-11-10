@@ -41,9 +41,8 @@ pub(super) fn expand(
                     * rng.random_range(0.05..=1.25)
             };
             let mut prior = *prototype;
-            prior.2 = mount.standoff_m;
-            let mut camera =
-                mounted_at(scene, index, &prior, mount.surface.xz() + offset, &mut rng);
+            prior.standoff_m = mount.standoff_m;
+            let mut camera = prior.mounted_at(scene, index, mount.surface.xz() + offset, &mut rng);
             if scene.camera_settings.camera_moves(scene.seed, index) && source.motion.is_some() {
                 let normal = camera.ceiling_mount.as_ref().unwrap().inward_normal;
                 let delta = source.end - source.start;
@@ -94,13 +93,15 @@ mod tests {
         let coverage = Coverage::for_ceiling_search(&scene);
         let space = MountSpace::new(&scene);
         let prototypes: Vec<_> = (0..3)
-            .map(|i| {
-                (
-                    scene.camera_settings.lens_for(scene.seed, i),
-                    110. + i as f32 * 5.,
-                    0.20,
-                    i as f32 * 0.8,
-                )
+            .map(|i| Prototype {
+                lens: scene.camera_settings.lens_for(scene.seed, i),
+                fov_degrees: 110. + i as f32 * 5.,
+                standoff_m: 0.20,
+                local_rotation: super::super::super::orientation::sample(
+                    scene.camera_settings.ceiling_mount.as_ref().unwrap(),
+                    scene.seed,
+                    i,
+                ) * Quat::from_rotation_z(i as f32 * 0.8),
             })
             .collect();
         let mut pools = vec![
@@ -126,14 +127,14 @@ mod tests {
             for candidate in &pools[index] {
                 let camera = &candidate.camera;
                 let mount = camera.ceiling_mount.as_ref().unwrap();
-                assert_eq!(camera.fisheye, prototypes[index].0);
-                assert_eq!(camera.fov_degrees, prototypes[index].1);
+                assert_eq!(camera.fisheye, prototypes[index].lens);
+                assert_eq!(camera.fov_degrees, prototypes[index].fov_degrees);
                 assert_eq!(
                     mount.rotation,
                     Transform::IDENTITY
                         .looking_to(mount.inward_normal, Vec3::Z)
                         .rotation
-                        * Quat::from_rotation_z(prototypes[index].3)
+                        * prototypes[index].local_rotation
                 );
                 assert!(scene
                     .camera_settings

@@ -63,14 +63,26 @@ fn reference_content_eligibility_is_restricted_to_the_requested_room() {
     let mut scene =
         IndoorManifest::generate_with_humans(5, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
     assert!(scene.humans.iter().any(|h| !h.neighbor));
+    // Keep room membership explicit as furnishing-driven primary selection
+    // evolves. This tests the content contract, not a seed's old population.
+    let (lo, hi) = scene.primary_room_bounds();
+    let outside = Vec3::new(hi.x + 1., 0., hi.y + 1.);
+    for human in &mut scene.humans {
+        human.position = outside;
+    }
     assert!(!super::super::sampling::requires_person(&scene, 0));
     scene.camera_settings.primary_room = false;
     assert!(super::super::sampling::requires_person(&scene, 0));
     assert!(!super::super::sampling::requires_person(&scene, 1));
     scene.camera_settings.primary_room = true;
-    let (lo, hi) = scene.primary_room_bounds();
     let p = lo.lerp(hi, 0.5);
-    scene.humans[0].position = Vec3::new(p.x, scene.floor_height(p), p.y);
+    let floor = scene.floor_height(p);
+    scene
+        .humans
+        .iter_mut()
+        .find(|h| !h.neighbor)
+        .unwrap()
+        .position = Vec3::new(p.x, floor, p.y);
     assert!(super::super::sampling::requires_person(&scene, 0));
 }
 

@@ -1,9 +1,11 @@
 //! Ceiling-mounted overview cameras. The mounting geometry is separate
 //! from the calibrated lens, and all rig visibility constraints remain active.
 mod coherent;
+mod orientation;
 mod overview;
 mod placement;
 mod planner;
+mod proposal;
 mod recovery;
 mod room;
 #[cfg(test)]
@@ -15,7 +17,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Independent per-view ceiling prior. Unselected views use the room camera
-/// policy. Defaults preserve the original all-mounted, fixed rig.
+/// policy. Defaults use an all-mounted, fixed rig with small mounting tilt.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CeilingCameraSettings {
@@ -27,6 +29,10 @@ pub struct CeilingCameraSettings {
     pub travel_m: [f32; 2],
     /// Optical center distance along the inward ceiling normal, in metres.
     pub standoff_m: [f32; 2],
+    /// Angular offset from the actual ceiling normal, in degrees. Azimuth is
+    /// isotropic; a bounded Rayleigh prior favors modest mounting misalignment.
+    /// Set both bounds to zero for exact ceiling-normal alignment.
+    pub tilt_degrees: [f32; 2],
     /// Conservative mounting-body radius, also used for fixture clearance.
     pub body_radius_m: f32,
     pub wall_clearance_m: f32,
@@ -42,6 +48,7 @@ impl Default for CeilingCameraSettings {
             motion_fraction: 0.,
             travel_m: [0.1, 3.],
             standoff_m: [0.12, 0.24],
+            tilt_degrees: [0., 12.],
             body_radius_m: 0.055,
             wall_clearance_m: 0.35,
             lenses: LensSampling {
@@ -74,6 +81,11 @@ impl CeilingCameraSettings {
         }
         self.lenses.validate()?;
         self.intrinsics.validate()?;
+        if self.tilt_degrees.iter().any(|v| !(0.0..=45.).contains(v))
+            || self.tilt_degrees[0] > self.tilt_degrees[1]
+        {
+            return Err("ceiling_mount requires ordered tilt_degrees in [0,45] relative to the local ceiling normal".into());
+        }
         if !(0.02..=0.20).contains(&self.body_radius_m)
             || !(0.20..=2.).contains(&self.wall_clearance_m)
             || self.standoff_m.iter().any(|v| !(0.08..=1.).contains(v))
@@ -97,6 +109,22 @@ pub struct CeilingCameraMount {
     pub body_radius_m: f32,
 }
 impl CeilingCameraMount {
+    /// Realized viewing direction. The support normal still determines the
+    /// attachment and rail plane, independently of this calibrated optical axis.
+    pub fn optical_axis(&self) -> Vec3 {
+        self.rotation * Vec3::NEG_Z
+    }
+
+    /// Realized angular departure from the supporting surface normal.
+    pub fn tilt_degrees(&self) -> f32 {
+        let forward = self.optical_axis();
+        forward
+            .cross(self.inward_normal)
+            .length()
+            .atan2(forward.dot(self.inward_normal))
+            .to_degrees()
+    }
+
     /// Conservative body and attachment envelope for temporal collision checks.
     pub fn bounds(&self) -> (Vec3, Vec3) {
         let base = self.surface + self.inward_normal * (self.body_radius_m + 0.006);

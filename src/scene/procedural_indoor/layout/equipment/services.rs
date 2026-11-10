@@ -232,7 +232,10 @@ mod tests {
         let mut rugs = 0;
         let mut max_rug_area = 0_f32;
         let mut sample_seeds = std::collections::BTreeMap::<String, u64>::new();
-        for seed in 0..128 {
+        // Optional furniture-bearing rugs need a broader cohort than frequent
+        // wall services after the continuous furnishing/scale expansion.
+        const ROOMS: u64 = 512;
+        for seed in 0..ROOMS {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.7, 0, 0.25)
                     .unwrap();
@@ -352,7 +355,7 @@ mod tests {
         }
         println!(
             "room services audit: {}",
-            serde_json::json!({"rooms":128,"counts":counts,"area_rugs":rugs,"supported_furniture":supported,"supported_kinds":supported_kinds,"max_rug_area_m2":max_rug_area,"sample_seeds":sample_seeds,"distributions":distribution,"elapsed_s":started.elapsed().as_secs_f64()})
+            serde_json::json!({"rooms":ROOMS,"counts":counts,"area_rugs":rugs,"supported_furniture":supported,"supported_kinds":supported_kinds,"max_rug_area_m2":max_rug_area,"sample_seeds":sample_seeds,"distributions":distribution,"elapsed_s":started.elapsed().as_secs_f64()})
         );
         for kind in [
             "ExitSign",

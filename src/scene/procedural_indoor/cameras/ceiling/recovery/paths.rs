@@ -112,8 +112,8 @@ pub(super) fn reuse(
                 break;
             }
             let mut camera = source.clone();
-            camera.fisheye = prototype.0;
-            camera.fov_degrees = prototype.1;
+            camera.fisheye = prototype.lens;
+            camera.fov_degrees = prototype.fov_degrees;
             if pools[index].iter().any(|c| c.camera == camera) {
                 continue;
             }
@@ -200,7 +200,7 @@ pub(super) fn resample_intrinsics(
         return;
     }
     for (index, prototype) in prototypes.iter().enumerate().skip(1) {
-        if scene.camera_settings.ceiling_mounted(scene.seed, index) || prototype.0.is_some() {
+        if scene.camera_settings.ceiling_mounted(scene.seed, index) || prototype.lens.is_some() {
             continue;
         }
         let pdf = *scene.camera_settings.intrinsics_for(scene.seed, index);
@@ -272,7 +272,15 @@ mod tests {
                 .unwrap();
         let coverage = Coverage::new(&scene);
         let camera = scene.cameras[0].clone();
-        let prototypes = vec![(None, camera.fov_degrees, 0.15, 0.); 2];
+        let prototypes = vec![
+            Prototype {
+                lens: None,
+                fov_degrees: camera.fov_degrees,
+                standoff_m: 0.15,
+                local_rotation: Quat::IDENTITY
+            };
+            2
+        ];
         let pools = vec![
             vec![Candidate {
                 track: Track::new(&camera),

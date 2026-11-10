@@ -2,8 +2,8 @@
 //! Greedy prefix search can strand a narrow slot behind an unsuitable wide
 //! reference. Separate path feasibility from rig compatibility so references
 //! can change without rebuilding every narrow-camera trajectory.
-use super::placement::{surface, MountSpace};
 use super::*;
+use super::{placement::MountSpace, proposal::Prototype};
 use crate::scene::procedural_indoor::{
     cameras::{
         coverage::{Coverage, VisibilityView},
@@ -19,7 +19,6 @@ mod mounts;
 mod paths;
 mod solver;
 
-type Prototype = (Option<crate::calibration::FisheyeSensor>, f32, f32, f32);
 struct Candidate {
     camera: IndoorCamera,
     track: Track,
@@ -35,6 +34,7 @@ pub(super) fn sample(
     contract: MixedRigContract,
 ) -> bool {
     let count = prototypes.len();
+    let mounted_rig = (0..count).any(|i| scene.camera_settings.ceiling_mounted(scene.seed, i));
     let mut pools: Vec<Vec<Candidate>> = (0..count).map(|_| Vec::new()).collect();
     let mut solver = solver::Solver::default();
     let mut path_budget = paths::Budget::default();
@@ -64,19 +64,19 @@ pub(super) fn sample(
             let mounted_slot = scene.camera_settings.ceiling_mounted(scene.seed, index);
             // Busy ceilings may exclude the initial body standoff everywhere.
             // Retry within its configured range only after that slot has no
-            // feasible paths; its mounting role, lens and roll remain fixed.
+            // feasible paths; its mounting role, lens, tilt and roll remain fixed.
             let redraw_standoff = mounted_slot && pass == 1 && pools[index].is_empty();
             let attempts = if redraw_standoff { 384 } else { 96 };
-            for _ in 0..attempts {
+            for attempt in 0..attempts {
                 if pools[index].len() >= 24 * (pass as usize + 1) {
                     break;
                 }
                 scene.camera_diagnostics.peer_proposals += 1;
                 let camera = if scene.camera_settings.ceiling_mounted(scene.seed, index) {
-                    if !pools[0].is_empty() {
-                        scene
-                            .cameras
-                            .push(pools[0][rng.random_range(0..pools[0].len())].camera.clone());
+                    let reference = (!pools[0].is_empty())
+                        .then(|| &pools[0][rng.random_range(0..pools[0].len())]);
+                    if let Some(reference) = reference {
+                        scene.cameras.push(reference.camera.clone());
                     }
                     let mut adjusted = *prototype;
                     if redraw_standoff {
@@ -86,9 +86,12 @@ pub(super) fn sample(
                             .as_ref()
                             .unwrap()
                             .standoff_m;
-                        adjusted.2 = rng.random_range(range[0]..=range[1]);
+                        adjusted.standoff_m = rng.random_range(range[0]..=range[1]);
                     }
-                    let mut camera = mounted(scene, index, &adjusted, &mut rng);
+                    let view = reference
+                        .filter(|_| attempt % 2 == 0)
+                        .and_then(|r| r.views.first());
+                    let mut camera = mounted(scene, index, &adjusted, view, &mut rng);
                     if rng.random_bool(0.5) {
                         if let Some(camera) = &mut camera {
                             super::coherent::motion(
@@ -134,7 +137,7 @@ pub(super) fn sample(
                         paths::centered(
                             scene,
                             index,
-                            prototype.1,
+                            prototype.fov_degrees,
                             coverage,
                             &mut rng,
                             &mut path_budget,
@@ -145,8 +148,9 @@ pub(super) fn sample(
                             index,
                             &mut rng,
                             coverage,
-                            (index != 0).then_some(prototype.1),
+                            (index != 0).then_some(prototype.fov_degrees),
                             false,
+                            mounted_rig,
                         )
                     };
                     scene.cameras.clear();
@@ -231,51 +235,19 @@ pub(super) fn sample(
 fn mounted(
     scene: &IndoorManifest,
     index: usize,
-    &(lens, fov, standoff, roll): &Prototype,
+    prototype: &Prototype,
+    reference: Option<&VisibilityView>,
     rng: &mut impl Rng,
 ) -> Option<IndoorCamera> {
     let mounting = scene.camera_settings.ceiling_mount.as_ref()?;
     let (lo, hi) = scene.primary_room_bounds();
     let lo = lo + Vec2::splat(mounting.wall_clearance_m);
     let hi = hi - Vec2::splat(mounting.wall_clearance_m);
-    let p = Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y));
-    Some(mounted_at(
-        scene,
-        index,
-        &(lens, fov, standoff, roll),
-        p,
-        rng,
-    ))
-}
-
-fn mounted_at(
-    scene: &IndoorManifest,
-    index: usize,
-    &(lens, fov, standoff, roll): &Prototype,
-    p: Vec2,
-    rng: &mut impl Rng,
-) -> IndoorCamera {
-    let mounting = scene.camera_settings.ceiling_mount.as_ref().unwrap();
-    let (surface, normal) = surface(scene, p);
-    let start = surface + normal * standoff;
-    let rotation =
-        Transform::IDENTITY.looking_to(normal, Vec3::Z).rotation * Quat::from_rotation_z(roll);
-    let mut camera = IndoorCamera {
-        ceiling_mount: Some(CeilingCameraMount {
-            surface,
-            inward_normal: normal,
-            rotation,
-            standoff_m: standoff,
-            body_radius_m: mounting.body_radius_m,
-        }),
-        fisheye: lens,
-        principal_point_offset: None,
-        start,
-        end: start,
-        target: start + normal * 2.,
-        fov_degrees: fov,
-        motion: None,
-    };
-    super::trajectory::propose(scene, index, &mut camera, rng);
-    camera
+    let p = reference
+        .and_then(|view| super::coherent::mounted_point(scene, *prototype, view, rng))
+        .unwrap_or_else(|| Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y)));
+    if p.cmplt(lo).any() || p.cmpgt(hi).any() {
+        return None;
+    }
+    Some(prototype.mounted_at(scene, index, p, rng))
 }

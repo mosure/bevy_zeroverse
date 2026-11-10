@@ -302,6 +302,10 @@ fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
     let before = scene.clone();
     let started = std::time::Instant::now();
     scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+    assert_eq!(
+        scene.camera_settings, policy,
+        "proposal preferences must not change the requested policy"
+    );
     eprintln!(
         "MIXED {seed} seconds={:.4} diagnostics={:?}",
         started.elapsed().as_secs_f64(),

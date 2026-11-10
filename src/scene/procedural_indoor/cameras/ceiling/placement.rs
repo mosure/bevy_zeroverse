@@ -48,9 +48,22 @@ impl MountSpace {
         if delta == Vec3::ZERO {
             return true;
         }
+        // Corner trajectories retain the actual tilted projection. The roof is
+        // planar along a valid rail; patch boundaries and concave wall cutouts
+        // are checked continuously by the envelope segment oracle.
+        if camera.fisheye.is_none()
+            && !near_corners(scene, camera)
+                .into_iter()
+                .all(|p| shell_segment_clear(scene, p, p + delta, 0.))
+        {
+            return false;
+        }
         let body = camera.ceiling_mount.as_ref().unwrap().bounds();
         let near = near_bounds(scene, camera);
-        let forward = camera.ceiling_mount.as_ref().unwrap().inward_normal * 0.6;
+        let forward = camera.ceiling_mount.as_ref().unwrap().optical_axis() * 0.6;
+        if !shell_segment_clear(scene, camera.start + forward, camera.end + forward, 0.) {
+            return false;
+        }
         let optical = (
             camera.start.min(camera.start + forward) - Vec3::splat(1e-5),
             camera.start.max(camera.start + forward) + Vec3::splat(1e-5),
@@ -153,11 +166,16 @@ impl MountSpace {
         let (surface, normal) = surface(scene, mount.surface.xz());
         let radius = mount.body_radius_m;
         let eye = camera.start;
+        let forward = mount.optical_axis();
+        let tilt = mount.tilt_degrees();
         if surface.distance(mount.surface) > 1e-4
             || normal.distance(mount.inward_normal) > 1e-5
-            || (mount.rotation * Vec3::NEG_Z).distance(normal) > 1e-5
+            || !tilt.is_finite()
+            || tilt < policy.tilt_degrees[0] - 1e-4
+            || tilt > policy.tilt_degrees[1] + 1e-4
+            || forward.y >= 0.
             || eye.distance(surface + normal * mount.standoff_m) > 1e-4
-            || camera.target.distance(eye + normal * 2.) > 1e-4
+            || camera.target.distance(eye + forward * 2.) > 1e-4
             || !scene.in_primary_room(eye, policy.wall_clearance_m)
             || eye.y < scene.floor_height(eye.xz()) + 1.5
             || scene
@@ -190,18 +208,19 @@ impl MountSpace {
         }
         // Reject near-field obstructions along the optical axis as well as a
         // clipped lens. Peripheral occlusion is legitimate scene content.
-        if !near_clear(scene, camera, &self.obstacles) {
+        if !near_clear(scene, camera, &self.obstacles)
+            || !shell_segment_clear(scene, eye, eye + forward * 0.6, 0.)
+        {
             return false;
         }
         !self
             .obstacles
             .iter()
-            .any(|(lo, hi)| segment_hits_box(eye, eye + normal * 0.6, *lo, *hi))
+            .any(|(lo, hi)| segment_hits_box(eye, eye + forward * 0.6, *lo, *hi))
     }
 }
 
 fn near_bounds(scene: &IndoorManifest, camera: &IndoorCamera) -> (Vec3, Vec3) {
-    let pose = camera.transform_at(0.);
     if camera.fisheye.is_some() {
         // Radial near clip: reserve the complete 10 cm sphere, including >180° rays.
         (
@@ -212,35 +231,72 @@ fn near_bounds(scene: &IndoorManifest, camera: &IndoorCamera) -> (Vec3, Vec3) {
         // Rectilinear near clip: reserve the pyramid from eye to the calibrated
         // near rectangle. A sphere would incorrectly intersect the ceiling
         // behind a downward-facing wide lens.
-        let half = Vec2::new(scene.camera_aspect_ratio, 1.)
-            * 0.1
-            * (camera.fov_degrees.to_radians() * 0.5).tan();
-        let offset = camera
-            .principal_point_offset
-            .unwrap_or(scene.camera_settings.principal_point_jitter);
         let mut lo = camera.start;
         let mut hi = lo;
-        for sx in [-1., 1.] {
-            for sy in [-1., 1.] {
-                // Reserve both signs of requested jitter until the realized center
-                // is archived after placement.
-                let point = pose.transform_point(Vec3::new(
-                    sx * (1. + 2. * offset.x.abs()) * half.x,
-                    sy * (1. + 2. * offset.y.abs()) * half.y,
-                    -0.1,
-                ));
-                lo = lo.min(point);
-                hi = hi.max(point);
-            }
+        for point in near_corners(scene, camera) {
+            lo = lo.min(point);
+            hi = hi.max(point);
         }
         (lo, hi)
     }
 }
 fn near_clear(scene: &IndoorManifest, camera: &IndoorCamera, obstacles: &[(Vec3, Vec3)]) -> bool {
     let (lo, hi) = near_bounds(scene, camera);
-    !obstacles
+    if obstacles
         .iter()
         .any(|(a, b)| lo.cmplt(*b).all() && hi.cmpgt(*a).all())
+    {
+        return false;
+    }
+    if camera.fisheye.is_some() {
+        // Vertical shell clearance alone overestimates the sphere's distance
+        // from a sloping roof. Standoff is the exact plane-normal distance.
+        return camera.ceiling_mount.as_ref().unwrap().standoff_m >= 0.101
+            && shell_segment_clear(scene, camera.start, camera.end, 0.101);
+    }
+    let corners = near_corners(scene, camera);
+    (0..4).all(|i| {
+        shell_segment_clear(scene, camera.start, corners[i], 0.)
+            && shell_segment_clear(scene, corners[i], corners[(i + 1) % 4], 0.)
+    })
+}
+
+fn near_corners(scene: &IndoorManifest, camera: &IndoorCamera) -> [Vec3; 4] {
+    let pose = camera.transform_at(0.);
+    let offset = camera
+        .principal_point_offset
+        .unwrap_or(scene.camera_settings.principal_point_jitter);
+    // Reserve both signs until the realized principal point is archived.
+    let half = Vec2::new(scene.camera_aspect_ratio, 1.)
+        * (Vec2::ONE + 2. * offset.abs())
+        * (0.1 * (camera.fov_degrees.to_radians() * 0.5).tan());
+    [
+        Vec2::ONE,
+        Vec2::new(-1., 1.),
+        -Vec2::ONE,
+        Vec2::new(1., -1.),
+    ]
+    .map(|sign| pose.transform_point((sign * half).extend(-0.1)))
+}
+
+fn shell_segment_clear(scene: &IndoorManifest, a: Vec3, b: Vec3, radius: f32) -> bool {
+    if let Some(envelope) = &scene.envelope {
+        if a == b {
+            envelope.volume_clear(scene.room_size, a, radius)
+        } else {
+            envelope.segment_clear(scene.room_size, a, b, radius)
+        }
+    } else {
+        [a, b].into_iter().all(|p| {
+            p.is_finite()
+                && p.xz()
+                    .abs()
+                    .cmple(scene.room_size.xz() * 0.5 - Vec2::splat(radius))
+                    .all()
+                && p.y >= radius
+                && p.y <= scene.room_size.y - radius
+        })
+    }
 }
 
 /// Analytic normal of the same sloped roof / flat soffit used by construction.
@@ -270,8 +326,7 @@ mod tests {
     use super::*;
     use crate::scene::procedural_indoor::{cameras::CameraMotion, layout::IndoorLayout};
 
-    #[test]
-    fn moving_mount_reserves_body_lens_and_optical_sweeps_without_empty_corners() {
+    fn fixture() -> (IndoorManifest, IndoorCamera) {
         let mut scene =
             IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         scene.room_size = Vec3::new(10., 4., 10.);
@@ -321,6 +376,12 @@ mod tests {
             }),
         };
         scene.camera_settings.ceiling_mount = Some(policy);
+        (scene, camera)
+    }
+
+    #[test]
+    fn moving_mount_reserves_body_lens_and_optical_sweeps_without_empty_corners() {
+        let (mut scene, camera) = fixture();
         let mut space = MountSpace { obstacles: vec![] };
         assert!(space.clear(&scene, &camera));
         // Above the lens's near sphere, beside the narrower body: real space,
@@ -380,5 +441,110 @@ mod tests {
             .unwrap()
             .travel_m[0] = 0.3;
         assert!(!space.fit_rail(&scene, 0, &mut camera.clone(), &mut rng));
+    }
+
+    #[test]
+    fn tilted_mounts_check_the_actual_optical_axis_in_static_and_swept_poses() {
+        let (mut scene, mut camera) = fixture();
+        scene
+            .camera_settings
+            .ceiling_mount
+            .as_mut()
+            .unwrap()
+            .tilt_degrees = [0., 45.];
+        let base = camera.ceiling_mount.as_ref().unwrap().rotation;
+        camera.ceiling_mount.as_mut().unwrap().rotation =
+            base * Quat::from_rotation_x(30_f32.to_radians());
+        let axis = camera.ceiling_mount.as_ref().unwrap().optical_axis();
+        camera.target = camera.start + axis * 2.;
+        camera.motion = None;
+        camera.end = camera.start;
+        let mut space = MountSpace { obstacles: vec![] };
+        assert!(space.clear(&scene, &camera));
+        let p = camera.start + axis * 0.45;
+        space.obstacles = vec![(p - Vec3::splat(0.01), p + Vec3::splat(0.01))];
+        assert!(!space.clear(&scene, &camera));
+        let mut aligned = camera.clone();
+        aligned.ceiling_mount.as_mut().unwrap().rotation = base;
+        aligned.target = aligned.start + Vec3::NEG_Y * 2.;
+        assert!(
+            space.clear(&scene, &aligned),
+            "obstacle is only along the tilted axis"
+        );
+
+        super::super::trajectory::set_rail(&mut camera, Vec3::X * 0.8);
+        let p = p + Vec3::X * 0.4;
+        space.obstacles = vec![(p - Vec3::splat(0.01), p + Vec3::splat(0.01))];
+        assert!(space.pose_clear(&scene, &camera));
+        assert!(
+            !space.clear(&scene, &camera),
+            "must catch obstruction between rail endpoints"
+        );
+        space.obstacles.clear();
+        assert!(space.clear(&scene, &camera));
+        let mut corrupted = camera.clone();
+        corrupted.target = camera.start + Vec3::NEG_Y * 2.;
+        assert!(!space.clear(&scene, &corrupted));
+        scene
+            .camera_settings
+            .ceiling_mount
+            .as_mut()
+            .unwrap()
+            .tilt_degrees = [0., 12.];
+        assert!(
+            !space.clear(&scene, &camera),
+            "an out-of-policy tilt must not be admitted"
+        );
+    }
+
+    #[test]
+    fn fisheye_near_sphere_respects_normal_distance_to_a_sloping_roof() {
+        let (mut scene, _) = fixture();
+        scene.envelope.as_mut().unwrap().ceiling_drop = Vec2::new(4., 0.);
+        let policy = CeilingCameraSettings {
+            standoff_m: [0.095, 0.20],
+            body_radius_m: 0.02,
+            motion_fraction: 0.,
+            ..default()
+        };
+        policy.validate().unwrap();
+        scene.camera_settings.ceiling_mount = Some(policy.clone());
+        let mut prototype = super::super::proposal::Prototype::sample(&scene, 0, &policy);
+        prototype.standoff_m = 0.095;
+        let mut rng = crate::scene::procedural_indoor::layout::stream(6, 1);
+        let camera = prototype.mounted_at(&scene, 0, Vec2::ZERO, &mut rng);
+        assert!(shell_segment_clear(&scene, camera.start, camera.end, 0.101));
+        assert!(!near_clear(&scene, &camera, &[]));
+        prototype.standoff_m = 0.15;
+        let camera = prototype.mounted_at(&scene, 0, Vec2::ZERO, &mut rng);
+        assert!(near_clear(&scene, &camera, &[]));
+    }
+
+    #[test]
+    fn tilted_wide_pinhole_near_plane_cannot_cut_through_the_roof() {
+        let (mut scene, mut camera) = fixture();
+        scene
+            .camera_settings
+            .ceiling_mount
+            .as_mut()
+            .unwrap()
+            .tilt_degrees = [0., 45.];
+        camera.motion = None;
+        camera.end = camera.start;
+        camera.fisheye = None;
+        camera.fov_degrees = 150.;
+        let base = camera.ceiling_mount.as_ref().unwrap().rotation;
+        let mount = camera.ceiling_mount.as_mut().unwrap();
+        mount.standoff_m = 0.12;
+        mount.rotation = base * Quat::from_rotation_x(45_f32.to_radians());
+        camera.start = mount.surface + mount.inward_normal * mount.standoff_m;
+        camera.end = camera.start;
+        camera.target = camera.start + mount.optical_axis() * 2.;
+        let space = MountSpace { obstacles: vec![] };
+        assert!(near_corners(&scene, &camera).iter().any(|p| p.y > 4.));
+        assert!(!space.clear(&scene, &camera));
+        camera.ceiling_mount.as_mut().unwrap().rotation = base;
+        camera.target = camera.start + Vec3::NEG_Y * 2.;
+        assert!(space.clear(&scene, &camera));
     }
 }

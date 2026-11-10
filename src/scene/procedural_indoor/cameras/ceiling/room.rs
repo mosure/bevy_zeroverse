@@ -17,6 +17,28 @@ pub(super) fn propose(
     coverage: &Coverage,
     fixed_fov: Option<f32>,
     independent: bool,
+    prefer_primary: bool,
+) -> Option<IndoorCamera> {
+    // Mounted views are physically restricted to the primary room. When room
+    // cameras may also use neighboring rooms, keep a mixture of primary-room
+    // and unrestricted proposals: otherwise useful primary-room wide views can
+    // be drowned out by easy but disconnected views in adjacent rooms.
+    let primary = scene.camera_settings.primary_room;
+    if !primary && prefer_primary && rng.random_bool(0.5) {
+        scene.camera_settings.primary_room = true;
+    }
+    let result = propose_inner(scene, index, rng, coverage, fixed_fov, independent);
+    scene.camera_settings.primary_room = primary;
+    result
+}
+
+fn propose_inner(
+    scene: &mut IndoorManifest,
+    index: usize,
+    rng: &mut rand_chacha::ChaCha8Rng,
+    coverage: &Coverage,
+    fixed_fov: Option<f32>,
+    independent: bool,
 ) -> Option<IndoorCamera> {
     if let Some(policy) = scene
         .camera_settings

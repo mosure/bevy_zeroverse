@@ -17,14 +17,9 @@ pub(super) fn suitable(
         return false;
     }
     let region = scene.primary_region();
-    let normal = camera.ceiling_mount.as_ref().unwrap().inward_normal;
     CHECK_TIMES.into_iter().zip(views).all(|(t, view)| {
-        overview(
-            &region,
-            camera.transform_at(t).translation,
-            normal,
-            view.surfaces(),
-        )
+        let pose = camera.transform_at(t);
+        overview(&region, pose.translation, *pose.forward(), view.surfaces())
     })
 }
 

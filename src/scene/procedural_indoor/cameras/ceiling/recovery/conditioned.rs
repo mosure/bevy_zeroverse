@@ -53,8 +53,8 @@ pub(super) fn expand(
                 }
                 let source = &sources[rng.random_range(0..sources.len())];
                 let mut camera = paths::nearby_path(source, &mut rng);
-                camera.fisheye = prototypes[index].0;
-                camera.fov_degrees = prototypes[index].1;
+                camera.fisheye = prototypes[index].lens;
+                camera.fov_degrees = prototypes[index].fov_degrees;
                 let pdf = scene.camera_settings.intrinsics_for(scene.seed, index);
                 if trial >= 96
                     && camera.fisheye.is_none()
