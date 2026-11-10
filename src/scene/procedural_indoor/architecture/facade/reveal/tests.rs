@@ -6,6 +6,57 @@ use crate::scene::procedural_indoor::{
 use std::collections::BTreeSet;
 
 #[test]
+fn production_71771447_wall_section_stays_in_the_metric_domain() {
+    // At the log-space lower endpoint, exp(ln(0.15_f32)) can round one
+    // float32 step below 0.15. Metric validators must still remain strict.
+    let thickness = wall_thickness(71_771_447);
+    assert!((0.15..=0.72).contains(&thickness), "{thickness:?}");
+    let (reveal, recess) = RevealProgram::sample(71_771_447, thickness, 0.12, 0.06);
+    reveal.validate(0.12, recess).unwrap();
+    for invalid in [
+        f32::NAN,
+        f32::NEG_INFINITY,
+        0.15_f32.next_down(),
+        0.72_f32.next_up(),
+    ] {
+        let mut malformed = reveal.clone();
+        malformed.wall_thickness_m = invalid;
+        assert!(malformed.validate(0.12, recess).is_err());
+    }
+}
+
+#[test]
+fn production_71771447_and_neighbors_have_valid_wall_meshes_and_camera_rigs() {
+    let policy = crate::scene::procedural_indoor::cameras::CameraSettings::parse(include_str!(
+        "../../../cameras/ceiling/tests/mixed_training_camera_settings.json"
+    ))
+    .unwrap();
+    for seed in [71_771_446, 71_771_447, 71_771_448] {
+        let mut scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        validation::validate_layout(&scene).unwrap_or_else(|error| panic!("{seed}: {error}"));
+        let stats =
+            validation::validate_geometry(&scene).unwrap_or_else(|error| panic!("{seed}: {error}"));
+        assert_eq!(stats.degenerate_triangles, 0, "{seed}");
+        scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+        validation::validate_layout(&scene).unwrap();
+        assert_eq!(scene.cameras.len(), 8);
+        for (slot, camera) in scene.cameras.iter().enumerate() {
+            assert!(scene.camera_curve_clear(camera), "{seed}/{slot}");
+            assert_eq!(camera.fisheye, policy.lens_for(seed, slot));
+            assert_eq!(
+                camera.is_ceiling_mounted(),
+                policy.ceiling_mounted(seed, slot)
+            );
+            assert!(policy.accepts_motion(seed, slot, camera));
+        }
+        let original = scene.clone();
+        scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+        assert_eq!(scene, original, "{seed}");
+    }
+}
+
+#[test]
 fn wall_depth_is_not_correlated_with_interior_window_sills() {
     let mut sums = [0_f64; 5];
     for seed in 0..1024 {

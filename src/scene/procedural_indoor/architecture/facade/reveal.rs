@@ -6,7 +6,11 @@ use crate::scene::procedural_indoor::envelope::construction::triangle;
 
 pub fn wall_thickness(seed: u64) -> f32 {
     let mut r = stream(seed, u64::from_le_bytes(*b"WallSect"));
-    r.random_range(0.15_f32.ln()..0.72_f32.ln()).exp()
+    // exp(ln(min)) can round below min in f32. Keep the metric sample inside
+    // its declared domain without changing the draw or relaxing validation.
+    r.random_range(0.15_f32.ln()..0.72_f32.ln())
+        .exp()
+        .clamp(0.15, 0.72)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
