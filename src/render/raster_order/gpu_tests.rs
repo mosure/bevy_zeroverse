@@ -29,6 +29,12 @@ fn recovered_training_rigs_capture_all_times_and_annotations() {
     qualify_replay(&[65341346, 65333746, 65332074, 65341346, 65333746, 65332074]);
 }
 
+#[test]
+#[ignore = "requires an available native GPU; eight-view timeout regression and exact replay"]
+fn notebook_timeout_seed_captures_all_annotations_and_replays() {
+    qualify_replay(&[71727123, 71727122, 71727123]);
+}
+
 fn qualify_replay(seeds: &[u64]) {
     bevy::app::TaskPoolOptions::with_num_threads(6).create_default_pools();
     procedural_indoor::preparation::configure_preparation_threads(4).unwrap();

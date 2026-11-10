@@ -65,6 +65,15 @@ pub(super) struct Inputs<'w, 's> {
             Without<ZeroversePrimitive>,
         ),
     >,
+    cameras: Query<
+        'w,
+        's,
+        (
+            Option<&'static crate::render::ground_truth::GroundTruthCamera>,
+            &'static crate::io::image_copy::ImageCopier,
+        ),
+    >,
+    pipelines: Option<Res<'w, crate::io::image_copy::CapturePipelineReadiness>>,
     #[cfg(not(target_arch = "wasm32"))]
     gi: Option<Res<'w, crate::scene::procedural_indoor::gi::gpu::GiGpuReadiness>>,
     materials: Option<Res<'w, crate::scene::procedural_indoor::materials::gpu::Requests>>,
@@ -76,6 +85,22 @@ fn motion_ready(seed: u64, report: Option<&HumanMotionReport>) -> bool {
 
 pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
     let mut input = input;
+    // Fail before any scene, warmup or all-view copy barrier. An invalid GT
+    // attachment never becomes ready, and the guarded copy path deliberately
+    // refuses partial view sets. Waiting for that path to forward its error
+    // turns a known geometry failure into a minutes-long capture timeout.
+    if let Some(error) = input
+        .cameras
+        .iter()
+        .find_map(|(geometry, copier)| {
+            geometry
+                .and_then(crate::render::ground_truth::GroundTruthCamera::failure)
+                .or_else(|| copier.failure())
+        })
+        .or_else(|| input.pipelines.as_ref().and_then(|p| p.failure()))
+    {
+        input.failure.0 = Some(error);
+    }
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(error) = input.gi.as_ref().and_then(|gi| gi.failure()) {
         input.failure.0 = Some(error);
@@ -159,6 +184,78 @@ pub(super) fn update(input: Inputs, mut readiness: ResMut<CaptureReadiness>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn render_errors_end_capture_before_unready_assets_and_warmup() {
+        use crate::{
+            camera::{CaptureDrawPolicy, Playback},
+            io::image_copy::{CapturePipelineReadiness, ImageCopier},
+            render::{ground_truth::GroundTruthCamera, RenderMode},
+            sample::{sample_stream, CaptureProgress, Sample, SamplerState, StartupDelay},
+            scene::RegenerateSceneEvent,
+        };
+        for annotation_error in [true, false] {
+            let mut app = App::new();
+            app.init_resource::<BevyZeroverseConfig>();
+            app.insert_resource(WaitForAssets {
+                pending_catalogs: 1,
+                ..default()
+            });
+            app.init_resource::<CaptureFailure>();
+            app.init_resource::<CaptureReadiness>();
+            app.init_resource::<CapturePipelineReadiness>();
+            app.init_resource::<CaptureDrawPolicy>();
+            app.init_resource::<CaptureProgress>();
+            app.init_resource::<Sample>();
+            app.init_resource::<StartupDelay>();
+            app.init_resource::<Playback>();
+            app.insert_resource(RenderMode::Color);
+            app.insert_resource(SamplerState {
+                enabled: true,
+                warmup_frames: 16,
+                ..default()
+            });
+            app.add_message::<RegenerateSceneEvent>();
+            app.add_systems(Update, (update, sample_stream).chain());
+            let mut images = Assets::default();
+            let geometry = GroundTruthCamera::new(&mut images, UVec2::splat(8));
+            let copier = ImageCopier::test_idle();
+            app.world_mut().spawn((
+                geometry.clone(),
+                copier.clone(),
+                GlobalTransform::IDENTITY,
+                Projection::default(),
+            ));
+            app.update();
+            assert!(app.world().resource::<SamplerState>().enabled);
+            assert_eq!(
+                app.world().resource::<CaptureReadiness>().blocker,
+                Some(CaptureBlocker::Assets)
+            );
+            let error = if annotation_error {
+                let message = "ground truth mesh has invalid geometry: bad_normal=Some(236)";
+                geometry.fail(message.into());
+                message.to_owned()
+            } else {
+                copier.request(1);
+                copier.request(2);
+                copier.failure().unwrap()
+            };
+            app.update();
+            assert!(!app.world().resource::<SamplerState>().enabled);
+            assert_eq!(
+                app.world().resource::<CaptureFailure>().0.as_deref(),
+                Some(error.as_str())
+            );
+            assert_eq!(
+                app.world().resource::<CaptureReadiness>().blocker,
+                Some(CaptureBlocker::Failed)
+            );
+            assert!(app.world().resource::<Sample>().views.is_empty());
+            assert_eq!(copier.submitted_id(), 0);
+        }
+    }
+
     #[test]
     fn only_a_completed_report_for_this_scene_releases_motion() {
         let mut report = HumanMotionReport {

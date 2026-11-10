@@ -3,7 +3,20 @@
 use super::*;
 
 fn quad(g: &mut Geometry, p: [Vec3; 4]) {
-    let n = (p[1] - p[0]).cross(p[2] - p[0]).normalize();
+    // A sampled ink endpoint can exceed a page segment boundary in parameter
+    // space yet round to the same metric position in f32. Do not normalize or
+    // emit that collapsed sliver. Check both triangles before adding attributes;
+    // real page geometry and every representable stroke retain their winding.
+    let cross = (p[1] - p[0]).cross(p[2] - p[0]);
+    let other = (p[2] - p[0]).cross(p[3] - p[0]);
+    if !cross.is_finite()
+        || !other.is_finite()
+        || cross.length_squared() < 1e-20
+        || other.length_squared() < 1e-20
+    {
+        return;
+    }
+    let n = cross.normalize();
     let first = g.positions.len() as u32;
     for v in p {
         g.positions.push(v.to_array());
@@ -111,6 +124,59 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &BindingProgram) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rounded_ink_endpoint_does_not_emit_invalid_geometry() {
+        let mut g = Geometry::default();
+        // The actual collapsed stroke from room 71727123, notebook 102.
+        let a = Vec3::new(-0.034921136, 0.012436249, -0.019527093);
+        let b = Vec3::new(a.x, a.y, -0.019177092);
+        quad(&mut g, [a, b, b, a]);
+        assert!(g.positions.is_empty());
+        assert!(g.normals.is_empty());
+        assert!(g.uvs.is_empty());
+        assert!(g.indices.is_empty());
+        // Preserve thin, valid ink rather than removing the whole line/page.
+        quad(&mut g, [a, b, b + Vec3::X * 0.00001, a + Vec3::X * 0.00001]);
+        assert_eq!(g.positions.len(), 4);
+        assert_eq!(g.indices.len(), 6);
+        assert!(g
+            .normals
+            .iter()
+            .all(|n| Vec3::from_array(*n).is_normalized()));
+    }
+
+    #[test]
+    fn timeout_seed_notebook_remains_valid_at_sampled_sizes() {
+        for scale in [0.5, 0.75, 1., 1.25, 2.] {
+            let mut o = super::super::super::audit::fixture(
+                ObjectKind::Notebook,
+                2_530_243_425_158_947_287,
+            );
+            o.size = Vec3::new(0.13320178, 0.031643983, 0.15321597) * scale;
+            assert!(parameters(&o).opened);
+            let a = super::super::super::build_object(&o);
+            super::super::super::audit::check(&o, &a).unwrap();
+            let ink = &a.parts[&(Surface::Ink, o.kind.class_name().into())];
+            assert!(ink.positions.len() > 100);
+            assert!(ink.positions.iter().any(|p| p[0] < 0.));
+            assert!(ink.positions.iter().any(|p| p[0] > 0.));
+        }
+    }
+
+    #[test]
+    fn capture_timeout_room_has_valid_geometry() {
+        let scene = super::super::super::super::layout::IndoorManifest::generate_with_humans(
+            71_727_123,
+            super::super::super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        super::super::super::super::validation::validate_geometry(&scene).unwrap();
+    }
+
     #[test]
     fn open_notebooks_have_two_curved_page_blocks_with_support_and_reserved_bounds() {
         let mut states = [0; 2];

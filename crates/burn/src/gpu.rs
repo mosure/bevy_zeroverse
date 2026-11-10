@@ -368,7 +368,8 @@ impl Renderer {
         while self.app.world().resource::<SamplerState>().enabled {
             ensure!(
                 start.elapsed() < self.runtime.capture_timeout,
-                "GPU capture timed out for seed {seed}"
+                "GPU capture timed out for seed {seed} after {updates} updates: {}",
+                diagnostics::timeout_context(self.app.world())
             );
             let binding_started = Instant::now();
             // The sampler has a final metadata update after taking the last

@@ -2,6 +2,27 @@
 //! adds no GPU fence, readback or timestamp query. They are not GPU execution
 //! durations and do not include the consumer's backward/optimizer work.
 
+/// Read only on timeout; no frame-loop allocation, GPU fence or image readback.
+pub(super) fn timeout_context(world: &bevy::prelude::World) -> serde_json::Value {
+    use bevy_zeroverse::{
+        io::image_copy::CapturePipelineReadiness,
+        sample::{CaptureProgress, CaptureReadiness, SamplerState, gpu::GpuSampleSink},
+    };
+    serde_json::json!({
+        "scene": world.get_resource::<CaptureReadiness>(),
+        "pipelines": world.get_resource::<CapturePipelineReadiness>().map(|p| serde_json::json!({
+            "ready": p.ready(), "count": p.pipeline_count(),
+            "missing_assets": p.missing_assets(), "failure": p.failure(),
+        })),
+        "sampler": world.get_resource::<SamplerState>().map(|s| serde_json::json!({
+            "step": s.step, "frames": s.frames, "warmup_frames": s.warmup_frames,
+            "remaining_timesteps": s.timesteps.len(),
+        })),
+        "captured_views": world.get_resource::<GpuSampleSink>().map(|s| s.images.len()),
+        "completed_requests": world.get_resource::<CaptureProgress>().map(|p| p.completed_requests),
+    })
+}
+
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct GpuCaptureTimings {
     pub seed: u64,
@@ -65,6 +86,26 @@ pub struct CudaImportTimings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn timeout_reports_the_blocker_and_capture_progress_without_a_device() {
+        use bevy_zeroverse::sample::{CaptureBlocker, CaptureReadiness, SamplerState};
+        let mut world = bevy::prelude::World::new();
+        world.insert_resource(CaptureReadiness {
+            scene_seed: Some(71727123),
+            blocker: Some(CaptureBlocker::Assets),
+            blocked_updates: 12,
+        });
+        world.insert_resource(SamplerState {
+            step: 2,
+            ..Default::default()
+        });
+        let context = timeout_context(&world);
+        assert_eq!(context["scene"]["scene_seed"], 71727123);
+        assert_eq!(context["scene"]["blocker"], "assets");
+        assert_eq!(context["sampler"]["step"], 2);
+        assert!(context["pipelines"].is_null());
+    }
 
     #[test]
     fn import_timings_preserve_old_producer_receipts_and_separate_clocks() {
