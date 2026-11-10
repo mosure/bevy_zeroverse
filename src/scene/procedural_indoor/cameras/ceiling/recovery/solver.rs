@@ -73,11 +73,13 @@ impl Solver {
         let policy = scene.camera_settings.multiview.as_ref().unwrap();
         let mut order: Vec<_> = (1..pools.len()).collect();
         order.sort_by_key(|i| pools[*i].len());
-        // Try small viable domains first. Enumerating every possible peer before
-        // trying one assignment spends most ray tests on candidates never needed.
-        // Widen on failure; cached pair decisions keep this bounded and exact.
-        for width in [1, 4, 16, usize::MAX] {
-            for reference_index in self.ranked_references(pools[0].len(), pools.len()) {
+        // Reused paths can give every peer the same first compatible trajectory.
+        // Widen a reference's domains before visiting the next reference: breadth
+        // first over references spends the ray budget on colliding singleton rigs.
+        // Bound each reference so an unlucky one cannot starve later domains.
+        for reference_index in self.ranked_references(pools[0].len(), pools.len()) {
+            let reference_reserve = reserve.max(self.visibility_left.saturating_sub(512));
+            for width in [1, 4, 16, usize::MAX] {
                 let reference = &pools[0][reference_index];
                 let mut domains: Vec<Vec<&Candidate>> =
                     (0..pools.len()).map(|_| Vec::new()).collect();
@@ -107,7 +109,7 @@ impl Solver {
                             });
                         let Some(accepted) = self.cached_visibility(
                             [reference_index, index, candidate_index],
-                            reserve,
+                            reference_reserve,
                             || {
                                 contract.accepts_visibility(
                                     policy,
@@ -311,6 +313,42 @@ mod tests {
         assert_eq!(scene.cameras[1], pools[1][1].camera);
         assert_eq!(scene.cameras[2], pools[2][1].camera);
         assert_eq!(solver.visibility_left, 0);
+    }
+
+    #[test]
+    fn reused_singleton_domains_do_not_starve_a_complete_rig() {
+        use crate::scene::procedural_indoor::layout::IndoorLayout;
+        let mut scene =
+            IndoorManifest::generate_with_humans(12, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        let policy = MultiViewSettings::from_baseline(0.5).unwrap();
+        let contract = MixedRigContract::new(&policy).unwrap();
+        scene.camera_settings.multiview = Some(policy);
+        let coverage = Coverage::for_ceiling_search(&scene);
+        // All references see both peer domains, but their first paths coincide.
+        // Two failed singleton assignments consume the work needed to discover
+        // the alternative path. Widening the first reference solves in five nodes.
+        let pools = vec![
+            vec![candidate(0., 0.), candidate(0., 0.), candidate(0., 0.)],
+            vec![candidate(1.5, 0.), candidate(0., 1.5)],
+            vec![candidate(1.5, 0.)],
+        ];
+        let mut solver = Solver {
+            visibility_left: 0,
+            search_left: 5,
+            ..Default::default()
+        };
+        for reference in 0..3 {
+            for (slot, candidate) in [(1, 0), (1, 1), (2, 0)] {
+                solver.visibility.insert([reference, slot, candidate], true);
+            }
+        }
+        assert!(solver.solve(&mut scene, &coverage, &pools, contract, 0));
+        assert_eq!(scene.cameras.len(), 3);
+        assert_eq!(scene.cameras[0], pools[0][0].camera);
+        assert_eq!(scene.cameras[1], pools[1][1].camera);
+        assert_eq!(scene.cameras[2], pools[2][0].camera);
+        assert_eq!(solver.search_left, 0);
+        assert!(scene.accepts_camera_geometry());
     }
 
     #[test]

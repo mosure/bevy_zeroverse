@@ -3,6 +3,34 @@
 use super::*;
 
 #[test]
+fn production_71712897_mixed_baseline() {
+    qualify_training_replay(71_712_897, 32_768);
+}
+
+#[test]
+fn production_71712897_neighbors() {
+    for seed in [71_712_896, 71_712_898] {
+        let scene = qualify_mixed_training_seed(seed);
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+    }
+}
+
+#[test]
+#[ignore = "16-room CPU camera-placement qualification around seed 71712897"]
+fn production_71712897_neighbor_cohort() {
+    for seed in 71_712_890..71_712_906 {
+        let scene = qualify_mixed_training_seed(seed);
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+        eprintln!(
+            "MATCHED_CAMERA {}",
+            serde_json::json!({
+                "seed": seed, "cameras": scene.cameras,
+            })
+        );
+    }
+}
+
+#[test]
 fn production_69391845_mixed_baseline() {
     qualify_training_replay(69_391_845, 32_768);
 }
