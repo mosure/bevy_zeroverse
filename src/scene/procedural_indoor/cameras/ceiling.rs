@@ -8,6 +8,7 @@ mod planner;
 mod proposal;
 mod recovery;
 mod room;
+mod surface;
 #[cfg(test)]
 mod tests;
 mod trajectory;

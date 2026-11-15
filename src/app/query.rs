@@ -374,14 +374,21 @@ fn legacy(
 mod tests {
     use super::*;
     #[test]
-    fn camera_gizmo_scales_validate_share_sparsely_and_keep_legacy_defaults() {
+    fn camera_gizmo_scales_validate_share_sparsely_and_restore_defaults() {
         let base = web_viewer_defaults();
         let mut old = serde_json::to_value(&base).unwrap();
         for key in ["camera_gizmo_scale", "schematic_camera_gizmo_scale"] {
             old.as_object_mut().unwrap().remove(key);
         }
         let restored: BevyZeroverseConfig = serde_json::from_value(old).unwrap();
-        assert_eq!(restored.camera_gizmo_scale, 1.);
+        assert_eq!(restored.camera_gizmo_scale, 4.);
+        assert_eq!(BevyZeroverseConfig::default().camera_gizmo_scale, 4.);
+        assert_eq!(
+            BevyZeroverseConfig::try_parse_from(["viewer"])
+                .unwrap()
+                .camera_gizmo_scale,
+            4.
+        );
         assert_eq!(restored.schematic_camera_gizmo_scale, 1.);
         assert!(!encode(&base, &Default::default()).contains("gizmo_scale"));
         for scale in [0.1, 0.5, 1., 2., 4.] {

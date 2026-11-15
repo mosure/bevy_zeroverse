@@ -3,6 +3,21 @@
 use super::*;
 
 #[test]
+fn production_721_reported_ribbed_ceiling_mounts() {
+    for seed in [72_154_853, 72_111_767] {
+        qualify_training_replay(seed, 32_768);
+    }
+}
+
+#[test]
+fn production_721_neighbors() {
+    for seed in [72_154_852, 72_154_854, 72_111_766, 72_111_768, 72_184_257] {
+        let scene = qualify_mixed_training_seed(seed);
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+    }
+}
+
+#[test]
 fn production_71712897_mixed_baseline() {
     qualify_training_replay(71_712_897, 32_768);
 }

@@ -147,7 +147,10 @@ pub(super) fn render(
                 escape(&f.label)
             );
             if options.labels
-                && (f.kind == FootprintKind::Furniture || f.kind == FootprintKind::Mezzanine)
+                && matches!(
+                    f.kind,
+                    FootprintKind::Furniture | FootprintKind::Mezzanine | FootprintKind::Level
+                )
                 && !f.points.is_empty()
             {
                 let center = f

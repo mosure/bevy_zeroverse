@@ -299,23 +299,7 @@ fn shell_segment_clear(scene: &IndoorManifest, a: Vec3, b: Vec3, radius: f32) ->
     }
 }
 
-/// Analytic normal of the same sloped roof / flat soffit used by construction.
-pub(super) fn surface(scene: &IndoorManifest, p: Vec2) -> (Vec3, Vec3) {
-    let height = scene.ceiling_height(p);
-    let normal = scene.envelope.as_ref().map_or(Vec3::NEG_Y, |e| {
-        if height < e.roof_height(scene.room_size, p) - 1e-5 {
-            Vec3::NEG_Y
-        } else {
-            Vec3::new(
-                -e.ceiling_drop.x / scene.room_size.x,
-                -1.,
-                -e.ceiling_drop.y / scene.room_size.z,
-            )
-            .normalize()
-        }
-    });
-    (Vec3::new(p.x, height, p.y), normal)
-}
+pub(super) use super::surface::at as surface;
 
 pub(crate) fn clear(scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
     MountSpace::new(scene).clear(scene, camera)
@@ -330,6 +314,7 @@ mod tests {
         let mut scene =
             IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         scene.room_size = Vec3::new(10., 4., 10.);
+        scene.ceiling_installation = None; // synthetic bare-roof fixture
         scene.program = None;
         let e = scene.envelope.as_mut().unwrap();
         e.footprint = vec![

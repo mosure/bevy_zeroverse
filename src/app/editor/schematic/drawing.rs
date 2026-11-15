@@ -150,7 +150,10 @@ impl Drawing {
         }
         if labels
             && !p.is_empty()
-            && matches!(f.kind, FootprintKind::Furniture | FootprintKind::Mezzanine)
+            && matches!(
+                f.kind,
+                FootprintKind::Furniture | FootprintKind::Mezzanine | FootprintKind::Level
+            )
         {
             self.annotation_label(
                 p.iter().sum::<Vec2>() / p.len() as f32 + Vec2::new(3., -3.),

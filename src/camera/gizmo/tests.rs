@@ -202,6 +202,7 @@ fn editor_runtime_uses_capture_ids_for_sparse_predictions_and_excludes_source_vi
         .insert_resource(BevyZeroverseConfig {
             gizmos: true,
             gizmos_alpha: 1.,
+            camera_gizmo_scale: 1.,
             camera_grid: false,
             room_schematic: false,
             ..default()

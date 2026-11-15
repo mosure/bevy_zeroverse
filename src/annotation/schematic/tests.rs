@@ -4,6 +4,60 @@ fn scene() -> IndoorManifest {
     IndoorManifest::generate_with_humans(47_586_113, IndoorLayout::Mixed, 0.65, 3, 0.25).unwrap()
 }
 #[test]
+fn floor_plan_omits_overhead_fixture_envelopes_without_losing_furnishings() {
+    use crate::scene::procedural_indoor::objects::ObjectKind;
+    let scene =
+        IndoorManifest::generate_with_humans(72_184_257, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let before = scene.clone();
+    let plan = Schematic::from_manifest(&scene, 0.).unwrap();
+    let mut overhead = 0;
+    let mut furnishings = 0;
+    for object in scene.objects.iter().filter(|o| !o.neighbor) {
+        let excluded = matches!(
+            object.kind,
+            ObjectKind::CeilingPendant
+                | ObjectKind::CeilingFan
+                | ObjectKind::StringLights
+                | ObjectKind::FireDetector
+        );
+        let represented = plan
+            .footprints
+            .iter()
+            .any(|p| p.instance_id == Some(object.id));
+        assert_eq!(represented, !excluded, "{:?}/{}", object.kind, object.id);
+        overhead += usize::from(excluded);
+        furnishings += usize::from(represented && object.solid);
+    }
+    assert!(overhead >= 5 && furnishings >= 8);
+    assert_eq!(
+        scene, before,
+        "schematic presentation must not change scene geometry"
+    );
+    let options = RenderOptions {
+        width: 512,
+        height: 512,
+        ..default()
+    };
+    // The remaining architectural rectangles are real stepped floor levels;
+    // their elevation must be visible, rather than an unlabeled solid overlay.
+    let svg = plan.svg(&options, &Overlay::default()).unwrap();
+    for level in plan
+        .footprints
+        .iter()
+        .filter(|p| p.kind == FootprintKind::Level)
+    {
+        assert!(svg.contains(&format!(">{}</text>", level.label)));
+    }
+    let document = plan.document(options, Overlay::default()).unwrap();
+    let decoded: Document =
+        serde_json::from_slice(&serde_json::to_vec(&document).unwrap()).unwrap();
+    assert_eq!(decoded, document);
+    assert_eq!(
+        plan.rgba(&options, &Overlay::default()).unwrap().len(),
+        512 * 512 * 4
+    );
+}
+#[test]
 fn gizmo_scale_exports_without_changing_metric_annotation() {
     let plan = Schematic::from_manifest(&scene(), 0.3).unwrap();
     let before = plan.clone();
@@ -241,12 +295,18 @@ fn recorded_root_transform_aligns_geometry_and_trajectories() {
             .distance(root.transform_point3(manifest.cameras[0].start))
             < 1e-5
     );
-    for object in &manifest.objects {
-        assert_eq!(
-            plan.footprints
-                .iter()
-                .any(|f| f.instance_id == Some(object.id)),
-            !object.neighbor
-        );
+    let planned = Schematic::from_manifest(&manifest, 0.3).unwrap();
+    assert_eq!(plan.footprints.len(), planned.footprints.len());
+    let correction = root * Mat4::from_rotation_y(-manifest.world_yaw);
+    for (actual, original) in plan.footprints.iter().zip(&planned.footprints) {
+        assert_eq!(actual.instance_id, original.instance_id);
+        assert_eq!(actual.points.len(), original.points.len());
+        for (actual, original) in actual.points.iter().zip(&original.points) {
+            assert!(
+                Vec3::from_array(*actual)
+                    .distance(correction.transform_point3(Vec3::from_array(*original)))
+                    < 1e-5
+            );
+        }
     }
 }

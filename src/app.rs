@@ -294,9 +294,9 @@ pub struct BevyZeroverseConfig {
 
     /// Editor camera glyph size multiplier (0.1..=4); does not change capture optics.
     #[pyo3(get, set)]
-    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[arg(long, default_value = "4", value_parser = gizmo_scale::parse)]
     #[serde(
-        default = "gizmo_scale::default",
+        default = "gizmo_scale::editor_default",
         deserialize_with = "gizmo_scale::deserialize"
     )]
     pub camera_gizmo_scale: f32,
@@ -609,9 +609,9 @@ pub struct BevyZeroverseConfig {
     pub gizmos_alpha: f32,
 
     /// Editor camera glyph size multiplier (0.1..=4); does not change capture optics.
-    #[arg(long, default_value = "1", value_parser = gizmo_scale::parse)]
+    #[arg(long, default_value = "4", value_parser = gizmo_scale::parse)]
     #[serde(
-        default = "gizmo_scale::default",
+        default = "gizmo_scale::editor_default",
         deserialize_with = "gizmo_scale::deserialize"
     )]
     pub camera_gizmo_scale: f32,
@@ -838,7 +838,7 @@ impl Default for BevyZeroverseConfig {
             viewer_state: None,
             gizmos: true,
             gizmos_alpha: 1.0,
-            camera_gizmo_scale: gizmo_scale::default(),
+            camera_gizmo_scale: gizmo_scale::editor_default(),
             schematic_camera_gizmo_scale: gizmo_scale::default(),
             draw_obb_gizmo: false,
             draw_pose_gizmos: false,

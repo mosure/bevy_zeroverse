@@ -8,11 +8,16 @@ pub const fn default() -> f32 {
     1.
 }
 
+/// Editor glyphs use a larger default than metric floor schematics.
+pub const fn editor_default() -> f32 {
+    4.
+}
+
 pub fn validate(value: f32) -> Result<f32, String> {
     if value.is_finite() && (MIN..=MAX).contains(&value) {
         Ok(value)
     } else {
-        Err("camera gizmo scale must be finite and in 0.1..=4 (1 = default size)".into())
+        Err("camera gizmo scale must be finite and in 0.1..=4 (1 = base size)".into())
     }
 }
 

@@ -140,6 +140,7 @@ fn ceiling_rigs_are_safe_seeded_and_spread_across_one_to_twelve_views() {
 fn ceiling_surface_normal_follows_slopes_and_soffits() {
     let mut scene = IndoorManifest::generate(3, IndoorLayout::Mixed, 0.65, 0).unwrap();
     scene.room_size.y = 4.;
+    scene.ceiling_installation = None; // isolate the prescribed roof and soffit planes
     let e = scene.envelope.as_mut().unwrap();
     e.ceiling_drop = Vec2::new(0.8, -0.45);
     e.soffits = vec![FloorPatch {

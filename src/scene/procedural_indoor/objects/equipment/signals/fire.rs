@@ -1,5 +1,7 @@
 //! Distinct installed devices, rather than recolors of a single alarm box.
 use super::*;
+#[cfg(test)]
+mod tests;
 
 pub const FINISH_BASE: usize = 300;
 #[derive(Debug, Clone, serde::Serialize)]
@@ -137,8 +139,11 @@ fn alarm(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
         a.box_part(
             Surface::Paper,
             l,
-            center,
-            Vec3::new(s.x * p.lens_fraction, h, s.z * 0.18),
+            // Seat the lens inside the housing. Its visible front stays fixed;
+            // a rear cap exactly on the housing face flickers in two-sided and
+            // annotation passes even though the join looks closed head-on.
+            center - Vec3::Z * 0.0005,
+            Vec3::new(s.x * p.lens_fraction, h, s.z * 0.18 + 0.001),
             0.003,
         );
         // Molded optical ribs, with positive separation from the lens face.
@@ -305,9 +310,14 @@ fn pull(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
                 Vec3::new(
                     0.,
                     s.y * (p.control_center + p.control_height * 0.54),
-                    front + s.z * 0.05,
+                    front + s.z * 0.05 - 0.0005,
                 ),
-                Vec3::new(s.x * p.control_width * 0.94, s.y * 0.045, s.z * 0.10),
+                // Embed the hinge's rear cap while retaining its front extent.
+                Vec3::new(
+                    s.x * p.control_width * 0.94,
+                    s.y * 0.045,
+                    s.z * 0.10 + 0.001,
+                ),
                 0.001,
             );
         }

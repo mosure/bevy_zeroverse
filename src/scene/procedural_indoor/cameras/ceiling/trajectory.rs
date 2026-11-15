@@ -104,6 +104,19 @@ pub(super) fn plane_clear(scene: &IndoorManifest, camera: &IndoorCamera) -> bool
             return false;
         }
     }
+    for (lo, hi) in super::surface::rail_boundaries(scene) {
+        for axis in 0..2 {
+            let d = delta.xz()[axis];
+            if d.abs() > 1e-8 {
+                for boundary in [lo[axis], hi[axis]] {
+                    let t = (boundary - mount.surface.xz()[axis]) / d;
+                    if t > 0. && t < 1. {
+                        times.push(t);
+                    }
+                }
+            }
+        }
+    }
     times.sort_by(f32::total_cmp);
     let interior: Vec<_> = times.windows(2).map(|w| (w[0] + w[1]) * 0.5).collect();
     times.extend(interior);

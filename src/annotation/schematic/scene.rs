@@ -197,8 +197,24 @@ impl Schematic {
                 );
             }
         }
-        // Draw supported clutter after furniture, with stable IDs for calibration.
-        let mut objects: Vec<_> = scene.objects.iter().filter(|o| !o.neighbor).collect();
+        // This is a floor plan, not a reflected ceiling plan. Bounding boxes of
+        // sparse overhead fixtures (especially strands/fans) are not occupied
+        // floor polygons and would obscure the furniture and camera paths.
+        // Keep wall equipment and supported clutter, with their stable IDs.
+        let mut objects: Vec<_> = scene
+            .objects
+            .iter()
+            .filter(|o| {
+                !o.neighbor
+                    && !matches!(
+                        o.kind,
+                        ObjectKind::CeilingPendant
+                            | ObjectKind::CeilingFan
+                            | ObjectKind::StringLights
+                            | ObjectKind::FireDetector
+                    )
+            })
+            .collect();
         objects.sort_by(|a, b| a.position.y.total_cmp(&b.position.y).then(a.id.cmp(&b.id)));
         for o in objects {
             let points = rectangle(
