@@ -64,3 +64,39 @@ fn ceiling_rejections_retire_scene_state_without_resetting_request_counters() {
     }
     assert_eq!(world.resource::<Messages<RegenerateSceneEvent>>().len(), 3);
 }
+
+#[test]
+fn retirement_failure_is_fatal_and_leaves_unrelated_transaction_intact() {
+    let mut world = World::new();
+    world.insert_resource(BevyZeroverseConfig {
+        headless: true,
+        editor: false,
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        ..default()
+    });
+    world.insert_resource(IndoorSequence {
+        base_seed: Some(40),
+        ..default()
+    });
+    world.init_resource::<CaptureProgress>();
+    let root = world.spawn(ZeroverseScene).id();
+    world.insert_resource(Sample {
+        views: vec![View::default()],
+        ..default()
+    });
+    let error = CaptureError::rejected(
+        41,
+        SceneRejectionKind::PlacementClearance,
+        "generated scene invalid".into(),
+    );
+    world.insert_resource(CaptureFailure(Some(error.to_string())));
+    world.insert_resource(SceneCaptureError(Some(error)));
+    assert!(
+        matches!(take_capture_failure(&mut world), Some(CaptureError::Failed(reason))
+        if reason.contains("cannot retire"))
+    );
+    assert!(world.get_entity(root).is_ok());
+    assert_eq!(world.resource::<Sample>().views.len(), 1);
+    assert_eq!(world.resource::<IndoorSequence>().index, 0);
+    assert!(take_capture_failure(&mut world).is_none());
+}

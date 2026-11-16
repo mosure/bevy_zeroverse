@@ -13,6 +13,7 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 use rand::Rng;
+mod generated;
 
 pub(crate) type PreparationTask = Task<Result<PreparedIndoor, CaptureError>>;
 
@@ -206,8 +207,20 @@ impl Request {
             layout: args.indoor_layout,
             density: args.indoor_density.to_bits(),
             humans: args.indoor_human_density.to_bits(),
-            cameras: settings.num_cameras.max(1),
-            aspect: (args.width as u32 as f32 / args.height as u32 as f32).to_bits(),
+            // An editor-only scene historically reserves a reference camera
+            // even with no capture cameras. Headless capture requires a view.
+            cameras: if args.headless {
+                settings.num_cameras
+            } else {
+                settings.num_cameras.max(1)
+            },
+            // Reject invalid external dimensions before float-to-integer casts
+            // could turn infinity into an apparently valid finite aspect ratio.
+            aspect: if args.width.is_finite() && args.height.is_finite() {
+                (args.width as u32 as f32 / args.height as u32 as f32).to_bits()
+            } else {
+                f32::NAN.to_bits()
+            },
             rotation: settings.rotation_augmentation,
             quality: args.indoor_quality,
             gi: gi.bake,
@@ -254,6 +267,9 @@ impl Request {
         meshes: StagedAssets<Mesh>,
     ) -> Result<PreparedIndoor, CaptureError> {
         let request = self;
+        // Configuration is external to the sampled room. Validate it before the
+        // seed-local boundary; invalid configuration must not consume every seed.
+        let inputs = generated::Inputs::parse(&request)?;
         let started = bevy::platform::time::Instant::now();
         let all_started = started;
         let mut scene = IndoorManifest::generate_with_clutter(
@@ -262,44 +278,42 @@ impl Request {
             f32::from_bits(request.density),
             0,
             f32::from_bits(request.humans),
-            super::super::items::distribution::ClutterSettings::parse(
-                request.clutter.as_deref().unwrap_or("{}"),
-            )?,
-        )?;
-        if let Some(json) = request.appearance {
-            scene.apply_appearance(appearance::AppearanceSettings::parse(&json)?)?;
+            inputs.clutter,
+        )
+        .map_err(|error| generated::failure(request.seed, "layout", error.into()))?;
+        if let Some(appearance) = inputs.appearance {
+            scene
+                .apply_appearance(appearance)
+                .map_err(|error| generated::failure(request.seed, "appearance", error.into()))?;
         }
         let layout_seconds = started.elapsed().as_secs_f64();
         let started = bevy::platform::time::Instant::now();
-        let policy = request
-            .camera
-            .as_deref()
-            .map(cameras::CameraSettings::parse)
-            .transpose()?
-            .unwrap_or_default();
+        let policy = inputs.camera;
         if let Err(error) =
             scene.resample_cameras_typed(request.cameras, policy, f32::from_bits(request.aspect))
         {
             if matches!(error, CaptureError::Rejected { .. }) {
-                // Placement failure must not conceal a malformed manifest.
-                // Only the rare failed search incurs this additional check.
-                validation::validate_prepared_layout(&scene)?;
+                // Prefer the generated layout's diagnostic over a downstream
+                // failed search. Only rejection incurs this additional check.
+                generated::validate(&scene)?;
             }
-            return Err(error);
+            return Err(generated::failure(request.seed, "camera placement", error));
         }
         let cameras_seconds = started.elapsed().as_secs_f64();
         let started = bevy::platform::time::Instant::now();
-        validation::validate_prepared_layout(&scene)?;
+        generated::validate(&scene)?;
         let validation_seconds = started.elapsed().as_secs_f64();
         let started = bevy::platform::time::Instant::now();
         if request.rotation {
             scene.world_yaw =
                 layout::stream(request.seed, 11).random_range(0.0..std::f32::consts::TAU);
         }
-        let moving_humans = if let Some(json) = request.motion {
-            let config = crate::human_motion::HumanMotionConfig::parse(&json)?;
-            crate::human_motion::planning::prepare_scene(&mut scene, &config)?;
-            crate::human_motion::planning::plan(&scene, &config)?
+        let moving_humans = if let Some(config) = inputs.motion {
+            crate::human_motion::planning::prepare_scene(&mut scene, &config).map_err(|error| {
+                generated::failure(request.seed, "motion preparation", error.into())
+            })?;
+            crate::human_motion::planning::plan(&scene, &config)
+                .map_err(|error| generated::failure(request.seed, "motion planning", error.into()))?
                 .0
                 .into_iter()
                 .map(|p| p.actor_id)
@@ -307,10 +321,8 @@ impl Request {
         } else {
             Vec::new()
         };
-        if let Some(json) = request.indoor_motion {
-            scene.indoor_motion = Some(super::super::motion::IndoorMotionReport::new(
-                super::super::motion::IndoorMotionConfig::parse(&json)?,
-            ));
+        if let Some(config) = inputs.indoor_motion {
+            scene.indoor_motion = Some(super::super::motion::IndoorMotionReport::new(config));
         }
         let motion_planning_seconds = started.elapsed().as_secs_f64();
         let mut prepared = PreparedIndoor::build_with_materials(
@@ -358,10 +370,27 @@ pub async fn prepare_indoor(
     materials: StagedAssets<StandardMaterial>,
     meshes: StagedAssets<Mesh>,
 ) -> Result<PreparedIndoor, String> {
+    prepare_indoor_typed(seed, args, settings, gi, images, materials, meshes)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Typed CPU preparation for producers that distinguish an unusable sampled
+/// scene from invalid configuration. A rejection here is **not retired**: the
+/// owner of a live capture transaction must retire it before returning credit.
+/// Loaded manifests and renderer/device/transport failures are outside this API.
+pub async fn prepare_indoor_typed(
+    seed: u64,
+    args: &BevyZeroverseConfig,
+    settings: &ZeroverseSceneSettings,
+    gi: gi::IndoorGiSettings,
+    images: StagedAssets<Image>,
+    materials: StagedAssets<StandardMaterial>,
+    meshes: StagedAssets<Mesh>,
+) -> Result<PreparedIndoor, CaptureError> {
     Request::new(seed, args, settings, gi)
         .prepare(images, materials, meshes)
         .await
-        .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]

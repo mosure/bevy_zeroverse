@@ -13,6 +13,7 @@ env:
 
 jobs:
   clippy:
+    name: clippy (${{ matrix.os }}, nightly)
 
     strategy:
       fail-fast: false

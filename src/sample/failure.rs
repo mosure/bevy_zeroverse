@@ -9,7 +9,8 @@ pub enum SceneRejectionKind {
     MissingProgramAnchor,
     InsufficientProgramCapacity,
     CameraPlacement,
-    /// A generated furniture placement fails a known geometric clearance check.
+    /// Fresh generated CPU scene data cannot satisfy construction, placement or
+    /// motion constraints. Invalid external input and infrastructure stay fatal.
     PlacementClearance,
 }
 

@@ -125,6 +125,24 @@ fn fail(world: &mut World, error: String) {
     world.resource_mut::<crate::sample::CaptureFailure>().0 = Some(error);
 }
 
+pub(super) fn retire_scene(world: &mut World) {
+    if let Some(mut runtime) = world.get_resource_mut::<Runtime>() {
+        // Cooperative cancellation is an atomic epoch change, never a device
+        // wait. A running worker keeps ownership until its next cancellation
+        // check; manage discards any completed result from the retired epoch.
+        runtime.epoch.fetch_add(1, Ordering::Relaxed);
+        runtime.pending = None;
+        runtime.key = None;
+        runtime.own_failure = None;
+    }
+    if let Some(mut clips) = world.get_resource_mut::<HumanMotionClips>() {
+        clips.0.clear();
+    }
+    // The plugin owns this resource even when no scene/motion policy is active.
+    // Removing it can leave an unchanged None key and make manage panic.
+    world.insert_resource(HumanMotionReport::default());
+}
+
 fn manage(world: &mut World) {
     let scene = world.get_resource::<IndoorManifest>();
     let seed = scene.map(|s| s.seed);
@@ -746,6 +764,61 @@ mod tests {
         #[cfg(not(target_arch = "wasm32"))]
         assert!(runtime.worker.is_none());
         assert_eq!(app.world().resource::<HumanMotionReport>().model_loads, 0);
+    }
+
+    #[test]
+    fn retirement_cancels_queued_motion_and_discards_late_results_without_a_device() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<BevyZeroverseConfig>()
+            .init_resource::<Playback>()
+            .init_resource::<Assets<Mesh>>()
+            .add_plugins(HumanMotionPlugin);
+        app.finish();
+        app.cleanup();
+        let scene = IndoorManifest::generate_with_humans(66242909, Default::default(), 0.65, 0, 0.)
+            .unwrap();
+        {
+            let mut runtime = app.world_mut().resource_mut::<Runtime>();
+            runtime.pending = Some(Job {
+                scene,
+                config: Default::default(),
+                plans: Vec::new(),
+                epoch: 7,
+            });
+            runtime.epoch.store(7, Ordering::Relaxed);
+            runtime.own_failure = Some("previous motion error".into());
+            runtime.shared.lock().unwrap().busy = true;
+        }
+        super::super::retire_scene(app.world_mut());
+        {
+            let runtime = app.world().resource::<Runtime>();
+            assert_eq!(runtime.epoch.load(Ordering::Relaxed), 8);
+            assert!(runtime.pending.is_none());
+            assert!(runtime.key.is_none());
+            assert!(runtime.own_failure.is_none());
+            let mut state = runtime.shared.lock().unwrap();
+            // A cancelled worker may complete after the retirement receipt.
+            state.busy = false;
+            state.result = Some((7, Err("late old-epoch result".into())));
+        }
+        for _ in 0..3 {
+            app.update();
+            assert!(app
+                .world()
+                .resource::<crate::sample::CaptureFailure>()
+                .0
+                .is_none());
+            assert!(!app.world().resource::<HumanMotionReport>().pending);
+            assert_eq!(app.world().resource::<HumanMotionReport>().model_loads, 0);
+            super::super::retire_scene(app.world_mut());
+        }
+        let runtime = app.world().resource::<Runtime>();
+        let state = runtime.shared.lock().unwrap();
+        assert!(state.result.is_none());
+        assert!(state.device.is_none() && state.models.is_none());
+        #[cfg(not(target_arch = "wasm32"))]
+        assert!(runtime.worker.is_none());
     }
 
     #[test]

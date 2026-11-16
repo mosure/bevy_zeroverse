@@ -6,7 +6,7 @@ mod geometry;
 mod group_plan;
 mod timings;
 pub(crate) use geometry::SceneGeometry;
-pub use pipeline::prepare_indoor;
+pub use pipeline::{prepare_indoor, prepare_indoor_typed};
 pub use timings::{PreparationTimings, PreparationWall, TransportTimings};
 pub(crate) mod pipeline;
 pub(crate) mod residency;

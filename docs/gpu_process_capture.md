@@ -70,11 +70,14 @@ timeout. Each completion carries its sequence and exact seed.
 An optional shared `CaptureControl` supplies cumulative room credits, hold and
 cancel. GPU delivery emits `CaptureOutcome::Delivered`, distinct from durable
 archive publication. Typed construction rejections, including `PlacementClearance`
-for finite furniture or ceiling placement conflicts, return credits only after
+for generated CPU layout, appearance, placement, validation or motion failures,
+return credits only after
 scene retirement and follow the existing bounded `RejectionPolicy`. Transport
 failures are not relabeled as scientific rejections. Recovery defaults to `Abort`;
 opt in with `RejectionPolicy::Continue`, allowed kinds and finite total/consecutive
-limits. Validation is never relaxed, and malformed scene data remains fatal.
+limits. Validation is never relaxed. External configuration and loaded-manifest
+corruption remain fatal; only newly sampled CPU data enters the
+[generated-scene rejection boundary](qualification/generated_scene_rejection.md).
 Already admitted work may finish after a hold; waiting for demand does not spend
 a capture timeout.
 
