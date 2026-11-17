@@ -13,6 +13,8 @@ env:
 
 jobs:
   build:
+    # Stable required-check names; the pinned toolchain remains in the matrix.
+    name: build (${{ matrix.os }}, nightly)
     strategy:
       fail-fast: false
       matrix:

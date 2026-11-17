@@ -219,7 +219,7 @@ pub(crate) fn retire_rejected_capture(world: &mut World, seed: u64) -> Result<()
     world.remove_resource::<materials::gpu::Requests>();
     world.remove_resource::<materials::gpu::MaterialBakeStatistics>();
     world.remove_resource::<gi::BakeStatistics>();
-    world.remove_resource::<crate::human_motion::HumanMotionReport>();
+    crate::human_motion::retire_scene(world);
     #[cfg(not(target_arch = "wasm32"))]
     {
         world.remove_resource::<gi::gpu::GpuBakeRequest>();

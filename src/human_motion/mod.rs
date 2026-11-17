@@ -179,6 +179,15 @@ pub struct HumanMotionReport {
     pub accepted: Vec<MotionPlan>,
     pub rejected: Vec<MotionRejection>,
 }
+
+/// Retire scene-owned motion state without dropping cached models or waiting for
+/// inference. Late results cannot attach to a successor's people or metadata.
+pub(crate) fn retire_scene(world: &mut World) {
+    #[cfg(feature = "human_motion")]
+    runtime::retire_scene(world);
+    #[cfg(not(feature = "human_motion"))]
+    world.remove_resource::<HumanMotionReport>();
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MotionRejection {
     pub actor_id: usize,

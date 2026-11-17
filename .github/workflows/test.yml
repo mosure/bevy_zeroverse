@@ -27,6 +27,7 @@ jobs:
       run: node scripts/validate_material_webgpu.mjs
 
   test:
+    name: test (${{ matrix.os }}, nightly)
 
     strategy:
       fail-fast: false
@@ -56,3 +57,9 @@ jobs:
     # Both steps are required: this isolates tests without omitting assertions.
     - name: test (isolated voxel fixtures)
       run: cargo test annotation::ovoxel::tests -- --test-threads=1
+
+    # Exercise feature-gated motion ownership on one required platform. These
+    # CPU-only tests initialize no renderer, model or inference device.
+    - name: test (motion retirement)
+      if: matrix.os == 'macos-latest'
+      run: cargo test --features human_motion --lib retirement -- --test-threads=1
