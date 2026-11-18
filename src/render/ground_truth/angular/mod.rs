@@ -8,9 +8,7 @@ const SHADER: Handle<Shader> = uuid_handle!("5c93e9f1-0130-4845-a19a-dbd4c08d4b2
 pub(super) struct State {
     pipeline: Option<(CachedComputePipelineId, BindGroupLayout)>,
     stamp: Option<(u64, Vec<u8>)>,
-    triangles: Option<Buffer>,
-    nodes: Option<Buffer>,
-    node_count: u32,
+    tree: Option<bvh::TreeBuffers>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -92,8 +90,7 @@ pub(super) fn prepare(
         .any(|(_, c, _, _)| c.calibration.as_ref().is_some_and(|l| l.fisheye.is_some()))
     {
         state.stamp = None;
-        state.triangles = None;
-        state.nodes = None;
+        state.tree = None;
         return;
     }
     if cameras.iter().all(|(_, _, v, _)| v.is_none()) {
@@ -117,6 +114,7 @@ pub(super) fn prepare(
                     storage_buffer_read_only_sized(false, None),
                     texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
                     texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
+                    storage_buffer_read_only_sized(false, None),
                 ),
             ),
         );
@@ -135,44 +133,30 @@ pub(super) fn prepare(
     advance_unchanged_skin(&mut state.stamp, &geometry, instance_bytes);
     let changed = !matches_stamp(&state.stamp, &geometry, instance_bytes);
     if changed {
-        let bytes = geometry.indices.len() / 3 * std::mem::size_of::<bvh::Triangle>();
-        if bytes > device.limits().max_storage_buffer_binding_size as usize {
-            for (_, camera, _, _) in &cameras {
-                camera.fail(format!("fisheye annotation geometry requires {bytes} bytes, above this device's storage binding limit"));
-            }
-            return;
-        }
         let started = bevy::platform::time::Instant::now();
-        let (triangles, nodes) = bvh::build(&geometry);
-        let seconds = started.elapsed().as_secs_f64();
+        let packed = match bvh::PackedTree::build(bvh::world_triangles(&geometry), &device.limits())
+        {
+            Ok(tree) => tree,
+            Err(message) => {
+                for (_, camera, _, _) in &cameras {
+                    camera.fail(message.clone());
+                }
+                return;
+            }
+        };
+        let build_seconds = started.elapsed().as_secs_f64();
+        let tree = packed.upload(&device, &queue);
         {
             let mut stats = diagnostics.0.lock().unwrap();
             stats.angular_bvh_builds += 1;
-            stats.angular_bvh_build_seconds += seconds;
-            stats.angular_uploaded_bytes += (triangles.len() * std::mem::size_of::<bvh::Triangle>()
-                + nodes.len() * std::mem::size_of::<bvh::Node>())
-                as u64;
+            stats.angular_bvh_build_seconds += build_seconds;
+            stats.angular_uploaded_bytes += tree.bytes;
         }
-        let buffer = |label, data: &[u8]| {
-            super::super::upload_buffer(
-                &device,
-                &queue,
-                &BufferInitDescriptor {
-                    label: Some(label),
-                    contents: if data.is_empty() { &[0; 112] } else { data },
-                    usage: BufferUsages::STORAGE,
-                },
-            )
-        };
-        state.triangles = Some(buffer(
-            "angular_triangles",
-            bytemuck::cast_slice(&triangles),
-        ));
-        state.nodes = Some(buffer("angular_bvh", bytemuck::cast_slice(&nodes)));
-        state.node_count = nodes.len() as u32;
+        state.tree = Some(tree);
         state.stamp = Some((geometry.generation, instance_bytes.to_vec()));
     }
     let layout = &state.pipeline.as_ref().unwrap().1;
+    let tree = state.tree.as_ref().unwrap();
     for (entity, camera, view, prepared) in &cameras {
         let Some(view) = view else {
             continue;
@@ -192,7 +176,7 @@ pub(super) fn prepare(
             view: world.inverse().to_cols_array_2d(),
             lens: lens.shader_parameters(),
             limits: [camera.near, camera.far, 0., 0.],
-            counts: [state.node_count, 0, 0, 0],
+            counts: [tree.node_count, 0, 0, 0],
         };
         let layers: Vec<u32> = geometry
             .batches
@@ -223,11 +207,12 @@ pub(super) fn prepare(
                 layout,
                 &BindGroupEntries::sequential((
                     buffer.as_entire_binding(),
-                    state.triangles.as_ref().unwrap().as_entire_binding(),
-                    state.nodes.as_ref().unwrap().as_entire_binding(),
+                    tree.surfaces.as_entire_binding(),
+                    tree.nodes.as_entire_binding(),
                     layers.as_entire_binding(),
                     &a.texture_view,
                     &b.texture_view,
+                    tree.attributes.as_entire_binding(),
                 )),
             );
             commands.entity(entity).insert(Prepared {

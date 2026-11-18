@@ -4,7 +4,7 @@ use std::collections::HashMap;
 const SHADER: Handle<Shader> = uuid_handle!("aa3316ee-d940-4fbd-b138-8854a4818e4f");
 #[derive(Default)]
 pub(in crate::render::ground_truth) struct History {
-    pair: Option<(Buffer, Buffer, u32)>,
+    pair: Option<bvh::TreeBuffers>,
     pipeline: Option<(CachedComputePipelineId, BindGroupLayout)>,
     prepared: HashMap<AssetId<Image>, BindGroup>,
 }
@@ -31,7 +31,7 @@ pub(in crate::render::ground_truth) fn pair(
     vertices: &[FlowVertex],
     device: &RenderDevice,
     queue: &RenderQueue,
-) -> (Buffer, Buffer, u32) {
+) -> Result<bvh::TreeBuffers, String> {
     let mut tris = Vec::new();
     for (batch_id, batch) in previous.batches.iter().enumerate() {
         for (j, indices) in previous.indices
@@ -54,33 +54,14 @@ pub(in crate::render::ground_truth) fn pair(
             });
         }
     }
-    let (tris, nodes) = bvh::finish(tris);
-    let buffer = |label, data: &[u8]| {
-        super::super::super::upload_buffer(
-            device,
-            queue,
-            &BufferInitDescriptor {
-                label: Some(label),
-                contents: if data.is_empty() { &[0; 112] } else { data },
-                usage: BufferUsages::STORAGE,
-            },
-        )
-    };
-    (
-        buffer("angular_flow_triangles", bytemuck::cast_slice(&tris)),
-        buffer("angular_flow_bvh", bytemuck::cast_slice(&nodes)),
-        nodes.len() as u32,
-    )
+    Ok(bvh::PackedTree::build(tris, &device.limits())?.upload(device, queue))
 }
 impl History {
     pub(in crate::render::ground_truth) fn reset(&mut self) {
         self.pair = None;
         self.prepared.clear();
     }
-    pub(in crate::render::ground_truth) fn set_pair(
-        &mut self,
-        pair: Option<(Buffer, Buffer, u32)>,
-    ) {
+    pub(in crate::render::ground_truth) fn set_pair(&mut self, pair: Option<bvh::TreeBuffers>) {
         self.pair = pair;
     }
     pub(in crate::render::ground_truth) fn clear_views(&mut self) {
@@ -122,6 +103,7 @@ impl History {
                             TextureFormat::Rgba32Float,
                             StorageTextureAccess::WriteOnly,
                         ),
+                        storage_buffer_read_only_sized(false, None),
                     ),
                 ),
             );
@@ -155,7 +137,7 @@ impl History {
                 target.limits[0],
                 target.limits[1],
             ],
-            counts: [self.pair.as_ref().map_or(0, |p| p.2), 0, 0, 0],
+            counts: [self.pair.as_ref().map_or(0, |p| p.node_count), 0, 0, 0],
         };
         let buffer = super::super::super::upload_buffer(
             device,
@@ -166,11 +148,19 @@ impl History {
                 usage: BufferUsages::UNIFORM,
             },
         );
-        let dummy = device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("angular_flow_empty"),
-            contents: &[0; 112],
-            usage: BufferUsages::STORAGE,
-        });
+        let dummy;
+        let (surfaces, nodes, attributes) = if let Some(tree) = &self.pair {
+            (&tree.surfaces, &tree.nodes, &tree.attributes)
+        } else {
+            // All three storage arrays have zero logical records at the first
+            // timestep, but each binding must still hold one complete element.
+            dummy = device.create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("angular_flow_empty"),
+                contents: &[0; 64],
+                usage: BufferUsages::STORAGE,
+            });
+            (&dummy, &dummy, &dummy)
+        };
         let layers: Vec<_> = batches
             .iter()
             .map(|b| u32::from(camera.layers.intersects(&b.layers)))
@@ -190,17 +180,12 @@ impl History {
             &self.pipeline.as_ref().unwrap().1,
             &BindGroupEntries::sequential((
                 buffer.as_entire_binding(),
-                self.pair
-                    .as_ref()
-                    .map_or(&dummy, |p| &p.0)
-                    .as_entire_binding(),
-                self.pair
-                    .as_ref()
-                    .map_or(&dummy, |p| &p.1)
-                    .as_entire_binding(),
+                surfaces.as_entire_binding(),
+                nodes.as_entire_binding(),
                 layers.as_entire_binding(),
                 &depth.texture_view,
                 &output.texture_view,
+                attributes.as_entire_binding(),
             )),
         );
         self.prepared

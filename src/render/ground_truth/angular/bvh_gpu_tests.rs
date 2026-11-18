@@ -102,7 +102,8 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>) {
     });
     let run = |surface_area| {
         let (triangles, nodes) = finish_with_strategy(input.clone(), surface_area);
-        let triangles = buffer("triangles", bytemuck::cast_slice(&triangles));
+        let surfaces: Vec<_> = triangles.iter().map(buffers::Surface::from).collect();
+        let triangles = buffer("triangles", bytemuck::cast_slice(&surfaces));
         let nodes = buffer("nodes", bytemuck::cast_slice(&nodes));
         let bindings = [&input_rays, &triangles, &nodes, &layers, &output]
             .iter()

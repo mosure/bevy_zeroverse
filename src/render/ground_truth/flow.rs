@@ -323,8 +323,19 @@ pub(super) fn prepare(
                         },
                     )
                 });
-                let angular_pair = has_angular
-                    .then(|| super::angular::flow::pair(previous, &vertices, &device, &queue));
+                let angular_pair = if has_angular {
+                    match super::angular::flow::pair(previous, &vertices, &device, &queue) {
+                        Ok(tree) => Some(tree),
+                        Err(message) => {
+                            for (camera, _) in &cameras {
+                                camera.fail(message.clone());
+                            }
+                            return;
+                        }
+                    }
+                } else {
+                    None
+                };
                 history.batches = previous.batches.clone();
                 history.angular.set_pair(angular_pair);
                 history.vertices = vertex_buffer;

@@ -1,9 +1,11 @@
 #define_import_path zeroverse::angular_bvh
-struct Triangle { p: array<vec4<f32>,3>, n: array<vec4<f32>,3>, info: vec4<u32> }
+struct Triangle { p: array<vec4<f32>,3>, info: vec4<u32> }
+struct Attributes { n: array<vec4<f32>,3> }
 struct Node { lo: vec4<f32>, hi: vec4<f32>, info: vec4<u32> }
 @group(0) @binding(1) var<storage,read> triangles: array<Triangle>;
 @group(0) @binding(2) var<storage,read> nodes: array<Node>;
 @group(0) @binding(3) var<storage,read> layers: array<u32>;
+@group(0) @binding(6) var<storage,read> attributes: array<Attributes>;
 fn box_entry(origin: vec3<f32>, dir: vec3<f32>, node: Node, minimum:f32, limit: f32) -> f32 {
     var near=minimum;var far=limit;
     for (var axis=0u; axis<3u; axis++) {
