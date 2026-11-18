@@ -81,38 +81,47 @@ fn setup_camera_grid(
             Entity,
             &RenderTarget,
             Option<&crate::camera::CaptureCameraIndex>,
+            Has<CameraGridMarker>,
         ),
         With<ZeroverseCamera>,
     >,
-    new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
-    mut previous_camera_grid: Local<Option<bool>>,
+    mut previous_camera_grid: Local<Option<(bool, usize)>>,
 ) {
     if zeroverse_cameras.is_empty() {
+        for grid in &camera_grids {
+            commands.entity(grid).despawn();
+        }
+        *previous_camera_grid = None;
         return;
     }
 
-    let camera_grid_changed = previous_camera_grid
-        .map(|prev| prev != (args.camera_grid && !args.room_schematic))
-        .unwrap_or(true);
-
-    if scene_loaded.is_empty() && !camera_grid_changed && new_zeroverse_cameras.is_empty() {
+    let state = (
+        args.camera_grid && !args.room_schematic,
+        zeroverse_cameras.iter().len(),
+    );
+    if scene_loaded.is_empty()
+        && *previous_camera_grid == Some(state)
+        && zeroverse_cameras.iter().all(|(_, _, _, marked)| marked)
+    {
         return;
     }
     scene_loaded.clear();
-    *previous_camera_grid = Some(args.camera_grid && !args.room_schematic);
+    *previous_camera_grid = Some(state);
 
-    for entity in new_zeroverse_cameras.iter() {
-        commands.entity(entity).insert(CameraGridMarker);
+    for (entity, _, _, marked) in &zeroverse_cameras {
+        if !marked {
+            commands.entity(entity).insert(CameraGridMarker);
+        }
     }
 
-    if !camera_grids.is_empty() {
-        commands.entity(camera_grids.single().unwrap()).despawn();
+    for grid in &camera_grids {
+        commands.entity(grid).despawn();
     }
 
-    if args.camera_grid && !args.room_schematic {
+    if state.0 {
         let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
-        cameras.sort_by_key(|(entity, _, index)| {
+        cameras.sort_by_key(|(entity, _, index, _)| {
             (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
         });
         let camera_count = cameras.len();
@@ -134,7 +143,7 @@ fn setup_camera_grid(
                 BackgroundColor(Color::srgb(0.025, 0.028, 0.032)),
             ))
             .with_children(|builder| {
-                for (entity, target, _) in cameras {
+                for (entity, target, _, _) in cameras {
                     let texture = match target.clone() {
                         RenderTarget::Image(texture) => texture,
                         _ => continue,
@@ -156,5 +165,46 @@ fn setup_camera_grid(
                     ));
                 }
             });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tiles_follow_live_capture_targets_including_the_last_removal() {
+        let mut app = App::new();
+        app.init_resource::<Assets<GridImage>>()
+            .add_message::<SceneLoadedEvent>()
+            .insert_resource(BevyZeroverseConfig {
+                camera_grid: true,
+                ..default()
+            })
+            .add_systems(Update, setup_camera_grid);
+        let entities = [0, 1].map(|index| {
+            app.world_mut()
+                .spawn((
+                    ZeroverseCamera::default(),
+                    RenderTarget::Image(Handle::<Image>::default().into()),
+                    crate::camera::CaptureCameraIndex(index),
+                ))
+                .id()
+        });
+        for count in [2, 1, 0] {
+            app.update();
+            let world = app.world_mut();
+            assert_eq!(
+                world.query::<&CameraGridSource>().iter(world).count(),
+                count
+            );
+            assert_eq!(
+                world.query::<&CameraGrid>().iter(world).count(),
+                usize::from(count > 0)
+            );
+            if count > 0 {
+                world.despawn(entities[count - 1]);
+            }
+        }
     }
 }
