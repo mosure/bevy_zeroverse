@@ -71,20 +71,20 @@ pub(super) fn update_images(
     }
 }
 
+#[derive(bevy::ecs::query::QueryData)]
+struct GridCamera {
+    entity: Entity,
+    target: &'static RenderTarget,
+    index: Option<&'static crate::camera::CaptureCameraIndex>,
+    marked: Has<CameraGridMarker>,
+}
+
 fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
     mut materials: ResMut<Assets<GridImage>>,
     camera_grids: Query<Entity, With<CameraGrid>>,
-    zeroverse_cameras: Query<
-        (
-            Entity,
-            &RenderTarget,
-            Option<&crate::camera::CaptureCameraIndex>,
-            Has<CameraGridMarker>,
-        ),
-        With<ZeroverseCamera>,
-    >,
+    zeroverse_cameras: Query<GridCamera, With<ZeroverseCamera>>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
     mut previous_camera_grid: Local<Option<(bool, usize)>>,
 ) {
@@ -102,16 +102,16 @@ fn setup_camera_grid(
     );
     if scene_loaded.is_empty()
         && *previous_camera_grid == Some(state)
-        && zeroverse_cameras.iter().all(|(_, _, _, marked)| marked)
+        && zeroverse_cameras.iter().all(|camera| camera.marked)
     {
         return;
     }
     scene_loaded.clear();
     *previous_camera_grid = Some(state);
 
-    for (entity, _, _, marked) in &zeroverse_cameras {
-        if !marked {
-            commands.entity(entity).insert(CameraGridMarker);
+    for camera in &zeroverse_cameras {
+        if !camera.marked {
+            commands.entity(camera.entity).insert(CameraGridMarker);
         }
     }
 
@@ -121,8 +121,11 @@ fn setup_camera_grid(
 
     if state.0 {
         let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
-        cameras.sort_by_key(|(entity, _, index, _)| {
-            (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
+        cameras.sort_by_key(|camera| {
+            (
+                camera.index.map_or(usize::MAX, |i| i.0),
+                camera.entity.to_bits(),
+            )
         });
         let camera_count = cameras.len();
         let rows = (camera_count as f32).sqrt().ceil() as u16;
@@ -143,14 +146,13 @@ fn setup_camera_grid(
                 BackgroundColor(Color::srgb(0.025, 0.028, 0.032)),
             ))
             .with_children(|builder| {
-                for (entity, target, _, _) in cameras {
-                    let texture = match target.clone() {
-                        RenderTarget::Image(texture) => texture,
-                        _ => continue,
+                for camera in cameras {
+                    let RenderTarget::Image(texture) = camera.target else {
+                        continue;
                     };
 
                     builder.spawn((
-                        CameraGridSource(entity),
+                        CameraGridSource(camera.entity),
                         MaterialNode(materials.add(GridImage {
                             image: texture.handle.clone(),
                             filter_rgb: 1,
@@ -159,7 +161,7 @@ fn setup_camera_grid(
                         // The material draws the tile; a transparent ImageNode is never extracted.
                         ImageNode {
                             color: Color::NONE,
-                            image: texture.handle,
+                            image: texture.handle.clone(),
                             ..default()
                         },
                     ));
