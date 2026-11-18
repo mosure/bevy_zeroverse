@@ -56,6 +56,11 @@ on that queue observes the copies in order. Allocator leases remain alive until
 the render copies finish, including when a sample is dropped early. Samples
 retained by a consumer cannot be overwritten by subsequent rooms.
 
+Each idle headless camera slot keeps its resolved RGB image, annotation textures
+and copier storage at the output resolution. When automatic SSAA changes between
+rooms, the renderer replaces the supersampled RGB attachment and starts a fresh
+capture epoch.
+
 GPU capture allocates no host readback buffers. CPU staging is created lazily
 only if a CPU capture is requested. Allocation leases for all cameras are
 resolved before one producer-stream flush per batch. The renderer uses Bevy's
