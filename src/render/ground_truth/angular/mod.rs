@@ -4,13 +4,12 @@ use super::*;
 mod bvh;
 pub(super) mod flow;
 const SHADER: Handle<Shader> = uuid_handle!("5c93e9f1-0130-4845-a19a-dbd4c08d4b21");
+const SPLIT_SHADER: Handle<Shader> = uuid_handle!("55651703-6bf5-4ef6-88c7-a21a9f7b6c4e");
 #[derive(Resource, Default)]
 pub(super) struct State {
-    pipeline: Option<(CachedComputePipelineId, BindGroupLayout)>,
+    pipelines: [Option<(CachedComputePipelineId, BindGroupLayout)>; 2],
     stamp: Option<(u64, Vec<u8>)>,
-    triangles: Option<Buffer>,
-    nodes: Option<Buffer>,
-    node_count: u32,
+    tree: Option<bvh::TreeBuffers>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -59,10 +58,10 @@ fn advance_unchanged_skin(
 pub(super) fn install(app: &mut App) {
     flow::install(app);
     load_internal_asset!(app, SHADER, "trace.wgsl", |source: &str, path| {
-        Shader::from_wgsl(
-            crate::camera::lens::shader(source, include_str!("bvh.wgsl")),
-            path,
-        )
+        Shader::from_wgsl(bvh::shader(source, false), path)
+    });
+    load_internal_asset!(app, SPLIT_SHADER, "trace.wgsl", |source: &str, path| {
+        Shader::from_wgsl(bvh::shader(source, true), path)
     });
     if let Some(render) = app.get_sub_app_mut(RenderApp) {
         render.init_resource::<State>();
@@ -92,8 +91,7 @@ pub(super) fn prepare(
         .any(|(_, c, _, _)| c.calibration.as_ref().is_some_and(|l| l.fisheye.is_some()))
     {
         state.stamp = None;
-        state.triangles = None;
-        state.nodes = None;
+        state.tree = None;
         return;
     }
     if cameras.iter().all(|(_, _, v, _)| v.is_none()) {
@@ -102,7 +100,36 @@ pub(super) fn prepare(
     if geometry.failure.is_some() {
         return;
     }
-    if state.pipeline.is_none() {
+    // A new capture epoch can refresh skinning without changing any vertex.
+    // Carry the certified empty update forward, as the raster/flow paths do.
+    // Otherwise a static human rebuilds the entire room BVH at every capture.
+    advance_unchanged_skin(&mut state.stamp, &geometry, instance_bytes);
+    let changed = !matches_stamp(&state.stamp, &geometry, instance_bytes);
+    if changed {
+        let started = bevy::platform::time::Instant::now();
+        let packed = match bvh::PackedTree::build(bvh::world_triangles(&geometry), &device.limits())
+        {
+            Ok(tree) => tree,
+            Err(message) => {
+                for (_, camera, _, _) in &cameras {
+                    camera.fail(message.clone());
+                }
+                return;
+            }
+        };
+        let build_seconds = started.elapsed().as_secs_f64();
+        let tree = packed.upload(&device, &queue);
+        {
+            let mut stats = diagnostics.0.lock().unwrap();
+            stats.angular_bvh_builds += 1;
+            stats.angular_bvh_build_seconds += build_seconds;
+            stats.angular_uploaded_bytes += tree.bytes;
+        }
+        state.tree = Some(tree);
+        state.stamp = Some((geometry.generation, instance_bytes.to_vec()));
+    }
+    let slot = bvh::TreeBuffers::layout_index(state.tree.as_ref());
+    if state.pipelines[slot].is_none() {
         let layout = BindGroupLayoutDescriptor::new(
             "angular_ground_truth",
             &BindGroupLayoutEntries::sequential(
@@ -117,62 +144,21 @@ pub(super) fn prepare(
                     storage_buffer_read_only_sized(false, None),
                     texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
                     texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
+                    storage_buffer_read_only_sized(false, None),
                 ),
-            ),
+            )[..6 + slot],
         );
         let id = cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some("fisheye_exact_ray_annotations".into()),
             layout: vec![layout.clone()],
-            shader: SHADER,
+            shader: if slot == 0 { SHADER } else { SPLIT_SHADER },
             entry_point: Some("main".into()),
             ..default()
         });
-        state.pipeline = Some((id, cache.get_bind_group_layout(&layout)));
+        state.pipelines[slot] = Some((id, cache.get_bind_group_layout(&layout)));
     }
-    // A new capture epoch can refresh skinning without changing any vertex.
-    // Carry the certified empty update forward, as the raster/flow paths do.
-    // Otherwise a static human rebuilds the entire room BVH at every capture.
-    advance_unchanged_skin(&mut state.stamp, &geometry, instance_bytes);
-    let changed = !matches_stamp(&state.stamp, &geometry, instance_bytes);
-    if changed {
-        let bytes = geometry.indices.len() / 3 * std::mem::size_of::<bvh::Triangle>();
-        if bytes > device.limits().max_storage_buffer_binding_size as usize {
-            for (_, camera, _, _) in &cameras {
-                camera.fail(format!("fisheye annotation geometry requires {bytes} bytes, above this device's storage binding limit"));
-            }
-            return;
-        }
-        let started = bevy::platform::time::Instant::now();
-        let (triangles, nodes) = bvh::build(&geometry);
-        let seconds = started.elapsed().as_secs_f64();
-        {
-            let mut stats = diagnostics.0.lock().unwrap();
-            stats.angular_bvh_builds += 1;
-            stats.angular_bvh_build_seconds += seconds;
-            stats.angular_uploaded_bytes += (triangles.len() * std::mem::size_of::<bvh::Triangle>()
-                + nodes.len() * std::mem::size_of::<bvh::Node>())
-                as u64;
-        }
-        let buffer = |label, data: &[u8]| {
-            super::super::upload_buffer(
-                &device,
-                &queue,
-                &BufferInitDescriptor {
-                    label: Some(label),
-                    contents: if data.is_empty() { &[0; 112] } else { data },
-                    usage: BufferUsages::STORAGE,
-                },
-            )
-        };
-        state.triangles = Some(buffer(
-            "angular_triangles",
-            bytemuck::cast_slice(&triangles),
-        ));
-        state.nodes = Some(buffer("angular_bvh", bytemuck::cast_slice(&nodes)));
-        state.node_count = nodes.len() as u32;
-        state.stamp = Some((geometry.generation, instance_bytes.to_vec()));
-    }
-    let layout = &state.pipeline.as_ref().unwrap().1;
+    let layout = &state.pipelines[slot].as_ref().unwrap().1;
+    let tree = state.tree.as_ref().unwrap();
     for (entity, camera, view, prepared) in &cameras {
         let Some(view) = view else {
             continue;
@@ -192,7 +178,7 @@ pub(super) fn prepare(
             view: world.inverse().to_cols_array_2d(),
             lens: lens.shader_parameters(),
             limits: [camera.near, camera.far, 0., 0.],
-            counts: [state.node_count, 0, 0, 0],
+            counts: [tree.node_count, 0, 0, 0],
         };
         let layers: Vec<u32> = geometry
             .batches
@@ -223,12 +209,16 @@ pub(super) fn prepare(
                 layout,
                 &BindGroupEntries::sequential((
                     buffer.as_entire_binding(),
-                    state.triangles.as_ref().unwrap().as_entire_binding(),
-                    state.nodes.as_ref().unwrap().as_entire_binding(),
+                    tree.surfaces.as_entire_binding(),
+                    tree.nodes.as_entire_binding(),
                     layers.as_entire_binding(),
                     &a.texture_view,
                     &b.texture_view,
-                )),
+                    tree.attributes
+                        .as_ref()
+                        .unwrap_or(&tree.surfaces)
+                        .as_entire_binding(),
+                ))[..6 + slot],
             );
             commands.entity(entity).insert(Prepared {
                 uniform: buffer,
@@ -256,9 +246,11 @@ pub(super) fn render(
     ) {
         return false;
     }
-    let (Some((id, _)), Some(prepared), Some(lens)) =
-        (&state.pipeline, prepared, &camera.calibration)
-    else {
+    let (Some((id, _)), Some(prepared), Some(lens)) = (
+        &state.pipelines[bvh::TreeBuffers::layout_index(state.tree.as_ref())],
+        prepared,
+        &camera.calibration,
+    ) else {
         return false;
     };
     let cache = world.resource::<PipelineCache>();

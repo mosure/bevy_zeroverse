@@ -1,4 +1,4 @@
-#import zeroverse::angular_bvh::{trace,triangles}
+#import zeroverse::angular_bvh::{trace,triangles,hit_attributes}
 #import zeroverse::lens::{Lens, ray}
 struct Camera { world: mat4x4<f32>, view: mat4x4<f32>, lens: Lens, limits: vec4<f32>, counts: vec4<u32> }
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -16,8 +16,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         let hit=trace(origin,dir,camera.limits.x,camera.limits.y);
         let best=hit.index;let bary=hit.uv;let distance=hit.distance;
         if best!=0xffffffffu {
-            let t=triangles[best];let w=1.0-bary.x-bary.y;
-            let n=normalize((camera.view*vec4<f32>(t.n[0].xyz*w+t.n[1].xyz*bary.x+t.n[2].xyz*bary.y,0.0)).xyz);
+            let t=triangles[best];let nrm=hit_attributes(best);let w=1.0-bary.x-bary.y;
+            let n=normalize((camera.view*vec4<f32>(nrm[0].xyz*w+nrm[1].xyz*bary.x+nrm[2].xyz*bary.y,0.0)).xyz);
             point=vec4<f32>(origin+dir*distance,distance);
             normal=vec4<f32>(n*0.5+0.5,f32(t.info.x));
         }

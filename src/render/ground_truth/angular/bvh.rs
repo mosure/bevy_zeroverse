@@ -2,9 +2,21 @@
 //! splits near the root isolate large architectural surfaces from small props;
 //! bounded-depth median fallback limits both construction and GPU stack use.
 use super::super::*;
+mod buffers;
 mod bulk;
+pub(super) use buffers::PackedTree;
+pub(in crate::render::ground_truth) use buffers::TreeBuffers;
 mod parallel;
 mod partition;
+
+pub(super) fn shader(source: &str, split: bool) -> String {
+    let records = if split {
+        include_str!("bvh/split.wgsl")
+    } else {
+        include_str!("bvh/interleaved.wgsl")
+    };
+    crate::camera::lens::shader(source, &format!("{records}\n{}", include_str!("bvh.wgsl")))
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -21,7 +33,7 @@ pub(super) struct Node {
     pub info: [u32; 4],
 }
 
-pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) {
+pub(super) fn world_triangles(geometry: &ExtractedGeometry) -> Vec<Triangle> {
     let pool = bulk::pool(geometry.vertices.len().max(geometry.indices.len() / 3));
     let matrices: Vec<_> = geometry
         .instances
@@ -73,15 +85,24 @@ pub(super) fn build(geometry: &ExtractedGeometry) -> (Vec<Triangle>, Vec<Node>) 
             }
         });
     }
-    finish(triangles.finish())
+    triangles.finish()
 }
-pub(super) fn finish(triangles: Vec<Triangle>) -> (Vec<Triangle>, Vec<Node>) {
+#[cfg(test)]
+fn finish(triangles: Vec<Triangle>) -> (Vec<Triangle>, Vec<Node>) {
     finish_with_strategy(triangles, true)
 }
+#[cfg(test)]
 fn finish_with_strategy(
     triangles: Vec<Triangle>,
     surface_area: bool,
 ) -> (Vec<Triangle>, Vec<Node>) {
+    let (order, nodes) = tree_order(&triangles, surface_area);
+    let sorted = bulk::collect(order.len(), bulk::pool(order.len()), |i| {
+        triangles[order[i].index as usize]
+    });
+    (sorted, nodes)
+}
+fn tree_order(triangles: &[Triangle], surface_area: bool) -> (Vec<Primitive>, Vec<Node>) {
     // Partition compact indices rather than repeatedly moving 112-byte triangle
     // records. Cache bounds/centroid sums once; the original ordinal remains the
     // tie-breaker, preserving leaf membership and the hit tie policy.
@@ -103,9 +124,7 @@ fn finish_with_strategy(
             split(&mut order, &bounds, 0, &mut nodes, 0, surface_area);
         }
     }
-    drop(bounds);
-    let triangles = bulk::collect(order.len(), pool, |i| triangles[order[i].index as usize]);
-    (triangles, nodes)
+    (order, nodes)
 }
 #[derive(Clone, Copy, Default)]
 struct Bounds {

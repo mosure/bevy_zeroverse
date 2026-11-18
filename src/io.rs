@@ -417,6 +417,30 @@ pub mod image_copy {
     mod recycling_tests {
         use super::*;
 
+        #[cfg(not(target_arch = "wasm32"))]
+        #[test]
+        fn a_failed_annotation_reaches_the_copier_before_any_frame_is_ready() {
+            let ground_truth = crate::render::ground_truth::GroundTruthCamera::new(
+                &mut Assets::default(),
+                UVec2::ONE,
+            );
+            ground_truth.fail("annotation binding exceeds adapter limit".to_owned());
+            let view = ExtractedCopier {
+                copier: ImageCopier::test_idle(),
+                ground_truth: Some(ground_truth),
+                lens: None,
+                ssaa: None,
+            };
+            assert!(!propagate_annotation_failure(&view));
+            view.copier.request(11);
+            assert!(propagate_annotation_failure(&view));
+            assert_eq!(
+                view.copier.failure().as_deref(),
+                Some("annotation binding exceeds adapter limit")
+            );
+            assert!(!view.copier.ready(11));
+        }
+
         #[test]
         fn only_consumed_successful_packets_can_reuse_staging() {
             let copier = ImageCopier {
@@ -710,6 +734,20 @@ pub mod image_copy {
             }));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    fn propagate_annotation_failure(view: &ExtractedCopier) -> bool {
+        let copier = &view.copier;
+        let request = copier.requested_id();
+        if request == 0 || request == copier.submitted_id() {
+            return false;
+        }
+        if let Some(error) = view.ground_truth.as_ref().and_then(|gt| gt.failure()) {
+            *copier.state.failure.lock().unwrap() = Some(error);
+            return true;
+        }
+        false
+    }
+
     fn copy_images(world: &World, mut context: RenderContext) {
         let copiers = world.resource::<ImageCopiers>();
         let images = world.resource::<RenderAssets<GpuImage>>();
@@ -717,6 +755,12 @@ pub mod image_copy {
         let diagnostics = context.diagnostic_recorder();
         let diagnostics = diagnostics.as_deref();
         let mut copy_span = None;
+        // A failed ground-truth pass cannot mark its epoch ready. Surface the
+        // error before any lens, SSAA or all-views readiness gate can mask it.
+        #[cfg(not(target_arch = "wasm32"))]
+        if copiers.0.iter().any(propagate_annotation_failure) {
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if let Some((id, count, qualified)) = crate::sample::render_settling::guarded_request(world)
         {
@@ -728,9 +772,10 @@ pub mod image_copy {
                     extracted.copier.requested_id() != id
                         || extracted.lens.as_ref().is_some_and(|lens| !lens.ready(id))
                         || extracted.ssaa.as_ref().is_some_and(|ssaa| !ssaa.ready(id))
-                        || extracted.ground_truth.as_ref().is_some_and(|gt| {
-                            gt.rendered_frame() != Some(id) || gt.failure().is_some()
-                        })
+                        || extracted
+                            .ground_truth
+                            .as_ref()
+                            .is_some_and(|gt| gt.rendered_frame() != Some(id))
                         || extracted
                             .copier
                             .sources
@@ -755,9 +800,6 @@ pub mod image_copy {
             }
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(gt) = &extracted.ground_truth {
-                if let Some(error) = gt.failure() {
-                    *copier.state.failure.lock().unwrap() = Some(error);
-                }
                 if gt.rendered_frame() != Some(id) {
                     continue;
                 }

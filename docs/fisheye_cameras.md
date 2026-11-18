@@ -319,6 +319,13 @@ and deterministic ties while reducing repeated memory traffic. Compact partition
 records carry their comparison keys, avoiding random bounds reads during median
 selection; full triangle payloads remain immutable until the final ordered copy.
 Wasm retains serial construction. Certified empty skin updates retain the tree.
+Rooms that fit in one GPU storage binding use interleaved triangle records.
+Larger rooms use the same BVH leaf order in two buffers. Positions,
+labels and intersection tie-breakers occupy 64 bytes per triangle. The other
+48 bytes hold full-precision vertex normals or temporal correspondences and
+are read after a ray hits. A 128 MiB storage binding can therefore address
+2,097,152 triangle-position records. Capture checks each binding against the
+actual adapter limit and reports allocation-size errors to the caller.
 All-fisheye rigs avoid uploading unused pinhole geometry/flow buffers; mixed rigs
 prepare both paths. Independent annotation preparation can run concurrently.
 All capture completion and exact-geometry checks remain in force.

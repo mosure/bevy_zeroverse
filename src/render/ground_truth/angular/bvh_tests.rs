@@ -200,7 +200,7 @@ fn shared_vertex_transform_matches_per_triangle_expansion() {
             layers: RenderLayers::layer(i as usize),
         });
     }
-    let (triangles, _) = build(&geometry);
+    let triangles = world_triangles(&geometry);
     for t in triangles {
         let offset = t.info[3] as usize * 3;
         for (j, &index) in geometry.indices[offset..offset + 3].iter().enumerate() {

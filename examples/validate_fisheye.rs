@@ -53,20 +53,30 @@ fn shader_checks() {
             false,
         ),
     ] {
-        let joined = [lens, if tree { bvh } else { "" }, source].join("\n");
-        let source = joined
-            .lines()
-            .filter(|l| !l.starts_with('#'))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let module = wgpu::naga::front::wgsl::parse_str(&source)
-            .unwrap_or_else(|e| panic!("{name}: {}", e.emit_to_string(&source)));
-        wgpu::naga::valid::Validator::new(
-            wgpu::naga::valid::ValidationFlags::all(),
-            wgpu::naga::valid::Capabilities::empty(),
-        )
-        .validate(&module)
-        .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let records: &[&str] = if tree {
+            &[
+                include_str!("../src/render/ground_truth/angular/bvh/interleaved.wgsl"),
+                include_str!("../src/render/ground_truth/angular/bvh/split.wgsl"),
+            ]
+        } else {
+            &[""]
+        };
+        for storage in records {
+            let joined = [lens, storage, if tree { bvh } else { "" }, source].join("\n");
+            let source = joined
+                .lines()
+                .filter(|l| !l.starts_with('#'))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let module = wgpu::naga::front::wgsl::parse_str(&source)
+                .unwrap_or_else(|e| panic!("{name}: {}", e.emit_to_string(&source)));
+            wgpu::naga::valid::Validator::new(
+                wgpu::naga::valid::ValidationFlags::all(),
+                wgpu::naga::valid::Capabilities::empty(),
+            )
+            .validate(&module)
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        }
     }
 }
 fn main() {
