@@ -149,13 +149,21 @@ fn draw_object_obbs(
     }
 
     for obb in obbs.iter() {
-        let color = class_color(&obb.class_name, args.gizmos_alpha);
-        let transform = Transform::from_translation(obb.center)
-            .with_rotation(obb.rotation)
-            .with_scale(obb.scale);
-        gizmos.cube(transform, color);
-        gizmos.axes(transform, 0.5);
+        draw_box(&mut gizmos, obb, args.gizmos_alpha);
     }
+}
+
+pub(crate) fn draw_box<G: bevy::gizmos::config::GizmoConfigGroup>(
+    gizmos: &mut bevy::gizmos::gizmos::GizmoBuffer<G, ()>,
+    obb: &ObjectObb,
+    alpha: f32,
+) {
+    let color = class_color(&obb.class_name, alpha);
+    let transform = Transform::from_translation(obb.center)
+        .with_rotation(obb.rotation)
+        .with_scale(obb.scale);
+    gizmos.cube(transform, color);
+    gizmos.axes(transform, 0.5);
 }
 
 fn class_color(class_name: &str, alpha: f32) -> Color {

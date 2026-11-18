@@ -65,6 +65,8 @@ pub struct GenConfig {
     pub indoor_appearance: Option<String>,
     /// Per-table loose-clutter distribution JSON.
     pub indoor_clutter: Option<String>,
+    /// Presentation-only drawings embedded in the RGB attachment.
+    pub rgb_gizmos: bevy_zeroverse::camera::gizmo::RgbGizmos,
     pub rgb_sensor: Option<crate::sensor::SensorSettings>,
     pub indoor_gi_rays: u32,
     pub annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
@@ -115,6 +117,7 @@ impl Default for GenConfig {
             indoor_camera: None,
             indoor_appearance: None,
             indoor_clutter: None,
+            rgb_gizmos: Default::default(),
             rgb_sensor: None,
             indoor_gi_rays: 256,
             annotation_glass: Default::default(),
@@ -157,6 +160,7 @@ impl GenConfig {
         );
         scene.indoor_seed = self.seed.map(|s| s.wrapping_add(self.sample_offset as u64));
         scene.ssaa_factor = self.ssaa_factor;
+        scene.rgb_gizmos = self.rgb_gizmos;
         scene.schematic_camera_gizmo_scale = self.schematic_camera_gizmo_scale;
         scene.indoor_layout = self.indoor_layout;
         scene.indoor_density = self.indoor_density;
@@ -205,6 +209,8 @@ impl GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    bevy_zeroverse::camera::gizmo::scale::validate(config.rgb_gizmos.camera_scale)
+        .map_err(anyhow::Error::msg)?;
     bevy_zeroverse::camera::gizmo::scale::validate(config.schematic_camera_gizmo_scale)
         .map_err(anyhow::Error::msg)?;
     bevy_zeroverse::render::ssaa::validate_factor(config.ssaa_factor)
@@ -665,6 +671,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         indoor_camera: _,
         indoor_appearance: _,
         indoor_clutter: _,
+        rgb_gizmos: _,
         rgb_sensor,
         indoor_gi_rays: _,
         indoor_quality: _,

@@ -1,4 +1,4 @@
-//! Optional editor-only pose layer with its own depth buffer. Environment mesh
+//! Optional editor and capture pose layer with its own depth buffer. Environment mesh
 //! handles are reused in a color-write-disabled pass; people never write this
 //! depth buffer. No per-joint CPU ray casting or always-on-top wall leakage.
 use bevy::{
@@ -14,18 +14,18 @@ use std::collections::HashMap;
 
 use crate::{
     app::BevyZeroverseConfig,
-    camera::{EditorCameraMarker, ProcessedEditorCameraMarker},
+    camera::{lens::LensFace, ProcessedEditorCameraMarker, ZeroverseCamera},
     render::{semantic::SemanticLabel, RenderOnlyOverlay},
 };
 
 pub(crate) const LAYER: RenderLayers = RenderLayers::layer(2);
 
 #[derive(Component)]
-struct PoseOverlayCamera;
+struct PoseOverlayCamera(Entity);
 
 #[derive(Default, Resource)]
 pub(super) struct OverlayState {
-    camera: Option<Entity>,
+    cameras: HashMap<Entity, Entity>,
     objects: HashMap<Entity, Entity>,
     material: Handle<Occluder>,
 }
@@ -63,20 +63,49 @@ pub(super) fn install(app: &mut App) {
         .add_plugins(MaterialPlugin::<Occluder>::default())
         .add_systems(
             PostUpdate,
-            sync.after(bevy::transform::TransformSystems::Propagate)
+            sync.after(crate::camera::lens::sync_faces)
+                .after(super::compute_human_poses)
+                .after(crate::scene::procedural_indoor::humans::update_human_poses)
+                .after(bevy::transform::TransformSystems::Propagate)
                 .before(bevy::camera::CameraUpdateSystems)
                 .after(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate)
                 .before(bevy::pbr::check_entities_needing_specialization::<Occluder>),
-        );
+        )
+        .add_systems(Last, sync_activity.after(crate::camera::lens::sync_faces));
+}
+
+// The sampler can deactivate a submitted RGB camera late in the frame.
+fn sync_activity(
+    sources: Query<&Camera, Without<PoseOverlayCamera>>,
+    mut overlays: Query<(&PoseOverlayCamera, &mut Camera)>,
+) {
+    for (source, mut camera) in &mut overlays {
+        let active = sources.get(source.0).is_ok_and(|c| c.is_active);
+        if camera.is_active != active {
+            camera.is_active = active;
+        }
+    }
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn sync(
     mut commands: Commands,
     config: Res<BevyZeroverseConfig>,
-    editors: Query<
-        (&Camera, &RenderTarget, &Projection, &GlobalTransform),
-        (With<EditorCameraMarker>, With<ProcessedEditorCameraMarker>),
+    mode: Res<crate::render::RenderMode>,
+    sources: Query<
+        (
+            Entity,
+            &Camera,
+            &RenderTarget,
+            &Projection,
+            &GlobalTransform,
+            Has<ProcessedEditorCameraMarker>,
+        ),
+        Or<(
+            With<ProcessedEditorCameraMarker>,
+            With<ZeroverseCamera>,
+            With<LensFace>,
+        )>,
     >,
     meshes: Query<
         (
@@ -93,54 +122,70 @@ fn sync(
         Option<&ChildOf>,
         Option<&super::HumanPose>,
     )>,
+    poses: Query<(), With<super::HumanPose>>,
     mut state: ResMut<OverlayState>,
     mut materials: ResMut<Assets<Occluder>>,
 ) {
-    let editor = editors.iter().find(|(camera, ..)| camera.is_active);
-    // The grid deliberately disables the editor's scene. Do not draw an
-    // unrelated editor-space skeleton on top of its capture-camera tiles.
-    let active = config.draw_pose_gizmos && !config.camera_grid && editor.is_some();
-    if !active {
-        if let Some(camera) = state.camera.take() {
-            commands.entity(camera).despawn();
+    let editor = config.draw_pose_gizmos && !config.camera_grid && !config.room_schematic;
+    let capture = config.rgb_gizmos.human_poses && *mode == crate::render::RenderMode::Color;
+    if !editor && !capture && state.cameras.is_empty() && state.objects.is_empty() {
+        return;
+    }
+    let have_poses = !poses.is_empty();
+    let enabled = |is_editor: bool| have_poses && if is_editor { editor } else { capture };
+    state.cameras.retain(|&source, &mut overlay| {
+        if sources
+            .get(source)
+            .is_ok_and(|(.., is_editor)| enabled(is_editor))
+        {
+            true
+        } else {
+            commands.entity(overlay).try_despawn();
+            false
         }
+    });
+    for (source, camera, target, projection, transform, is_editor) in &sources {
+        if !enabled(is_editor) {
+            continue;
+        }
+        let overlay = *state.cameras.entry(source).or_insert_with(|| {
+            commands
+                .spawn((
+                    Name::new("Pose overlay"),
+                    PoseOverlayCamera(source),
+                    Camera3d::default(),
+                    Msaa::Off,
+                    Tonemapping::None,
+                    bevy::core_pipeline::tonemapping::DebandDither::Disabled,
+                    LAYER,
+                ))
+                .id()
+        });
+        // Draw on the physical RGB source before lens resolve, supersampling
+        // and readback. Copy the exact viewport and projection, including a
+        // cropped fisheye face or a shifted pinhole principal point.
+        commands.entity(overlay).insert((
+            Camera {
+                order: camera.order + 1,
+                clear_color: ClearColorConfig::Custom(Color::NONE),
+                output_mode: CameraOutputMode::Write {
+                    blend_state: Some(BlendState::ALPHA_BLENDING),
+                    clear_color: ClearColorConfig::None,
+                },
+                ..camera.clone()
+            },
+            target.clone(),
+            projection.clone(),
+            transform.compute_transform(),
+            *transform,
+        ));
+    }
+    if state.cameras.is_empty() {
         for (_, entity) in state.objects.drain() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
         return;
     }
-    let (camera, target, projection, transform) = editor.unwrap();
-    let camera_entity = *state.camera.get_or_insert_with(|| {
-        commands
-            .spawn((
-                Name::new("pose overlay"),
-                PoseOverlayCamera,
-                Camera3d::default(),
-                Msaa::Off,
-                Tonemapping::None,
-                bevy::core_pipeline::tonemapping::DebandDither::Disabled,
-                LAYER,
-            ))
-            .id()
-    });
-    commands.entity(camera_entity).insert((
-        Camera {
-            order: camera.order + 1,
-            viewport: camera.viewport.clone(),
-            clear_color: ClearColorConfig::Custom(Color::NONE),
-            output_mode: CameraOutputMode::Write {
-                blend_state: Some(BlendState::ALPHA_BLENDING),
-                clear_color: ClearColorConfig::None,
-            },
-            // Preserve computed target/viewport state; replacing it with
-            // defaults after camera setup prevents extraction of this view.
-            ..camera.clone()
-        },
-        target.clone(),
-        projection.clone(),
-        transform.compute_transform(),
-        *transform,
-    ));
     if state.material == Handle::default() {
         state.material = materials.add(Occluder {
             base: StandardMaterial {
@@ -209,4 +254,101 @@ fn sync(
             false
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::annotation::pose::HumanPose;
+    use crate::render::RenderMode;
+
+    #[test]
+    fn capture_pose_pass_tracks_physical_targets_and_excludes_people_from_depth() {
+        let mut app = App::new();
+        app.init_resource::<OverlayState>()
+            .init_resource::<Assets<Occluder>>()
+            .init_resource::<BevyZeroverseConfig>()
+            .insert_resource(RenderMode::Color)
+            .add_systems(Update, (sync, sync_activity).chain());
+        let w = app.world_mut();
+        w.resource_mut::<BevyZeroverseConfig>()
+            .rgb_gizmos
+            .human_poses = true;
+        let pinhole = w
+            .spawn((
+                Camera3d::default(),
+                ZeroverseCamera::default(),
+                RenderTarget::None {
+                    size: UVec2::new(640, 480),
+                },
+                GlobalTransform::from_xyz(1., 2., 3.),
+            ))
+            .id();
+        let face = w
+            .spawn((
+                Camera3d::default(),
+                LensFace { owner: pinhole },
+                RenderTarget::None {
+                    size: UVec2::splat(320),
+                },
+                Projection::Perspective(PerspectiveProjection {
+                    fov: 1.27,
+                    ..default()
+                }),
+            ))
+            .id();
+        let editor = w
+            .spawn((Camera3d::default(), ProcessedEditorCameraMarker))
+            .id();
+        let wall = w
+            .spawn((Mesh3d::default(), InheritedVisibility::VISIBLE))
+            .id();
+        let human = w
+            .spawn((
+                HumanPose {
+                    bone_positions: vec![Vec3::Y],
+                    bone_rotations: vec![Quat::IDENTITY],
+                },
+                SemanticLabel::Person,
+            ))
+            .id();
+        let coat = w
+            .spawn((
+                Mesh3d::default(),
+                InheritedVisibility::VISIBLE,
+                ChildOf(human),
+            ))
+            .id();
+        app.update();
+        let w = app.world_mut();
+        let state = w.resource::<OverlayState>();
+        assert_eq!(state.objects.len(), 1);
+        assert!(state.objects.contains_key(&wall) && !state.objects.contains_key(&coat));
+        assert_eq!(state.cameras.len(), 2);
+        assert!(!state.cameras.contains_key(&editor));
+        for source in [pinhole, face] {
+            let overlay = state.cameras[&source];
+            assert_eq!(
+                w.get::<RenderTarget>(overlay).unwrap().normalize(None),
+                w.get::<RenderTarget>(source).unwrap().normalize(None)
+            );
+            assert_eq!(
+                w.get::<GlobalTransform>(overlay),
+                w.get::<GlobalTransform>(source)
+            );
+            assert_eq!(
+                w.get::<Projection>(overlay).unwrap().get_clip_from_view(),
+                w.get::<Projection>(source).unwrap().get_clip_from_view()
+            );
+        }
+        w.get_mut::<Camera>(face).unwrap().is_active = false;
+        app.update();
+        let w = app.world_mut();
+        let overlay = w.resource::<OverlayState>().cameras[&face];
+        assert!(!w.get::<Camera>(overlay).unwrap().is_active);
+        w.insert_resource(RenderMode::Normal);
+        app.update();
+        let state = app.world().resource::<OverlayState>();
+        assert!(state.objects.is_empty() && state.cameras.is_empty());
+    }
 }

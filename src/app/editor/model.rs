@@ -149,28 +149,29 @@ pub fn validate(draft: &Value) -> Result<BevyZeroverseConfig, String> {
     Ok(config)
 }
 pub fn live(path: &str) -> bool {
-    matches!(
-        path,
-        "/render_mode"
-            | "/depth_format"
-            | "/z_depth"
-            | "/annotation_glass"
-            | "/camera_grid"
-            | "/room_schematic"
-            | "/material_grid"
-            | "/gizmos"
-            | "/gizmos_alpha"
-            | "/camera_gizmo_scale"
-            | "/schematic_camera_gizmo_scale"
-            | "/draw_obb_gizmo"
-            | "/draw_pose_gizmos"
-            | "/playback_mode"
-            | "/playback_speed"
-            | "/yaw_speed"
-            | "/keybinds"
-            | "/regenerate_ms"
-            | "/orbit_smoothness"
-            | "/pan_smoothness"
-            | "/zoom_smoothness"
-    )
+    path.starts_with("/rgb_gizmos/")
+        || matches!(
+            path,
+            "/render_mode"
+                | "/depth_format"
+                | "/z_depth"
+                | "/annotation_glass"
+                | "/camera_grid"
+                | "/room_schematic"
+                | "/material_grid"
+                | "/gizmos"
+                | "/gizmos_alpha"
+                | "/camera_gizmo_scale"
+                | "/schematic_camera_gizmo_scale"
+                | "/draw_obb_gizmo"
+                | "/draw_pose_gizmos"
+                | "/playback_mode"
+                | "/playback_speed"
+                | "/yaw_speed"
+                | "/keybinds"
+                | "/regenerate_ms"
+                | "/orbit_smoothness"
+                | "/pan_smoothness"
+                | "/zoom_smoothness"
+        )
 }

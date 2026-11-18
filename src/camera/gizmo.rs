@@ -1,6 +1,8 @@
 //! Shared camera presentation for Studio and inference clients. Colors depend
 //! on capture ID, never ECS order or camera count. Geometry uses calibrated rays
 //! in Bevy camera space (-Z forward, +Y up), bounded to a unit display radius.
+pub(crate) mod capture;
+pub use capture::RgbGizmos;
 mod runtime;
 pub mod scale;
 mod style;

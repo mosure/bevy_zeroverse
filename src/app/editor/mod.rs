@@ -466,16 +466,26 @@ fn live_update(world: &mut World, state: &mut EditorState, path: &str) -> Result
     }
     if model::live(path) || path == "@progress" {
         let mut config = serde_json::to_value(world.resource::<BevyZeroverseConfig>()).unwrap();
-        let key = if path == "@progress" {
-            "playback_mode"
+        let field = if path == "@progress" {
+            "/playback_mode"
         } else {
-            &path[1..]
+            path
         };
-        config[key] = state.draft[key].clone();
+        let value = state
+            .draft
+            .pointer(field)
+            .ok_or_else(|| format!("Unknown live field {field}"))?
+            .clone();
+        *config
+            .pointer_mut(field)
+            .ok_or_else(|| format!("Missing active field {field}"))? = value.clone();
         let config: BevyZeroverseConfig =
             serde_json::from_value(config).map_err(|e| e.to_string())?;
+        *state
+            .applied
+            .pointer_mut(field)
+            .ok_or_else(|| format!("Missing applied field {field}"))? = value;
         world.insert_resource(config);
-        state.applied[key] = state.draft[key].clone();
     }
     if path == "@progress" {
         let mut p = world.resource_mut::<Playback>();

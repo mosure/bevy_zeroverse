@@ -151,6 +151,8 @@ struct Cli {
     /// Per-table loose-clutter distribution JSON.
     #[arg(long)]
     indoor_clutter: Option<String>,
+    #[command(flatten)]
+    rgb_gizmos: bevy_zeroverse::camera::gizmo::RgbGizmos,
     /// Optional post-tonemapping RGB corruption ranges as JSON; annotations stay unchanged.
     #[arg(long)]
     rgb_sensor: Option<String>,
@@ -674,6 +676,7 @@ fn main() -> Result<()> {
         write_mode,
         export_schematic: cli.schematic,
         schematic_camera_gizmo_scale: cli.schematic_camera_gizmo_scale,
+        rgb_gizmos: cli.rgb_gizmos,
         export_ovoxel: !matches!(cli.ov_mode, bevy_zeroverse::app::OvoxelMode::Disabled),
         ov_mode: cli.ov_mode,
         ov_resolution: cli.ov_resolution,
@@ -835,6 +838,7 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
     bevy_zeroverse_burn::generator::validate_gen_config(&GenConfig {
         export_schematic: cli.schematic,
         schematic_camera_gizmo_scale: cli.schematic_camera_gizmo_scale,
+        rgb_gizmos: cli.rgb_gizmos,
         workers: if cli.per_process { 1 } else { cli.workers },
         chunk_size: cli.chunk_size,
         width: cli.width,
@@ -942,6 +946,9 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "ovoxel_resolution": cli.ov_resolution,
         "ovoxel_max_output_voxels": cli.ov_max_output_voxels,
     });
+    if cli.render_modes.contains(&RenderMode::Color) && cli.rgb_gizmos.enabled() {
+        spec["rgb_gizmos"] = serde_json::to_value(cli.rgb_gizmos)?;
+    }
     // Preserve resumability of existing default-size exports. This option has
     // no effect when sidecars are disabled; non-default exported sizes are locked.
     if cli.schematic && cli.schematic_camera_gizmo_scale != 1. {
@@ -1045,6 +1052,26 @@ fn send_progress(
 #[cfg(test)]
 mod process_limit_tests {
     use super::*;
+
+    #[test]
+    fn rgb_gizmos_are_part_of_the_archive_resume_contract() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cli = indoor(&[
+            "--output",
+            dir.path().to_str().unwrap(),
+            "--rgb-object-obbs",
+        ]);
+        prepare_generation_metadata(&mut cli).unwrap();
+        let receipt: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(dir.path().join("generation_config.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(receipt["rgb_gizmos"]["object_obbs"], true);
+        cli.resume = true;
+        prepare_generation_metadata(&mut cli).unwrap();
+        cli.rgb_gizmos.object_obbs = false;
+        assert!(prepare_generation_metadata(&mut cli).is_err());
+    }
 
     #[test]
     fn schematic_gizmo_scale_cli_rejects_invalid_sizes() {

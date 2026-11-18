@@ -305,7 +305,7 @@ fn setup(
 }
 
 #[allow(clippy::type_complexity)]
-fn sync(
+pub(crate) fn sync(
     mode: Res<crate::render::RenderMode>,
     parents: Query<&Camera, (With<LensCamera>, Without<LensFace>)>,
     mut faces: Query<(&LensFace, &mut Camera), Without<LensCamera>>,

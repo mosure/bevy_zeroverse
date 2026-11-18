@@ -46,6 +46,43 @@ fn camera_gizmo_scale_controls_are_live_and_scoped_to_the_viewport() {
     }
 }
 
+#[test]
+fn capture_rgb_overlays_are_live_independent_and_shareable_in_grid() {
+    let mut app = App::new();
+    app.init_resource::<BevyZeroverseConfig>()
+        .add_message::<RegenerateSceneEvent>();
+    let mut state = EditorState::new(app.world().resource::<BevyZeroverseConfig>());
+    state.view.page = Page::View;
+    state.draft["camera_grid"] = json!(true);
+    edit(&mut state, "/indoor_density", json!(0.9)).unwrap();
+    for (key, value) in [
+        ("object_obbs", json!(true)),
+        ("human_poses", json!(true)),
+        ("camera_frustums", json!(true)),
+        ("camera_trajectories", json!(true)),
+        ("camera_scale", json!(2.0)),
+    ] {
+        let path = format!("/rgb_gizmos/{key}");
+        assert!(fields::items(&state)
+            .iter()
+            .any(|i| matches!(i, fields::Item::Field(f) if f.path == path)));
+        edit(&mut state, &path, value.clone()).unwrap();
+        live_update(app.world_mut(), &mut state, &path).unwrap();
+        assert_eq!(state.applied.pointer(&path), Some(&value));
+        let live = app.world().resource::<BevyZeroverseConfig>();
+        assert_eq!(model::expand(live).pointer(&path), Some(&value));
+        assert_eq!(live.indoor_density, 0.65);
+    }
+    assert!(app
+        .world()
+        .resource::<Messages<RegenerateSceneEvent>>()
+        .is_empty());
+    state.draft["room_schematic"] = json!(true);
+    assert!(!fields::items(&state)
+        .iter()
+        .any(|i| matches!(i,fields::Item::Field(f) if f.path.starts_with("/rgb_gizmos/"))));
+}
+
 fn decode_query(query: &str) -> impl Iterator<Item = (String, String)> + '_ {
     fn decode(s: &str) -> String {
         let bytes = s.as_bytes();

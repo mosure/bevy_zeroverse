@@ -320,6 +320,12 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
     pub draw_pose_gizmos: bool,
 
+    /// Debug drawings in the RGB output of calibrated capture cameras.
+    #[serde(default)]
+    #[command(flatten)]
+    #[pyo3(get, set)]
+    pub rgb_gizmos: crate::camera::gizmo::RgbGizmos,
+
     /// no window will be shown
     #[pyo3(get, set)]
     #[arg(long, default_value = "false")]
@@ -632,6 +638,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, action = clap::ArgAction::Set, default_value = "false")]
     pub draw_pose_gizmos: bool,
 
+    /// Debug drawings in the RGB output of calibrated capture cameras.
+    #[serde(default)]
+    #[command(flatten)]
+    pub rgb_gizmos: crate::camera::gizmo::RgbGizmos,
+
     /// no window will be shown
     #[arg(long, default_value = "false")]
     pub headless: bool,
@@ -842,6 +853,7 @@ impl Default for BevyZeroverseConfig {
             schematic_camera_gizmo_scale: gizmo_scale::default(),
             draw_obb_gizmo: false,
             draw_pose_gizmos: false,
+            rgb_gizmos: default(),
             headless: false,
             image_copiers: false,
             material_grid: false,

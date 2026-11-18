@@ -1322,6 +1322,7 @@ pub fn sample_stream(
         },
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
             "ssaa": {"configured_factor": args.ssaa_factor, "linear_factor": crate::render::ssaa::effective_factor(UVec2::new(args.width as u32, args.height as u32), args.ssaa_factor), "rgb_filter": "linear_light_box_after_tonemapping", "annotation_filter": "final_pixel_center"},
+            "rgb_gizmos": (crate::render::sensor::captures_rgb(&args) && args.rgb_gizmos.enabled()).then_some(args.rgb_gizmos),
             "camera_sensor": indoor.as_ref().filter(|_| crate::render::sensor::captures_rgb(&args))
                 .and_then(|s| crate::render::sensor::metadata(s, &views, camera_count)),
             "schema_version": 1,

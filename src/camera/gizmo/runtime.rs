@@ -180,8 +180,8 @@ pub fn draw_camera_gizmo(
     let _ = &mut predicted;
 }
 
-fn draw<G: GizmoConfigGroup>(
-    gizmos: &mut Gizmos<G>,
+pub(super) fn draw<G: GizmoConfigGroup>(
+    gizmos: &mut bevy::gizmos::gizmos::GizmoBuffer<G, ()>,
     lines: &[[Vec3; 2]],
     pose: Mat4,
     radius: f32,

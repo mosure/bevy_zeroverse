@@ -88,6 +88,7 @@ impl Plugin for ZeroverseCameraPlugin {
             },
         );
 
+        gizmo::capture::install(app);
         app.add_plugins(lens::FisheyeCameraPlugin);
         app.init_resource::<DefaultZeroverseCamera>();
         app.init_resource::<CaptureDrawPolicy>();

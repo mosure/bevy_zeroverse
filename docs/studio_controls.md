@@ -63,3 +63,11 @@ Generated links contain only settings differing from browser defaults. Nested po
 (Line breaks above are for readability.) Policy prefixes are `camera`, `clutter`, `appearance`, `human_motion`, `object_motion`, and `view`. Other top-level settings retain their CLI names with underscores. Arrays use numeric components such as `.0` and `.1`. Explicit `null` disables an optional policy. Empty-object `{}` and empty-array `[]` markers enable/reset groups when necessary; values are percent-encoded normally. Unapplied edits travel under `view.pending` and do not silently become active on reload.
 
 Old `indoor_camera={...}`, `human_motion={...}`, and `viewer_state={...}` links remain readable. Dotted fields override legacy whole-policy values independently of URL order. Duplicate keys, malformed paths, invalid typed values and excessively large inputs are rejected. The active seed and view state are synchronized with `history.replaceState`, preserving browser history and the page fragment without reloading.
+
+## RGB overlays from capture cameras
+
+In **View & playback → Capture-camera RGB overlays**, select object oriented bounding boxes, human skeletons, other cameras’ frustums, or camera trajectories independently. Switch the viewport to **Camera grid** to see the result from each capture camera. The switches take effect in Color mode without regenerating the room. All four default off.
+
+Frustums use the camera’s calibrated pinhole or fisheye outline and its schematic ID color. Each camera can see its peers’ frustums and the paths of moving cameras, including its own path wherever it enters the frame. The frustum size control scales the drawing in meters. Skeletons show through clothing and retain occlusion by furnishings and walls.
+
+For example, add `--rgb-object-obbs --rgb-camera-trajectories` to `zeroverse_gen` or the native viewer. In a browser URL use `?camera_grid=true&rgb_gizmos.object_obbs=true&rgb_gizmos.camera_trajectories=true`. In Rust, set the corresponding fields on `BevyZeroverseConfig::rgb_gizmos` or `GenConfig::rgb_gizmos`. Enabled drawings become part of the exported color pixels. Numeric annotations, object bounds, camera calibration and joint coordinates describe the underlying scene.

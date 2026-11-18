@@ -121,6 +121,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             &[
                 "view.flow",
                 "view.overlays",
+                "view.capture_overlays",
                 "view.geometry",
                 "view.navigation",
             ],
