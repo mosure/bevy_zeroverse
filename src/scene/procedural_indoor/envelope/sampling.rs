@@ -19,15 +19,24 @@ impl EnvelopeProgram {
         let mut r = stream(scene.seed, 4101);
         let size = scene.room_size;
         let half = size.xz() * 0.5;
+        let boardroom = scene.program.as_ref().and_then(|p| p.executive_boardroom);
+        let facade_allowance = boardroom.map(|p| p.facade_allowance());
         let taper = if r.random_bool(0.68) {
-            r.random_range(0.02..0.18) * size.x
+            r.random_range(0.02..0.18) * facade_allowance.map_or(size.x, |a| size.x.min(a.x / 0.18))
         } else {
             0.
         };
         let left = taper * r.random_range(0.1..0.9);
         let right = taper - left;
         let chamfer = if r.random_bool(0.62) {
-            r.random_range(0.25..1.25_f32.min(size.x.min(size.z) * 0.16))
+            let limit = 1.25_f32.min(size.x.min(size.z) * 0.16);
+            let cut = r.random_range(0.25..limit)
+                * facade_allowance.map_or(1., |a| (a.y / limit).min(1.));
+            if cut * std::f32::consts::SQRT_2 > polygon::MIN_WALL_EDGE_M + 1e-5 {
+                cut
+            } else {
+                0.
+            }
         } else {
             0.
         };
@@ -37,13 +46,19 @@ impl EnvelopeProgram {
         if b.x - a.x > 3.0 && r.random_bool(0.42) {
             let width = (b.x - a.x) * r.random_range(0.13..0.30);
             let center = (a.x + b.x) * 0.5 + (b.x - a.x) * r.random_range(-0.10..0.10);
-            let depth = r.random_range(0.45..(size.z * 0.15).min(2.2));
-            footprint.extend([
-                Vec2::new(center - width * 0.5, -half.y),
-                Vec2::new(center - width * 0.5, -half.y + depth),
-                Vec2::new(center + width * 0.5, -half.y + depth),
-                Vec2::new(center + width * 0.5, -half.y),
-            ]);
+            let limit = (size.z * 0.15).min(2.2);
+            let depth = r.random_range(0.45..limit)
+                * facade_allowance.map_or(1., |a| (a.y / limit).min(1.));
+            // A tight furniture reservation can scale a notch below the
+            // shortest constructible return. Keep the continuous wall there.
+            if depth > polygon::MIN_WALL_EDGE_M + 1e-5 {
+                footprint.extend([
+                    Vec2::new(center - width * 0.5, -half.y),
+                    Vec2::new(center - width * 0.5, -half.y + depth),
+                    Vec2::new(center + width * 0.5, -half.y + depth),
+                    Vec2::new(center + width * 0.5, -half.y),
+                ]);
+            }
         }
         footprint.push(b);
         if chamfer > 0. {
@@ -66,7 +81,7 @@ impl EnvelopeProgram {
         let wall_thickness = super::super::architecture::facade::reveal::wall_thickness(scene.seed);
         let mut result = Self {
             wall_thickness_m: Some(wall_thickness),
-            footprint: ceilings::articulate(scene.seed, footprint, size),
+            footprint: ceilings::articulate(scene.seed, footprint, size, boardroom),
             soffits: vec![],
             tier_guard: Some(guardrail::GuardProgram::sample(
                 scene.seed.wrapping_add(4133),
@@ -112,7 +127,7 @@ impl EnvelopeProgram {
         let zone = zone_hi - zone_lo;
         // Floor offsets are shallow enough for a short stair, with every tread
         // serialized separately. Keep the room's portals at the base level.
-        if zone.min_element() > 4.6 && r.random_bool(0.43) {
+        if boardroom.is_none() && zone.min_element() > 4.6 && r.random_bool(0.43) {
             for _ in 0..24 {
                 let width = r.random_range(1.8..(zone.x * 0.55).max(1.81));
                 let depth = r.random_range(2.0..(zone.y * 0.55).max(2.01));
@@ -153,7 +168,12 @@ impl EnvelopeProgram {
                 );
                 let radius = r.random_range(0.14..0.34);
                 let pad = Vec2::splat(radius + 0.35);
-                if !result.feature_clear(scene, center - pad, center + pad, 0.4)
+                if boardroom.is_some_and(|p| {
+                    (center - p.center())
+                        .abs()
+                        .cmplt(p.reserved_half() + pad)
+                        .all()
+                }) || !result.feature_clear(scene, center - pad, center + pad, 0.4)
                     || result
                         .floor_patches
                         .iter()
@@ -174,7 +194,8 @@ impl EnvelopeProgram {
                 {
                     continue;
                 }
-                let mut profile = ColumnProfile::sample(scene.seed, result.pillars.len());
+                let mut profile =
+                    ColumnProfile::for_layout(scene.seed, result.pillars.len(), scene.layout);
                 // Retain the placement stream's section draw. Shape/detail use
                 // an independent stream, so they never perturb room furnishing.
                 profile.roundness = if r.random_bool(0.65) {
@@ -217,8 +238,13 @@ impl EnvelopeProgram {
             } else {
                 None
             };
-            result.walls.push(EnvelopeWall { edge, facade });
+            result.walls.push(EnvelopeWall {
+                edge,
+                facade,
+                lining: None,
+            });
         }
+        lining::install(&mut result, scene);
         result
     }
 

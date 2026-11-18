@@ -2,6 +2,7 @@
 //! between actual ports after all supported objects have been accepted.
 mod fans;
 mod hanging;
+mod pendants;
 mod power_strips;
 pub(crate) mod services;
 use super::super::architecture::facade::FacadeSide;
@@ -110,7 +111,7 @@ impl IndoorManifest {
                 self.place_power_strip(surface, &mut station);
             }
         }
-        self.pendant_equipment(&mut sampling::Domain::Pendants.rng(self.seed));
+        self.pendant_equipment();
     }
 
     fn projector_equipment(&mut self, surfaces: &[IndoorObject]) {
@@ -180,42 +181,6 @@ impl IndoorManifest {
                     break;
                 }
             }
-        }
-    }
-
-    fn pendant_equipment(&mut self, rng: &mut ChaCha8Rng) {
-        let tables: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| {
-                !o.neighbor
-                    && matches!(
-                        o.kind,
-                        ObjectKind::Table | ObjectKind::CoffeeTable | ObjectKind::SideTable
-                    )
-            })
-            .cloned()
-            .collect();
-        for table in tables {
-            if !rng.random_bool(0.23 + self.density as f64 * 0.25) {
-                continue;
-            }
-            let size = Vec3::new(
-                rng.random_range(0.22..0.43),
-                rng.random_range(0.30..0.61),
-                rng.random_range(0.22..0.43),
-            );
-            let ceiling = self.ceiling_height(table.position.xz());
-            let position = Vec3::new(table.position.x, ceiling - size.y - 0.004, table.position.z);
-            if position.y < (table.position.y + table.size.y + 0.95).max(2.05) {
-                continue;
-            }
-            let mut o = self.candidate(ObjectKind::CeilingPendant, position, size, 0., rng);
-            o.solid = false;
-            if !ceiling_fixture_clear(self, &o) {
-                continue;
-            }
-            self.objects.push(o);
         }
     }
 
@@ -451,7 +416,25 @@ pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) ->
     {
         return false;
     }
-    if super::super::architecture::fixture_positions(scene)
+    if intersects_installed_ceiling_light(scene, lo, hi) {
+        return false;
+    }
+    !scene
+        .objects
+        .iter()
+        .filter(|other| other.id != o.id)
+        .flat_map(IndoorObject::obstacle_bounds)
+        .any(|(a, b)| {
+            lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
+        })
+}
+
+pub(super) fn intersects_installed_ceiling_light(
+    scene: &IndoorManifest,
+    lo: Vec3,
+    hi: Vec3,
+) -> bool {
+    super::super::architecture::fixture_positions(scene)
         .into_iter()
         .any(|p| {
             // Reserve the native fixture's body plus its suspension anchors, not
@@ -464,17 +447,6 @@ pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) ->
                 p.z + fixture_half.z,
             );
             lo.cmplt(b + Vec3::splat(0.015)).all() && hi.cmpgt(a - Vec3::splat(0.015)).all()
-        })
-    {
-        return false;
-    }
-    !scene
-        .objects
-        .iter()
-        .filter(|other| other.id != o.id)
-        .flat_map(IndoorObject::obstacle_bounds)
-        .any(|(a, b)| {
-            lo.cmplt(b + Vec3::splat(0.025)).all() && hi.cmpgt(a - Vec3::splat(0.025)).all()
         })
 }
 

@@ -437,17 +437,14 @@ impl PreparedIndoor {
         let gpu_gi_setup_seconds = 0.0;
         #[cfg(not(target_arch = "wasm32"))]
         if quality.diffuse_gi() && settings.enabled {
-            #[cfg(not(target_arch = "wasm32"))]
-            if settings.gpu {
+            if settings.gpu && gi::gpu::fits_portable_bindings(&transport) {
                 let gpu_started = bevy::platform::time::Instant::now();
                 let (request, transform, statistics) =
                     gi::gpu::prepare(&transport, settings.bake, manifest.seed, &mut images);
                 gpu_gi_setup_seconds = gpu_started.elapsed().as_secs_f64();
                 probes = Some((request.image.clone(), transform, statistics));
                 gpu_request = Some(request);
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if !settings.gpu {
+            } else {
                 cpu_bake = Some(super::lighting::prepare(
                     transport,
                     settings.bake,
@@ -580,6 +577,12 @@ impl PreparedIndoor {
             }
             let root = root.id();
             for part in group.parts {
+                let backlit = part.surface.is_some_and(|surface| {
+                    super::materials::window_textile::receives_transmitted_shadows(
+                        surface,
+                        &part.label,
+                    )
+                });
                 let mut child = commands.spawn((
                     crate::render::ground_truth::AnnotationOrder(annotation_order),
                     Mesh3d(part.mesh),
@@ -599,6 +602,9 @@ impl PreparedIndoor {
                     child.insert(OvoxelExcluded);
                 }
                 if let Some(surface) = part.surface {
+                    if backlit {
+                        child.insert(bevy::light::TransmittedShadowReceiver);
+                    }
                     child.insert((
                         Name::new(format!("{surface:?}")),
                         objects::IndoorSurface(surface),

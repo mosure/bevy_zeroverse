@@ -8,6 +8,7 @@ use std::collections::HashMap;
 struct Key {
     resolution: UVec2,
     ssaa_factor: u32,
+    resolve_at_one: bool,
     copy: bool,
     #[cfg(not(target_arch = "wasm32"))]
     geometry: bool,
@@ -17,7 +18,7 @@ struct Key {
     visibility: bool,
 }
 impl Key {
-    fn new(args: &BevyZeroverseConfig, resolution: UVec2) -> Self {
+    fn new(args: &BevyZeroverseConfig, resolution: UVec2, sensor: bool) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         let modes = || {
             args.render_modes
@@ -28,9 +29,11 @@ impl Key {
         let flow = modes().any(RenderMode::is_flow);
         #[cfg(not(target_arch = "wasm32"))]
         let visibility = modes().any(|mode| *mode == RenderMode::CoVisibility);
+        let ssaa_factor = crate::render::ssaa::effective_factor(resolution, args.ssaa_factor);
         Self {
+            resolve_at_one: sensor && ssaa_factor == 1,
             resolution,
-            ssaa_factor: crate::render::ssaa::effective_factor(resolution, args.ssaa_factor),
+            ssaa_factor,
             copy: args.image_copiers,
             #[cfg(not(target_arch = "wasm32"))]
             geometry: cfg!(not(target_arch = "wasm32"))
@@ -82,7 +85,7 @@ impl Targets {
             ..default()
         };
         let output = images.add(target.clone());
-        let (color, ssaa) = if key.ssaa_factor > 1 {
+        let (color, ssaa) = if key.ssaa_factor > 1 || key.resolve_at_one {
             let mut high = target;
             high.texture_descriptor.size.width *= key.ssaa_factor;
             high.texture_descriptor.size.height *= key.ssaa_factor;
@@ -163,13 +166,14 @@ impl CaptureTargets {
         &mut self,
         owner: Entity,
         index: Option<&CaptureCameraIndex>,
+        sensor: bool,
         resolution: UVec2,
         args: &BevyZeroverseConfig,
         cameras: &Query<(), With<Camera>>,
         images: &mut Assets<Image>,
         device: &RenderDevice,
     ) -> Targets {
-        let key = Key::new(args, resolution);
+        let key = Key::new(args, resolution, sensor);
         let slot = index
             .filter(|index| {
                 cfg!(not(target_arch = "wasm32"))

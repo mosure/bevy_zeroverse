@@ -221,7 +221,12 @@ fn insert_cameras(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut zeroverse_cameras: Query<
-        (Entity, &mut ZeroverseCamera, Option<&CaptureCameraIndex>),
+        (
+            Entity,
+            &mut ZeroverseCamera,
+            Option<&CaptureCameraIndex>,
+            Has<crate::render::sensor::CameraSensorProfile>,
+        ),
         (Without<Camera>, Without<InvalidCaptureTarget>),
     >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
@@ -236,7 +241,7 @@ fn insert_cameras(
     let Some(render_device) = render_device.as_ref() else {
         return;
     };
-    for (entity, mut zeroverse_camera, capture_index) in zeroverse_cameras.iter_mut() {
+    for (entity, mut zeroverse_camera, capture_index, sensor) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
@@ -254,6 +259,7 @@ fn insert_cameras(
         let targets = capture_targets.acquire(
             entity,
             capture_index,
+            sensor,
             resolution,
             &args,
             &cameras,

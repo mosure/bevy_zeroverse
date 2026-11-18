@@ -29,6 +29,17 @@ pub(super) fn record_scene(
     numeric: &mut NumericCollector,
     categories: &mut Categories,
 ) -> io::Result<()> {
+    if let Some(frame) = materials::flooring::laying::mapping(scene) {
+        numeric.push(
+            "floor_laying_room_heading_degrees",
+            frame
+                .matrix2
+                .x_axis
+                .to_angle()
+                .rem_euclid(std::f32::consts::PI)
+                .to_degrees() as f64,
+        )?;
+    }
     let installation = super::super::layout::electrical_parameters(scene);
     category(categories, "electrical_standard", installation.standard);
     for (key, value) in [
@@ -64,6 +75,30 @@ pub(super) fn record_scene(
         }
     }
     let groups = &scene.assembly_diagnostics;
+    for mount in &groups.mounts {
+        let (Some(object), Some(host)) = (
+            scene.objects.get(mount.object),
+            scene.objects.get(mount.host),
+        ) else {
+            continue;
+        };
+        if object.kind == ObjectKind::CeilingPendant {
+            numeric.push(
+                "exhibit_pendant_offset_m",
+                object.position.xz().distance(host.position.xz()) as f64,
+            )?;
+        } else if object.kind == ObjectKind::ExtractionHood {
+            let plate = super::super::objects::kitchen::appliances::cooking_surface(
+                host,
+                &super::super::objects::kitchen::parameters(host),
+            )
+            .0;
+            numeric.push(
+                "hood_to_cooktop_clearance_m",
+                (object.position.y - plate.y) as f64,
+            )?;
+        }
+    }
     numeric.push(
         "feature_wall_edges",
         materials::wall::feature_edges(scene).len() as f64,
@@ -296,6 +331,14 @@ pub(super) fn record_material(
 ) -> io::Result<()> {
     if let Some(f) = &material.flooring {
         category(categories, "floor_installation", format!("{:?}", f.layout));
+        if let Some(laying) = f.laying {
+            numeric.push(
+                "material_Floor_turn_from_wall_degrees",
+                laying.turn_radians.to_degrees() as f64,
+            )?;
+            numeric.push("material_Floor_phase_u", laying.phase.x as f64)?;
+            numeric.push("material_Floor_phase_v", laying.phase.y as f64)?;
+        }
         for (key, value) in [
             ("installation_cells_u", f.cells[0] as f32),
             ("installation_cells_v", f.cells[1] as f32),
@@ -593,6 +636,11 @@ fn record_equipment(
             );
             numeric.push("equipment_diffuser_fraction", p.diffuser_fraction as f64)?;
             if o.kind == ObjectKind::CeilingPendant {
+                numeric.push(
+                    "pendant_shade_diameter_m",
+                    (0.92 * o.size.x.min(o.size.z)) as f64,
+                )?;
+                numeric.push("pendant_installed_drop_m", o.size.y as f64)?;
                 numeric.push("equipment_shade_fraction", p.shade_fraction as f64)?;
                 numeric.push(
                     "equipment_shade_height_m",
@@ -628,12 +676,14 @@ fn record_equipment(
                     numeric.push(name, value as f64)?;
                 }
             }
-            let (position, color, flux, inner, outer) =
-                super::super::architecture::object_fixture_photometry(scene, o);
+            let (beam, power) = super::super::architecture::object_fixture_photometry(scene, o);
+            let position = beam.position;
+            let color = power.color;
             for (name, value) in [
-                ("equipment_fixture_lumens", flux),
-                ("equipment_fixture_inner_angle", inner),
-                ("equipment_fixture_outer_angle", outer),
+                ("equipment_fixture_lumens", power.lumens),
+                ("equipment_fixture_inner_angle", beam.inner),
+                ("equipment_fixture_outer_angle", beam.outer),
+                ("equipment_beam_vertical_component", beam.direction.y),
                 ("equipment_emitter_room_x_m", position.x),
                 ("equipment_emitter_room_y_m", position.y),
                 ("equipment_emitter_room_z_m", position.z),
@@ -1258,10 +1308,13 @@ mod tests {
                 assert_eq!(values["equipment_socket_count"].mean, p.socket_count as f64);
             }
             if matches!(kind, ObjectKind::WallSconce | ObjectKind::CeilingPendant) {
-                let (position, _, lumens, _, _) =
+                let (beam, power) =
                     super::super::super::architecture::object_fixture_photometry(&scene, &o);
-                assert_eq!(values["equipment_fixture_lumens"].mean, lumens as f64);
-                assert_eq!(values["equipment_emitter_room_x_m"].mean, position.x as f64);
+                assert_eq!(values["equipment_fixture_lumens"].mean, power.lumens as f64);
+                assert_eq!(
+                    values["equipment_emitter_room_x_m"].mean,
+                    beam.position.x as f64
+                );
             }
         }
         std::fs::remove_dir_all(directory).unwrap();

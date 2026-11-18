@@ -1,6 +1,7 @@
 //! Functional furniture groups are transformed together inside the architectural zone.
 use super::*;
 mod heaters;
+mod neighbor;
 mod perimeter;
 impl IndoorManifest {
     pub(super) fn furnish(&mut self, rng: &mut ChaCha8Rng) {
@@ -241,68 +242,6 @@ impl IndoorManifest {
                 }
             }
         }
-        // Furnished neighboring office, visible through a genuine glass partition.
-        for (kind, p, size) in [
-            (
-                ObjectKind::Desk,
-                Vec3::new(-w * 0.22, 0.0, d * 0.5 + 2.0),
-                Vec3::new(1.5, 0.74, 0.75),
-            ),
-            (
-                ObjectKind::Chair,
-                Vec3::new(-w * 0.22, 0.0, d * 0.5 + 1.08),
-                Vec3::new(0.68, 1.02, 0.68),
-            ),
-            (
-                ObjectKind::Cabinet,
-                Vec3::new(w * 0.08, 0.0, d * 0.5 + 2.65),
-                Vec3::new(1.6, 1.2, 0.40),
-            ),
-            (
-                ObjectKind::Plant,
-                Vec3::new(-w * 0.5 + 0.70, 0.0, d * 0.5 + 2.3),
-                Vec3::new(0.8, 1.7, 0.8),
-            ),
-        ] {
-            let mut obj = self.candidate(kind, p, size, PI, rng);
-            obj.neighbor = true;
-            for attempt in 0..32 {
-                if attempt > 0 {
-                    // Service pieces must fit narrow neighboring rooms too.
-                    // Preserve the first desk/chair pair; move conflicting props.
-                    if matches!(kind, ObjectKind::Desk | ObjectKind::Chair) {
-                        break;
-                    }
-                    obj.position.x = rng.random_range(
-                        -w * 0.5 + size.x * 0.5 + 0.31..w * 0.5 - size.x * 0.5 - 0.31,
-                    );
-                    obj.position.z = d * 0.5
-                        + rng.random_range(
-                            size.z * 0.5 + 0.31..NEIGHBOR_DEPTH - size.z * 0.5 - 0.31,
-                        );
-                }
-                let (lo, hi) = obj.bounds();
-                let collision = self
-                    .objects
-                    .iter()
-                    .filter(|o| o.solid && o.neighbor)
-                    .any(|o| {
-                        let (a, b) = o.bounds();
-                        lo.x < b.x + 0.025
-                            && hi.x > a.x - 0.025
-                            && lo.z < b.z + 0.025
-                            && hi.z > a.z - 0.025
-                    });
-                let blocked_door = self.entry_approach_overlaps(lo, hi);
-                let ceiling_clear = hi.y
-                    <= self.minimum_ceiling_height(lo.xz(), hi.xz()) - obj.overhead_clearance();
-                if !collision && !blocked_door && ceiling_clear {
-                    self.objects.push(obj);
-                    break;
-                }
-                self.rejected_placements += 1;
-            }
-        }
         self.complete_underfilled_activity_groups();
     }
 
@@ -328,20 +267,45 @@ impl IndoorManifest {
         surface: Option<usize>,
         rng: &mut ChaCha8Rng,
     ) {
-        let height = rng.random_range(0.83..1.44);
+        let height = if let Some(table) = surface.map(|id| &self.objects[id]).filter(|o| {
+            o.kind == ObjectKind::Table
+                && o.variant == super::super::objects::tables::BOARDROOM_VARIANT
+        }) {
+            let product_height = stream(table.seed, 0x4241_434b_5245_5354).random_range(1.02..1.36);
+            product_height + rng.random_range(-0.045..0.045)
+        } else {
+            rng.random_range(0.83..1.44)
+        };
         let yaw_jitter = if rng.random_bool(0.24) { 1.20 } else { 0.48 };
         let delta = rng.random_range(-yaw_jitter..yaw_jitter);
-        let mut chair = self.floor_candidate(
-            ObjectKind::Chair,
-            pos,
-            Vec3::new(0.68, height, 0.68),
-            yaw + delta,
-            rng,
-        );
+        let collection = surface.map(|id| self.objects[id].seed);
+        let mut chair = self.chair_product(pos, yaw + delta, height, family, collection, rng);
+        chair.interaction_target = surface;
+        // Tight conference rows allow less swivel than an open workstation.
+        // Preserve every planned seat, choosing the widest collision-free angle.
+        for fraction in [1.0, 0.5, 0.2, 0.0] {
+            chair.yaw = yaw + delta * fraction;
+            if self.placement_clear(&chair, 0.06) {
+                self.objects.push(chair);
+                return;
+            }
+        }
+        self.rejected_placements += 1;
+    }
+
+    fn chair_product(
+        &self,
+        pos: Vec3,
+        yaw: f32,
+        height: f32,
+        family: Option<u32>,
+        collection: Option<u64>,
+        rng: &mut ChaCha8Rng,
+    ) -> IndoorObject {
+        let mut chair = self.floor_candidate(ObjectKind::Chair, pos, Vec3::Y * height, yaw, rng);
         if let Some(family) = family {
             chair.variant = family;
         }
-        chair.interaction_target = surface;
         match chair.variant % super::super::objects::chairs::FAMILIES {
             // Tall upholstered task backs and headrests have different envelopes
             // from a dining shell or a lounge armchair.
@@ -370,16 +334,16 @@ impl IndoorManifest {
             9 => chair.size.y = rng.random_range(1.16..1.48),
             _ => {}
         }
-        // Tight conference rows allow less swivel than an open workstation.
-        // Preserve every planned seat, choosing the widest collision-free angle.
-        for fraction in [1.0, 0.5, 0.2, 0.0] {
-            chair.yaw = yaw + delta * fraction;
-            if self.placement_clear(&chair, 0.06) {
-                self.objects.push(chair);
-                return;
-            }
+        if chair.variant % super::super::objects::chairs::FAMILIES != 8 {
+            let footprint = super::super::objects::chairs::footprint(
+                chair.variant,
+                collection.unwrap_or(chair.seed),
+                chair.seed,
+            );
+            chair.size.x = footprint.x;
+            chair.size.z = footprint.y;
         }
-        self.rejected_placements += 1;
+        chair
     }
 
     fn work_transform(&self) -> Transform {

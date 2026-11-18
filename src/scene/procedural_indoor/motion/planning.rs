@@ -258,6 +258,9 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
     }
     let local_from_assembly = joint.frame.compute_affine().inverse();
     for key in &joint.parts {
+        let roller_feed = joint
+            .roller_feed
+            .filter(|_| key.1.split('#').any(|s| s == "roller"));
         let g = &a.parts[key];
         // Local triangle blocks keep handles, hinge barrels and separate slats
         // from turning into a fictitious solid slab around the whole mechanism.
@@ -286,10 +289,18 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                             let start = Vec3::from_array(g.positions[i as usize]);
                             [
                                 start,
-                                start.lerp(
-                                    Vec3::from_array(end.positions[i as usize]),
-                                    joint.adjustment.morph,
-                                ),
+                                if let Some(feed) = roller_feed {
+                                    feed.interpolate(
+                                        start,
+                                        Vec3::from_array(end.positions[i as usize]),
+                                        joint.adjustment.morph,
+                                    )
+                                } else {
+                                    start.lerp(
+                                        Vec3::from_array(end.positions[i as usize]),
+                                        joint.adjustment.morph,
+                                    )
+                                },
                             ]
                         })
                         .map(|p| local_from_assembly.transform_point3(p)),

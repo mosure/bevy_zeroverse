@@ -2,11 +2,14 @@
 //! extent and the existing 20 cm wall-clearance allowance. Static by default.
 mod cloth;
 mod mesh;
+mod track;
+pub use track::PanelTrack;
 #[cfg(test)]
 mod tests;
 
 use super::*;
 use crate::scene::procedural_indoor::materials::variants;
+use crate::scene::procedural_indoor::materials::window_textile::WindowTextile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stack {
@@ -31,6 +34,10 @@ pub struct ShadeProgram {
     pub slat_material: Surface,
     pub fabric: Surface,
     pub finish_slot: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub textile: Option<WindowTextile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track: Option<PanelTrack>,
 }
 impl ShadeProgram {
     pub fn sample(seed: u64) -> (Shade, Self) {
@@ -44,6 +51,18 @@ impl ShadeProgram {
             16..18 => Shade::Pleated,
             _ => Shade::Curtain,
         };
+        // Separate stock/installation draws leave the original aperture, tilt,
+        // coverage, hardware, and all unrelated room/camera streams intact.
+        let mut stock = stream(seed, 0x534841444553544b);
+        let track = (matches!(shade, Shade::Roller | Shade::Vertical) && stock.random_bool(0.28))
+            .then(|| PanelTrack::sample(&mut stock));
+        let shade = if track.is_some() {
+            Shade::PanelTrack
+        } else {
+            shade
+        };
+        let textile = (!matches!(shade, Shade::None | Shade::Venetian))
+            .then(|| WindowTextile::sample(&mut stock, shade == Shade::Curtain));
         (
             shade,
             Self {
@@ -68,6 +87,8 @@ impl ShadeProgram {
                     Surface::FabricAlt
                 },
                 finish_slot: r.random_range(0..variants::COUNT),
+                textile,
+                track,
             },
         )
     }
@@ -85,11 +106,31 @@ impl ShadeProgram {
             )
             || !matches!(self.fabric, Surface::Fabric | Surface::FabricAlt)
             || self.finish_slot >= variants::COUNT
+            || self.textile.is_some_and(|t| t.colorway >= 4)
+            || self.track.is_some_and(|t| !t.valid())
         {
             return Err("invalid window treatment program".into());
         }
         Ok(())
     }
+}
+
+fn installation_seed(p: &ShadeProgram, o: &WindowOpening) -> u64 {
+    p.identity ^ o.min.x.to_bits() as u64 ^ ((o.min.y.to_bits() as u64) << 32)
+}
+
+fn head_contact(kind: Shade, p: &ShadeProgram, o: &WindowOpening, tf: Transform) -> Option<String> {
+    (matches!(kind, Shade::Roller | Shade::PanelTrack) && p.textile.is_some()).then(|| {
+        // Separate even repeated aperture templates on different wall segments.
+        let center = tf.transform_point(((o.min + o.max) * 0.5).extend(0.11));
+        format!(
+            "contact_shade{:016x}_{:08x}_{:08x}_{:08x}",
+            installation_seed(p, o),
+            center.x.to_bits(),
+            center.y.to_bits(),
+            center.z.to_bits()
+        )
+    })
 }
 
 /// Append the production installation without adding an occluding proxy plane.
@@ -98,19 +139,21 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
     if f.shade == Shade::None {
         return;
     }
-    let fallback;
+    let mut fallback;
     let p = if let Some(p) = &f.treatment {
         p
     } else {
         fallback = ShadeProgram::sample(0).1;
+        fallback.textile = None;
+        fallback.track = None;
         &fallback
     };
     use super::super::super::motion::{construction as motion, MotionKind};
-    let seed = p.identity ^ o.min.x.to_bits() as u64 ^ ((o.min.y.to_bits() as u64) << 32);
+    let seed = installation_seed(p, o);
     if a.motion_selected(MotionKind::Covering, seed) {
         let mut first = Assembly::default();
         let mut last = Assembly::default();
-        mesh::build(&mut first, tf, f, o, p);
+        mesh::build_with_angle(&mut first, tf, f, o, p, None, true);
         let mut end = f.clone();
         end.shade_coverage = motion::endpoint(seed, f.shade_coverage, 1.);
         // Translate rigid slats without shearing or shrinking them. Tilting and
@@ -134,8 +177,18 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
                 .clamp(0., 1.);
             end.shade_coverage = end.shade_coverage.max(min_coverage);
         }
-        mesh::build_with_angle(&mut last, tf, &end, o, p, angle);
-        motion::morph(a, first, last, seed, tf);
+        mesh::build_with_angle(&mut last, tf, &end, o, p, angle, true);
+        let feed =
+            (f.shade == Shade::Roller && p.textile.is_some()).then(|| mesh::feed_plane(tf, o));
+        motion::morph(
+            a,
+            first,
+            last,
+            seed,
+            tf,
+            feed,
+            head_contact(f.shade, p, o, tf),
+        );
     } else {
         mesh::build(a, tf, f, o, p);
     }

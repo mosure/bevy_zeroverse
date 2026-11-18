@@ -93,6 +93,7 @@ pub enum Shade {
     Roman,
     Pleated,
     Curtain,
+    PanelTrack,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -312,6 +313,10 @@ impl ExteriorProgram {
                 || !(-1.2..=1.2).contains(&f.shade_tilt)
             {
                 return Err("invalid exterior frame or duplicate wall".into());
+            }
+            if f.shade == Shade::PanelTrack && f.treatment.as_ref().and_then(|p| p.track).is_none()
+            {
+                return Err("sliding screen is missing its track dimensions".into());
             }
             if let Some(program) = &f.treatment {
                 program.validate()?;

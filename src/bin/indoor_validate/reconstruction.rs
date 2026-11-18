@@ -16,7 +16,16 @@ pub struct PairGeometry {
 }
 
 #[derive(Serialize)]
+pub struct AdjoiningView {
+    pub camera_index: usize,
+    pub valid_surface_pixels: u64,
+    pub adjoining_surface_pixels: u64,
+}
+
+#[derive(Serialize)]
 pub struct PrimaryGeometry {
+    pub adjoining_membership: &'static str,
+    pub adjoining_by_camera: Vec<AdjoiningView>,
     pub membership: &'static str,
     pub graph: bevy_zeroverse_capture::reconstruction::ViewGraph,
     pub pairs: Vec<PairGeometry>,
@@ -37,6 +46,15 @@ pub fn measure(
                 .truncate()
         })
         .collect();
+    let mut adjoining_by_camera: Vec<_> = (0..n)
+        .map(|camera_index| AdjoiningView {
+            camera_index,
+            valid_surface_pixels: 0,
+            adjoining_surface_pixels: 0,
+        })
+        .collect();
+    let adjoining = scene.adjoining_space();
+    let half = scene.room_size.xz() * 0.5;
     let mut valid = vec![0u64; n];
     let mut shared = vec![vec![0u64; n]; n];
     let mut cardinality = vec![vec![0u64; n]; n];
@@ -65,7 +83,16 @@ pub fn measure(
             let p: [f32; 4] = bytemuck::pod_read_unaligned(p);
             let world = Vec3::new(p[0], p[1], p[2]) * size + low;
             let local = inverse * world;
+            adjoining_by_camera[source].valid_surface_pixels += 1;
             if !primary.contains_surface(local, 0.03) {
+                if local.z > half.y + 0.25
+                    && local.x.abs() <= half.x + 0.03
+                    && local.z <= half.y + adjoining.depth_over(local.x, local.x) + 0.03
+                    && local.y >= -0.03
+                    && local.y <= scene.ceiling_height(local.xz()) + 0.03
+                {
+                    adjoining_by_camera[source].adjoining_surface_pixels += 1;
+                }
                 continue;
             }
             let mask = m[0] as u16;
@@ -96,6 +123,8 @@ pub fn measure(
         })
         .collect();
     Ok(PrimaryGeometry {
+        adjoining_membership: "First valid annotated surfaces at least 0.25 m past the shared wall, inside the adjoining floor outline and roof with 0.03 m boundary tolerance. Each camera contributes its own pixel denominator.",
+        adjoining_by_camera,
         membership: "Rendered point inside the exact primary X/Z region and local support/ceiling heights with 0.03m vertical tolerance; camera-image pixel weighting, no duplicate-surface correction. Boundary pixels can be excluded by finite position precision.",
         graph: bevy_zeroverse_capture::reconstruction::view_graph(&valid, &shared, &cardinality, 0.10).map_err(anyhow::Error::msg)?,
         pairs,

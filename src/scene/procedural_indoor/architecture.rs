@@ -11,12 +11,14 @@ pub mod interior_glazing;
 pub(crate) mod outdoors;
 #[cfg(test)]
 pub(crate) mod overlap_tests;
+mod shared_openings;
 pub mod trim;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
     materials::{kelvin_rgb, Surface},
     objects::Assembly,
 };
+use crate::scene::procedural_indoor::photometry::source_color;
 use bevy::{light::CascadeShadowConfigBuilder, prelude::*};
 use rand::Rng;
 
@@ -375,11 +377,11 @@ pub fn spawn_lights(
     let positions = fixture_positions(scene);
     for (i, p) in positions.iter().copied().enumerate() {
         let (c, lumens) = fixture_photometry_at(scene, i, &positions);
-        let (inner, outer) = fixture_angles(scene, i);
+        let (inner, outer) = fixtures::beam_angles(scene, i, p);
         commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
             SpotLight {
-                color: Color::srgb(c.x, c.y, c.z),
+                color: source_color(scene, c),
                 // Bevy divides spot intensity by 4π before applying a squared
                 // angular falloff. Normalize that cone so these are fixture lumens.
                 intensity: spot_intensity_for_lumens(lumens, inner, outer),
@@ -451,7 +453,7 @@ pub fn spawn_lights(
             PointLight {
                 color: {
                     let c = super::photometry::lamp(scene, lamp).color;
-                    Color::srgb(c.x, c.y, c.z)
+                    source_color(scene, c)
                 },
                 intensity: super::photometry::lamp(scene, lamp).lumens,
                 range: 5.0,
@@ -474,17 +476,17 @@ pub fn spawn_lights(
             ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
         )
     }) {
-        let (p, color, lumens, inner, outer) = object_fixture_photometry(scene, lamp);
-        let rest = Transform::from_translation(p).looking_at(p - Vec3::Y, Vec3::Z);
+        let (beam, power) = object_fixture_photometry(scene, lamp);
+        let rest = Transform::from_translation(beam.position).looking_to(beam.direction, Vec3::Z);
         let mut entity = commands.spawn((
             Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
             SpotLight {
-                color: Color::srgb(color.x, color.y, color.z),
-                intensity: spot_intensity_for_lumens(lumens, inner, outer),
+                color: source_color(scene, power.color),
+                intensity: spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer),
                 range: 3.0,
                 radius: 0.018,
-                inner_angle: inner,
-                outer_angle: outer,
+                inner_angle: beam.inner,
+                outer_angle: beam.outer,
                 shadow_maps_enabled: quality.shadows(),
                 shadow_depth_bias: 0.01,
                 ..default()
@@ -507,22 +509,25 @@ pub(crate) fn spot_intensity_for_lumens(lumens: f32, inner: f32, outer: f32) -> 
 pub(crate) fn object_fixture_photometry(
     scene: &IndoorManifest,
     lamp: &super::layout::IndoorObject,
-) -> (Vec3, Vec3, f32, f32, f32) {
-    let (p, _, _, inner, outer) = if lamp.kind == ObjectKind::DeskLamp {
-        super::objects::accessories::lamp_photometry(lamp)
+) -> (
+    super::photometry::FixtureBeam,
+    super::photometry::SourcePower,
+) {
+    let beam = if lamp.kind == ObjectKind::DeskLamp {
+        let (position, _, _, inner, outer) = super::objects::accessories::lamp_photometry(lamp);
+        super::photometry::FixtureBeam {
+            position,
+            direction: Vec3::NEG_Y,
+            inner,
+            outer,
+        }
     } else {
-        super::objects::equipment::fixture_photometry(lamp)
+        super::objects::equipment::fixture_beam(lamp)
     };
-    let power = super::photometry::lamp(scene, lamp);
-    (p, power.color, power.lumens, inner, outer)
+    (beam, super::photometry::lamp(scene, lamp))
 }
 
-/// Circuit-level dimming and colour temperature vary independently of placement.
-pub(crate) fn fixture_angles(scene: &IndoorManifest, index: usize) -> (f32, f32) {
-    let mut rng = stream(super::photometry::lighting_seed(scene), 192 + index as u64);
-    (rng.random_range(0.48..0.90), rng.random_range(1.02..1.40))
-}
-
+#[cfg(test)]
 pub(crate) fn fixture_photometry(scene: &IndoorManifest, index: usize) -> (Vec3, f32) {
     fixture_photometry_at(scene, index, &fixture_positions(scene))
 }
@@ -534,8 +539,16 @@ pub(crate) fn fixture_photometry_at(
 ) -> (Vec3, f32) {
     let mut rng = stream(super::photometry::lighting_seed(scene), 164 + index as u64);
     let mut kelvin = scene.light_kelvin + rng.random_range(-1000.0..1000.0);
-    let mut flux =
-        fixture_lumens_for_count(scene, positions.len()) * rng.random_range(0.50_f32..1.42).sqrt();
+    let primary = primary_fixture_count(scene, positions);
+    let base = if index >= primary && scene.adjoining.is_some() && scene.envelope.is_some() {
+        let area = scene.adjoining_space().area(scene.room_size.x);
+        let count = (positions.len() - primary).max(1) as f32;
+        // Circulation has a lower design illuminance than the occupied work area.
+        (0.55 * scene.target_lux * area / (0.70 * count)).clamp(0.1, 12_000.)
+    } else {
+        fixture_lumens_for_count(scene, primary)
+    };
+    let mut flux = base * rng.random_range(0.50_f32..1.42).sqrt();
     if let Some(d) = scene.domain() {
         let position = positions[index];
         let uv = Vec2::new(
@@ -544,9 +557,10 @@ pub(crate) fn fixture_photometry_at(
         ) * 2.0;
         flux *= (1.0 + d.photometry.fixture_gradient.dot(uv)).clamp(0.25, 1.75);
         kelvin += d.photometry.temperature_gradient * uv.x;
-        // Independent circuits leave pools of light and unlit areas. Always keep
-        // circuit zero energized; low-light scenes remain intentionally usable.
-        if index > 0 && !rng.random_bool(d.photometry.active_fraction as f64) {
+        // One core fixture stays energized, independent of zone enumeration.
+        if index != energized_fixture(scene, primary)
+            && !rng.random_bool(d.photometry.active_fraction as f64)
+        {
             flux = 0.0;
         } else {
             flux *= 1.0 - d.photometry.circuit_contrast * rng.random_range(0.0..1.0);
@@ -558,15 +572,41 @@ pub(crate) fn fixture_photometry_at(
     )
 }
 
+pub(super) fn primary_fixture_count(scene: &IndoorManifest, positions: &[Vec3]) -> usize {
+    positions.len()
+        - positions
+            .iter()
+            .rev()
+            .take_while(|p| p.z > scene.room_size.z * 0.5)
+            .count()
+}
+
+pub(super) fn energized_fixture(scene: &IndoorManifest, count: usize) -> usize {
+    if scene.domain().is_none_or(|d| d.photometry.meter.is_none()) {
+        return 0;
+    }
+    stream(super::photometry::lighting_seed(scene), 0x454e455247495a45)
+        .random_range(0..count.max(1))
+}
+
 pub(crate) fn fixture_lumens(scene: &IndoorManifest) -> f32 {
-    fixture_lumens_for_count(scene, fixture_positions(scene).len())
+    fixture_lumens_for_count(
+        scene,
+        primary_fixture_count(scene, &fixture_positions(scene)),
+    )
 }
 fn fixture_lumens_for_count(scene: &IndoorManifest, count: usize) -> f32 {
     // Lumen-method design estimate (not a simulated lux measurement): E =
     // N*flux*utilization/area. More fixtures maintain plausible office lighting
     // as room area changes. Evening retains a slightly lower occupied level.
     let illuminance = scene.target_lux;
-    let area = scene
+    let area = fixture_floor_area(scene);
+    let count = count as f32;
+    (illuminance * area / (count.max(1.0) * 0.70)).clamp(0.1, 16000.0)
+}
+
+pub(super) fn fixture_floor_area(scene: &IndoorManifest) -> f32 {
+    scene
         .envelope
         .as_ref()
         .map_or(scene.room_size.x * scene.room_size.z, |e| {
@@ -574,9 +614,7 @@ fn fixture_lumens_for_count(scene: &IndoorManifest, count: usize) -> f32 {
                 + e.mezzanine
                     .as_ref()
                     .map_or(0., |m| (m.deck.max - m.deck.min).element_product())
-        });
-    let count = count.saturating_sub(1) as f32;
-    (illuminance * area / (count.max(1.0) * 0.70)).clamp(0.1, 16000.0)
+        })
 }
 
 pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
@@ -591,7 +629,7 @@ pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
 pub(crate) fn sun_color(scene: &IndoorManifest) -> Color {
     if let Some(d) = scene.domain() {
         let rgb = kelvin_rgb(d.photometry.sun_kelvin);
-        return Color::srgb(rgb.x, rgb.y, rgb.z);
+        return source_color(scene, rgb);
     }
     if scene.lighting == LightingMood::Evening {
         Color::srgb(1.0, 0.69, 0.43)
@@ -737,11 +775,11 @@ mod lighting_tests {
             .unwrap();
         assert!(light.shadow_maps_enabled);
         assert!(Vec3::from(transform.forward()).distance(Vec3::NEG_Y) < 1e-6);
-        let (position, _, lumens, inner, outer) = object_fixture_photometry(&scene, &lamp);
-        assert!(transform.translation.distance(position) < 1e-6);
+        let (beam, power) = object_fixture_photometry(&scene, &lamp);
+        assert!(transform.translation.distance(beam.position) < 1e-6);
         assert_eq!(
             light.intensity,
-            spot_intensity_for_lumens(lumens, inner, outer)
+            spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer)
         );
     }
 }

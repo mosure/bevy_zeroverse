@@ -646,3 +646,78 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
     }
     assert!(mezzanines > 0, "mezzanine geometry was not tested");
 }
+
+#[test]
+fn adjoining_shell_rays_match_clear_floor_rear_walls_and_roof() {
+    use super::super::{
+        layout::{AdjoiningFloor, AdjoiningReturn, AdjoiningSpace},
+        materials::Surface,
+    };
+    for (positive_x, floor) in [
+        (false, AdjoiningFloor::Concrete),
+        (true, AdjoiningFloor::Continuous),
+    ] {
+        let mut scene =
+            IndoorManifest::generate_with_humans(42003, IndoorLayout::Conference, 0.6, 0, 0.)
+                .unwrap();
+        scene.adjoining = Some(AdjoiningSpace {
+            depth_m: 2.6,
+            side_return: Some(AdjoiningReturn {
+                split_x_m: 0.35,
+                positive_x,
+                extra_depth_m: 2.1,
+            }),
+            floor,
+        });
+        let bay = scene.adjoining_space();
+        let assembly = super::construction::build(&scene);
+        let raycast = |origin, ray, surface, label: &str| {
+            assembly
+                .parts
+                .iter()
+                .filter(|((s, l), _)| *s == surface && l == label)
+                .flat_map(|(_, g)| {
+                    g.indices.as_chunks::<3>().0.iter().filter_map(move |tri| {
+                        ray_triangle(
+                            origin,
+                            ray,
+                            tri.map(|i| Vec3::from(g.positions[i as usize])),
+                        )
+                    })
+                })
+                .min_by(f32::total_cmp)
+        };
+        let hz = scene.room_size.z / 2.;
+        let material = if floor == AdjoiningFloor::Concrete {
+            Surface::Concrete
+        } else {
+            Surface::Floor
+        };
+        for x in [-0.25, 0.25].map(|f| f * scene.room_size.x) {
+            let depth = bay.depth_over(x, x);
+            let at = Vec3::new(x, 1., hz + 0.4);
+            assert!(
+                (raycast(at, Vec3::Z, Surface::Paint, "wall").unwrap() - (depth - 0.4)).abs()
+                    < 0.001
+            );
+            let at = Vec3::new(x, 1., hz + depth - 0.25);
+            assert!((raycast(at, Vec3::NEG_Y, material, "floor").unwrap() - 1.).abs() < 0.001);
+            assert!(
+                (raycast(at, Vec3::Y, Surface::Ceiling, "ceiling").unwrap()
+                    - (scene.ceiling_height(at.xz()) - 1.))
+                    .abs()
+                    < 0.001
+            );
+            assert!(!scene.in_primary_room(at, 0.));
+        }
+        let (lo, hi) = bay.recess(scene.room_size).unwrap();
+        let missing = (lo + hi) * 0.5;
+        assert!(raycast(
+            Vec3::new(missing.x, 1., missing.y),
+            Vec3::NEG_Y,
+            material,
+            "floor"
+        )
+        .is_none());
+    }
+}

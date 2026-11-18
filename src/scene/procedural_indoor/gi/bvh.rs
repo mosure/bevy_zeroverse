@@ -4,11 +4,46 @@
 //! or recomputing their bounds during construction.
 use super::{Node, Triangle, Vec3};
 
+#[derive(Clone, Copy)]
+struct Bounds {
+    lo: Vec3,
+    hi: Vec3,
+}
+
+pub(super) struct Primitive {
+    bounds: Bounds,
+    centroid: Vec3,
+    original: usize,
+}
+
+pub(super) fn primitives(triangles: &[Triangle]) -> Vec<Primitive> {
+    triangles
+        .iter()
+        .enumerate()
+        .map(|(original, t)| {
+            let (lo, hi) = t.bounds();
+            Primitive {
+                bounds: Bounds { lo, hi },
+                centroid: t.a + (t.ab + t.ac) / 3.0,
+                original,
+            }
+        })
+        .collect()
+}
+
 // Probe classification uses the original median tree. At touching/opposed faces,
 // equal-distance hits can have opposite normal signs: changing traversal order
 // would change solid classification and therefore relocate otherwise identical
 // probes. Keep that discrete placement decision and the CPU oracle unchanged.
 pub(super) fn build_probe_tree(triangles: &mut [Triangle]) -> Vec<Node> {
+    build_probe_tree_and_primitives(triangles).0
+}
+
+/// The median permutation leaves the bounds and centroids in the same order as
+/// the triangles. A following shadow build can consume them directly.
+pub(super) fn build_probe_tree_and_primitives(
+    triangles: &mut [Triangle],
+) -> (Vec<Node>, Vec<Primitive>) {
     let parallel = triangles.len() >= 65_536 && parallel_builds();
     build_probe_tree_with_parallelism(triangles, parallel)
 }
@@ -54,28 +89,11 @@ fn native_pool() -> &'static bevy::tasks::TaskPool {
     super::super::preparation::workers::pool()
 }
 
-fn build_probe_tree_with_parallelism(triangles: &mut [Triangle], parallel: bool) -> Vec<Node> {
-    struct Primitive {
-        lo: Vec3,
-        hi: Vec3,
-        centroid: Vec3,
-        original: usize,
-    }
-    // Cache exactly the original float operations, including centroid ties.
-    // Partition compact records instead of repeatedly moving all UVs/normals.
-    let mut primitives: Vec<_> = triangles
-        .iter()
-        .enumerate()
-        .map(|(original, t)| {
-            let (lo, hi) = t.bounds();
-            Primitive {
-                lo,
-                hi,
-                centroid: t.a + (t.ab + t.ac) / 3.0,
-                original,
-            }
-        })
-        .collect();
+fn build_probe_tree_with_parallelism(
+    triangles: &mut [Triangle],
+    parallel: bool,
+) -> (Vec<Node>, Vec<Primitive>) {
+    let mut primitives = primitives(triangles);
     fn split(
         triangles: &mut [Primitive],
         start: usize,
@@ -86,8 +104,8 @@ fn build_probe_tree_with_parallelism(triangles: &mut [Triangle], parallel: bool)
         let mut lo = Vec3::splat(f32::INFINITY);
         let mut hi = Vec3::splat(f32::NEG_INFINITY);
         for t in triangles.iter() {
-            lo = lo.min(t.lo);
-            hi = hi.max(t.hi);
+            lo = lo.min(t.bounds.lo);
+            hi = hi.max(t.bounds.hi);
         }
         nodes[0] = Node {
             lo: lo - Vec3::splat(1e-5),
@@ -161,7 +179,7 @@ fn build_probe_tree_with_parallelism(triangles: &mut [Triangle], parallel: bool)
         }
         primitives[current].original = current;
     }
-    nodes
+    (nodes, primitives)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -170,8 +188,9 @@ mod sah;
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn build_transport(
     triangles: &[Triangle],
+    primitives: Vec<Primitive>,
 ) -> (Vec<super::TransportTriangle>, Vec<Node>) {
-    sah::build_shadow(triangles)
+    sah::build_shadow(triangles, primitives)
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

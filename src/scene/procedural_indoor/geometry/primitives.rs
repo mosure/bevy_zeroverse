@@ -29,18 +29,21 @@ impl LatheAngle {
 }
 
 pub(super) fn lathe_angles(segments: u32) -> Cow<'static, [LatheAngle]> {
-    // The common cylinder uses a fixed 21-entry table. Other tessellations own
-    // one short-lived table per call, reused across all rings in that profile.
+    // Standard cylinders and round luminaire housings share immutable angles.
+    // Other tessellations own one short-lived table per profile.
     static CYLINDER: OnceLock<[LatheAngle; 21]> = OnceLock::new();
-    if segments == 20 {
-        Cow::Borrowed(
+    static ROUND_HOUSING: OnceLock<[LatheAngle; 33]> = OnceLock::new();
+    match segments {
+        20 => Cow::Borrowed(
             CYLINDER.get_or_init(|| std::array::from_fn(|i| LatheAngle::new(i as u32, 20))),
-        )
-    } else {
-        Cow::Owned(
+        ),
+        32 => Cow::Borrowed(
+            ROUND_HOUSING.get_or_init(|| std::array::from_fn(|i| LatheAngle::new(i as u32, 32))),
+        ),
+        _ => Cow::Owned(
             (0..=segments)
                 .map(|i| LatheAngle::new(i, segments))
                 .collect(),
-        )
+        ),
     }
 }

@@ -1,4 +1,6 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
+mod adjoining;
+pub use adjoining::{AdjoiningFloor, AdjoiningReturn, AdjoiningSpace};
 mod amenities;
 pub mod assemblies;
 pub(crate) mod botany;
@@ -28,6 +30,7 @@ use serde::{Deserialize, Serialize};
 
 pub use bevy_zeroverse_capture::GENERATOR_VERSION;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
+/// Depth used by manifests predating metric adjoining floor plans.
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
 #[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
@@ -40,6 +43,7 @@ pub enum IndoorLayout {
     #[value(alias = "all")]
     #[serde(alias = "All", alias = "all", alias = "mixed")]
     Mixed,
+    /// Executive boardrooms, smaller meeting rooms and partitioned conference suites.
     Conference,
     OpenOffice,
     Lounge,
@@ -320,6 +324,9 @@ pub struct IndoorManifest {
     pub room_size: Vec3,
     #[serde(default)]
     pub envelope: Option<super::envelope::EnvelopeProgram>,
+    /// Connected circulation space beyond the primary reconstruction region.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjoining: Option<AdjoiningSpace>,
     #[serde(default)]
     pub ceiling_installation: Option<super::architecture::ceiling::CeilingInstallation>,
     pub palette: u32,
@@ -489,7 +496,14 @@ impl IndoorManifest {
             room_size.x = kitchen_rng.random_range(6.2..11.0);
             room_size.z = kitchen_rng.random_range(6.2..10.0);
         }
-        room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
+        let boardroom = super::program::boardroom::BoardroomPlan::sample(seed, layout);
+        if let Some(plan) = boardroom {
+            let span = plan.span();
+            room_size.x = span.x;
+            room_size.z = span.y;
+        } else {
+            room_size.y = super::envelope::EnvelopeProgram::room_height(seed, room_size);
+        }
         functional::size_room(seed, layout, &mut room_size);
         let mut scene = Self {
             indoor_motion: None,
@@ -498,14 +512,15 @@ impl IndoorManifest {
             appearance: None,
             clutter,
             generator_version: GENERATOR_VERSION,
-            program: Some(super::program::IndoorProgram::sample(
-                seed, room_size, layout, density,
+            program: Some(super::program::IndoorProgram::sample_for_floor(
+                seed, room_size, layout, density, boardroom,
             )),
             seed,
             layout,
             world_yaw: 0.0,
             room_size,
             envelope: None,
+            adjoining: Some(AdjoiningSpace::sample(seed, room_size.x)),
             ceiling_installation: None,
             rug_supports: Vec::new(),
             palette: rng.random_range(0..6),
@@ -573,13 +588,7 @@ impl IndoorManifest {
         scene.target_lux = domain.target_lux;
         scene.daylight_lux = domain.photometry.sun_lux;
         scene.light_kelvin = domain.fixture_kelvin;
-        scene.lighting = if scene.daylight_lux > 8000.0 {
-            LightingMood::Daylight
-        } else if scene.daylight_lux > 100.0 {
-            LightingMood::Overcast
-        } else {
-            LightingMood::Evening
-        };
+        scene.lighting = domain.photometry.mood();
         scene.exterior = Some(super::architecture::facade::ExteriorProgram::sample(
             seed,
             room_size,
@@ -594,6 +603,7 @@ impl IndoorManifest {
             super::architecture::ceiling::CeilingInstallation::sample(&scene),
         );
         scene.furnish(&mut rng);
+        scene.furnish_neighbor();
         scene.assign_work_surfaces();
         if !scene.layout.is_public() {
             scene.furnish_amenities();
@@ -629,6 +639,7 @@ impl IndoorManifest {
         for (index, human) in scene.humans.iter_mut().enumerate() {
             human.id = scene.objects.len() + index;
         }
+        scene.meter_indoor_lighting();
         scene.sample_cameras(cameras)?;
         Ok(scene)
     }

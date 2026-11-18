@@ -148,9 +148,22 @@ fn preallocated_parallel_probe_tree_matches_original_order_and_float_bits() {
             let reference_nodes = legacy(&mut reference);
             for parallel in [false, true] {
                 let mut actual = original.clone();
-                let nodes = build_probe_tree_with_parallelism(&mut actual, parallel);
+                let (nodes, scratch) = build_probe_tree_with_parallelism(&mut actual, parallel);
                 same_triangles(&reference, &actual);
                 same_nodes(&reference_nodes, &nodes);
+                for (stored, fresh) in scratch.iter().zip(primitives(&actual)) {
+                    assert_eq!(stored.original, fresh.original);
+                    for (a, b) in [
+                        (stored.bounds.lo, fresh.bounds.lo),
+                        (stored.bounds.hi, fresh.bounds.hi),
+                        (stored.centroid, fresh.centroid),
+                    ] {
+                        assert_eq!(
+                            a.to_array().map(f32::to_bits),
+                            b.to_array().map(f32::to_bits)
+                        );
+                    }
+                }
             }
         }
     }
@@ -178,8 +191,8 @@ fn probe_tree_cpu_benchmark() {
                 let mut triangles = input.clone();
                 let nodes = match mode {
                     0 => legacy(&mut triangles),
-                    1 => build_probe_tree_with_parallelism(&mut triangles, false),
-                    _ => build_probe_tree_with_parallelism(&mut triangles, true),
+                    1 => build_probe_tree_with_parallelism(&mut triangles, false).0,
+                    _ => build_probe_tree_with_parallelism(&mut triangles, true).0,
                 };
                 std::hint::black_box((&triangles, &nodes));
                 drop(nodes);

@@ -76,9 +76,8 @@ fn equipment_connections_and_emitters_use_geometry_coordinates() {
     for seed in 0..64 {
         for kind in [ObjectKind::WallSconce, ObjectKind::CeilingPendant] {
             let o = object(kind, Vec3::new(0.24, 0.40, 0.24), seed);
-            let (position, color, flux, inner, outer) = fixture_photometry(&o);
-            assert!(color.is_finite() && color.min_element() > 0. && flux > 300.);
-            assert!(inner > 0. && outer > inner && outer < FRAC_PI_2);
+            let beam = fixture_beam(&o);
+            assert!(beam.inner > 0. && beam.outer > beam.inner && beam.outer < FRAC_PI_2);
             let mut a = Assembly::default();
             build(&mut a, &o);
             let emit = a
@@ -87,13 +86,16 @@ fn equipment_connections_and_emitters_use_geometry_coordinates() {
                 .find(|((s, _), _)| *s == Surface::Light)
                 .unwrap()
                 .1;
-            let bottom = emit
+            let front = emit
                 .positions
                 .iter()
-                .map(|p| p[1])
-                .min_by(f32::total_cmp)
+                .map(|p| Vec3::from(*p).dot(beam.direction))
+                .reduce(f32::max)
                 .unwrap();
-            assert!(position.y < bottom, "emitter must lie below its diffuser");
+            assert!(
+                beam.position.dot(beam.direction) > front,
+                "emitter must clear its open aperture"
+            );
         }
         let p = object(ObjectKind::Projector, Vec3::new(0.30, 0.12, 0.25), seed);
         let mut a = Assembly::default();

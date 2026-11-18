@@ -198,11 +198,146 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
         }
     }
     positions.extend(under_mezzanine(scene));
-    // Neighbor-room illumination retains its separate fixture identity.
-    positions.push(Vec3::new(
-        0.,
-        scene.ceiling_height(Vec2::new(0., scene.room_size.z * 0.5)) - 0.18,
-        scene.room_size.z * 0.5 + 1.5,
-    ));
+    append_neighbor_fixtures(scene, &mut positions);
     positions
+}
+
+/// A larger circulation area can have a second luminaire. Append the adjoining
+/// mounts after all primary mounts so their circuit budgets stay independent.
+fn append_neighbor_fixtures(scene: &IndoorManifest, positions: &mut Vec<Vec3>) {
+    let front = scene.room_size.z * 0.5;
+    let legacy = Vec3::new(
+        0.,
+        scene.ceiling_height(Vec2::new(0., front)) - 0.18,
+        front + 1.5,
+    );
+    if scene.generator_version < 122 {
+        positions.push(legacy);
+        return;
+    }
+    let bay = scene.adjoining_space();
+    let hx = scene.room_size.x * 0.5;
+    let start = positions.len();
+    let modern = scene.adjoining.is_some() && scene.envelope.is_some();
+    let mut circuit = stream(scene.seed, 0x4241_5943_4952_4355);
+    let count =
+        1 + usize::from(modern && bay.area(scene.room_size.x) > circuit.random_range(28.0..61.0));
+    for i in 0..count {
+        let mut r = stream(scene.seed, 0x4241594c49474854 + i as u64);
+        if let Some(p) = find_bay_mount(scene, front, hx, bay, &positions[start..], &mut r) {
+            positions.push(p);
+        } else if !modern {
+            positions.push(legacy);
+        }
+    }
+}
+
+fn find_bay_mount(
+    scene: &IndoorManifest,
+    front: f32,
+    hx: f32,
+    bay: super::super::layout::AdjoiningSpace,
+    installed: &[Vec3],
+    r: &mut impl Rng,
+) -> Option<Vec3> {
+    for _ in 0..8 {
+        let x = if r.random_bool(0.45) {
+            scene.door_x + r.random_range(-0.24..0.24) * scene.room_size.x
+        } else {
+            r.random_range(-0.78..0.78) * hx
+        };
+        let p = Vec3::new(
+            x,
+            0.,
+            front + r.random_range(0.22..0.78) * bay.depth_over(x, x),
+        );
+        let h = half(scene, p);
+        if !bay.contains_bounds(scene.room_size, (p - h).xz(), (p + h).xz(), 0.12) {
+            continue;
+        }
+        if installed.iter().any(|q| {
+            let separation = p.xz().distance(q.xz());
+            separation < 1.65 || separation < h.xz().length() + half(scene, *q).xz().length() + 0.15
+        }) {
+            continue;
+        }
+        let roof = scene.minimum_ceiling_height(p.xz() - h.xz(), p.xz() + h.xz());
+        let y = roof - h.y - r.random_range(0.012..0.18);
+        if y - h.y >= 2.10
+            && !scene
+                .objects
+                .iter()
+                .filter(|o| o.neighbor && o.solid)
+                .any(|o| {
+                    let (lo, hi) = o.bounds();
+                    let center = p.with_y(y);
+                    (center - h).cmplt(hi + Vec3::splat(0.03)).all()
+                        && (center + h).cmpgt(lo - Vec3::splat(0.03)).all()
+                })
+        {
+            return Some(p.with_y(y));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod bay_tests {
+    use super::*;
+
+    #[test]
+    fn bay_mounts_vary_within_the_slab_and_keep_furniture_clear() {
+        let mut xs = [false; 3];
+        let mut depths = Vec::new();
+        for seed in 0..48 {
+            let scene = IndoorManifest::generate_with_humans(
+                seed,
+                super::super::super::layout::IndoorLayout::Mixed,
+                0.65,
+                0,
+                0.,
+            )
+            .unwrap();
+            let mut mounts = Vec::new();
+            append_neighbor_fixtures(&scene, &mut mounts);
+            let mut replay = Vec::new();
+            append_neighbor_fixtures(&scene, &mut replay);
+            assert_eq!(mounts, replay);
+            assert!(mounts.len() <= 2);
+            for p in mounts {
+                let h = half(&scene, p);
+                let hx = scene.room_size.x * 0.5;
+                let front = scene.room_size.z * 0.5;
+                assert!(p.x.abs() + h.x <= hx && p.z - h.z > front);
+                assert!(scene.adjoining_space().contains_bounds(
+                    scene.room_size,
+                    (p - h).xz(),
+                    (p + h).xz(),
+                    0.
+                ));
+                assert!(
+                    p.y + h.y <= scene.minimum_ceiling_height((p - h).xz(), (p + h).xz()) + 0.001
+                );
+                for o in scene.objects.iter().filter(|o| o.neighbor && o.solid) {
+                    let (lo, hi) = o.bounds();
+                    assert!(
+                        !(p - h).cmplt(hi).all() || !(p + h).cmpgt(lo).all(),
+                        "bay light overlaps {:?} in {seed}",
+                        o.kind
+                    );
+                }
+                xs[if p.x < -0.2 * hx {
+                    0
+                } else if p.x > 0.2 * hx {
+                    2
+                } else {
+                    1
+                }] = true;
+                depths.push(p.z - front);
+            }
+        }
+        assert!(xs.into_iter().all(|x| x));
+        depths.sort_by(f32::total_cmp);
+        assert!(depths.last().unwrap() - depths[0] > 1.);
+    }
 }

@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use serde::Serialize;
 use std::{collections::BTreeMap, io};
 
-pub const POLICY: &str = "Main-room objects only (neighbor=false), by kind, after admission. Dimensions are object-local metres; repeated-size ordered pairs use rounded 1 cm XYZ bins and exclude self pairs. Axis alignment means yaw within 2 degrees of a room X/Z axis. Support coordinates divide local X/Z by the actual support width/depth; centered means both within 0.02. Per-kind scene fractions omit undefined denominators; count metrics state the denominator. These are regularity diagnostics, not mesh-duplicate or learning-utility estimates.";
+pub const POLICY: &str = "Main-room objects only (neighbor=false), by kind, after admission. Dimensions are object-local metres; repeated-size ordered pairs use rounded 1 cm XYZ bins and exclude self pairs. Axis alignment means yaw within 2 degrees of a room X/Z axis. Support coordinates divide local X/Z by the actual support width/depth; centered means both within 0.02. Per-kind scene fractions omit undefined denominators; count metrics state the denominator. An opposed desk bank has headings within 15 degrees of opposition, floor levels within 8 cm, projected rear gap -1 to 42 cm and lateral offset within 30% of the narrower width. Each desk counts once per room. These are regularity diagnostics, not mesh-duplicate or learning-utility estimates.";
 
 #[derive(Debug, Serialize)]
 pub(super) struct KindStats {
@@ -46,6 +46,21 @@ pub(super) fn support_coordinates(scene: &IndoorManifest, o: &IndoorObject) -> O
 
 pub(super) fn axis_distance(yaw: f32) -> f32 {
     (4. * yaw).sin().atan2((4. * yaw).cos()).abs() * 0.25
+}
+
+// Positive local Z is the user's side. A side-by-side row, or two seats
+// across an aisle, must not count as two desks joined at their backs.
+fn back_gap(a: &IndoorObject, b: &IndoorObject) -> Option<f32> {
+    let front = |o: &IndoorObject| Vec2::new(o.yaw.sin(), o.yaw.cos());
+    let (fa, fb) = (front(a), front(b));
+    if fa.dot(fb) > -15_f32.to_radians().cos() || (a.position.y - b.position.y).abs() > 0.08 {
+        return None;
+    }
+    let normal = (fa - fb).normalize();
+    let delta = (a.position - b.position).xz();
+    let gap = delta.dot(normal) - 0.5 * (a.size.z + b.size.z);
+    ((-0.01..=0.42).contains(&gap) && delta.perp_dot(normal).abs() <= 0.30 * a.size.x.min(b.size.x))
+        .then_some(gap)
 }
 
 pub(super) fn measure(scene: &IndoorManifest, objects: &[&IndoorObject]) -> KindStats {
@@ -85,6 +100,23 @@ pub(super) fn record(scene: &IndoorManifest, numeric: &mut NumericCollector) -> 
     for (kind, objects) in kinds {
         let prefix = format!("regularity_{kind}");
         let stats = measure(scene, &objects);
+        if kind == "Desk" {
+            let mut paired = 0;
+            for desk in &objects {
+                if let Some(gap) = objects
+                    .iter()
+                    .filter_map(|other| back_gap(desk, other))
+                    .min_by(f32::total_cmp)
+                {
+                    paired += 1;
+                    numeric.push("desk_realized_opposed_back_gap_m", gap as f64)?;
+                }
+            }
+            numeric.push(
+                "desk_realized_opposed_bank_fraction",
+                paired as f64 / objects.len() as f64,
+            )?;
+        }
         for (key, value) in [
             ("objects", stats.objects),
             ("size_pairs", stats.size_pairs),

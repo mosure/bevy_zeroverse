@@ -5,7 +5,41 @@ use bevy_zeroverse::{
     sample::View,
 };
 use serde::Serialize;
-use std::{fs, path::Path};
+use std::path::Path;
+
+/// Directed support within a semantic class in this source image. Counts are
+/// additive across views; callers choose their own class or pixel weighting.
+#[derive(Serialize)]
+pub struct ClassSupport {
+    pub valid_pixels: u64,
+    pub shared_pixels: u64,
+    pub peer_pixels: Vec<u64>,
+}
+
+impl ClassSupport {
+    pub fn new(cameras: usize) -> Self {
+        Self {
+            valid_pixels: 0,
+            shared_pixels: 0,
+            peer_pixels: vec![0; cameras],
+        }
+    }
+    pub fn observe(&mut self, pixel: &[u8; 16]) {
+        let p: [f32; 4] = bytemuck::pod_read_unaligned(pixel);
+        if p[2] != 1. {
+            return;
+        }
+        self.valid_pixels += 1;
+        let mask = p[0] as u16;
+        if mask == 0 {
+            return;
+        }
+        self.shared_pixels += 1;
+        for (i, count) in self.peer_pixels.iter_mut().enumerate() {
+            *count += u64::from(mask & (1 << i) != 0);
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub struct VisibilityReport {
@@ -73,14 +107,32 @@ pub fn save(
         .context("invalid preview dimensions")?
         .save(directory.join(format!("{prefix}.png")))?;
     if raw {
-        let little_endian: Vec<u8> = view
-            .co_visibility
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .flat_map(|b| f32::from_ne_bytes(*b).to_le_bytes())
-            .collect();
-        fs::write(directory.join(format!("{prefix}.rgba32f")), little_endian)?;
+        super::write_rgba32f(
+            &directory.join(format!("{prefix}.rgba32f")),
+            &view.co_visibility,
+        )?;
     }
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn class_support_keeps_unshared_surfaces_and_excludes_invalid_lens_pixels() {
+        let mut support = ClassSupport::new(4);
+        for (mask, valid) in [(0, 0), (0, 1), (0b1010, 1), (0b0010, 1)] {
+            let p = [
+                mask as f32,
+                (mask as u16).count_ones() as f32,
+                valid as f32,
+                0.,
+            ];
+            support.observe(bytemuck::cast_ref(&p));
+        }
+        assert_eq!(support.valid_pixels, 3);
+        assert_eq!(support.shared_pixels, 2);
+        assert_eq!(support.peer_pixels, [0, 2, 0, 1]);
+    }
 }

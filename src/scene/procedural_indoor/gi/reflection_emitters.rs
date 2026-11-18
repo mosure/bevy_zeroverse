@@ -1,6 +1,7 @@
 //! Trace the actual luminaire apertures into static reflection maps. Emissive
 //! faces remain excluded from diffuse transport to avoid counting lights twice.
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 
 pub(crate) struct ReflectionEmitters {
     triangles: Vec<Triangle>,
@@ -17,7 +18,7 @@ impl ReflectionEmitters {
             let area = architecture::fixtures::emitting_area_at(scene, position);
             let (color, lumens) = architecture::fixture_photometry_at(scene, i, &positions);
             let luminance = lumens / (PI * area);
-            let color = linear(Color::srgb(color.x, color.y, color.z));
+            let color = linear(source_color(scene, color));
             emission.push(color * luminance);
             for ((surface, _), geometry) in
                 architecture::fixtures::geometry(scene, i, position).parts

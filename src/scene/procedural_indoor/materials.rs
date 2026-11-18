@@ -48,6 +48,7 @@ pub mod textile;
 pub mod timber;
 pub mod variants;
 pub mod wall;
+pub mod window_textile;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,

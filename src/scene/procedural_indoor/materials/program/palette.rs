@@ -22,7 +22,7 @@ impl PaletteProgram {
         let mut rng = stream(seed, 5720);
         let dark_wall = rng.random_bool(0.08);
         let neutral = rng.random_bool(0.52);
-        Self {
+        let mut palette = Self {
             hue: rng.random_range(0.0..360.0),
             harmony_angle: if rng.random_bool(0.70) {
                 rng.random_range(-42.0..42.0)
@@ -45,7 +45,51 @@ impl PaletteProgram {
             wood_hue: rng.random_range(16.0..48.0),
             wood_lightness: rng.random_range(0.10..0.65),
             wood_saturation: rng.random_range(0.12..0.63),
+        };
+        // Preserve the bright acoustical/plaster stock and the sampling of
+        // other finishes. Mineral tints and dark overhead paint also occur.
+        let mut ceiling = stream(seed, 0x4345494c5041494e);
+        let finish = ceiling.random::<f32>();
+        if finish < 0.055 {
+            palette.ceiling_lightness = ceiling.random_range(0.29..0.52);
+        } else if finish < 0.23 {
+            palette.ceiling_lightness = ceiling.random_range(0.52..0.72);
         }
+        palette
+    }
+
+    pub(super) fn ceiling_color(&self, seed: u64) -> [f32; 3] {
+        if self.ceiling_lightness >= 0.72 {
+            return Self::rgb(
+                self.hue,
+                self.pigment_strength * 0.16,
+                self.ceiling_lightness,
+            );
+        }
+        let mut pigment = stream(seed, 0x4345494c54494e54);
+        let hue = if pigment.random_bool(0.45) {
+            self.hue + pigment.random_range(-36.0..36.0)
+        } else {
+            pigment.random_range(0.0..360.0)
+        };
+        Self::rgb(
+            hue,
+            pigment.random_range(0.012..0.19),
+            self.ceiling_lightness,
+        )
+    }
+    /// A feature wall can coordinate with furnishings without inheriting their
+    /// upholstery lightness or saturation. Sample paint on its own product stream.
+    pub(super) fn feature_wall(&self, seed: u64) -> [f32; 3] {
+        let mut ink = stream(seed, 0x57414c4c544f4e45);
+        let hue =
+            self.hue + self.harmony_angle * ink.random::<f32>() + ink.random_range(-34.0..34.0);
+        let (saturation, lightness) = if ink.random_bool(0.65) {
+            (ink.random_range(0.025..0.26), ink.random_range(0.46..0.87))
+        } else {
+            (ink.random_range(0.08..0.62), ink.random_range(0.16..0.65))
+        };
+        Self::rgb(hue, saturation, lightness)
     }
     pub fn rgb(hue: f32, saturation: f32, lightness: f32) -> [f32; 3] {
         let c = bevy::prelude::Color::hsl(

@@ -15,6 +15,77 @@ pub(super) fn record(
         return Ok(());
     };
     numeric.push("exterior_wall_thickness_m", e.wall_thickness() as f64)?;
+    for stock in e
+        .pillars
+        .iter()
+        .filter_map(|p| p.profile.as_ref()?.construction)
+    {
+        *report
+            .categories
+            .entry("column_stock".into())
+            .or_default()
+            .entry(format!("{:?}", stock.stock))
+            .or_default() += 1;
+        numeric.push("column_base_projection_m", stock.base_projection_m as f64)?;
+        if let Some(pitch) = stock.sleeve_pitch_m {
+            numeric.push("column_sleeve_pitch_m", pitch as f64)?;
+        }
+    }
+    let mut lined_walls = 0;
+    for lining in e.walls.iter().filter_map(|w| w.lining) {
+        lined_walls += 1;
+        *report
+            .categories
+            .entry("wall_lining_stock".into())
+            .or_default()
+            .entry(format!("{:?}", lining.stock))
+            .or_default() += 1;
+        numeric.push("wall_lining_height_m", lining.height_m as f64)?;
+        numeric.push("wall_lining_module_width_m", lining.module_width_m as f64)?;
+        numeric.push("wall_lining_joint_depth_m", lining.joint_depth_m as f64)?;
+    }
+    numeric.push("wall_lining_wall_count", lined_walls as f64)?;
+    let adjoining = scene.adjoining_space();
+    let adjoining_outline = adjoining.footprint(scene.room_size);
+    let height = super::super::architecture::interior_glazing::partition_height(scene);
+    let glazing = super::super::architecture::interior_glazing::shared_facade(scene, height);
+    let opening_area: f32 = glazing
+        .openings
+        .iter()
+        .map(|o| (o.max - o.min).element_product())
+        .sum();
+    for (key, value) in [
+        ("adjoining_full_width_depth_m", adjoining.depth_m),
+        ("adjoining_max_depth_m", adjoining.max_depth()),
+        ("adjoining_area_m2", polygon::area(&adjoining_outline)),
+        ("shared_glazing_rough_area_m2", opening_area),
+        (
+            "shared_glazing_fraction_of_clear_wall",
+            opening_area / (height * scene.room_size.x),
+        ),
+        ("shared_glazing_openings", glazing.openings.len() as f32),
+    ] {
+        numeric.push(key, value as f64)?;
+    }
+    for (key, value) in [
+        (
+            "adjoining_plan",
+            if adjoining.side_return.is_some() {
+                "Stepped"
+            } else {
+                "Rectangular"
+            }
+            .to_owned(),
+        ),
+        ("adjoining_floor", format!("{:?}", adjoining.floor)),
+    ] {
+        *report
+            .categories
+            .entry(key.into())
+            .or_default()
+            .entry(value)
+            .or_default() += 1;
+    }
     let doors = scene.door_installations();
     let finishes = scene.program.as_ref().and_then(|p| p.finishes.as_ref());
     if let Some(trim) = finishes.and_then(|f| f.trim.as_ref()) {
@@ -60,13 +131,38 @@ pub(super) fn record(
         }
     }
     let fixture = super::super::architecture::fixtures::parameters(scene);
+    use super::super::architecture::fixtures::{optical_insert, OpticalInsert};
+    let insert = optical_insert(scene, &fixture);
+    let optic = match insert {
+        OpticalInsert::Basket { width, .. } => {
+            numeric.push("center_basket_diffuser_width_fraction", width as f64)?;
+            "CenterBasket"
+        }
+        OpticalInsert::Cup { throat, .. } => {
+            numeric.push("downlight_throat_to_rim_ratio", throat as f64)?;
+            "RecessedCup"
+        }
+        OpticalInsert::Plain => "Standard",
+    };
+    *report
+        .categories
+        .entry("luminaire_optical_insert".into())
+        .or_default()
+        .entry(optic.into())
+        .or_default() += 1;
     *report
         .categories
         .entry("luminaire_construction".into())
         .or_default()
         .entry(format!("{:?}", fixture.shape))
         .or_default() += 1;
-    for position in super::super::architecture::fixture_positions(scene) {
+    let positions = super::super::architecture::fixture_positions(scene);
+    numeric.push(
+        "adjoining_ceiling_fixtures",
+        (positions.len() - super::super::architecture::primary_fixture_count(scene, &positions))
+            as f64,
+    )?;
+    for position in positions {
         let size = super::super::architecture::fixtures::size(scene, position);
         numeric.push("luminaire_body_width_m", size.x as f64)?;
         numeric.push("luminaire_body_depth_m", size.y as f64)?;
@@ -123,9 +219,22 @@ pub(super) fn record(
             r.area_m2 as f64,
         )?;
     }
+    let boardroom = scene.executive_boardroom();
+    if let Some(b) = boardroom {
+        numeric.push("boardroom_perimeter_seats", b.seat_count as f64)?;
+        numeric.push(
+            "boardroom_tabletop_floor_fraction",
+            (b.tabletop_area_m2 / b.room_floor_area_m2) as f64,
+        )?;
+        numeric.push(
+            "boardroom_seating_envelope_floor_fraction",
+            (b.seating_envelope_area_m2 / b.room_floor_area_m2) as f64,
+        )?;
+    }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "envelope": e, "finishes": finishes, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "executive_boardroom": boardroom, "envelope": e, "adjoining": adjoining, "adjoining_footprint": adjoining_outline,
+        "shared_glazing_openings": glazing.openings, "shared_glazing_fraction_of_clear_wall": opening_area/(height*scene.room_size.x), "finishes": finishes, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "luminaire_optical_insert":insert, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {

@@ -150,7 +150,10 @@ fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
         };
         let border = 0.65 + district.paving_width;
         let lo = Vec2::new(-half.x - border, -half.y - border);
-        let hi = Vec2::new(half.x + border, half.y + NEIGHBOR_DEPTH + border);
+        let hi = Vec2::new(
+            half.x + border,
+            half.y + scene.adjoining_space().max_depth() + border,
+        );
         if center.distance(center.clamp(lo, hi)) < radius + 0.5
             || center.length() + radius > super::background::radius(scene) - 1.0
             || parcels
@@ -284,7 +287,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
         -half.x - 0.5,
         half.x + 0.5,
         -half.y - 0.5,
-        half.y + NEIGHBOR_DEPTH + 0.5,
+        half.y + scene.adjoining_space().max_depth() + 0.5,
     );
     let mut ground_rng = stream(scene.seed, 6389);
     let ground_surface = if ground_rng.random_bool(0.45) {
@@ -294,6 +297,18 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
     };
     let ground_label =
         super::super::materials::exterior::label(ground_surface, "floor", scene.seed);
+    let recess_ground = scene
+        .adjoining_space()
+        .recess(scene.room_size)
+        .map(|(mut lo, mut hi)| {
+            if lo.x < -half.x + 0.01 {
+                lo.x = left;
+            } else {
+                hi.x = right;
+            }
+            hi.y = front;
+            (lo, hi)
+        });
     for (lo, hi) in [
         (
             Vec2::new(left - 18., back - 18.),
@@ -305,7 +320,10 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
         ),
         (Vec2::new(left, back - 18.), Vec2::new(right, back)),
         (Vec2::new(left, front), Vec2::new(right, front + 18.)),
-    ] {
+    ]
+    .into_iter()
+    .chain(recess_ground)
+    {
         a.box_part(
             ground_surface,
             &ground_label,
@@ -458,7 +476,12 @@ mod tests {
                     assert!(
                         v.x.abs() > h.x + 0.3
                             || v.z < -h.y - 0.3
-                            || v.z > h.y + NEIGHBOR_DEPTH + 0.3,
+                            || v.z > h.y + scene.adjoining_space().max_depth() + 0.3
+                            || (label.split('#').next() == Some("floor")
+                                && scene.adjoining_space().recess(scene.room_size).is_some_and(
+                                    |(lo, hi)| v.xz().cmpge(lo - Vec2::splat(0.001)).all()
+                                        && v.xz().cmple(hi + Vec2::splat(0.001)).all()
+                                )),
                         "seed {seed}: exterior enters room at {v}"
                     );
                 }

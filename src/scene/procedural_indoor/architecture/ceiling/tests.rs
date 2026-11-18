@@ -3,21 +3,26 @@ use crate::scene::procedural_indoor::layout::IndoorLayout;
 
 #[test]
 fn reported_65991960_ceiling_installation_is_valid() {
-    validate_reported_ceiling_seed(65_991_960, 3);
+    validate_reported_ceiling_seed(65_991_960);
 }
 
 #[test]
 fn reported_65904936_ceiling_installation_is_valid() {
-    validate_reported_ceiling_seed(65_904_936, 9);
+    validate_reported_ceiling_seed(65_904_936);
 }
 
-fn validate_reported_ceiling_seed(seed: u64, module_count: usize) {
+fn validate_reported_ceiling_seed(seed: u64) {
     let mut scene =
         IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let plan = scene.ceiling_installation.as_ref().unwrap();
-    // Keep the original fixtures. A later rug must fit their headroom rather
-    // than invalidating the room or removing already installed geometry.
-    assert_eq!(plan.modules.len(), module_count);
+    // Replay the installation on this footprint before rugs were fitted.
+    // Check every module, its pose and its suspension survive furnishing.
+    let mut bare = scene.clone();
+    bare.rug_supports.clear();
+    bare.objects.clear();
+    bare.ceiling_installation = None;
+    assert!(!plan.modules.is_empty());
+    assert_eq!(plan, &CeilingInstallation::sample(&bare));
     plan.validate(&scene).unwrap();
     crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
     crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();

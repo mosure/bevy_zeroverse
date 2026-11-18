@@ -1,5 +1,12 @@
 use super::*;
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
+#[path = "roller.rs"]
+mod roller;
+pub(super) use roller::feed_plane;
+#[path = "sliding.rs"]
+mod sliding;
+
+const RAIL_DROP: f32 = 0.058;
 
 struct Builder<'a> {
     a: &'a mut Assembly,
@@ -8,6 +15,7 @@ struct Builder<'a> {
     hi: Vec2,
     p: &'a ShadeProgram,
     label: String,
+    cloth_label: String,
     coverage: f32,
     tilt: f32,
     fixed_angle: Option<f32>,
@@ -20,7 +28,7 @@ impl Builder<'_> {
         self.hi.y - self.lo.y - 0.095
     }
     fn top(&self) -> f32 {
-        self.hi.y - 0.058
+        self.hi.y - RAIL_DROP
     }
     fn center(&self) -> f32 {
         (self.lo.x + self.hi.x) * 0.5
@@ -33,7 +41,12 @@ impl Builder<'_> {
         );
     }
     fn tube(&mut self, surface: Surface, points: &[Vec3], radius: f32) {
-        self.a.part(surface, &self.label).tube(
+        let label = if matches!(surface, Surface::Fabric | Surface::FabricAlt) {
+            &self.cloth_label
+        } else {
+            &self.label
+        };
+        self.a.part(surface, label).tube(
             &points
                 .iter()
                 .map(|p| self.tf.transform_point(*p))
@@ -50,6 +63,8 @@ impl Builder<'_> {
                 &[Vec3::new(self.lo.x, y, 0.13), Vec3::new(self.hi.x, y, 0.13)],
                 0.01,
             );
+        } else if kind == Shade::Roller && self.p.textile.is_some() {
+            self.roller_head();
         } else if kind == Shade::Roller && self.p.identity.is_multiple_of(2) {
             self.tube(
                 self.p.fabric,
@@ -58,6 +73,13 @@ impl Builder<'_> {
                     Vec3::new(self.hi.x - 0.018, y, 0.12),
                 ],
                 0.021,
+            );
+        } else if kind == Shade::PanelTrack {
+            self.block(
+                Surface::Metal,
+                Vec3::new(self.center(), y, 0.118),
+                Vec3::new(self.width(), 0.04, 0.096),
+                0.002,
             );
         } else {
             self.block(
@@ -98,7 +120,15 @@ impl Builder<'_> {
                 Vec3::new(x - 0.012, bottom + 0.01, 0.164),
                 Vec3::new(x - 0.012, top, 0.164),
             ];
-            self.tube(Surface::Fabric, &points, 0.0012);
+            self.tube(
+                if self.p.textile.is_some() {
+                    self.p.fabric
+                } else {
+                    Surface::Fabric
+                },
+                &points,
+                0.0012,
+            );
         }
     }
     fn venetian(&mut self) {
@@ -186,7 +216,7 @@ impl Builder<'_> {
             )))
             .with_rotation(self.tf.rotation * Quat::from_rotation_y(angle));
             cloth::sheet(
-                self.a.part(self.p.fabric, &self.label),
+                self.a.part(self.p.fabric, &self.cloth_label),
                 tf,
                 [4, 1],
                 Vec2::new(slat, height),
@@ -234,17 +264,34 @@ impl Builder<'_> {
         } else {
             0.
         };
+        let stock = self.p.textile.is_some();
+        let lift_lines = (width / 0.64).round().clamp(2., 6.);
         cloth::sheet(
-            self.a.part(self.p.fabric, &self.label),
+            self.a.part(self.p.fabric, &self.cloth_label),
             self.tf,
-            // Roller/pleated profiles are exactly linear across their width;
-            // additional columns would only repeat the same surface and UVs.
-            [if kind == Shade::Roman { 8 } else { 1 }, rows],
+            [
+                if kind == Shade::Roman && stock {
+                    (lift_lines as usize * 2).clamp(4, 10)
+                } else if kind == Shade::Roman {
+                    8
+                } else {
+                    1
+                },
+                rows,
+            ],
             Vec2::new(width, available),
             |u, v| {
+                let between_lifts = 0.5 - 0.5 * (u * lift_lines * TAU).cos();
+                let drape = if stock && kind == Shade::Roman {
+                    0.16 * between_lifts * (PI * v).sin()
+                } else {
+                    0.
+                };
                 let z = match kind {
                     Shade::Roller => 0.112,
-                    Shade::Roman => 0.108 + depth * (1. - (v * folds as f32 * TAU).cos()) * 0.5,
+                    Shade::Roman => {
+                        0.108 + depth * (1. - ((v * folds as f32 + drape) * TAU).cos()) * 0.5
+                    }
                     _ => 0.10 + depth * (1. - ((v * folds as f32).fract() * 2. - 1.).abs()),
                 };
                 Vec3::new(
@@ -308,7 +355,7 @@ impl Builder<'_> {
                 )
             };
             cloth::sheet(
-                self.a.part(self.p.fabric, &self.label),
+                self.a.part(self.p.fabric, &self.cloth_label),
                 self.tf,
                 [folds * 6, 6],
                 Vec2::new(span * self.p.fullness, height),
@@ -346,7 +393,7 @@ pub(super) fn build(
     o: &WindowOpening,
     p: &ShadeProgram,
 ) {
-    build_with_angle(a, tf, f, o, p, None);
+    build_with_angle(a, tf, f, o, p, None, false);
 }
 pub(super) fn build_with_angle(
     a: &mut Assembly,
@@ -355,6 +402,7 @@ pub(super) fn build_with_angle(
     o: &WindowOpening,
     p: &ShadeProgram,
     fixed_angle: Option<f32>,
+    moving: bool,
 ) {
     let label = format!(
         "{}#finish{}",
@@ -365,6 +413,17 @@ pub(super) fn build_with_angle(
         },
         p.finish_slot
     );
+    let cloth_label = p.textile.map_or_else(
+        || label.clone(),
+        |stock| {
+            let base = if f.shade == Shade::Curtain {
+                "curtain"
+            } else {
+                "blinds"
+            };
+            format!("{base}#finish{}", stock.slot())
+        },
+    );
     let mut b = Builder {
         a,
         tf,
@@ -372,19 +431,37 @@ pub(super) fn build_with_angle(
         hi: o.max - Vec2::splat(0.014),
         p,
         label,
+        cloth_label,
         coverage: f.shade_coverage.clamp(0., 1.),
         tilt: f.shade_tilt.clamp(-1.2, 1.2),
         fixed_angle,
     };
+    let labels = (b.label.len(), b.cloth_label.len());
+    if let Some(contact) = moving.then(|| head_contact(f.shade, p, o, tf)).flatten() {
+        // Only these bearings and the enclosing head receive this opening's
+        // contact tag. Nearby trim, controls and other shades stay collidable.
+        for label in [&mut b.label, &mut b.cloth_label] {
+            label.push('#');
+            label.push_str(&contact);
+        }
+    }
     b.header(f.shade);
+    b.label.truncate(labels.0);
+    b.cloth_label.truncate(labels.1);
     match f.shade {
         Shade::Venetian => b.venetian(),
         Shade::Vertical => b.vertical(),
         Shade::Curtain => b.curtain(),
+        Shade::Roller if p.textile.is_some() => b.roller(moving),
+        Shade::PanelTrack => {
+            if let Some(track) = p.track {
+                b.sliding(track);
+            }
+        }
         Shade::Roller | Shade::Roman | Shade::Pleated => b.shade(f.shade),
         Shade::None => return,
     }
-    if f.shade != Shade::Curtain {
+    if !matches!(f.shade, Shade::Curtain | Shade::PanelTrack) {
         b.control(f.shade == Shade::Vertical);
     }
 }

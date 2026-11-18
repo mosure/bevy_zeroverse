@@ -8,6 +8,10 @@ pub(super) fn run(args: &Args, config: BevyZeroverseConfig) -> Result<()> {
     let device = dataset.device().clone();
     // Finish the bounded lookahead before measuring, so renderer preparation
     // cannot be mistaken for transfer cost. Retained tensors own their storage.
+    ensure!(
+        dataset.shutdown(std::time::Duration::from_secs(120)),
+        "renderer did not retire before transport measurement"
+    );
     drop(dataset);
     let bytes: usize = sample
         .views

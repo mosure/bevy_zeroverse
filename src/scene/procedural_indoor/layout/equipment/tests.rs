@@ -338,7 +338,11 @@ fn projector_optics_reach_physical_wall_screens_without_camera_clearance() {
         pillars: Vec::new(),
         mezzanine: None,
         walls: [0, 1, 3]
-            .map(|edge| EnvelopeWall { edge, facade: None })
+            .map(|edge| EnvelopeWall {
+                edge,
+                facade: None,
+                lining: None,
+            })
             .into(),
     });
     scene.envelope.as_ref().unwrap().validate(&scene).unwrap();

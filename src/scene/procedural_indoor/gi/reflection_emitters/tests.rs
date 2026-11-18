@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 use architecture::fixtures::{parameters, FixtureShape};
 
 fn scene(shape: FixtureShape) -> IndoorManifest {
@@ -55,7 +56,7 @@ fn all_fixture_reflections_match_emissive_meshes_and_photometry() {
         let mut reference = Vec::new();
         for (i, p) in positions.iter().copied().enumerate() {
             let (color, lumens) = architecture::fixture_photometry(&scene, i);
-            let expected = linear(Color::srgb(color.x, color.y, color.z))
+            let expected = linear(source_color(&scene, color))
                 * (lumens / (PI * architecture::fixtures::emitting_area_at(&scene, p)));
             for ((surface, _), geometry) in architecture::fixtures::geometry(&scene, i, p).parts {
                 if surface != Surface::Light {

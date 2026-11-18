@@ -146,25 +146,38 @@ impl Geometry {
 
     /// A surface of revolution; profile goes from bottom outside to top, then inside.
     pub fn lathe(&mut self, profile: &[(f32, f32)], segments: u32, tf: Transform) {
-        if profile.len() < 2 {
+        if profile.len() < 2 || segments < 3 {
             return;
         }
         let angles = primitives::lathe_angles(segments);
+        // One cylindrical chart for the sides. Changing the circumference at
+        // each profile knot creates a horizontal texture seam on every shoulder.
+        let radius = profile.iter().map(|p| p.0).fold(0., f32::max);
+        let mut distance = 0.;
         // Duplicate rings at profile creases: a pot rim must not average its outer
         // normal with the inward-facing inner wall or invert the lighting normal.
         for pair in profile.windows(2) {
+            let [(r0, y0), (r1, y1)] = [pair[0], pair[1]];
+            let step = Vec2::new(r1 - r0, y1 - y0);
+            let length = step.length();
+            if length == 0. || r0.max(r1) <= 0.00001 {
+                continue;
+            }
             let offset = self.positions.len() as u32;
-            let tangent = Vec2::new(pair[1].0 - pair[0].0, pair[1].1 - pair[0].1).normalize();
-            for &(r, y) in pair {
+            let tangent = step * length.recip();
+            for (r, y, along) in [(r0, y0, distance), (r1, y1, distance + length)] {
                 for angle in angles.iter() {
                     let normal =
                         Vec3::new(tangent.y * angle.cos, -tangent.x, tangent.y * angle.sin);
-                    self.vertex(
-                        Vec3::new(r * angle.cos, y, r * angle.sin),
-                        normal,
-                        Vec2::new(angle.radians * pair[0].0.max(pair[1].0).max(0.001), y + r),
-                        &tf,
-                    );
+                    let point = Vec3::new(r * angle.cos, y, r * angle.sin);
+                    // A horizontal cap or annular rim is a planar cut through
+                    // the material. Cylindrical UVs pinch at the centre.
+                    let uv = if y0 == y1 {
+                        point.xz()
+                    } else {
+                        Vec2::new(angle.radians * radius, along)
+                    };
+                    self.vertex(point, normal, uv, &tf);
                 }
             }
             for i in 0..segments {
@@ -177,6 +190,7 @@ impl Geometry {
                     self.indices.extend([a + 1, b, b + 1]);
                 }
             }
+            distance += length;
         }
     }
 
@@ -284,13 +298,19 @@ impl Geometry {
                 self.indices.extend([i, i + 14, i + 1, i, i + 13, i + 14]);
             }
         }
-        // Close the padded shell instead of leaving a single infinitely thin sheet.
+        // Form the rear skin along the tooling/draw axis. Offsetting each point
+        // along its normal folds the rear skin when a compact lumbar bend has
+        // a smaller radius than the pad depth. The front is a single-valued
+        // depth field over (x, y), so the translated skin stays disjoint and
+        // keeps the same tangents, even for thick or strongly curved pads.
         let count = 9 * 13;
         let inner = self.positions.len() as u32;
+        let draw = tf.rotation * Vec3::Z * (thickness * tf.scale.z);
+        let rim_depth = draw.length();
         for i in offset..offset + count {
             let p = Vec3::from_array(self.positions[i as usize]);
             let n = Vec3::from_array(self.normals[i as usize]);
-            self.positions.push((p - n * thickness).to_array());
+            self.positions.push((p + draw).to_array());
             self.normals.push((-n).to_array());
             self.uvs.push(self.uvs[i as usize]);
         }
@@ -315,8 +335,8 @@ impl Geometry {
             for (index, uv) in [
                 (offset + i, [0.0, 0.0]),
                 (offset + j, [(q - p).length(), 0.0]),
-                (inner + j, [(q - p).length(), 0.035]),
-                (inner + i, [0.0, 0.035]),
+                (inner + j, [(q - p).length(), rim_depth]),
+                (inner + i, [0.0, rim_depth]),
             ] {
                 self.positions.push(self.positions[index as usize]);
                 self.normals.push(n.to_array());

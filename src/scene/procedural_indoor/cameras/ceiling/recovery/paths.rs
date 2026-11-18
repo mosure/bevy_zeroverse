@@ -232,6 +232,43 @@ pub(super) fn resample_intrinsics(
     }
 }
 
+/// A metric subcurve of an existing linear or cubic room path.
+pub(super) fn section(source: &IndoorCamera, from: f32, to: f32) -> Option<IndoorCamera> {
+    if source.start == source.end
+        || source.ceiling_mount.is_some()
+        || source.motion.as_ref().is_some_and(|m| !m.route.is_empty())
+    {
+        return None;
+    }
+    let mut camera = source.clone();
+    if let Some(m) = &mut camera.motion {
+        let [a, b, c, d] = [source.start, m.control[0], m.control[1], source.end];
+        let sample = |t| {
+            let left = a.lerp(b, t).lerp(b.lerp(c, t), t);
+            let right = b.lerp(c, t).lerp(c.lerp(d, t), t);
+            (left.lerp(right, t), right - left)
+        };
+        let (start, tangent_a) = sample(from);
+        let (end, tangent_b) = sample(to);
+        camera.start = start;
+        camera.end = end;
+        m.control = [
+            start + tangent_a * (to - from),
+            end - tangent_b * (to - from),
+        ];
+        camera.target = source.target.lerp(m.target_end, from);
+        m.target_end = source.target.lerp(m.target_end, to);
+        m.roll = [from, to].map(|t| m.roll[0] + (m.roll[1] - m.roll[0]) * t);
+        m.orientations = m
+            .orientations
+            .map(|[a, b]| [a.slerp(b, from), a.slerp(b, to)]);
+    } else {
+        camera.start = source.start.lerp(source.end, from);
+        camera.end = source.start.lerp(source.end, to);
+    }
+    Some(camera)
+}
+
 /// Reuse cannot turn a requested moving camera into a stationary view, even if
 /// the requested minimum travel is zero. Explicit zero-length paths remain valid.
 pub(super) fn acceptable(
@@ -260,6 +297,36 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::intrinsics::IntrinsicsSettings, layout::IndoorLayout,
     };
+
+    #[test]
+    fn time_sections_preserve_linear_and_cubic_paths_and_calibration() {
+        let (_, _, _, pools) = fixture();
+        let mut source = pools[0][0].camera.clone();
+        source.start = Vec3::new(0., 1., 1.);
+        source.end = Vec3::new(1., 1.2, 3.);
+        let curved = CameraMotion {
+            orientations: Some([Quat::IDENTITY, Quat::from_rotation_y(0.7)]),
+            control: [Vec3::new(0.3, 0.9, 0.8), Vec3::new(0.7, 1.4, 2.5)],
+            target_end: source.target + Vec3::X * 0.15,
+            roll: [0., 0.08],
+            route: vec![],
+        };
+        for motion in [None, Some(curved)] {
+            source.motion = motion;
+            let sub = section(&source, 0.15, 0.85).unwrap();
+            assert_eq!(sub.fisheye, source.fisheye);
+            assert_eq!(sub.fov_degrees, source.fov_degrees);
+            for i in 0..=10 {
+                let t = i as f32 / 10.;
+                let parent = source.transform_at(0.15 + t * 0.70);
+                let child = sub.transform_at(t);
+                assert!(parent.translation.distance(child.translation) < 2e-5);
+                if source.motion.is_some() {
+                    assert!(parent.rotation.dot(child.rotation).abs() > 0.99999);
+                }
+            }
+        }
+    }
 
     fn fixture() -> (
         IndoorManifest,

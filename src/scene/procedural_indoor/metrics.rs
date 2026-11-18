@@ -4,7 +4,7 @@ mod content;
 mod envelope;
 mod exterior;
 mod regularity;
-use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION, NEIGHBOR_DEPTH};
+use super::layout::{IndoorLayout, IndoorManifest, ObjectKind, GENERATOR_VERSION};
 use bevy::prelude::*;
 use bevy_zeroverse_capture::INDOOR_METRICS_SCHEMA_VERSION;
 use serde::Serialize;
@@ -350,7 +350,7 @@ fn export_inner(
     )?;
     writeln!(
         scenes,
-        "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements"
+        "seed,layout,density,lighting,palette,floor,furniture,ceiling,width_m,height_m,depth_m,main_instances,neighbor_instances,main_chairs,rejected_placements,direct_sun_lux,diffuse_sky_lux"
     )?;
     let mut report = CoverageReport {
         schema_version: INDOOR_METRICS_SCHEMA_VERSION,
@@ -367,7 +367,7 @@ fn export_inner(
         coordinate_convention: "Unaugmented room coordinates, metres; +Y up. Main room normalized u=x/width+0.5, v=z/depth+0.5. Neighbor uses its own 3.2m depth. CSV camera coordinates are local; rendered capture.json contains augmented world extrinsics. Pixel centers use (width/2,height/2), square pixels.",
         count_policy: "Every object kind includes zero-count scenes. main/ and neighbor/ are separate; by-layout distributions have that layout's scene count as denominator.",
         regularity_policy: regularity::POLICY,
-        heatmap_policy: "Object centers (not projected visibility or footprint). Row-major v then u; +Z downward. Camera paths contribute 33 equally spaced samples including endpoints per camera. Neighbor and main rooms normalized independently. No failed scenes are silently dropped.",
+        heatmap_policy: "Object centers (not projected visibility or footprint). Row-major v then u; +Z downward. Camera paths contribute 33 equally spaced samples including endpoints per camera. Neighbor centers use the available depth at their own X coordinate. Main rooms use the primary envelope dimensions. No failed scenes are silently dropped.",
         heatmap_grid_size: GRID,
         object_counts_per_scene: BTreeMap::new(),
         object_counts_by_layout: BTreeMap::new(),
@@ -408,8 +408,25 @@ fn export_inner(
         envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
+                if let Some(meter) = d.photometry.meter {
+                    for (key, value) in [
+                        ("exposure_meter_electric_lux", meter.electric_lux),
+                        (
+                            "exposure_meter_direct_daylight_lux",
+                            meter.direct_daylight_lux,
+                        ),
+                        (
+                            "exposure_meter_diffuse_daylight_lux",
+                            meter.diffuse_daylight_lux,
+                        ),
+                        ("exposure_meter_bias_ev", meter.bias_ev),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                }
                 for (key, value) in [
                     ("exposure_ev100", d.photometry.ev100),
+                    ("diffuse_sky_lux", d.photometry.diffuse_sky_lux()),
                     (
                         "sky_radiance_mean",
                         d.photometry.sky_radiance.element_sum() / 3.0,
@@ -432,6 +449,12 @@ fn export_inner(
                 ] {
                     numeric.push(key, value as f64)?;
                 }
+                joint_histogram(
+                    &mut report,
+                    "sun_log10_vs_diffuse_sky_log10",
+                    (scene.daylight_lux.max(0.1).log10() + 1.0) / 6.0,
+                    (d.photometry.diffuse_sky_lux().max(0.1).log10() + 1.0) / 6.0,
+                );
                 joint_histogram(
                     &mut report,
                     "sun_log10_vs_electric_log10",
@@ -507,9 +530,10 @@ fn export_inner(
                     }
                 }
             }
-            for i in 0..super::architecture::fixture_positions(&scene).len() {
-                let (_, lumens) = super::architecture::fixture_photometry(&scene, i);
-                let (inner, outer) = super::architecture::fixture_angles(&scene, i);
+            let fixtures = super::architecture::fixture_positions(&scene);
+            for (i, &p) in fixtures.iter().enumerate() {
+                let (_, lumens) = super::architecture::fixture_photometry_at(&scene, i, &fixtures);
+                let (inner, outer) = super::architecture::fixtures::beam_angles(&scene, i, p);
                 numeric.push("fixture_lumens", lumens as f64)?;
                 numeric.push("fixture_inner_angle", inner as f64)?;
                 numeric.push("fixture_outer_angle", outer as f64)?;
@@ -526,6 +550,12 @@ fn export_inner(
                         ("workstation_opposing_probability", f.opposing_probability),
                     ] {
                         numeric.push(key, value as f64)?;
+                    }
+                    if let Some(b) = f.banks {
+                        numeric.push("workstation_bank_turn_radians", b.turn_radians as f64)?;
+                        if let Some(gap) = b.back_gap_m {
+                            numeric.push("workstation_bank_requested_back_gap_m", gap as f64)?;
+                        }
                     }
                 }
                 let size = zone.max - zone.min;
@@ -783,7 +813,7 @@ fn export_inner(
         }
         writeln!(
             scenes,
-            "{},{},{},{:?},{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{:?},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             scene.seed,
             layout_name,
             density,
@@ -798,7 +828,12 @@ fn export_inner(
             main_count,
             scene.objects.len() - main_count,
             count(ObjectKind::Chair, false),
-            scene.rejected_placements
+            scene.rejected_placements,
+            scene.daylight_lux,
+            scene
+                .domain()
+                .map(|d| d.photometry.diffuse_sky_lux().to_string())
+                .unwrap_or_default()
         )?;
         for (name, value) in [
             (
@@ -1073,7 +1108,9 @@ fn export_inner(
                     .categories
                     .entry("table_support".into())
                     .or_default()
-                    .entry(if bays > 0 {
+                    .entry(if p.workstation.is_some() {
+                        "workstation_columns".to_owned()
+                    } else if bays > 0 {
                         format!("conference_bay_{}", p.bay_style)
                     } else {
                         p.support.to_string()
@@ -1081,9 +1118,6 @@ fn export_inner(
                     .or_default() += 1;
                 for (key, value) in [
                     ("table_top_thickness_m", p.top_thickness),
-                    ("table_leg_radius_m", p.leg_radius),
-                    ("table_leg_rake_m", p.leg_rake),
-                    ("table_leg_inset_m", p.leg_inset),
                     ("table_outline_exponent", p.outline_exponent),
                     ("table_taper", p.taper),
                     ("table_capsule_blend", p.capsule_blend),
@@ -1093,6 +1127,20 @@ fn export_inner(
                     ("table_width_m", object.size.x.min(object.size.z)),
                 ] {
                     numeric.push(key, value as f64)?;
+                }
+                if let Some(desk) = &p.workstation {
+                    numeric.push("desk_column_width_m", desk.post_width_m as f64)?;
+                    numeric.push(
+                        "desk_foot_length_m",
+                        (desk.foot_fraction * object.size.z) as f64,
+                    )?;
+                    if let Some(panel) = &desk.modesty {
+                        numeric.push("desk_modesty_panel_drop_m", panel.drop_m as f64)?;
+                    }
+                } else {
+                    numeric.push("table_leg_radius_m", p.leg_radius as f64)?;
+                    numeric.push("table_leg_rake_m", p.leg_rake as f64)?;
+                    numeric.push("table_leg_inset_m", p.leg_inset as f64)?;
                 }
                 if p.boat_blend > 0. {
                     numeric.push("table_boat_end_width", p.boat_end_width as f64)?;
@@ -1482,7 +1530,10 @@ fn export_inner(
                 },
                 human.position.x / scene.room_size.x + 0.5,
                 if human.neighbor {
-                    (human.position.z - scene.room_size.z * 0.5) / NEIGHBOR_DEPTH
+                    (human.position.z - scene.room_size.z * 0.5)
+                        / scene
+                            .adjoining_space()
+                            .depth_over(human.position.x, human.position.x)
                 } else {
                     human.position.z / scene.room_size.z + 0.5
                 },
@@ -1510,7 +1561,10 @@ fn export_inner(
         for object in &scene.objects {
             let u = object.position.x / scene.room_size.x + 0.5;
             let v = if object.neighbor {
-                (object.position.z - scene.room_size.z * 0.5) / NEIGHBOR_DEPTH
+                (object.position.z - scene.room_size.z * 0.5)
+                    / scene
+                        .adjoining_space()
+                        .depth_over(object.position.x, object.position.x)
             } else {
                 object.position.z / scene.room_size.z + 0.5
             };

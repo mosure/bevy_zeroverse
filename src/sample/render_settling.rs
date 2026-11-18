@@ -86,7 +86,7 @@ fn output_contract(
         && copy == Some(ssaa.output.id())
         && ssaa.source.id() != ssaa.output.id()
         && ssaa.output_size.min_element() > 0
-        && (2..=4).contains(&ssaa.factor)
+        && (1..=4).contains(&ssaa.factor)
         && size == raster_size)
         .then_some(Some(SsaaToken {
             source: target,

@@ -1,5 +1,6 @@
 //! Material selection, asset ownership and native/cooperative installation.
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 
 pub struct IndoorMaterials {
     pub(super) glazing: std::collections::BTreeMap<u64, Handle<StandardMaterial>>,
@@ -395,7 +396,7 @@ impl IndoorMaterials {
                 }
                 Surface::Light => {
                     let c = kelvin_rgb(scene.light_kelvin);
-                    let c = Color::srgb(c.x, c.y, c.z).to_linear();
+                    let c = source_color(scene, c).to_linear();
                     let luminance = super::super::architecture::fixture_lumens(scene)
                         / (std::f32::consts::PI
                             * super::super::architecture::fixtures::emitting_area(scene));
@@ -435,7 +436,7 @@ impl IndoorMaterials {
                 let area = super::super::architecture::fixtures::emitting_area_at(scene, position);
                 let (color, lumens) =
                     super::super::architecture::fixture_photometry_at(scene, i, &fixture_positions);
-                let c = Color::srgb(color.x, color.y, color.z).to_linear();
+                let c = source_color(scene, color).to_linear();
                 let mut material = materials
                     .get(&handles[Surface::Light as usize])
                     .unwrap()
@@ -477,6 +478,7 @@ impl IndoorMaterials {
         ));
         variants.extend(signals::build(scene, materials, selection));
         variants.extend(supplies::build(scene, &handles, materials, selection));
+        window_textile::install(scene, &handles, materials, selection, &mut variants);
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
@@ -625,6 +627,7 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
         || supplies::supports(surface, slot)
+        || window_textile::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)

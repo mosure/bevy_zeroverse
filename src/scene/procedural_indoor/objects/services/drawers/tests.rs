@@ -47,6 +47,8 @@ fn drawer_banks_fit_real_carcasses_with_independent_heights_and_metric_sizes() {
         audit::check(&o, &a).unwrap_or_else(|e| panic!("{seed}/{:?}: {e}", o.size));
         let (lo, hi) = a.bounds();
         assert!(lo.y.abs() < 1e-5 && (hi.y - o.size.y).abs() < 1e-5);
+        let half = o.size.xz() * 0.5 + Vec2::splat(1e-5);
+        assert!(lo.xz().cmpge(-half).all() && hi.xz().cmple(half).all());
         assert!(a
             .parts
             .keys()

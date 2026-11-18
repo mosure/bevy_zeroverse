@@ -8,12 +8,14 @@
 mod assembly;
 pub(crate) use assembly::GeometryTransport;
 mod bvh;
+mod probe_domain;
+use probe_domain::ProbeDomain;
 mod reflection_emitters;
 pub(crate) use reflection_emitters::ReflectionEmitters;
 #[cfg(not(target_arch = "wasm32"))]
 mod transport;
 #[cfg(not(target_arch = "wasm32"))]
-use transport::{TransportTree, TransportTriangle};
+use transport::{TransportNode, TransportTree, TransportTriangle};
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu;
 #[cfg(test)]
@@ -172,7 +174,11 @@ pub struct BakeStatistics {
     pub triangles: usize,
     pub probes: usize,
     pub relocated_probes: usize,
+    /// Historical ray-budget field. GPU captures report the budget over all grid slots.
     pub primary_rays: u64,
+    /// Actual primary paths evaluated by the backend, excluding shared results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traced_primary_rays: Option<u64>,
     pub diffuse_bounces: u32,
     pub texture_bytes: usize,
     pub preparation_ms: f64,
@@ -401,14 +407,13 @@ struct Node {
     right: usize,
     axis: usize,
 }
-impl Node {
-    fn intersects(&self, origin: Vec3, inverse: Vec3, max: f32) -> bool {
-        let a = (self.lo - origin) * inverse;
-        let b = (self.hi - origin) * inverse;
-        let near = a.min(b).max_element().max(0.0);
-        let far = a.max(b).min_element().min(max);
-        near <= far
-    }
+#[inline]
+fn intersects_bounds(lo: Vec3, hi: Vec3, origin: Vec3, inverse: Vec3, max: f32) -> bool {
+    let a = (lo - origin) * inverse;
+    let b = (hi - origin) * inverse;
+    let near = a.min(b).max_element().max(0.0);
+    let far = a.max(b).min_element().min(max);
+    near <= far
 }
 
 // Shared traversal keeps reflection emitters on the same scalar ray/triangle contract.
@@ -431,7 +436,7 @@ fn trace_triangles<const CULL_BACK: bool>(
         len -= 1;
         let index = stack[len];
         let node = &nodes[index];
-        if !node.intersects(origin, inverse, max) {
+        if !intersects_bounds(node.lo, node.hi, origin, inverse, max) {
             continue;
         }
         if node.count > 0 {
@@ -507,6 +512,7 @@ pub struct BakeScene {
     pub bounds_max: Vec3,
     preparation_ms: f64,
     world_rotation: Quat,
+    probe_domain: Option<Box<ProbeDomain>>,
 }
 
 fn linear(color: Color) -> Vec3 {
@@ -529,20 +535,25 @@ fn srgb8_linear_table() -> &'static [f32; 256] {
 impl BakeScene {
     #[cfg(not(target_arch = "wasm32"))]
     fn gpu_transport(&self) -> &TransportTree {
-        self.transport_tree.get_or_init(|| {
-            let started = Instant::now();
-            let (triangles, nodes) = bvh::build_transport(&self.triangles);
-            TransportTree {
-                triangles,
-                nodes,
-                preparation_ms: started.elapsed().as_secs_f64() * 1000.0,
-            }
-        })
+        self.gpu_transport_with(|| bvh::primitives(&self.triangles))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn prepare_gpu_transport(&self) {
-        self.gpu_transport();
+    fn gpu_transport_with(
+        &self,
+        primitives: impl FnOnce() -> Vec<bvh::Primitive>,
+    ) -> &TransportTree {
+        self.transport_tree.get_or_init(|| {
+            let started = Instant::now();
+            let (triangles, nodes) = bvh::build_transport(&self.triangles, primitives());
+            TransportTree {
+                triangles,
+                nodes: std::sync::Arc::new(
+                    nodes.into_iter().map(TransportNode::from_node).collect(),
+                ),
+                preparation_ms: started.elapsed().as_secs_f64() * 1000.0,
+            }
+        })
     }
 
     fn occluded(&self, origin: Vec3, direction: Vec3, max: f32) -> bool {
@@ -729,11 +740,13 @@ impl BakeScene {
         }
     }
 
-    fn build_bvh(&mut self) {
+    fn build_bvh(&mut self) -> Vec<bvh::Primitive> {
         // Compact transport indices refer to this exact median permutation.
         #[cfg(not(target_arch = "wasm32"))]
         self.transport_tree.take();
-        self.nodes = bvh::build_probe_tree(&mut self.triangles);
+        let (nodes, primitives) = bvh::build_probe_tree_and_primitives(&mut self.triangles);
+        self.nodes = nodes;
+        primitives
     }
 
     fn hit(
@@ -878,23 +891,12 @@ impl BakeScene {
             .max(UVec3::splat(2));
         let count = (resolution.x * resolution.y * resolution.z) as usize;
         assert!(count <= 100_000, "irradiance probe budget exceeded");
-        let point = |i: usize| {
-            let i = i as u32;
-            let xyz = UVec3::new(
-                i % resolution.x,
-                (i / resolution.x) % resolution.y,
-                i / (resolution.x * resolution.y),
-            );
-            self.bounds_min
-                + (xyz.as_vec3() + Vec3::splat(0.5)) / resolution.as_vec3()
-                    * (self.bounds_max - self.bounds_min)
-        };
+        let (points, valid) = self.probe_grid(resolution);
         let mut values = vec![[Vec3::ZERO; 6]; count];
-        let valid: Vec<bool> = (0..count).map(|i| !self.inside_solid(point(i))).collect();
         let calculate = |i: usize| {
             if valid[i] {
                 self.integrate(
-                    point(i),
+                    points[i],
                     settings.rays_per_probe,
                     settings.diffuse_bounces,
                     seed.wrapping_add(i as u64 * 7919),
@@ -932,9 +934,9 @@ impl BakeScene {
         for i in 0..count {
             if !valid[i] {
                 if let Some(nearest) = (0..count).filter(|&j| valid[j]).min_by(|&a, &b| {
-                    point(a)
-                        .distance_squared(point(i))
-                        .total_cmp(&point(b).distance_squared(point(i)))
+                    points[a]
+                        .distance_squared(points[i])
+                        .total_cmp(&points[b].distance_squared(points[i]))
                 }) {
                     values[i] = values[nearest];
                     relocated += 1;
@@ -953,6 +955,10 @@ impl BakeScene {
                 probes: count,
                 relocated_probes: relocated,
                 primary_rays: ((count - relocated) as u64) * settings.rays_per_probe as u64,
+                traced_primary_rays: Some(
+                    valid.iter().filter(|&&v| v).count() as u64
+                        * u64::from(settings.rays_per_probe),
+                ),
                 diffuse_bounces: settings.diffuse_bounces,
                 texture_bytes: count * 6 * 8,
                 preparation_ms: self.preparation_ms,
@@ -1121,7 +1127,7 @@ mod tests {
         assert_eq!(moving.bounds_max, fixed.bounds_max);
     }
 
-    fn empty() -> BakeScene {
+    pub(super) fn empty() -> BakeScene {
         BakeScene {
             triangles: Vec::new(),
             nodes: Vec::new(),
@@ -1136,6 +1142,7 @@ mod tests {
             bounds_max: Vec3::ONE,
             preparation_ms: 0.0,
             world_rotation: Quat::IDENTITY,
+            probe_domain: None,
         }
     }
 
@@ -1175,7 +1182,7 @@ mod tests {
                 .step_by(stride)
                 .take(2048)
                 .collect();
-            transport.build_bvh();
+            drop(transport.build_bvh());
             let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
             let mut queries: Vec<_> = (0..256)
                 .map(|i| {
@@ -1225,9 +1232,9 @@ mod tests {
                 .iter()
                 .map(|&(p, _, _)| transport.inside_solid(p))
                 .collect();
-            transport.prepare_gpu_transport();
+            transport.gpu_transport();
             let tree_address = std::ptr::from_ref(transport.gpu_transport());
-            transport.prepare_gpu_transport();
+            transport.gpu_transport();
             assert_eq!(tree_address, std::ptr::from_ref(transport.gpu_transport()));
             for (i, &(p, d, max)) in queries.iter().enumerate() {
                 let brute_force = transport
@@ -1274,7 +1281,7 @@ mod tests {
         let mut walls = Assembly::default();
         walls.box_part(Surface::Paint, "wall", Vec3::ZERO, Vec3::splat(4.0), 0.0);
         scene.add_assembly(&walls, Transform::IDENTITY, &Default::default());
-        scene.build_bvh();
+        drop(scene.build_bvh());
         for bounces in [1, 2, 4, 8] {
             let values = scene.integrate(Vec3::ZERO, 2048, bounces, 4);
             let expected = Vec3::new(
@@ -1375,7 +1382,7 @@ mod tests {
             0.0,
         );
         scene.add_assembly(&blocker, Transform::IDENTITY, &Default::default());
-        scene.build_bvh();
+        drop(scene.build_bvh());
         assert_eq!(scene.direct(Vec3::ZERO, Vec3::Y), Vec3::ZERO);
 
         scene.triangles.clear();
@@ -1397,7 +1404,7 @@ mod tests {
             0.0,
         );
         scene.add_assembly(&panel, Transform::IDENTITY, &Default::default());
-        scene.build_bvh();
+        drop(scene.build_bvh());
         let local = scene.integrate(Vec3::ZERO, 8192, 1, 7);
         scene.world_rotation = Quat::from_rotation_y(PI * 0.5);
         let world = scene.integrate(Vec3::ZERO, 8192, 1, 7);

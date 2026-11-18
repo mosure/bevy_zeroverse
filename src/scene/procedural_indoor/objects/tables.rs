@@ -7,11 +7,14 @@ mod structure;
 mod supports;
 #[cfg(test)]
 mod tests;
+mod workstation;
 pub(crate) use clearance::Clearance;
 use structure::{PartSink, StructureSink};
+pub use workstation::{DeskFrame, ModestyPanel};
 /// Shared lecture/dining rows need usable work surface across their full bank.
 /// Keep broad catalogue shapes for freestanding tables and desks.
 pub(crate) const SHARED_ROW_VARIANT: u32 = 30;
+pub(crate) const BOARDROOM_VARIANT: u32 = 31;
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TableProgram {
     pub top_thickness: f32,
@@ -55,6 +58,7 @@ pub struct TableProgram {
     pub bay_width: f32,
     pub bay_rake: f32,
     pub bay_style: u8,
+    pub workstation: Option<DeskFrame>,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let mut rng = stream(o.seed, 172);
@@ -147,7 +151,12 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         bay_width: conference.random_range(0.38..0.62),
         bay_rake: conference.random_range(0.0..0.14),
         bay_style: conference.random_range(0..6),
+        workstation: DeskFrame::sample(o),
     };
+    if let Some(desk) = &program.workstation {
+        program.support = 10;
+        program.frame_surface = desk.metal;
+    }
     if o.variant == SHARED_ROW_VARIANT {
         let mut row = stream(o.seed, 0x524f57544f50);
         program.outline_exponent = row.random_range(6.0..24.0);
@@ -155,6 +164,8 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         program.capsule_blend = row.random_range(0.0..0.22);
         program.polygon_blend = 0.;
         program.boat_blend = row.random_range(0.0..0.12);
+    } else if o.variant == BOARDROOM_VARIANT {
+        conference::boardroom_finish(o, &mut program);
     }
     program
 }
@@ -185,14 +196,18 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let p = parameters(o);
     let label = o.kind.class_name();
-    let outline = outline(o);
+    let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
-    a.part(p.top_surface, label).profile_slab(
-        &outline,
-        p.top_thickness,
-        p.edge_bevel,
-        Transform::from_xyz(0.0, s.y - p.top_thickness * 0.5, 0.0),
-    );
+    if o.variant == BOARDROOM_VARIANT {
+        conference::joined_top(a, o, &p, &outline);
+    } else {
+        a.part(p.top_surface, label).profile_slab(
+            &outline,
+            p.top_thickness,
+            p.edge_bevel,
+            Transform::from_xyz(0.0, s.y - p.top_thickness * 0.5, 0.0),
+        );
+    }
     if s.x > s.z && p.top_surface == Surface::Wood {
         for uv in &mut a.part(Surface::Wood, label).uvs {
             *uv = [uv[1], -uv[0]];
@@ -227,6 +242,10 @@ fn build_structure(
     let label = o.kind.class_name();
     let underside = s.y - p.top_thickness - 0.012;
     let frame = p.frame_surface;
+    if let Some(desk) = &p.workstation {
+        desk.build(a, o, outline, underside);
+        return;
+    }
     if conference::bay_count(o, p) > 0 {
         conference::build(a, o, p, outline, underside);
         return;

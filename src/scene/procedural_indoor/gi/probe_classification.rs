@@ -1,7 +1,7 @@
 //! Full-six-ray oracle for exact probe classification, including touching faces.
 use super::*;
 
-fn legacy_inside_solid(scene: &BakeScene, point: Vec3) -> bool {
+pub(super) fn legacy_inside_solid(scene: &BakeScene, point: Vec3) -> bool {
     let mut backfaces = 0;
     for direction in [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z] {
         if let Some((index, _, _)) = scene.hit(point, direction, 1000.0, false) {
@@ -28,6 +28,7 @@ fn fixture() -> BakeScene {
         bounds_max: Vec3::splat(4.0),
         preparation_ms: 0.0,
         world_rotation: Quat::IDENTITY,
+        probe_domain: None,
     };
     let mut assembly = Assembly::default();
     for x in -2..=2 {
@@ -52,7 +53,7 @@ fn fixture() -> BakeScene {
         );
     }
     scene.add_assembly(&assembly, Transform::IDENTITY, &Default::default());
-    scene.build_bvh();
+    drop(scene.build_bvh());
     scene
 }
 
@@ -105,7 +106,7 @@ fn threshold_classification_preserves_all_cardinal_backface_patterns() {
                 material: 0,
             });
         }
-        scene.build_bvh();
+        drop(scene.build_bvh());
         let expected = pattern.count_ones() >= 4;
         assert_eq!(
             legacy_inside_solid(&scene, Vec3::ZERO),
@@ -133,7 +134,7 @@ fn threshold_classification_matches_full_six_rays_on_boundaries_and_ties() {
     assert!(inside > 0 && inside < points.len());
     #[cfg(not(target_arch = "wasm32"))]
     {
-        scene.prepare_gpu_transport();
+        scene.gpu_transport();
         for point in points {
             assert_eq!(
                 scene.inside_solid(point),
@@ -173,5 +174,12 @@ fn benchmark_threshold_classification() {
         }
     }
     assert_eq!(hits[0], hits[1]);
-    eprintln!("{{\"kernel\":\"threshold_classification\",\"triangles\":{},\"points\":{},\"repetitions\":8,\"legacy_seconds\":{},\"candidate_seconds\":{},\"speedup\":{}}}", scene.triangles.len(), points.len(), elapsed[0] / 8.0, elapsed[1] / 8.0, elapsed[0] / elapsed[1]);
+    eprintln!(
+        "{{\"kernel\":\"threshold_classification\",\"triangles\":{},\"points\":{},\"repetitions\":8,\"legacy_seconds\":{},\"candidate_seconds\":{},\"speedup\":{}}}",
+        scene.triangles.len(),
+        points.len(),
+        elapsed[0] / 8.0,
+        elapsed[1] / 8.0,
+        elapsed[0] / elapsed[1]
+    );
 }

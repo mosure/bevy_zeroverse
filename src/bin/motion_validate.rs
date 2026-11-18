@@ -276,19 +276,36 @@ mod native {
                 .transpose()?;
             let report = app.world().resource::<HumanMotionReport>();
             let manifest = sample.indoor.as_ref().context("missing indoor manifest")?;
-            ensure!(
-                sample.object_obbs.len() == manifest.objects.len() + manifest.humans.len() + bevy_zeroverse::scene::procedural_indoor::architecture::fixture_positions(manifest).len(),
-                "missing object/person/ceiling-light bounding boxes"
-            );
-            ensure!(
-                sample
-                    .object_obbs
-                    .iter()
-                    .filter(|b| b.class_name == "person")
-                    .count()
-                    == manifest.humans.len(),
-                "missing person box labels"
-            );
+            let mut expected = BTreeMap::new();
+            for (id, class) in manifest
+                .objects
+                .iter()
+                .map(|o| (o.id, o.kind.class_name()))
+                .chain(manifest.humans.iter().map(|h| (h.id, "person")))
+            {
+                *expected.entry((Some(id as i64), class)).or_insert(0usize) += 1;
+            }
+            for (class, count) in [
+                (
+                    "lamp",
+                    bevy_zeroverse::scene::procedural_indoor::architecture::fixture_positions(
+                        manifest,
+                    )
+                    .len(),
+                ),
+                ("door", manifest.door_installations().len()),
+            ] {
+                if count > 0 {
+                    expected.insert((None, class), count);
+                }
+            }
+            let mut captured = BTreeMap::new();
+            for b in &sample.object_obbs {
+                *captured
+                    .entry((b.instance_id, b.class_name.as_str()))
+                    .or_insert(0usize) += 1;
+            }
+            ensure!(captured == expected, "seed {seed}: bounding box identities differ, expected {expected:?}, captured {captured:?}");
             for (index, &id) in sample.human_instance_ids.iter().enumerate() {
                 let actor_id = usize::try_from(id).context("negative human instance ID")?;
                 let first = &sample.human_pose_steps[0][index];

@@ -363,6 +363,12 @@ impl GpuLiveDataset {
     pub fn last_capture_timings(&self) -> Option<&GpuCaptureTimings> {
         self.last_capture_timings.as_ref()
     }
+    /// Stop lookahead and wait up to `timeout` for renderer retirement. A
+    /// timeout can be retried. Tensors already delivered belong to the caller.
+    pub fn shutdown(&mut self, timeout: Duration) -> bool {
+        self.pending = None;
+        self.session.shutdown(timeout)
+    }
     pub fn into_dataset(self, samples_per_epoch: usize) -> GpuDataset {
         GpuDataset {
             device: self.device().clone(),
@@ -429,6 +435,19 @@ impl GpuLiveDataset {
         self.pending = None;
         self.last_capture_timings = completion.timings;
         completion.result
+    }
+}
+
+impl Drop for GpuLiveDataset {
+    fn drop(&mut self) {
+        // next_sample starts a future capture. An ordinary stream owner may
+        // exit its process immediately after drop, while Bevy's render tasks
+        // are still inside the Vulkan driver. Retire the worker, including its
+        // pipelined RenderApp, within the already configured capture deadline.
+        // An explicit shutdown has already spent the caller's chosen budget.
+        if self.session.worker.is_some() && !self.session.queue.0.lock().unwrap().stopped {
+            self.shutdown(self.receive_timeout);
+        }
     }
 }
 
@@ -528,5 +547,37 @@ mod tests {
         assert_eq!(stream.pending, None);
         assert!(stream.session.outstanding.is_empty());
         assert!(stream.session.queue.0.lock().unwrap().queued.is_empty());
+    }
+
+    #[test]
+    fn dropping_consecutive_stream_waits_for_lookahead_retirement() {
+        let (mut stream, _sender) = pending_stream();
+        stream.receive_timeout = Duration::from_secs(2);
+        let queue = stream.session.queue.clone();
+        let (finished, observed) = mpsc::channel();
+        stream.session.worker = Some(thread::spawn(move || {
+            let (lock, wake) = &*queue;
+            drop(
+                wake.wait_while(lock.lock().unwrap(), |q| !q.stopped)
+                    .unwrap(),
+            );
+            finished.send(()).unwrap();
+        }));
+        drop(stream);
+        observed
+            .try_recv()
+            .expect("worker retired before stream drop returned");
+    }
+
+    #[test]
+    fn explicit_stream_shutdown_can_time_out_and_then_join() {
+        let (mut stream, _sender) = pending_stream();
+        let (release, retire) = mpsc::channel();
+        stream.session.worker = Some(thread::spawn(move || retire.recv().unwrap()));
+        assert!(!stream.shutdown(Duration::ZERO));
+        assert!(stream.pending.is_none());
+        release.send(()).unwrap();
+        assert!(stream.shutdown(Duration::from_secs(2)));
+        assert!(stream.shutdown(Duration::ZERO));
     }
 }

@@ -36,10 +36,13 @@ the dataset, just as for native capture. Missing assets return a capture error.
 One persistent capture worker automatically prepares one future GPU sample
 while the consumer trains. Requests and results are bounded; retained samples
 belong to the consumer. `sample_seed(seed)` drains any queued lookahead before
-indexed capture and preserves the consecutive stream's cursor. Dropping the
-dataset requests shutdown without blocking the training thread in a driver call;
-returned tensors remain valid afterwards. Explicit sessions provide bounded
-`shutdown(timeout)` and report whether retirement completed.
+indexed capture and preserves the consecutive stream's cursor. Dropping a
+consecutive dataset cancels lookahead and waits up to its configured capture
+timeout for the renderer to retire. Returned tensors remain valid after
+retirement. Both the dataset and explicit sessions expose `shutdown(timeout)`.
+A process that owns the graphics runtime can check for a successful return
+before exiting and retry if its deadline expires. An explicit session's
+destructor requests cancellation and leaves a busy worker to finish asynchronously.
 For Burn's data loader, call `rooms.into_dataset(samples_per_epoch)`. Its
 `device()` is the same training device. This is a live stream: indices bound
 an epoch, and every `get` returns a new room, including across epochs.
@@ -190,6 +193,11 @@ generator or CUDA transport. CPU affinity is a benchmark control, not a library
 tuning requirement.
 
 ## Copy and device contract
+
+On Linux, a process can use Vulkan rendering with CUDA hidden. An empty
+`CUDA_VISIBLE_DEVICES` or `-1` disables the two experimental Vulkan ray-tracing
+features that initialize CUDA inside the NVIDIA driver. Raster rendering,
+compute annotations, and WGPU tensor capture use the selected Vulkan adapter.
 
 The native `gpu_tensor` API imports Bevy's **existing** wgpu instance, adapter,
 logical device and queue into Burn. It does not create a second logical device.

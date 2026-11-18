@@ -21,6 +21,15 @@ pub struct SourcePower {
     pub color: Vec3,
 }
 
+/// World-space geometry shared by direct lighting, diffuse transport and capture metrics.
+#[derive(Clone, Copy)]
+pub(crate) struct FixtureBeam {
+    pub position: Vec3,
+    pub direction: Vec3,
+    pub inner: f32,
+    pub outer: f32,
+}
+
 pub fn lighting_seed(scene: &IndoorManifest) -> u64 {
     scene
         .appearance
@@ -33,6 +42,23 @@ pub fn tinted_white(kelvin: f32, tint: f32) -> Vec3 {
     let c = kelvin_rgb(kelvin.clamp(1800., 10000.))
         * Vec3::new(1. - tint * 0.45, 1. + tint, 1. - tint * 0.45);
     c / c.max_element()
+}
+
+/// Light intensity is specified in photopic lumens/lux. Preserve its luminance
+/// when changing the source spectrum; the input is bounded display chromaticity.
+pub(crate) fn source_color(scene: &IndoorManifest, chromaticity: Vec3) -> Color {
+    let srgb = Color::srgb(chromaticity.x, chromaticity.y, chromaticity.z);
+    if scene.domain().is_none_or(|d| d.photometry.meter.is_none()) {
+        return srgb;
+    }
+    Color::LinearRgba(photopic_emission(srgb, 1.))
+}
+
+fn photopic_emission(color: Color, luminance: f32) -> LinearRgba {
+    let c = color.to_linear();
+    let y = c.red * 0.2126 + c.green * 0.7152 + c.blue * 0.0722;
+    let scale = luminance / y.max(0.001);
+    LinearRgba::new(c.red * scale, c.green * scale, c.blue * scale, 1.)
 }
 
 pub fn is_emitter(kind: ObjectKind) -> bool {
@@ -143,8 +169,5 @@ pub fn lamp(scene: &IndoorManifest, object: &IndoorObject) -> SourcePower {
 /// modulates this radiance; RGB-only color changes never alter annotation maps.
 pub fn display_emission(luminance: f32, kelvin: f32, tint: f32) -> LinearRgba {
     let c = tinted_white(kelvin, tint);
-    let c = Color::srgb(c.x, c.y, c.z).to_linear();
-    let y = c.red * 0.2126 + c.green * 0.7152 + c.blue * 0.0722;
-    let scale = luminance / y.max(0.001);
-    LinearRgba::new(c.red * scale, c.green * scale, c.blue * scale, 1.)
+    photopic_emission(Color::srgb(c.x, c.y, c.z), luminance)
 }

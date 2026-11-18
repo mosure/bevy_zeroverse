@@ -805,11 +805,23 @@ mod tests {
     #[test]
     #[ignore = "native GPU: RGB-only has no annotation pass and GPU sRGB matches CPU archive oracle"]
     fn rgb_only_srgb_matches_archive_oracle() -> Result<()> {
+        check_rgb_archive(None, 0)
+    }
+
+    #[test]
+    #[ignore = "native GPU: RGB sensor effects survive same-device sRGB conversion at SSAA 1"]
+    fn rgb_sensor_srgb_matches_archive_oracle() -> Result<()> {
+        check_rgb_archive(Some(r#"{"sensor":{"probability":1}}"#), 1)
+    }
+
+    fn check_rgb_archive(appearance: Option<&str>, ssaa_factor: u32) -> Result<()> {
         setup_test_assets();
         channels::init_channels();
         let config = BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::ProceduralIndoor,
             indoor_seed: Some(6),
+            indoor_appearance: appearance.map(str::to_owned),
+            ssaa_factor,
             num_cameras: 3,
             width: 129.,
             height: 97.,
@@ -833,6 +845,16 @@ mod tests {
         );
         gpu.validate_finite()?;
         let cpu = cpu_capture(&mut renderer, 6);
+        let sensor = |sample: &bevy_zeroverse::sample::Sample| {
+            sample
+                .indoor_render_metadata
+                .as_ref()
+                .and_then(|m| m.get("camera_sensor"))
+                .cloned()
+                .unwrap_or_default()
+        };
+        assert_eq!(sensor(&gpu.metadata), sensor(&cpu));
+        assert_eq!(sensor(&cpu).is_object(), appearance.is_some());
         for (actual, expected) in gpu.views.iter().zip(cpu.views.iter()) {
             assert!(actual.world_depth.is_none() && actual.normal_semantic.is_none());
             let actual = values(actual.color.clone().unwrap());

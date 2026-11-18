@@ -1,4 +1,5 @@
 //! One-shot native GPU diffuse transport. No readback is required for rendering.
+mod probes;
 use super::*;
 use bevy::render::diagnostic::RecordDiagnostics;
 use bevy::shader::ShaderCacheError;
@@ -48,19 +49,12 @@ impl GiGpuReadiness {
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct GpuTriangle {
+    // The fourth lanes carry the three full-precision geometric normal components.
     a: [f32; 4],
     ab: [f32; 4],
     ac: [f32; 4],
     uv01: [f32; 4],
     uv2_material: [f32; 4],
-    normal: [f32; 4],
-}
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct GpuNode {
-    lo: [f32; 4],
-    hi: [f32; 4],
-    children: [u32; 4],
 }
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -92,11 +86,11 @@ struct Params {
 struct Input {
     params: Params,
     triangles: Vec<GpuTriangle>,
-    nodes: Vec<GpuNode>,
+    nodes: Arc<Vec<TransportNode>>,
     materials: Vec<GpuMaterial>,
     texels: Vec<[f32; 4]>,
     lights: Vec<GpuLight>,
-    origins: Vec<[f32; 4]>,
+    origins: probes::ProbeDispatch,
 }
 
 #[derive(Resource, Clone)]
@@ -115,7 +109,7 @@ impl Input {
             bytemuck::cast_slice(&self.materials),
             bytemuck::cast_slice(&self.texels),
             bytemuck::cast_slice(&self.lights),
-            bytemuck::cast_slice(&self.origins),
+            bytemuck::cast_slice(&self.origins.records),
         ]
     }
 }
@@ -141,14 +135,36 @@ pub(crate) fn test_request(image: Handle<Image>) -> GpuBakeRequest {
         input: Arc::new(Input {
             params: bytemuck::Zeroable::zeroed(),
             triangles: Vec::new(),
-            nodes: Vec::new(),
+            nodes: Arc::default(),
             materials: Vec::new(),
             texels: Vec::new(),
             lights: Vec::new(),
-            origins: Vec::new(),
+            origins: probes::ProbeDispatch::new(&[], &[]),
         }),
         readiness: default(),
     }
+}
+
+/// Choose the full CPU integrator before packing a transport scene which exceeds
+/// the portable native storage binding budget. Both backends use the requested
+/// probe spacing, ray count and bounce depth.
+pub(in crate::scene::procedural_indoor) fn fits_portable_bindings(scene: &BakeScene) -> bool {
+    let texels = scene
+        .materials
+        .iter()
+        .filter_map(|m| m.texture.as_ref())
+        .map(|(_, pixels)| pixels.len() as u64)
+        .sum::<u64>();
+    let limit = wgpu::Limits::default().max_storage_buffer_binding_size;
+    fits_records::<GpuTriangle>(scene.triangles.len() as u64, limit)
+        && fits_records::<TransportNode>(scene.gpu_transport().nodes.len() as u64, limit)
+        && fits_records::<GpuLight>(scene.lights.len() as u64, limit)
+        && fits_records::<GpuMaterial>(scene.materials.len() as u64, limit)
+        && fits_records::<[f32; 4]>(texels, limit)
+}
+
+fn fits_records<T>(count: u64, limit: u64) -> bool {
+    count <= limit / std::mem::size_of::<T>() as u64
 }
 
 pub fn prepare(
@@ -172,40 +188,8 @@ pub fn prepare(
         count <= 65535,
         "GPU GI probe budget exceeds a dispatch dimension"
     );
-    let points: Vec<Vec3> = (0..count as u32)
-        .map(|i| {
-            let xyz = UVec3::new(
-                i % resolution.x,
-                (i / resolution.x) % resolution.y,
-                i / (resolution.x * resolution.y),
-            );
-            scene.bounds_min
-                + (xyz.as_vec3() + Vec3::splat(0.5)) / resolution.as_vec3()
-                    * (scene.bounds_max - scene.bounds_min)
-        })
-        .collect();
-    let valid: Vec<bool> = points.iter().map(|p| !scene.inside_solid(*p)).collect();
-    let mut relocated = 0;
-    let origins = points
-        .iter()
-        .enumerate()
-        .map(|(i, point)| {
-            let index = if valid[i] {
-                i
-            } else {
-                relocated += 1;
-                (0..count)
-                    .filter(|&j| valid[j])
-                    .min_by(|&a, &b| {
-                        points[a]
-                            .distance_squared(*point)
-                            .total_cmp(&points[b].distance_squared(*point))
-                    })
-                    .unwrap_or(i)
-            };
-            points[index].extend(index as f32).to_array()
-        })
-        .collect();
+    let (points, valid) = scene.probe_grid(resolution);
+    let origins = probes::ProbeDispatch::new(&points, &valid);
     // Closest hits, solid classification and the independent CPU oracle retain
     // their original traversal order. Boolean shadows and GPU transport share
     // the same tighter spatial tree without exposing its reordered indices.
@@ -214,28 +198,14 @@ pub fn prepare(
     let triangles = transport
         .surfaces(scene)
         .map(|t| GpuTriangle {
-            a: t.a.extend(0.0).to_array(),
-            ab: t.ab.extend(0.0).to_array(),
-            ac: t.ac.extend(0.0).to_array(),
+            a: t.a.extend(t.normal.x).to_array(),
+            ab: t.ab.extend(t.normal.y).to_array(),
+            ac: t.ac.extend(t.normal.z).to_array(),
             uv01: [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
             uv2_material: [t.uv[2].x, t.uv[2].y, t.material as f32, 0.0],
-            normal: t.normal.extend(0.0).to_array(),
         })
         .collect();
-    let nodes: Vec<_> = transport
-        .nodes
-        .iter()
-        .map(|n| GpuNode {
-            lo: n.lo.extend(0.0).to_array(),
-            hi: n.hi.extend(0.0).to_array(),
-            children: [
-                n.start as u32,
-                n.count as u32,
-                n.right as u32,
-                n.axis as u32,
-            ],
-        })
-        .collect();
+    let nodes = Arc::clone(&transport.nodes);
     let mut texels = Vec::new();
     let materials = scene
         .materials
@@ -288,8 +258,9 @@ pub fn prepare(
         backend: "gpu_bvh_compute".into(),
         triangles: scene.triangles.len(),
         probes: count,
-        relocated_probes: relocated,
-        primary_rays: count as u64 * settings.rays_per_probe as u64,
+        relocated_probes: origins.relocated,
+        primary_rays: count as u64 * u64::from(settings.rays_per_probe),
+        traced_primary_rays: Some(u64::from(origins.sources) * u64::from(settings.rays_per_probe)),
         diffuse_bounces: settings.diffuse_bounces,
         texture_bytes: count * 48,
         preparation_ms: scene.preparation_ms
@@ -303,10 +274,10 @@ pub fn prepare(
         // execution timings come from the explicit GPU validation experiment.
         bake_ms: None,
         transport_bytes: scene.triangles.len() * std::mem::size_of::<GpuTriangle>()
-            + nodes.len() * std::mem::size_of::<GpuNode>()
+            + nodes.len() * std::mem::size_of::<TransportNode>()
             + texels.len() * 16
             + scene.materials.len() * 64
-            + count * 16,
+            + origins.records.len() * 16,
         ..default()
     };
     let input = Input {
@@ -526,8 +497,8 @@ fn upload_request(
     images: &RenderAssets<GpuImage>,
     prepared: &mut Prepared,
 ) {
-    *request.readiness.0.failure.lock().unwrap() = failure.map(str::to_owned);
-    if failure.is_some() {
+    if let Some(error) = failure {
+        *request.readiness.0.failure.lock().unwrap() = Some(error.to_owned());
         return;
     }
     if request.readiness.ready() {
@@ -543,6 +514,25 @@ fn upload_request(
         return;
     };
     let bytes = request.input.buffers();
+    let limits = device.limits();
+    if let Some((binding, length, limit)) = bytes.iter().enumerate().find_map(|(binding, data)| {
+        let limit = limits.max_buffer_size.min(if binding == 0 {
+            limits.max_uniform_buffer_binding_size
+        } else {
+            limits.max_storage_buffer_binding_size
+        });
+        let length = data.len().max(16) as u64;
+        (length > limit).then_some((binding, length, limit))
+    }) {
+        *request.readiness.0.failure.lock().unwrap() = Some(format!(
+            "indoor GI binding {binding} requires {length} bytes; adapter limit is {limit}"
+        ));
+        prepared.image = Some(request.image.id());
+        prepared.bind_group = None;
+        prepared._buffers.clear();
+        return;
+    }
+    *request.readiness.0.failure.lock().unwrap() = None;
     let buffers: Vec<_> = bytes
         .iter()
         .enumerate()
@@ -662,7 +652,7 @@ fn encode_request(
             });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, bind_group, &[]);
-        pass.dispatch_workgroups(request.input.params.resolution[3], 1, 1);
+        pass.dispatch_workgroups(request.input.origins.sources, 1, 1);
     }
     span.end(context.command_encoder());
     request.readiness.0.encoded.store(true, Ordering::Release);
@@ -740,34 +730,37 @@ mod tests {
         let transport = BakeScene::from_manifest(&scene, &set, &materials, &images);
         let (request, _, stats) =
             prepare(&transport, BakeSettings::default(), scene.seed, &mut images);
-        // The compact CPU shadow records must serialize the exact former GPU
-        // payload, including bound materials, UVs, normals and triangle order.
         let (reference, _) =
             super::super::bvh::build_transport_scalar_reference(&transport.triangles);
-        let reference: Vec<_> = reference
-            .iter()
-            .map(|t| GpuTriangle {
-                a: t.a.extend(0.0).to_array(),
-                ab: t.ab.extend(0.0).to_array(),
-                ac: t.ac.extend(0.0).to_array(),
-                uv01: [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
-                uv2_material: [t.uv[2].x, t.uv[2].y, t.material as f32, 0.0],
-                normal: t.normal.extend(0.0).to_array(),
-            })
-            .collect();
-        assert_eq!(
-            bytemuck::cast_slice::<_, u8>(&request.input.triangles),
-            bytemuck::cast_slice::<_, u8>(&reference),
-        );
-        // Build the solid-classification oracle before transport reorders its
-        // clone. Furniture tessellation may evolve; the classification must not.
+        assert!(Arc::ptr_eq(
+            &request.input.nodes,
+            &transport.gpu_transport().nodes
+        ));
+        assert_eq!(request.input.triangles.len(), reference.len());
+        for (packed, original) in request.input.triangles.iter().zip(&reference) {
+            assert_eq!(&packed.a[..3], &original.a.to_array());
+            assert_eq!(&packed.ab[..3], &original.ab.to_array());
+            assert_eq!(&packed.ac[..3], &original.ac.to_array());
+            assert_eq!(
+                [packed.a[3], packed.ab[3], packed.ac[3]],
+                original.normal.to_array()
+            );
+            assert_eq!(&packed.uv01[..2], &original.uv[0].to_array());
+            assert_eq!(&packed.uv01[2..], &original.uv[1].to_array());
+            assert_eq!(&packed.uv2_material[..2], &original.uv[2].to_array());
+            assert_eq!(packed.uv2_material[2] as usize, original.material);
+        }
+        // Check every packed trace origin against the two floor polygons and
+        // the full six-ray solid test, independent of the dispatch planner.
         let settings = BakeSettings::default();
         let resolution = ((transport.bounds_max - transport.bounds_min) / settings.spacing)
             .ceil()
             .as_uvec3()
             .max(UVec3::splat(2));
         let count = resolution.element_product();
-        let relocated = (0..count)
+        let primary = &scene.envelope.as_ref().unwrap().footprint;
+        let neighbor = scene.adjoining_space().footprint(scene.room_size);
+        let sources: Vec<_> = (0..count)
             .filter(|&i| {
                 let xyz = UVec3::new(
                     i % resolution.x,
@@ -777,12 +770,38 @@ mod tests {
                 let p = transport.bounds_min
                     + (xyz.as_vec3() + Vec3::splat(0.5)) / resolution.as_vec3()
                         * (transport.bounds_max - transport.bounds_min);
-                transport.inside_solid(p)
+                let (outline, floor) = if p.z > scene.room_size.z * 0.5 {
+                    (&neighbor, 0.)
+                } else {
+                    (primary, scene.floor_height(p.xz()))
+                };
+                super::super::super::envelope::polygon::contains(outline, p.xz(), 0.)
+                    && p.y > floor + 0.002
+                    && p.y < scene.ceiling_height(p.xz()) - 0.002
+                    && !super::super::probe_classification::legacy_inside_solid(&transport, p)
             })
-            .count();
+            .collect();
+        let packed = &request.input.origins.records[count as usize..];
+        assert_eq!(request.input.origins.sources as usize, sources.len());
+        assert_eq!(&packed.as_flattened()[..sources.len()], sources);
         assert_eq!(stats.triangles, transport.triangles.len());
         assert_eq!(stats.probes, count as usize);
-        assert_eq!(stats.relocated_probes, relocated);
+        assert_eq!(stats.relocated_probes, count as usize - sources.len());
+    }
+
+    #[test]
+    fn full_precision_transport_fits_the_previous_oversize_room() {
+        let limit = 128 * 1024 * 1024;
+        let triangles = 136_205_184 / 96; // Captured on llvmpipe, seed 90108.
+        assert_eq!(std::mem::size_of::<GpuTriangle>(), 80);
+        assert_eq!(std::mem::size_of::<TransportNode>(), 32);
+        assert_eq!(std::mem::offset_of!(TransportNode, index), 12);
+        assert_eq!(std::mem::offset_of!(TransportNode, hi), 16);
+        assert_eq!(std::mem::offset_of!(TransportNode, tag), 28);
+        assert!(fits_records::<GpuTriangle>(triangles, limit));
+        assert!(fits_records::<GpuTriangle>(limit / 80, limit));
+        assert!(!fits_records::<GpuTriangle>(limit / 80 + 1, limit));
+        assert!(!fits_records::<TransportNode>(u64::MAX, limit));
     }
 
     #[test]

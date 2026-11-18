@@ -10,25 +10,53 @@ fn floor_plan_omits_overhead_fixture_envelopes_without_losing_furnishings() {
         IndoorManifest::generate_with_humans(72_184_257, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let before = scene.clone();
     let plan = Schematic::from_manifest(&scene, 0.).unwrap();
-    let mut overhead = 0;
-    let mut furnishings = 0;
-    for object in scene.objects.iter().filter(|o| !o.neighbor) {
-        let excluded = matches!(
-            object.kind,
-            ObjectKind::CeilingPendant
-                | ObjectKind::CeilingFan
-                | ObjectKind::StringLights
-                | ObjectKind::FireDetector
-        );
-        let represented = plan
-            .footprints
+    let mut overhead = std::collections::BTreeSet::new();
+    let check_footprints =
+        |scene: &IndoorManifest,
+         plan: &Schematic,
+         omitted: &mut std::collections::BTreeSet<usize>| {
+            for object in scene.objects.iter().filter(|o| !o.neighbor) {
+                let excluded = matches!(
+                    object.kind,
+                    ObjectKind::CeilingPendant
+                        | ObjectKind::CeilingFan
+                        | ObjectKind::StringLights
+                        | ObjectKind::FireDetector
+                );
+                let represented = plan
+                    .footprints
+                    .iter()
+                    .any(|p| p.instance_id == Some(object.id));
+                assert_eq!(represented, !excluded, "{:?}/{}", object.kind, object.id);
+                if excluded {
+                    omitted.insert(object.kind as usize);
+                }
+            }
+        };
+    check_footprints(&scene, &plan, &mut overhead);
+    assert!(
+        scene
+            .objects
             .iter()
-            .any(|p| p.instance_id == Some(object.id));
-        assert_eq!(represented, !excluded, "{:?}/{}", object.kind, object.id);
-        overhead += usize::from(excluded);
-        furnishings += usize::from(represented && object.solid);
+            .filter(|o| !o.neighbor && o.solid)
+            .count()
+            >= 8
+    );
+    // These are optional installations. Exercise the real schematic for each
+    // category without requiring all four to coexist in the reported room.
+    for seed in 0..32 {
+        if overhead.len() == 4 {
+            break;
+        }
+        let room =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        check_footprints(
+            &room,
+            &Schematic::from_manifest(&room, 0.).unwrap(),
+            &mut overhead,
+        );
     }
-    assert!(overhead >= 5 && furnishings >= 8);
+    assert_eq!(overhead.len(), 4, "exercise each omitted fixture type");
     assert_eq!(
         scene, before,
         "schematic presentation must not change scene geometry"

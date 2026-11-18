@@ -25,7 +25,8 @@ pub(super) fn expand(
         // slots may initially contain the same rare upper-level path; deform it
         // independently and let all-pair spacing reject coincident trajectories.
         let mut sources = Vec::new();
-        for (slot, candidate) in solver.compatible_candidates(reference_index) {
+        let compatible = solver.compatible_candidates(reference_index);
+        for &(slot, candidate) in &compatible {
             let camera = &pools[slot][candidate].camera;
             if !camera.is_ceiling_mounted()
                 && !sources.iter().any(|c: &IndoorCamera| {
@@ -43,6 +44,11 @@ pub(super) fn expand(
                 continue;
             }
             let initial = pools[index].len();
+            let local: Vec<_> = compatible
+                .iter()
+                .filter(|(slot, _)| *slot == index)
+                .map(|&(_, i)| i)
+                .collect();
             let mut rng = stream(
                 scene.seed,
                 0x434f_4e44_0000 + index as u64 * 2 + rank as u64,
@@ -51,8 +57,25 @@ pub(super) fn expand(
                 if pools[index].len() >= initial + 24 || !budget.path(scene) {
                     break;
                 }
-                let source = &sources[rng.random_range(0..sources.len())];
-                let mut camera = paths::nearby_path(source, &mut rng);
+                let mut camera = if !local.is_empty() && trial % 2 == 0 {
+                    let source = &pools[index][local[rng.random_range(0..local.len())]].camera;
+                    // Two synchronized trajectories can occupy different
+                    // sections of one narrow aisle without leaving free space.
+                    let fraction = rng.random_range(0.51..0.90);
+                    let start = if trial % 6 == 0 {
+                        0.
+                    } else if trial % 6 == 2 {
+                        1. - fraction
+                    } else {
+                        rng.random_range(0.0..=1. - fraction)
+                    };
+                    let Some(camera) = paths::section(source, start, start + fraction) else {
+                        continue;
+                    };
+                    camera
+                } else {
+                    paths::nearby_path(&sources[rng.random_range(0..sources.len())], &mut rng)
+                };
                 camera.fisheye = prototypes[index].lens;
                 camera.fov_degrees = prototypes[index].fov_degrees;
                 let pdf = scene.camera_settings.intrinsics_for(scene.seed, index);

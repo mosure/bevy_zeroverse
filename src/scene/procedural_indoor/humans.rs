@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     geometry::Geometry,
-    layout::{stream, IndoorManifest, ObjectKind, NEIGHBOR_DEPTH},
+    layout::{stream, IndoorManifest, ObjectKind},
     materials::IndoorMaterials,
 };
 use crate::{
@@ -837,22 +837,18 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         return false;
     }
     let half = scene.room_size * 0.5;
-    let zmin = if person.neighbor {
-        half.z + 0.30
+    let in_room = if person.neighbor {
+        scene
+            .adjoining_space()
+            .contains_bounds(scene.room_size, lo.xz(), hi.xz(), 0.30)
+            && hi.y <= scene.minimum_ceiling_height(lo.xz(), hi.xz()) - 0.15
     } else {
-        -half.z + 0.30
+        lo.x >= -half.x + 0.30
+            && hi.x <= half.x - 0.30
+            && lo.z >= -half.z + 0.30
+            && hi.z <= half.z - 0.30
     };
-    let zmax = if person.neighbor {
-        half.z + NEIGHBOR_DEPTH - 0.30
-    } else {
-        half.z - 0.30
-    };
-    if lo.x < -half.x + 0.30
-        || hi.x > half.x - 0.30
-        || lo.z < zmin
-        || hi.z > zmax
-        || hi.y > scene.room_size.y - 0.40
-    {
+    if !in_room || hi.y > scene.room_size.y - 0.40 {
         return false;
     }
     if !person.neighbor

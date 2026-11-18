@@ -10,14 +10,7 @@ fn vertex(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
 }
 @fragment
 fn fragment(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let origin = vec2<i32>(position.xy) * i32(params.factor);
-    var value = vec4<f32>(0.0);
-    for (var y = 0u; y < params.factor; y++) {
-        for (var x = 0u; x < params.factor; x++) {
-            value += textureLoad(source, origin + vec2<i32>(i32(x), i32(y)), 0);
-        }
-    }
-    value /= f32(params.factor * params.factor);
+    var value = area_average(source, vec2<i32>(position.xy), params.factor);
     if params.normal != 0u {
         let n = value.xyz * 2.0 - vec3<f32>(1.0);
         if dot(n, n) > 1e-12 { value = vec4<f32>(normalize(n) * 0.5 + vec3<f32>(0.5), value.w); }

@@ -87,7 +87,9 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   panes, transom counts, sash sections, seals and projecting sill materials.
 - **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
   classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
-  seating and circulation areas have placement and clearance constraints. Lecture
+  seating and circulation areas have placement and clearance constraints.
+  Conference layouts range from small meeting tables to long, four-sided
+  boardrooms with space behind the chairs for the entrance. Lecture
   halls mix chair-only seating with tiered shared desks; cafeterias mix small
   dining groups with tables seating multiple people on both sides. Row spacing,
   seat position, rotation and vacancies vary while preserving clear passages. Doors

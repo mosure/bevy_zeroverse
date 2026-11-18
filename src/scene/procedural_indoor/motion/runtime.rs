@@ -78,6 +78,9 @@ impl AnimatedPart {
             interval: joint.interval,
             pivot: joint.pivot,
             frame: joint.frame,
+            roller_feed: joint
+                .roller_feed
+                .filter(|_| key.1.split('#').any(|s| s == "roller")),
             axis: joint.axis,
             angle: joint.angle,
             translation: joint.translation,
@@ -115,23 +118,26 @@ fn animate(
             let Some(mut mesh) = meshes.get_mut(&mesh.0) else {
                 continue;
             };
-            let p: Vec<_> = start
+            let t = amount * part.joint.adjustment.morph;
+            let positions = start
                 .positions
                 .iter()
                 .zip(&end.positions)
-                .map(|(a, b)| {
-                    Vec3::from_array(*a)
-                        .lerp(Vec3::from_array(*b), amount * part.joint.adjustment.morph)
-                        .to_array()
-                })
-                .collect();
+                .map(|(a, b)| (Vec3::from_array(*a), Vec3::from_array(*b)));
+            let p: Vec<_> = if let Some(feed) = part.joint.roller_feed {
+                positions
+                    .map(|(a, b)| feed.interpolate(a, b, t).to_array())
+                    .collect()
+            } else {
+                positions.map(|(a, b)| a.lerp(b, t).to_array()).collect()
+            };
             let (lo, hi) = p.iter().map(|p| Vec3::from_array(*p)).fold(
                 (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
                 |(a, b), p| (a.min(p), b.max(p)),
             );
             mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, p);
             // Actual deformed surface frames: no stale normals or tangents when
-            // folding cloth. Indices, entity/mesh IDs and metric UVs stay fixed.
+            // folding cloth. Indices and entity/mesh IDs stay fixed.
             mesh.compute_smooth_normals();
             // Rounded mechanical parts contain collapsed bevel triangles with
             // analytic normals. Preserve stationary vertices and use the

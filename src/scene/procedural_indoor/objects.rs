@@ -93,16 +93,22 @@ impl Assembly {
             if geometry.indices.is_empty() {
                 continue;
             }
+            let semantic = SemanticLabel::from_label(part_label(&label))
+                .expect("indoor semantic vocabulary is valid");
+            let backlit =
+                super::materials::window_textile::receives_transmitted_shadows(surface, &semantic);
             let mut entity = commands.spawn((
                 Name::new(format!("{label}/{surface:?}")),
                 Mesh3d(meshes.add(geometry.into_mesh())),
                 MeshMaterial3d(materials.for_part(surface, &label)),
-                SemanticLabel::from_label(part_label(&label))
-                    .expect("indoor semantic vocabulary is valid"),
+                semantic,
                 IndoorSurface(surface),
                 OvoxelTracked,
                 ChildOf(parent),
             ));
+            if backlit {
+                entity.insert(bevy::light::TransmittedShadowReceiver);
+            }
             if label.split('#').any(|tag| tag == "exterior") {
                 entity.insert(OvoxelExcluded);
             }

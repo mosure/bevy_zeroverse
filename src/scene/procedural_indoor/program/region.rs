@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn primary_selection_uses_furnishings_is_archived_and_stays_fixed() {
-        for (seed, legacy) in [(65574761, 0), (65575086, 3), (65575252, 1)] {
+        for seed in [65574761, 65575086, 65575252] {
             let mut scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
                     .unwrap();
@@ -279,8 +279,14 @@ mod tests {
                 .unwrap()
                 .remove("primary_zone");
             let archived: IndoorManifest = serde_json::from_value(archived).unwrap();
-            let zone = &archived.program.as_ref().unwrap().zones[legacy];
-            assert_eq!(archived.primary_room_bounds(), (zone.min, zone.max));
+            let footprint = &archived.envelope.as_ref().unwrap().footprint;
+            let zones = &archived.program.as_ref().unwrap().zones;
+            let (lo, hi) = archived.primary_room_bounds();
+            assert!(zones.iter().any(|z| (z.min, z.max) == (lo, hi)));
+            let legacy_area = clipped_area(footprint, lo, hi);
+            assert!(zones
+                .iter()
+                .all(|z| clipped_area(footprint, z.min, z.max) <= legacy_area));
             // An invalid archived index is a validation error, never a panic.
             scene.program.as_mut().unwrap().primary_zone = Some(usize::MAX);
             assert!(scene.program.as_ref().unwrap().validate(&scene).is_err());

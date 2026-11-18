@@ -48,6 +48,38 @@ concrete programs uniformly. Explicit choices are `conference`, `open-office`,
 `lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
 `studio`, `kitchenette`, `kitchen`, `elevator-landing`, `cafe`, `cafeteria`,
 `classroom`, `lecture-hall`, `showroom`, `gallery`, and `public-suite`.
+
+Within `conference`, 55% of seeds draw an executive boardroom. General
+meeting and suite layouts also support small, nearly round tables. The same
+distribution applies when `mixed` draws Conference. Executive tables grow
+mainly along their two side rows, with independently varied width, one or two
+end seats, joined top panels and a multi-bay frame. The room reserves level
+floor for the chairs and a separate door approach behind their backs.
+
+At density 0.65, 355 of 640 Conference rooms had an installed executive
+boardroom (seeds 0–511 and 1000–1127). Quantiles describe those 355 rooms.
+
+| Installed boardroom measure | 10th percentile | Median | 90th percentile |
+| --- | ---: | ---: | ---: |
+| Table length | 4.22 m | 5.87 m | 10.08 m |
+| Table width | 1.70 m | 2.17 m | 2.73 m |
+| Installed seats | 8 | 11 | 20 |
+| Floor occupied by the tabletop polygon | 14.9% | 20.2% | 28.9% |
+| Floor enclosed by the table and seated chairs | 40.0% | 49.2% | 59.8% |
+
+These frequencies are generator design choices. Manufactured conference
+tables provide a dimensional reference for the small and medium range. The
+Eames line, for example, offers tops 1.52–6.71 m long and 0.76–1.52 m wide.
+[Herman Miller product dimensions](https://www.hermanmiller.com/content/dam/hermanmiller/documents/product_literature/product_sheets/eames_conference_table_product_sheet.pdf)
+
+`IndoorManifest::executive_boardroom()` and the `executive_boardroom` field in
+`architecture.jsonl` report the installed dimensions, seat count, tabletop
+area, seating envelope area and room floor area. The seating envelope is the
+table-aligned rectangle enclosing the tabletop and settled chairs. At density
+0.65, seed 1084 has a 2.51 × 2.19 m four-seat meeting table. Seed 1032 has a
+5.81 × 1.94 m ten-seat board. Seed 1057 has a 14.86 × 3.69 m thirty-seat
+flagship board with 40.4% tabletop floor coverage and a 66.9% seating envelope.
+
 Kitchen profiles create connected service
 stations and supported cooking/storage accessories; see
 [procedural kitchens](procedural_kitchens.md). The other profiles bias continuous activity mixtures; they are not fixed room
@@ -63,6 +95,17 @@ support relationships, camera paths and optional world rotation.
 - Furniture placement blends activity priors over continuously sampled functional
   zones, partitions, spacing, object proportions and coordinated finishes.
   Supporting surfaces and circulation space constrain placement.
+- Office workstations can form rear-to-rear desk banks with outward seating.
+  The available depth determines whether both desks and chairs fit. Other zones
+  retain separate rows, and teaching rows share a forward direction. Desks
+  include telescoping column frames, offset feet and optional timber, fabric or
+  metal modesty panels. The seat and body clearance queries cover these parts.
+  The metrics export records the fraction of admitted desks in opposed banks
+  and the measured gap between them. The [workstation and surface study](qualification/workstations_and_surface_mapping.md)
+  includes realized frequencies and rendered foreground co-visibility.
+- Turned objects such as planters, vessels and lamp bases use planar material
+  coordinates on flat caps and rims. Curved sides follow distance along the
+  profile, keeping the PBR maps continuous across changes in taper.
 - Tables blend ellipse, racetrack, rounded polygon, tapered and boat-shaped
   outlines. Conference programs sample larger spans (up to roughly 10 m where
   room clearance permits), with repeated T-foot, twin-column, trestle, portal,
@@ -113,20 +156,43 @@ support relationships, camera paths and optional world rotation.
 - The polygonal envelope and sloping ceiling determine wall meshes, exterior
   apertures, inset frames, mullions, sills, shades and fixture heights. Window
   area can span multiple facades, with tall, ribbon or stacked openings.
+  Window textiles have independently sampled dye and lining. Unlined, dimout
+  and blackout stocks reuse the woven PBR maps. Roller fabric feeds over the
+  head rail at constant weave scale, and Roman folds drape between lift lines.
+  Woven-wood sliding screens park on separate tracks. Gaps between their
+  splints admit light and reveal the background in RGB and geometric annotations.
+  The daylight meter accounts for the width occupied by stacked panels.
   An internal glazed partition connects the furnished neighboring room.
 - Arched portals, pillars, acoustic treatments, trim and ventilation add structural
   detail. Raised and sunken floors have treads and risers; mezzanines include
-  supports, stairs, guards and furnishings. The courtyard cut-in remains empty.
+  supports, stairs, guards and furnishings. Opaque perimeter walls can carry
+  veneer, acoustic fabric or ceramic slab linings. The manifest records their
+  installed height, module pitch, recessed joints and finish. Panels end at the
+  actual openings and share the wall semantic class.
+  Interior columns can be cast concrete, painted plaster, timber veneer or sheet
+  metal. Wrapped shafts can have recessed horizontal joints and a separate base.
+  Their texture coordinates follow the perimeter in metres and their tops follow
+  the local ceiling slope.
 - Wood, flooring, fabric, paint, foliage, concrete and other surfaces have distinct
   material roles and correlated construction/finish samplers. Each supported
   substrate blends four physical process regions with continuous scale and finish
   variation. Generated 256²/512² maps use metric UVs, linear normal/roughness data,
   sRGB albedo and full mip chains. Flooring includes varied timber/mineral
-  installations, carpet and rug pile. Mesh parts remain batched by material and
+  installations, heathered carpet yarns, colored flecks and rug pile. Carpet
+  pile influences roughness and relief. Mineral floors can use matching or
+  contrasting grout. Mesh parts remain batched by material and
   semantic class within each instance, with bounded texture slots.
 - Daylight, overcast and evening vary sun direction/intensity, luminaire output,
   exposure and color temperature. Shadowed lights, transmission, a generated
   environment reflection proxy, native SSAO, FXAA and restrained bloom serve RGB.
+  Wall sconces can light the wall upward, downward or at a cant. Aperture
+  geometry determines their emission direction and diffuser luminance.
+  Recessed downlights have reflector cups, and some panel lights have a central
+  diffuser flanked by sloped reflectors. Cup depth, panel opening and louver
+  spacing shape the direct beam. The same angles also feed indirect lighting.
+  The irradiance bake samples the air inside the primary room and adjoining bay.
+  Grid cells above sloping ceilings and outside cutouts inherit nearby indoor
+  samples, keeping sunlit rooftop probes out of the interior interpolation.
   RGB postprocessing is removed from annotation passes.
 - Solid furniture uses rotated footprint rejection, wall margins and a clear
   doorway approach. Props have explicit supporting surfaces. Cameras use continuous

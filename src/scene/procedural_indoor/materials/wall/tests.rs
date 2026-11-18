@@ -219,3 +219,30 @@ fn wallpaper_motifs_are_distinct_and_share_the_gpu_recipe_contract() {
     }
     assert_eq!(signatures.len(), 5);
 }
+
+#[test]
+fn rubbed_binder_varies_specular_response_in_surface_coordinates() {
+    let r = program::sample(9)[Surface::Paint as usize].clone();
+    let mut worn = (0..100)
+        .find_map(|seed| WallFinish::sample(seed, Surface::Paint))
+        .unwrap();
+    worn.rubbed_finish = 1.;
+    let mut pristine = worn.clone();
+    pristine.rubbed_finish = 0.;
+    let mut roughness_range = [1.0_f32, 0.0_f32];
+    for x in 0..32 {
+        for y in 0..32 {
+            let uv = [x as f32 / 32., y as f32 / 32.];
+            let base = pristine.evaluate(&r, uv);
+            let aged = worn.evaluate(&r, uv);
+            let delta = base.roughness - aged.roughness;
+            roughness_range = [roughness_range[0].min(delta), roughness_range[1].max(delta)];
+            assert!(
+                delta >= 0.
+                    && aged.gain[0] <= base.gain[0]
+                    && aged.height.abs() <= base.height.abs()
+            );
+        }
+    }
+    assert!(roughness_range[0] < 0.001 && roughness_range[1] > 0.13);
+}

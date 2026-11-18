@@ -187,26 +187,21 @@ pub(crate) fn source_power_normal(o: &IndoorObject) -> Option<Vec3> {
     }
 }
 
-/// Emitter outside its downward diffuser. The caller uses this same result for
-/// direct lighting and diffuse transport, preserving the physical contract.
-pub(crate) fn fixture_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
-    let mut rng = stream(o.seed, 5720);
-    let (local, diffuser_fraction) = if o.kind == ObjectKind::CeilingPendant {
-        (
-            Vec3::new(0., o.size.y * 0.05 - 0.003, 0.),
-            parameters(o).diffuser_fraction,
-        )
+pub(crate) fn fixture_beam(o: &IndoorObject) -> super::super::photometry::FixtureBeam {
+    let mut rng = stream(o.seed, 0x4245414d434f4e45);
+    let (local, direction) = if o.kind == ObjectKind::CeilingPendant {
+        (Vec3::new(0., o.size.y * 0.05 - 0.003, 0.), Vec3::NEG_Y)
     } else {
         let p = sconce::parameters(o);
-        (p.emitter, p.diffuser_radius * 2. / p.head_span.x)
+        (p.emitter, p.mount_rotation * Vec3::NEG_Y)
     };
-    (
-        o.transform().transform_point(local),
-        super::super::materials::kelvin_rgb(rng.random_range(2400.0..6500.0)),
-        rng.random_range(350.0..1700.0) * (0.75 + diffuser_fraction * 0.5),
-        rng.random_range(0.37..0.64),
-        rng.random_range(0.82..1.18),
-    )
+    let world = o.transform();
+    super::super::photometry::FixtureBeam {
+        position: world.transform_point(local),
+        direction: world.rotation * direction,
+        inner: rng.random_range(0.37..0.64),
+        outer: rng.random_range(0.82..1.18),
+    }
 }
 
 #[cfg(test)]

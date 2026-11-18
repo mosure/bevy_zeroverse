@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
     camera::PlaybackMode,
-    headless::{create_app, setup_globals, update_capture},
+    headless::{create_app, setup_globals, try_update_capture},
     io::channels,
     render::{depth::DepthFormat, RenderMode},
     sample::{CaptureFailure, CapturePollBackoff, CaptureProgress, SamplerState},
@@ -57,6 +57,9 @@ struct Args {
     /// JSON camera placement policy, identical to viewer/capture CLI.
     #[arg(long)]
     indoor_camera: Option<String>,
+    /// Same sampled material, illumination and RGB sensor policy as dataset generation.
+    #[arg(long)]
+    indoor_appearance: Option<String>,
     #[arg(long)]
     no_gi: bool,
     /// Exercise the independent CPU transport oracle and bounded prefetch.
@@ -90,6 +93,9 @@ struct Args {
     /// Add lossless same-time camera membership to the measured capture modes.
     #[arg(long)]
     co_visibility: bool,
+    /// Include forward optical flow and normalized displacements for a temporal comparison.
+    #[arg(long)]
+    flow: bool,
     /// Repeated capture of a fixed scene distinguishes residency from regeneration.
     #[arg(long)]
     fixed_scene: bool,
@@ -151,6 +157,9 @@ fn heap_memory() -> serde_json::Value {
 fn main() -> Result<()> {
     let app_started = Instant::now();
     let args = Args::parse();
+    if let Some(s) = &args.indoor_appearance {
+        procedural_indoor::appearance::AppearanceSettings::parse(s).map_err(anyhow::Error::msg)?;
+    }
     if let Some(threads) = args.task_pool_threads {
         bevy::app::TaskPoolOptions::with_num_threads(threads as usize).create_default_pools();
     }
@@ -221,10 +230,14 @@ fn main() -> Result<()> {
     if args.co_visibility {
         modes.push(RenderMode::CoVisibility);
     }
+    if args.flow {
+        modes.extend([RenderMode::OpticalFlow, RenderMode::MotionVectors]);
+    }
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
         indoor_camera: args.indoor_camera.clone(),
+        indoor_appearance: args.indoor_appearance.clone(),
         indoor_human_density: args.human_density,
         indoor_quality: args.quality,
         indoor_gi_rays: args.gi_rays,
@@ -309,7 +322,7 @@ fn main() -> Result<()> {
         .clone();
     app.cleanup();
     for _ in 0..4 {
-        app.update();
+        try_update_capture(&mut app)?;
     }
     let startup_seconds = app_started.elapsed().as_secs_f64();
     let mut measured_stream_started = None;
@@ -339,7 +352,7 @@ fn main() -> Result<()> {
         if index == 0 || !args.fixed_scene {
             procedural_indoor::reset_indoor_sequence(app.world_mut(), seed);
             app.world_mut().write_message(RegenerateSceneEvent);
-            app.update();
+            try_update_capture(&mut app)?;
         }
         let request_seconds = start.elapsed().as_secs_f64();
         let mut state = SamplerState::from_config(&config);
@@ -366,7 +379,7 @@ fn main() -> Result<()> {
                 }
             };
             let update_started = Instant::now();
-            let updated = update_capture(&mut app);
+            let updated = try_update_capture(&mut app)?;
             let seconds = update_started.elapsed().as_secs_f64();
             let phase = if updated {
                 phase
@@ -407,6 +420,7 @@ fn main() -> Result<()> {
             fs::write(
                 directory.join("sample.json"),
                 serde_json::to_vec_pretty(&serde_json::json!({
+                    "camera_sensor":sample.indoor_render_metadata.as_ref().and_then(|m| m.get("camera_sensor")),
                     "aabb":sample.aabb,"obbs":sample.object_obbs,"human_poses":sample.human_pose_steps,
                     "human_ids":sample.human_instance_ids,"camera_qualification":sample.indoor_render_metadata.as_ref().and_then(|m| m.get("camera_qualification")),
                     "views":sample.views.iter().map(|v| serde_json::json!({"world_from_view":v.world_from_view,"calibration":v.calibration,"time":v.time})).collect::<Vec<_>>()
@@ -420,6 +434,8 @@ fn main() -> Result<()> {
                     ("position", &view.position),
                     ("semantic", &view.semantic),
                     ("co_visibility", &view.co_visibility),
+                    ("optical_flow", &view.optical_flow),
+                    ("motion_vectors", &view.motion_vectors),
                 ] {
                     if !plane.is_empty() {
                         fs::write(

@@ -2,6 +2,86 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::IndoorLayout, objects::audit};
 
 #[test]
+fn realized_cups_and_troffers_have_recessed_emitters_and_flux_normalized_beams() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let position = Vec3::new(0.73, 2.31, -1.45);
+    let mut counts = [0usize; 3];
+    for seed in 0..192 {
+        scene.seed = seed;
+        let p = parameters_at(&scene, position);
+        let insert = optical_insert(&scene, &p);
+        let s = size(&scene, position);
+        let (inner, outer) = beam_angles(&scene, 0, position);
+        assert!(inner > 0. && inner < outer && outer < std::f32::consts::FRAC_PI_2);
+        // Integrate the actual squared cosine falloff over solid angle.
+        let peak = super::super::spot_intensity_for_lumens(2300., inner, outer)
+            / (4. * std::f32::consts::PI);
+        let flux: f32 = (0..1024)
+            .map(|i| {
+                let cos = (i as f32 + 0.5) / 1024.;
+                peak * ((cos - outer.cos()) / (inner.cos() - outer.cos()))
+                    .clamp(0., 1.)
+                    .powi(2)
+            })
+            .sum::<f32>()
+            * std::f32::consts::TAU
+            / 1024.;
+        assert!((flux / 2300. - 1.).abs() < 0.0001);
+        let (expected_y, expected_area) = match insert {
+            OpticalInsert::Basket { width, recess, .. } => {
+                counts[0] += 1;
+                (
+                    s.y * (recess - 0.5),
+                    s.x * s.z * (1. - 2. * p.border_fraction).powi(2) * width,
+                )
+            }
+            OpticalInsert::Cup { throat, recess, .. } => {
+                counts[1] += 1;
+                let (count, _, r) = cells(s);
+                let rim = r * p.opening_fraction;
+                let depth = optics::cup_depth(s.y, rim, recess);
+                assert!(outer <= ((1. + throat) * rim).atan2(depth) + 1e-6);
+                (
+                    depth - s.y * 0.5,
+                    count as f32
+                        * 16.
+                        * (std::f32::consts::TAU / 32.).sin()
+                        * (rim * throat).powi(2),
+                )
+            }
+            _ => {
+                counts[2] += 1;
+                continue;
+            }
+        };
+        let a = geometry(&scene, 0, position);
+        let g = &a.parts[&(Surface::Light, "lamp#0".into())];
+        let inv = rotation(&scene, position).inverse();
+        let mut area = 0.;
+        for t in g.indices.as_chunks::<3>().0 {
+            let [a, b, c] = [t[0], t[1], t[2]]
+                .map(|i| inv * (Vec3::from_array(g.positions[i as usize]) - position));
+            assert!([a, b, c].iter().all(|p| (p.y - expected_y).abs() < 3e-6));
+            area += (b - a).cross(c - a).dot(Vec3::NEG_Y) * 0.5;
+        }
+        assert!((area / expected_area - 1.).abs() < 0.0001);
+        assert!((area / emitting_area_at(&scene, position) - 1.).abs() < 0.0001);
+    }
+    assert!(counts.iter().all(|&n| n >= 10), "{counts:?}");
+    scene.generator_version = 127;
+    assert_eq!(
+        optical_insert(&scene, &parameters(&scene)),
+        OpticalInsert::Plain
+    );
+    let mut r = stream(scene.seed, 192);
+    assert_eq!(
+        beam_angles(&scene, 0, position),
+        (r.random_range(0.48..0.90), r.random_range(1.02..1.40))
+    );
+}
+
+#[test]
 fn ring_apertures_cover_broad_bands_and_thin_hoops_without_clamp_piles() {
     let mut scene =
         IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
