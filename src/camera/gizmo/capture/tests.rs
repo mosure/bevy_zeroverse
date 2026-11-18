@@ -31,7 +31,11 @@ fn drawings(world: &mut World) -> Vec<(RenderLayers, Vec<Vec3>)> {
                 layers.clone(),
                 data.list_positions
                     .iter()
-                    .chain(data.strip_positions.iter())
+                    .chain(
+                        data.strip_positions
+                            .iter()
+                            .filter(|p| !(p.x.is_nan() && p.y.is_nan() && p.z.is_nan())),
+                    )
                     .copied()
                     .collect(),
             )
