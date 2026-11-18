@@ -528,6 +528,7 @@ fn main() -> Result<()> {
                     .arg("--worker-job-id")
                     .arg(job.job_id.to_string());
 
+                append_rgb_gizmo_args(&mut cmd, &cli.rgb_gizmos);
                 if let Some(camera) = &cli.indoor_camera {
                     cmd.arg("--indoor-camera").arg(camera);
                 }
@@ -819,6 +820,27 @@ fn build_ui_config(
     }
 }
 
+fn append_rgb_gizmo_args(
+    command: &mut std::process::Command,
+    overlays: &bevy_zeroverse::camera::gizmo::RgbGizmos,
+) {
+    for (enabled, flag) in [
+        (overlays.object_obbs, "--rgb-object-obbs"),
+        (overlays.human_poses, "--rgb-human-poses"),
+        (overlays.camera_frustums, "--rgb-camera-frustums"),
+        (overlays.camera_trajectories, "--rgb-camera-trajectories"),
+    ] {
+        if enabled {
+            command.arg(flag);
+        }
+    }
+    if overlays.camera_scale != bevy_zeroverse::camera::gizmo::scale::default() {
+        command
+            .arg("--rgb-camera-gizmo-scale")
+            .arg(overlays.camera_scale.to_string());
+    }
+}
+
 fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
     anyhow::ensure!(
         !cli.schematic || cli.scene_type == ZeroverseSceneType::ProceduralIndoor,
@@ -1054,13 +1076,31 @@ mod process_limit_tests {
     use super::*;
 
     #[test]
+    fn rgb_gizmos_reach_supervised_render_workers() {
+        use bevy_zeroverse::camera::gizmo::RgbGizmos;
+        for mask in 0..16 {
+            let requested = RgbGizmos {
+                object_obbs: mask & 1 != 0,
+                human_poses: mask & 2 != 0,
+                camera_frustums: mask & 4 != 0,
+                camera_trajectories: mask & 8 != 0,
+                camera_scale: 1.75,
+            };
+            let mut cmd = std::process::Command::new("zeroverse_gen");
+            cmd.args(["--output", "unused"]);
+            append_rgb_gizmo_args(&mut cmd, &requested);
+            let child =
+                Cli::try_parse_from(std::iter::once(cmd.get_program()).chain(cmd.get_args()))
+                    .unwrap();
+            assert_eq!(child.rgb_gizmos, requested);
+        }
+    }
+
+    #[test]
     fn rgb_gizmos_are_part_of_the_archive_resume_contract() {
         let dir = tempfile::tempdir().unwrap();
-        let mut cli = indoor(&[
-            "--output",
-            dir.path().to_str().unwrap(),
-            "--rgb-object-obbs",
-        ]);
+        let mut cli = indoor(&["--rgb-object-obbs", "--color-codec", "raw"]);
+        cli.output = dir.path().to_path_buf();
         prepare_generation_metadata(&mut cli).unwrap();
         let receipt: serde_json::Value = serde_json::from_slice(
             &std::fs::read(dir.path().join("generation_config.json")).unwrap(),
