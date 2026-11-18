@@ -11,6 +11,26 @@ mod tests;
 mod upper;
 pub use audience::is_folded;
 
+/// Nominal floor footprint in metres. Seats ordered for one table share
+/// product proportions. An independently selected replacement can differ.
+pub(crate) fn footprint(family: u32, collection: u64, instance: u64) -> Vec2 {
+    let mut item = stream(instance, 0x4348_4149_5253_495a);
+    let product = if item.random_bool(0.85) {
+        collection
+    } else {
+        instance
+    };
+    let mut r = stream(product, 0x4348_4149_5246_4954 + u64::from(family));
+    let (compact, large) = match family % FAMILIES {
+        6 | 7 => (Vec2::new(0.48, 0.48), Vec2::new(0.67, 0.66)),
+        2..=4 => (Vec2::new(0.54, 0.54), Vec2::new(0.71, 0.72)),
+        _ => (Vec2::new(0.60, 0.58), Vec2::new(0.80, 0.80)),
+    };
+    let scale = r.random::<f32>();
+    let proportions = Vec2::new(scale, 0.50 * scale + 0.50 * r.random::<f32>());
+    compact + (large - compact) * proportions
+}
+
 /// The existing human pelvis/back support contract is an upright seated pose.
 /// Extended recliners need a reclined leg/torso fit and must not receive that pose.
 pub(crate) fn supports_upright_occupant(o: &IndoorObject) -> bool {

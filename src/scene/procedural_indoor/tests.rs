@@ -478,7 +478,7 @@ fn neighboring_room_furniture_and_conference_seats_fit() {
             assert!(lo.x >= -scene.room_size.x * 0.5 + 0.299);
             assert!(hi.x <= scene.room_size.x * 0.5 - 0.299);
             assert!(lo.z >= scene.room_size.z * 0.5 + 0.299);
-            assert!(hi.z <= scene.room_size.z * 0.5 + NEIGHBOR_DEPTH - 0.299);
+            assert!(hi.z <= scene.room_size.z * 0.5 + scene.adjoining_space().max_depth() - 0.299);
             for other in neighbor.iter().skip(i + 1) {
                 let (a, b) = other.bounds();
                 assert!(
@@ -547,20 +547,27 @@ fn loaded_manifests_reject_pillars_neighbor_overlaps_and_bad_supports() {
         validate_layout(&scene).is_err(),
         "loaded furniture intersects a pillar"
     );
-    let mut scene = baseline.clone();
-    let ids: Vec<_> = scene
-        .objects
-        .iter()
-        .filter(|o| o.solid && o.neighbor)
-        .map(|o| o.id)
-        .collect();
-    scene.objects[ids[1]].position = scene.objects[ids[0]].position;
+    let (furnished_bay, neighbor) = (0..16)
+        .find_map(|seed| {
+            let scene = IndoorManifest::generate(seed, IndoorLayout::Conference, 0.65, 0).unwrap();
+            let id = scene.objects.iter().find(|o| o.solid && o.neighbor)?.id;
+            Some((scene, id))
+        })
+        .expect("fixture has furniture in the adjoining bay");
+    validate_layout(&furnished_bay).unwrap();
+    let mut scene = furnished_bay.clone();
+    let mut duplicate = scene.objects[neighbor].clone();
+    duplicate.id = scene.objects.len();
+    scene.objects.push(duplicate);
     assert!(
-        validate_layout(&scene).is_err(),
+        validate_layout(&scene)
+            .unwrap_err()
+            .contains("neighbor furniture overlap"),
         "loaded neighboring furniture overlaps"
     );
-    let mut scene = baseline.clone();
-    scene.objects[ids[0]].position.z = scene.room_size.z * 0.5 + NEIGHBOR_DEPTH;
+    let mut scene = furnished_bay;
+    scene.objects[neighbor].position.z =
+        scene.room_size.z * 0.5 + scene.adjoining_space().max_depth();
     assert!(
         validate_layout(&scene).is_err(),
         "loaded neighboring furniture leaves the room"

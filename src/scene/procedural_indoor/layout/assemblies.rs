@@ -1,6 +1,8 @@
 //! Accepted functional groups and bounded, transactional meeting construction.
 //! Receipts describe actual support/seat relationships; layout names are priors.
 use super::*;
+mod boardroom;
+pub use boardroom::BoardroomSummary;
 pub mod finishes;
 mod meeting;
 mod perimeter;
@@ -41,6 +43,7 @@ pub struct AssemblyDiagnostics {
 
 impl IndoorManifest {
     pub(crate) fn validate_assemblies(&self) -> Result<(), String> {
+        let boardroom = self.program.as_ref().and_then(|p| p.executive_boardroom);
         for group in &self.assembly_diagnostics.accepted {
             let surface = self
                 .objects
@@ -53,6 +56,16 @@ impl IndoorManifest {
                 || (group.role == AssemblyRole::Meeting && group.seats.len() < 2)
             {
                 return Err("incomplete functional assembly".into());
+            }
+            if group.role == AssemblyRole::Meeting
+                && boardroom.is_some_and(|p| {
+                    surface.kind != ObjectKind::Table
+                        || surface.variant != super::super::objects::tables::BOARDROOM_VARIANT
+                        || !surface.size.xz().abs_diff_eq(p.table_size_m, 0.001)
+                        || group.seats.len() < 8
+                })
+            {
+                return Err("installed boardroom furniture disagrees with its program".into());
             }
             let mut ids = std::collections::BTreeSet::new();
             for &id in &group.seats {
@@ -75,7 +88,13 @@ impl IndoorManifest {
     pub(super) fn assign_assembly_finishes(&mut self) {
         for group in &self.assembly_diagnostics.accepted {
             let seed = self.objects[group.surface].seed;
-            let finish = finishes::parameters(seed);
+            let mut finish = finishes::parameters(seed);
+            if self.objects[group.surface].variant
+                == super::super::objects::tables::BOARDROOM_VARIANT
+                && self.objects[group.surface].kind == ObjectKind::Table
+            {
+                finish.seat_coherence = 0.78 + 0.22 * finish.seat_coherence;
+            }
             self.objects[group.surface].finish_seed = Some(seed);
             for &seat in &group.seats {
                 let object = &mut self.objects[seat];

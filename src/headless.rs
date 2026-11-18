@@ -179,6 +179,19 @@ pub fn update_capture(app: &mut App) -> bool {
     }
 }
 
+/// Advance a manually driven capture, propagating renderer shutdown before
+/// another frame can enqueue commands on a failed device.
+pub fn try_update_capture(app: &mut App) -> anyhow::Result<bool> {
+    if let Some(exit) = app.should_exit() {
+        anyhow::bail!("renderer exited: {exit:?}");
+    }
+    let updated = update_capture(app);
+    if let Some(exit) = app.should_exit() {
+        anyhow::bail!("renderer exited: {exit:?}");
+    }
+    Ok(updated)
+}
+
 pub fn create_app(
     app: Option<App>,
     override_args: Option<BevyZeroverseConfig>,
@@ -278,4 +291,26 @@ pub fn setup_globals(asset_root: Option<String>) {
     }
 
     channels::init_channels();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manual_capture_stops_on_the_first_fatal_frame() {
+        #[derive(Resource, Default)]
+        struct Frames(u32);
+        let mut app = App::new();
+        app.init_resource::<Frames>().add_systems(
+            Update,
+            |mut frames: ResMut<Frames>, mut exits: MessageWriter<AppExit>| {
+                frames.0 += 1;
+                exits.write(AppExit::error());
+            },
+        );
+        assert!(try_update_capture(&mut app).is_err());
+        assert!(try_update_capture(&mut app).is_err());
+        assert_eq!(app.world().resource::<Frames>().0, 1);
+    }
 }

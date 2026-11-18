@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 use crate::scene::procedural_indoor::{
     appearance::AppearanceSettings,
     architecture,
@@ -146,29 +147,31 @@ fn runtime_lamp_lights_match_exportable_power_and_preserve_shadow_budget() {
     assert_eq!(points.len(), 1);
     let power = lamp(&scene, &scene.objects[0]);
     assert_eq!(points[0].intensity, power.lumens);
-    assert_eq!(
-        points[0].color,
-        Color::srgb(power.color.x, power.color.y, power.color.z)
-    );
+    assert_eq!(points[0].color, source_color(&scene, power.color));
     assert!(points[0].shadow_maps_enabled);
-    let spots: Vec<_> = world.query::<(&Name, &SpotLight)>().iter(&world).collect();
+    let spots: Vec<_> = world
+        .query::<(&Name, &SpotLight, &Transform)>()
+        .iter(&world)
+        .collect();
     assert_eq!(
         spots.len(),
         architecture::fixture_positions(&scene).len() + 3
     );
     for o in &scene.objects[1..] {
-        let (_, light) = spots
+        let (_, light, pose) = spots
             .iter()
-            .find(|(name, _)| name.as_str() == format!("indoor_desk_lamp_{}", o.id))
+            .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", o.id))
             .unwrap();
         let power = lamp(&scene, o);
-        let (_, c, flux, inner, outer) = architecture::object_fixture_photometry(&scene, o);
-        assert_eq!((c, flux), (power.color, power.lumens));
+        let (beam, source) = architecture::object_fixture_photometry(&scene, o);
+        assert_eq!((source.color, source.lumens), (power.color, power.lumens));
+        assert!(Vec3::from(pose.forward()).abs_diff_eq(beam.direction, 1e-5));
+        assert!(pose.translation.abs_diff_eq(beam.position, 1e-6));
         assert_eq!(
             light.intensity,
-            architecture::spot_intensity_for_lumens(power.lumens, inner, outer)
+            architecture::spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer)
         );
-        assert_eq!(light.color, Color::srgb(c.x, c.y, c.z));
+        assert_eq!(light.color, source_color(&scene, source.color));
         assert!(light.shadow_maps_enabled);
     }
 }
@@ -246,27 +249,42 @@ fn desk_lamp_base_keeps_metric_texture_pitch() {
         let o = audit::fixture(ObjectKind::DeskLamp, seed);
         let p = objects::accessories::lamp_parameters(&o);
         let a = objects::build_object(&o);
-        let mut max_span = 0_f32;
+        let mut side_span = 0_f32;
+        let mut cap_span = 0_f32;
         for g in a.parts.values() {
             for tri in g.indices.as_chunks::<3>().0 {
                 if tri
                     .iter()
-                    .all(|i| g.positions[*i as usize][1] < o.size.y * 0.056)
+                    .any(|&i| g.positions[i as usize][1] >= o.size.y * 0.056)
                 {
-                    for j in 0..3 {
-                        let i = tri[j] as usize;
-                        let k = tri[(j + 1) % 3] as usize;
-                        max_span = max_span.max((g.uvs[i][0] - g.uvs[k][0]).abs());
+                    continue;
+                }
+                let cap = tri.iter().all(|&i| g.normals[i as usize][1].abs() > 0.999);
+                let side = tri.iter().all(|&i| g.normals[i as usize][1].abs() < 0.001);
+                for j in 0..3 {
+                    let i = tri[j] as usize;
+                    let k = tri[(j + 1) % 3] as usize;
+                    let span = (g.uvs[i][0] - g.uvs[k][0]).abs();
+                    if cap {
+                        cap_span = cap_span.max(span);
+                    }
+                    if side {
+                        side_span = side_span.max(span);
                     }
                 }
             }
         }
-        // Twenty radial segments; float phase offsets from the finish sampler
-        // must not rescale the metric UV intervals.
-        let expected = std::f32::consts::TAU * o.size.x * p.base_width / 20.;
+        // The cap's planar chart spans a radius from centre to rim. On the
+        // cylindrical chart each of the twenty rim segments spans an arc.
+        let radius = o.size.x * p.base_width;
+        let arc = std::f32::consts::TAU * radius / 20.;
         assert!(
-            (max_span - expected).abs() < 1e-5,
-            "seed {seed}: {max_span} vs {expected}"
+            (cap_span - radius).abs() < 1e-5,
+            "seed {seed}: cap {cap_span} vs {radius}"
+        );
+        assert!(
+            (side_span - arc).abs() < 1e-5,
+            "seed {seed}: side {side_span} vs {arc}"
         );
     }
 }

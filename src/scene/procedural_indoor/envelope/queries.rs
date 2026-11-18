@@ -314,6 +314,9 @@ impl EnvelopeProgram {
             {
                 return Err("invalid or duplicated envelope wall".into());
             }
+            if w.lining.is_some_and(|s| !s.valid()) {
+                return Err("invalid interior wall lining".into());
+            }
             if let Some(f) = &w.facade {
                 if self.wall_thickness_m.is_some()
                     && (f.recess + f.frame_depth * 0.5 > self.wall_thickness() + 0.002

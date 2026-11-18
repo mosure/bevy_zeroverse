@@ -18,6 +18,25 @@ pub(crate) fn validate_prepared_layout(
     // Integrity failures remain fatal even when a required anchor is also absent.
     let placement_rejection = validate_layout_integrity(scene)?;
     scene.validate_public_programs_typed()?;
+    if scene
+        .program
+        .as_ref()
+        .is_some_and(|p| p.executive_boardroom.is_some())
+        && !scene
+            .assembly_diagnostics
+            .accepted
+            .iter()
+            .any(|g| g.role == super::layout::assemblies::AssemblyRole::Meeting)
+    {
+        return Err(crate::sample::failure::CaptureError::rejected(
+            scene.seed,
+            crate::sample::failure::SceneRejectionKind::MissingProgramAnchor,
+            format!(
+                "seed {}: executive boardroom table and seats were not admitted",
+                scene.seed
+            ),
+        ));
+    }
     if scene.missing_kitchen_program() {
         return Err(crate::sample::failure::CaptureError::rejected(
             scene.seed,
@@ -57,6 +76,9 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             "seed {}: invalid scene dimensions, density, transform or lighting",
             scene.seed
         ));
+    }
+    if let Some(bay) = scene.adjoining {
+        bay.validate(scene.room_size.x)?;
     }
     scene.camera_settings.validate()?;
     scene.validate_doors()?;
@@ -259,12 +281,12 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
                 });
             }
             if object.neighbor {
-                let half = scene.room_size * 0.5;
-                if lo.x < -half.x + 0.299
-                    || hi.x > half.x - 0.299
-                    || lo.z < half.z + 0.299
-                    || hi.z > half.z + super::layout::NEIGHBOR_DEPTH - 0.299
-                {
+                if !scene.adjoining_space().contains_bounds(
+                    scene.room_size,
+                    lo.xz(),
+                    hi.xz(),
+                    0.299,
+                ) {
                     return fail("neighbor furniture intersects room boundary or partition");
                 }
                 for other in scene

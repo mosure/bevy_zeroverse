@@ -6,7 +6,10 @@ pub(super) fn build(a: &mut Assembly, scene: &IndoorManifest) {
     let mut rng = stream(scene.seed, 6370);
     let half = scene.room_size.xz() * 0.5;
     let lo = Vec2::new(-half.x - 0.55, -half.y - 0.55);
-    let hi = Vec2::new(half.x + 0.55, half.y + NEIGHBOR_DEPTH + 0.55);
+    let hi = Vec2::new(
+        half.x + 0.55,
+        half.y + scene.adjoining_space().max_depth() + 0.55,
+    );
     let district = District::sample(scene.seed);
     let width = district.paving_width;
     let finish = super::super::super::materials::exterior::label(

@@ -111,6 +111,8 @@ pub(crate) fn morph(
     mut end: Assembly,
     seed: u64,
     frame: Transform,
+    roller_feed: Option<RollerFeed>,
+    head_contact: Option<String>,
 ) {
     // A topology mismatch is never converted into an invalid flow correspondence.
     let compatible = start.parts.len() == end.parts.len()
@@ -139,6 +141,8 @@ pub(crate) fn morph(
     }
     let mut joint = Joint::new(MotionKind::Covering, seed);
     joint.frame = frame;
+    joint.roller_feed = roller_feed;
+    joint.attachment = head_contact;
     joint.morph = end.parts;
     a.articulated(start, joint);
 }

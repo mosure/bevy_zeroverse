@@ -1,5 +1,6 @@
 //! Lightweight per-lamp emission bindings; no new image synthesis or lights.
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 use crate::scene::procedural_indoor::{
     layout::ObjectKind, objects, photometry, preparation::AssetStore,
 };
@@ -35,8 +36,8 @@ pub(crate) fn area(object: &super::super::layout::IndoorObject) -> f32 {
                 * (object.size.x.min(object.size.z) * 0.46 * p.diffuser_fraction).powi(2)
         }
         ObjectKind::WallSconce => {
-            let p = objects::equipment::parameters(object);
-            object.size.x * p.sconce_width * p.diffuser_fraction * object.size.z * 0.50
+            let p = objects::equipment::sconce::parameters(object);
+            std::f32::consts::PI * p.diffuser_radius.powi(2)
         }
         _ => 1.,
     }
@@ -65,7 +66,7 @@ pub(super) fn build(
                 return ((o.id, channel), materials.add(material));
             }
             let power = photometry::lamp(scene, o);
-            let c = Color::srgb(power.color.x, power.color.y, power.color.z).to_linear();
+            let c = source_color(scene, power.color).to_linear();
             let radiance = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
             let mut material = template.clone();
             material.emissive =
@@ -189,7 +190,7 @@ mod tests {
         for o in &scene.objects {
             let power = photometry::lamp(&scene, o);
             let mat = materials.get(&variants[&(o.id, 0)]).unwrap();
-            let c = Color::srgb(power.color.x, power.color.y, power.color.z).to_linear();
+            let c = source_color(&scene, power.color).to_linear();
             let scale = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
             assert_eq!(
                 mat.emissive,

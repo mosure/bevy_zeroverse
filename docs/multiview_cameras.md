@@ -514,6 +514,16 @@ surface relief and pattern contrast, not mesh complexity. The scene's geometry,
 semantic attachments, people and camera program remain unchanged. Positive EV
 offsets darken exposure. Omitted factors preserve the scene's existing samples.
 
+### Capture-camera optics
+
+Set `--indoor-appearance '{"sensor":{"probability":0.65}}'` to sample acquisition artifacts independently for 65% of the logical cameras. The default probability is zero. Set any of `blur`, `smudge`, `flare` or `noise` to zero to isolate effects. Each accepts a severity ceiling from 0 to 1. The optional integer `seed_offset` redraws the sensor realization for the same room and rig. The default ceilings are 0.85, 0.75, 0.65 and 0.80 respectively. Cameras selected by the policy draw continuous strengths, orientations and length scales. The Studio controls are under **Appearance → Capture-camera optics**. A viewer URL can use `appearance.sensor.probability=0.65`.
+
+Pass the same appearance policy through `GenConfig.indoor_appearance` or `BevyZeroverseConfig.indoor_appearance` for GPU-resident Burn training. The final RGB resolve applies it after lens projection and tone mapping, before sRGB conversion. At SSAA 1 an affected camera needs a separate resolved color image. At SSAA 2–4 the sensor shares the existing box-resolve pass. Depth, normals, semantic labels, positions, optical flow, calibration, co-visibility and the fisheye coverage mask keep their original sampling.
+
+The centered elliptical blur approximates an optical point-spread function. A soft, elongated oil patch scatters neighboring colors. Bright sources within the sensor image can produce a tinted ghost reflected around the calibrated principal point. Lens parameters stay fixed over a clip. Per-channel noise variance follows `read_std² + shot_std² × signal` in tone-mapped linear RGB. This is a display-domain approximation. Absolute electronic gain, Bayer demosaicing, shutter integration and off-screen optical paths would require additional image-formation stages. [Signal-dependent raw sensor noise model](https://webpages.tuni.fi/foi/papers/Foi-PoissonianGaussianClippedRaw-2007-IEEE_TIP.pdf)
+
+The sample records the realized optical parameters in camera-index order and acquisition noise keys in timestep-major order under `indoor_render_metadata.camera_sensor`. A null camera entry identifies a pristine view. Replaying a room, camera and normalized capture time reproduces the noise field independent of render scheduling. Painted mineral finishes also sample localized burnishing, with linked changes to pigment, relief and roughness in surface coordinates.
+
 The Rust dataset CLI separately accepts optional RGB-only export augmentation:
 
 ```sh

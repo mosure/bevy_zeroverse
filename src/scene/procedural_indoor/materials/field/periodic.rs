@@ -61,8 +61,8 @@ impl PreparedPeriodic {
         };
         let x = periodic_unit(u) * nx as f32;
         let y = periodic_unit(v) * ny as f32;
-        let ix = x.floor() as u32;
-        let iy = y.floor() as u32;
+        let ix = x as u32;
+        let iy = y as u32;
         // Tiny negative coordinates can round rem_euclid to exactly 1.0.
         // Nonfinite and exceptional coordinates retain the original scalar
         // calculations, cast/modulo behavior and NaN payload propagation.
@@ -70,8 +70,8 @@ impl PreparedPeriodic {
             return periodic_noise(u, v, nx, ny, self.seed);
         }
         let smooth = |t: f32| t * t * (3.0 - 2.0 * t);
-        let tx = smooth(x.fract());
-        let ty = smooth(y.fract());
+        let tx = smooth(x - ix as f32);
+        let ty = smooth(y - iy as f32);
         let stride = nx as usize + 1;
         let offset = iy as usize * stride + ix as usize;
         let a = values[offset];

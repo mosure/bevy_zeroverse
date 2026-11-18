@@ -3,6 +3,44 @@ use super::*;
 use std::collections::BTreeSet;
 
 #[test]
+fn compact_upholstered_shells_keep_the_rear_skin_outside_the_lumbar_bend() {
+    // The fully built adjoining-room chair in mixed seed 31248 inverted its
+    // rear skin. Exercise the actual instance and nearby valid product sizes.
+    let mut o = audit::fixture(ObjectKind::Chair, 4_589_592_075_449_161_286);
+    o.variant = 2;
+    for height in [0.77, 0.78641623, 0.81, 0.87] {
+        for width in [0.62, 0.69471407, 0.74] {
+            o.size = Vec3::new(width, height, 0.66443765);
+            let p = parameters(&o);
+            assert_eq!(p.back_construction, 2);
+            assert!(p.shell_thickness > 0.04 && p.lumbar > 0.048);
+            let assembly = super::super::build_object(&o);
+            audit::check(&o, &assembly).unwrap();
+        }
+    }
+}
+
+#[test]
+fn purchasing_a_set_preserves_matching_seats_and_allows_replacements() {
+    for family in [0, 2, 6] {
+        let mut counts = std::collections::BTreeMap::new();
+        let mut independent = BTreeSet::new();
+        for instance in 0..256 {
+            let size = footprint(family, 70, instance);
+            *counts.entry(size.to_array().map(f32::to_bits)).or_insert(0) += 1;
+            independent.insert(
+                footprint(family, instance, instance)
+                    .to_array()
+                    .map(f32::to_bits),
+            );
+        }
+        let most_matched = *counts.values().max().unwrap();
+        assert!((180..245).contains(&most_matched));
+        assert!(independent.len() > 250);
+    }
+}
+
+#[test]
 fn rounded_arm_carriers_keep_valid_bend_radii_at_short_pad_extremes() {
     let o = audit::fixture(ObjectKind::Chair, 69_430_991);
     for style in [1, 4] {
@@ -67,6 +105,9 @@ fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
         for seed in 0..96 {
             let mut o = audit::fixture(ObjectKind::Chair, seed);
             o.variant = variant;
+            let size = footprint(variant, seed / 4, seed);
+            o.size.x = size.x;
+            o.size.z = size.y;
             o.size.y = if is_backless(&o) {
                 0.48
             } else if variant == 7 {

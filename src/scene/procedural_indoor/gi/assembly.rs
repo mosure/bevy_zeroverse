@@ -3,6 +3,7 @@
 //! overlap map synthesis without copying assemblies or changing triangle order.
 use super::*;
 use crate::scene::procedural_indoor::humans::{self, HumanSurface};
+use crate::scene::procedural_indoor::photometry::source_color;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -28,18 +29,18 @@ impl GeometryInput {
     pub(crate) fn finish(self, gpu_transport: bool) -> GeometryTransport {
         let mut result = self.0;
         let started = Instant::now();
-        result.scene.build_bvh();
+        let primitives = result.scene.build_bvh();
         result.timings.probe_tree_seconds = started.elapsed().as_secs_f64();
         result.timings.probe_nodes = result.scene.nodes.len();
         result.scene.preparation_ms += result.timings.probe_tree_seconds * 1000.;
         #[cfg(not(target_arch = "wasm32"))]
         if gpu_transport {
             let started = Instant::now();
-            result.scene.prepare_gpu_transport();
+            result.scene.gpu_transport_with(|| primitives);
             result.timings.shadow_tree_seconds = started.elapsed().as_secs_f64();
         }
         #[cfg(target_arch = "wasm32")]
-        let _ = gpu_transport;
+        let _ = (gpu_transport, primitives);
         result
     }
 }
@@ -79,10 +80,11 @@ impl GeometryTransport {
                 bounds_max: Vec3::new(
                     scene.room_size.x * 0.5 + 0.10,
                     scene.room_size.y + 0.10,
-                    scene.room_size.z * 0.5 + super::super::layout::NEIGHBOR_DEPTH + 0.10,
+                    scene.room_size.z * 0.5 + scene.adjoining_space().max_depth() + 0.10,
                 ),
                 preparation_ms: 0.0,
                 world_rotation: Quat::from_rotation_y(scene.world_yaw),
+                probe_domain: ProbeDomain::from_manifest(scene),
             },
             keys: super::super::materials::program::SURFACES
                 .into_iter()
@@ -123,11 +125,11 @@ impl GeometryTransport {
         let fixture_positions = architecture::fixture_positions(scene);
         for (i, p) in fixture_positions.iter().copied().enumerate() {
             let (c, lumens) = architecture::fixture_photometry_at(scene, i, &fixture_positions);
-            let (inner, outer) = architecture::fixture_angles(scene, i);
+            let (inner, outer) = architecture::fixtures::beam_angles(scene, i, p);
             result.scene.lights.push(LocalLight {
                 direction: architecture::fixtures::direction(scene, p),
                 position: architecture::fixtures::emitter(scene, p),
-                color: linear(Color::srgb(c.x, c.y, c.z)),
+                color: linear(source_color(scene, c)),
                 candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
                 range: 13.0,
                 spot: true,
@@ -145,7 +147,7 @@ impl GeometryTransport {
                 position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
                 color: {
                     let c = crate::scene::procedural_indoor::photometry::lamp(scene, lamp).color;
-                    linear(Color::srgb(c.x, c.y, c.z))
+                    linear(source_color(scene, c))
                 },
                 candela: crate::scene::procedural_indoor::photometry::lamp(scene, lamp).lumens
                     / (4.0 * PI),
@@ -161,17 +163,20 @@ impl GeometryTransport {
                 ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
             )
         }) {
-            let (position, color, lumens, inner, outer) =
-                architecture::object_fixture_photometry(scene, lamp);
+            let (beam, power) = architecture::object_fixture_photometry(scene, lamp);
             result.scene.lights.push(LocalLight {
-                direction: Vec3::NEG_Y,
-                position,
-                color: linear(Color::srgb(color.x, color.y, color.z)),
-                candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
+                direction: beam.direction,
+                position: beam.position,
+                color: linear(source_color(scene, power.color)),
+                candela: architecture::spot_intensity_for_lumens(
+                    power.lumens,
+                    beam.inner,
+                    beam.outer,
+                ) / (4.0 * PI),
                 range: 3.0,
                 spot: true,
-                inner_cos: inner.cos(),
-                outer_cos: outer.cos(),
+                inner_cos: beam.inner.cos(),
+                outer_cos: beam.outer.cos(),
             });
         }
         result.timings.emission_seconds = started.elapsed().as_secs_f64();

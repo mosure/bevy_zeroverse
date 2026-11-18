@@ -137,6 +137,15 @@ pub(super) fn record(
         }
         if let Some(p) = f.treatment.as_ref().filter(|_| f.shade != Shade::None) {
             category("window_treatment_finish_slot", p.finish_slot.to_string());
+            if let Some(stock) = p.textile {
+                category("window_textile_lining", format!("{:?}", stock.lining));
+                category("window_textile_colorway", stock.colorway.to_string());
+            }
+            if let Some(track) = p.track {
+                numeric.push("window_panel_target_width_m", track.panel_width_m as f64)?;
+                numeric.push("window_panel_reed_pitch_m", track.reed_pitch_m as f64)?;
+                numeric.push("window_panel_weave_openness", track.openness as f64)?;
+            }
             if matches!(f.shade, Shade::Curtain | Shade::Vertical) {
                 category("window_treatment_stack", format!("{:?}", p.stack));
             }

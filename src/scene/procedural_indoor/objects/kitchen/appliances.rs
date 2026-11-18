@@ -9,6 +9,28 @@ pub mod program;
 mod tests;
 // The cooktop sheet is 0.07 * 0.24 of total height; its work plane is at 0.94.
 const RANGE_BODY_TOP: f32 = 0.94 - 0.07 * 0.24;
+
+/// Local slab origin and dimensions used by both the burners and the extractor.
+/// An open range door reserves floor space in front of the fixed carcass.
+fn cooktop_slab(o: &IndoorObject, p: &KitchenProgram) -> (Vec3, Vec3) {
+    if o.kind == ObjectKind::Cooktop {
+        return (Vec3::ZERO, o.size);
+    }
+    let (depth, z) = body(o, p);
+    (
+        Vec3::new(0., o.size.y * RANGE_BODY_TOP, z),
+        Vec3::new(o.size.x - 0.018, o.size.y * 0.07, depth),
+    )
+}
+
+pub(crate) fn cooking_surface(o: &IndoorObject, p: &KitchenProgram) -> (Vec3, Vec2) {
+    let (base, slab) = cooktop_slab(o, p);
+    (
+        o.transform()
+            .transform_point(base + Vec3::Y * (slab.y * 0.24)),
+        slab.xz(),
+    )
+}
 #[allow(clippy::too_many_arguments)]
 fn knobs(
     a: &mut Assembly,
@@ -131,7 +153,8 @@ fn side_leaf(
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     if o.kind == ObjectKind::Cooktop {
-        cooktop::build(a, o.size, Vec3::ZERO, p, o.seed);
+        let (base, slab) = cooktop_slab(o, p);
+        cooktop::build(a, slab, base, p, o.seed);
         return;
     }
     let s = o.size;
@@ -481,13 +504,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 );
             }
             if o.kind == ObjectKind::Range {
-                cooktop::build(
-                    a,
-                    Vec3::new(w, s.y * 0.07, d),
-                    Vec3::new(0., s.y * RANGE_BODY_TOP, z),
-                    p,
-                    o.seed,
-                );
+                let (base, slab) = cooktop_slab(o, p);
+                cooktop::build(a, slab, base, p, o.seed);
             }
         }
         _ => unreachable!(),
@@ -553,11 +571,7 @@ pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
             value["control_fraction"] = serde_json::json!(plan.control_fraction);
         }
         ObjectKind::Cooktop | ObjectKind::Range => {
-            let size = if o.kind == ObjectKind::Range {
-                Vec3::new(o.size.x - 0.018, o.size.y * 0.07, body(o, p).0)
-            } else {
-                o.size
-            };
+            let (_, size) = cooktop_slab(o, p);
             value["cooktop"] = serde_json::json!(cooktop::parameters(o.seed, size, p));
         }
         _ => {}

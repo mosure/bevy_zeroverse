@@ -2,6 +2,9 @@
 //! triangulated before clipping, so a courtyard notch never acquires a floor.
 use bevy::prelude::*;
 
+/// Shortest buildable wall segment in a room footprint, in metres.
+pub(super) const MIN_WALL_EDGE_M: f32 = 0.08;
+
 pub fn area(p: &[Vec2]) -> f32 {
     signed_area(p) as f32
 }
@@ -272,7 +275,7 @@ pub fn validate(poly: &[Vec2]) -> Result<(), String> {
     }
     let e: Vec<_> = edges(poly).collect();
     for (i, &(a, b)) in e.iter().enumerate() {
-        if a.distance(b) < 0.08 {
+        if a.distance(b) < MIN_WALL_EDGE_M {
             return Err("collapsed footprint edge".into());
         }
         for (j, &(c, d)) in e.iter().enumerate().skip(i + 1) {

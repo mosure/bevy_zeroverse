@@ -5,6 +5,10 @@ use super::*;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct SconceProgram {
+    /// The installed pose of the complete product in its reserved wall bay.
+    pub mount_rotation: Quat,
+    pub mount_translation: Vec3,
+    pub product_height: f32,
     pub plate_span: Vec2,
     pub plate_thickness: f32,
     pub plate_round: bool,
@@ -30,7 +34,22 @@ pub(crate) fn dimensions(r: &mut impl Rng) -> Vec3 {
 }
 
 pub fn parameters(o: &IndoorObject) -> SconceProgram {
-    let s = o.size;
+    let mut installation = stream(o.seed, 0x53434f4e41494d53);
+    let up = installation.random_bool(0.41);
+    let cant = if installation.random_bool(0.48) {
+        installation.random_range(-0.31_f32..0.31)
+    } else {
+        0.
+    };
+    let rotation = Quat::from_rotation_z(if up { PI + cant } else { cant });
+    let (sin, cos) = cant.sin_cos();
+    let bay = o.size;
+    let fit =
+        (bay.x / (cos * bay.x + sin.abs() * bay.y)).min(bay.y / (sin.abs() * bay.x + cos * bay.y));
+    let s = Vec3::new(bay.x * fit, bay.y * fit, bay.z);
+    let mount =
+        Transform::from_translation(Vec3::Y * (bay.y * 0.5) - rotation * (Vec3::Y * (s.y * 0.5)))
+            .with_rotation(rotation);
     let mut r = stream(o.seed, 0x53434f4e43454745);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x53434f4e43454649);
     let mut shade = luminaires::parameters(o.seed);
@@ -55,6 +74,9 @@ pub fn parameters(o: &IndoorObject) -> SconceProgram {
     let diffuser_thickness = (height * 0.022).min(0.002);
     let radius = head_span.min_element() * r.random_range(0.22..0.35);
     SconceProgram {
+        mount_rotation: rotation,
+        mount_translation: mount.translation,
+        product_height: s.y,
         plate_span: s.xy() * Vec2::new(r.random_range(0.24..0.64), r.random_range(0.34..0.79)),
         plate_thickness: s.z * r.random_range(0.045..0.11),
         plate_round: r.random_bool(0.45),
@@ -67,16 +89,26 @@ pub fn parameters(o: &IndoorObject) -> SconceProgram {
         shade,
         diffuser_radius: radius,
         diffuser_thickness,
-        // Just outside the lower diffuser, in the open downlight aperture.
-        emitter: bottom - Vec3::Y * 0.002,
+        // Offset along the installed optical axis, beyond the diffuser.
+        emitter: mount.transform_point(bottom - Vec3::Y * 0.002),
     }
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
+    let mut product = Assembly::default();
+    build_product(&mut product, o, &p);
+    super::super::public::append_at(
+        a,
+        product,
+        Transform::from_translation(p.mount_translation).with_rotation(p.mount_rotation),
+    );
+}
+
+fn build_product(a: &mut Assembly, o: &IndoorObject, p: &SconceProgram) {
     let label = o.kind.class_name();
     let rear = -o.size.z * 0.5;
-    let plate_center = Vec3::new(0., o.size.y * 0.5, rear + p.plate_thickness * 0.5);
+    let plate_center = Vec3::new(0., p.product_height * 0.5, rear + p.plate_thickness * 0.5);
     if p.plate_round {
         // Cylinder axis is local Y; transform into a vertical oval wall plate.
         a.part(p.shade.trim, label).cylinder(

@@ -1,7 +1,7 @@
 //! Reproducible affordance-aware requests and swept navigation through real doors.
 use super::{prompts, HumanMotionConfig, MotionPlan, MotionRejection};
 use crate::scene::procedural_indoor::layout::{
-    segment_hits_box, stream, IndoorManifest, ObjectKind, NEIGHBOR_DEPTH,
+    segment_hits_box, stream, IndoorManifest, ObjectKind,
 };
 use bevy::prelude::*;
 use burn_human_motion::Waypoint;
@@ -85,23 +85,43 @@ pub fn obstacles(
     if let Some(e) = &scene.envelope {
         boxes.extend(e.motion_barriers(scene.room_size));
     }
+    let adjoining = scene.adjoining_space();
+    if let Some((lo, hi)) = adjoining.recess(scene.room_size) {
+        // The full missing corner is outside the envelope, including its two walls.
+        boxes.push((
+            Vec3::new(lo.x - 0.08, 0., lo.y - 0.08),
+            Vec3::new(hi.x + 0.08, scene.room_size.y, hi.y + 0.08),
+        ));
+    }
     let wall = |a: Vec3, b: Vec3| (a, b);
     boxes.extend([
         wall(
             Vec3::new(-half.x - 0.2, 0.0, -half.z - 0.2),
-            Vec3::new(-half.x + 0.08, scene.room_size.y, half.z + NEIGHBOR_DEPTH),
+            Vec3::new(
+                -half.x + 0.08,
+                scene.room_size.y,
+                half.z + adjoining.max_depth(),
+            ),
         ),
         wall(
             Vec3::new(half.x - 0.08, 0.0, -half.z - 0.2),
-            Vec3::new(half.x + 0.2, scene.room_size.y, half.z + NEIGHBOR_DEPTH),
+            Vec3::new(
+                half.x + 0.2,
+                scene.room_size.y,
+                half.z + adjoining.max_depth(),
+            ),
         ),
         wall(
             Vec3::new(-half.x, 0.0, -half.z - 0.2),
             Vec3::new(half.x, scene.room_size.y, -half.z + 0.08),
         ),
         wall(
-            Vec3::new(-half.x, 0.0, half.z + NEIGHBOR_DEPTH - 0.08),
-            Vec3::new(half.x, scene.room_size.y, half.z + NEIGHBOR_DEPTH + 0.2),
+            Vec3::new(-half.x, 0.0, half.z + adjoining.max_depth() - 0.08),
+            Vec3::new(
+                half.x,
+                scene.room_size.y,
+                half.z + adjoining.max_depth() + 0.2,
+            ),
         ),
         wall(
             Vec3::new(-half.x, 0.0, half.z - 0.06),
@@ -220,7 +240,11 @@ pub fn route(
                 let p = pos(next);
                 if p.x.abs() > hx - radius
                     || p.z < -hz + radius
-                    || p.z > hz + NEIGHBOR_DEPTH - radius
+                    || p.z
+                        > hz + scene
+                            .adjoining_space()
+                            .depth_over(p.x - radius, p.x + radius)
+                            - radius
                     || !segment_clear(pos(current), p, height, radius, boxes)
                 {
                     continue;
@@ -408,7 +432,13 @@ pub fn plan(
         if explicit.waypoints.iter().any(|w| {
             w.position.x.abs() > half.x - BODY_CLEARANCE
                 || w.position.z < -half.z + BODY_CLEARANCE
-                || w.position.z > half.z + NEIGHBOR_DEPTH - BODY_CLEARANCE
+                || w.position.z
+                    > half.z
+                        + scene.adjoining_space().depth_over(
+                            w.position.x - BODY_CLEARANCE,
+                            w.position.x + BODY_CLEARANCE,
+                        )
+                        - BODY_CLEARANCE
         }) {
             return Err(format!(
                 "motion actor {} leaves the generated floor",
@@ -725,6 +755,46 @@ pub fn plan(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn motion_routes_respect_the_adjoining_return_wall() {
+        use crate::scene::procedural_indoor::layout::{
+            AdjoiningReturn, AdjoiningSpace, IndoorLayout,
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(31, IndoorLayout::Conference, 0.3, 0, 0.).unwrap();
+        scene.objects.clear();
+        scene.humans.clear();
+        scene.adjoining = Some(AdjoiningSpace {
+            depth_m: 3.2,
+            side_return: Some(AdjoiningReturn {
+                positive_x: true,
+                split_x_m: 0.,
+                extra_depth_m: 2.3,
+            }),
+            ..default()
+        });
+        let front = scene.room_size.z * 0.5;
+        let left = Vec3::new(-1.6, 0., front + 2.);
+        let right = Vec3::new(1.2, 0., front + 4.6);
+        let outside = Vec3::new(-1.6, 0., front + 4.6);
+        let boxes = obstacles(&scene, usize::MAX, None);
+        assert!(!segment_clear(left, right, 1.7, BODY_CLEARANCE, &boxes));
+        assert!(route(&scene, left, outside, 1.7, BODY_CLEARANCE, &boxes).is_none());
+        let path = route(&scene, left, right, 1.7, BODY_CLEARANCE, &boxes).unwrap();
+        assert!(path.len() > 2);
+        for edge in path.windows(2) {
+            for t in 0..=32 {
+                let p = edge[0].lerp(edge[1], t as f32 / 32.).xz();
+                assert!(scene.adjoining_space().contains_bounds(
+                    scene.room_size,
+                    p,
+                    p,
+                    BODY_CLEARANCE
+                ));
+            }
+        }
+    }
 
     #[test]
     fn noise_seeds_separate_scenes_actors_and_high_bits() {

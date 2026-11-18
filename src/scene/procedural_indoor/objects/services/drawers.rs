@@ -19,12 +19,20 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.004,
         );
     } else {
+        let wheel = Vec3::new(0.38, 0.38, 0.22) * p.foot;
+        let extent = if p.base == 0 {
+            wheel.xz()
+        } else {
+            Vec2::splat(0.0155)
+        };
+        // Keep the entire wheel/foot under even the narrowest pedestal.
+        let axle = (p.foot_span * s.xz()).min(s.xz() * 0.5 - extent);
         for x in [-1., 1.] {
             for z in [-1., 1.] {
-                let pos = Vec3::new(x * p.foot_span.x * s.x, 0., z * p.foot_span.y * s.z);
+                let pos = Vec3::new(x * axle.x, 0., z * axle.y);
                 if p.base == 0 {
                     a.part(Surface::Rubber, label).ellipsoid(
-                        Vec3::new(p.foot * 0.38, p.foot * 0.38, p.foot * 0.22),
+                        wheel,
                         Transform::from_translation(pos + Vec3::Y * p.foot * 0.38),
                     );
                     a.box_part(

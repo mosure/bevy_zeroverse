@@ -1,10 +1,11 @@
 //! Independent copies of the accepted assembly/binding and serial median
 //! builder. They must not call the new split preparation implementation.
 use super::*;
+use crate::scene::procedural_indoor::photometry::source_color;
 use crate::scene::procedural_indoor::{
     geometry::Geometry,
     humans::{HumanAssembly, HumanOutfit, HumanSurface},
-    layout::{self, IndoorLayout},
+    layout::IndoorLayout,
     materials,
     preparation::{self, SceneGeometry},
 };
@@ -37,10 +38,11 @@ fn original_from_geometry(
         bounds_max: Vec3::new(
             scene.room_size.x * 0.5 + 0.10,
             scene.room_size.y + 0.10,
-            scene.room_size.z * 0.5 + layout::NEIGHBOR_DEPTH + 0.10,
+            scene.room_size.z * 0.5 + scene.adjoining_space().max_depth() + 0.10,
         ),
         preparation_ms: 0.0,
         world_rotation: Quat::from_rotation_y(scene.world_yaw),
+        probe_domain: ProbeDomain::from_manifest(scene),
     };
     let mut finish_indices = std::collections::BTreeMap::new();
     let handles = materials::program::SURFACES
@@ -165,11 +167,11 @@ fn original_from_geometry(
         .enumerate()
     {
         let (c, lumens) = architecture::fixture_photometry(scene, i);
-        let (inner, outer) = architecture::fixture_angles(scene, i);
+        let (inner, outer) = architecture::fixtures::beam_angles(scene, i, p);
         result.lights.push(LocalLight {
             direction: architecture::fixtures::direction(scene, p),
             position: architecture::fixtures::emitter(scene, p),
-            color: linear(Color::srgb(c.x, c.y, c.z)),
+            color: linear(source_color(scene, c)),
             candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
             range: 13.0,
             spot: true,
@@ -187,7 +189,7 @@ fn original_from_geometry(
             position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
             color: {
                 let c = crate::scene::procedural_indoor::photometry::lamp(scene, lamp).color;
-                linear(Color::srgb(c.x, c.y, c.z))
+                linear(source_color(scene, c))
             },
             candela: crate::scene::procedural_indoor::photometry::lamp(scene, lamp).lumens
                 / (4.0 * PI),
@@ -203,17 +205,17 @@ fn original_from_geometry(
             ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
         )
     }) {
-        let (position, color, lumens, inner, outer) =
-            architecture::object_fixture_photometry(scene, lamp);
+        let (beam, power) = architecture::object_fixture_photometry(scene, lamp);
         result.lights.push(LocalLight {
-            direction: Vec3::NEG_Y,
-            position,
-            color: linear(Color::srgb(color.x, color.y, color.z)),
-            candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
+            direction: beam.direction,
+            position: beam.position,
+            color: linear(source_color(scene, power.color)),
+            candela: architecture::spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer)
+                / (4.0 * PI),
             range: 3.0,
             spot: true,
-            inner_cos: inner.cos(),
-            outer_cos: outer.cos(),
+            inner_cos: beam.inner.cos(),
+            outer_cos: beam.outer.cos(),
         });
     }
     result.nodes = original_median(&mut result.triangles);
@@ -429,7 +431,10 @@ fn same_scene(a: &BakeScene, b: &BakeScene) {
             &a_tree.surfaces(a).copied().collect::<Vec<_>>(),
             &b_tree.surfaces(b).copied().collect::<Vec<_>>(),
         );
-        same_nodes(&a_tree.nodes, &b_tree.nodes);
+        assert_eq!(
+            bytemuck::cast_slice::<_, u8>(&a_tree.nodes),
+            bytemuck::cast_slice::<_, u8>(&b_tree.nodes)
+        );
     }
 }
 
@@ -719,7 +724,19 @@ fn complete_room_probe_trees_preserve_scalar_reference() {
                 &expected.0,
                 &tree.surfaces(&actual.scene).copied().collect::<Vec<_>>(),
             );
-            same_nodes(&expected.1, &tree.nodes);
+            assert_eq!(expected.1.len(), tree.nodes.len());
+            for (reference, packed) in expected.1.iter().zip(tree.nodes.iter()) {
+                assert_eq!(vec3_bits(reference.lo), vec3_bits(packed.lo));
+                assert_eq!(vec3_bits(reference.hi), vec3_bits(packed.hi));
+                if reference.count == 0 {
+                    assert_eq!(packed.tag as usize, reference.axis);
+                    assert_eq!(packed.index as usize, reference.right);
+                } else {
+                    assert_eq!(packed.tag >> 31, 1);
+                    assert_eq!((packed.tag & 0x7fff_ffff) as usize, reference.count);
+                    assert_eq!(packed.index as usize, reference.start);
+                }
+            }
         }
     }
 }

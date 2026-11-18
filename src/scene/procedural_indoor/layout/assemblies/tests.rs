@@ -2,6 +2,171 @@ use super::*;
 use crate::scene::procedural_indoor::{objects::tables, validation};
 
 #[test]
+fn mixed_conference_uses_the_same_boardroom_design_and_archives_read_without_it() {
+    use crate::scene::procedural_indoor::program::{boardroom::BoardroomPlan, IndoorProgram};
+    let mut compared = 0;
+    for seed in 0..1024 {
+        let mut mix = stream(seed, 0);
+        if IndoorLayout::PROFILES[mix.random_range(0..IndoorLayout::PROFILES.len())]
+            != IndoorLayout::Conference
+            || BoardroomPlan::sample(seed, IndoorLayout::Conference).is_none()
+        {
+            continue;
+        }
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.75, 0, 0.).unwrap();
+        let explicit =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.75, 0, 0.)
+                .unwrap();
+        let program = scene.program.as_ref().unwrap();
+        assert_eq!(
+            program.executive_boardroom,
+            explicit.program.unwrap().executive_boardroom
+        );
+        assert!(scene.executive_boardroom().unwrap().seat_count >= 8);
+        let mut archived = serde_json::to_value(program).unwrap();
+        archived
+            .as_object_mut()
+            .unwrap()
+            .remove("executive_boardroom");
+        assert!(serde_json::from_value::<IndoorProgram>(archived)
+            .unwrap()
+            .executive_boardroom
+            .is_none());
+        compared += 1;
+        if compared == 3 {
+            break;
+        }
+    }
+    assert_eq!(compared, 3);
+}
+
+#[test]
+fn executive_boardrooms_keep_four_sided_seating_and_circulation_at_all_densities() {
+    use crate::scene::procedural_indoor::envelope::polygon;
+    let mut counts = [0; 2];
+    let mut axes = [0; 2];
+    let mut tight_and_spacious = [false; 2];
+    for seed in 2100..2164 {
+        let density = [0., 0.65, 1.][seed as usize % 3];
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, density, 3, 0.45)
+                .unwrap_or_else(|e| panic!("{seed}: {e}"));
+        validation::validate_layout(&scene).unwrap_or_else(|e| panic!("{seed}: {e}"));
+        let program = scene.program.as_ref().unwrap();
+        let Some(plan) = program.executive_boardroom else {
+            counts[0] += 1;
+            assert!(scene.executive_boardroom().is_none());
+            continue;
+        };
+        counts[1] += 1;
+        axes[usize::from(plan.long_axis_x)] += 1;
+        assert_eq!(program.zones.len(), 1);
+        assert!(program.partitions.is_empty());
+        let e = scene.envelope.as_ref().unwrap();
+        assert!(
+            polygon::box_inside(
+                &e.footprint,
+                plan.center() - plan.reserved_half(),
+                plan.center() + plan.reserved_half(),
+                0.
+            ),
+            "{seed}: circulation reservation"
+        );
+        let b = scene.executive_boardroom().unwrap();
+        let table = &scene.objects[b.table_id];
+        assert!(table.size.xz().abs_diff_eq(plan.table_size_m, 0.001));
+        assert_eq!(
+            scene
+                .objects
+                .iter()
+                .filter(|o| !o.neighbor && o.kind == ObjectKind::Table)
+                .count(),
+            1
+        );
+        assert!(b.seat_count >= 8 && b.tabletop_area_m2 > 0.);
+        assert!(b.tabletop_area_m2 < b.seating_envelope_area_m2);
+        let occupied = b.seating_envelope_area_m2 / b.room_floor_area_m2;
+        assert!((0.20..0.85).contains(&occupied), "{seed}: {occupied}");
+        tight_and_spacious[usize::from(occupied > 0.5)] = true;
+        let group = scene
+            .assembly_diagnostics
+            .accepted
+            .iter()
+            .find(|g| g.surface == table.id)
+            .unwrap();
+        let inv = table.transform().compute_affine().inverse();
+        let mut sides = [0; 4];
+        for &s in &group.seats {
+            let chair = &scene.objects[s];
+            assert_eq!(chair.interaction_target, Some(table.id));
+            assert!(
+                scene.placement_clear(chair, 0.008),
+                "{seed}/{s}: installed chair clearance"
+            );
+            let p = inv.transform_point3(chair.position);
+            // End chairs are sampled on the centre portion of their edge. A long
+            // side chair remains laterally separated even after being pushed in.
+            let i = if p.x.abs() < table.size.x * 0.26 {
+                2 + usize::from(p.z > 0.)
+            } else {
+                usize::from(p.x > 0.)
+            };
+            sides[i] += 1;
+        }
+        assert!(
+            sides[0] >= 3 && sides[1] >= 3 && sides[2] >= 1 && sides[3] >= 1,
+            "{seed}: {sides:?}"
+        );
+        assert_eq!(scene.cameras.len(), 3);
+    }
+    assert!(counts.into_iter().min().unwrap() >= 14 && axes.into_iter().min().unwrap() >= 5);
+    assert_eq!(tight_and_spacious, [true, true]);
+}
+
+#[test]
+fn compact_boardrooms_leave_the_entry_clear_after_seats_are_installed() {
+    for seed in [182, 194, 265, 380, 428, 505] {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.65, 3, 0.25)
+                .unwrap();
+        validation::validate_layout(&scene).unwrap_or_else(|e| panic!("{seed}: {e}"));
+        let board = scene.executive_boardroom().unwrap();
+        assert!(board.seat_count >= 8);
+        for o in scene
+            .objects
+            .iter()
+            .filter(|o| o.interaction_target == Some(board.table_id) && o.kind == ObjectKind::Chair)
+        {
+            let (lo, hi) = o.bounds();
+            assert!(!scene.entry_approach_overlaps(lo, hi), "{seed}/{}", o.id);
+        }
+    }
+}
+
+#[test]
+fn flagship_boardroom_retains_a_long_table_and_requires_the_installed_group() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let mut scene =
+        IndoorManifest::generate_with_humans(1057, IndoorLayout::Conference, 0.65, 0, 0.).unwrap();
+    let b = scene.executive_boardroom().unwrap();
+    assert!(b.table_length_m > 14. && b.table_width_m < 4.4, "{b:?}");
+    assert!(
+        b.seating_envelope_area_m2 > 0.5 * b.room_floor_area_m2,
+        "{b:?}"
+    );
+    assert!(b.seat_count >= 20);
+    scene
+        .assembly_diagnostics
+        .accepted
+        .retain(|g| g.role != AssemblyRole::Meeting);
+    let error = validation::validate_prepared_layout(&scene).unwrap_err();
+    assert!(
+        matches!(error, CaptureError::Rejected { rejection, .. } if rejection.kind == SceneRejectionKind::MissingProgramAnchor)
+    );
+}
+
+#[test]
 fn meeting_perimeters_cover_curved_ends_and_scale_to_large_boards() {
     let scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.65, 0, 0.).unwrap();
@@ -23,6 +188,18 @@ fn meeting_perimeters_cover_curved_ends_and_scale_to_large_boards() {
             let outline = tables::outline(&o);
             let path = perimeter::SeatPath::new(&o, 0.52);
             assert!(path.length.is_finite());
+            for axis in 0..2 {
+                for f in [-0.35, 0.0, 0.35] {
+                    let along = f * size.xz()[1 - axis];
+                    let (left, left_yaw) = path.on_side(axis, -1., along).unwrap();
+                    let (right, right_yaw) = path.on_side(axis, 1., along).unwrap();
+                    assert!(left[axis] < right[axis]);
+                    for (point, yaw, sign) in [(left, left_yaw, -1.), (right, right_yaw, 1.)] {
+                        assert!((point[1 - axis] - along).abs() < 1e-5);
+                        assert!(sign * Vec2::new(yaw.sin(), yaw.cos())[axis] > 0.);
+                    }
+                }
+            }
             let mut quadrants = [0; 4];
             for i in 0..96 {
                 let (point, yaw) = path.sample(i as f32 / 96.);

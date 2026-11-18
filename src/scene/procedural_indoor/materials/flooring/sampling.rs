@@ -13,21 +13,12 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
         .as_ref()
         .is_some_and(|f| f.layout == FloorLayout::Seamless);
     r.period_m = super::scale::period(r.seed, seamless);
-    let hue = pigment.random_range(if style == 0 { 18.0..48.0 } else { 0.0..360.0 });
-    let saturation = if style == 0 {
-        pigment.random_range(0.18..0.48)
-    } else if pigment.random_bool(0.65) {
-        // Quiet gray/warm-white floors are common. Keep a broad colored tail
-        // without turning every office into a saturated carpet/tile showroom.
-        pigment.random_range(0.005..0.07)
-    } else {
-        pigment.random_range(0.08..0.30)
-    };
-    let lightness = pigment.random_range(if style == 1 { 0.12..0.58 } else { 0.17..0.78 });
-    let c = bevy::prelude::Color::hsl(hue, saturation, lightness).to_srgba();
-    r.color = [c.red, c.green, c.blue];
     match style {
         0 => {
+            let hue = pigment.random_range(18.0..48.0);
+            let sat = pigment.random_range(0.18..0.48);
+            let value = pigment.random_range(0.17..0.78);
+            r.color = super::pigment::hsl(hue, sat, value);
             let w = r.wood.as_mut().unwrap();
             w.clearcoat = finish.random_range(0.0_f32..1.).powi(2) * 0.9;
             w.coat_roughness = finish.random_range(0.09..0.44);
@@ -39,21 +30,21 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
             r.grain_frequency = product.random_range(17.0..78.0);
         }
         1 => {
-            r.roughness = finish.random_range(0.82..0.98);
-            r.relief_m = finish.random_range(0.00015..0.00065);
             let c = r.carpet.as_mut().unwrap();
             c.dye = Some(CarpetDye::sample(r.seed));
             c.contrast = pigment.random_range(0.08..0.72);
             c.line_width = product.random_range(0.035..0.34);
-            c.palette[0] = r.color;
-            let pale = pigment.random_range(0.08..0.55);
-            c.palette[1] = r.color.map(|v| (v + (0.9 - v) * pale).min(0.94));
-            let dark = pigment.random_range(0.28..0.85);
-            c.palette[2] = r.color.map(|v| v * dark);
+            c.palette = super::pigment::yarns(&mut pigment);
+            r.color = c.palette[0];
             c.pile = finish.random_range(0.10..0.95);
+            // Unresolved fibres broaden the highlight. The normal map captures
+            // the relief of yarn bundles that survive the atlas footprint.
+            r.roughness = 0.80 + 0.12 * c.pile + finish.random_range(0.0..0.065);
+            r.relief_m = 0.00010 + c.pile * finish.random_range(0.00024..0.00061);
         }
         _ => {
             let m = r.mineral.as_mut().unwrap();
+            r.color = super::pigment::mineral(&mut pigment, m.marble_mix);
             m.polish = finish.random_range(0.0..1.);
             r.roughness = 0.86 - m.polish * 0.66;
             r.relief_m = finish.random_range(0.000025..0.00016) * (1. - m.polish * 0.7);
@@ -66,12 +57,21 @@ pub(in super::super) fn expand(r: &mut MaterialRecipe, style: u32) {
     }
     r.relief_m *= r.detail_scale.unwrap_or(1.);
     let mut f = FloorFinish::sample(r.seed, style, r.period_m);
-    let tone: f32 = pigment.random_range(if style == 0 { 0.035..0.18 } else { 0.12..0.82 });
+    let joint_color = if style == 0 {
+        let tone = pigment.random_range(0.035..0.18);
+        [tone, tone * 0.97, tone * 0.94]
+    } else {
+        super::pigment::joint(&mut pigment, r.color, style == 1)
+    };
     f.stock = Some(stock::FloorStock {
         cut_jitter: [0.; 2],
         mottle_cells: [product.random_range(1..=11), product.random_range(1..=11)],
-        joint_color: [tone, tone * 0.97, tone * 0.94],
-        joint_roughness: finish.random_range(0.65..0.97),
+        joint_color,
+        joint_roughness: if style == 1 {
+            finish.random_range(0.84..0.98)
+        } else {
+            finish.random_range(0.65..0.97)
+        },
     });
     r.joint_width = product.random_range(if style == 0 {
         0.0005..0.0025

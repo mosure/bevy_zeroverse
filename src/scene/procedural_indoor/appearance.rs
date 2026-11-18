@@ -2,7 +2,7 @@
 //! They never resample architecture, objects, people, cameras or family identity.
 use super::{
     domain::SceneDomain,
-    layout::{stream, IndoorManifest, LightingMood},
+    layout::{stream, IndoorManifest},
     materials,
 };
 use rand::Rng;
@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AppearanceSettings {
+    /// Per-camera RGB sensor policy, applied after rendering.
+    pub sensor: crate::render::sensor::SensorArtifactSettings,
     pub material_seed: Option<u64>,
     pub lighting_seed: Option<u64>,
     /// Scale material relief and pattern contrast; geometry detail is unchanged.
@@ -23,6 +25,7 @@ pub struct AppearanceSettings {
 impl Default for AppearanceSettings {
     fn default() -> Self {
         Self {
+            sensor: Default::default(),
             material_seed: None,
             lighting_seed: None,
             material_detail: 1.,
@@ -39,6 +42,7 @@ impl AppearanceSettings {
         Ok(settings)
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.sensor.validate()?;
         if !(0.0..=1.0).contains(&self.material_detail)
             || !(0.05..=1.0).contains(&self.illumination_scale)
             || !(-2.0..=2.0).contains(&self.exposure_ev100_offset)
@@ -61,6 +65,16 @@ impl IndoorManifest {
             return Err(
                 "apply appearance to a fresh manifest; repeated dimming is ambiguous".into(),
             );
+        }
+        // A sensor-only intervention must preserve the original lighting and per-view RGB source.
+        if settings.material_seed.is_none()
+            && settings.lighting_seed.is_none()
+            && settings.material_detail == 1.
+            && settings.illumination_scale == 1.
+            && settings.exposure_ev100_offset == 0.
+        {
+            self.appearance = Some(settings);
+            return Ok(());
         }
         let program = self
             .program
@@ -89,23 +103,26 @@ impl IndoorManifest {
             self.sun_elevation = rng.random_range(0.08..1.3);
             self.sun_azimuth = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
         }
-        domain.target_lux *= settings.illumination_scale;
-        domain.photometry.sun_lux *= settings.illumination_scale;
-        domain.photometry.sky_radiance *= settings.illumination_scale;
-        domain.photometry.environment_intensity *= settings.illumination_scale;
-        domain.photometry.ev100 += settings.exposure_ev100_offset;
-        domain.validate()?;
         self.target_lux = domain.target_lux;
         self.daylight_lux = domain.photometry.sun_lux;
         self.light_kelvin = domain.fixture_kelvin;
-        self.lighting = if self.daylight_lux > 8000. {
-            LightingMood::Daylight
-        } else if self.daylight_lux > 100. {
-            LightingMood::Overcast
-        } else {
-            LightingMood::Evening
-        };
+        let reseed = settings.lighting_seed.is_some();
+        let scale = settings.illumination_scale;
+        let offset = settings.exposure_ev100_offset;
         self.appearance = Some(settings);
+        if reseed {
+            self.meter_indoor_lighting();
+        }
+        let domain = self.program.as_mut().unwrap().domain.as_mut().unwrap();
+        domain.target_lux *= scale;
+        domain.photometry.sun_lux *= scale;
+        domain.photometry.sky_radiance *= scale;
+        domain.photometry.environment_intensity *= scale;
+        domain.photometry.ev100 += offset;
+        domain.validate()?;
+        self.target_lux = domain.target_lux;
+        self.daylight_lux = domain.photometry.sun_lux;
+        self.lighting = domain.photometry.mood();
         Ok(())
     }
 }

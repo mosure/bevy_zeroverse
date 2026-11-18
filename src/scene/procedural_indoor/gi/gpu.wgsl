@@ -1,6 +1,7 @@
 struct Params { resolution:vec4<u32>, budget:vec4<u32>, sun_direction:vec4<f32>, sun:vec4<f32>, sky:vec4<f32>, rotation:vec4<f32> }
-struct Triangle {a:vec4<f32>,ab:vec4<f32>,ac:vec4<f32>,uv01:vec4<f32>,uv2_material:vec4<f32>,normal:vec4<f32>}
-struct Node {lo:vec4<f32>,hi:vec4<f32>,children:vec4<u32>}
+struct Triangle {a:vec4<f32>,ab:vec4<f32>,ac:vec4<f32>,uv01:vec4<f32>,uv2_material:vec4<f32>}
+struct Node {lo:vec3<f32>,index:u32,hi:vec3<f32>,tag:u32}
+const LEAF_BIT: u32 = 0x80000000u;
 struct Material {albedo:vec4<f32>,emission:vec4<f32>,uv_scale:vec4<f32>,tex:vec4<u32>}
 struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
 @group(0) @binding(0) var<uniform> params:Params;
@@ -9,7 +10,7 @@ struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f3
 @group(0) @binding(3) var<storage,read> materials:array<Material>;
 @group(0) @binding(4) var<storage,read> texels:array<vec4<f32>>;
 @group(0) @binding(5) var<storage,read> lights:array<Light>;
-@group(0) @binding(6) var<storage,read> origins:array<vec4<f32>>;
+@group(0) @binding(6) var<storage,read> origins:array<vec4<u32>>;
 @group(0) @binding(7) var output:texture_storage_3d<rgba16float,write>;
 const PI:f32=3.141592653589793;
 
@@ -31,13 +32,14 @@ fn intersect(origin:vec3<f32>,direction:vec3<f32>,limit:f32,any_hit:bool)->Hit {
         let a=(node.lo.xyz-origin)*inverse; let b=(node.hi.xyz-origin)*inverse;
         let near=min(a,b); let far=max(a,b);
         if max(max(near.x,near.y),max(near.z,0.0))>min(min(far.x,far.y),min(far.z,result.distance)) {continue;}
-        if node.children.y==0u {
-            let positive=direction[node.children.w]>=0.0;
-            stack[count]=select(index+1u,node.children.z,positive);
-            stack[count+1u]=select(node.children.z,index+1u,positive);
+        if (node.tag & LEAF_BIT)==0u {
+            let positive=direction[node.tag]>=0.0;
+            stack[count]=select(index+1u,node.index,positive);
+            stack[count+1u]=select(node.index,index+1u,positive);
             count+=2u;
         } else {
-            for(var i=node.children.x;i<node.children.x+node.children.y;i+=1u) {
+            let end=node.index+(node.tag & ~LEAF_BIT);
+            for(var i=node.index;i<end;i+=1u) {
                 let triangle=triangles[i];
                 let p=cross(direction,triangle.ac.xyz); let det=dot(triangle.ab.xyz,p);
                 if abs(det)<1e-9 {continue;}
@@ -82,7 +84,8 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
         let hit=intersect(origin,direction,1000.0,false);
         if hit.index==0xffffffffu {if direction.y>0.0 {result+=throughput*params.sky.xyz;}break;}
         let triangle=triangles[hit.index];
-        let normal=select(triangle.normal.xyz,-triangle.normal.xyz,dot(triangle.normal.xyz,direction)>0.0);
+        let n=vec3(triangle.a.w,triangle.ab.w,triangle.ac.w);
+        let normal=select(n,-n,dot(n,direction)>0.0);
         let position=origin+direction*hit.distance;
         let material=materials[u32(triangle.uv2_material.z)];
         let uv=triangle.uv01.xy*(1.0-hit.u-hit.v)+triangle.uv01.zw*hit.u+triangle.uv2_material.xy*hit.v;
@@ -105,16 +108,17 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
 var<workgroup> sums:array<vec4<f32>,384>;
 @compute @workgroup_size(64)
 fn bake(@builtin(workgroup_id) group:vec3<u32>,@builtin(local_invocation_index) lane:u32) {
-    let probe=group.x;let origin=origins[probe];
+    let probe=origins[params.resolution.w + group.x / 4u][group.x % 4u];
+    let origin=bitcast<vec3<f32>>(origins[probe].xyz);
     var coefficients:array<vec3<f32>,6>;
-    var phase_state=params.budget.z ^ (u32(origin.w)*7919u) ^ 0x9e3779b9u;
+    var phase_state=params.budget.z ^ (probe*7919u) ^ 0x9e3779b9u;
     let phase=random(&phase_state)*2.0*PI;
     for(var sample=lane;sample<params.budget.x;sample+=64u) {
         var state=phase_state ^ (sample*0x85ebca6bu);
         let y=1.0-2.0*(f32(sample)+0.5)/f32(params.budget.x);
         let phi=f32(sample)*2.3999631+phase;let r=sqrt(max(1.0-y*y,0.0));
         let direction=vec3(r*cos(phi),y,r*sin(phi));
-        let light=radiance(origin.xyz,direction,&state)*(4.0/f32(params.budget.x));
+        let light=radiance(origin,direction,&state)*(4.0/f32(params.budget.x));
         let q=params.rotation;let world=direction+2.0*cross(q.xyz,cross(q.xyz,direction)+q.w*direction);
         for(var axis=0u;axis<3u;axis+=1u) {
             let face=axis*2u+select(0u,1u,world[axis]<0.0);
@@ -127,11 +131,16 @@ fn bake(@builtin(workgroup_id) group:vec3<u32>,@builtin(local_invocation_index) 
         if lane<stride {for(var face=0u;face<6u;face+=1u) {sums[face*64u+lane]+=sums[face*64u+lane+stride];}}
         workgroupBarrier();
     }
-    if lane==0u {
-        let n=params.resolution.xyz;let p=vec3(probe%n.x,(probe/n.x)%n.y,probe/(n.x*n.y));
-        for(var face=0u;face<6u;face+=1u) {
-            let location=p+vec3(0u,(face%2u)*n.y,(face/2u)*n.z);
-            textureStore(output,vec3<i32>(location),vec4(sums[face*64u].xyz,1.0));
+    if lane<6u {
+        let n=params.resolution.xyz;
+        let lobe_offset=vec3(0u,(lane%2u)*n.y,(lane/2u)*n.z);
+        let value=vec4(sums[lane*64u].xyz,1.0);
+        var slot=probe;
+        loop {
+            let p=vec3(slot%n.x,(slot/n.x)%n.y,slot/(n.x*n.y));
+            textureStore(output,vec3<i32>(p+lobe_offset),value);
+            slot=origins[slot].w;
+            if slot==0xffffffffu {break;}
         }
     }
 }

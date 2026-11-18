@@ -74,6 +74,9 @@ pub struct WallFinish {
     pub relief_m: f32,
     pub roughness_variation: f32,
     pub burnish: f32,
+    /// Local abrasion of mineral coatings; higher values polish and flatten the raised binder.
+    #[serde(default)]
+    pub rubbed_finish: f32,
 }
 
 pub(super) struct Terms {
@@ -135,12 +138,19 @@ impl WallFinish {
             bands: rng.random_range(2..=9),
             band_duty: rng.random_range(0.08..0.45),
             warp: rng.random_range(0.0005..0.006),
-            pigment: rng.random_range(0.10..0.65),
+            pigment: if surface == Surface::Paint {
+                // Roller stipple and relief remain; unobtrusive field paint seldom
+                // has the broad pigment variation of a decorative mineral wash.
+                0.025 + 0.26 * rng.random::<f32>().powi(2)
+            } else {
+                rng.random_range(0.10..0.65)
+            },
             secondary_tint: [tint, tint * (1. - warmth), tint * (1. - warmth * 1.4)]
                 .map(|c| c.min(0.98)),
             relief_m: rng.random_range(0.00004..0.00035),
             roughness_variation: rng.random_range(0.025..0.18),
             burnish: rng.random_range(0.0..0.22) * weights[0],
+            rubbed_finish: rng.random::<f32>().powi(2) * weights[0],
         })
     }
 
@@ -155,6 +165,7 @@ impl WallFinish {
                 &self.pigment,
                 &self.roughness_variation,
                 &self.burnish,
+                &self.rubbed_finish,
             ])
             .any(|v| !v.is_finite() || !(0.0..=1.).contains(v))
             || self.weights.iter().sum::<f32>() > 1.001
@@ -201,19 +212,26 @@ impl WallFinish {
             * self.pigment
             * r.detail_scale.unwrap_or(1.);
         let ink = stripe * print_w * self.pigment * r.detail_scale.unwrap_or(1.);
+        // Burnished islands follow the mineral and brush fields on the surface.
+        // The same wear mask darkens the binder subtly and smooths its specular lobe.
+        let wear = super::field::smooth((wash * 0.68 + long * 0.32 - 0.45) * 4.)
+            * self.rubbed_finish
+            * r.detail_scale.unwrap_or(1.);
         Terms {
             gain: self
                 .secondary_tint
-                .map(|t| (1. + pigment) * (1. + (t - 1.) * ink)),
+                .map(|t| (1. + pigment) * (1. + (t - 1.) * ink) * (1. - 0.038 * wear)),
             height: ((wash - 0.5) * wash_w * 0.25
                 + (long - 0.5) * fiber_w
                 + (woven - 0.5) * weave_w)
                 * self.relief_m
-                * r.detail_scale.unwrap_or(1.),
+                * r.detail_scale.unwrap_or(1.)
+                * (1. - 0.52 * wear),
             roughness: ((long - 0.5) * fiber_w + (woven - 0.5) * weave_w + (wash - 0.5) * wash_w)
                 * self.roughness_variation
                 - wash * self.burnish
-                + ink * 0.025,
+                + ink * 0.025
+                - 0.18 * wear,
         }
     }
 }

@@ -30,6 +30,7 @@ mod preview_shadows;
 mod raster_order;
 pub mod residency;
 pub mod semantic;
+pub mod sensor;
 pub mod ssaa;
 #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
 mod upload;

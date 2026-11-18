@@ -69,17 +69,23 @@ pub(super) fn hash(x: u32, y: u32, seed: u64) -> f32 {
 // Periodic value noise: continuous at tile edges, with independent longitudinal
 // and transverse frequencies for wood fibres and large-scale surface variation.
 pub(super) fn periodic_noise(u: f32, v: f32, nx: u32, ny: u32, seed: u64) -> f32 {
-    let x = field::periodic_unit(u) * nx as f32;
-    let y = field::periodic_unit(v) * ny as f32;
-    let ix = x.floor() as u32;
-    let iy = y.floor() as u32;
-    let smooth = |t: f32| t * t * (3.0 - 2.0 * t);
-    let tx = smooth(x.fract());
-    let ty = smooth(y.fract());
-    let a = hash(ix % nx, iy % ny, seed);
-    let b = hash((ix + 1) % nx, iy % ny, seed);
-    let c = hash(ix % nx, (iy + 1) % ny, seed);
-    let d = hash((ix + 1) % nx, (iy + 1) % ny, seed);
+    #[inline]
+    fn axis(coordinate: f32, count: u32) -> (u32, u32, f32) {
+        let x = field::periodic_unit(coordinate) * count as f32;
+        let cell = x as u32;
+        // Coordinates have already wrapped. A tiny negative coordinate can
+        // round to the far seam; preserve the original lattice index there.
+        let first = if cell < count { cell } else { cell % count };
+        let next = if first + 1 == count { 0 } else { first + 1 };
+        let t = x - cell as f32;
+        (first, next, t * t * (3.0 - 2.0 * t))
+    }
+    let (x0, x1, tx) = axis(u, nx);
+    let (y0, y1, ty) = axis(v, ny);
+    let a = hash(x0, y0, seed);
+    let b = hash(x1, y0, seed);
+    let c = hash(x0, y1, seed);
+    let d = hash(x1, y1, seed);
     (a + (b - a) * tx) * (1.0 - ty) + (c + (d - c) * tx) * ty
 }
 

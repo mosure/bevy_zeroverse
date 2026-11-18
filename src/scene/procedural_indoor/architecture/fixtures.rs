@@ -1,6 +1,9 @@
 //! Coordinated luminaire construction, placement envelope and emitting area.
 //! Room circuits share a construction language, with individual metric sizes.
 use super::*;
+mod optics;
+pub(crate) use optics::beam_angles;
+pub use optics::{optical_insert, OpticalInsert};
 #[cfg(test)]
 mod tests;
 
@@ -89,21 +92,25 @@ fn cells(size: Vec3) -> (usize, f32, f32) {
 
 /// Area of the downward emitting face, including the faceted circular meshes.
 pub fn emitting_area(scene: &IndoorManifest) -> f32 {
-    area(parameters(scene), super::fixture_size(scene))
+    let p = parameters(scene);
+    area(&p, super::fixture_size(scene), optical_insert(scene, &p))
 }
 
 pub fn emitting_area_at(scene: &IndoorManifest, position: Vec3) -> f32 {
-    area(parameters_at(scene, position), size(scene, position))
+    let p = parameters_at(scene, position);
+    area(&p, size(scene, position), optical_insert(scene, &p))
 }
 
 pub fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
     super::fixture_layout::size(scene, position)
 }
 
-fn area(p: FixtureProgram, s: Vec3) -> f32 {
+fn area(p: &FixtureProgram, s: Vec3, insert: OpticalInsert) -> f32 {
     let inner = 1. - p.border_fraction * 2.;
     match p.shape {
-        FixtureShape::Panel | FixtureShape::Louver => s.x * s.z * inner * inner,
+        FixtureShape::Panel | FixtureShape::Louver => {
+            s.x * s.z * inner * inner * insert.basket_width()
+        }
         FixtureShape::Tube => s.x.max(s.z) * 0.92 * 4. * (s.x.min(s.z) * 0.09).min(s.y * 0.23),
         _ => {
             let (n, _, r) = cells(s);
@@ -112,7 +119,7 @@ fn area(p: FixtureProgram, s: Vec3) -> f32 {
                 * area
                 * match p.shape {
                     FixtureShape::Ring => 1. - p.opening_fraction.powi(2),
-                    _ => p.opening_fraction.powi(2),
+                    _ => (p.opening_fraction * insert.throat()).powi(2),
                 }
         }
     }
@@ -135,6 +142,7 @@ pub fn direction(scene: &IndoorManifest, position: Vec3) -> Vec3 {
 pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembly {
     let mut a = Assembly::default();
     let p = parameters_at(scene, position);
+    let insert = optical_insert(scene, &p);
     let s = size(scene, position);
     let label = format!("lamp#{index}");
     let trim = if super::super::materials::variants::supports(p.trim) {
@@ -165,27 +173,49 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
             } else {
                 0.004
             };
-            a.part(Surface::Light, &label).cuboid(
-                Vec3::new(s.x * inner, 0.002, s.z * inner),
-                0.,
-                tf(Vec3::Y * light_y),
-            );
+            if let OpticalInsert::Basket {
+                width,
+                recess,
+                reflector,
+            } = insert
+            {
+                optics::basket(
+                    &mut a,
+                    &label,
+                    position,
+                    s * Vec3::new(inner, 1., inner),
+                    width,
+                    recess,
+                    reflector,
+                );
+            } else {
+                a.part(Surface::Light, &label).cuboid(
+                    Vec3::new(s.x * inner, 0.002, s.z * inner),
+                    0.,
+                    tf(Vec3::Y * light_y),
+                );
+            }
             a.part(p.trim, &trim).cuboid(
                 Vec3::new(s.x * inner, 0.003, s.z * inner),
                 0.,
                 tf(Vec3::Y * (s.y * 0.5 - 0.0015)),
             );
             if p.shape == FixtureShape::Louver {
-                let n = (s.x / p.louver_pitch_m).floor().clamp(2., 20.) as usize;
+                // Cross blades span the short axis even on a Z-oriented housing.
+                let along_z = scene.generator_version >= 128 && s.z > s.x;
+                let (length, width) = if along_z { (s.z, s.x) } else { (s.x, s.z) };
+                let n = (length / p.louver_pitch_m).floor().clamp(2., 20.) as usize;
                 for j in 1..n {
+                    let along = length * inner * (j as f32 / n as f32 - 0.5);
+                    let (x, z, dx, dz) = if along_z {
+                        (0., along, width * inner, 0.003)
+                    } else {
+                        (along, 0., 0.003, width * inner)
+                    };
                     a.part(Surface::Chrome, &label).cuboid(
-                        Vec3::new(0.003, s.y * 0.60, s.z * inner),
+                        Vec3::new(dx, s.y * 0.60, dz),
                         0.0005,
-                        tf(Vec3::new(
-                            s.x * inner * (j as f32 / n as f32 - 0.5),
-                            y + s.y * 0.34,
-                            0.,
-                        )),
+                        tf(Vec3::new(x, y + s.y * 0.34, z)),
                     );
                 }
             }
@@ -239,23 +269,31 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                         tf(c),
                     );
                 } else {
-                    let inset = if p.shape == FixtureShape::Downlight {
-                        s.y * 0.70
-                    } else {
-                        0.005
+                    let (inset, throat, rim, reflector) = match insert {
+                        OpticalInsert::Cup {
+                            throat,
+                            recess,
+                            reflector,
+                        } => (
+                            optics::cup_depth(s.y, hole, recess),
+                            hole * throat,
+                            y,
+                            reflector,
+                        ),
+                        _ if p.shape == FixtureShape::Downlight => {
+                            (s.y * 0.70, hole, y + 0.001, Surface::Chrome)
+                        }
+                        _ => (0.005, hole, y + 0.001, Surface::Chrome),
                     };
                     a.part(p.trim, &trim).lathe(
                         &[(hole, y), (r, y), (r, s.y * 0.48), (0., s.y * 0.48)],
                         32,
                         tf(c),
                     );
-                    a.part(Surface::Chrome, &label).lathe(
-                        &[(hole, y + inset), (hole, y + 0.001)],
-                        32,
-                        tf(c),
-                    );
+                    a.part(reflector, &label)
+                        .lathe(&[(throat, y + inset), (hole, rim)], 32, tf(c));
                     a.part(Surface::Light, &label).lathe(
-                        &[(0., y + inset), (hole, y + inset)],
+                        &[(0., y + inset), (throat, y + inset)],
                         32,
                         tf(c),
                     );

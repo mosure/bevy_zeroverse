@@ -80,7 +80,7 @@ impl CaptureSpec {
         );
         ensure!(
             config.rgb_sensor.is_none(),
-            "GPU sensor transforms are not supported; they must not be silently omitted"
+            "rgb_sensor is an archive postprocess. Use indoor_appearance.sensor for GPU RGB artifacts"
         );
         Ok(Self::from_scene(config.scene_config()).color_output(ColorOutput::SrgbRgbF32))
     }

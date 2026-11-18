@@ -10,6 +10,7 @@ mod tests;
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
+        let boardroom = self.program.as_ref().unwrap().executive_boardroom;
         let mut dimension_rng = stream(self.seed, 0x5245_5041_4952_5349);
         for (zone_index, zone) in zones.into_iter().enumerate() {
             // Placement refinements must not consume the activity/composition
@@ -42,7 +43,9 @@ impl IndoorManifest {
                 (usable.x, usable.y)
             };
             let point = |x, y, z| tf.transform_point(Vec3::new(x, y, z));
-            if activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
+            if let Some(plan) = boardroom {
+                self.furnish_boardroom(plan);
+            } else if activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
                 self.furnish_lounge(tf, Vec2::new(w, d), zone_index);
             } else if activity == IndoorLayout::Conference && w > 3.0 && d > 3.0 {
                 self.meeting_group(&zone, zone_index, center);
@@ -51,34 +54,55 @@ impl IndoorManifest {
                 let pitch_z = zone.desk_depth + 1.25 + zone.aisle * 0.5;
                 let cols = ((w + zone.aisle * 0.5) / pitch_x).floor().max(1.0) as usize;
                 let rows = ((d + zone.aisle * 0.5) / pitch_z).floor().max(1.0) as usize;
+                let teaching = activity == IndoorLayout::Training;
+                let rows = field.map_or(rows, |f| {
+                    f.desk_rows(rows, d, pitch_z, zone.desk_depth, teaching)
+                });
                 let stagger = rng.random_range(-0.15..0.15);
                 let opposing = rng.random_bool(0.5);
                 for row in 0..rows {
                     for col in 0..cols {
-                        let (station, fan, occupancy) = field.map_or(
-                            (
-                                Vec2::new(
+                        let station = field.map_or_else(
+                            || super::super::program::furnishing::DeskStation {
+                                center: Vec2::new(
                                     (col as f32 - (cols - 1) as f32 * 0.5) * pitch_x
                                         + (row as f32 % 2.0 - 0.5) * stagger,
                                     (row as f32 - (rows - 1) as f32 * 0.5) * pitch_z - 0.45,
                                 ),
-                                0.0,
-                                1.0,
-                            ),
-                            |f| f.station([col, row], [cols, rows], Vec2::new(pitch_x, pitch_z)),
+                                turn: 0.,
+                                occupancy: 1.,
+                                opposite: None,
+                                paired: false,
+                            },
+                            |f| {
+                                f.desk_station(
+                                    [col, row],
+                                    [cols, rows],
+                                    Vec2::new(pitch_x, pitch_z),
+                                    zone.desk_depth,
+                                    teaching,
+                                )
+                            },
                         );
                         if row + col > 0
-                            && !rng.random_bool((zone.occupancy * occupancy).min(1.0) as f64)
+                            && !rng
+                                .random_bool((zone.occupancy * station.occupancy).min(1.0) as f64)
                         {
                             continue;
                         }
-                        let jitter = field.map_or(0.0, |f| f.jitter);
-                        let x = station.x + rng.random_range(-1.0..1.0) * jitter;
-                        let z = station.y + rng.random_range(-1.0..1.0) * jitter;
+                        let jitter = field.map_or(0.0, |f| f.jitter)
+                            * if station.paired { 0.18 } else { 1. };
+                        let x = station.center.x + rng.random_range(-1.0..1.0) * jitter;
+                        let z = station.center.y + rng.random_range(-1.0..1.0) * jitter;
                         let opposing = field.map_or(opposing && col % 2 == 1, |f| {
                             rng.random_bool(f.opposing_probability as f64)
                         });
-                        let turn = fan + if opposing { std::f32::consts::PI } else { 0.0 };
+                        let turn = station.turn
+                            + if station.opposite.unwrap_or(opposing) {
+                                std::f32::consts::PI
+                            } else {
+                                0.0
+                            };
                         let depth = zone.desk_depth * rng.random_range(0.94..1.02);
                         self.workstation(
                             ObjectKind::Desk,
@@ -94,7 +118,9 @@ impl IndoorManifest {
                     }
                 }
             }
-            self.fill_functional_zone(&zone, zone_index, rng);
+            if boardroom.is_none() {
+                self.fill_functional_zone(&zone, zone_index, rng);
+            }
             // Sample perimeter service objects by free space, not fixed global
             // corners. Plants, storage and bins compete for valid placements.
             let service_count = ((extent.x + extent.y)

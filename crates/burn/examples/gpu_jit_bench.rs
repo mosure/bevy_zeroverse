@@ -16,6 +16,8 @@ struct Args {
     transport_only: bool,
     #[arg(long)]
     gpu: bool,
+    #[arg(long)]
+    indoor_appearance: Option<String>,
     /// Native Vulkan/CUDA external-memory transport (requires cuda_interop).
     #[arg(long, conflicts_with = "gpu")]
     cuda: bool,
@@ -31,6 +33,7 @@ fn main() -> Result<()> {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_layout: args.layout,
+        indoor_appearance: args.indoor_appearance.clone(),
         indoor_seed: Some(args.seed),
         width: 512.,
         height: 512.,
@@ -77,7 +80,8 @@ fn main() -> Result<()> {
             let capture_time = start.elapsed().as_secs_f64();
             let consumer_start = Instant::now();
             for view in sample.views {
-                let _: f32 = view.color.unwrap().mul_scalar(1.01).mean().into_scalar();
+                let mean: f32 = view.color.unwrap().mul_scalar(1.01).mean().into_scalar();
+                ensure!(mean.is_finite(), "non-finite GPU RGB");
             }
             if index >= args.warmup {
                 producer_timings.push(dataset.last_capture_timings().unwrap().clone());

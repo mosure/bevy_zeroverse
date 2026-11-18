@@ -15,7 +15,7 @@ pub(crate) struct Clearance {
 impl Clearance {
     pub(crate) fn new(o: &IndoorObject) -> Self {
         let p = parameters(o);
-        let outline = outline(o);
+        let outline = outline::sample(o.size.xz() * 0.5, &p);
         let mut result = Self {
             bottom: o.size.y - p.top_thickness - 0.012,
             top: o.size.y,

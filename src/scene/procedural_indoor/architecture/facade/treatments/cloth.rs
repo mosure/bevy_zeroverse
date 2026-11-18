@@ -71,11 +71,18 @@ pub(super) fn sheet(
             .cross(points[2] - points[0])
             .normalize();
         let start = g.positions.len() as u32;
-        for v in points {
+        let length = (p[b] - p[a]).length();
+        // Each binding edge has its own tangent frame. Projecting onto XY
+        // collapses the shell thickness to zero in UV space.
+        for (v, uv) in
+            points
+                .into_iter()
+                .zip([[0., 0.], [0., 0.0012], [length, 0.0012], [length, 0.]])
+        {
             g.positions.push(tf.transform_point(v).to_array());
             g.normals
                 .push((tf.rotation * (n / tf.scale)).normalize().to_array());
-            g.uvs.push([v.x, v.y]);
+            g.uvs.push(uv);
         }
         g.indices
             .extend([start, start + 1, start + 2, start, start + 2, start + 3]);

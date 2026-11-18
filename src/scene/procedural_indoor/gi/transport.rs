@@ -1,7 +1,37 @@
 //! Compact shadow geometry. Surface attributes remain in the authoritative
 //! median tree and are resolved only when serializing the GPU transport input.
 use super::{Node, Triangle, Vec2, Vec3};
+use std::sync::Arc;
 mod packet;
+
+/// Native shadow traversal and WGSL read the same two 16-byte blocks. A leaf
+/// addresses its first triangle; an interior node addresses its right child.
+#[repr(C, align(16))]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(super) struct TransportNode {
+    pub(super) lo: Vec3,
+    pub(super) index: u32,
+    pub(super) hi: Vec3,
+    pub(super) tag: u32,
+}
+
+impl TransportNode {
+    pub(super) const LEAF: u32 = 1 << 31;
+
+    pub(super) fn from_node(n: Node) -> Self {
+        let (index, tag) = if n.count == 0 {
+            (n.right, n.axis as u32)
+        } else {
+            (n.start, Self::LEAF | n.count as u32)
+        };
+        Self {
+            lo: n.lo,
+            hi: n.hi,
+            index: u32::try_from(index).expect("transport node index fits u32"),
+            tag,
+        }
+    }
+}
 
 /// Forty bytes instead of a second eighty-byte complete triangle. The source
 /// index refers to the finalized median order, never an assembly or asset ID.
@@ -30,7 +60,7 @@ impl TransportTriangle {
 
 pub(super) struct TransportTree {
     pub(super) triangles: Vec<TransportTriangle>,
-    pub(super) nodes: Vec<Node>,
+    pub(super) nodes: Arc<Vec<TransportNode>>,
     pub(super) preparation_ms: f64,
 }
 
@@ -55,12 +85,13 @@ impl TransportTree {
             len -= 1;
             let index = stack[len];
             let node = &self.nodes[index];
-            if !node.intersects(origin, inverse, max) {
+            if !super::intersects_bounds(node.lo, node.hi, origin, inverse, max) {
                 continue;
             }
-            if node.count > 0 {
-                let (packets, remainder) =
-                    self.triangles[node.start..node.start + node.count].as_chunks::<4>();
+            let first = node.index as usize;
+            if node.tag & TransportNode::LEAF != 0 {
+                let count = (node.tag & !TransportNode::LEAF) as usize;
+                let (packets, remainder) = self.triangles[first..first + count].as_chunks::<4>();
                 for triangles in packets {
                     if packet::occluded(triangles, origin, direction, max) {
                         return true;
@@ -72,10 +103,10 @@ impl TransportTree {
                     }
                 }
             } else {
-                let (near, far) = if direction[node.axis] >= 0.0 {
-                    (index + 1, node.right)
+                let (near, far) = if direction[node.tag as usize] >= 0.0 {
+                    (index + 1, first)
                 } else {
-                    (node.right, index + 1)
+                    (first, index + 1)
                 };
                 stack[len] = far;
                 stack[len + 1] = near;
@@ -117,9 +148,10 @@ mod tests {
             bounds_max: Vec3::ONE,
             preparation_ms: 0.,
             world_rotation: bevy::prelude::Quat::IDENTITY,
+            probe_domain: None,
         };
-        scene.build_bvh();
-        scene.prepare_gpu_transport();
+        drop(scene.build_bvh());
+        scene.gpu_transport();
         // Attributes bind after tree construction. GPU serialization must see
         // those bindings, while shadow geometry retains the exact coordinates.
         for triangle in &mut scene.triangles {
@@ -149,12 +181,12 @@ mod tests {
             assert_eq!(surface.uv[0], Vec2::new(0.17, -0.25));
             assert!(surface.material >= 7);
         }
-        scene.build_bvh();
+        drop(scene.build_bvh());
         assert!(
             scene.transport_tree.get().is_none(),
             "reordering invalidates source indices"
         );
-        scene.prepare_gpu_transport();
+        scene.gpu_transport();
         assert_eq!(
             scene.gpu_transport().surfaces(&scene).len(),
             scene.triangles.len()

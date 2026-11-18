@@ -43,4 +43,28 @@ impl SeatPath {
         }
         unreachable!("a table has a nonempty perimeter")
     }
+
+    /// Intersect a line across a convex seating perimeter. This also finds the
+    /// actual chair position and edge normal on boat-shaped and oval boards.
+    pub(super) fn on_side(&self, axis: usize, sign: f32, along: f32) -> Option<(Vec2, f32)> {
+        let cross = 1 - axis;
+        let mut outermost = f32::NEG_INFINITY;
+        let mut seat = None;
+        for (a, b) in self.points.iter().zip(self.points.iter().cycle().skip(1)) {
+            let edge = *b - *a;
+            if edge[cross].abs() < 1e-6 {
+                continue;
+            }
+            let t = (along - a[cross]) / edge[cross];
+            if (0.0..=1.0).contains(&t) {
+                let p = *a + edge * t;
+                if sign * p[axis] > outermost {
+                    outermost = sign * p[axis];
+                    let outward = -edge.perp();
+                    seat = Some((p, outward.x.atan2(outward.y)));
+                }
+            }
+        }
+        seat
+    }
 }

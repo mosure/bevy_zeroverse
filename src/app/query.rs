@@ -450,6 +450,8 @@ mod tests {
     fn dotted_policies_are_sparse_order_independent_and_reject_malformed_paths() {
         let base = web_viewer_defaults();
         let pairs = [
+            ("appearance.sensor.probability", "0.6"),
+            ("appearance.sensor.flare", "0.25"),
             ("clutter.probability", "0.35"),
             ("clutter.bias", "0.7"),
             ("camera.lenses.fov_degrees.1", "210"),
@@ -460,6 +462,8 @@ mod tests {
         let config = parse(base.clone(), pairs.clone()).unwrap();
         let view = super::super::view_state::ViewState::default();
         let query = encode(&config, &view);
+        assert!(query.contains("appearance.sensor.probability=0.6"));
+        assert!(!query.contains("appearance.sensor.smudge"));
         assert!(query.contains("clutter.probability="));
         assert!(query.contains("clutter.probability=0.35"), "{query}");
         assert!(!query.contains("0.349999994"), "{query}");
@@ -473,6 +477,7 @@ mod tests {
             expand(&parse(base.clone(), decode(&query)).unwrap())
         );
         for pairs in [
+            vec![("appearance.sensor.noise", "-1")],
             vec![("clutter.typo", "1")],
             vec![("camera.lenses.probability", "2")],
             vec![("camera.lenses.fov_degrees.200", "90")],

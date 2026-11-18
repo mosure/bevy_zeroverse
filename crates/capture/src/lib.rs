@@ -7,10 +7,10 @@ pub mod depth;
 pub mod gpu;
 pub mod reconstruction;
 
-pub const GENERATOR_VERSION: u32 = 120;
+pub const GENERATOR_VERSION: u32 = 130;
 pub const CAPTURE_SCHEMA_VERSION: u32 = 1;
 /// Population metrics contract shared by the renderer and publication gate.
-pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 23;
+pub const INDOOR_METRICS_SCHEMA_VERSION: u32 = 24;
 pub const MAX_VISIBILITY_CAMERAS: usize = 16;
 pub const PUBLICATION_MODES: [&str; 6] = [
     "color",

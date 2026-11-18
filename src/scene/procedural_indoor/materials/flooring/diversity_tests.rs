@@ -153,3 +153,30 @@ fn continuous_carpet_dye_changes_content_at_fixed_seed() {
         );
     }
 }
+
+#[test]
+fn carpet_pile_predicts_relief_and_highlight_without_predicting_dye() {
+    let mut ends = [[0_f32; 4]; 2];
+    for seed in 0..256 {
+        let r = program::sample_with_floor(seed, 1)
+            .unwrap()
+            .remove(Surface::Floor as usize);
+        let c = r.carpet.as_ref().unwrap();
+        let bin = if c.pile < 0.30 {
+            0
+        } else if c.pile > 0.75 {
+            1
+        } else {
+            continue;
+        };
+        let row = &mut ends[bin];
+        row[0] += 1.;
+        row[1] += r.relief_m / r.detail_scale.unwrap_or(1.);
+        row[2] += r.roughness;
+        row[3] += r.color.iter().sum::<f32>() / 3.;
+    }
+    assert!(ends.iter().all(|r| r[0] > 25.));
+    let [short, long] = ends.map(|r| r.map(|v| v / r[0]));
+    assert!(long[1] > 1.65 * short[1] && long[2] > short[2] + 0.04);
+    assert!((long[3] - short[3]).abs() < 0.10);
+}

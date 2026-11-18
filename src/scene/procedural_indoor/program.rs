@@ -1,6 +1,7 @@
 //! Replayable spatial program: recursively split usable space, retain real portals,
 //! then populate each leaf with dimensioned functional groups. All units are metres.
 pub mod activity;
+pub mod boardroom;
 pub mod furnishing;
 mod partition;
 pub mod region;
@@ -114,6 +115,9 @@ impl Partition {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndoorProgram {
+    /// An executive meeting reserves its central table and perimeter seating before subdivision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executive_boardroom: Option<boardroom::BoardroomPlan>,
     /// Reconstruction room selected after furnishing. Missing in older archives,
     /// which retain their original largest-floor-area selection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -132,6 +136,18 @@ pub struct IndoorProgram {
 }
 impl IndoorProgram {
     pub fn sample(seed: u64, size: Vec3, activity: IndoorLayout, density: f32) -> Self {
+        let boardroom = boardroom::BoardroomPlan::sample(seed, activity)
+            .and_then(|p| p.fit_existing_floor(size));
+        Self::sample_for_floor(seed, size, activity, density, boardroom)
+    }
+
+    pub(crate) fn sample_for_floor(
+        seed: u64,
+        size: Vec3,
+        activity: IndoorLayout,
+        density: f32,
+        boardroom: Option<boardroom::BoardroomPlan>,
+    ) -> Self {
         let mut rng = stream(seed, 70);
         let domain = super::domain::SceneDomain::sample(seed);
         let half = Vec2::new(size.x, size.z) * 0.5;
@@ -147,11 +163,13 @@ impl IndoorProgram {
         };
         // Tall loft volumes reserve the long, open run needed for a real stair;
         // subdividing them first can make every mezzanine proposal impossible.
-        let attempts = if size.y > 5.8 || activity.is_kitchen() || activity.is_public() {
-            0
-        } else {
-            ((size.x * size.z / target_area).round() as usize).clamp(1, 12) - 1
-        };
+        let attempts =
+            if boardroom.is_some() || size.y > 5.8 || activity.is_kitchen() || activity.is_public()
+            {
+                0
+            } else {
+                ((size.x * size.z / target_area).round() as usize).clamp(1, 12) - 1
+            };
         for _ in 0..attempts {
             let index = leaves
                 .iter()
@@ -244,6 +262,7 @@ impl IndoorProgram {
             })
             .collect();
         Self {
+            executive_boardroom: boardroom,
             primary_zone: None,
             zones,
             partitions,
@@ -283,6 +302,18 @@ pub fn primary_zone(scene: &IndoorManifest) -> Option<(Vec3, Vec2)> {
 
 impl IndoorProgram {
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if self.executive_boardroom.is_some_and(|p| {
+            scene.layout != IndoorLayout::Conference
+                || self.zones.len() != 1
+                || !self.partitions.is_empty()
+                || !p.span().abs_diff_eq(scene.room_size.xz(), 0.001)
+                || !(0.7..=1.5).contains(&p.seat_pitch_m)
+                || p.table_size_m.min_element() <= 0.
+                || p.facade_allowance().min_element() <= 0.
+                || p.entry_extra_m < 0.
+        }) {
+            return Err("invalid executive boardroom dimensions or circulation plan".into());
+        }
         if let Some(trim) = self.finishes.as_ref().and_then(|f| f.trim.as_ref()) {
             trim.validate()?;
         }

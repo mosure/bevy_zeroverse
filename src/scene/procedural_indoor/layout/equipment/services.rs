@@ -85,8 +85,10 @@ fn pull_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     {
         return false;
     }
-    let f =
-        architecture::interior_glazing::shared_facade(scene, scene.ceiling_height(o.position.xz()));
+    let f = architecture::interior_glazing::shared_facade(
+        scene,
+        architecture::interior_glazing::partition_height(scene),
+    );
     !f.openings.iter().any(|w| {
         x + o.size.x * 0.5 > w.min.x - 0.065
             && x - o.size.x * 0.5 < w.max.x + 0.065

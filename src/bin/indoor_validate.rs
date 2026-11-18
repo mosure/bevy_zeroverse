@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
     camera::PlaybackMode,
-    headless::{create_app, setup_globals},
+    headless::{create_app, setup_globals, try_update_capture},
     io::channels,
     render::{depth::DepthFormat, RenderMode},
     sample::{Sample, SamplerState},
@@ -31,6 +31,8 @@ mod co_visibility;
 mod deadline;
 #[path = "motion_validate/flow.rs"]
 mod flow;
+#[path = "indoor_validate/luminance.rs"]
+mod luminance;
 #[path = "indoor_validate/reconstruction.rs"]
 mod reconstruction;
 
@@ -181,8 +183,12 @@ struct ViewReport {
     luminance_std: f32,
     dark_fraction: f32,
     clipped_fraction: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    display_luminance: Option<luminance::DisplayLuminance>,
     semantic_colors: usize,
     semantic_pixel_counts: std::collections::BTreeMap<String, usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic_co_visibility: Option<std::collections::BTreeMap<String, co_visibility::ClassSupport>>,
     annotation_alignment:
         Option<bevy_zeroverse::scene::procedural_indoor::validation::AnnotationAlignment>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -529,20 +535,20 @@ fn run(args: &Args) -> Result<()> {
     let preparation_timeout = deadline::for_adapter(adapter, 60);
     let capture_timeout = deadline::for_adapter(adapter, 180);
     for _ in 0..4 {
-        app.update();
+        try_update_capture(&mut app)?;
     }
     for &seed in &selected {
         let start = Instant::now();
         app.world_mut()
             .resource_mut::<BevyZeroverseConfig>()
             .indoor_seed = Some(seed);
-        app.update();
+        try_update_capture(&mut app)?;
         app.world_mut().write_message(RegenerateSceneEvent);
         // Build and compile RGB pipelines before enabling the sampler; mode transitions
         // get their own settling frames so readback cannot contain the preceding mode.
         *app.world_mut().resource_mut::<RenderMode>() = RenderMode::Color;
         loop {
-            app.update();
+            try_update_capture(&mut app).with_context(|| format!("rendering seed {seed}"))?;
             ensure!(
                 app.world()
                     .resource::<bevy_zeroverse::sample::CaptureFailure>()
@@ -588,7 +594,7 @@ fn run(args: &Args) -> Result<()> {
         });
         let capture_started = Instant::now();
         let sample = loop {
-            app.update();
+            try_update_capture(&mut app).with_context(|| format!("rendering seed {seed}"))?;
             ensure!(
                 app.world()
                     .resource::<bevy_zeroverse::sample::CaptureFailure>()
@@ -810,7 +816,17 @@ fn save_sample(
             .with_context(|| format!("camera {camera_index} step {step_index}"))?;
         let mut semantic_colors = 0;
         let mut semantic_pixel_counts = std::collections::BTreeMap::new();
+        let mut semantic_co_visibility =
+            (args.labels && args.co_visibility).then(std::collections::BTreeMap::new);
+        let masks = view.co_visibility.as_chunks::<16>().0;
+        if semantic_co_visibility.is_some() {
+            ensure!(
+                masks.len() == args.width as usize * args.height as usize,
+                "co-visibility and semantic sizes differ"
+            );
+        }
         let semantic_palette = semantic_palette();
+        let mut light = luminance::Luminance::new();
         for (name, bytes) in [
             ("color", &view.color),
             ("depth", &view.depth),
@@ -826,25 +842,17 @@ fn save_sample(
                 bytes.len() == (args.width * args.height * 16) as usize,
                 "incorrect {name} readback length"
             );
-            let values: Vec<f32> = bytes
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|v| f32::from_ne_bytes(*v))
-                .collect();
-            ensure!(
-                values.iter().all(|x| x.is_finite()),
-                "non-finite {name} output: {} channels; first index {:?}",
-                values.iter().filter(|x| !x.is_finite()).count(),
-                values.iter().position(|x| !x.is_finite())
-            );
-            if !args.no_raw {
-                let raw: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
-                fs::write(directory.join(format!("view_{i:02}_{name}.rgba32f")), raw)?;
-            }
-            let mut rgb = Vec::new();
-            let mut colors = std::collections::BTreeSet::new();
-            for p in values.as_chunks::<4>().0.iter() {
+            let mut rgb = Vec::with_capacity(bytes.len() / 16 * 3);
+            let mut colors = std::collections::BTreeMap::new();
+            for (pixel, chunk) in bytes.as_chunks::<16>().0.iter().enumerate() {
+                let p: [f32; 4] = bytemuck::pod_read_unaligned(chunk);
+                ensure!(
+                    p.iter().all(|v| v.is_finite()),
+                    "non-finite {name} at pixel {pixel}: {p:?}"
+                );
+                if name == "color" {
+                    light.push(p, pixel, intrinsics, !args.linear_rgb);
+                }
                 let c = match name {
                     "color" | "semantic" => [
                         linear_to_srgb(p[0]),
@@ -856,16 +864,33 @@ fn save_sample(
                 };
                 let c = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
                 if name == "semantic" {
-                    colors.insert(c);
-                    let label = semantic_palette
-                        .get(&c)
-                        .with_context(|| format!("unrecognized semantic palette color: {c:?}"))?;
-                    *semantic_pixel_counts.entry(label.clone()).or_default() += 1;
+                    let (pixels, support) = colors.entry(c).or_insert_with(|| {
+                        (
+                            0,
+                            semantic_co_visibility
+                                .as_ref()
+                                .map(|_| co_visibility::ClassSupport::new(args.cameras)),
+                        )
+                    });
+                    *pixels += 1;
+                    if let Some(support) = support {
+                        support.observe(&masks[pixel]);
+                    }
                 }
                 rgb.extend(c);
             }
             if name == "semantic" {
                 semantic_colors = colors.len();
+                for (color, (pixels, support)) in colors {
+                    let label = semantic_palette.get(&color).with_context(|| {
+                        format!("unrecognized semantic palette color: {color:?}")
+                    })?;
+                    semantic_pixel_counts.insert(label.clone(), pixels);
+                    if let (Some(per_class), Some(support)) = (&mut semantic_co_visibility, support)
+                    {
+                        per_class.insert(label.clone(), support);
+                    }
+                }
                 // Class richness is a dataset review metric, not annotation
                 // validity. Close views and opaque annotation glass can contain
                 // only one or two classes; every pixel was palette-checked above.
@@ -874,28 +899,15 @@ fn save_sample(
                     "semantic image has an invalid palette size: {semantic_colors}"
                 );
             }
+            if !args.no_raw {
+                let path = directory.join(format!("view_{i:02}_{name}.rgba32f"));
+                write_rgba32f(&path, bytes)?;
+            }
             image::RgbImage::from_raw(args.width, args.height, rgb)
                 .unwrap()
                 .save(directory.join(format!("view_{i:02}_{name}.png")))?;
         }
-        let color: Vec<f32> = view
-            .color
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|v| f32::from_ne_bytes(*v))
-            .collect();
-        let luminance: Vec<_> = color
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|p| 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2])
-            .collect();
-        let n = luminance.len() as f32;
-        let mean = luminance.iter().sum::<f32>() / n;
-        let std = (luminance.iter().map(|l| (l - mean).powi(2)).sum::<f32>() / n).sqrt();
-        let dark = luminance.iter().filter(|&&l| l < 0.002).count() as f32 / n;
-        let clipped = luminance.iter().filter(|&&l| l > 0.99).count() as f32 / n;
+        let (mean, std, dark, clipped) = light.summary();
         // Low-light and exposure-tail samples belong to the domain. Reject lost
         // signal, not a dark_fraction chosen for normally lit offices; retain all
         // brightness/clipping statistics so dataset curation can be explicit.
@@ -934,8 +946,10 @@ fn save_sample(
             luminance_std: std,
             dark_fraction: dark,
             clipped_fraction: clipped,
+            display_luminance: light.display(),
             semantic_colors,
             semantic_pixel_counts,
+            semantic_co_visibility,
             co_visibility,
             annotation_alignment: if args.labels {
                 Some(
@@ -954,6 +968,23 @@ fn save_sample(
         });
     }
     Ok(reports)
+}
+
+/// Write canonical little-endian float32 planes without duplicating a frame.
+fn write_rgba32f(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    #[cfg(target_endian = "little")]
+    {
+        fs::write(path, bytes)
+    }
+    #[cfg(target_endian = "big")]
+    {
+        use std::io::{BufWriter, Write};
+        let mut output = BufWriter::new(fs::File::create(path)?);
+        for word in bytes.as_chunks::<4>().0 {
+            output.write_all(&f32::from_ne_bytes(*word).to_le_bytes())?;
+        }
+        output.flush()
+    }
 }
 
 fn linear_to_srgb(v: f32) -> f32 {

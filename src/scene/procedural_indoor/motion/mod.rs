@@ -5,7 +5,9 @@ pub(crate) mod construction;
 mod mobility;
 mod planning;
 mod proposals;
+mod roller;
 mod runtime;
+pub(crate) use roller::RollerFeed;
 #[cfg(test)]
 mod tests;
 
@@ -198,6 +200,7 @@ pub(crate) struct Joint {
     pub pivot: Vec3,
     /// Construction-aligned frame used only for tight swept collision bounds.
     pub frame: Transform,
+    pub roller_feed: Option<RollerFeed>,
     pub axis: Vec3,
     pub angle: f32,
     pub translation: Vec3,
@@ -222,6 +225,7 @@ impl Joint {
             interval: [start, r.random_range(0.7..1.0)],
             pivot: Vec3::ZERO,
             frame: Transform::IDENTITY,
+            roller_feed: None,
             axis: Vec3::Y,
             angle: 0.,
             translation: Vec3::ZERO,
@@ -240,6 +244,7 @@ impl Joint {
             interval: self.interval,
             pivot: self.pivot,
             frame: self.frame,
+            roller_feed: self.roller_feed,
             axis: self.axis,
             angle: self.angle,
             translation: self.translation,

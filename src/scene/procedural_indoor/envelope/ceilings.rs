@@ -199,7 +199,12 @@ fn raised_fields_have_four_connected_returns_and_match_the_roof_oracle() {
 
 /// Add connected, offset returns on multiple eligible exterior edges. Accepted
 /// outlines retain the complete shared +Z wall and at least 78% of their area.
-pub(super) fn articulate(seed: u64, original: Vec<Vec2>, size: Vec3) -> Vec<Vec2> {
+pub(super) fn articulate(
+    seed: u64,
+    original: Vec<Vec2>,
+    size: Vec3,
+    boardroom: Option<super::super::program::boardroom::BoardroomPlan>,
+) -> Vec<Vec2> {
     let mut r = stream(seed, 4116);
     let mut result = original.clone();
     let mut accepted = 0;
@@ -233,6 +238,14 @@ pub(super) fn articulate(seed: u64, original: Vec<Vec2>, size: Vec3) -> Vec<Vec2
         );
         if polygon::validate(&proposal).is_ok()
             && polygon::area(&proposal) > polygon::area(&original) * 0.78
+            && boardroom.is_none_or(|p| {
+                polygon::box_inside(
+                    &proposal,
+                    p.center() - p.reserved_half(),
+                    p.center() + p.reserved_half(),
+                    0.,
+                )
+            })
         {
             result = proposal;
             accepted += 1;

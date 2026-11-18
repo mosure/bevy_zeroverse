@@ -582,7 +582,7 @@ fn regenerate(
         .take(settings.num_cameras)
         .enumerate()
     {
-        commands.spawn((
+        let mut entity = commands.spawn((
             crate::camera::CaptureCameraIndex(index),
             ZeroverseCamera {
                 fisheye: camera.fisheye,
@@ -593,6 +593,14 @@ fn regenerate(
             },
             ChildOf(root),
         ));
+        if let Some(profile) = manifest
+            .appearance
+            .as_ref()
+            .filter(|_| !args.headless || crate::render::sensor::captures_rgb(&args))
+            .and_then(|a| a.sensor.profile(seed, index))
+        {
+            entity.insert(profile);
+        }
     }
     info!(
         "procedural_indoor seed={seed} version={} humans={} layout={:?} room={:?} instances={} cameras={}",

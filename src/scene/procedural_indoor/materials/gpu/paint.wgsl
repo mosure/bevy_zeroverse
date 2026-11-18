@@ -41,9 +41,10 @@ fn wall_finish(uv: vec2<f32>) -> WallTerms {
     let woven=(longitudinal*0.65+cross*0.35)*(0.85+longitudinal*cross*0.30);
     let pigment=((wash-0.5)*w.x+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.y*r.paint2.w;
     let ink=stripe*w.w*r.wall0.y*r.paint2.w;
-    let gain=(1.+pigment)*(vec3(1.)+(r.wall_tint.xyz-vec3(1.))*ink);
-    let height=((wash-0.5)*w.x*0.25+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.z*r.paint2.w;
-    let roughness=((longitudinal-0.5)*w.y+(woven-0.5)*w.z+(wash-0.5)*w.x)*r.wall0.w-wash*r.wall1.y+ink*0.025;
+    let wear=smooth_curve((wash*0.68+longitudinal*0.32-0.45)*4.)*r.wall1.z*r.paint2.w;
+    let gain=(1.+pigment)*(vec3(1.)+(r.wall_tint.xyz-vec3(1.))*ink)*(1.-0.038*wear);
+    let height=((wash-0.5)*w.x*0.25+(longitudinal-0.5)*w.y+(woven-0.5)*w.z)*r.wall0.z*r.paint2.w*(1.-0.52*wear);
+    let roughness=((longitudinal-0.5)*w.y+(woven-0.5)*w.z+(wash-0.5)*w.x)*r.wall0.w-wash*r.wall1.y+ink*0.025-0.18*wear;
     return WallTerms(gain,height,roughness);
 }
 fn paint(uv: vec2<f32>) -> Texel {

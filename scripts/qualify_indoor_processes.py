@@ -271,6 +271,12 @@ def verify_dataset(directory, args):
                 require(stats.get('backend') == 'gpu_bvh_compute' and stats.get('probes', 0) > 0
                         and stats.get('primary_rays') == stats['probes'] * 256,
                         f'{path}: production Auto256 GI statistics missing')
+                if stats.get('traced_primary_rays') is not None:
+                    probes, relocated = stats['probes'], stats.get('relocated_probes', -1)
+                    # An entirely solid grid falls back to tracing each slot in place.
+                    sources = probes if relocated == probes else probes - relocated
+                    require(0 <= relocated <= probes and stats['traced_primary_rays'] == sources * 256,
+                            f'{path}: inconsistent traced GI ray count')
         chunks.append({'file': path.name, 'sample_offset': count, 'samples': batch,
                        'bytes': path.stat().st_size})
         count += batch
@@ -574,6 +580,13 @@ def self_test():
                 (directory / 'generation_config.json').write_text(json.dumps(config))
                 write_chunk([7, 8], dict(backend='gpu_bvh_compute', probes=3, primary_rays=768))
                 self.assertEqual(verify_dataset(directory, args)['samples'], 2)
+                write_chunk([7, 8], dict(backend='gpu_bvh_compute', probes=3, relocated_probes=1,
+                                         primary_rays=768, traced_primary_rays=512))
+                self.assertEqual(verify_dataset(directory, args)['samples'], 2)
+                write_chunk([7, 8], dict(backend='gpu_bvh_compute', probes=3, relocated_probes=1,
+                                         primary_rays=768, traced_primary_rays=256))
+                with self.assertRaisesRegex(ValueError, 'traced GI ray count'):
+                    verify_dataset(directory, args)
                 write_chunk([7, 8], dict(backend='gpu_bvh_compute', probes=3, primary_rays=0))
                 with self.assertRaisesRegex(ValueError, 'GI statistics'):
                     verify_dataset(directory, args)

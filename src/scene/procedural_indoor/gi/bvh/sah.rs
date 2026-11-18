@@ -1,6 +1,6 @@
 //! Deterministic native BVH construction; independent branches use a bounded pool.
 use super::super::TransportTriangle;
-use super::{Node, Triangle, Vec3};
+use super::{Bounds, Node, Primitive, Triangle, Vec3};
 
 const BINS: usize = 16;
 const LEAF_SIZE: usize = 8;
@@ -8,11 +8,6 @@ const LEAF_SIZE: usize = 8;
 // splits followed by median splits of a u32 triangle count need < 56 entries.
 const MAX_SAH_DEPTH: usize = 24;
 
-#[derive(Clone, Copy)]
-struct Bounds {
-    lo: Vec3,
-    hi: Vec3,
-}
 impl Bounds {
     const EMPTY: Self = Self {
         lo: Vec3::splat(f32::INFINITY),
@@ -28,12 +23,6 @@ impl Bounds {
         let d = (self.hi - self.lo).max(Vec3::ZERO);
         d.x * d.y + d.y * d.z + d.z * d.x
     }
-}
-
-struct Primitive {
-    bounds: Bounds,
-    centroid: Vec3,
-    original: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -57,9 +46,12 @@ impl Bin {
     }
 }
 
-pub(super) fn build_shadow(triangles: &[Triangle]) -> (Vec<TransportTriangle>, Vec<Node>) {
+pub(super) fn build_shadow(
+    triangles: &[Triangle],
+    primitives: Vec<Primitive>,
+) -> (Vec<TransportTriangle>, Vec<Node>) {
     let parallel = triangles.len() >= 32_768 && super::parallel_builds();
-    build_mapped(triangles, parallel, TransportTriangle::new)
+    build_mapped(triangles, primitives, parallel, TransportTriangle::new)
 }
 
 #[cfg(test)]
@@ -69,11 +61,17 @@ pub(super) fn build(triangles: &[Triangle]) -> (Vec<Triangle>, Vec<Node>) {
 
 #[cfg(test)]
 fn build_with_parallelism(triangles: &[Triangle], parallel: bool) -> (Vec<Triangle>, Vec<Node>) {
-    build_mapped(triangles, parallel, |_, triangle| *triangle)
+    build_mapped(
+        triangles,
+        super::primitives(triangles),
+        parallel,
+        |_, triangle| *triangle,
+    )
 }
 
 fn build_mapped<T>(
     triangles: &[Triangle],
+    mut primitives: Vec<Primitive>,
     parallel: bool,
     map: impl Fn(usize, &Triangle) -> T,
 ) -> (Vec<T>, Vec<Node>) {
@@ -84,18 +82,7 @@ fn build_mapped<T>(
         u32::try_from(triangles.len()).is_ok(),
         "GI triangle index overflow"
     );
-    let mut primitives: Vec<_> = triangles
-        .iter()
-        .enumerate()
-        .map(|(original, triangle)| {
-            let (lo, hi) = triangle.bounds();
-            Primitive {
-                bounds: Bounds { lo, hi },
-                centroid: triangle.a + (triangle.ab + triangle.ac) / 3.0,
-                original,
-            }
-        })
-        .collect();
+    debug_assert_eq!(triangles.len(), primitives.len());
     let mut nodes = Vec::with_capacity(triangles.len() / 2);
     subdivide(&mut primitives, 0, 0, parallel, &mut nodes);
     // Material/UV/normal data stays in the median tree. Emit only the compact
@@ -172,19 +159,26 @@ fn subdivide(
             }
             let scale = scales[axis];
             let bins = &axis_bins[axis];
-            let mut suffix = [Bin::EMPTY; BINS];
-            suffix[BINS - 1] = bins[BINS - 1];
-            for i in (0..BINS - 1).rev() {
-                suffix[i] = bins[i].include(suffix[i + 1]);
+            // Only the scalar right-hand cost is read during split selection.
+            // An empty left bin repeats the preceding partition and cannot win
+            // the strict comparison. Keep the first boundary on an exact tie.
+            let mut right_costs = [f32::INFINITY; BINS - 1];
+            let mut right = Bin::EMPTY;
+            let mut right_cost = f32::INFINITY;
+            for i in (1..BINS).rev() {
+                if bins[i].count != 0 {
+                    right = bins[i].include(right);
+                    right_cost = right.cost();
+                }
+                right_costs[i - 1] = right_cost;
             }
             let mut left = Bin::EMPTY;
             for i in 0..BINS - 1 {
-                left = left.include(bins[i]);
-                let right = suffix[i + 1];
-                if left.count == 0 || right.count == 0 {
+                if bins[i].count == 0 {
                     continue;
                 }
-                let cost = left.cost() + right.cost();
+                left = left.include(bins[i]);
+                let cost = left.cost() + right_costs[i];
                 if cost < best_cost {
                     best_cost = cost;
                     best = Some((axis, i, scale));

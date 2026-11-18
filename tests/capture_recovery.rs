@@ -234,9 +234,9 @@ fn generated_cpu_failures_retire_without_mutating_retained_samples() {
     let mut rows = Vec::new();
     for seed in [66242910, 66242911] {
         let started = Instant::now();
-        let error = run(&mut app, seed, true)
-            .err()
-            .expect("missing actor accepted");
+        let Err(error) = run(&mut app, seed, true) else {
+            panic!("missing actor accepted");
+        };
         assert!(
             matches!(&error, CaptureError::Rejected { rejection, retired: true }
             if rejection.seed == seed && rejection.kind == SceneRejectionKind::PlacementClearance

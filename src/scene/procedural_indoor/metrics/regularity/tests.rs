@@ -6,6 +6,26 @@ use crate::scene::procedural_indoor::{
 };
 
 #[test]
+fn opposed_banks_measure_the_rear_join_in_the_desk_frame() {
+    for yaw in [0., 0.27, 1.8, 3.7] {
+        let mut a = audit::fixture(ObjectKind::Desk, 1);
+        a.position = Vec3::new(1.3, 0.1, 2.);
+        a.yaw = yaw;
+        let front = a.transform().rotation * Vec3::Z;
+        let mut b = a.clone();
+        b.position -= (a.size.z + 0.18) * front;
+        b.yaw += std::f32::consts::PI;
+        assert!((back_gap(&a, &b).unwrap() - 0.18).abs() < 1e-5);
+        assert_eq!(back_gap(&a, &b), back_gap(&b, &a));
+        b.yaw = a.yaw;
+        assert!(back_gap(&a, &b).is_none());
+        b.yaw += std::f32::consts::PI;
+        b.position += 2. * (a.size.z + 0.18) * front;
+        assert!(back_gap(&a, &b).is_none());
+    }
+}
+
+#[test]
 fn regularity_counts_pairs_and_support_coordinates_without_world_axis_leakage() {
     let mut scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();

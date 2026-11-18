@@ -55,7 +55,12 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
             .or_default() += 1;
         stats.object_envelope_max_overrun_metres =
             stats.object_envelope_max_overrun_metres.max(overrun);
-        accumulate(scene, &mut stats, assembly)?;
+        accumulate(scene, &mut stats, assembly).map_err(|error| {
+            format!(
+                "{error} ({:?} instance {}, variant {}, object seed {})",
+                object.kind, object.id, object.variant, object.seed
+            )
+        })?;
     }
     for human in &scene.humans {
         let human_geometry = super::super::humans::build_human(human);

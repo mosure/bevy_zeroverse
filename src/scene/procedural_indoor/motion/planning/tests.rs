@@ -325,3 +325,46 @@ fn collapsed_mid_morph_is_rejected_even_when_endpoints_are_valid() {
     assert!(!validate_morph(&a, &b));
     assert!(validate_morph(&a, &a));
 }
+
+#[test]
+fn a_roller_can_feed_into_its_own_head_but_still_collides_with_other_hardware() {
+    use crate::scene::procedural_indoor::architecture::facade::{treatments, Shade};
+    let source = IndoorManifest::generate_with_humans(44210, default(), 0.65, 2, 0.25).unwrap();
+    let mut facade = source
+        .envelope
+        .as_ref()
+        .unwrap()
+        .walls
+        .iter()
+        .filter_map(|w| w.facade.as_ref())
+        .find(|f| f.shade == Shade::Roller)
+        .unwrap()
+        .clone();
+    facade.shade_coverage = 0.85;
+    let opening = &facade.openings[0];
+    for obstructed in [false, true] {
+        let (mut scene, mut g) = empty();
+        g.architecture.motion_policy = Some(IndoorMotionConfig {
+            covering_fraction: 1.,
+            ..default()
+        });
+        treatments::build(&mut g.architecture, Transform::IDENTITY, &facade, opening);
+        if obstructed {
+            let x = (opening.min.x + opening.max.x) * 0.5;
+            g.architecture.box_part(
+                Surface::Metal,
+                "blinds#contact_other_head",
+                Vec3::new(x, opening.max.y - 0.16, 0.112),
+                Vec3::new(0.15, 0.08, 0.035),
+                0.,
+            );
+        }
+        prepare(&mut scene, &mut g);
+        let report = &scene.indoor_motion.as_ref().unwrap().mechanisms;
+        assert_eq!(report.len(), 1);
+        assert_eq!(
+            report[0].rejection.as_deref(),
+            obstructed.then_some("static_geometry")
+        );
+    }
+}

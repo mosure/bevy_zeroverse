@@ -5,6 +5,7 @@ mod furnishing;
 mod seating;
 mod services;
 mod table_rows;
+mod ventilation;
 pub use seating::LectureSeating;
 pub use table_rows::TableRowSeating;
 mod validation;

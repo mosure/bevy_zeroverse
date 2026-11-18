@@ -1,5 +1,71 @@
 //! Span-aware frames. Rendering and seated-person/chair clearance share every part.
 use super::*;
+use crate::scene::procedural_indoor::envelope::polygon;
+
+pub(super) fn boardroom_finish(o: &IndoorObject, p: &mut TableProgram) {
+    let mut r = stream(o.seed, 0x424f_4152_4454_4f50);
+    // A tapered boat or barrel can still seat a person at each end. A strongly
+    // blended triangle loses the available width along most of a long board.
+    let broad = ((o.size.x.min(o.size.z) - 3.5) * 0.5).clamp(0., 1.);
+    p.outline_exponent = r.random_range((2.4 + 8. * broad)..24.);
+    p.polygon_blend *= 0.12 * (1. - broad * 0.85);
+    p.taper *= 0.20 * (1. - broad * 0.75);
+    p.capsule_blend *= 1. - 0.80 * broad;
+    p.boat_blend *= 1. - 0.48 * broad;
+    p.boat_end_width = r.random_range(0.68..0.96);
+    p.boat_shoulder = r.random_range(0.42..0.82);
+    p.top_thickness = r.random_range(0.035..0.065);
+    p.edge_bevel = r.random_range(0.0015..0.0045);
+    p.top_surface = [
+        Surface::Wood,
+        Surface::Wood,
+        Surface::Wood,
+        Surface::Plastic,
+        Surface::Ceramic,
+    ][r.random_range(0..5)];
+}
+
+/// Manufacture a long tabletop as joined leaves on its continuous backing and
+/// multi-bay frame. Clipping the shared outline keeps all outer edges aligned.
+pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, outline: &[Vec2]) {
+    let mut r = stream(o.seed, 0x5441_424c_454c_4546);
+    let span = o.size.xz().max_element();
+    let axis = if o.size.x > o.size.z {
+        Vec2::X
+    } else {
+        Vec2::Y
+    };
+    let leaves = (span / r.random_range(1.55..2.65)).round().max(2.) as usize;
+    let half_gap = r.random_range(0.0007..0.0016);
+    let half = span * 0.5;
+    let pitch = span / leaves as f32;
+    let mut start = -half;
+    let slab = a.part(p.top_surface, o.kind.class_name());
+    for i in 1..=leaves {
+        let end = if i == leaves {
+            half
+        } else {
+            -half + pitch * (i as f32 + r.random_range(-0.13..0.13))
+        };
+        let mut leaf = polygon::clip(outline, axis, start);
+        if i < leaves {
+            leaf = polygon::clip(&leaf, -axis, -(end - half_gap));
+        }
+        // profile_slab uses a centre fan and metric UVs. Each convex leaf
+        // needs its own interior origin, including the two curved end panels.
+        let center = leaf.iter().sum::<Vec2>() / leaf.len() as f32;
+        for point in &mut leaf {
+            *point -= center;
+        }
+        slab.profile_slab(
+            &leaf,
+            p.top_thickness,
+            p.edge_bevel,
+            Transform::from_xyz(center.x, o.size.y - p.top_thickness * 0.5, center.y),
+        );
+        start = end + half_gap;
+    }
+}
 
 pub(super) fn bay_count(o: &IndoorObject, p: &TableProgram) -> usize {
     let size = o.size.xz();

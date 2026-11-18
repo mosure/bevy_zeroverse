@@ -233,6 +233,18 @@ pub struct HoodProgram {
     pub finish: Surface,
 }
 
+impl HoodProgram {
+    pub(crate) fn chimney(&self, size: Vec3) -> (Vec3, Vec2) {
+        (
+            Vec3::new(size.x * self.chimney_x, 0., -size.z * 0.10),
+            size.xz() * self.chimney_fraction,
+        )
+    }
+    pub(crate) fn canopy_top(&self, height: f32) -> f32 {
+        0.018 + height * self.canopy_fraction
+    }
+}
+
 pub fn hood_parameters(o: &IndoorObject) -> HoodProgram {
     let mut r = stream(o.seed, 0x484f_4f44_5348_4150);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x484f_4f44_4649_4e49);
@@ -253,9 +265,8 @@ pub(super) fn hood(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let label = o.kind.class_name();
     let base = 0.018;
-    let top = base + s.y * p.canopy_fraction;
-    let center = Vec3::new(s.x * p.chimney_x, 0., -s.z * 0.10);
-    let chimney = Vec2::new(s.x * p.chimney_fraction.x, s.z * p.chimney_fraction.y);
+    let top = p.canopy_top(s.y);
+    let (center, chimney) = p.chimney(s);
     match p.construction {
         0 => a.box_part(
             p.finish,

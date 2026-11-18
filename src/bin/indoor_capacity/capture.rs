@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
     camera::PlaybackMode,
-    headless::{create_app, setup_globals, update_capture},
+    headless::{create_app, setup_globals, try_update_capture},
     io::channels,
     render::{depth::DepthFormat, RenderMode},
     sample::{CaptureFailure, Sample, SamplerState},
@@ -72,7 +72,7 @@ pub fn run(plan: &CapacityPlan, output: &Path) -> Result<()> {
     app.finish();
     app.cleanup();
     for _ in 0..4 {
-        app.update();
+        try_update_capture(&mut app)?;
     }
     let startup = started.elapsed().as_secs_f64();
     let mut records = BufWriter::new(fs::File::create(output.join("records.jsonl.partial"))?);
@@ -90,7 +90,7 @@ pub fn run(plan: &CapacityPlan, output: &Path) -> Result<()> {
         *app.world_mut().resource_mut::<RenderMode>() = RenderMode::Color;
         let result = (|| -> Result<(Sample, f64)> {
             loop {
-                update_capture(&mut app);
+                try_update_capture(&mut app)?;
                 ensure!(
                     app.world().resource::<CaptureFailure>().0.is_none(),
                     "preparation failed: {:?}",
@@ -120,7 +120,7 @@ pub fn run(plan: &CapacityPlan, output: &Path) -> Result<()> {
                 ..default()
             });
             loop {
-                update_capture(&mut app);
+                try_update_capture(&mut app)?;
                 ensure!(
                     app.world().resource::<CaptureFailure>().0.is_none(),
                     "capture failed: {:?}",
@@ -140,6 +140,9 @@ pub fn run(plan: &CapacityPlan, output: &Path) -> Result<()> {
                 );
             }
         })();
+        if let Some(exit) = app.should_exit() {
+            anyhow::bail!("renderer exited during seed {seed}: {exit:?}");
+        }
         let mesh_checked = draw < plan.request.budget.mesh_checks;
         let result = result.and_then(|(sample, completed_seconds)| {
             let audit = Instant::now();

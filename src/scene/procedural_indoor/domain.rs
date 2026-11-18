@@ -8,6 +8,9 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+mod exposure;
+pub use exposure::IndoorExposureMeter;
+
 fn log_sample(rng: &mut impl Rng, lo: f32, hi: f32) -> f32 {
     rng.random_range(lo.ln()..hi.ln()).exp()
 }
@@ -15,13 +18,16 @@ fn log_sample(rng: &mut impl Rng, lo: f32, hi: f32) -> f32 {
 pub fn room_size(seed: u64) -> Vec3 {
     let mut rng = stream(seed, 211);
     let area = log_sample(&mut rng, 38.0, 270.0);
-    let aspect = log_sample(&mut rng, 0.42, 2.4);
-    let width = (area * aspect).sqrt().clamp(5.6, 21.0);
-    Vec3::new(
-        width,
-        rng.random_range(2.65..4.8),
-        (area / width).clamp(5.6, 21.0),
-    )
+    let mut aspect = log_sample(&mut rng, 0.42, 2.4);
+    // At fixed area A both sqrt(A*r) and sqrt(A/r) must fit the span.
+    // Condition the log-aspect prior instead of piling samples on a boundary.
+    let lo = (5.6 * 5.6 / area).max(area / (21. * 21.)).max(0.42);
+    let hi = (21. * 21. / area).min(area / (5.6 * 5.6)).min(2.4);
+    if !(lo..=hi).contains(&aspect) {
+        aspect = log_sample(&mut stream(seed, 0x5350_414e_4649_5400), lo, hi);
+    }
+    let width = (area * aspect).sqrt();
+    Vec3::new(width, rng.random_range(2.65..4.8), area / width)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -32,6 +38,9 @@ pub struct Photometry {
     pub sky_radiance: Vec3,
     pub environment_intensity: f32,
     pub ev100: f32,
+    /// Recorded before any explicit appearance intervention. Absent in older manifests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meter: Option<IndoorExposureMeter>,
     pub active_fraction: f32,
     pub circuit_contrast: f32,
     pub sun_kelvin: f32,
@@ -39,6 +48,24 @@ pub struct Photometry {
     pub fixture_gradient: Vec2,
     #[serde(default)]
     pub temperature_gradient: f32,
+}
+
+impl Photometry {
+    /// For this generator's isotropic upper hemisphere, E_horizontal = pi * L.
+    pub fn diffuse_sky_lux(&self) -> f32 {
+        std::f32::consts::PI * self.sky_radiance.dot(Vec3::new(0.2126, 0.7152, 0.0722))
+    }
+
+    pub(crate) fn mood(&self) -> LightingMood {
+        let diffuse = self.diffuse_sky_lux();
+        if self.sun_lux > 8000. && self.sun_lux > diffuse {
+            LightingMood::Daylight
+        } else if self.sun_lux.max(diffuse) > 100. {
+            LightingMood::Overcast
+        } else {
+            LightingMood::Evening
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -62,7 +89,7 @@ impl SceneDomain {
         let mut light = stream(seed, 212);
         // Mix continuous priors: common occupied/daylit conditions retain most
         // mass, while a broad component covers every logarithmic lighting decade.
-        let sun_lux = if light.random_bool(0.65) {
+        let clear_sun = if light.random_bool(0.65) {
             log_sample(&mut light, 3000.0, 100_000.0)
         } else {
             log_sample(&mut light, 0.1, 100_000.0)
@@ -72,18 +99,44 @@ impl SceneDomain {
         } else {
             log_sample(&mut light, 3.0, 1000.0)
         };
-        let sky = (sun_lux * log_sample(&mut light, 0.008, 0.10)).clamp(0.03, 2400.0);
-        let sky_radiance = kelvin_rgb(light.random_range(5000.0..10000.0)) * sky;
+        let sky_ratio = log_sample(&mut light, 0.008, 0.10);
+        let sky_kelvin = light.random_range(5000.0..10000.0);
+        // Clear through heavy cloud. A bright overcast sky can illuminate
+        // a room even when the direct beam is almost completely attenuated.
+        let mut weather = stream(seed, 0x434c_4f55_4453);
+        let transmission = (-9. * weather.random::<f32>().powi(4)).exp();
+        let sun_lux = clear_sun * transmission;
+        let diffuse_lux = clear_sun
+            * (std::f32::consts::PI * sky_ratio
+                + (1. - transmission) * weather.random_range(0.16..0.55));
+        // A smooth shoulder preserves variation at the bright end. Store
+        // linear RGB normalized to the sampled photopic sky luminance.
+        let diffuse_lux = diffuse_lux / (1. + diffuse_lux / 20_000.);
+        let sky = diffuse_lux / std::f32::consts::PI;
+        let kelvin = 6500. + (sky_kelvin - 6500.) * (0.35 + 0.65 * transmission);
+        let rgb = kelvin_rgb(kelvin);
+        let linear = Color::srgb(rgb.x, rgb.y, rgb.z).to_linear();
+        let chroma = Vec3::new(linear.red, linear.green, linear.blue);
+        let sky_radiance = chroma * (sky / chroma.dot(Vec3::new(0.2126, 0.7152, 0.0722)));
         // Partial adaptation preserves real brightness differences. Independent
         // exposure offsets cover under/overexposure without normalizing each image.
         let exposure_variation = light.random_range(-1.1..1.3);
-        let ev100 = exposure_for_illuminance(target_lux, sun_lux, exposure_variation);
+        let meter = IndoorExposureMeter {
+            electric_lux: target_lux,
+            direct_daylight_lux: 0.025 * sun_lux,
+            diffuse_daylight_lux: 0.025 * diffuse_lux,
+            bias_ev: 0.70 * exposure_variation,
+        };
+        // Full or near-full circuits are common while intermittent use still
+        // spans mostly unlit through fully occupied installations.
+        let circuit_draw = light.random_range(0.0_f32..1.);
         let photometry = Photometry {
             sun_lux,
             sky_radiance,
-            ev100,
+            ev100: meter.ev100(),
+            meter: Some(meter),
             environment_intensity: (0.07 * target_lux + 0.09 * sky).clamp(0.25, 160.0),
-            active_fraction: light.random_range(0.35..1.0),
+            active_fraction: 1. - 0.65 * (1. - circuit_draw).powi(2),
             circuit_contrast: light.random_range(0.0..0.85),
             sun_kelvin: light.random_range(2600.0..6900.0),
             fixture_gradient: Vec2::new(
@@ -92,7 +145,16 @@ impl SceneDomain {
             ),
             temperature_gradient: light.random_range(-1100.0..1100.0),
         };
-        let fixture_kelvin = light.random_range(2200.0..7500.0);
+        // Keep tungsten and cool daylight-matched installations as tails of
+        // the room lighting mix. Individual fixtures keep their own tint/gradient.
+        let u = light.random::<f32>();
+        let fixture_kelvin = if u < 0.10 {
+            2200. + 800. * u / 0.10
+        } else if u < 0.82 {
+            3000. + 2000. * (u - 0.10) / 0.72
+        } else {
+            5000. + 2500. * (u - 0.82) / 0.18
+        };
         let mut rng = stream(seed, 213);
         Self {
             photometry,
@@ -133,6 +195,9 @@ impl SceneDomain {
                 return Err("invalid continuous scene domain parameter".into());
             }
         }
+        if p.meter.is_some_and(|m| !m.valid()) {
+            return Err("invalid indoor exposure estimate".into());
+        }
         if !p.sky_radiance.is_finite()
             || p.sky_radiance.min_element() < 0.0
             || !p.fixture_gradient.is_finite()
@@ -142,15 +207,6 @@ impl SceneDomain {
         }
         Ok(())
     }
-}
-
-/// Scene-level partial adaptation, shared by every view and timestep. Metering
-/// a wider daylight contribution prevents sunny interiors from living entirely
-/// in the tone mapper's highlight shoulder. Keep independent illumination and
-/// exposure variation; no image-dependent metering or annotation changes.
-fn exposure_for_illuminance(electric_lux: f32, sun_lux: f32, variation: f32) -> f32 {
-    (6.7 + 0.55 * ((electric_lux + sun_lux * 0.025) / 450.0).log2() + 0.70 * variation)
-        .clamp(2.0, 12.0)
 }
 
 impl IndoorManifest {
@@ -186,21 +242,30 @@ impl IndoorManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn meter_ev(electric_lux: f32, sun_lux: f32, bias_ev: f32) -> f32 {
+        IndoorExposureMeter {
+            electric_lux,
+            direct_daylight_lux: 0.025 * sun_lux,
+            diffuse_daylight_lux: 0.,
+            bias_ev,
+        }
+        .ev100()
+    }
     #[test]
     fn exposure_preserves_lighting_range_without_washing_out_daylight() {
-        let sunny = SceneDomain::sample(6).photometry;
-        assert!((6.8..7.5).contains(&sunny.ev100));
-        // A lighting octave is partially compensated, leaving 0.45 stops of
+        let sampled = SceneDomain::sample(6).photometry;
+        assert_eq!(sampled.ev100, sampled.meter.unwrap().ev100());
+        // A lighting octave is partially compensated, leaving 0.38 stops of
         // brightness variation. This holds before the intentional dark limit.
         for electric in [30., 300., 900.] {
             for sun in [100., 10_000., 50_000.] {
-                let a = exposure_for_illuminance(electric, sun, 0.);
-                let b = exposure_for_illuminance(electric * 2., sun * 2., 0.);
-                assert!((b - a - 0.55).abs() < 1e-5);
+                let a = meter_ev(electric, sun, 0.);
+                let b = meter_ev(electric * 2., sun * 2., 0.);
+                assert!((b - a - 0.62).abs() < 1e-5);
             }
         }
-        assert!(exposure_for_illuminance(3., 0.1, 0.) < 3.);
-        assert!(exposure_for_illuminance(900., 100_000., 0.) > 8.);
+        assert!(meter_ev(3., 0.1, 0.) < 3.);
+        assert!(meter_ev(900., 100_000., 0.) > 8.);
     }
     #[test]
     fn physical_domain_covers_decades_jointly_and_replays_full_width_seeds() {
@@ -230,6 +295,41 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn room_spans_preserve_requested_floor_area_without_clamped_edges() {
+        for seed in 0..4096 {
+            let area = log_sample(&mut stream(seed, 211), 38., 270.);
+            let size = room_size(seed);
+            assert!((size.x * size.z - area).abs() < 0.0001);
+            for side in [size.x, size.z] {
+                assert!((5.6..=21.).contains(&side));
+                assert_ne!(side, 5.6);
+                assert_ne!(side, 21.);
+            }
+        }
+    }
+
+    #[test]
+    fn diffuse_daylight_can_be_bright_without_direct_sun() {
+        let mut overcast = 0;
+        let mut sunny = 0;
+        let mut dark = 0;
+        for seed in 0..4096 {
+            let p = SceneDomain::sample(seed).photometry;
+            let sky = p.diffuse_sky_lux();
+            if sky > 1000. && p.sun_lux < 500. {
+                assert_eq!(p.mood(), LightingMood::Overcast);
+                overcast += 1;
+            }
+            sunny += usize::from(p.sun_lux > 10000. && p.sun_lux > 3. * sky);
+            dark += usize::from(p.sun_lux < 10. && sky < 10.);
+        }
+        assert!(
+            overcast > 100 && sunny > 100 && dark > 100,
+            "{overcast}/{sunny}/{dark}"
+        );
+    }
     #[test]
     fn electric_dimming_reaches_renderer_without_old_brightness_floor() {
         let mut scene = IndoorManifest::generate_with_humans(
@@ -241,9 +341,12 @@ mod tests {
         )
         .unwrap();
         scene.target_lux = 5.0;
-        let dim = super::super::architecture::fixture_photometry(&scene, 0).1;
+        let positions = super::super::architecture::fixture_positions(&scene);
+        let count = super::super::architecture::primary_fixture_count(&scene, &positions);
+        let index = super::super::architecture::energized_fixture(&scene, count);
+        let dim = super::super::architecture::fixture_photometry(&scene, index).1;
         scene.target_lux = 50.0;
-        let bright = super::super::architecture::fixture_photometry(&scene, 0).1;
+        let bright = super::super::architecture::fixture_photometry(&scene, index).1;
         assert!(dim > 0.0 && dim < 900.0);
         assert!((bright / dim - 10.0).abs() < 0.001);
         scene.daylight_lux = 0.2;

@@ -10,6 +10,8 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
+pub(crate) const ENTRY_APPROACH_DEPTH_M: f32 = 1.35;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DoorMechanism {
     Hinged,
@@ -386,7 +388,7 @@ impl IndoorManifest {
             if d.program.mechanism == DoorMechanism::Revolving {
                 d.width * 0.5 + 0.30
             } else {
-                1.35
+                ENTRY_APPROACH_DEPTH_M
             }
         });
         (

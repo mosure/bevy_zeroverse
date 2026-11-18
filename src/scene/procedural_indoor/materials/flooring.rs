@@ -19,6 +19,10 @@ pub enum FloorLayout {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FloorFinish {
     pub layout: FloorLayout,
+    /// Where the installer started the floor and how it runs relative to a wall.
+    /// Missing in archives whose stock was laid from the room origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub laying: Option<laying::FloorLaying>,
     /// Optional construction parameters; old recorded installations are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub craft: Option<installation::Installation>,
@@ -75,6 +79,7 @@ impl FloorFinish {
         let warm = rng.random_range(-0.08..0.12);
         let mut result = Self {
             layout,
+            laying: Some(laying::FloorLaying::sample(seed)),
             craft: None,
             stock: None,
             cells: [nx, ny],
@@ -100,6 +105,9 @@ impl FloorFinish {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(laying) = self.laying {
+            laying.validate()?;
+        }
         if let Some(stock) = &self.stock {
             stock.validate()?;
         }
@@ -215,6 +223,8 @@ impl FloorFinish {
 }
 
 pub mod installation;
+pub mod laying;
+mod pigment;
 pub(super) mod sampling;
 mod scale;
 pub mod stock;

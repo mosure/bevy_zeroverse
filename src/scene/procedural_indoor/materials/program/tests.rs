@@ -26,6 +26,7 @@ fn zero_detail_removes_relief_in_authored_programs_and_installation_seams() {
 fn interior_palettes_replay_with_bounded_correlated_pigments() {
     let mut dark = 0;
     let mut neutral = 0;
+    let mut ceilings = [0; 3];
     let mut hues = [false; 12];
     for seed in 0..512 {
         let p = PaletteProgram::sample(seed);
@@ -34,8 +35,16 @@ fn interior_palettes_replay_with_bounded_correlated_pigments() {
         neutral += usize::from(p.pigment_strength < 0.07);
         hues[(p.hue / 30.) as usize] = true;
         assert!((16.0..48.0).contains(&p.wood_hue));
-        assert!((0.72..0.96).contains(&p.ceiling_lightness));
-        for recipe in sample(seed) {
+        assert!((0.29..0.96).contains(&p.ceiling_lightness));
+        let band =
+            usize::from(p.ceiling_lightness >= 0.52) + usize::from(p.ceiling_lightness >= 0.72);
+        ceilings[band] += 1;
+        let recipes = sample(seed);
+        assert_eq!(
+            recipes[Surface::Ceiling as usize].color,
+            p.ceiling_color(seed)
+        );
+        for recipe in recipes {
             recipe.validate().unwrap();
         }
         for (h, s, l) in [
@@ -51,6 +60,10 @@ fn interior_palettes_replay_with_bounded_correlated_pigments() {
     assert!(hues.into_iter().all(|v| v));
     assert!((20..65).contains(&dark));
     assert!((220..310).contains(&neutral));
+    assert!(
+        (12..46).contains(&ceilings[0]) && (56..122).contains(&ceilings[1]) && ceilings[2] > 360,
+        "{ceilings:?}"
+    );
 }
 
 #[test]

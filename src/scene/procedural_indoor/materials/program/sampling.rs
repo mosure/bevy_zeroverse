@@ -47,17 +47,14 @@ pub(in crate::scene::procedural_indoor::materials) fn sample_base(
                 Surface::Wood | Surface::WoodEdge => {
                     PaletteProgram::rgb(palette.wood_hue, wood_saturation, palette.wood_lightness)
                 }
-                Surface::Fabric | Surface::FabricAlt | Surface::Accent | Surface::Art => {
+                Surface::Accent => palette.feature_wall(seed),
+                Surface::Fabric | Surface::FabricAlt | Surface::Art => {
                     [chromatic.red, chromatic.green, chromatic.blue]
                 }
                 Surface::Paint => {
                     PaletteProgram::rgb(hue, palette.pigment_strength, palette.wall_lightness)
                 }
-                Surface::Ceiling => PaletteProgram::rgb(
-                    hue,
-                    palette.pigment_strength * 0.16,
-                    palette.ceiling_lightness,
-                ),
+                Surface::Ceiling => palette.ceiling_color(seed),
                 Surface::Floor => {
                     let n = rng.random_range(0.3..0.7);
                     [

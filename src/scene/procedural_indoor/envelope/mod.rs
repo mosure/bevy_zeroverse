@@ -1,8 +1,10 @@
 //! One architectural description for construction, support, camera clearance,
 //! visibility and exports. It is a bounded procedural building grammar, not CAD.
 mod ceilings;
+pub mod columns;
 pub mod construction;
 pub mod guardrail;
+pub mod lining;
 pub mod mezzanine;
 pub mod polygon;
 mod queries;
@@ -46,9 +48,16 @@ pub struct ColumnProfile {
     pub taper: f32,
     pub rotation: f32,
     pub collar_height: f32,
+    /// Stock and joints of the installed column casing. Absent in archived rooms.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub construction: Option<columns::ColumnConstruction>,
 }
 impl ColumnProfile {
     pub fn sample(seed: u64, index: usize) -> Self {
+        Self::for_layout(seed, index, super::layout::IndoorLayout::Mixed)
+    }
+
+    fn for_layout(seed: u64, index: usize, layout: super::layout::IndoorLayout) -> Self {
         use rand::Rng;
         let mut rng = super::layout::stream(seed, 6120 + index as u64);
         Self {
@@ -57,6 +66,7 @@ impl ColumnProfile {
             taper: rng.random_range(0.84..1.0),
             rotation: rng.random_range(0.0..std::f32::consts::PI),
             collar_height: rng.random_range(0.045..0.15),
+            construction: Some(columns::ColumnConstruction::sample(seed, layout)),
         }
     }
     pub fn validate(&self) -> Result<(), String> {
@@ -65,6 +75,7 @@ impl ColumnProfile {
             || !(0.8..=1.0).contains(&self.taper)
             || !self.rotation.is_finite()
             || !(0.04..=0.16).contains(&self.collar_height)
+            || self.construction.is_some_and(|c| !c.valid())
         {
             return Err("invalid structural column profile".into());
         }
@@ -76,6 +87,8 @@ impl ColumnProfile {
 pub struct EnvelopeWall {
     pub edge: usize,
     pub facade: Option<Facade>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lining: Option<lining::WallLining>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

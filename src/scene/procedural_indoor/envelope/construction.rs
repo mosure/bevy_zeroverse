@@ -1,9 +1,11 @@
 use super::*;
 mod ceiling_mesh;
+mod column_finish;
+mod lining_mesh;
 #[cfg(test)]
 mod normal_tests;
 use crate::scene::procedural_indoor::{
-    architecture, geometry::Geometry, layout::NEIGHBOR_DEPTH, materials::Surface, objects::Assembly,
+    architecture, geometry::Geometry, layout::AdjoiningFloor, materials::Surface, objects::Assembly,
 };
 
 /// Flat, metric UVs. Triangle winding and stored normals always agree, including
@@ -290,6 +292,15 @@ pub(super) fn wall(
     let hq = e.ceiling_height(size, q);
     let slope = (hq - hp) / length;
     let midpoint = (hp + hq) * 0.5;
+    let lining = e
+        .walls
+        .iter()
+        .find(|w| w.edge == edge)
+        .and_then(|w| w.lining.as_ref());
+    let finish_line = lining.map_or(0., |s| s.height_m.min(hp.min(hq)));
+    if let Some(s) = lining {
+        lining_mesh::build(a, tf, s, length, finish_line, holes);
+    }
     for (lo, hi) in architecture::facade::solid_rectangles(
         Vec2::new(-length * 0.5, 0.),
         Vec2::new(length * 0.5, hp.max(hq)),
@@ -303,6 +314,17 @@ pub(super) fn wall(
                 .collect::<Vec<_>>(),
             tf.rotation * Vec3::Z * thickness,
             |points, normal, front| {
+                if front && lo.y < finish_line {
+                    if hi.y > finish_line {
+                        let upper = polygon::clip(&p, Vec2::Y, finish_line);
+                        let world: Vec<_> = upper
+                            .iter()
+                            .map(|v| tf.transform_point(v.extend(0.)))
+                            .collect();
+                        wall_face(a.part(surface, "wall"), &world, normal);
+                    }
+                    return;
+                }
                 wall_face(
                     a.part(if front { surface } else { Surface::Paint }, "wall"),
                     points,
@@ -540,6 +562,11 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     }
     architecture::fixture_geometry(&mut a, scene);
     architecture::ceiling::build(&mut a, scene);
+    if let Some(frame) = super::super::materials::flooring::laying::mapping(scene) {
+        // Set UVs before Bevy generates tangents so normal/roughness/color
+        // all follow the actual installation, including across slab cuts.
+        super::super::materials::flooring::laying::apply(a.part(Surface::Floor, "floor"), frame);
+    }
     let mut exterior = Assembly::default();
     architecture::facade::backdrop(&mut exterior, scene);
     for ((surface, label), g) in exterior.parts {
@@ -569,6 +596,10 @@ fn column(a: &mut Assembly, p: &Pillar, e: &EnvelopeProgram, size: Vec3) {
         })
         .collect();
     let h = shape.collar_height;
+    if let Some(stock) = shape.construction {
+        column_finish::build(a, p, shape, stock, &section, |v| e.ceiling_height(size, v));
+        return;
+    }
     let rings: Vec<Vec<Vec3>> = [
         (p.radius + 0.019, 0.),
         (p.radius + 0.025, 0.008),
@@ -676,14 +707,11 @@ pub fn arched_portal(p: &super::super::program::Partition, height: f32, a: &mut 
 fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopeProgram) {
     use architecture::facade::WindowOpening;
     let size = scene.room_size;
-    let hx = size.x * 0.5;
     let hz = size.z * 0.5;
     let edge = (0..e.footprint.len())
         .find(|&i| e.shared_edge(i, size))
         .unwrap();
-    let height = e
-        .ceiling_height(size, Vec2::new(-hx, hz))
-        .min(e.ceiling_height(size, Vec2::new(hx, hz)));
+    let height = architecture::interior_glazing::partition_height(scene);
     let door = -scene.door_x;
     let mut openings = vec![WindowOpening {
         glazing: None,
@@ -743,13 +771,13 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
     }
     // Shared partition is the front edge of the neighboring volume. Exterior
     // walls start beyond it; they never cover the passage or its glass.
-    let poly = [
-        Vec2::new(-hx, hz),
-        Vec2::new(hx, hz),
-        Vec2::new(hx, hz + NEIGHBOR_DEPTH),
-        Vec2::new(-hx, hz + NEIGHBOR_DEPTH),
-    ];
-    slab(a.part(Surface::Floor, "floor"), &poly, |_| 0., 0.20);
+    let adjacent = scene.adjoining_space();
+    let poly = adjacent.footprint(size);
+    let floor = match adjacent.floor {
+        AdjoiningFloor::Continuous => Surface::Floor,
+        AdjoiningFloor::Concrete => Surface::Concrete,
+    };
+    slab(a.part(floor, "floor"), &poly, |_| 0., 0.20);
     slab(
         a.part(Surface::Ceiling, "ceiling"),
         &poly,

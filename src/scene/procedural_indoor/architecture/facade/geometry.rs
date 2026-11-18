@@ -360,7 +360,11 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
         if f.treatment.is_some()
             || matches!(
                 f.shade,
-                Shade::Vertical | Shade::Roman | Shade::Pleated | Shade::Curtain
+                Shade::Vertical
+                    | Shade::Roman
+                    | Shade::Pleated
+                    | Shade::Curtain
+                    | Shade::PanelTrack
             )
         {
             treatments::build(a, tf, f, o);

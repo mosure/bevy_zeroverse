@@ -131,7 +131,7 @@ impl Recipe {
                     w.print_style + 1,
                 ];
                 p.wall0 = [w.warp, w.pigment, w.relief_m, w.roughness_variation];
-                p.wall1 = [w.band_duty, w.burnish, 0., 0.];
+                p.wall1 = [w.band_duty, w.burnish, w.rubbed_finish, 0.];
                 p.wall_tint[..3].copy_from_slice(&w.secondary_tint);
             }
         } else if let Some(c) = &r.carpet {

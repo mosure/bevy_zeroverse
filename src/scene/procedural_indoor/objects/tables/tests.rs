@@ -1,5 +1,94 @@
 use super::*;
 #[test]
+fn workstation_frames_ground_both_feet_preserve_knee_space_and_cover_the_mesh() {
+    let mut with_screen = 0;
+    let mut open = 0;
+    for seed in 0..96 {
+        let mut o = object(ObjectKind::Desk, seed);
+        o.size = Vec3::new(1.35, 0.74, 0.68);
+        let recipe = parameters(&o);
+        let Some(frame) = &recipe.workstation else {
+            continue;
+        };
+        let mesh = super::super::build_object(&o);
+        let solid = Clearance::new(&o);
+        let (lo, hi) = mesh.bounds();
+        assert!(lo.y.abs() < 1e-5 && (hi.y - o.size.y).abs() < 1e-5);
+        assert!(
+            lo.xz().cmpge(-o.size.xz() * 0.501).all() && hi.xz().cmple(o.size.xz() * 0.501).all()
+        );
+        let feet: Vec<_> = mesh
+            .parts
+            .iter()
+            .filter(|((s, _), _)| *s == Surface::Rubber)
+            .flat_map(|(_, g)| &g.positions)
+            .filter(|p| p[1].abs() < 1e-5)
+            .collect();
+        for x in [-1., 1.] {
+            for z in [-1., 1.] {
+                assert!(feet.iter().any(|p| p[0] * x > 0.10 && p[2] * z > 0.10));
+            }
+        }
+        assert!(!solid.hits_box(
+            Vec3::new(-0.14, 0.22, 0.09),
+            Vec3::new(0.14, 0.52, 0.32),
+            0.01
+        ));
+        if let Some(panel) = &frame.modesty {
+            with_screen += 1;
+            assert!((0.16..0.38).contains(&panel.drop_m));
+        } else {
+            open += 1;
+        }
+        super::super::audit::check(&o, &mesh).unwrap();
+        for g in mesh.parts.values() {
+            for &p in &g.positions {
+                let p = Vec3::from_array(p);
+                assert!(
+                    solid.hits_capsule(p, p, 0.00002),
+                    "missing desk geometry {seed}/{p}"
+                );
+            }
+        }
+    }
+    assert!(with_screen > 12 && open > 12);
+}
+#[test]
+fn boardroom_panel_mesh_covers_its_calibrated_support_outline() {
+    use crate::scene::procedural_indoor::envelope::polygon;
+    for seed in 0..48 {
+        let mut o = object(ObjectKind::Table, seed);
+        o.variant = BOARDROOM_VARIANT;
+        for (width, length) in [(2.05, 5.3), (4.8, 12.6), (13.8, 5.6)] {
+            o.size = Vec3::new(width, 0.75, length);
+            let recipe = parameters(&o);
+            let outline = outline(&o);
+            let mut a = Assembly::default();
+            conference::joined_top(&mut a, &o, &recipe, &outline);
+            let top = a.part(recipe.top_surface, o.kind.class_name());
+            assert!(top
+                .normals
+                .iter()
+                .all(|n| Vec3::from_array(*n).is_normalized()));
+            let mut area = 0.;
+            for triangle in top.indices.as_chunks::<3>().0 {
+                let [a, b, c] =
+                    [0, 1, 2].map(|i| Vec3::from_array(top.positions[triangle[i] as usize]));
+                // An overhead ray also hits the upward-facing bevel. The only
+                // gaps in the leaf projection should be the physical join lines.
+                area += (b - a).cross(c - a).y.max(0.) * 0.5;
+            }
+            let coverage = area / polygon::area(&outline);
+            assert!(
+                (0.995..=1.0001).contains(&coverage),
+                "{seed}/{width}/{length}: {coverage}"
+            );
+            assert!(support_bay_count(&o) >= 3);
+        }
+    }
+}
+
+#[test]
 fn long_conference_frames_remain_bounded_grounded_and_in_the_clearance_oracle() {
     let mut styles = std::collections::BTreeSet::new();
     let mut counts = std::collections::BTreeSet::new();
@@ -95,7 +184,7 @@ fn structural_clearance_encloses_all_rendered_support_families() {
             }
         }
     }
-    assert_eq!(families.len(), 10);
+    assert_eq!(families.len(), 11);
 }
 #[test]
 fn chair_clearance_bounds_rendered_shell_arms_and_bases() {

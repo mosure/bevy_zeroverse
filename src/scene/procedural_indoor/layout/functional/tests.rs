@@ -1,5 +1,78 @@
 use super::*;
 mod capacity;
+
+#[test]
+fn mounted_lights_and_hoods_vary_without_losing_their_hosts() {
+    use std::collections::BTreeSet;
+    let mut lamps = BTreeSet::new();
+    let mut hoods = BTreeSet::new();
+    let mut off_center = 0;
+    let mut centered = 0;
+    let mut saw_invalid = false;
+    for profile in [IndoorLayout::Gallery, IndoorLayout::Kitchen] {
+        for seed in 0..48 {
+            let scene = IndoorManifest::generate_with_humans(seed, profile, 0.65, 0, 0.).unwrap();
+            scene.validate_program_mounts().unwrap();
+            for mount in &scene.assembly_diagnostics.mounts {
+                let lamp = &scene.objects[mount.object];
+                let host = &scene.objects[mount.host];
+                let clearance = lamp.position.y - host.position.y - host.size.y;
+                if lamp.kind == ObjectKind::ExtractionHood {
+                    use crate::scene::procedural_indoor::objects::{build_object, kitchen};
+                    let (plate, footprint) =
+                        kitchen::appliances::cooking_surface(host, &kitchen::parameters(host));
+                    assert!((0.619..0.891).contains(&(lamp.position.y - plate.y)));
+                    assert!(plate.xz().distance(lamp.position.xz()) < 0.001);
+                    assert!((0.859..1.121).contains(&(lamp.size.z / footprint.y)));
+                    assert!((0.999..1.221).contains(&(lamp.size.x / footprint.x)));
+                    let mut nearest = f32::INFINITY;
+                    for g in build_object(lamp).parts.values() {
+                        for point in &g.positions {
+                            let p = lamp.transform().transform_point(Vec3::from_array(*point));
+                            let gap = scene.ceiling_height(p.xz()) - p.y;
+                            assert!(gap > -0.001, "exhaust above roof at {seed}: {gap}");
+                            nearest = nearest.min(gap);
+                        }
+                    }
+                    assert!(nearest < 0.022, "unmounted exhaust at {seed}: {nearest}");
+                    hoods.insert((lamp.size.z * 100.).round() as i32);
+                } else {
+                    assert!(clearance >= 0.949);
+                    let p = host
+                        .transform()
+                        .compute_affine()
+                        .inverse()
+                        .transform_point3(lamp.position);
+                    assert!(
+                        p.x.abs() <= host.size.x * 0.29 + 0.001
+                            && p.z.abs() <= host.size.z * 0.29 + 0.001
+                    );
+                    if p.xz().length() < 0.001 {
+                        centered += 1
+                    } else {
+                        off_center += 1
+                    }
+                    lamps.insert((
+                        (lamp.size.x * 100.).round() as i32,
+                        (lamp.size.y * 100.).round() as i32,
+                    ));
+                    if !saw_invalid {
+                        let mut invalid = scene.clone();
+                        invalid.objects[mount.object].position += Vec3::X * scene.room_size.x;
+                        assert!(invalid.validate_program_mounts().is_err());
+                        saw_invalid = true;
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        lamps.len() > 20 && centered > 0 && off_center > 10,
+        "{lamps:?} {centered} {off_center}"
+    );
+    assert!(hoods.len() >= 4, "{hoods:?}");
+}
+
 #[test]
 fn public_suites_realize_diverse_complete_adjacencies() {
     let mut pairs = std::collections::BTreeSet::new();
