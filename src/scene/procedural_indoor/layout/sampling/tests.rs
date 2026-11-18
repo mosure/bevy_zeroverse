@@ -151,12 +151,13 @@ fn archived_rooms_sample_all_supported_attachment_walls() {
 
 #[test]
 fn no_op_decor_intervention_does_not_change_alarm_or_outlet_proposals() {
-    let template =
-        IndoorManifest::generate_with_humans(17, IndoorLayout::Conference, 0.65, 0, 0.).unwrap();
     let mut admitted = [0; 2];
     for seed in 0..64 {
-        let mut scene = template.clone();
-        scene.seed = seed;
+        // Mounting geometry and seed-keyed finishes must describe the same
+        // room. Vary the shell across pairs, then change only the decor calls.
+        let mut scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.65, 0, 0.)
+                .unwrap();
         scene.objects.clear();
         scene.rug_supports.clear();
         let mut changed = scene.clone();

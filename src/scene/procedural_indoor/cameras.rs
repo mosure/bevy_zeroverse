@@ -519,7 +519,12 @@ mod tests {
             .unwrap()
             .clone();
         scene.room_size = Vec3::new(10.0, 3.5, 10.0);
+        // The obstacle oracle uses a ten-metre square. The generated boardroom
+        // can be narrower than the distance between the two test endpoints.
+        scene.envelope = None;
         scene.program = None;
+        scene.entry_door = None;
+        scene.ceiling_installation = None;
         scene.floor_plan = super::super::floorplan::FloorPlan::OpenHall;
         obstacle.position = Vec3::ZERO;
         obstacle.yaw = 0.0;
@@ -527,6 +532,7 @@ mod tests {
         scene.objects = vec![obstacle];
         let a = Vec3::new(-3.0, 1.5, 0.0);
         let b = Vec3::new(3.0, 1.5, 0.0);
+        assert!(scene.camera_path_clear(a, a) && scene.camera_path_clear(b, b));
         assert!(!scene.camera_path_clear(a, b));
         let route = super::navigation::route(&scene, a, b).expect("route around central obstacle");
         assert!(route.len() > 2);

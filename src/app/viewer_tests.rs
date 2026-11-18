@@ -1,6 +1,19 @@
 use super::*;
 use bevy::ecs::system::RunSystemOnce;
 
+#[cfg(target_os = "linux")]
+#[test]
+fn explicit_cuda_mask_preserves_vulkan_compute_and_raster_features() {
+    let rays =
+        WgpuFeatures::EXPERIMENTAL_RAY_QUERY | WgpuFeatures::EXPERIMENTAL_RAY_TRACING_PIPELINES;
+    for mask in ["", "-1"] {
+        assert_eq!(masked_cuda_features(Some(mask)), Some(rays));
+    }
+    for selection in [None, Some("0"), Some("1,0"), Some("GPU-visible-uuid")] {
+        assert_eq!(masked_cuda_features(selection), None);
+    }
+}
+
 #[test]
 fn grid_disables_editor_scene_but_preserves_ui_and_restores_editor() {
     let mut app = App::new();

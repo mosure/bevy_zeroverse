@@ -57,12 +57,21 @@ pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, o
         for point in &mut leaf {
             *point -= center;
         }
+        let first_vertex = slab.positions.len();
         slab.profile_slab(
             &leaf,
             p.top_thickness,
             p.edge_bevel,
             Transform::from_xyz(center.x, o.size.y - p.top_thickness * 0.5, center.y),
         );
+        // The centre fan is local to each leaf. The veneer and stone face
+        // charts span the assembled top; the bevel keeps its edge unwrap.
+        for vertex in first_vertex..slab.positions.len() {
+            if slab.normals[vertex][1].abs() > 0.99 {
+                let [x, _, z] = slab.positions[vertex];
+                slab.uvs[vertex] = [x, z];
+            }
+        }
         start = end + half_gap;
     }
 }

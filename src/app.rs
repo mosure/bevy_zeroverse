@@ -1134,6 +1134,16 @@ mod web_config_tests {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn masked_cuda_features(visible_devices: Option<&str>) -> Option<WgpuFeatures> {
+    // NVIDIA's Vulkan driver initializes CUDA for either experimental ray feature
+    // during vkCreateDevice, even for a raster-only workload. Respect an explicit
+    // CUDA mask while keeping the Vulkan render device and compute path available.
+    matches!(visible_devices.map(str::trim), Some("" | "-1")).then_some(
+        WgpuFeatures::EXPERIMENTAL_RAY_QUERY | WgpuFeatures::EXPERIMENTAL_RAY_TRACING_PIPELINES,
+    )
+}
+
 pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) -> App {
     #[cfg(all(target_arch = "wasm32", feature = "human_motion"))]
     burn_human_inference::initialize_browser_runtime();
@@ -1253,6 +1263,10 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             synchronous_pipeline_compilation: !cfg!(target_arch = "wasm32")
                 && (args.image_copiers || args.headless),
             render_creation: RenderCreation::Automatic(Box::new(WgpuSettings {
+                #[cfg(target_os = "linux")]
+                disabled_features: masked_cuda_features(
+                    std::env::var("CUDA_VISIBLE_DEVICES").ok().as_deref(),
+                ),
                 memory_hints: if args.image_copiers {
                     wgpu::MemoryHints::MemoryUsage
                 } else {

@@ -194,6 +194,11 @@ tuning requirement.
 
 ## Copy and device contract
 
+On Linux, a process can use Vulkan rendering with CUDA hidden. An empty
+`CUDA_VISIBLE_DEVICES` or `-1` disables the two experimental Vulkan ray-tracing
+features that initialize CUDA inside the NVIDIA driver. Raster rendering,
+compute annotations, and WGPU tensor capture use the selected Vulkan adapter.
+
 The native `gpu_tensor` API imports Bevy's **existing** wgpu instance, adapter,
 logical device and queue into Burn. It does not create a second logical device.
 Use `rooms.device()` for training; constructing an unrelated `Device::wgpu(...)`

@@ -400,6 +400,7 @@ fn metric_uvs_do_not_stretch_with_box_size() {
 #[test]
 fn tabletop_wood_grain_follows_the_long_axis() {
     use super::materials::Surface;
+    use super::objects::tables::BOARDROOM_VARIANT;
     let scene = IndoorManifest::generate(0, IndoorLayout::Conference, 0.65, 0).unwrap();
     let mut object = scene
         .objects
@@ -407,11 +408,18 @@ fn tabletop_wood_grain_follows_the_long_axis() {
         .find(|o| matches!(o.kind, ObjectKind::Table | ObjectKind::Desk))
         .unwrap()
         .clone();
-    while super::objects::tables::parameters(&object).top_surface != Surface::Wood {
-        object.seed = object.seed.wrapping_add(1);
-    }
-    for size in [Vec3::new(1.5, 0.75, 3.5), Vec3::new(1.5, 0.75, 0.7)] {
+    object.kind = ObjectKind::Table;
+    for (variant, size) in [
+        (0, Vec3::new(1.5, 0.75, 3.5)),
+        (0, Vec3::new(1.5, 0.75, 0.7)),
+        (BOARDROOM_VARIANT, Vec3::new(2.2, 0.75, 6.)),
+        (BOARDROOM_VARIANT, Vec3::new(14.85, 0.75, 3.69)),
+    ] {
+        object.variant = variant;
         object.size = size;
+        while super::objects::tables::parameters(&object).top_surface != Surface::Wood {
+            object.seed = object.seed.wrapping_add(1);
+        }
         let assembly = super::objects::build_object(&object);
         let top = assembly
             .parts

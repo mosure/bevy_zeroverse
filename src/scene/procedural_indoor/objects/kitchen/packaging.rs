@@ -207,7 +207,8 @@ pub(crate) fn build(a: &mut Assembly, tf: Transform, p: &PackageProgram, seed: u
             // shared finish may be used by several differently sized packages.
             for uv in &mut wrap.uvs {
                 uv[0] /= TAU * (radius + 0.00025);
-                uv[1] = (uv[1] - (radius + 0.00025) - lo) / (hi - lo);
+                // Lathe V is distance along this band's two-point profile.
+                uv[1] /= hi - lo;
             }
             a.part(Surface::PrintedPaper, &label).append(wrap);
         }
