@@ -14,6 +14,7 @@ pub use bevy_zeroverse_capture::calibration::{
     CameraCalibration, Fisheye, FisheyeFit, FisheyeSensor,
 };
 pub(crate) use resolve::LensResolveLabel;
+pub(crate) use runtime::sync as sync_faces;
 pub use runtime::{FisheyeCameraPlugin, LensCamera, LensFace};
 pub use sampling::LensSampling;
 

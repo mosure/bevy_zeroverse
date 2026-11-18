@@ -108,7 +108,7 @@ fn draw_human_poses(
     )>,
     mut gizmos: Gizmos<PoseGizmoConfigGroup>,
 ) {
-    if !args.draw_pose_gizmos {
+    if !args.draw_pose_gizmos && !args.rgb_gizmos.human_poses {
         return;
     }
 

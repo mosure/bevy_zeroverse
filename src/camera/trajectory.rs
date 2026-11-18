@@ -1,5 +1,5 @@
 //! Camera paths and rigid transforms; independent of lens projection.
-use super::{EditorCameraGizmoConfigGroup, ExtrinsicsSampler};
+use super::ExtrinsicsSampler;
 use bevy::{curve::cubic_splines::CubicBSpline, prelude::*};
 
 #[derive(Clone, Debug, Reflect)]
@@ -253,9 +253,18 @@ impl TrajectorySampler {
         }
     }
 
-    pub fn draw_gizmos(
+    pub fn draw_gizmos<G: bevy::gizmos::config::GizmoConfigGroup>(
         &mut self,
-        gizmos: &mut Gizmos<EditorCameraGizmoConfigGroup>,
+        gizmos: &mut Gizmos<G>,
+        transform: Transform,
+        color: Color,
+    ) {
+        self.draw_path(gizmos, transform, color);
+    }
+
+    pub(crate) fn draw_path<G: bevy::gizmos::config::GizmoConfigGroup>(
+        &mut self,
+        gizmos: &mut bevy::gizmos::gizmos::GizmoBuffer<G, ()>,
         transform: Transform,
         color: Color,
     ) {

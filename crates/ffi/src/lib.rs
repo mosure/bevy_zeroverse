@@ -452,6 +452,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
 
     m.add_class::<BevyZeroverseConfig>()?;
+    m.add_class::<bevy_zeroverse::camera::gizmo::RgbGizmos>()?;
     m.add_class::<Playback>()?;
     m.add_class::<PlaybackMode>()?;
     m.add_class::<OvoxelMode>()?;

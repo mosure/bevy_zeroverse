@@ -104,6 +104,8 @@ struct Args {
     no_prefetch: bool,
     #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4))]
     prefetch_depth: u8,
+    #[command(flatten)]
+    rgb_gizmos: bevy_zeroverse::camera::gizmo::RgbGizmos,
     /// Write lossless planes/manifests for an untimed, same-seed correctness comparison.
     #[arg(long)]
     save_samples: bool,
@@ -244,6 +246,7 @@ fn main() -> Result<()> {
         headless: true,
         editor: false,
         gizmos: false,
+        rgb_gizmos: args.rgb_gizmos,
         keybinds: false,
         press_esc_close: false,
         image_copiers: true,

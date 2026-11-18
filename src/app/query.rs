@@ -420,6 +420,41 @@ mod tests {
         let aliases = parse(base, [("camera-gizmo-scale".into(), "2".into())]).unwrap();
         assert_eq!(aliases.camera_gizmo_scale, 2.);
     }
+    #[test]
+    fn rgb_gizmos_round_trip_sparse_urls_cli_and_older_configs() {
+        let base = web_viewer_defaults();
+        assert!(!encode(&base, &Default::default()).contains("rgb_gizmos"));
+        let mut old = serde_json::to_value(&base).unwrap();
+        old.as_object_mut().unwrap().remove("rgb_gizmos");
+        assert_eq!(
+            serde_json::from_value::<BevyZeroverseConfig>(old)
+                .unwrap()
+                .rgb_gizmos,
+            Default::default()
+        );
+        let cli = BevyZeroverseConfig::try_parse_from([
+            "viewer",
+            "--rgb-human-poses",
+            "--rgb-camera-frustums",
+            "--rgb-camera-gizmo-scale",
+            "1.5",
+        ])
+        .unwrap();
+        let mut config = base.clone();
+        config.rgb_gizmos = cli.rgb_gizmos;
+        let url = encode(&config, &Default::default());
+        assert!(
+            url.contains("rgb_gizmos.camera_frustums=true")
+                && url.contains("rgb_gizmos.human_poses=true")
+        );
+        assert!(!url.contains("object_obbs") && !url.contains("camera_trajectories"));
+        assert_eq!(
+            parse(base.clone(), decode(&url)).unwrap().rgb_gizmos,
+            config.rgb_gizmos
+        );
+        assert!(parse(base, [("rgb_gizmos.camera_scale".into(), "0".into())]).is_err());
+    }
+
     fn decode(query: &str) -> Vec<(String, String)> {
         fn unescape(s: &str) -> String {
             let mut bytes = Vec::new();

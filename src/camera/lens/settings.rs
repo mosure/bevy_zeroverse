@@ -37,7 +37,7 @@ pub(super) fn install(app: &mut App) {
                 inherit::<Fxaa>,
                 inherit::<ScreenSpaceAmbientOcclusion>,
                 inherit::<DistanceFog>,
-                inherit::<RenderLayers>,
+                inherit::<RenderLayers>.after(crate::camera::gizmo::capture::UpdateRgbGizmos),
                 inherit::<Hdr>,
                 inherit::<DepthPrepass>,
                 inherit::<NormalPrepass>,
