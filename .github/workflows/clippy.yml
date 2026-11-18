@@ -28,6 +28,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    # Workspace linting compiles the Python extension. PyO3 0.27 supports CPython through 3.14.
+    - uses: actions/setup-python@v6
+      id: python
+      with:
+        python-version: '3.14'
+
     - name: Setup ${{ matrix.rust-toolchain }} rust toolchain with caching
       uses: brndnmtthws/rust-action@v1
       with:
@@ -36,4 +42,6 @@ jobs:
         enable-sccache: "false"
 
     - name: lint
+      env:
+        PYO3_PYTHON: ${{ steps.python.outputs.python-path }}
       run: cargo clippy --all -- -Dwarnings
