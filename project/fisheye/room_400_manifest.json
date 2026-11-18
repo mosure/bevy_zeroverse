@@ -164,22 +164,28 @@
     "rejected_meetings": 0,
     "accepted": []
   },
-  "generator_version": 120,
+  "generator_version": 130,
   "program": {
     "primary_zone": 0,
     "domain": {
       "photometry": {
-        "sun_lux": 23378.37,
+        "sun_lux": 23377.28,
         "sky_radiance": [
-          339.15213,
-          391.32104,
-          458.8901
+          327.5667,
+          451.3447,
+          647.0539
         ],
-        "environment_intensity": 43.91332,
-        "ev100": 7.104655,
-        "active_fraction": 0.49626806,
+        "environment_intensity": 40.994663,
+        "ev100": 3.9843278,
+        "meter": {
+          "electric_lux": 12.928482,
+          "direct_daylight_lux": 0.0,
+          "diffuse_daylight_lux": 13.365424,
+          "bias_ev": 0.1691917
+        },
+        "active_fraction": 0.60962176,
         "circuit_contrast": 0.15756255,
-        "sun_kelvin": 3617.6626,
+        "sun_kelvin": 5391.127,
         "fixture_gradient": [
           -0.20530415,
           -0.18490663
@@ -187,7 +193,7 @@
         "temperature_gradient": 390.89734
       },
       "target_lux": 21.004112,
-      "fixture_kelvin": 2381.3154,
+      "fixture_kelvin": 2473.684,
       "facade_pier_fraction": 0.5419503,
       "blind_coverage": 0.2995876,
       "blind_tilt": -0.674788,
@@ -222,7 +228,14 @@
             -0.4718202,
             0.21218574
           ],
-          "opposing_probability": 0.6524186
+          "opposing_probability": 0.6524186,
+          "banks": {
+            "turn_radians": 0.0,
+            "lateral_pitch_fraction": 0.049431458,
+            "phase_radians": 3.1564307,
+            "row_frequency": 1.7142453,
+            "back_gap_m": 0.2745712
+          }
         },
         "min": [
           -6.400527,
@@ -387,7 +400,8 @@
             ],
             "relief_m": 0.00027085384,
             "roughness_variation": 0.13347,
-            "burnish": 0.004430498
+            "burnish": 0.004430498,
+            "rubbed_finish": 0.0
           },
           "glaze": null,
           "application": {
@@ -423,9 +437,9 @@
         "surface": "Accent",
         "seed": 3744597784365065977,
         "color": [
-          0.8424954,
-          0.7077461,
-          0.5697916
+          0.25736988,
+          0.21965209,
+          0.119535744
         ],
         "roughness": 0.8468561,
         "period_m": 0.889034,
@@ -596,6 +610,13 @@
         },
         "flooring": {
           "layout": "BrokenBond",
+          "laying": {
+            "turn_radians": 1.5707964,
+            "phase": [
+              0.900466,
+              0.8541146
+            ]
+          },
           "craft": {
             "plank_ratio": 5,
             "chevron_rise": 1.4023923
@@ -2801,6 +2822,22 @@
         "corner_reveal_m": 0.06346831
       },
       "interior_glazing": {
+        "shared_openings": {
+          "jamb_intervals": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              0.030372635,
+              0.61549467
+            ]
+          ],
+          "height_interval": [
+            0.12998693,
+            0.99148184
+          ]
+        },
         "sill_m": 0.12798123,
         "header_m": 0.51729345,
         "pier_fraction": 0.19386871,
@@ -3006,11 +3043,24 @@
             "stack": "Right",
             "slat_material": "Plastic",
             "fabric": "Fabric",
-            "finish_slot": 2
+            "finish_slot": 2,
+            "textile": {
+              "lining": "Dimout",
+              "colorway": 0
+            }
           },
           "shade": "Roman",
           "shade_coverage": 0.54286015,
           "shade_tilt": 0.5600897
+        },
+        "lining": {
+          "stock": "AcousticFabric",
+          "height_m": 1.1065209,
+          "module_width_m": 0.9142411,
+          "phase": 0.40639114,
+          "joint_width_m": 0.014406677,
+          "joint_depth_m": 0.008563971,
+          "finish_slot": 6
         }
       },
       {
@@ -3018,6 +3068,11 @@
         "facade": null
       }
     ]
+  },
+  "adjoining": {
+    "depth_m": 4.383834,
+    "side_return": null,
+    "floor": "Continuous"
   },
   "ceiling_installation": {
     "exposed_slab": false,
@@ -3193,7 +3248,11 @@
           "stack": "Right",
           "slat_material": "Plastic",
           "fabric": "FabricAlt",
-          "finish_slot": 11
+          "finish_slot": 11,
+          "textile": {
+            "lining": "Dimout",
+            "colorway": 0
+          }
         },
         "shade": "Pleated",
         "shade_coverage": 0.2720008,
@@ -3535,10 +3594,10 @@
   "lighting": "Daylight",
   "sun_elevation": 0.7256101,
   "sun_azimuth": -1.4776587,
-  "light_kelvin": 2381.3154,
+  "light_kelvin": 2473.684,
   "lighting_design": 1,
   "target_lux": 21.004112,
-  "daylight_lux": 23378.37,
+  "daylight_lux": 23377.28,
   "density": 0.65,
   "objects": [
     {
@@ -3653,6 +3712,48 @@
     },
     {
       "id": 5,
+      "kind": "Bookcase",
+      "position": [
+        -5.915082,
+        0.0,
+        7.533361
+      ],
+      "size": [
+        1.0935464,
+        1.4863627,
+        0.29212204
+      ],
+      "yaw": 1.5799084,
+      "variant": 0,
+      "seed": 14873610726722061864,
+      "solid": true,
+      "support": null,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 6,
+      "kind": "Chair",
+      "position": [
+        3.9645078,
+        0.0,
+        7.7658443
+      ],
+      "size": [
+        0.65320593,
+        0.8709537,
+        0.65151423
+      ],
+      "yaw": -0.29201847,
+      "variant": 4,
+      "seed": 5971613956133044145,
+      "solid": true,
+      "support": null,
+      "neighbor": true,
+      "interaction_target": null
+    },
+    {
+      "id": 7,
       "kind": "Plant",
       "position": [
         5.508369,
@@ -3673,7 +3774,7 @@
       "interaction_target": null
     },
     {
-      "id": 6,
+      "id": 8,
       "kind": "Plant",
       "position": [
         1.6871983,
@@ -3694,7 +3795,7 @@
       "interaction_target": null
     },
     {
-      "id": 7,
+      "id": 9,
       "kind": "Plant",
       "position": [
         2.6489158,
@@ -3715,7 +3816,7 @@
       "interaction_target": null
     },
     {
-      "id": 8,
+      "id": 10,
       "kind": "Plant",
       "position": [
         3.2699838,
@@ -3736,7 +3837,7 @@
       "interaction_target": null
     },
     {
-      "id": 9,
+      "id": 11,
       "kind": "Plant",
       "position": [
         3.2852569,
@@ -3757,7 +3858,7 @@
       "interaction_target": null
     },
     {
-      "id": 10,
+      "id": 12,
       "kind": "Plant",
       "position": [
         3.3994398,
@@ -3778,7 +3879,7 @@
       "interaction_target": null
     },
     {
-      "id": 11,
+      "id": 13,
       "kind": "Plant",
       "position": [
         5.600373,
@@ -3799,7 +3900,7 @@
       "interaction_target": null
     },
     {
-      "id": 12,
+      "id": 14,
       "kind": "Plant",
       "position": [
         5.3271112,
@@ -3820,7 +3921,7 @@
       "interaction_target": null
     },
     {
-      "id": 13,
+      "id": 15,
       "kind": "NoticeBoard",
       "position": [
         -6.330602,
@@ -3841,7 +3942,7 @@
       "interaction_target": null
     },
     {
-      "id": 14,
+      "id": 16,
       "kind": "NoticeBoard",
       "position": [
         -3.9718912,
@@ -3862,7 +3963,7 @@
       "interaction_target": null
     },
     {
-      "id": 15,
+      "id": 17,
       "kind": "WallShelf",
       "position": [
         -0.714885,
@@ -3883,7 +3984,7 @@
       "interaction_target": null
     },
     {
-      "id": 16,
+      "id": 18,
       "kind": "Plant",
       "position": [
         -0.49777856,
@@ -3899,12 +4000,12 @@
       "variant": 7,
       "seed": 17550016927251740533,
       "solid": false,
-      "support": 15,
+      "support": 17,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 17,
+      "id": 19,
       "kind": "CeilingFan",
       "position": [
         -2.7934632,
@@ -3925,7 +4026,7 @@
       "interaction_target": null
     },
     {
-      "id": 18,
+      "id": 20,
       "kind": "WallArt",
       "position": [
         -2.244544,
@@ -3946,7 +4047,7 @@
       "interaction_target": null
     },
     {
-      "id": 19,
+      "id": 21,
       "kind": "WallArt",
       "position": [
         3.4607146,
@@ -3967,7 +4068,7 @@
       "interaction_target": null
     },
     {
-      "id": 20,
+      "id": 22,
       "kind": "ExitSign",
       "position": [
         -0.56464803,
@@ -3988,7 +4089,7 @@
       "interaction_target": null
     },
     {
-      "id": 21,
+      "id": 23,
       "kind": "Display",
       "position": [
         0.9212105,
@@ -4009,28 +4110,28 @@
       "interaction_target": null
     },
     {
-      "id": 22,
+      "id": 24,
       "kind": "FirePullStation",
       "position": [
-        -1.5362574,
-        1.2099802,
-        4.216857
+        0.70495915,
+        1.0555844,
+        4.2137647
       ],
       "size": [
-        0.09594104,
-        0.12485816,
-        0.032732558
+        0.11396736,
+        0.116132215,
+        0.038917966
       ],
       "yaw": 3.1415927,
       "variant": 0,
-      "seed": 2925140199606094597,
+      "seed": 4186221694912568992,
       "solid": false,
       "support": null,
       "neighbor": false,
       "interaction_target": null
     },
     {
-      "id": 23,
+      "id": 25,
       "kind": "FireDetector",
       "position": [
         -2.5707676,
@@ -4051,7 +4152,7 @@
       "interaction_target": null
     },
     {
-      "id": 24,
+      "id": 26,
       "kind": "FireAlarm",
       "position": [
         6.2517424,
@@ -4072,7 +4173,7 @@
       "interaction_target": null
     },
     {
-      "id": 25,
+      "id": 27,
       "kind": "Speaker",
       "position": [
         -1.1191862,
@@ -4093,7 +4194,7 @@
       "interaction_target": null
     },
     {
-      "id": 26,
+      "id": 28,
       "kind": "Speaker",
       "position": [
         -6.2495375,
@@ -4114,7 +4215,7 @@
       "interaction_target": null
     },
     {
-      "id": 27,
+      "id": 29,
       "kind": "Speaker",
       "position": [
         1.2343199,
@@ -4135,7 +4236,7 @@
       "interaction_target": null
     },
     {
-      "id": 28,
+      "id": 30,
       "kind": "Whiteboard",
       "position": [
         -6.337442,
@@ -4156,7 +4257,7 @@
       "interaction_target": null
     },
     {
-      "id": 29,
+      "id": 31,
       "kind": "LightSwitch",
       "position": [
         -3.0314863,
@@ -4177,7 +4278,7 @@
       "interaction_target": null
     },
     {
-      "id": 30,
+      "id": 32,
       "kind": "LightSwitch",
       "position": [
         6.3046756,
@@ -4198,7 +4299,7 @@
       "interaction_target": null
     },
     {
-      "id": 31,
+      "id": 33,
       "kind": "WallOutlet",
       "position": [
         1.4696763,
@@ -4219,7 +4320,7 @@
       "interaction_target": null
     },
     {
-      "id": 32,
+      "id": 34,
       "kind": "WallOutlet",
       "position": [
         -6.3760395,
@@ -4240,7 +4341,7 @@
       "interaction_target": null
     },
     {
-      "id": 33,
+      "id": 35,
       "kind": "WallOutlet",
       "position": [
         3.492129,
@@ -4261,7 +4362,7 @@
       "interaction_target": null
     },
     {
-      "id": 34,
+      "id": 36,
       "kind": "WallOutlet",
       "position": [
         0.12221798,
@@ -4282,7 +4383,7 @@
       "interaction_target": null
     },
     {
-      "id": 35,
+      "id": 37,
       "kind": "WallOutlet",
       "position": [
         -6.355957,
@@ -4303,7 +4404,7 @@
       "interaction_target": null
     },
     {
-      "id": 36,
+      "id": 38,
       "kind": "WallOutlet",
       "position": [
         -6.3226295,
@@ -4324,7 +4425,7 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 39,
       "kind": "WallOutlet",
       "position": [
         6.224375,
@@ -4345,7 +4446,7 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 40,
       "kind": "WallOutlet",
       "position": [
         -6.3196754,
@@ -4366,7 +4467,7 @@
       "interaction_target": null
     },
     {
-      "id": 39,
+      "id": 41,
       "kind": "WallOutlet",
       "position": [
         0.5297739,
@@ -4387,7 +4488,7 @@
       "interaction_target": null
     },
     {
-      "id": 40,
+      "id": 42,
       "kind": "WallOutlet",
       "position": [
         -4.0037465,
@@ -4408,7 +4509,7 @@
       "interaction_target": null
     },
     {
-      "id": 41,
+      "id": 43,
       "kind": "WallOutlet",
       "position": [
         6.349864,
@@ -4429,7 +4530,7 @@
       "interaction_target": null
     },
     {
-      "id": 42,
+      "id": 44,
       "kind": "WallOutlet",
       "position": [
         1.2409317,

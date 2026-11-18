@@ -157,28 +157,42 @@
     "accepted": []
   },
   "appearance": {
+    "sensor": {
+      "seed_offset": 0,
+      "probability": 0.0,
+      "blur": 0.85,
+      "smudge": 0.75,
+      "flare": 0.65,
+      "noise": 0.8
+    },
     "material_seed": null,
     "lighting_seed": null,
     "material_detail": 1.0,
     "illumination_scale": 1.0,
     "exposure_ev100_offset": 0.0
   },
-  "generator_version": 120,
+  "generator_version": 130,
   "program": {
     "primary_zone": 0,
     "domain": {
       "photometry": {
-        "sun_lux": 200.338,
+        "sun_lux": 180.22899,
         "sky_radiance": [
-          1.2604682,
-          1.378617,
-          1.5344838
+          4.330358,
+          5.2095003,
+          6.522947
         ],
-        "environment_intensity": 58.094654,
-        "ev100": 7.301903,
-        "active_fraction": 0.9240297,
+        "environment_intensity": 58.407967,
+        "ev100": 6.7576675,
+        "meter": {
+          "electric_lux": 618.40717,
+          "direct_daylight_lux": 2.2800212,
+          "diffuse_daylight_lux": 0.84676564,
+          "bias_ev": 0.11345111
+        },
+        "active_fraction": 0.9911208,
         "circuit_contrast": 0.29906473,
-        "sun_kelvin": 5437.837,
+        "sun_kelvin": 5045.6855,
         "fixture_gradient": [
           0.40417242,
           -0.3141392
@@ -186,7 +200,7 @@
         "temperature_gradient": -806.75635
       },
       "target_lux": 827.82,
-      "fixture_kelvin": 3787.7466,
+      "fixture_kelvin": 3554.3745,
       "facade_pier_fraction": 0.17427528,
       "blind_coverage": 0.7447666,
       "blind_tilt": -0.155882,
@@ -221,7 +235,14 @@
             0.20569015,
             -0.11836904
           ],
-          "opposing_probability": 0.6325115
+          "opposing_probability": 0.6325115,
+          "banks": {
+            "turn_radians": 0.0,
+            "lateral_pitch_fraction": 0.13944958,
+            "phase_radians": 0.45273483,
+            "row_frequency": 1.5616164,
+            "back_gap_m": null
+          }
         },
         "min": [
           -6.291046,
@@ -397,9 +418,9 @@
         "surface": "Accent",
         "seed": 95750180268439422,
         "color": [
-          0.6068572,
-          0.23073891,
-          0.43465072
+          0.8490823,
+          0.75596064,
+          0.84372187
         ],
         "roughness": 0.942727,
         "period_m": 0.20696434,
@@ -570,6 +591,13 @@
         },
         "flooring": {
           "layout": "Straight",
+          "laying": {
+            "turn_radians": 0.0,
+            "phase": [
+              0.6785274,
+              0.4533553
+            ]
+          },
           "stock": {
             "cut_jitter": [
               0.0,
@@ -580,11 +608,11 @@
               2
             ],
             "joint_color": [
-              0.6059107,
-              0.5877334,
-              0.56955606
+              0.1612938,
+              0.2066611,
+              0.27881336
             ],
-            "joint_roughness": 0.8817419
+            "joint_roughness": 0.94138706
           },
           "cells": [
             13,
@@ -636,24 +664,24 @@
           ],
           "palette": [
             [
-              0.28204733,
-              0.276084,
-              0.25710362
+              0.30121875,
+              0.3859429,
+              0.5206884
             ],
             [
-              0.43689165,
-              0.43242258,
-              0.41819823
+              0.5983039,
+              0.60873294,
+              0.59219235
             ],
             [
-              0.21447267,
-              0.20993808,
-              0.19550513
+              0.3386017,
+              0.31663433,
+              0.3390314
             ]
           ],
-          "contrast": 0.479594,
+          "contrast": 0.1611657,
           "heather": 0.115238175,
-          "pile": 0.8904047,
+          "pile": 0.60681784,
           "line_width": 0.27422127,
           "edge_variation": 0.0058328696
         },
@@ -760,13 +788,13 @@
         "surface": "Floor",
         "seed": 18035940476790391229,
         "color": [
-          0.28204733,
-          0.276084,
-          0.25710362
+          0.30121875,
+          0.3859429,
+          0.5206884
         ],
-        "roughness": 0.915401,
+        "roughness": 0.88837427,
         "period_m": 5.7136445,
-        "relief_m": 0.00026966236,
+        "relief_m": 0.00045441714,
         "grain_frequency": 51.736122,
         "cross_frequency": 1.6239963,
         "warp": 0.04865597,
@@ -2748,6 +2776,22 @@
         "corner_reveal_m": 0.060305923
       },
       "interior_glazing": {
+        "shared_openings": {
+          "jamb_intervals": [
+            [
+              0.4284956,
+              0.844886
+            ],
+            [
+              0.5122534,
+              0.95879227
+            ]
+          ],
+          "height_interval": [
+            0.08284792,
+            0.780891
+          ]
+        },
         "sill_m": 0.02878657,
         "header_m": 0.28309608,
         "pier_fraction": 0.1711231,
@@ -3251,7 +3295,11 @@
             "stack": "Right",
             "slat_material": "WoodEdge",
             "fabric": "Fabric",
-            "finish_slot": 3
+            "finish_slot": 3,
+            "textile": {
+              "lining": "Unlined",
+              "colorway": 2
+            }
           },
           "shade": "Roller",
           "shade_coverage": 0.46538302,
@@ -3355,6 +3403,11 @@
         "facade": null
       }
     ]
+  },
+  "adjoining": {
+    "depth_m": 5.2643547,
+    "side_return": null,
+    "floor": "Continuous"
   },
   "ceiling_installation": {
     "exposed_slab": false,
@@ -3676,7 +3729,11 @@
           "stack": "Pair",
           "slat_material": "WoodEdge",
           "fabric": "Fabric",
-          "finish_slot": 4
+          "finish_slot": 4,
+          "textile": {
+            "lining": "Dimout",
+            "colorway": 1
+          }
         },
         "shade": "Vertical",
         "shade_coverage": 0.4734451,
@@ -3721,10 +3778,10 @@
   "lighting": "Overcast",
   "sun_elevation": 0.58602315,
   "sun_azimuth": 2.0670698,
-  "light_kelvin": 3787.7466,
+  "light_kelvin": 3554.3745,
   "lighting_design": 0,
   "target_lux": 827.82,
-  "daylight_lux": 200.338,
+  "daylight_lux": 180.22899,
   "density": 0.65,
   "objects": [
     {
@@ -4412,6 +4469,27 @@
     },
     {
       "id": 32,
+      "kind": "FirePullStation",
+      "position": [
+        5.915265,
+        1.1388913,
+        5.0046906
+      ],
+      "size": [
+        0.10507585,
+        0.13888791,
+        0.047486298
+      ],
+      "yaw": 3.1415927,
+      "variant": 2,
+      "seed": 13585731578171885187,
+      "solid": false,
+      "support": null,
+      "neighbor": false,
+      "interaction_target": null
+    },
+    {
+      "id": 33,
       "kind": "StringLights",
       "position": [
         -5.8443317,
@@ -4432,7 +4510,7 @@
       "interaction_target": null
     },
     {
-      "id": 33,
+      "id": 34,
       "kind": "LightSwitch",
       "position": [
         -5.64461,
@@ -4453,7 +4531,7 @@
       "interaction_target": null
     },
     {
-      "id": 34,
+      "id": 35,
       "kind": "LightSwitch",
       "position": [
         -1.6515085,
@@ -4474,7 +4552,7 @@
       "interaction_target": null
     },
     {
-      "id": 35,
+      "id": 36,
       "kind": "WallOutlet",
       "position": [
         -1.6515085,
@@ -4495,7 +4573,7 @@
       "interaction_target": null
     },
     {
-      "id": 36,
+      "id": 37,
       "kind": "WallOutlet",
       "position": [
         4.501873,
@@ -4516,7 +4594,7 @@
       "interaction_target": null
     },
     {
-      "id": 37,
+      "id": 38,
       "kind": "WallOutlet",
       "position": [
         -5.856133,
@@ -4537,7 +4615,7 @@
       "interaction_target": null
     },
     {
-      "id": 38,
+      "id": 39,
       "kind": "WallOutlet",
       "position": [
         -6.1669583,
@@ -4558,7 +4636,7 @@
       "interaction_target": null
     },
     {
-      "id": 39,
+      "id": 40,
       "kind": "WallOutlet",
       "position": [
         -5.159926,
@@ -4579,7 +4657,7 @@
       "interaction_target": null
     },
     {
-      "id": 40,
+      "id": 41,
       "kind": "WallOutlet",
       "position": [
         -5.8933654,
@@ -4600,7 +4678,7 @@
       "interaction_target": null
     },
     {
-      "id": 41,
+      "id": 42,
       "kind": "WallOutlet",
       "position": [
         -5.3687105,
@@ -4621,7 +4699,7 @@
       "interaction_target": null
     },
     {
-      "id": 42,
+      "id": 43,
       "kind": "WallOutlet",
       "position": [
         -5.0673084,
@@ -4642,7 +4720,7 @@
       "interaction_target": null
     },
     {
-      "id": 43,
+      "id": 44,
       "kind": "WallOutlet",
       "position": [
         -5.3486843,
@@ -4663,7 +4741,7 @@
       "interaction_target": null
     },
     {
-      "id": 44,
+      "id": 45,
       "kind": "FireAlarm",
       "position": [
         -5.463541,
@@ -4684,7 +4762,7 @@
       "interaction_target": null
     },
     {
-      "id": 45,
+      "id": 46,
       "kind": "Display",
       "position": [
         -5.1032863,
@@ -4705,7 +4783,7 @@
       "interaction_target": null
     },
     {
-      "id": 46,
+      "id": 47,
       "kind": "Whiteboard",
       "position": [
         -5.408964,
@@ -4726,7 +4804,7 @@
       "interaction_target": null
     },
     {
-      "id": 47,
+      "id": 48,
       "kind": "WallArt",
       "position": [
         -5.8920093,
@@ -4747,7 +4825,7 @@
       "interaction_target": null
     },
     {
-      "id": 48,
+      "id": 49,
       "kind": "WallArt",
       "position": [
         -5.8615017,
@@ -4768,7 +4846,7 @@
       "interaction_target": null
     },
     {
-      "id": 49,
+      "id": 50,
       "kind": "WallArt",
       "position": [
         -5.8257732,
@@ -4789,7 +4867,7 @@
       "interaction_target": null
     },
     {
-      "id": 50,
+      "id": 51,
       "kind": "WallArt",
       "position": [
         -5.80338,
@@ -4810,7 +4888,7 @@
       "interaction_target": null
     },
     {
-      "id": 51,
+      "id": 52,
       "kind": "WallArt",
       "position": [
         -5.7767377,
@@ -4831,7 +4909,7 @@
       "interaction_target": null
     },
     {
-      "id": 52,
+      "id": 53,
       "kind": "FireDetector",
       "position": [
         -1.3887703,
@@ -4852,7 +4930,7 @@
       "interaction_target": null
     },
     {
-      "id": 53,
+      "id": 54,
       "kind": "FireDetector",
       "position": [
         -3.8147454,
