@@ -72,6 +72,8 @@ fn clear_aperture(facade: &Facade) -> f32 {
                 .map_or(clear_fraction, |track| {
                     track.clear_fraction(span.x, coverage)
                 });
+            let clear = architecture::facade::treatments::slats::clear_fraction(facade, span)
+                .unwrap_or(clear);
             width * height * clear
         })
         .sum()

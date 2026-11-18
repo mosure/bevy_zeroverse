@@ -146,8 +146,9 @@ Semantic-room and standalone-human scenes are also supported. The engine is
 built with Bevy 0.20 and Rust, with native dataset generation, a WebGPU viewer, and
 Python/PyTorch integration.
 
-Capture RGB defaults to 2× supersampling below 1280×720 pixels, resolved by a GPU
-area filter. Numeric annotations retain aligned final pixel-center rays and
+Capture RGB defaults to 2× supersampling below 1280×720 pixels. Small indoor
+rigs can use 3× or 4× when distant slats or woven shades would alias.
+A GPU area filter resolves RGB to the requested dimensions. Numeric annotations retain aligned final pixel-center rays and
 categorical labels. `--ssaa-factor 1` disables it; 0 selects Auto and 2/3/4 force
 a fixed factor. Output dimensions and camera calibration remain unchanged.
 

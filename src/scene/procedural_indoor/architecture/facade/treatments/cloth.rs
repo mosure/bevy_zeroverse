@@ -10,12 +10,36 @@ pub(super) fn sheet(
     uv_size: Vec2,
     shape: impl Fn(f32, f32) -> Vec3,
 ) {
+    sheet_with_thickness(g, tf, cells, uv_size, 0.0012, shape);
+}
+
+pub(super) fn sheet_with_thickness(
+    g: &mut Geometry,
+    tf: Transform,
+    cells: [usize; 2],
+    uv_size: Vec2,
+    thickness: f32,
+    shape: impl Fn(f32, f32) -> Vec3,
+) {
+    sheet_rows(g, tf, cells, uv_size, thickness, |v| v, shape);
+}
+
+pub(super) fn sheet_rows(
+    g: &mut Geometry,
+    tf: Transform,
+    cells: [usize; 2],
+    uv_size: Vec2,
+    thickness: f32,
+    row_v: impl Fn(f32) -> f32,
+    shape: impl Fn(f32, f32) -> Vec3,
+) {
     let [nx, ny] = cells;
     let p: Vec<_> = (0..=ny)
         .flat_map(|j| {
+            let v = row_v(j as f32 / ny as f32);
             (0..=nx).map({
                 let shape = &shape;
-                move |i| shape(i as f32 / nx as f32, j as f32 / ny as f32)
+                move |i| shape(i as f32 / nx as f32, v)
             })
         })
         .collect();
@@ -29,14 +53,14 @@ pub(super) fn sheet(
                 let dv = p[(j + 1).min(ny) * stride + i] - p[j.saturating_sub(1) * stride + i];
                 let n = du.cross(dv).normalize();
                 g.positions.push(
-                    tf.transform_point(p[j * stride + i] + Vec3::Z * (0.0006 * side))
+                    tf.transform_point(p[j * stride + i] + Vec3::Z * (thickness * 0.5 * side))
                         .to_array(),
                 );
                 g.normals
                     .push(((tf.rotation * (n / tf.scale)).normalize() * side).to_array());
                 g.uvs.push([
                     uv_size.x * i as f32 / nx as f32,
-                    uv_size.y * (1. - j as f32 / ny as f32),
+                    uv_size.y * (1. - row_v(j as f32 / ny as f32)),
                 ]);
             }
         }
@@ -65,7 +89,11 @@ pub(super) fn sheet(
     for (&a, &b) in edge.iter().zip(edge.iter().cycle().skip(1)) {
         let mut points = [p[a], p[a], p[b], p[b]];
         for (i, v) in points.iter_mut().enumerate() {
-            v.z += if i == 0 || i == 3 { 0.0006 } else { -0.0006 };
+            v.z += if i == 0 || i == 3 {
+                thickness * 0.5
+            } else {
+                -thickness * 0.5
+            };
         }
         let n = (points[1] - points[0])
             .cross(points[2] - points[0])
@@ -77,7 +105,7 @@ pub(super) fn sheet(
         for (v, uv) in
             points
                 .into_iter()
-                .zip([[0., 0.], [0., 0.0012], [length, 0.0012], [length, 0.]])
+                .zip([[0., 0.], [0., thickness], [length, thickness], [length, 0.]])
         {
             g.positions.push(tf.transform_point(v).to_array());
             g.normals

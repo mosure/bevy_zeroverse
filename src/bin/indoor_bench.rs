@@ -556,7 +556,7 @@ fn main() -> Result<()> {
             "render_pipeline_count":app.world().resource::<bevy_zeroverse::io::image_copy::CapturePipelineReadiness>().pipeline_count(),"assets_mesh_material_image":assets,
             "staging_bytes":staging_bytes,"completed_capture_requests":capture.completed_requests,"copied_bytes":capture.copied_bytes,
             "readback_waiting_updates":capture.waiting_updates,"backoff_sleeps":capture.backoff_sleeps,
-            "render_diagnostics":render_diagnostics,"views":sample.views.len(),"annotation_precision":sample.annotation_precision,
+            "render_diagnostics":render_diagnostics,"sampling":sample.sampling,"views":sample.views.len(),"annotation_precision":sample.annotation_precision,
             "humans":sample.indoor.as_ref().unwrap().humans.len(),"gi":app.world().get_resource::<BakeStatistics>(),
             "ground_truth":app.world().get_resource::<bevy_zeroverse::render::ground_truth::GroundTruthDiagnostics>().map(|d|d.snapshot()),
             "co_visibility":app.world().get_resource::<bevy_zeroverse::render::co_visibility::CoVisibilityDiagnostics>().map(|d|d.snapshot())});

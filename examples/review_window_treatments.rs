@@ -23,6 +23,7 @@ use bevy_zeroverse::{
         SceneAabbNode, ZeroverseSceneRoot, ZeroverseSceneType,
     },
 };
+use clap::Parser;
 use serde_json::json;
 use std::{
     fs,
@@ -30,14 +31,36 @@ use std::{
     time::{Duration, Instant},
 };
 
-const SIZE: u32 = 512;
-const KINDS: [Shade; 6] = [
+/// Render one installation at different pixel densities, distances and view angles.
+#[derive(Parser, Resource)]
+struct Review {
+    #[arg(default_value = "out/window_treatments/renders")]
+    output: PathBuf,
+    #[arg(long, default_value_t = 512, value_parser = clap::value_parser!(u32).range(32..=2048))]
+    size: u32,
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
+    ssaa: u32,
+    #[arg(long, default_value_t = 4.535416)]
+    distance: f32,
+    #[arg(long, default_value_t = 14.036243)]
+    yaw: f32,
+    /// Vertical displacement in metres for measuring subpixel phase changes.
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
+    rise: f32,
+    #[arg(long, value_parser = clap::value_parser!(u32).range(0..=3))]
+    row: Option<u32>,
+    #[arg(long, value_parser = ["venetian", "roller", "vertical", "roman", "pleated", "curtain", "paneltrack"])]
+    kind: Option<String>,
+}
+
+const KINDS: [Shade; 7] = [
     Shade::Venetian,
     Shade::Roller,
     Shade::Vertical,
     Shade::Roman,
     Shade::Pleated,
     Shade::Curtain,
+    Shade::PanelTrack,
 ];
 #[derive(Component)]
 struct ReviewRoot;
@@ -50,6 +73,7 @@ struct Batch {
 
 fn install(
     mut commands: Commands,
+    review: Res<Review>,
     mut batch: ResMut<Batch>,
     roots: Query<Entity, With<ReviewRoot>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -75,16 +99,17 @@ fn install(
         .enumerate()
     {
         a.spawn(root, &mut commands, &mut meshes, &batch.materials);
-        let target = Vec3::new(i as f32 * 8., 1.55, 0.);
+        let target = Vec3::new(i as f32 * 8., 1.55 + review.rise, 0.);
+        let (sin, cos) = review.yaw.to_radians().sin_cos();
         commands.spawn((
             ZeroverseCamera {
-                resolution: Some(UVec2::splat(SIZE)),
+                resolution: Some(UVec2::splat(review.size)),
                 perspective_sampler: PerspectiveSampler::exact(49.),
                 trajectory: TrajectorySampler::Static {
                     start: ExtrinsicsSampler {
                         looking_at: LookingAtSampler::Exact(target),
                         position: ExtrinsicsSamplerType::Transform(Transform::from_translation(
-                            target + Vec3::new(1.1, 0.08, 4.4),
+                            target + Vec3::new(sin * review.distance, 0.08, cos * review.distance),
                         )),
                         ..default()
                     },
@@ -113,11 +138,27 @@ fn install(
     batch.install = false;
 }
 fn main() -> Result<()> {
-    let output = PathBuf::from(
-        std::env::args()
-            .nth(1)
-            .unwrap_or("out/window_treatments/renders".into()),
+    let review = Review::parse();
+    ensure!(
+        review.distance.is_finite()
+            && review.distance > 0.
+            && review.yaw.is_finite()
+            && review.rise.is_finite(),
+        "invalid camera rig"
     );
+    let size = review.size;
+    let row_filter = review.row;
+    let output = review.output.clone();
+    let kinds: Vec<_> = KINDS
+        .into_iter()
+        .filter(|kind| {
+            review
+                .kind
+                .as_ref()
+                .is_none_or(|k| k == &format!("{kind:?}").to_ascii_lowercase())
+        })
+        .collect();
+    let rig = json!({"distance_m":review.distance,"yaw_deg":review.yaw,"rise_m":review.rise,"ssaa":review.ssaa});
     fs::create_dir_all(&output)?;
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
     setup_globals(None);
@@ -131,9 +172,10 @@ fn main() -> Result<()> {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: 6,
-            width: SIZE as f32,
-            height: SIZE as f32,
+            num_cameras: kinds.len(),
+            ssaa_factor: review.ssaa,
+            width: size as f32,
+            height: size as f32,
             render_modes: vec![
                 RenderMode::Color,
                 RenderMode::Normal,
@@ -145,6 +187,7 @@ fn main() -> Result<()> {
         }),
         false,
     );
+    app.insert_resource(review);
     app.add_systems(PreUpdate, install);
     app.finish();
     app.cleanup();
@@ -166,6 +209,9 @@ fn main() -> Result<()> {
         .into_iter()
         .enumerate()
     {
+        if row_filter.is_some_and(|selected| selected as usize != row) {
+            continue;
+        }
         let mut scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.5, 0, 0.)
                 .map_err(anyhow::Error::msg)?;
@@ -180,7 +226,12 @@ fn main() -> Result<()> {
         app.world_mut().insert_resource(images);
         app.world_mut().insert_resource(materials);
         let mut assemblies = Vec::new();
-        for (i, kind) in KINDS.into_iter().enumerate() {
+        let first_record = records.len();
+        for (i, &kind) in kinds.iter().enumerate() {
+            let (_, treatment) = (seed..)
+                .map(ShadeProgram::sample)
+                .find(|(selected, _)| *selected == kind)
+                .unwrap();
             let mut f = Facade {
                 joinery: None,
                 side: FacadeSide::Rear,
@@ -198,7 +249,7 @@ fn main() -> Result<()> {
                 frame_depth: 0.08,
                 recess: 0.07,
                 sill_projection: 0.075,
-                treatment: Some(ShadeProgram::sample(seed + i as u64 * 17).1),
+                treatment: Some(treatment),
                 shade: kind,
                 shade_coverage: coverage,
                 shade_tilt: -0.65,
@@ -269,9 +320,9 @@ fn main() -> Result<()> {
                 .unwrap()
                 .try_recv()
             {
-                ensure!(sample.views.len() == 6, "missing window views");
+                ensure!(sample.views.len() == kinds.len(), "missing window views");
                 for (i, v) in sample.views.iter().enumerate() {
-                    let expected = if KINDS[i] == Shade::Curtain {
+                    let expected = if kinds[i] == Shade::Curtain {
                         SemanticLabel::Curtain
                     } else {
                         SemanticLabel::Blinds
@@ -285,7 +336,7 @@ fn main() -> Result<()> {
                         ("semantic", &v.semantic),
                     ] {
                         ensure!(
-                            bytes.len() == (SIZE * SIZE * 16) as usize,
+                            bytes.len() == (size * size * 16) as usize,
                             "incorrect {mode} length"
                         );
                         let values: &[f32] = bytemuck::cast_slice(bytes);
@@ -314,16 +365,16 @@ fn main() -> Result<()> {
                                 })
                             })
                             .collect();
-                        image::RgbImage::from_raw(SIZE, SIZE, pixels)
+                        image::RgbImage::from_raw(size, size, pixels)
                             .unwrap()
-                            .save(output.join(format!("{row}-{:?}-{mode}.png", KINDS[i])))?;
+                            .save(output.join(format!("{row}-{:?}-{mode}.png", kinds[i])))?;
                     }
                     ensure!(
                         visible > 20,
                         "missing covering semantic pixels: row {row} {:?}",
-                        KINDS[i]
+                        kinds[i]
                     );
-                    records[row * 6 + i]["visible_covering_pixels"] = json!(visible);
+                    records[first_record + i]["visible_covering_pixels"] = json!(visible);
                 }
                 break;
             }
@@ -336,7 +387,7 @@ fn main() -> Result<()> {
     fs::write(
         output.join("review.json"),
         serde_json::to_vec_pretty(
-            &json!({"source":bevy_zeroverse::provenance::capture_provenance(),"image_size":[SIZE,SIZE],"rig":"fixed illumination and camera; production geometry/materials, CPU reference maps","records":records}),
+            &json!({"source":bevy_zeroverse::provenance::capture_provenance(),"image_size":[size,size],"rig":rig,"records":records}),
         )?,
     )?;
     Ok(())

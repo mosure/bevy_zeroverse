@@ -44,6 +44,11 @@ impl MaterialSelection {
             if s != surface {
                 continue;
             }
+            // Smooth factory-coated stock owns its complete optical response.
+            if slat_finish::supports(surface, slot) {
+                replacements = true;
+                continue;
+            }
             // Unresolved slots fall back to the base material. Structure zero
             // also inherits its maps; only nonzero groups replace all four.
             if slot >= variants::COUNT || slot % variants::structure_count(surface) == 0 {
@@ -478,6 +483,7 @@ impl IndoorMaterials {
         ));
         variants.extend(signals::build(scene, materials, selection));
         variants.extend(supplies::build(scene, &handles, materials, selection));
+        slat_finish::install(scene, materials, selection, &mut variants);
         window_textile::install(scene, &handles, materials, selection, &mut variants);
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
@@ -628,6 +634,7 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || signals::supports(surface, slot)
         || supplies::supports(surface, slot)
         || window_textile::supports(surface, slot)
+        || slat_finish::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)

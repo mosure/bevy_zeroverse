@@ -1,5 +1,6 @@
 use super::*;
 use crate::render::semantic::SemanticLabel;
+use crate::scene::procedural_indoor::motion::IndoorMotionConfig;
 use std::collections::{BTreeMap, BTreeSet};
 
 const KINDS: [Shade; 7] = [
@@ -60,9 +61,15 @@ fn split_coverings_reveal_the_window_as_they_retract() {
     }
 }
 
-fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facade {
+pub(super) fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facade {
     let mut program = ShadeProgram::sample(seed).1;
     let mut rng = stream(seed, 42);
+    program.slats =
+        (kind == Shade::Venetian).then(|| SlatStock::sample(&mut rng, program.slat_material));
+    if let Some(stock) = program.slats {
+        program.slat_pitch = stock.depth_m * 0.91;
+    }
+    program.pleat_crease = (kind == Shade::Pleated).then_some(0.2);
     program.track = (kind == Shade::PanelTrack).then(|| PanelTrack::sample(&mut rng));
     program.textile =
         (kind != Shade::Venetian).then(|| WindowTextile::sample(&mut rng, kind == Shade::Curtain));
@@ -281,7 +288,6 @@ fn track_meter_matches_frontal_rays_through_the_actual_assembly() {
 
 #[test]
 fn roller_weave_is_metric_and_sliding_panels_keep_rigid_flow_correspondence() {
-    use crate::scene::procedural_indoor::motion::IndoorMotionConfig;
     for kind in [Shade::Roller, Shade::PanelTrack] {
         let mut f = facade(3, kind, Vec2::new(3.0, 2.0), 0.15);
         let mut panels = vec![];
@@ -443,4 +449,91 @@ fn adding_another_roller_does_not_rescale_an_installed_web() {
     f.shade_coverage = 0.76;
     build(&mut a, Transform::from_xyz(2., 0., 0.), &f, &f.openings[0]);
     assert_eq!(a.parts[&key].uvs[..first.len()], first);
+}
+
+#[test]
+fn venetian_ladders_keep_their_pitch_and_the_solid_stack_clears_its_neighbor() {
+    for seed in 0..64 {
+        let f = facade(seed, Shade::Venetian, Vec2::new(2.6, 2.35), 0.48);
+        let p = f.treatment.as_ref().unwrap();
+        let stock = p.slats.unwrap();
+        assert!(stock.valid(p.slat_pitch));
+        for angle in [-1.2_f32, -0.45, 0., 0.62, 1.2] {
+            let l = stock.layout(2.22, p.slat_pitch, 0.48, angle);
+            let pitch = 2.22 / l.count as f32;
+            let packed = l.drop_at(l.count - 1) - l.drop_at(l.count - 2);
+            assert!((l.drop_at(1) - pitch).abs() < 2e-6);
+            assert!(packed > 0. && packed < pitch);
+            // The vertical separation at a common depth must cover both
+            // blade thickness and the allowed crown slope at that inclination.
+            let min_gap = packed
+                * (angle.cos() - (4. * stock.crown_m / stock.depth_m) * angle.sin().abs())
+                - stock.thickness_m;
+            assert!(min_gap >= stock.nesting_gap_m - 1e-6);
+            let mut previous = l.drop_at(1);
+            let mut blocked = l.top - l.bottom;
+            for i in 1..l.count {
+                let dy = l.drop_at(i) - l.drop_at(i - 1);
+                assert!(dy > 0. && dy <= previous + 1e-6);
+                blocked += dy.min(l.top - l.bottom);
+                previous = dy;
+            }
+            assert!((l.blocked_height() - blocked).abs() < 2e-5);
+        }
+        let mut a = Assembly {
+            motion_policy: Some(IndoorMotionConfig {
+                covering_fraction: 1.,
+                ..default()
+            }),
+            ..default()
+        };
+        build(&mut a, Transform::IDENTITY, &f, &f.openings[0]);
+        assert_eq!(
+            a.joints.len(),
+            1,
+            "lost lift correspondence for seed {seed}"
+        );
+    }
+}
+
+#[test]
+fn cut_reeds_share_a_gauge_and_fill_the_track_without_a_periodic_grid() {
+    let track = facade(7, Shade::PanelTrack, Vec2::splat(2.), 0.6)
+        .treatment
+        .unwrap()
+        .track
+        .unwrap();
+    let edges = track.reed_edges(17, 0, 70, 2.).unwrap();
+    assert_eq!(edges[0], 0.);
+    assert_eq!(edges[70], 2.);
+    assert_eq!(Some(edges), track.reed_edges(17, 0, 70, 2.));
+    assert_ne!(Some(edges), track.reed_edges(17, 1, 70, 2.));
+    let widths: Vec<_> = edges[..=70].windows(2).map(|e| e[1] - e[0]).collect();
+    assert!(widths.iter().all(|&w| (0.70..1.32).contains(&(w * 35.))));
+    assert!(
+        widths.iter().copied().reduce(f32::max).unwrap()
+            - widths.iter().copied().reduce(f32::min).unwrap()
+            > 0.003
+    );
+    let mut archived = serde_json::to_value(track).unwrap();
+    archived.as_object_mut().unwrap().remove("reed_variation");
+    let old: PanelTrack = serde_json::from_value(archived).unwrap();
+    assert!(old.reed_edges(17, 0, 70, 2.).is_none());
+}
+
+#[test]
+fn archived_horizontal_blinds_replay_their_original_uniform_ladder() {
+    let mut f = facade(19, Shade::Venetian, Vec2::splat(2.), 0.43);
+    let mut old = serde_json::to_value(&f).unwrap();
+    old["treatment"].as_object_mut().unwrap().remove("slats");
+    f = serde_json::from_value(old).unwrap();
+    let p = f.treatment.as_ref().unwrap();
+    let mut a = Assembly::default();
+    build(&mut a, Transform::IDENTITY, &f, &f.openings[0]);
+    assert!(p.slats.is_none());
+    assert!(a
+        .parts
+        .keys()
+        .all(|(_, name)| name == &format!("blinds#finish{}", p.finish_slot)));
+    assert!(slats::clear_fraction(&f, Vec2::splat(2.)).is_none());
 }

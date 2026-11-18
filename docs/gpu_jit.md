@@ -22,8 +22,9 @@ let sample = rooms.next_sample()?;
 `GpuLiveDataset::indoor()` supplies a three-view 512x512 single-timestep preset.
 An omitted seed starts a random, recorded consecutive stream. Explicit configs
 retain their requested timesteps and annotations.
-SSAA defaults to Auto: a 2× linear RGB raster below 1280×720 output pixels,
-resolved by a GPU area filter. `ssaa_factor = 1` explicitly disables it; 2/3/4
+Auto SSAA normally uses a 2× linear RGB raster below 1280×720 output pixels.
+Small indoor rigs may use 3× or 4× when camera projections predict aliasing
+from fine blinds. A GPU area filter resolves the raster on device. `ssaa_factor = 1` explicitly disables it; 2/3/4
 force a scale. The final tensor shapes, intrinsics, pixel-flow units and copied
 bytes stay unchanged. Numeric annotations use exact final pixel-center rays,
 preserving categorical IDs and aligned surfaces. `metadata.sampling` stores the

@@ -648,6 +648,7 @@ pub fn sample_stream(
         &Projection,
         &ImageCopier,
         Option<&crate::camera::lens::LensCamera>,
+        Option<&crate::render::ssaa::SsaaCamera>,
     )>,
     scene: Query<(Entity, &SceneAabb, Option<&GlobalTransform>), With<SceneAabbNode>>,
     object_obbs: Query<
@@ -814,7 +815,7 @@ pub fn sample_stream(
 
     let float32_geometry = cameras
         .iter()
-        .all(|(_, _, _, _, copier, _)| copier.attachment_count() >= 3);
+        .all(|(_, _, _, _, copier, ..)| copier.attachment_count() >= 3);
     let camera_count = cameras.iter().count();
     if capture.ovoxel_wait_started.is_none() {
         if state.render_modes.is_empty() {
@@ -826,7 +827,7 @@ pub fn sample_stream(
         let flow_capture = state.render_modes.iter().any(RenderMode::is_flow);
         let co_visibility_capture = state.render_modes.contains(&RenderMode::CoVisibility);
         if (flow_capture || co_visibility_capture)
-            && cameras.iter().any(|(_, _, _, _, copier, _)| {
+            && cameras.iter().any(|(_, _, _, _, copier, ..)| {
                 copier.attachment_count()
                     != 3 + usize::from(flow_capture) + usize::from(co_visibility_capture)
             })
@@ -848,7 +849,7 @@ pub fn sample_stream(
 
         if let Some(message) = cameras
             .iter()
-            .find_map(|(_, _, _, _, copier, _)| copier.failure())
+            .find_map(|(_, _, _, _, copier, ..)| copier.failure())
         {
             failure.0 = Some(message);
             state.enabled = false;
@@ -859,7 +860,7 @@ pub fn sample_stream(
         ordered_cameras.sort_by_key(|(entity, index, ..)| {
             (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
         });
-        for (i, (_, _, transform, projection, _, lens)) in ordered_cameras.iter().enumerate() {
+        for (i, (_, _, transform, projection, _, lens, _)) in ordered_cameras.iter().enumerate() {
             let view_idx = i + camera_count * state.step as usize;
             if let Some(view) = buffered_sample.views.get(view_idx) {
                 let captured_modality = !view.color.is_empty()
@@ -1002,7 +1003,7 @@ pub fn sample_stream(
                 buffered_sample.human_bone_parents.clear();
             }
 
-            for (i, (_, _, camera_transform, projection, _, lens)) in
+            for (i, (_, _, camera_transform, projection, _, lens, _)) in
                 ordered_cameras.iter().enumerate()
             {
                 let view_idx = i + camera_count * state.step as usize;
@@ -1055,7 +1056,7 @@ pub fn sample_stream(
                 if let Some(settling) = &capture_status.settling {
                     settling.begin_capture(id);
                 }
-                for (_, _, _, _, copier, _) in &cameras {
+                for (_, _, _, _, copier, ..) in &cameras {
                     #[cfg(not(target_arch = "wasm32"))]
                     if gpu_sink.is_some() && !copier.gpu_target_armed() {
                         failure.0 = Some(
@@ -1072,7 +1073,7 @@ pub fn sample_stream(
         };
         if !cameras
             .iter()
-            .all(|(_, _, _, _, copier, _)| copier.ready(request_id))
+            .all(|(_, _, _, _, copier, ..)| copier.ready(request_id))
         {
             capture.waiting_updates += 1;
             return;
@@ -1088,7 +1089,7 @@ pub fn sample_stream(
             vec![state.render_modes.remove(0)]
         };
 
-        for (i, (_, _, _, _, image_copier, _)) in ordered_cameras.into_iter().enumerate() {
+        for (i, (_, _, _, _, image_copier, ..)) in ordered_cameras.into_iter().enumerate() {
             let view_idx = i + camera_count * state.step as usize;
             let view = &mut buffered_sample.views[view_idx];
 
@@ -1303,6 +1304,18 @@ pub fn sample_stream(
     }));
     let human_pose_steps = std::mem::take(&mut buffered_sample.human_pose_steps);
     let views = std::mem::take(&mut buffered_sample.views);
+    let ssaa_factor = if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+        cameras
+            .iter()
+            .next()
+            .and_then(|camera| camera.6)
+            .map_or(1, |ssaa| ssaa.factor)
+    } else {
+        crate::render::ssaa::effective_factor(
+            UVec2::new(args.width as u32, args.height as u32),
+            args.ssaa_factor,
+        )
+    };
     let sample: Sample = Sample {
         annotation_glass: args.annotation_glass,
         co_visibility_metadata: buffered_sample.co_visibility_metadata.take(),
@@ -1316,12 +1329,9 @@ pub fn sample_stream(
         } else {
             crate::render::color::ColorEncoding::Legacy
         },
-        sampling: {
-            let factor = crate::render::ssaa::effective_factor(UVec2::new(args.width as u32, args.height as u32), args.ssaa_factor);
-            (factor > 1).then_some(crate::render::ssaa::CaptureSampling { schema_version: 1, ssaa_factor: factor })
-        },
+        sampling: (ssaa_factor > 1).then_some(crate::render::ssaa::CaptureSampling { schema_version: 1, ssaa_factor }),
         indoor_render_metadata: (args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor).then(|| serde_json::json!({
-            "ssaa": {"configured_factor": args.ssaa_factor, "linear_factor": crate::render::ssaa::effective_factor(UVec2::new(args.width as u32, args.height as u32), args.ssaa_factor), "rgb_filter": "linear_light_box_after_tonemapping", "annotation_filter": "final_pixel_center"},
+            "ssaa": {"configured_factor": args.ssaa_factor, "linear_factor": ssaa_factor, "rgb_filter": "linear_light_box_after_tonemapping", "annotation_filter": "final_pixel_center"},
             "rgb_gizmos": (crate::render::sensor::captures_rgb(&args) && args.rgb_gizmos.enabled()).then_some(args.rgb_gizmos),
             "camera_sensor": indoor.as_ref().filter(|_| crate::render::sensor::captures_rgb(&args))
                 .and_then(|s| crate::render::sensor::metadata(s, &views, camera_count)),

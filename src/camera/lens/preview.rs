@@ -20,7 +20,11 @@ fn source_side(lens: &LensCamera, tile: Option<Vec2>, configured_ssaa: u32) -> u
     let Some(tile) = tile.filter(|s| s.is_finite() && s.min_element() >= 1.) else {
         return lens.native_side;
     };
-    let factor = crate::render::ssaa::effective_factor(tile.ceil().as_uvec2(), configured_ssaa);
+    let factor = if configured_ssaa == 0 && lens.native_factor > 2 {
+        lens.native_factor
+    } else {
+        crate::render::ssaa::effective_factor(tile.ceil().as_uvec2(), configured_ssaa)
+    };
     let output = Vec2::from_array(lens.calibration.image_size.map(|v| v as f32));
     // The greater axis preserves density even if the UI stretches the image.
     let scale =
@@ -268,5 +272,8 @@ mod tests {
         assert_eq!(lens.calibration, original);
         lens.native_factor = 2;
         assert_eq!(source_side(&lens, Some(Vec2::new(640., 360.)), 2), 752);
+        lens.native_factor = 4;
+        assert_eq!(source_side(&lens, Some(Vec2::new(640., 360.)), 0), 752);
+        assert_eq!(source_side(&lens, Some(Vec2::new(640., 360.)), 2), 384);
     }
 }

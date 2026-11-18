@@ -25,6 +25,8 @@ use bevy_args::parse_args;
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
+mod camera_grid;
+#[cfg(feature = "viewer")]
 pub mod editor;
 #[cfg(feature = "viewer")]
 mod inspector;
@@ -359,7 +361,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1080.0")]
     pub height: f32,
 
-    /// Capture-camera SSAA: 0 auto (2× below 720p), 1 off, or fixed 2/3/4×.
+    /// Capture-camera SSAA: 0 auto (2× below 720p, up to 4× for fine blinds), 1 off, or fixed 2/3/4×.
     #[pyo3(get, set)]
     #[serde(default = "default_ssaa_factor")]
     #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
@@ -669,7 +671,7 @@ pub struct BevyZeroverseConfig {
     #[arg(long, default_value = "1080.0")]
     pub height: f32,
 
-    /// Capture-camera SSAA: 0 auto (2× below 720p), 1 off, or fixed 2/3/4×.
+    /// Capture-camera SSAA: 0 auto (2× below 720p, up to 4× for fine blinds), 1 off, or fixed 2/3/4×.
     #[serde(default = "default_ssaa_factor")]
     #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
     pub ssaa_factor: u32,
@@ -1387,14 +1389,13 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         app.add_systems(PreUpdate, setup_material_grid);
         app.add_systems(
             PostUpdate,
-            (
-                setup_camera
-                    .in_set(EditorCameraSetup)
-                    .before(bevy::camera::CameraUpdateSystems),
-                setup_camera_grid,
-                update_camera_grid_images,
-            ),
+            setup_camera
+                .in_set(EditorCameraSetup)
+                .before(bevy::camera::CameraUpdateSystems),
         );
+        if !args.headless {
+            camera_grid::install(&mut app);
+        }
     }
 
     app.add_systems(Update, rotate_scene);
@@ -1596,120 +1597,6 @@ pub struct CameraGridMarker;
 #[cfg(feature = "viewer")]
 #[derive(Component)]
 pub(crate) struct CameraGridSource(pub(crate) Entity);
-
-#[cfg(feature = "viewer")]
-#[allow(clippy::type_complexity)]
-fn update_camera_grid_images(
-    mode: Res<RenderMode>,
-    cameras: Query<(
-        &RenderTarget,
-        Option<&crate::render::ground_truth::GroundTruthCamera>,
-        Option<&crate::render::ssaa::SsaaCamera>,
-        Option<&crate::camera::lens::LensCamera>,
-    )>,
-    mut images: Query<(&CameraGridSource, &mut ImageNode)>,
-) {
-    for (source, mut image) in &mut images {
-        let Ok((RenderTarget::Image(target), gt, ssaa, lens)) = cameras.get(source.0) else {
-            continue;
-        };
-        let handle = if let Some(ssaa) = ssaa {
-            &ssaa.output
-        } else if *mode == RenderMode::CoVisibility {
-            gt.and_then(|g| g.co_visibility.as_ref())
-                .and_then(|c| c.preview.as_ref())
-                .unwrap_or(&target.handle)
-        } else if let Some(lens) = lens {
-            &lens.output
-        } else {
-            &target.handle
-        };
-        if image.image != *handle {
-            image.image = handle.clone();
-        }
-    }
-}
-
-#[cfg(feature = "viewer")]
-fn setup_camera_grid(
-    mut commands: Commands,
-    args: Res<BevyZeroverseConfig>,
-    camera_grids: Query<Entity, With<CameraGrid>>,
-    zeroverse_cameras: Query<
-        (
-            Entity,
-            &RenderTarget,
-            Option<&crate::camera::CaptureCameraIndex>,
-        ),
-        With<ZeroverseCamera>,
-    >,
-    new_zeroverse_cameras: Query<Entity, (With<ZeroverseCamera>, Without<CameraGridMarker>)>,
-    mut scene_loaded: MessageReader<SceneLoadedEvent>,
-    mut previous_camera_grid: Local<Option<bool>>,
-) {
-    if zeroverse_cameras.is_empty() {
-        return;
-    }
-
-    let camera_grid_changed = previous_camera_grid
-        .map(|prev| prev != (args.camera_grid && !args.room_schematic))
-        .unwrap_or(true);
-
-    if scene_loaded.is_empty() && !camera_grid_changed && new_zeroverse_cameras.is_empty() {
-        return;
-    }
-    scene_loaded.clear();
-    *previous_camera_grid = Some(args.camera_grid && !args.room_schematic);
-
-    for entity in new_zeroverse_cameras.iter() {
-        commands.entity(entity).insert(CameraGridMarker);
-    }
-
-    if !camera_grids.is_empty() {
-        commands.entity(camera_grids.single().unwrap()).despawn();
-    }
-
-    if args.camera_grid && !args.room_schematic {
-        let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
-        cameras.sort_by_key(|(entity, _, index)| {
-            (index.map_or(usize::MAX, |i| i.0), entity.to_bits())
-        });
-        let camera_count = cameras.len();
-        let rows = (camera_count as f32).sqrt().ceil() as u16;
-        let cols = (camera_count as f32 / rows as f32).ceil() as u16;
-
-        commands
-            .spawn((
-                CameraGrid,
-                Name::new("camera_grid"),
-                Node {
-                    display: Display::Grid,
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    grid_template_columns: RepeatedGridTrack::flex(cols, 1.0),
-                    grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.025, 0.028, 0.032)),
-            ))
-            .with_children(|builder| {
-                for (entity, target, _) in cameras {
-                    let texture = match target.clone() {
-                        RenderTarget::Image(texture) => texture,
-                        _ => continue,
-                    };
-
-                    builder.spawn((
-                        CameraGridSource(entity),
-                        ImageNode {
-                            image: texture.handle,
-                            ..default()
-                        },
-                    ));
-                }
-            });
-    }
-}
 
 #[derive(Component)]
 pub struct MaterialGrid;
