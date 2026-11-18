@@ -231,6 +231,7 @@ fn insert_cameras(
         (Without<Camera>, Without<InvalidCaptureTarget>),
     >,
     default_zeroverse_camera: Res<DefaultZeroverseCamera>,
+    indoor: Option<Res<crate::scene::procedural_indoor::layout::IndoorManifest>>,
     args: Res<BevyZeroverseConfig>,
     draw_policy: Res<CaptureDrawPolicy>,
     render_mode: Res<RenderMode>,
@@ -242,15 +243,26 @@ fn insert_cameras(
     let Some(render_device) = render_device.as_ref() else {
         return;
     };
+    let limit = render_device.limits().max_texture_dimension_2d;
+    let mut resolved = None;
     for (entity, mut zeroverse_camera, capture_index, sensor) in zeroverse_cameras.iter_mut() {
         let resolution = zeroverse_camera.resolution
             .unwrap_or(default_zeroverse_camera.resolution.expect("DefaultZeroverseCamera resolution must be set if ZeroverseCamera resolution is not set"));
 
-        if let Err(message) = crate::render::ssaa::render_size(
-            resolution,
-            args.ssaa_factor,
-            render_device.limits().max_texture_dimension_2d,
-        ) {
+        let factor = match resolved {
+            Some((size, factor)) if size == resolution => factor,
+            _ => {
+                let factor = crate::render::ssaa::capture_factor(
+                    resolution,
+                    &args,
+                    indoor.as_deref(),
+                    limit,
+                );
+                resolved = Some((resolution, factor));
+                factor
+            }
+        };
+        if let Err(message) = crate::render::ssaa::render_size(resolution, factor, limit) {
             error!("{message}");
             commands.insert_resource(crate::sample::CaptureFailure(Some(message)));
             commands.entity(entity).insert(InvalidCaptureTarget);
@@ -262,6 +274,7 @@ fn insert_cameras(
             capture_index,
             sensor,
             resolution,
+            factor,
             &args,
             &cameras,
             &mut images,

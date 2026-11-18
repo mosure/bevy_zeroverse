@@ -73,6 +73,7 @@ fn co_visibility_grid_uses_dedicated_preview_and_restores_rgb() {
     use crate::render::ground_truth::GroundTruthCamera;
     let mut app = App::new();
     app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<camera_grid::GridImage>>();
     app.insert_resource(RenderMode::CoVisibility);
     let (rgb, preview, gt) = {
         let mut images = app.world_mut().resource_mut::<Assets<Image>>();
@@ -87,10 +88,18 @@ fn co_visibility_grid_uses_dedicated_preview_and_restores_rgb() {
         .world_mut()
         .spawn((RenderTarget::Image(rgb.clone().into()), gt))
         .id();
+    let material = app
+        .world_mut()
+        .resource_mut::<Assets<camera_grid::GridImage>>()
+        .add(camera_grid::GridImage {
+            image: rgb.clone(),
+            filter_rgb: 1,
+        });
     let node = app
         .world_mut()
         .spawn((
             CameraGridSource(camera),
+            MaterialNode(material.clone()),
             ImageNode {
                 image: rgb.clone(),
                 ..default()
@@ -98,12 +107,36 @@ fn co_visibility_grid_uses_dedicated_preview_and_restores_rgb() {
         ))
         .id();
     app.world_mut()
-        .run_system_once(update_camera_grid_images)
+        .run_system_once(camera_grid::update_images)
         .unwrap();
     assert_eq!(app.world().get::<ImageNode>(node).unwrap().image, preview);
+    let grid = app
+        .world()
+        .resource::<Assets<camera_grid::GridImage>>()
+        .get(&material)
+        .unwrap();
+    assert_eq!((grid.image.id(), grid.filter_rgb), (preview.id(), 0));
     *app.world_mut().resource_mut::<RenderMode>() = RenderMode::Color;
     app.world_mut()
-        .run_system_once(update_camera_grid_images)
+        .run_system_once(camera_grid::update_images)
         .unwrap();
     assert_eq!(app.world().get::<ImageNode>(node).unwrap().image, rgb);
+    let grid = app
+        .world()
+        .resource::<Assets<camera_grid::GridImage>>()
+        .get(&material)
+        .unwrap();
+    assert_eq!((grid.image.id(), grid.filter_rgb), (rgb.id(), 1));
+}
+
+#[test]
+fn camera_grid_footprint_shader_validates_without_optional_gpu_features() {
+    let source = include_str!("camera_grid.wgsl");
+    let module = wgpu::naga::front::wgsl::parse_str(source).unwrap();
+    wgpu::naga::valid::Validator::new(
+        wgpu::naga::valid::ValidationFlags::all(),
+        wgpu::naga::valid::Capabilities::empty(),
+    )
+    .validate(&module)
+    .unwrap();
 }

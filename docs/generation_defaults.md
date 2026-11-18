@@ -30,9 +30,15 @@ and all native Auto effects. Content, camera and annotation requirements can be
 changed independently of scheduling. Optional motion models are not loaded
 unless requested. O-voxel remains opt-in.
 
-SSAA defaults to **Auto** (`ssaa_factor = 0`): 2× below 1280×720 pixels, native
-resolution at or above that pixel count. This rule treats portrait and landscape
-images consistently. Thus the 256×256 CLI and 512×512 training presets use 2×.
+**Auto SSAA** (`ssaa_factor = 0`) selects 2× below 1280×720 output pixels and
+native resolution above or at that pixel count. For indoor RGB captures up to
+512×512 pixels in area, it checks three poses on each trajectory. If at least
+one third of the rig projects a substantial Venetian blind or woven shade with
+less than three pixels per slat, the rig can use 3× or 4× for the entire sample.
+The projection estimates apparent size and permits occlusion by furnishings.
+The higher factors are limited to 1536² source pixels per view and 8 Mi extra
+source pixels across the rig. A qualifying three-camera rig can use 4× at
+256×256 and 3× at 512×512. The exported sampling metadata records the actual factor.
 An explicit `config.ssaa_factor = 2` renders capture RGB at twice the width and height,
 then area-averages each 2×2 footprint on the GPU into the original output size.
 Explicit factors 1 (off), 2, 3 and 4 override Auto. The equivalent CLI flag is

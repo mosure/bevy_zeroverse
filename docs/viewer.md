@@ -55,7 +55,10 @@ remain active for all presets.
 **Materials & light → Capture supersampling (SSAA)** controls the dataset camera
 grid. Apply rebuilds its targets; the editor camera is unaffected. Factor 2 uses
 four samples per final RGB pixel, factor 3 uses nine, and factor 4 uses sixteen.
-The default is **Auto** (`ssaa_factor=0`): 2× below 1280×720 pixels, otherwise 1×.
+**Auto** (`ssaa_factor=0`) selects 2× below 1280×720 pixels and 1× at larger sizes.
+Indoor views up to 512×512 pixels in area can qualify their rig for 3× or 4× when
+a projected blind has fewer than three pixels per slat. The grid also averages RGB
+over each on-screen pixel when it shrinks a tile.
 An explicit 1 disables SSAA; 2/3/4 force that factor at any resolution. Shared
 WebGPU URLs preserve the selection. The threshold compares pixel counts, so
 portrait and landscape orientations receive the same treatment.

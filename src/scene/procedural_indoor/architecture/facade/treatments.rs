@@ -2,6 +2,9 @@
 //! extent and the existing 20 cm wall-clearance allowance. Static by default.
 mod cloth;
 mod mesh;
+pub(crate) mod minification;
+pub(crate) mod slats;
+pub use slats::SlatStock;
 mod track;
 pub use track::PanelTrack;
 #[cfg(test)]
@@ -24,7 +27,12 @@ pub enum Stack {
 pub struct ShadeProgram {
     pub identity: u64,
     pub slat_pitch: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slats: Option<SlatStock>,
     pub fold_pitch: f32,
+    /// Fraction of a folded face occupied by the rounded pressed crease.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pleat_crease: Option<f32>,
     pub fold_depth: f32,
     pub fullness: f32,
     pub hem_sag: f32,
@@ -41,6 +49,10 @@ pub struct ShadeProgram {
 }
 impl ShadeProgram {
     pub fn sample(seed: u64) -> (Shade, Self) {
+        Self::sample_installation(seed, true)
+    }
+
+    fn sample_installation(seed: u64, metric_stock: bool) -> (Shade, Self) {
         let mut r = stream(seed, 0x5348414445);
         let shade = match r.random_range(0..20) {
             0..6 => Shade::None,
@@ -63,37 +75,54 @@ impl ShadeProgram {
         };
         let textile = (!matches!(shade, Shade::None | Shade::Venetian))
             .then(|| WindowTextile::sample(&mut stock, shade == Shade::Curtain));
-        (
-            shade,
-            Self {
-                identity: r.random(),
-                slat_pitch: r.random_range(0.028..0.082),
-                fold_pitch: r.random_range(0.10..0.25),
-                fold_depth: r.random_range(0.012..0.034),
-                fullness: r.random_range(1.4..2.4),
-                hem_sag: r.random_range(0.001..0.018),
-                split: r.random_range(0.38..0.62),
-                tieback: if r.random_bool(0.32) {
-                    r.random_range(0.35..0.85)
-                } else {
-                    0.
-                },
-                stack: [Stack::Pair, Stack::Pair, Stack::Left, Stack::Right][r.random_range(0..4)],
-                slat_material: [Surface::WoodEdge, Surface::Metal, Surface::Plastic]
-                    [r.random_range(0..3)],
-                fabric: if r.random_bool(0.78) {
-                    Surface::Fabric
-                } else {
-                    Surface::FabricAlt
-                },
-                finish_slot: r.random_range(0..variants::COUNT),
-                textile,
-                track,
+        let mut program = Self {
+            identity: r.random(),
+            slat_pitch: r.random_range(0.028..0.082),
+            slats: None,
+            fold_pitch: r.random_range(0.10..0.25),
+            pleat_crease: None,
+            fold_depth: r.random_range(0.012..0.034),
+            fullness: r.random_range(1.4..2.4),
+            hem_sag: r.random_range(0.001..0.018),
+            split: r.random_range(0.38..0.62),
+            tieback: if r.random_bool(0.32) {
+                r.random_range(0.35..0.85)
+            } else {
+                0.
             },
-        )
+            stack: [Stack::Pair, Stack::Pair, Stack::Left, Stack::Right][r.random_range(0..4)],
+            slat_material: [Surface::WoodEdge, Surface::Metal, Surface::Plastic]
+                [r.random_range(0..3)],
+            fabric: if r.random_bool(0.78) {
+                Surface::Fabric
+            } else {
+                Surface::FabricAlt
+            },
+            finish_slot: r.random_range(0..variants::COUNT),
+            textile,
+            track,
+        };
+        if metric_stock && shade == Shade::Venetian {
+            let slats = SlatStock::sample(&mut stock, program.slat_material);
+            program.slat_pitch = slats.depth_m * stock.random_range(0.86..0.96);
+            program.slats = Some(slats);
+        }
+        if metric_stock && shade == Shade::Pleated {
+            program.pleat_crease = Some(stock.random_range(0.12..0.26));
+        }
+        if let Some(track) = &mut program.track {
+            track.reed_variation = Some(stock.random_range(0.10..0.24));
+        }
+        (shade, program)
     }
     pub fn validate(&self) -> Result<(), String> {
         if !(0.02..=0.10).contains(&self.slat_pitch)
+            || self
+                .slats
+                .is_some_and(|slats| !slats.valid(self.slat_pitch))
+            || self
+                .pleat_crease
+                .is_some_and(|r| !(0.10..=0.28).contains(&r))
             || !(0.08..=0.30).contains(&self.fold_pitch)
             || !(0.006..=0.04).contains(&self.fold_depth)
             || !(1.0..=2.6).contains(&self.fullness)
@@ -143,7 +172,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
     let p = if let Some(p) = &f.treatment {
         p
     } else {
-        fallback = ShadeProgram::sample(0).1;
+        fallback = ShadeProgram::sample_installation(0, false).1;
         fallback.textile = None;
         fallback.track = None;
         &fallback
@@ -167,7 +196,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
             ),
             _ => None,
         };
-        if f.shade == Shade::Venetian {
+        if f.shade == Shade::Venetian && p.slats.is_none() {
             let height = o.max.y - o.min.y - 0.028 - 0.095;
             let count = (height / p.slat_pitch).floor().clamp(2., 80.);
             let pitch = height / count;

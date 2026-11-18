@@ -209,7 +209,7 @@ struct Cli {
     #[arg(long, default_value_t = 256)]
     height: u32,
 
-    /// SSAA: 0=Auto (2× below 720p), 1=off, 2/3/4=fixed linear scale.
+    /// SSAA: 0=Auto (2× below 720p, up to 4× for fine indoor blinds), 1=off, 2/3/4=fixed linear scale.
     #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=4))]
     ssaa_factor: u32,
 

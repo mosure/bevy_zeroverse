@@ -132,41 +132,74 @@ impl Builder<'_> {
         }
     }
     fn venetian(&mut self) {
-        let n = (self.height() / self.p.slat_pitch).floor().clamp(2., 80.) as usize;
-        // Preserve every slat when raised; the stack compresses at the header.
-        let pitch = self.height() / n as f32;
-        let step = 0.004 + (pitch - 0.004) * self.coverage;
-        let depth = (pitch * 1.07).min(0.092);
         let tilt = self.fixed_angle.unwrap_or(self.tilt * self.coverage.sqrt());
+        let stock = self.p.slats;
+        let layout = stock.map(|s| s.layout(self.height(), self.p.slat_pitch, self.coverage, tilt));
+        let n = layout.map_or_else(
+            || (self.height() / self.p.slat_pitch).floor().clamp(2., 80.) as usize,
+            |l| l.count,
+        );
+        let pitch = self.height() / n as f32;
+        let depth = stock.map_or((pitch * 1.07).min(0.092), |s| s.depth_m);
+        let step = 0.004 + (pitch - 0.004) * self.coverage;
+        let drop = |i: usize| layout.map_or(i as f32 * step, |l| l.drop_at(i));
+        let top = self.top() - layout.map_or(depth * 0.5, |l| l.top + 0.002);
         let width = self.width() - 0.038;
         let center = self.center();
-        let top = self.top() - depth * 0.5;
+        let blade_label = stock
+            .and_then(|_| {
+                crate::scene::procedural_indoor::materials::slat_finish::slot(
+                    self.p.slat_material,
+                    self.p.finish_slot,
+                )
+            })
+            .map_or_else(|| self.label.clone(), |slot| format!("blinds#finish{slot}"));
+        let g = self.a.part(self.p.slat_material, &blade_label);
+        let rotation = self.tf.rotation * Quat::from_rotation_x(-FRAC_PI_2 + tilt);
+        let mut cuts = super::stream(self.p.identity, 0x534c4154435554);
         for i in 0..n {
             let tf = Transform::from_translation(self.tf.transform_point(Vec3::new(
                 center,
-                top - i as f32 * step,
+                top - drop(i),
                 0.108,
             )))
-            .with_rotation(self.tf.rotation * Quat::from_rotation_x(-FRAC_PI_2 + tilt));
-            let g = self.a.part(self.p.slat_material, &self.label);
+            .with_rotation(rotation);
             let first_uv = g.uvs.len();
-            cloth::sheet(g, tf, [1, 6], Vec2::new(width, depth), |u, v| {
-                Vec3::new(
-                    (u - 0.5) * width,
-                    (v - 0.5) * depth,
-                    0.003 * (1. - (v * 2. - 1.).powi(2)),
-                )
-            });
-            for uv in &mut g.uvs[first_uv..] {
-                uv[1] += i as f32 * pitch;
+            cloth::sheet_with_thickness(
+                g,
+                tf,
+                [1, 6],
+                Vec2::new(width, depth),
+                stock.map_or(0.0012, |s| s.thickness_m),
+                |u, v| {
+                    Vec3::new(
+                        (u - 0.5) * width,
+                        (v - 0.5) * depth,
+                        stock.map_or(0.003, |s| s.crown_m) * (1. - (v * 2. - 1.).powi(2)),
+                    )
+                },
+            );
+            if stock.is_some() && self.p.slat_material == Surface::WoodEdge {
+                // A timber atlas runs along V. Each cut keeps the grain down
+                // the length of the blade and has its own position in the stock.
+                let offset = Vec2::new(cuts.random_range(0.0..1.5), cuts.random_range(0.0..3.));
+                for uv in &mut g.uvs[first_uv..] {
+                    *uv = [uv[1] + offset.x, uv[0] + offset.y];
+                }
+            } else {
+                for uv in &mut g.uvs[first_uv..] {
+                    uv[1] += i as f32 * pitch;
+                }
             }
         }
-        let bottom = top - (n - 1) as f32 * step - depth * 0.5 - 0.006;
-        self.block(
-            self.p.slat_material,
-            Vec3::new(center, bottom, 0.108),
-            Vec3::new(width, 0.012, depth),
+        let (rail_height, under) =
+            layout.map_or((0.012, -depth * 0.5), |l| (0.014, l.bottom - 0.0005));
+        let bottom = top - drop(n - 1) + under - rail_height * 0.5;
+        g.cuboid(
+            Vec3::new(width, rail_height, depth),
             0.001,
+            Transform::from_translation(self.tf.transform_point(Vec3::new(center, bottom, 0.108)))
+                .with_rotation(self.tf.rotation),
         );
         for x in [
             self.lo.x + self.width() * 0.18,
@@ -265,13 +298,16 @@ impl Builder<'_> {
             0.
         };
         let stock = self.p.textile.is_some();
+        let crease = self.p.pleat_crease.filter(|_| kind == Shade::Pleated);
         let lift_lines = (width / 0.64).round().clamp(2., 6.);
-        cloth::sheet(
+        cloth::sheet_rows(
             self.a.part(self.p.fabric, &self.cloth_label),
             self.tf,
             [
                 if kind == Shade::Roman && stock {
                     (lift_lines as usize * 2).clamp(4, 10)
+                } else if crease.is_some() {
+                    4
                 } else if kind == Shade::Roman {
                     8
                 } else {
@@ -280,6 +316,25 @@ impl Builder<'_> {
                 rows,
             ],
             Vec2::new(width, available),
+            0.0012,
+            |v| {
+                // Keep straight cloth between the rounded creases. Allocate
+                // the existing six rows per fold where its normal changes.
+                if let Some(radius) = crease {
+                    let row = (v * rows as f32).round() as usize;
+                    let phase = [
+                        0.,
+                        radius * 0.5,
+                        0.5 - radius * 0.5,
+                        0.5,
+                        0.5 + radius * 0.5,
+                        1. - radius * 0.5,
+                    ][row % 6];
+                    ((row / 6) as f32 + phase) / folds as f32
+                } else {
+                    v
+                }
+            },
             |u, v| {
                 let between_lifts = 0.5 - 0.5 * (u * lift_lines * TAU).cos();
                 let drape = if stock && kind == Shade::Roman {
@@ -292,11 +347,32 @@ impl Builder<'_> {
                     Shade::Roman => {
                         0.108 + depth * (1. - ((v * folds as f32 + drape) * TAU).cos()) * 0.5
                     }
-                    _ => 0.10 + depth * (1. - ((v * folds as f32).fract() * 2. - 1.).abs()),
+                    _ => {
+                        let face = 1. - ((v * folds as f32).fract() * 2. - 1.).abs();
+                        let profile = crease.map_or(face, |r| {
+                            (if face < r {
+                                face * face / (2. * r)
+                            } else if face > 1. - r {
+                                1. - r - (1. - face).powi(2) / (2. * r)
+                            } else {
+                                face - r * 0.5
+                            }) / (1. - r)
+                        });
+                        0.10 + depth * profile
+                    }
+                };
+                let bow = if crease.is_some() {
+                    self.p.hem_sag.min(height / folds as f32 * 0.14)
+                        * 4.
+                        * u
+                        * (1. - u)
+                        * (v * PI).sin()
+                } else {
+                    0.
                 };
                 Vec3::new(
                     center + (u - 0.5) * width,
-                    top - height + v * height + sag * (u * 2. - 1.).powi(2) * (1. - v),
+                    top - height + v * height - bow + sag * (u * 2. - 1.).powi(2) * (1. - v),
                     z,
                 )
             },

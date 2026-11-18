@@ -84,6 +84,11 @@ impl WindowTextile {
             Lining::Dimout => rng.random_range(0.035..0.12),
             Lining::Blackout => 0.,
         };
+        // The installed cloth is a closed shell with outward-facing triangles
+        // on both sides. Sampling its inner backfaces doubles the yarn layers
+        // at grazing angles and gives unstable lighting on tight folds.
+        mat.cull_mode = Some(bevy::render::render_resource::Face::Back);
+        mat.double_sided = false;
         mat.thickness = 0.0012;
         mat.reflectance = 0.35;
         // Perceptual roughness multiplies the mapped yarn roughness.
@@ -155,6 +160,8 @@ mod tests {
                         parent.metallic_roughness_texture
                     );
                     assert_eq!(m.alpha_mode, AlphaMode::Opaque);
+                    assert_eq!(m.cull_mode, Some(bevy::render::render_resource::Face::Back));
+                    assert!(!m.double_sided);
                     assert_eq!((m.specular_transmission, m.metallic), (0., 0.));
                     assert!(matches!(
                         (lining, m.diffuse_transmission),

@@ -7,14 +7,22 @@ pub struct PanelTrack {
     pub panel_width_m: f32,
     pub reed_pitch_m: f32,
     pub openness: f32,
+    /// Variation of the cut splint widths within a woven roll.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reed_variation: Option<f32>,
 }
 
 impl PanelTrack {
+    pub(super) fn parks_right(stack: Stack, identity: u64) -> bool {
+        stack == Stack::Right || stack == Stack::Pair && identity.is_multiple_of(2)
+    }
+
     pub(super) fn sample(r: &mut impl Rng) -> Self {
         Self {
             panel_width_m: r.random_range(0.48..0.96),
             reed_pitch_m: r.random_range(0.019..0.043),
             openness: r.random_range(0.09..0.32),
+            reed_variation: Some(0.18),
         }
     }
 
@@ -22,6 +30,36 @@ impl PanelTrack {
         (0.40..=1.1).contains(&self.panel_width_m)
             && (0.016..=0.05).contains(&self.reed_pitch_m)
             && (0.06..=0.36).contains(&self.openness)
+            && self
+                .reed_variation
+                .is_none_or(|v| (0.04..=0.28).contains(&v))
+    }
+
+    /// One piece of woven stock, cut to height. Each panel can start at a
+    /// different part of the roll. Normalization preserves the actual cut
+    /// length and real gaps at every extension, without another mesh or map.
+    pub(super) fn reed_edges(
+        self,
+        identity: u64,
+        panel: usize,
+        count: usize,
+        height: f32,
+    ) -> Option<[f32; 81]> {
+        let variation = self.reed_variation?;
+        let mut cuts = stream(identity, 0x53504c494e5453 + panel as u64);
+        let mut edges = [0.; 81];
+        let mut bundle = 0.;
+        for i in 0..count {
+            bundle = 0.68 * bundle + 0.32 * cuts.random_range(-1.0..1.0);
+            let gauge = 1. + variation * (bundle + cuts.random_range(-0.72..0.72));
+            edges[i + 1] = edges[i] + gauge;
+        }
+        let scale = height / edges[count];
+        for edge in &mut edges[1..count] {
+            *edge *= scale;
+        }
+        edges[count] = height;
+        Some(edges)
     }
 
     /// Clear track length excludes the aperture margins and end stops.

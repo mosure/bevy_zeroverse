@@ -43,6 +43,7 @@ pub mod rug_design;
 pub mod rugs;
 pub mod screens;
 mod signals;
+pub(crate) mod slat_finish;
 mod supplies;
 pub mod textile;
 pub mod timber;

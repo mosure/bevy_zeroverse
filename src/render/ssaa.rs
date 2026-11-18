@@ -61,7 +61,7 @@ pub fn validate_factor(factor: u32) -> Result<(), String> {
     }
 }
 
-/// Resolve the configured linear scale. Auto (0) selects 2× below the pixel
+/// Resolve the default, scene-independent linear scale. Auto (0) selects 2× below the pixel
 /// count of 1280×720, and 1× at or above it. Rotation/aspect do not change the
 /// threshold. Explicit values override Auto; limits are checked before allocation.
 pub fn effective_factor(output_size: UVec2, configured: u32) -> u32 {
@@ -74,6 +74,30 @@ pub fn effective_factor(output_size: UVec2, configured: u32) -> u32 {
     } else {
         configured
     }
+}
+
+pub(crate) fn capture_factor(
+    size: UVec2,
+    config: &crate::app::BevyZeroverseConfig,
+    scene: Option<&crate::scene::procedural_indoor::layout::IndoorManifest>,
+    device_limit: u32,
+) -> u32 {
+    let base = effective_factor(size, config.ssaa_factor);
+    if config.ssaa_factor != 0
+        || base != 2
+        || config.scene_type != crate::scene::ZeroverseSceneType::ProceduralIndoor
+        || (config.headless && !super::sensor::captures_rgb(config))
+    {
+        return base;
+    }
+    scene.map_or(base, |s| {
+        crate::scene::procedural_indoor::architecture::facade::treatments::minification::rgb_factor(
+            s,
+            size,
+            config.num_cameras,
+            device_limit,
+        )
+    })
 }
 
 pub(crate) fn render_size(size: UVec2, factor: u32, limit: u32) -> Result<UVec2, String> {

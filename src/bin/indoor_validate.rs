@@ -146,6 +146,7 @@ struct CaptureReport {
     mesh_assets: usize,
     material_assets: usize,
     image_assets: usize,
+    sampling: Option<bevy_zeroverse::render::ssaa::CaptureSampling>,
     annotation_precision: bevy_zeroverse::sample::AnnotationPrecision,
     diffuse_gi: Option<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -756,6 +757,7 @@ fn run(args: &Args) -> Result<()> {
             mesh_assets: app.world().resource::<Assets<Mesh>>().len(),
             material_assets: app.world().resource::<Assets<StandardMaterial>>().len(),
             image_assets: app.world().resource::<Assets<Image>>().len(),
+            sampling: sample.sampling,
             annotation_precision: sample.annotation_precision,
             diffuse_gi: app.world().get_resource::<bevy_zeroverse::scene::procedural_indoor::gi::BakeStatistics>().cloned(),
             co_visibility_metadata: sample.co_visibility_metadata.clone(),
