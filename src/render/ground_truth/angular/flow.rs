@@ -2,10 +2,11 @@ use super::super::flow::{FlowVertex, Snapshot, ViewSnapshot};
 use super::*;
 use std::collections::HashMap;
 const SHADER: Handle<Shader> = uuid_handle!("aa3316ee-d940-4fbd-b138-8854a4818e4f");
+const SPLIT_SHADER: Handle<Shader> = uuid_handle!("806d48d7-d9c1-457f-a041-2b20b2ea899a");
 #[derive(Default)]
 pub(in crate::render::ground_truth) struct History {
     pair: Option<bvh::TreeBuffers>,
-    pipeline: Option<(CachedComputePipelineId, BindGroupLayout)>,
+    pipelines: [Option<(CachedComputePipelineId, BindGroupLayout)>; 2],
     prepared: HashMap<AssetId<Image>, BindGroup>,
 }
 #[repr(C)]
@@ -20,10 +21,10 @@ struct Uniform {
 }
 pub(super) fn install(app: &mut App) {
     load_internal_asset!(app, SHADER, "flow.wgsl", |source: &str, path| {
-        Shader::from_wgsl(
-            crate::camera::lens::shader(source, include_str!("bvh.wgsl")),
-            path,
-        )
+        Shader::from_wgsl(bvh::shader(source, false), path)
+    });
+    load_internal_asset!(app, SPLIT_SHADER, "flow.wgsl", |source: &str, path| {
+        Shader::from_wgsl(bvh::shader(source, true), path)
     });
 }
 pub(in crate::render::ground_truth) fn pair(
@@ -85,7 +86,8 @@ impl History {
         if lens.fisheye.is_none() {
             return;
         }
-        if self.pipeline.is_none() {
+        let slot = bvh::TreeBuffers::layout_index(self.pair.as_ref());
+        if self.pipelines[slot].is_none() {
             let layout = BindGroupLayoutDescriptor::new(
                 "angular_flow",
                 &BindGroupLayoutEntries::sequential(
@@ -105,16 +107,16 @@ impl History {
                         ),
                         storage_buffer_read_only_sized(false, None),
                     ),
-                ),
+                )[..6 + slot],
             );
             let id = cache.queue_compute_pipeline(ComputePipelineDescriptor {
                 label: Some("fisheye_temporal_flow".into()),
                 layout: vec![layout.clone()],
-                shader: SHADER,
+                shader: if slot == 0 { SHADER } else { SPLIT_SHADER },
                 entry_point: Some("main".into()),
                 ..default()
             });
-            self.pipeline = Some((id, cache.get_bind_group_layout(&layout)));
+            self.pipelines[slot] = Some((id, cache.get_bind_group_layout(&layout)));
         }
         let (Some(depth), Some(output)) = (
             images.get(&camera.world_depth),
@@ -150,13 +152,17 @@ impl History {
         );
         let dummy;
         let (surfaces, nodes, attributes) = if let Some(tree) = &self.pair {
-            (&tree.surfaces, &tree.nodes, &tree.attributes)
+            (
+                &tree.surfaces,
+                &tree.nodes,
+                tree.attributes.as_ref().unwrap_or(&tree.surfaces),
+            )
         } else {
             // All three storage arrays have zero logical records at the first
             // timestep, but each binding must still hold one complete element.
             dummy = device.create_buffer_with_data(&BufferInitDescriptor {
                 label: Some("angular_flow_empty"),
-                contents: &[0; 64],
+                contents: &[0; 112],
                 usage: BufferUsages::STORAGE,
             });
             (&dummy, &dummy, &dummy)
@@ -177,7 +183,7 @@ impl History {
         );
         let group = device.create_bind_group(
             "angular_flow",
-            &self.pipeline.as_ref().unwrap().1,
+            &self.pipelines[slot].as_ref().unwrap().1,
             &BindGroupEntries::sequential((
                 buffer.as_entire_binding(),
                 surfaces.as_entire_binding(),
@@ -186,7 +192,7 @@ impl History {
                 &depth.texture_view,
                 &output.texture_view,
                 attributes.as_entire_binding(),
-            )),
+            ))[..6 + slot],
         );
         self.prepared
             .insert(camera.flow.as_ref().unwrap().id(), group);
@@ -197,9 +203,11 @@ impl History {
         context: &mut RenderContext,
         camera: &GroundTruthCamera,
     ) -> bool {
-        let (Some((id, _)), Some(output), Some(calibration)) =
-            (&self.pipeline, &camera.flow, &camera.calibration)
-        else {
+        let (Some((id, _)), Some(output), Some(calibration)) = (
+            &self.pipelines[bvh::TreeBuffers::layout_index(self.pair.as_ref())],
+            &camera.flow,
+            &camera.calibration,
+        ) else {
             return false;
         };
         let cache = world.resource::<PipelineCache>();

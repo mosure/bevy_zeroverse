@@ -9,6 +9,15 @@ pub(in crate::render::ground_truth) use buffers::TreeBuffers;
 mod parallel;
 mod partition;
 
+pub(super) fn shader(source: &str, split: bool) -> String {
+    let records = if split {
+        include_str!("bvh/split.wgsl")
+    } else {
+        include_str!("bvh/interleaved.wgsl")
+    };
+    crate::camera::lens::shader(source, &format!("{records}\n{}", include_str!("bvh.wgsl")))
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct Triangle {

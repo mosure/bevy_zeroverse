@@ -4,9 +4,10 @@ use super::*;
 mod bvh;
 pub(super) mod flow;
 const SHADER: Handle<Shader> = uuid_handle!("5c93e9f1-0130-4845-a19a-dbd4c08d4b21");
+const SPLIT_SHADER: Handle<Shader> = uuid_handle!("55651703-6bf5-4ef6-88c7-a21a9f7b6c4e");
 #[derive(Resource, Default)]
 pub(super) struct State {
-    pipeline: Option<(CachedComputePipelineId, BindGroupLayout)>,
+    pipelines: [Option<(CachedComputePipelineId, BindGroupLayout)>; 2],
     stamp: Option<(u64, Vec<u8>)>,
     tree: Option<bvh::TreeBuffers>,
 }
@@ -57,10 +58,10 @@ fn advance_unchanged_skin(
 pub(super) fn install(app: &mut App) {
     flow::install(app);
     load_internal_asset!(app, SHADER, "trace.wgsl", |source: &str, path| {
-        Shader::from_wgsl(
-            crate::camera::lens::shader(source, include_str!("bvh.wgsl")),
-            path,
-        )
+        Shader::from_wgsl(bvh::shader(source, false), path)
+    });
+    load_internal_asset!(app, SPLIT_SHADER, "trace.wgsl", |source: &str, path| {
+        Shader::from_wgsl(bvh::shader(source, true), path)
     });
     if let Some(render) = app.get_sub_app_mut(RenderApp) {
         render.init_resource::<State>();
@@ -99,34 +100,6 @@ pub(super) fn prepare(
     if geometry.failure.is_some() {
         return;
     }
-    if state.pipeline.is_none() {
-        let layout = BindGroupLayoutDescriptor::new(
-            "angular_ground_truth",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::COMPUTE,
-                (
-                    uniform_buffer_sized(
-                        false,
-                        NonZeroU64::new(std::mem::size_of::<Uniform>() as u64),
-                    ),
-                    storage_buffer_read_only_sized(false, None),
-                    storage_buffer_read_only_sized(false, None),
-                    storage_buffer_read_only_sized(false, None),
-                    texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
-                    texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
-                    storage_buffer_read_only_sized(false, None),
-                ),
-            ),
-        );
-        let id = cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: Some("fisheye_exact_ray_annotations".into()),
-            layout: vec![layout.clone()],
-            shader: SHADER,
-            entry_point: Some("main".into()),
-            ..default()
-        });
-        state.pipeline = Some((id, cache.get_bind_group_layout(&layout)));
-    }
     // A new capture epoch can refresh skinning without changing any vertex.
     // Carry the certified empty update forward, as the raster/flow paths do.
     // Otherwise a static human rebuilds the entire room BVH at every capture.
@@ -155,7 +128,36 @@ pub(super) fn prepare(
         state.tree = Some(tree);
         state.stamp = Some((geometry.generation, instance_bytes.to_vec()));
     }
-    let layout = &state.pipeline.as_ref().unwrap().1;
+    let slot = bvh::TreeBuffers::layout_index(state.tree.as_ref());
+    if state.pipelines[slot].is_none() {
+        let layout = BindGroupLayoutDescriptor::new(
+            "angular_ground_truth",
+            &BindGroupLayoutEntries::sequential(
+                ShaderStages::COMPUTE,
+                (
+                    uniform_buffer_sized(
+                        false,
+                        NonZeroU64::new(std::mem::size_of::<Uniform>() as u64),
+                    ),
+                    storage_buffer_read_only_sized(false, None),
+                    storage_buffer_read_only_sized(false, None),
+                    storage_buffer_read_only_sized(false, None),
+                    texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
+                    texture_storage_2d(TextureFormat::Rgba32Float, StorageTextureAccess::WriteOnly),
+                    storage_buffer_read_only_sized(false, None),
+                ),
+            )[..6 + slot],
+        );
+        let id = cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: Some("fisheye_exact_ray_annotations".into()),
+            layout: vec![layout.clone()],
+            shader: if slot == 0 { SHADER } else { SPLIT_SHADER },
+            entry_point: Some("main".into()),
+            ..default()
+        });
+        state.pipelines[slot] = Some((id, cache.get_bind_group_layout(&layout)));
+    }
+    let layout = &state.pipelines[slot].as_ref().unwrap().1;
     let tree = state.tree.as_ref().unwrap();
     for (entity, camera, view, prepared) in &cameras {
         let Some(view) = view else {
@@ -212,8 +214,11 @@ pub(super) fn prepare(
                     layers.as_entire_binding(),
                     &a.texture_view,
                     &b.texture_view,
-                    tree.attributes.as_entire_binding(),
-                )),
+                    tree.attributes
+                        .as_ref()
+                        .unwrap_or(&tree.surfaces)
+                        .as_entire_binding(),
+                ))[..6 + slot],
             );
             commands.entity(entity).insert(Prepared {
                 uniform: buffer,
@@ -241,9 +246,11 @@ pub(super) fn render(
     ) {
         return false;
     }
-    let (Some((id, _)), Some(prepared), Some(lens)) =
-        (&state.pipeline, prepared, &camera.calibration)
-    else {
+    let (Some((id, _)), Some(prepared), Some(lens)) = (
+        &state.pipelines[bvh::TreeBuffers::layout_index(state.tree.as_ref())],
+        prepared,
+        &camera.calibration,
+    ) else {
         return false;
     };
     let cache = world.resource::<PipelineCache>();

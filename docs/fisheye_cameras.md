@@ -319,7 +319,8 @@ and deterministic ties while reducing repeated memory traffic. Compact partition
 records carry their comparison keys, avoiding random bounds reads during median
 selection; full triangle payloads remain immutable until the final ordered copy.
 Wasm retains serial construction. Certified empty skin updates retain the tree.
-Each BVH leaf uses the same triangle order in two GPU buffers. Positions,
+Rooms that fit in one GPU storage binding use interleaved triangle records.
+Larger rooms use the same BVH leaf order in two buffers. Positions,
 labels and intersection tie-breakers occupy 64 bytes per triangle. The other
 48 bytes hold full-precision vertex normals or temporal correspondences and
 are read after a ray hits. A 128 MiB storage binding can therefore address

@@ -49,7 +49,8 @@ fn surface_area_and_median_trees_produce_identical_gpu_hits() {
             rays.push([origin.extend(0.01).to_array(), axis.extend(100.).to_array()]);
         }
     }
-    let shader = include_str!("bvh.wgsl")
+    let shader = [include_str!("bvh/split.wgsl"), include_str!("bvh.wgsl")]
+        .join("\n")
         .lines()
         .filter(|s| !s.starts_with('#'))
         .collect::<Vec<_>>()

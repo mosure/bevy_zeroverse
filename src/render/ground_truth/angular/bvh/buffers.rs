@@ -22,10 +22,17 @@ type Attributes = [[f32; 4]; 3];
 
 pub(in crate::render::ground_truth) struct TreeBuffers {
     pub surfaces: Buffer,
-    pub attributes: Buffer,
+    pub attributes: Option<Buffer>,
     pub nodes: Buffer,
     pub node_count: u32,
     pub bytes: u64,
+}
+
+impl TreeBuffers {
+    /// Each pass caches at most one pipeline per record layout.
+    pub(in crate::render::ground_truth::angular) fn layout_index(tree: Option<&Self>) -> usize {
+        usize::from(tree.is_some_and(|t| t.attributes.is_some()))
+    }
 }
 
 fn binding_size<T>(count: usize, limit: u64, label: &str) -> Result<u64, String> {
@@ -63,11 +70,17 @@ fn upload_array<T: bytemuck::Pod>(
     )
 }
 
-/// Sorted full-precision geometry. Raster-style interpolants only need to be
-/// read for the final ray hit, whereas positions are visited throughout traversal.
+/// Keep the normal capture path in one ordered upload. Larger meshes use two
+/// independently bounded bindings with exactly the same leaf order and values.
+enum Records {
+    Interleaved(Vec<Triangle>),
+    Split {
+        surfaces: Vec<Surface>,
+        attributes: Vec<Attributes>,
+    },
+}
 pub(in crate::render::ground_truth::angular) struct PackedTree {
-    surfaces: Vec<Surface>,
-    attributes: Vec<Attributes>,
+    records: Records,
     nodes: Vec<Node>,
 }
 impl PackedTree {
@@ -78,44 +91,62 @@ impl PackedTree {
         let limit = limits
             .max_storage_buffer_binding_size
             .min(limits.max_buffer_size);
-        binding_size::<Surface>(triangles.len(), limit, "triangle positions and labels")?;
-        binding_size::<Attributes>(triangles.len(), limit, "triangle attributes")?;
+        let fits_interleaved =
+            triangles.len().max(1) as u64 <= limit / size_of::<Triangle>() as u64;
+        if !fits_interleaved {
+            binding_size::<Surface>(triangles.len(), limit, "triangle positions and labels")?;
+            binding_size::<Attributes>(triangles.len(), limit, "triangle attributes")?;
+        }
         let (order, nodes) = tree_order(&triangles, true);
         binding_size::<Node>(nodes.len(), limit, "BVH nodes")?;
         let pool = bulk::pool(order.len());
         let ordered = |i: usize| &triangles[order[i].index as usize];
-        // Gather directly into the two final arrays, avoiding an intermediate
-        // sorted copy of all 112-byte source records.
-        Ok(Self {
-            surfaces: bulk::collect(order.len(), pool, |i| Surface::from(ordered(i))),
-            attributes: bulk::collect(order.len(), pool, |i| ordered(i).n),
-            nodes,
-        })
+        let records = if fits_interleaved {
+            Records::Interleaved(bulk::collect(order.len(), pool, |i| *ordered(i)))
+        } else {
+            Records::Split {
+                surfaces: bulk::collect(order.len(), pool, |i| Surface::from(ordered(i))),
+                attributes: bulk::collect(order.len(), pool, |i| ordered(i).n),
+            }
+        };
+        Ok(Self { records, nodes })
     }
-
     pub(in crate::render::ground_truth::angular) fn upload(
         self,
         device: &RenderDevice,
         queue: &RenderQueue,
     ) -> TreeBuffers {
-        let bytes = self.surfaces.len().max(1) * size_of::<Surface>()
-            + self.attributes.len().max(1) * size_of::<Attributes>()
-            + self.nodes.len().max(1) * size_of::<Node>();
+        let (surfaces, attributes, bytes) = match self.records {
+            Records::Interleaved(triangles) => (
+                upload_array(device, queue, "angular_triangles", &triangles),
+                None,
+                triangles.len().max(1) * size_of::<Triangle>(),
+            ),
+            Records::Split {
+                surfaces,
+                attributes,
+            } => (
+                upload_array(
+                    device,
+                    queue,
+                    "angular_triangle_positions_and_labels",
+                    &surfaces,
+                ),
+                Some(upload_array(
+                    device,
+                    queue,
+                    "angular_triangle_hit_attributes",
+                    &attributes,
+                )),
+                surfaces.len().max(1) * size_of::<Surface>()
+                    + attributes.len().max(1) * size_of::<Attributes>(),
+            ),
+        };
         TreeBuffers {
-            bytes: bytes as u64,
+            surfaces,
+            attributes,
+            bytes: (bytes + self.nodes.len().max(1) * size_of::<Node>()) as u64,
             node_count: self.nodes.len() as u32,
-            surfaces: upload_array(
-                device,
-                queue,
-                "angular_triangle_positions_and_labels",
-                &self.surfaces,
-            ),
-            attributes: upload_array(
-                device,
-                queue,
-                "angular_triangle_hit_attributes",
-                &self.attributes,
-            ),
             nodes: upload_array(device, queue, "angular_bvh", &self.nodes),
         }
     }
@@ -148,15 +179,35 @@ mod tests {
                 }
             })
             .collect();
-        let tree = PackedTree::build(input.clone(), &wgpu::Limits::default()).unwrap();
-        assert_eq!(tree.surfaces.len(), input.len());
-        assert_eq!(tree.attributes.len(), input.len());
-        assert!(tree
-            .surfaces
+        let regular = PackedTree::build(input.clone(), &wgpu::Limits::default()).unwrap();
+        let Records::Interleaved(ordered) = regular.records else {
+            panic!("small rooms should retain the interleaved layout")
+        };
+        let limits = wgpu::Limits {
+            max_storage_buffer_binding_size: (input.len() * size_of::<Surface>()) as u64,
+            ..Default::default()
+        };
+        let packed = PackedTree::build(input.clone(), &limits).unwrap();
+        let Records::Split {
+            surfaces,
+            attributes,
+        } = packed.records
+        else {
+            panic!("fixture must exercise the split layout")
+        };
+        assert_eq!(surfaces.len(), input.len());
+        assert_eq!(attributes.len(), input.len());
+        assert!(surfaces
             .iter()
             .enumerate()
             .any(|(i, t)| t.info[3] as usize != i));
-        for (surface, attr) in tree.surfaces.iter().zip(&tree.attributes) {
+        assert_eq!(
+            bytemuck::cast_slice::<_, u8>(&regular.nodes),
+            bytemuck::cast_slice::<_, u8>(&packed.nodes)
+        );
+        for ((surface, attr), interleaved) in surfaces.iter().zip(&attributes).zip(&ordered) {
+            assert_eq!(surface.info, interleaved.info);
+            assert_eq!(bytemuck::bytes_of(attr), bytemuck::bytes_of(&interleaved.n));
             let source = &input[surface.info[3] as usize];
             assert_eq!(
                 bytemuck::bytes_of(surface),
