@@ -115,6 +115,17 @@ fn plan(image: &Image) -> Option<(Vec<CopyRegion>, u64)> {
 
 fn pack(mut destination: wgpu::WriteOnly<'_, [u8]>, source: &[u8], regions: &[CopyRegion]) {
     for region in regions {
+        // A mip whose rows already meet the GPU pitch is one continuous copy.
+        // Keep copy_upload's bounded stores for the mapped destination.
+        if region.row_bytes == region.row_pitch {
+            let length = region.row_bytes as usize * region.size.height as usize;
+            let start = region.destination as usize;
+            copy_upload(
+                destination.slice(start..start + length),
+                &source[region.source..region.source + length],
+            );
+            continue;
+        }
         for row in 0..region.size.height as usize {
             let src = region.source + row * region.row_bytes as usize;
             let dst = region.destination as usize + row * region.row_pitch as usize;
@@ -239,6 +250,45 @@ mod tests {
             assert_eq!(&target[3..3 + size], &source);
             assert_eq!(&target[..3], &[91; 3]);
             assert_eq!(&target[3 + size..], &[91; 3]);
+        }
+    }
+    #[test]
+    fn aligned_mips_and_padded_mips_share_a_staging_buffer() {
+        let mut image = Image::default();
+        image.texture_descriptor.format = TextureFormat::Rgba8Unorm;
+        image.texture_descriptor.size = Extent3d {
+            width: 64,
+            height: 5,
+            depth_or_array_layers: 2,
+        };
+        image.texture_descriptor.mip_level_count = 3;
+        let bytes = (64 * 5 + 32 * 2 + 16) * 4 * 2;
+        image.data = Some((0..bytes).map(|i| (i * 31 + i / 256) as u8).collect());
+        for order in [
+            wgpu::util::TextureDataOrder::LayerMajor,
+            wgpu::util::TextureDataOrder::MipMajor,
+        ] {
+            image.data_order = order;
+            let (regions, size) = plan(&image).unwrap();
+            let source = image.data.as_ref().unwrap();
+            let mut expected = vec![0; size as usize];
+            for region in &regions {
+                for row in 0..region.size.height as usize {
+                    let src = region.source + row * region.row_bytes as usize;
+                    let dst = region.destination as usize + row * region.row_pitch as usize;
+                    let width = region.row_bytes as usize;
+                    expected[dst..dst + width].copy_from_slice(&source[src..src + width]);
+                }
+            }
+            let mut actual = vec![191; expected.len() + 6];
+            pack(
+                (&mut actual[3..3 + expected.len()]).into(),
+                source,
+                &regions,
+            );
+            assert_eq!(&actual[3..3 + expected.len()], &expected);
+            assert_eq!(&actual[..3], &[191; 3]);
+            assert_eq!(&actual[3 + expected.len()..], &[191; 3]);
         }
     }
     #[test]

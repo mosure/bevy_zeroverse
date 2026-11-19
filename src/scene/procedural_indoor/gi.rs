@@ -184,6 +184,8 @@ pub struct BakeStatistics {
     pub preparation_ms: f64,
     pub bake_ms: Option<f64>,
     pub mean_radiance: Option<[f32; 3]>,
+    /// Transport input bytes. The GPU backend counts the bound uniform and
+    /// storage buffers, including the minimum binding for each empty array.
     pub transport_bytes: usize,
     pub prefetch_hit: bool,
     pub prefetch_wait_ms: f64,
@@ -564,24 +566,49 @@ impl BakeScene {
         self.hit(origin, direction, max, true).is_some()
     }
 
-    /// One deterministic radiance sample for the static reflection environment.
-    /// Direct light is visibility-tested against the same BVH as diffuse GI;
-    /// unresolved secondary bounce energy uses a bounded ambient approximation.
+    /// Sample the nearest visible emitter or the opaque surface behind it.
+    pub(crate) fn visible_reflection(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        ambient: f32,
+        emitters: &ReflectionEmitters,
+    ) -> Vec3 {
+        let surface = self.hit(origin, direction, 1000., false);
+        let limit = surface.map_or(1000., |(_, distance, _)| distance);
+        emitters
+            .radiance(origin, direction, limit)
+            .unwrap_or_else(|| self.shade_reflection(origin, direction, ambient, surface))
+    }
+
+    #[cfg(test)]
     pub(crate) fn reflection_radiance(
         &self,
         origin: Vec3,
         direction: Vec3,
         ambient: f32,
     ) -> (f32, Vec3) {
-        let Some((index, distance, bary)) = self.hit(origin, direction, 1000., false) else {
-            return (
-                1000.,
-                if direction.y > 0. {
-                    self.sky
-                } else {
-                    Vec3::ZERO
-                },
-            );
+        let surface = self.hit(origin, direction, 1000., false);
+        let distance = surface.map_or(1000., |(_, distance, _)| distance);
+        (
+            distance,
+            self.shade_reflection(origin, direction, ambient, surface),
+        )
+    }
+
+    fn shade_reflection(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        ambient: f32,
+        surface: Option<(usize, f32, Vec2)>,
+    ) -> Vec3 {
+        let Some((index, distance, bary)) = surface else {
+            return if direction.y > 0. {
+                self.sky
+            } else {
+                Vec3::ZERO
+            };
         };
         let triangle = &self.triangles[index];
         let normal = if triangle.normal.dot(direction) > 0. {
@@ -600,10 +627,7 @@ impl BakeScene {
         } else {
             mat.emission
         };
-        (
-            distance,
-            emission + albedo * (self.direct(position, normal) / PI + Vec3::splat(ambient)),
-        )
+        emission + albedo * (self.direct(position, normal) / PI + Vec3::splat(ambient))
     }
 
     pub(crate) fn reflection_origin(&self, scene: &IndoorManifest) -> Vec3 {
