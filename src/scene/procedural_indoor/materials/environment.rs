@@ -146,20 +146,34 @@ impl<'a> ProbeTrace<'a> {
     }
 
     fn row_at(&self, origin: Vec3, face: u32, y: u32, pixels: &mut Vec<Vec3>) {
-        for x in 0..SIZE {
-            // Bevy negates Z when sampling its left-handed cubemaps.
-            let d = direction(face, x as f32, y as f32, SIZE);
-            let ray = Vec3::new(d.x, d.y, -d.z);
-            let (distance, radiance) =
-                self.transport
-                    .reflection_radiance(origin, ray, self.ambient);
-            let radiance = self
-                .emitters
-                .radiance(origin, ray, distance)
-                .unwrap_or(radiance);
-            pixels.push(radiance);
+        let start = ((face * SIZE + y) * SIZE) as usize;
+        for &ray in &reflection_rays()[start..start + SIZE as usize] {
+            pixels.push(self.transport.visible_reflection(
+                origin,
+                ray,
+                self.ambient,
+                &self.emitters,
+            ));
         }
     }
+}
+
+fn reflection_rays() -> &'static [Vec3] {
+    // Each origin samples exactly the same cubemap pixel centers.
+    static RAYS: std::sync::OnceLock<Box<[Vec3]>> = std::sync::OnceLock::new();
+    RAYS.get_or_init(|| {
+        let mut rays = Vec::with_capacity((6 * SIZE * SIZE) as usize);
+        for face in 0..6 {
+            for y in 0..SIZE {
+                for x in 0..SIZE {
+                    let d = direction(face, x as f32, y as f32, SIZE);
+                    // Bevy negates Z when sampling its left-handed cubemaps.
+                    rays.push(Vec3::new(d.x, d.y, -d.z));
+                }
+            }
+        }
+        rays.into_boxed_slice()
+    })
 }
 
 fn direction(face: u32, x: f32, y: f32, size: u32) -> Vec3 {
@@ -383,7 +397,25 @@ mod tests {
             Vec3::new(-1., 1.8, -0.5),
         ];
         let batched = trace_many(&scene, &transport, &origins);
+        let emitters = ReflectionEmitters::new(&scene);
+        let ambient = ProbeTrace::new(&scene, &transport, origins[0]).ambient;
         for (origin, actual) in origins.into_iter().zip(batched) {
+            for (sample, color) in actual.iter().enumerate() {
+                let i = sample as u32;
+                let d = direction(
+                    i / (SIZE * SIZE),
+                    (i % SIZE) as f32,
+                    ((i / SIZE) % SIZE) as f32,
+                    SIZE,
+                );
+                let ray = Vec3::new(d.x, d.y, -d.z);
+                let (distance, opaque) = transport.reflection_radiance(origin, ray, ambient);
+                let expected = emitters.radiance(origin, ray, distance).unwrap_or(opaque);
+                assert_eq!(
+                    expected.to_array().map(f32::to_bits),
+                    color.to_array().map(f32::to_bits)
+                );
+            }
             assert_eq!(
                 actual,
                 trace_at(&scene, &transport, origin),

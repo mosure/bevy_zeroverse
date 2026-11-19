@@ -41,6 +41,40 @@ fn hit(points: [Vec3; 3], origin: Vec3, direction: Vec3, max: f64) -> Option<f64
 }
 
 #[test]
+fn visible_reflection_selects_the_nearest_front_face_and_keeps_opaque_ties() {
+    let face = |height, material| Triangle {
+        a: Vec3::new(-1., height, -1.),
+        ab: Vec3::X * 3.,
+        ac: Vec3::Z * 3.,
+        normal: Vec3::NEG_Y,
+        uv: [Vec2::ZERO; 3],
+        material,
+    };
+    let mut emitters = ReflectionEmitters {
+        triangles: vec![face(3., 0), face(2., 1)],
+        nodes: Vec::new(),
+        emission: vec![Vec3::Z * 80., Vec3::X * 40.],
+    };
+    emitters.nodes = bvh::build_probe_tree(&mut emitters.triangles);
+    let mut scene = super::super::tests::empty();
+    scene.materials.push(DiffuseMaterial {
+        albedo: Vec3::ZERO,
+        emission: Vec3::Y * 2.,
+        uv_scale: Vec2::ONE,
+        texture: None,
+        textured_emission: false,
+    });
+    for (height, expected) in [(1., Vec3::Y * 2.), (2., Vec3::Y * 2.), (4., Vec3::X * 40.)] {
+        scene.triangles = vec![face(height, 0)];
+        drop(scene.build_bvh());
+        assert_eq!(
+            scene.visible_reflection(Vec3::ZERO, Vec3::Y, 0., &emitters),
+            expected
+        );
+    }
+}
+
+#[test]
 fn all_fixture_reflections_match_emissive_meshes_and_photometry() {
     for shape in [
         FixtureShape::Panel,

@@ -1,4 +1,6 @@
 //! One-shot native GPU diffuse transport. No readback is required for rendering.
+#[cfg(test)]
+mod bake_tests;
 mod probes;
 use super::*;
 use bevy::render::diagnostic::RecordDiagnostics;
@@ -100,27 +102,49 @@ pub struct GpuBakeRequest {
     pub readiness: GiGpuReadiness,
 }
 
+/// A runtime-sized WGSL array must bind space for at least one element, even
+/// when its logical count is zero. For nonempty arrays this borrows the
+/// original bytes without allocating or copying them.
+fn storage_bytes<T: bytemuck::Pod>(values: &[T]) -> &[u8] {
+    const ZERO: [u8; size_of::<GpuTriangle>()] = [0; size_of::<GpuTriangle>()];
+    const { assert!(size_of::<T>() <= ZERO.len()) };
+    if values.is_empty() {
+        &ZERO[..size_of::<T>()]
+    } else {
+        bytemuck::cast_slice(values)
+    }
+}
+
 impl Input {
     fn buffers(&self) -> [&[u8]; 7] {
+        // The shader starts traversal at node zero. An empty tree needs a
+        // zero-triangle leaf there; an all-zero node would point back to itself.
+        const EMPTY_ROOT: TransportNode = TransportNode {
+            lo: Vec3::ZERO,
+            hi: Vec3::ZERO,
+            index: 0,
+            tag: TransportNode::LEAF,
+        };
+        let nodes = if self.nodes.is_empty() {
+            std::slice::from_ref(&EMPTY_ROOT)
+        } else {
+            self.nodes.as_slice()
+        };
         [
             bytemuck::bytes_of(&self.params),
-            bytemuck::cast_slice(&self.triangles),
-            bytemuck::cast_slice(&self.nodes),
-            bytemuck::cast_slice(&self.materials),
-            bytemuck::cast_slice(&self.texels),
-            bytemuck::cast_slice(&self.lights),
-            bytemuck::cast_slice(&self.origins.records),
+            storage_bytes(&self.triangles),
+            bytemuck::cast_slice(nodes),
+            storage_bytes(&self.materials),
+            storage_bytes(&self.texels),
+            storage_bytes(&self.lights),
+            storage_bytes(&self.origins.records),
         ]
     }
 }
 
 impl GpuBakeRequest {
     pub(crate) fn gpu_buffer_bytes(&self) -> u64 {
-        self.input
-            .buffers()
-            .iter()
-            .map(|b| b.len().max(16) as u64)
-            .sum()
+        self.input.buffers().iter().map(|b| b.len() as u64).sum()
     }
 
     pub(crate) fn probe_texture_bytes(&self) -> u64 {
@@ -164,7 +188,7 @@ pub(in crate::scene::procedural_indoor) fn fits_portable_bindings(scene: &BakeSc
 }
 
 fn fits_records<T>(count: u64, limit: u64) -> bool {
-    count <= limit / std::mem::size_of::<T>() as u64
+    count.max(1) <= limit / size_of::<T>() as u64
 }
 
 pub fn prepare(
@@ -226,9 +250,6 @@ pub fn prepare(
             }
         })
         .collect();
-    if texels.is_empty() {
-        texels.push([1.0; 4]);
-    }
     let lights = scene
         .lights
         .iter()
@@ -254,32 +275,6 @@ pub fn prepare(
     let mut image = data.image();
     image.texture_descriptor.usage |= TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC;
     let image = images.add(image);
-    let stats = BakeStatistics {
-        backend: "gpu_bvh_compute".into(),
-        triangles: scene.triangles.len(),
-        probes: count,
-        relocated_probes: origins.relocated,
-        primary_rays: count as u64 * u64::from(settings.rays_per_probe),
-        traced_primary_rays: Some(u64::from(origins.sources) * u64::from(settings.rays_per_probe)),
-        diffuse_bounces: settings.diffuse_bounces,
-        texture_bytes: count * 48,
-        preparation_ms: scene.preparation_ms
-            + started.elapsed().as_secs_f64() * 1000.0
-            + if cached_transport {
-                transport.preparation_ms
-            } else {
-                0.0
-            },
-        // GPU execution is asynchronous. Zero is not a timing measurement;
-        // execution timings come from the explicit GPU validation experiment.
-        bake_ms: None,
-        transport_bytes: scene.triangles.len() * std::mem::size_of::<GpuTriangle>()
-            + nodes.len() * std::mem::size_of::<TransportNode>()
-            + texels.len() * 16
-            + scene.materials.len() * 64
-            + origins.records.len() * 16,
-        ..default()
-    };
     let input = Input {
         params: Params {
             resolution: [resolution.x, resolution.y, resolution.z, count as u32],
@@ -301,15 +296,36 @@ pub fn prepare(
         lights,
         origins,
     };
-    (
-        GpuBakeRequest {
-            image,
-            input: Arc::new(input),
-            readiness: default(),
-        },
-        data.transform(),
-        stats,
-    )
+    let request = GpuBakeRequest {
+        image,
+        input: Arc::new(input),
+        readiness: default(),
+    };
+    let stats = BakeStatistics {
+        backend: "gpu_bvh_compute".into(),
+        triangles: scene.triangles.len(),
+        probes: count,
+        relocated_probes: request.input.origins.relocated,
+        primary_rays: count as u64 * u64::from(settings.rays_per_probe),
+        traced_primary_rays: Some(
+            u64::from(request.input.origins.sources) * u64::from(settings.rays_per_probe),
+        ),
+        diffuse_bounces: settings.diffuse_bounces,
+        texture_bytes: count * 48,
+        preparation_ms: scene.preparation_ms
+            + started.elapsed().as_secs_f64() * 1000.0
+            + if cached_transport {
+                transport.preparation_ms
+            } else {
+                0.0
+            },
+        // GPU execution is asynchronous. Zero is not a timing measurement;
+        // execution timings come from the explicit GPU validation experiment.
+        bake_ms: None,
+        transport_bytes: request.gpu_buffer_bytes() as usize,
+        ..default()
+    };
+    (request, data.transform(), stats)
 }
 
 pub struct GpuGiPlugin;
@@ -521,7 +537,7 @@ fn upload_request(
         } else {
             limits.max_storage_buffer_binding_size
         });
-        let length = data.len().max(16) as u64;
+        let length = data.len() as u64;
         (length > limit).then_some((binding, length, limit))
     }) {
         *request.readiness.0.failure.lock().unwrap() = Some(format!(
@@ -542,7 +558,7 @@ fn upload_request(
                 queue,
                 &BufferInitDescriptor {
                     label: Some("indoor_gi_transport"),
-                    contents: if data.is_empty() { &[0; 16] } else { data },
+                    contents: data,
                     usage: if i == 0 {
                         BufferUsages::UNIFORM
                     } else {
@@ -708,12 +724,34 @@ mod tests {
         assert_ne!(current.image.id(), promoted.image.id());
         assert!(Arc::ptr_eq(&future.input, &promoted.input));
         assert!(Arc::ptr_eq(&future.readiness.0, &promoted.readiness.0));
-        // Empty storage inputs still allocate sixteen-byte shader bindings.
-        assert_eq!(
-            future.gpu_buffer_bytes(),
-            std::mem::size_of::<Params>() as u64 + 6 * 16
-        );
     }
+
+    #[test]
+    fn empty_shader_arrays_bind_a_complete_element_and_preserve_logical_counts() {
+        let request = test_request(Handle::default());
+        let lengths = request.input.buffers().map(<[u8]>::len);
+        assert_eq!(lengths, [size_of::<Params>(), 80, 32, 64, 16, 64, 16]);
+        assert_eq!(
+            request.gpu_buffer_bytes(),
+            lengths.iter().sum::<usize>() as u64
+        );
+        assert_eq!(request.input.params.budget[3], 0);
+        assert!(request.input.nodes.is_empty());
+        let bindings = request.input.buffers();
+        let root = bytemuck::pod_read_unaligned::<TransportNode>(bindings[2]);
+        assert_eq!(root.tag, TransportNode::LEAF);
+        assert!(bindings[5].iter().all(|&b| b == 0));
+        assert!(!fits_records::<GpuLight>(0, 63));
+        assert!(fits_records::<GpuLight>(0, 64));
+        assert!(fits_records::<GpuLight>(2, 128));
+        assert!(!fits_records::<GpuLight>(2, 127));
+
+        let values = [[1.0f32, 2.0, 3.0, 4.0], [5.0; 4]];
+        let bytes = storage_bytes(&values);
+        assert_eq!(bytes.as_ptr(), values.as_ptr().cast::<u8>());
+        assert_eq!(bytes, bytemuck::bytes_of(&values));
+    }
+
     #[test]
     fn accelerated_transport_preserves_probe_placement_at_touching_room_surfaces() {
         let scene = IndoorManifest::generate_with_humans(
