@@ -99,7 +99,7 @@
     "illumination_scale": 1.0,
     "exposure_ev100_offset": 0.0
   },
-  "generator_version": 130,
+  "generator_version": 132,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -4440,6 +4440,11 @@
     "duration_seconds": 2.0,
     "primary_room": true,
     "motion_fraction": 1.0,
+    "roll": {
+      "max_degrees": 45.0,
+      "spread": 0.24,
+      "wide_probability": 0.12
+    },
     "path_length_min": 0.03,
     "path_length_max": 0.6,
     "long_path_fraction": 0.0,
@@ -4457,6 +4462,7 @@
   "camera_aspect_ratio": 1.6,
   "cameras": [
     {
+      "roll_radians": 0.04839579,
       "principal_point_offset": [
         0.111242406,
         0.06998438
@@ -4496,12 +4502,13 @@
           -3.1303422
         ],
         "roll": [
-          0.067528844,
-          0.081873015
+          0.019643344,
+          0.023815893
         ]
       }
     },
     {
+      "roll_radians": -0.0934826,
       "principal_point_offset": [
         -0.12413199,
         0.10176856
@@ -4541,8 +4548,8 @@
           -1.3979893
         ],
         "roll": [
-          0.0011058673,
-          0.040159345
+          0.00032168374,
+          0.011681879
         ]
       }
     }

@@ -192,7 +192,7 @@
     "rejected_meetings": 0,
     "accepted": []
   },
-  "generator_version": 130,
+  "generator_version": 132,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -4624,6 +4624,7 @@
           "identity": 9469014917065664031,
           "slat_pitch": 0.07679602,
           "fold_pitch": 0.20062919,
+          "pleat_crease": 0.22165915,
           "fold_depth": 0.031067228,
           "fullness": 1.7240789,
           "hem_sag": 0.001577028,
@@ -7845,6 +7846,11 @@
     },
     "primary_room": true,
     "motion_fraction": 1.0,
+    "roll": {
+      "max_degrees": 45.0,
+      "spread": 0.24,
+      "wide_probability": 0.12
+    },
     "path_length_min": 0.03,
     "path_length_max": 8.0,
     "long_path_fraction": 0.45,
@@ -7862,6 +7868,7 @@
   "camera_aspect_ratio": 1.0,
   "cameras": [
     {
+      "roll_radians": 0.29918396,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -7910,12 +7917,13 @@
           1.4747349
         ],
         "roll": [
-          0.08194983,
-          -0.023254216
+          0.023838237,
+          -0.0067643765
         ]
       }
     },
     {
+      "roll_radians": 0.038107023,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -7964,12 +7972,13 @@
           1.2894096
         ],
         "roll": [
-          -0.08495397,
-          0.07230942
+          -0.024712106,
+          0.021033956
         ]
       }
     },
     {
+      "roll_radians": 0.095581114,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -8018,8 +8027,8 @@
           1.3905951
         ],
         "roll": [
-          0.010986112,
-          -0.0060663596
+          0.0031957303,
+          -0.0017646324
         ]
       }
     }

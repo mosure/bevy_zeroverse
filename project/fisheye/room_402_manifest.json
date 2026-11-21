@@ -89,7 +89,7 @@
       }
     ]
   },
-  "generator_version": 130,
+  "generator_version": 132,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -101,11 +101,11 @@
           0.0056088646
         ],
         "environment_intensity": 40.441605,
-        "ev100": 5.8525796,
+        "ev100": 5.85258,
         "meter": {
           "electric_lux": 473.6266,
-          "direct_daylight_lux": 0.025987376,
-          "diffuse_daylight_lux": 0.0014506822,
+          "direct_daylight_lux": 0.026288845,
+          "diffuse_daylight_lux": 0.0014661398,
           "bias_ev": -0.54859734
         },
         "active_fraction": 0.84811646,
@@ -2943,7 +2943,13 @@
           "sill_projection": 0.14684562,
           "treatment": {
             "identity": 9050938014884009957,
-            "slat_pitch": 0.048591517,
+            "slat_pitch": 0.056511953,
+            "slats": {
+              "depth_m": 0.06226241,
+              "thickness_m": 0.0015152592,
+              "crown_m": 0.000784292,
+              "nesting_gap_m": 0.00039240695
+            },
             "fold_pitch": 0.1582358,
             "fold_depth": 0.019653138,
             "fullness": 2.21244,
@@ -3277,7 +3283,13 @@
         "sill_projection": 0.16475604,
         "treatment": {
           "identity": 9050938014884009957,
-          "slat_pitch": 0.048591517,
+          "slat_pitch": 0.056511953,
+          "slats": {
+            "depth_m": 0.06226241,
+            "thickness_m": 0.0015152592,
+            "crown_m": 0.000784292,
+            "nesting_gap_m": 0.00039240695
+          },
           "fold_pitch": 0.1582358,
           "fold_depth": 0.019653138,
           "fullness": 2.21244,
@@ -5334,6 +5346,11 @@
     },
     "primary_room": true,
     "motion_fraction": 1.0,
+    "roll": {
+      "max_degrees": 45.0,
+      "spread": 0.24,
+      "wide_probability": 0.12
+    },
     "path_length_min": 0.03,
     "path_length_max": 8.0,
     "long_path_fraction": 0.45,
@@ -5351,6 +5368,7 @@
   "camera_aspect_ratio": 1.0,
   "cameras": [
     {
+      "roll_radians": -0.031578317,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -5399,8 +5417,8 @@
           -1.182198
         ],
         "roll": [
-          -0.038075954,
-          -0.031513102
+          -0.011075845,
+          -0.009166789
         ],
         "route": [
           [
@@ -5417,6 +5435,7 @@
       }
     },
     {
+      "roll_radians": -0.0644985,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -5465,12 +5484,13 @@
           -1.2749305
         ],
         "roll": [
-          0.057367653,
-          0.086342886
+          0.037027612,
+          0.055729505
         ]
       }
     },
     {
+      "roll_radians": -0.007427787,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -5519,8 +5539,8 @@
           -1.1302181
         ],
         "roll": [
-          -0.061850756,
-          -0.010770187
+          -0.017991655,
+          -0.0031329202
         ],
         "route": [
           [

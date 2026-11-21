@@ -107,7 +107,7 @@
       }
     ]
   },
-  "generator_version": 130,
+  "generator_version": 132,
   "program": {
     "primary_zone": 0,
     "domain": {
@@ -3098,7 +3098,8 @@
             "track": {
               "panel_width_m": 0.63223654,
               "reed_pitch_m": 0.021111635,
-              "openness": 0.13833207
+              "openness": 0.13833207,
+              "reed_variation": 0.13006613
             }
           },
           "shade": "PanelTrack",
@@ -3441,6 +3442,7 @@
             "identity": 6770882599023683769,
             "slat_pitch": 0.05695132,
             "fold_pitch": 0.199336,
+            "pleat_crease": 0.14030369,
             "fold_depth": 0.015991319,
             "fullness": 1.7242918,
             "hem_sag": 0.011189632,
@@ -3557,7 +3559,8 @@
             "track": {
               "panel_width_m": 0.85304856,
               "reed_pitch_m": 0.030652877,
-              "openness": 0.22706576
+              "openness": 0.22706576,
+              "reed_variation": 0.23940527
             }
           },
           "shade": "PanelTrack",
@@ -3690,6 +3693,7 @@
             "identity": 4224586980308903773,
             "slat_pitch": 0.030674996,
             "fold_pitch": 0.13535362,
+            "pleat_crease": 0.18199104,
             "fold_depth": 0.01209812,
             "fullness": 1.8427784,
             "hem_sag": 0.015230451,
@@ -4217,7 +4221,8 @@
           "track": {
             "panel_width_m": 0.63223654,
             "reed_pitch_m": 0.021111635,
-            "openness": 0.13833207
+            "openness": 0.13833207,
+            "reed_variation": 0.13006613
           }
         },
         "shade": "PanelTrack",
@@ -4379,6 +4384,7 @@
           "identity": 17054323898521753874,
           "slat_pitch": 0.037493844,
           "fold_pitch": 0.17064956,
+          "pleat_crease": 0.21056542,
           "fold_depth": 0.0137972655,
           "fullness": 2.3640523,
           "hem_sag": 0.013405436,
@@ -8372,6 +8378,11 @@
     },
     "primary_room": true,
     "motion_fraction": 1.0,
+    "roll": {
+      "max_degrees": 45.0,
+      "spread": 0.24,
+      "wide_probability": 0.12
+    },
     "path_length_min": 0.03,
     "path_length_max": 8.0,
     "long_path_fraction": 0.45,
@@ -8389,6 +8400,7 @@
   "camera_aspect_ratio": 1.0,
   "cameras": [
     {
+      "roll_radians": -0.018554414,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -8437,8 +8449,8 @@
           -1.4825258
         ],
         "roll": [
-          0.08973007,
-          -0.05683054
+          0.026101418,
+          -0.016531333
         ],
         "route": [
           [
@@ -8455,6 +8467,7 @@
       }
     },
     {
+      "roll_radians": 0.64915144,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -8503,8 +8516,8 @@
           -3.0178852
         ],
         "roll": [
-          -0.013517521,
-          -0.061349377
+          -0.003932087,
+          -0.01784581
         ],
         "route": [
           [
@@ -8521,6 +8534,7 @@
       }
     },
     {
+      "roll_radians": 0.03497146,
       "fisheye": {
         "lens": {
           "coefficients": [
@@ -8569,8 +8583,8 @@
           -1.6498283
         ],
         "roll": [
-          -0.0866095,
-          -0.014354669
+          -0.07125554,
+          -0.011809903
         ],
         "route": [
           [
