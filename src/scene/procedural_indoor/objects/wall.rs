@@ -18,7 +18,7 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
         {
             0.5
         }
-        ObjectKind::StringLights if !equipment::signals::string_program(o).suspended => 0.5,
+        ObjectKind::StringLights if !equipment::signals::strings::suspended(o) => 0.5,
         ObjectKind::FireAlarm => {
             if o.variant % 4 == 3 {
                 0.46

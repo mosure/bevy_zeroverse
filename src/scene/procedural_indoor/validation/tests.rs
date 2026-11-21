@@ -313,7 +313,7 @@ fn wall_mounts_touch_real_back_faces_on_oblique_and_axis_aligned_walls() {
         validate_layout(&scene).unwrap();
         for o in &scene.objects {
             if o.kind == ObjectKind::StringLights
-                && objects::equipment::signals::string_program(o).suspended
+                && objects::equipment::signals::strings::suspended(o)
             {
                 // This variant is supported from the ceiling, not a wall.
                 continue;

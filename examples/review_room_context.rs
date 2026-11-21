@@ -267,6 +267,14 @@ fn main() -> Result<()> {
     let signals = std::env::args().any(|a| a == "--signals");
     let clutter = std::env::args().any(|a| a == "--clutter");
     let services = signals || std::env::args().any(|a| a == "--services");
+    // Keep mesh emission, exposure and precomputed GI identical in a paired
+    // capture of the practical bulbs' direct contribution.
+    let without_string_direct = std::env::args().any(|a| a == "--without-string-direct");
+    let portable = std::env::args().any(|a| a == "--portable");
+    ensure!(
+        !without_string_direct || services,
+        "use the string light control with --signals or --services"
+    );
     let modes = vec![
         RenderMode::Color,
         RenderMode::Depth,
@@ -278,6 +286,11 @@ fn main() -> Result<()> {
         Some(BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::ProceduralIndoor,
             indoor_seed: Some(seeds[0]),
+            indoor_quality: if portable {
+                bevy_zeroverse::scene::procedural_indoor::IndoorQuality::Portable
+            } else {
+                default()
+            },
             indoor_layout: if conference {
                 bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Conference
             } else {
@@ -335,6 +348,29 @@ fn main() -> Result<()> {
             std::thread::sleep(Duration::from_millis(1));
         }
         let scene = app.world().resource::<IndoorManifest>().clone();
+        if without_string_direct {
+            let world = app.world_mut();
+            let mut count = 0;
+            let mut query =
+                world.query::<(&Name, Option<&mut PointLight>, Option<&mut SpotLight>)>();
+            for (_, point, spot) in query
+                .iter_mut(world)
+                .filter(|(name, _, _)| name.starts_with("indoor_string_"))
+            {
+                if let Some(mut point) = point {
+                    point.intensity = 0.;
+                    count += 1;
+                }
+                if let Some(mut spot) = spot {
+                    spot.intensity = 0.;
+                    count += 1;
+                }
+            }
+            ensure!(
+                count > 0,
+                "seed {seed} has no direct string lights for the control"
+            );
+        }
         let views = targets(&scene, lighting, conference, services);
         for (index, mut c, projection) in app
             .world_mut()
@@ -436,7 +472,7 @@ fn main() -> Result<()> {
         std::fs::write(
             output.join(format!("seed_{seed}.json")),
             serde_json::to_vec_pretty(
-                &serde_json::json!({"scene":scene,"detail_camera_poses":views,"annotation_glass":"through","image_size":[640,640],"provenance":bevy_zeroverse::provenance::capture_provenance(),"lighting_details":lighting,"conference_details":conference,"services_details":services,"protocol":"Full production room and lighting; diagnostic detail views replace population cameras. Not distribution qualification."}),
+                &serde_json::json!({"scene":scene,"detail_camera_poses":views,"annotation_glass":"through","image_size":[640,640],"provenance":bevy_zeroverse::provenance::capture_provenance(),"lighting_details":lighting,"conference_details":conference,"services_details":services,"portable_quality":portable,"direct_string_control":without_string_direct,"protocol":"Full production room and lighting; diagnostic detail views replace population cameras. Not distribution qualification."}),
             )?,
         )?;
     }

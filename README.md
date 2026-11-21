@@ -102,7 +102,8 @@ ceiling fixtures share a construction style with varied dimensions and spacing.
   floor lamps and task lights vary their bulbs, hollow shades, articulated supports,
   recesses, aim directions and independently finished trims. Mounted exit signs,
   fire alarms, ceiling detectors, manual pull stations, speakers and suspended or
-  wall-mounted multicolored string lights add room services. Floor finishes vary
+  wall-mounted string lights add room services. Strands range from miniature LEDs
+  on twisted cables to shadow-casting globes and angled reflectors. Floor finishes vary
   plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
   seamless mineral finishes, mixed tile/plank stock, carpet dye fields, staggered
   joints, independently sampled physical pattern sizes, regional wear and

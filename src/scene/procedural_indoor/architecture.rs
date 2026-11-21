@@ -498,6 +498,48 @@ pub fn spawn_lights(
             entity.insert(motion);
         }
     }
+    for (id, slot, light) in super::objects::equipment::signals::strings::practical_lights(scene) {
+        let name = Name::new(format!("indoor_string_{id}_{slot}"));
+        let intensity = light.bevy_intensity();
+        // Shallow wall sockets can sit just centimetres from their backing.
+        let shadow_map_near_z = (0.25 * light.radius).clamp(0.002, 0.012);
+        let rest = Transform::from_translation(light.position);
+        if let Some([inner, outer]) = light.cone {
+            commands.spawn((
+                name,
+                SpotLight {
+                    color: light.color,
+                    intensity,
+                    range: light.range,
+                    radius: light.radius,
+                    inner_angle: inner,
+                    outer_angle: outer,
+                    shadow_maps_enabled: quality.shadows(),
+                    shadow_depth_bias: 0.008,
+                    shadow_map_near_z,
+                    ..default()
+                },
+                rest.looking_to(light.axis, Vec3::Z),
+                ChildOf(root),
+            ));
+        } else {
+            commands.spawn((
+                name,
+                PointLight {
+                    color: light.color,
+                    intensity,
+                    range: light.range,
+                    radius: light.radius,
+                    shadow_maps_enabled: quality.shadows(),
+                    shadow_depth_bias: 0.008,
+                    shadow_map_near_z,
+                    ..default()
+                },
+                rest,
+                ChildOf(root),
+            ));
+        }
+    }
 }
 
 pub(crate) fn spot_intensity_for_lumens(lumens: f32, inner: f32, outer: f32) -> f32 {

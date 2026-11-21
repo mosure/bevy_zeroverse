@@ -569,6 +569,13 @@ fn regenerate(
         commands.insert_resource(statistics);
     } else {
         commands.remove_resource::<gi::BakeStatistics>();
+        if !args.headless || crate::render::sensor::captures_rgb(&args) {
+            objects::equipment::signals::strings::spawn_miniature_lights(
+                manifest,
+                root,
+                &mut commands,
+            );
+        }
     }
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(request) = prepared.gpu_request.take() {
