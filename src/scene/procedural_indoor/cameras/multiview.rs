@@ -235,6 +235,7 @@ impl IndoorManifest {
         {
             if self.sample_camera_placement_with_peers(count, true).is_ok() {
                 self.camera_diagnostics.peer_search_succeeded = true;
+                super::roll::fit_to_rig(self);
                 return Ok(());
             }
             let failed = self.camera_diagnostics.clone();
@@ -246,6 +247,7 @@ impl IndoorManifest {
         } else {
             self.sample_camera_placement(count)?;
         }
+        super::roll::fit_to_rig(self);
         super::coherence::refine(self);
         Ok(())
     }
@@ -428,7 +430,7 @@ impl IndoorManifest {
                             reachable.min(1.2).max(policy.min_baseline),
                             Vec2::new(0.70 - template.start.y, ceiling - template.start.y),
                             &local_policy,
-                            &self.camera_settings.intrinsics,
+                            &self.camera_settings,
                             &mut rng,
                         );
                         // A sloping roof leaves a different usable height at
@@ -460,7 +462,7 @@ impl IndoorManifest {
                             reachable,
                             heights,
                             &policy,
-                            &self.camera_settings.intrinsics,
+                            &self.camera_settings,
                             &mut rng,
                         )
                     };
@@ -675,8 +677,12 @@ impl IndoorManifest {
                 .is_ok()
         {
             let complete = self.cameras.clone();
+            let ref_views: Vec<_> = CHECK_TIMES
+                .into_iter()
+                .map(|t| coverage.view(&complete[0], self.camera_aspect_ratio, t))
+                .collect();
             for omit in (1..complete.len()).rev() {
-                let subset: Vec<_> = complete
+                let mut subset: Vec<_> = complete
                     .iter()
                     .enumerate()
                     .filter(|(index, _)| *index != omit)
@@ -691,6 +697,28 @@ impl IndoorManifest {
                             prior.sample(self.seed, i) == prior.sample(self.seed, i + 1)
                         })
                 }) {
+                    continue;
+                }
+                // A shifted camera keeps its path but takes the destination slot's
+                // bank. Its image footprint may now include different surfaces.
+                if !subset
+                    .iter_mut()
+                    .enumerate()
+                    .skip(omit)
+                    .all(|(index, camera)| {
+                        self.camera_settings
+                            .bind_room_roll(self.seed, index, camera);
+                        self.camera_curve_clear(camera)
+                            && coverage.suitable(camera, false)
+                            && policy.accepts(&pair_samples(
+                                &coverage,
+                                &complete[0],
+                                &ref_views,
+                                camera,
+                                self.camera_aspect_ratio,
+                            ))
+                    })
+                {
                     continue;
                 }
                 let subset_tracks: Vec<_> = subset.iter().map(Track::new).collect();
@@ -718,7 +746,7 @@ pub(super) fn propose(
     reachable: f32,
     heights: Vec2,
     policy: &MultiViewSettings,
-    intrinsics: &super::intrinsics::IntrinsicsSettings,
+    settings: &super::CameraSettings,
     rng: &mut impl Rng,
 ) -> IndoorCamera {
     // Uniform metric baselines avoid the former logarithmic bias toward an
@@ -761,7 +789,7 @@ pub(super) fn propose(
     camera.end = deform(reference.end);
     camera.target += jitter;
     // Intrinsics remain independently sampled; overlap rejects extreme mismatches.
-    camera.fov_degrees = intrinsics.sample(rng);
+    camera.fov_degrees = settings.intrinsics.sample(rng);
     if let Some(motion) = &mut camera.motion {
         let bend = Vec3::new(
             rng.random_range(-1.0..=1.0),
@@ -776,7 +804,7 @@ pub(super) fn propose(
             *p = deform(*p);
         }
         motion.target_end += jitter;
-        motion.roll = [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)];
+        motion.roll = settings.sample_roll_drift(rng);
     }
     camera
 }

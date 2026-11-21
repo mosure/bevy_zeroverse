@@ -1,6 +1,8 @@
 //! Camera-group diagnostics share the sampler's time convention and geometry.
 use super::super::{
-    cameras::diversity::PATH_SAMPLES, layout::IndoorManifest, metrics_sort::NumericCollector,
+    cameras::{diversity::PATH_SAMPLES, horizon_roll_radians},
+    layout::IndoorManifest,
+    metrics_sort::NumericCollector,
 };
 use bevy::prelude::*;
 use std::io::{self, Write};
@@ -143,6 +145,17 @@ pub(super) fn record(
                 .clamp(-1., 1.)
                 .asin()
                 .to_degrees();
+            let roll = horizon_roll_radians(pose.rotation);
+            if let Some(angle) = roll {
+                if step == 0 {
+                    numeric.push("camera_roll_start_radians", angle as f64)?;
+                } else if step + 1 == PATH_SAMPLES {
+                    numeric.push("camera_roll_end_radians", angle as f64)?;
+                }
+                if !camera.is_ceiling_mounted() {
+                    numeric.push("room_camera_path_roll_degrees", angle.to_degrees() as f64)?;
+                }
+            }
             near_horizontal += usize::from(pitch.abs() <= 5.);
             numeric.push("camera_path_pitch_degrees", pitch as f64)?;
             numeric.push(
@@ -151,8 +164,14 @@ pub(super) fn record(
             )?;
             writeln!(
                 paths,
-                "{},{},{},{},{},{}",
-                scene.seed, i, time, p.x, p.y, p.z
+                "{},{},{},{},{},{},{}",
+                scene.seed,
+                i,
+                time,
+                p.x,
+                p.y,
+                p.z,
+                roll.map(|r| r.to_degrees().to_string()).unwrap_or_default()
             )?;
         }
         numeric.push(
@@ -177,6 +196,7 @@ mod tests {
             anisotropy: 1.1,
         };
         let camera = super::super::super::layout::IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: Some(sensor),
             principal_point_offset: None,
@@ -205,6 +225,7 @@ mod tests {
         scene.camera_settings.multiview = None;
         let position = Vec3::new(0., scene.floor_height(Vec2::ZERO) + 1.4, 0.);
         scene.cameras = vec![IndoorCamera {
+            roll_radians: -0.07,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,
@@ -214,7 +235,9 @@ mod tests {
             target: position + Vec3::new(0., -2., -2.),
             fov_degrees: 60.,
             motion: Some(CameraMotion {
-                orientations: Some([Quat::from_rotation_x(2_f32.to_radians()); 2]),
+                orientations: Some(
+                    [Quat::from_rotation_x(2_f32.to_radians()) * Quat::from_rotation_z(-0.07); 2],
+                ),
                 control: [position; 2],
                 target_end: position + Vec3::NEG_Z * 3.,
                 roll: [0.; 2],
@@ -225,6 +248,9 @@ mod tests {
         let mut numeric = NumericCollector::new(directory.path()).unwrap();
         record(&scene, &mut numeric, &mut Vec::new(), &mut Vec::new()).unwrap();
         let values = numeric.finish().unwrap();
+        assert!((values["camera_roll_start_radians"].mean + 0.07).abs() < 1e-5);
+        assert!((values["camera_roll_end_radians"].mean + 0.07).abs() < 1e-5);
+        assert_eq!(values["room_camera_path_roll_degrees"].count, PATH_SAMPLES);
         assert_eq!(values["camera_path_pitch_degrees"].count, PATH_SAMPLES);
         assert!((values["camera_path_pitch_degrees"].mean - 2.).abs() < 1e-4);
         assert!((values["camera_path_eye_height_m"].mean - 1.4).abs() < 1e-5);

@@ -272,6 +272,7 @@ mod tests {
     fn candidate(x: f32, z: f32) -> Candidate {
         let start = Vec3::new(x, 1.5, z);
         let camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,

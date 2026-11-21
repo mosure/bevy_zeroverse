@@ -273,6 +273,7 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance * frame_scale;
                 let mut camera = IndoorCamera {
+                    roll_radians: 0.,
                     ceiling_mount: None,
                     fisheye: None,
                     principal_point_offset: None,
@@ -292,7 +293,7 @@ impl IndoorManifest {
                                     rng.random_range(-0.12..0.12),
                                     rng.random_range(-0.25..0.25),
                                 ),
-                        roll: [rng.random_range(-0.09..0.09), rng.random_range(-0.09..0.09)],
+                        roll: self.camera_settings.sample_roll_drift(rng),
                     }),
                 };
                 if let Some(pitch) = level_pitch {
@@ -410,6 +411,7 @@ impl IndoorManifest {
             };
             let end = start + radial.cross(Vec3::Y) * (distance * direction_sign);
             let mut camera = IndoorCamera {
+                roll_radians: 0.,
                 ceiling_mount: None,
                 fisheye: None,
                 principal_point_offset: None,

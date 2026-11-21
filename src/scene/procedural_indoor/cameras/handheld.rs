@@ -39,7 +39,9 @@ impl HandheldSettings {
         Ok(())
     }
     pub(super) fn apply(&self, camera: &mut IndoorCamera, rng: &mut impl Rng) {
-        let start = Transform::from_translation(camera.start).looking_at(camera.target, Vec3::Y);
+        let mut start =
+            Transform::from_translation(camera.start).looking_at(camera.target, Vec3::Y);
+        start.rotate_local_z(camera.roll_radians);
         let delta = self.translation_m.map(|[lo, hi]| rng.random_range(lo..=hi));
         let angles = self
             .rotation_degrees
@@ -108,6 +110,7 @@ mod tests {
     #[test]
     fn metric_stride_free_rotation_and_reversal_are_exact() {
         let mut camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,

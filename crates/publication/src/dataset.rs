@@ -1,3 +1,5 @@
+mod sampling;
+
 use crate::{
     config::Protocol,
     io,
@@ -369,7 +371,7 @@ impl Dataset {
             .as_u64()
             .context("missing metrics schema")? as u32;
         ensure!(
-            [15, 16, 17, 18, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
+            [15, 16, 17, 18, 24, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
                 && identity.schema_version == 1
                 && identity.source_sha256.len() == 64
                 && identity
@@ -553,25 +555,13 @@ impl Dataset {
                     && capture.annotation_precision == "float32_geometry",
                 "capture capability/precision mismatch"
             );
-            let factor = if protocol.ssaa_factor == 0 {
-                if u64::from(protocol.width) * u64::from(protocol.height) < 1280 * 720 {
-                    2
-                } else {
-                    1
-                }
-            } else {
-                protocol.ssaa_factor
-            };
-            ensure!(
-                capture.capabilities["ssaa_configured_factor"] == protocol.ssaa_factor
-                    && if factor == 1 {
-                        capture.capabilities["sampling"].is_null()
-                    } else {
-                        capture.capabilities["sampling"]
-                            == json!({"schema_version":1,"ssaa_factor":factor})
-                    },
-                "capture supersampling policy differs from publication protocol"
-            );
+            sampling::validate(
+                &capture.capabilities,
+                protocol,
+                schema,
+                identity.generator_version,
+            )
+            .with_context(|| format!("seed {seed} sampling"))?;
             ensure!(
                 capture.views.len() == protocol.cameras * protocol.playback_steps
                     && manifest["cameras"]

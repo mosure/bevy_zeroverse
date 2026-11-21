@@ -143,7 +143,7 @@ pub(super) fn sample(
                         ceiling - reference.start.y,
                     ),
                     proposal_policy,
-                    &scene.camera_settings.intrinsics,
+                    &scene.camera_settings,
                     rng,
                 );
                 // Proposals inherit a valid path but can move below a raised

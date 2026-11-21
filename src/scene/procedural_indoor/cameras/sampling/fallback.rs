@@ -37,7 +37,8 @@ impl IndoorManifest {
                             for fov_degrees in [84., 96., 106.]
                                 .map(|f| self.camera_settings.intrinsics.recovery(f))
                             {
-                                let still = IndoorCamera {
+                                let mut still = IndoorCamera {
+                                    roll_radians: 0.,
                                     ceiling_mount: None,
                                     fisheye: self
                                         .camera_settings
@@ -51,6 +52,8 @@ impl IndoorManifest {
                                     fov_degrees,
                                     motion: None,
                                 };
+                                self.camera_settings
+                                    .bind_room_roll(self.seed, 0, &mut still);
                                 if !coverage.suitable(&still, true) {
                                     continue;
                                 }

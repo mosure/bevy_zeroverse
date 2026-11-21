@@ -434,6 +434,27 @@ model and K rather than infer a fisheye from the legacy `fovy` field.
 Rolling shutter and rectified derived outputs remain future work in the
 [fisheye roadmap](fisheye_lens_roadmap.md).
 
+## Room camera roll
+
+Studio’s **Cameras → Roll & horizon** controls the image horizon
+independently of pitch, yaw and lens. The default proposal is symmetric about
+0°. It samples 88% of camera mounts from a triangular distribution peaking at
+level and spanning ±10.8°, and 12% uniformly across ±45°. This gives a 4%
+proposal probability of exceeding 30° in absolute roll. Visibility, clearance
+and multi-view constraints can reduce a proposed angle. Fixed cameras retain
+their bank. Moving look-at cameras can drift smoothly by up to 1.5° at their
+orientation knots. Handheld rotations and ceiling hardware have independent
+orientation controls.
+
+Set `camera.roll.max_degrees` (0–45), `camera.roll.spread` (0–1) and
+`camera.roll.wide_probability` (0–1) in a viewer URL or use
+`--indoor-camera '{"roll":{"max_degrees":45,"spread":0.24,"wide_probability":0.12}}'`.
+Spread sets the central triangle’s half-width as a fraction of the maximum.
+A wide probability of 1 samples a uniform signed angle. A maximum of 0
+disables sampled bank. Studio previews the proposal distribution. Capture
+extrinsics and the signed `roll_deg` column in `camera_paths.csv` describe the
+realized pose. The column is empty for a vertical optical axis.
+
 ## Independent metric handheld motion
 
 ```json

@@ -3,6 +3,42 @@ use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLay
 use bevy::ecs::system::RunSystemOnce;
 
 #[test]
+fn room_roll_slider_shares_a_sparse_camera_policy() {
+    let mut config = super::super::web_viewer_defaults();
+    config.scene_type = ZeroverseSceneType::ProceduralIndoor;
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::Cameras;
+    let path = "/indoor_camera/roll/max_degrees";
+    assert!(fields::items(&state)
+        .iter()
+        .any(|i| matches!(i, fields::Item::Field(f) if f.path == path)));
+    assert!(!share::query(&config, &state.view).contains("camera.roll."));
+    assert!(!edit(&mut state, "/indoor_camera/roll/spread", json!(0.4)).unwrap());
+    assert!(!edit(
+        &mut state,
+        "/indoor_camera/roll/wide_probability",
+        json!(0.6)
+    )
+    .unwrap());
+    for degrees in [0., 3.5, 38.] {
+        assert!(!edit(&mut state, path, json!(degrees)).unwrap());
+        let query = share::query(&state.config().unwrap(), &state.view);
+        assert!(query.contains("camera.roll.max_degrees="));
+        assert!(query.contains("camera.roll.spread=0.4"));
+        assert!(query.contains("camera.roll.wide_probability=0.6"));
+        let restored =
+            super::super::config_with_query(config.clone(), decode_query(&query)).unwrap();
+        assert_eq!(
+            CameraSettings::parse(restored.indoor_camera.as_deref().unwrap())
+                .unwrap()
+                .roll
+                .max_degrees,
+            degrees
+        );
+    }
+}
+
+#[test]
 fn camera_gizmo_scale_controls_are_live_and_scoped_to_the_viewport() {
     let mut app = App::new();
     app.init_resource::<BevyZeroverseConfig>()

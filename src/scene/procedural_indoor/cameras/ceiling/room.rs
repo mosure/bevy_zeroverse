@@ -72,7 +72,7 @@ fn propose_inner(
                 policy.max_baseline.min(2.).max(policy.min_baseline),
                 Vec2::new(floor - reference.start.y, ceiling - reference.start.y),
                 &local,
-                &scene.camera_settings.intrinsics,
+                &scene.camera_settings,
                 rng,
             );
             if let Some(fov) = fixed_fov {

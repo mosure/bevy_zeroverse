@@ -30,28 +30,7 @@ const SHADER: Handle<Shader> = uuid_handle!("e377b6c2-74c4-4306-a069-5c74d6f25aa
 
 const SENSOR_SHADER: Handle<Shader> = uuid_handle!("89a2d957-69a1-4828-b722-c1136262ccef");
 
-/// Capture raster policy; width, height, K and flow units always describe the
-/// final images. RGB uses a linear-light box filter after tone mapping. Metric
-/// annotations and categorical masks retain exact final-grid pixel-center rays.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CaptureSampling {
-    pub schema_version: u32,
-    pub ssaa_factor: u32,
-}
-impl CaptureSampling {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.schema_version != 1 {
-            return Err("unknown capture sampling schema".into());
-        }
-        if !(1..=4).contains(&self.ssaa_factor) {
-            return Err(
-                "capture sampling metadata must contain the resolved factor (1..=4)".into(),
-            );
-        }
-        Ok(())
-    }
-}
+pub use bevy_zeroverse_capture::sampling::CaptureSampling;
 
 pub fn validate_factor(factor: u32) -> Result<(), String> {
     if factor <= 4 {
@@ -65,18 +44,13 @@ pub fn validate_factor(factor: u32) -> Result<(), String> {
 /// count of 1280×720, and 1× at or above it. Rotation/aspect do not change the
 /// threshold. Explicit values override Auto; limits are checked before allocation.
 pub fn effective_factor(output_size: UVec2, configured: u32) -> u32 {
-    if configured == 0 {
-        if u64::from(output_size.x) * u64::from(output_size.y) < 1280 * 720 {
-            2
-        } else {
-            1
-        }
-    } else {
-        configured
-    }
+    bevy_zeroverse_capture::sampling::base_factor(output_size.to_array(), configured)
 }
 
-pub(crate) fn capture_factor(
+/// Resolve the actual rig-wide factor, including projected window coverings
+/// and device limits. The capture auditor replays this decision against the
+/// sampling metadata read back from the camera targets.
+pub fn capture_factor(
     size: UVec2,
     config: &crate::app::BevyZeroverseConfig,
     scene: Option<&crate::scene::procedural_indoor::layout::IndoorManifest>,

@@ -339,6 +339,7 @@ mod tests {
         let delta = Vec3::X * 0.6;
         let target = start + Vec3::NEG_Y * 2.;
         let camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: Some(CeilingCameraMount {
                 surface: Vec3::Y * 4.,
                 inward_normal: Vec3::NEG_Y,

@@ -72,6 +72,11 @@ pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
             num("@lens_y","Principal-point variation Y",0.,0.2,0.005,"Seeded optical-center displacement, as a fraction of image height. Full K is exported for each view."),
         ]);
         v.extend([
+            section("cameras.roll", "Roll & horizon", "Set how far room cameras bank to either side, including fixed cameras."),
+            num("/indoor_camera/roll/max_degrees","Maximum camera roll (±°)",0.,45.,0.5,"Largest sampled bank about the optical axis. Zero levels room-camera mounts. Handheld angular increments and ceiling hardware have separate controls."),
+            num("/indoor_camera/roll/spread","Typical roll spread",0.,1.,0.01,"Width of the central, level-favoring distribution as a fraction of the maximum. Smaller values give more nearly level views."),
+            num("/indoor_camera/roll/wide_probability","Wide-roll probability",0.,1.,0.01,"Fraction drawn uniformly over the entire signed range. Both left and right tilts are equally likely."),
+            Item::Distribution(super::super::distribution_preview::DistributionKind::Roll),
             section("cameras.motion", "Room trajectories & timing","Independent of furniture/human animation and camera spacing. Intrinsics remain fixed through time."),
             num("@camera_motion_percent","Moving room cameras (%)",0.,100.,1.,"Applies to room cameras. Ceiling cameras have their own motion fraction. Intrinsics remain fixed through time."),
             choices("@path_preset","Trajectory preset",&[("Custom","custom"),("Short handheld","handheld"),("Explore the room","explore")],"Presets set travel bounds; all fields remain editable."),

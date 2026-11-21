@@ -270,7 +270,7 @@ fn fixture(root: &Path) -> (GeneratorIdentity, Protocol) {
                     .unwrap();
             }
         }
-        io::write(&folder.join("capture.json"),&json!({"run_id":"one-run","seed":seed,"image_size":[64,64],"elapsed_seconds":1,"annotation_precision":"float32_geometry","capabilities":{"quality":"Auto","shadows":true,"ssao":true,"ssaa_configured_factor":0,"sampling":{"schema_version":1,"ssaa_factor":2}},"co_visibility_metadata":metadata,"views":views})).unwrap();
+        io::write(&folder.join("capture.json"),&json!({"run_id":"one-run","seed":seed,"image_size":[64,64],"elapsed_seconds":1,"annotation_precision":"float32_geometry","capabilities":{"quality":"Auto","shadows":true,"ssao":true,"ssaa_configured_factor":0,"sampling":{"schema_version":1,"ssaa_factor":2},"ssaa_decision":{"expected_factor":2,"max_texture_dimension_2d":8192}},"co_visibility_metadata":metadata,"views":views})).unwrap();
     }
     fs::write(root.join("architecture.jsonl"), rows).unwrap();
     (identity, p)
@@ -680,5 +680,40 @@ fn population_schema_matches_renderer_and_rejects_stale_contracts() {
         assert!(error
             .to_string()
             .contains("incompatible population schema/protocol"));
+    }
+    // Archives from the last schema predate the camera-path roll column.
+    metrics["schema_version"] = json!(24);
+    io::write(&path, &metrics).unwrap();
+    Dataset::load_study(temp.path(), &protocol).unwrap();
+}
+
+#[test]
+fn adaptive_sampling_matches_the_scene_decision_and_rig_budget() {
+    let temp = tempfile::tempdir().unwrap();
+    let (id, protocol) = fixture(temp.path());
+    let capture_file = temp.path().join("seed_000000/capture.json");
+    let mut capture: Value = io::read(&capture_file).unwrap();
+    for (actual, expected, limit, valid) in [
+        (4, 4, 8192, true), // A small rig can afford 4× on detailed blinds.
+        (3, 3, 192, true),  // The same 64-pixel view is device-limited to 3×.
+        (2, 4, 8192, false),
+        (4, 2, 8192, false),
+        (3, 3, 8192, false), // The policy picks the base or the maximum eligible factor.
+        (4, 4, 192, false),
+        (1, 1, 8192, false),
+    ] {
+        capture["capabilities"]["sampling"] = if actual == 1 {
+            Value::Null
+        } else {
+            json!({"schema_version":1,"ssaa_factor":actual})
+        };
+        capture["capabilities"]["ssaa_decision"] =
+            json!({"expected_factor":expected,"max_texture_dimension_2d":limit});
+        io::write(&capture_file, &capture).unwrap();
+        assert_eq!(
+            Dataset::load(temp.path(), &id, &protocol).is_ok(),
+            valid,
+            "factor={actual} expected={expected} adapter={limit}"
+        );
     }
 }

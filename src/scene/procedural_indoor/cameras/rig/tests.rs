@@ -7,6 +7,7 @@ use crate::scene::procedural_indoor::{
 
 fn camera(position: Vec3, mounted: bool) -> IndoorCamera {
     IndoorCamera {
+        roll_radians: 0.,
         ceiling_mount: mounted.then(|| CeilingCameraMount {
             surface: position + Vec3::Y * 0.2,
             inward_normal: Vec3::NEG_Y,

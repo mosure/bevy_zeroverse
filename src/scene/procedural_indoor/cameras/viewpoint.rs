@@ -196,6 +196,7 @@ mod tests {
     #[test]
     fn level_gaze_keeps_motion_and_continuous_endpoint_pitch() {
         let mut camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,

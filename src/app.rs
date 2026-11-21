@@ -447,7 +447,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera JSON: motion_fraction (0=fixed, 1=all moving), intrinsics {bias, spread, fov_y_min/max_degrees}, baseline, path_length_min/max and advanced multiview constraints.
+    /// Camera policy JSON for motion_fraction (0=fixed, 1=moving), roll {max_degrees, spread, wide_probability}, lens intrinsics, baseline, path length and multi-view constraints.
     #[pyo3(get, set)]
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
@@ -740,7 +740,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default = "default_indoor_human_density")]
     pub indoor_human_density: f32,
 
-    /// Capture camera JSON: motion_fraction (0=fixed, 1=all moving), intrinsics {bias, spread, fov_y_min/max_degrees}, baseline, path_length_min/max and advanced multiview constraints.
+    /// Camera policy JSON for motion_fraction (0=fixed, 1=moving), roll {max_degrees, spread, wide_probability}, lens intrinsics, baseline, path length and multi-view constraints.
     #[arg(long)]
     #[serde(default, deserialize_with = "deserialize_indoor_camera")]
     pub indoor_camera: Option<String>,

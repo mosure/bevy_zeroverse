@@ -56,6 +56,7 @@ impl CameraSettings {
         camera: &mut IndoorCamera,
         rng: &mut impl Rng,
     ) {
+        self.bind_room_roll(seed, index, camera);
         camera.fisheye = self.lens_for(seed, index);
         if !self.camera_moves(seed, index) {
             camera.end = camera.start;
@@ -106,9 +107,13 @@ pub(super) fn role(seed: u64, index: usize, domain: u64, probability: f32) -> bo
     if probability == 1. {
         return true;
     }
+    slot_unit(seed, index, domain) < probability as f64
+}
+
+pub(super) fn slot_unit(seed: u64, index: usize, domain: u64) -> f64 {
     let mut x = seed ^ domain ^ (index as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
     x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
     x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
     x ^= x >> 31;
-    ((x >> 11) as f64 / (1_u64 << 53) as f64) < probability as f64
+    (x >> 11) as f64 / (1_u64 << 53) as f64
 }
