@@ -3,6 +3,7 @@
 use super::super::{Facade, Shade};
 use crate::{calibration::CameraCalibration, scene::procedural_indoor::layout::IndoorManifest};
 use bevy::prelude::*;
+use bevy_zeroverse_capture::sampling::window_detail_budget;
 
 #[derive(Clone, Copy)]
 struct Cover {
@@ -88,29 +89,11 @@ fn covers(f: &Facade, wall: Transform) -> impl Iterator<Item = Cover> + '_ {
     })
 }
 
-fn budget(size: UVec2, cameras: usize, device_limit: u32) -> u32 {
-    let pixels = u64::from(size.x) * u64::from(size.y);
-    if cameras == 0 || pixels == 0 || pixels > 512 * 512 {
-        return 2;
-    }
-    // At most the usual 768² @ 2× per camera, and eight extra megapixels
-    // across the entire rig. Large rigs keep their bounded attachment budget.
-    (3..=4)
-        .rev()
-        .find(|&f| {
-            let samples = u64::from(f * f);
-            size.max_element() <= device_limit / f
-                && pixels * samples <= 1536 * 1536
-                && (pixels * (samples - 4)).saturating_mul(cameras as u64) <= 8 * 1024 * 1024
-        })
-        .unwrap_or(2)
-}
-
 /// For automatic RGB captures below 720p only. One factor for all views and
 /// timesteps preserves the sample-level sampling contract and stable targets.
 pub(crate) fn rgb_factor(scene: &IndoorManifest, size: UVec2, count: usize, limit: u32) -> u32 {
     let cameras = &scene.cameras[..count.min(scene.cameras.len())];
-    let factor = budget(size, cameras.len(), limit);
+    let factor = window_detail_budget(size.to_array(), cameras.len(), limit);
     if factor == 2 {
         return 2;
     }
@@ -273,10 +256,10 @@ mod tests {
 
     #[test]
     fn small_indoor_rigs_have_bounded_sample_and_attachment_cost() {
-        assert_eq!(budget(UVec2::splat(256), 3, 8192), 4);
-        assert_eq!(budget(UVec2::splat(512), 3, 8192), 3);
-        assert_eq!(budget(UVec2::splat(512), 12, 8192), 2);
-        assert_eq!(budget(UVec2::splat(768), 2, 8192), 2);
-        assert_eq!(budget(UVec2::splat(256), 3, 512), 2);
+        assert_eq!(window_detail_budget([256; 2], 3, 8192), 4);
+        assert_eq!(window_detail_budget([512; 2], 3, 8192), 3);
+        assert_eq!(window_detail_budget([512; 2], 12, 8192), 2);
+        assert_eq!(window_detail_budget([768; 2], 2, 8192), 2);
+        assert_eq!(window_detail_budget([256; 2], 3, 512), 2);
     }
 }

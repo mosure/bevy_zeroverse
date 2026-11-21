@@ -41,7 +41,8 @@ pub struct Protocol {
     pub density: f32,
     pub human_density: f32,
     pub gi_rays: u32,
-    /// 0 = automatic 2× below 720p; 1 = off; 2/3/4 = fixed linear factor.
+    /// Zero selects automatic sampling, including scene-adaptive indoor RGB.
+    /// One disables SSAA. Two, three and four specify a fixed linear factor.
     #[serde(default)]
     pub ssaa_factor: u32,
 }

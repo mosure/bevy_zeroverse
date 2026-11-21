@@ -6,6 +6,7 @@ pub mod capacity;
 pub mod depth;
 pub mod gpu;
 pub mod reconstruction;
+pub mod sampling;
 
 pub const GENERATOR_VERSION: u32 = 132;
 pub const CAPTURE_SCHEMA_VERSION: u32 = 1;

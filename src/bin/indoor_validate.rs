@@ -629,6 +629,25 @@ fn run(args: &Args) -> Result<()> {
             sample.indoor.as_ref() == Some(&manifest),
             "sampler lost scene manifest"
         );
+        let device_limit = app
+            .world()
+            .resource::<bevy::render::renderer::RenderDevice>()
+            .limits()
+            .max_texture_dimension_2d;
+        let sampling_decision = bevy_zeroverse_capture::sampling::SamplingDecision {
+            expected_factor: bevy_zeroverse::render::ssaa::capture_factor(
+                UVec2::new(args.width, args.height),
+                app.world().resource::<BevyZeroverseConfig>(),
+                Some(&manifest),
+                device_limit,
+            ),
+            max_texture_dimension_2d: device_limit,
+        };
+        ensure!(
+            sample.sampling.as_ref().map_or(1, |s| s.ssaa_factor)
+                == sampling_decision.expected_factor,
+            "seed {seed}: camera sampling differs from the archived scene and device policy"
+        );
         let directory = args.output.join(format!("seed_{seed:06}"));
         fs::create_dir_all(&directory)?;
         fs::write(
@@ -732,7 +751,7 @@ fn run(args: &Args) -> Result<()> {
             elapsed_seconds: start.elapsed().as_secs_f64(),
             image_size: [args.width, args.height],
             renderer: app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|adapter| format!("{:?}", **adapter)),
-            capabilities: serde_json::json!({ "quality": args.quality, "sampling": sample.sampling, "ssaa_configured_factor": args.ssaa_factor, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
+            capabilities: serde_json::json!({ "quality": args.quality, "sampling": sample.sampling, "ssaa_decision": sampling_decision, "ssaa_configured_factor": args.ssaa_factor, "glass_filter": args.glass_filter, "annotation_glass": sample.annotation_glass, "gpu_materials": !args.export_reference, "shadows": args.quality.shadows() && !args.no_shadows,
                 "phase_timeouts_seconds": {"preparation": preparation_timeout.as_secs(), "capture": capture_timeout.as_secs()},
                 "ssao": args.quality.ssao() && !args.no_ssao, "bloom": args.quality.bloom() && !args.linear_rgb, "specular_transmission": args.quality.specular_transmission(),
                 "shadow_map_size": args.quality.shadow_map_size(),

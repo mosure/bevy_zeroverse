@@ -39,6 +39,9 @@ The projection estimates apparent size and permits occlusion by furnishings.
 The higher factors are limited to 1536² source pixels per view and 8 Mi extra
 source pixels across the rig. A qualifying three-camera rig can use 4× at
 256×256 and 3× at 512×512. The exported sampling metadata records the actual factor.
+The capture auditor also records the factor it recomputes from the room's
+windows and camera paths, together with the adapter's maximum texture size.
+Publication checks that decision against the actual factor and the rig's pixel budget.
 An explicit `config.ssaa_factor = 2` renders capture RGB at twice the width and height,
 then area-averages each 2×2 footprint on the GPU into the original output size.
 Explicit factors 1 (off), 2, 3 and 4 override Auto. The equivalent CLI flag is
