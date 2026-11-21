@@ -63,7 +63,9 @@ fn original_from_geometry(
             .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
     }
     for object in &scene.objects {
-        if crate::scene::procedural_indoor::photometry::decorative_emission(object).is_none() {
+        if objects::equipment::signals::strings::practical(object)
+            || crate::scene::procedural_indoor::photometry::decorative_emission(object).is_none()
+        {
             continue;
         }
         for channel in 0..crate::scene::procedural_indoor::photometry::emission_channels(object) {
@@ -218,6 +220,10 @@ fn original_from_geometry(
             outer_cos: beam.outer.cos(),
         });
     }
+    result.lights.extend(
+        objects::equipment::signals::strings::practical_lights(scene)
+            .map(|(_, _, l)| LocalLight::from(l)),
+    );
     result.nodes = original_median(&mut result.triangles);
     result.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
     result

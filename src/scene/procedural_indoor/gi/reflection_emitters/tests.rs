@@ -170,3 +170,47 @@ fn ring_hole_and_tube_gap_do_not_become_rectangular_lights() {
         }
     }
 }
+
+#[test]
+fn practical_string_reflections_hit_the_real_aperture_once_and_respect_occlusion() {
+    let mut room = scene(FixtureShape::Panel);
+    let o = (0..128)
+        .map(|seed| {
+            let mut o = objects::audit::fixture(ObjectKind::StringLights, seed);
+            o.variant = 3;
+            o.id = 0;
+            o.yaw = 0.8;
+            o.position = Vec3::new(20., 3., 0.);
+            o
+        })
+        .find(|o| objects::equipment::signals::string_program(o).shape == 4)
+        .unwrap();
+    for ((surface, label), _) in objects::build_object(&o).parts {
+        if surface == Surface::Light {
+            assert!(decorative_emitter_slot(&label).is_none());
+        }
+    }
+    let mut micro = o.clone();
+    micro.variant = 1;
+    assert!(objects::build_object(&micro)
+        .parts
+        .keys()
+        .filter(|(s, _)| *s == Surface::Light)
+        .all(|(_, label)| decorative_emitter_slot(label).is_some()));
+    room.objects = vec![o];
+    let emitters = ReflectionEmitters::new(&room);
+    for (_, _, light) in objects::equipment::signals::strings::practical_lights(&room) {
+        let front = light.position + 0.10 * light.axis;
+        let rgb = emitters.radiance(front, -light.axis, 0.12).unwrap();
+        assert!(
+            rgb.max_element() > 0.
+                && rgb
+                    .normalize()
+                    .abs_diff_eq(linear(light.color).normalize(), 1e-5)
+        );
+        assert!(emitters.radiance(front, -light.axis, 0.09).is_none());
+        assert!(emitters
+            .radiance(light.position - 0.1 * light.axis, light.axis, 0.12)
+            .is_none());
+    }
+}

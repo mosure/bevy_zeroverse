@@ -1,15 +1,14 @@
 # Room services and floor coverings
 
 Room services use ordinary procedural object identities and the existing PBR,
-semantic, instance-box, depth, normal and visibility paths. They do not introduce
-new texture atlases or per-bulb shadow maps.
+semantic, instance-box, depth, normal and visibility paths. Strands share a small set of bulb materials.
 
 | Feature | Sampling and constraints |
 | --- | --- |
 | Exit signs | Green or red illuminated EXIT letters, variable enclosure dimensions and finish. Mounted above the actual primary entry only when solid backing and headroom permit. These are visual fixtures, not a building-code compliance simulation. |
 | Fire safety | Distinct wall horns, strobes, combined horn/strobes and round metal bells; ceiling smoke/heat detectors; reachable pull stations and manual call points beside actual entrances. Enclosure proportions, vent patterns, test buttons, protective guards and red/white/ivory/dark/metallic finishes vary. |
 | Speakers | Existing tabletop speakers plus one to three matched wall units; continuous enclosure dimensions include soundbars and tall multi-driver columns. Real backing and installation clearance are required. |
-| String lights | Wall-mounted and room-spanning ceiling-suspended runs with real support wires and canopies; one to three asymmetric sagging bays, transverse bends, jittered spacing/drop/size, and globe, pear, capsule or miniature bulbs. Coherent white, alternating, festive and pastel palettes use at most six emissive materials per run, shared by raster rendering and static transport. No individual shadow lights or texture uploads are added. |
+| String lights | Wall or ceiling anchors support one to four unequal spans with independent sag, height and transverse offset. Socket pitch follows cable length with clearance for each bulb. Long leads hang near plumb. Clipped sockets twist around the wire. White, alternating and shuffled colors share up to eight tinted emission and brightness bindings without texture uploads. |
 | Exposed ducts | Circular spiral-seam ducting, square and rectangular sections, reducers, offsets, registers, hangers and folded seams. Service lane ordering and offsets vary independently of cross-section selection. |
 | Angled ceiling fixtures | Adjustable downlights/tubes and modestly inclined suspended fixtures. Visible apertures, shadowed spotlights, CPU/GPU transport, reflection geometry and reservation bounds share one orientation. |
 | Area rugs | Existing small mats plus larger furniture-bearing rugs up to 7.5 × 6.5 m before fit rejection. Exact rug contours are archived as support footprints. Fully contained furniture groups and supported props are raised by the actual 4–9 mm pile height. Partial support, floor-level breaks, entry paths and existing floor details reject the proposal. People are sampled afterward against the same support surface. |
@@ -28,7 +27,18 @@ furniture and people. Their empty interior volume remains navigable. Ceiling
 supports currently require a locally level mounting patch; unsuitable sloped
 patches reject the proposal. Manual controls avoid door/glazing/frame extents.
 
-Installation retries, bulb counts (at most 36 per run), rug count and service module counts are
+A room can contain one practical strand with up to four individually shadowed
+bulbs. Exposed diffusers use point sources. Recessed lenses emit along their
+housing axes. Source intensity follows diffuser area and linear luminance.
+Static diffuse transport uses the same sources, and reflections retain the
+emissive surfaces. Fine LED strands can carry up to 36 small emitters and
+contribute through mesh emission in native diffuse GI. In scenes without an
+irradiance volume, including on the web, miniature bulbs illuminate nearby
+surfaces with short-range clustered point lights. Their radius of influence
+is capped at 28 cm and clipped at the mounting wall or roof backing. These
+small sources require no additional shadow-map passes.
+
+Installation retries, rug count and service module counts are
 bounded. Rejected installations are omitted rather than moved through glazing,
 architecture or existing objects. A low-headroom room can legitimately have no
 exit sign above its entry. These fixtures do not model powered audio, flashing

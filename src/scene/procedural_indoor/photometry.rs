@@ -72,7 +72,7 @@ pub fn is_emitter(kind: ObjectKind) -> bool {
         )
 }
 
-/// Small indicator/decorative sources are emissive geometry, not new shadow lights.
+/// Number of distinct visible emission bindings on this fixture.
 pub fn emission_channels(o: &IndoorObject) -> usize {
     if o.kind == ObjectKind::StringLights {
         super::objects::equipment::signals::string_program(o)
@@ -95,14 +95,7 @@ pub fn decorative_emission_channel(o: &IndoorObject, channel: usize) -> Option<L
         ObjectKind::FireAlarm | ObjectKind::FireDetector => LinearRgba::new(1.8, 0.01, 0.005, 1.),
         ObjectKind::StringLights => {
             let p = super::objects::equipment::signals::string_program(o);
-            let [r, g, b] = *p.colors_srgb.get(channel)?;
-            let c = Color::srgb(r, g, b).to_linear();
-            // Bound peak radiance as well as brightness; saturated blue must not
-            // become a pathological source by photopic normalization alone.
-            let scale = (p.luminance
-                / (0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue).max(0.1))
-            .min(2500.);
-            LinearRgba::new(c.red * scale, c.green * scale, c.blue * scale, 1.)
+            p.emission(channel, 1.)?
         }
         _ => return None,
     })

@@ -49,31 +49,44 @@ pub(super) fn build(
     materials: &mut impl AssetStore<StandardMaterial>,
 ) -> BTreeMap<(usize, usize), Handle<StandardMaterial>> {
     let template = materials.get(template).expect("light material").clone();
-    scene
+    let mut bindings = BTreeMap::new();
+    for o in scene
         .objects
         .iter()
         .filter(|o| photometry::is_emitter(o.kind))
-        .flat_map(|o| (0..photometry::emission_channels(o)).map(move |channel| (o, channel)))
-        .map(|(o, channel)| {
-            if let Some(emission) = photometry::decorative_emission_channel(o, channel) {
+    {
+        if o.kind == ObjectKind::StringLights {
+            let p = objects::equipment::signals::string_program(o);
+            let scale = objects::equipment::signals::strings::illumination_scale(scene);
+            for channel in 0..p.colors_srgb.len() {
                 let mut material = template.clone();
+                material.emissive = p.emission(channel, scale).expect("sampled bulb channel");
+                let tint = Vec3::from_array(p.colors_srgb[channel]).lerp(Vec3::ONE, 0.32);
+                material.base_color = Color::srgb(tint.x, tint.y, tint.z);
+                bindings.insert((o.id, channel), materials.add(material));
+            }
+            continue;
+        }
+        for channel in 0..photometry::emission_channels(o) {
+            let mut material = template.clone();
+            if let Some(emission) = photometry::decorative_emission_channel(o, channel) {
                 material.emissive = emission;
                 if o.kind == ObjectKind::ExitSign {
                     material.base_color = objects::equipment::signals::exit::appearance(o, channel)
                         .expect("valid exit emission channel")
                         .0;
                 }
-                return ((o.id, channel), materials.add(material));
+            } else {
+                let power = photometry::lamp(scene, o);
+                let c = source_color(scene, power.color).to_linear();
+                let radiance = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
+                material.emissive =
+                    LinearRgba::new(c.red * radiance, c.green * radiance, c.blue * radiance, 1.);
             }
-            let power = photometry::lamp(scene, o);
-            let c = source_color(scene, power.color).to_linear();
-            let radiance = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
-            let mut material = template.clone();
-            material.emissive =
-                LinearRgba::new(c.red * radiance, c.green * radiance, c.blue * radiance, 1.);
-            ((o.id, channel), materials.add(material))
-        })
-        .collect()
+            bindings.insert((o.id, channel), materials.add(material));
+        }
+    }
+    bindings
 }
 
 #[cfg(test)]
@@ -135,7 +148,7 @@ mod tests {
         let mut colored = 0;
         for o in &scene.objects {
             let p = objects::equipment::signals::string_program(o);
-            colored += usize::from(p.colors_srgb.len() > 1);
+            colored += usize::from(p.color_count() > 1);
             let assembly = objects::build_object(o);
             let mut channels = std::collections::BTreeSet::new();
             for ((surface, label), _) in assembly.parts {
@@ -160,7 +173,7 @@ mod tests {
             }
             assert_eq!(channels.len(), p.colors_srgb.len());
         }
-        assert!(colored > 8);
+        assert!(colored > 8 && scene.objects.len() - colored > 4);
         assert_eq!(bindings.len(), slots.len());
         assert_eq!(materials.len(), bindings.len() + 1);
         assert!(transport_slot("string_lights#source18446744073709551615#bulb7").is_none());

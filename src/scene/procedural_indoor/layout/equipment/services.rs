@@ -27,7 +27,7 @@ pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
         ObjectKind::ExitSign => exits::mounted(scene, o),
         ObjectKind::FireDetector => suspended::detector_mounted(scene, o),
         ObjectKind::FirePullStation => pull_mounted(scene, o),
-        ObjectKind::StringLights if signals::string_program(o).suspended => {
+        ObjectKind::StringLights if signals::strings::suspended(o) => {
             suspended::string_mounted(scene, o)
         }
         _ => scene.wall_attachment_clear(o),
@@ -243,6 +243,7 @@ mod tests {
                     .unwrap();
             crate::scene::procedural_indoor::validation::validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("{seed}: {e}"));
+            let mut practical_runs = 0;
             for o in &scene.objects {
                 if matches!(
                     o.kind,
@@ -278,11 +279,29 @@ mod tests {
                     }
                     if o.kind == ObjectKind::StringLights {
                         let p = signals::string_program(o);
+                        if p.practical {
+                            practical_runs += 1;
+                            assert!(practical_runs <= 1 && p.bulbs <= 4);
+                        }
+                        for key in [
+                            if p.practical {
+                                "practical"
+                            } else {
+                                "micro_led"
+                            },
+                            if p.clipped { "clipped" } else { "pendant_drop" },
+                        ] {
+                            *distribution.entry(key.into()).or_default() += 1;
+                            sample_seeds.entry(key.into()).or_insert(seed);
+                        }
+                        sample_seeds
+                            .entry(format!("string_shape_{}", p.shape))
+                            .or_insert(seed);
                         let mode = if p.suspended { "suspended" } else { "wall" };
                         *distribution.entry(mode.into()).or_default() += 1;
                         sample_seeds.entry(mode.into()).or_insert(seed);
                         *distribution
-                            .entry(format!("palette_{}_colors", p.colors_srgb.len()))
+                            .entry(format!("palette_{}_colors", p.color_count()))
                             .or_default() += 1;
                         *distribution.entry(format!("{}_bays", p.bays)).or_default() += 1;
                         *distribution
@@ -393,6 +412,18 @@ mod tests {
             );
         }
         assert!(supported > 3 && max_rug_area > 5.);
+        for key in [
+            "practical",
+            "micro_led",
+            "clipped",
+            "pendant_drop",
+            "bulb_shape_4",
+        ] {
+            assert!(
+                distribution.get(key).copied().unwrap_or(0) > 3,
+                "{distribution:?}"
+            );
+        }
         assert!(distribution.get("suspended").copied().unwrap_or(0) > 3);
         assert!(distribution.get("wall").copied().unwrap_or(0) > 3);
         assert!(distribution

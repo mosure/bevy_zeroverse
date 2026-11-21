@@ -208,16 +208,14 @@ impl IndoorObject {
                 .then(|| {
                     super::objects::equipment::signals::string_program(self)
                         .local_reservations(self)
-                        .into_iter()
-                        .map(|(a, b)| {
-                            let c = tf.transform_point((a + b) * 0.5);
-                            let half = Mat3::from_quat(tf.rotation).abs() * ((b - a) * 0.5);
-                            (c - half, c + half)
-                        })
-                        .collect::<Vec<_>>()
                 })
                 .into_iter()
-                .flatten(),
+                .flatten()
+                .map(move |(a, b)| {
+                    let c = tf.transform_point((a + b) * 0.5);
+                    let half = Mat3::from_quat(tf.rotation).abs() * ((b - a) * 0.5);
+                    (c - half, c + half)
+                }),
         )
         .chain(self.cable_path.iter().flat_map(move |path| {
             path.windows(2).map(move |pair| {
