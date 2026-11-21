@@ -219,6 +219,7 @@ mod tests {
         let at = tf.transform_point(Vec3::new(0., 1.5, 0.));
         let eye = tf.transform_point(Vec3::new(0., 1.5, 7.));
         let camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: Some(Vec2::new(0.04, -0.03)),

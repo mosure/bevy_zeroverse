@@ -112,6 +112,9 @@ pub(super) fn reuse(
                 break;
             }
             let mut camera = source.clone();
+            scene
+                .camera_settings
+                .bind_room_roll(scene.seed, index, &mut camera);
             camera.fisheye = prototype.lens;
             camera.fov_degrees = prototype.fov_degrees;
             if pools[index].iter().any(|c| c.camera == camera) {
@@ -213,6 +216,9 @@ pub(super) fn resample_intrinsics(
                 return;
             }
             let mut camera = sources[rng.random_range(0..sources.len())].clone();
+            scene
+                .camera_settings
+                .bind_room_roll(scene.seed, index, &mut camera);
             camera.fisheye = None;
             camera.fov_degrees = pdf.sample(&mut rng);
             scene.camera_diagnostics.recovery_intrinsic_draws += 1;

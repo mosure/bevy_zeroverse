@@ -161,6 +161,7 @@ impl IndoorManifest {
                 };
                 let bend = right * rng.random_range(-0.60..0.60) * distance;
                 let mut camera = IndoorCamera {
+                    roll_radians: 0.,
                     ceiling_mount: None,
                     fisheye: None,
                     principal_point_offset: None,
@@ -427,7 +428,8 @@ fn person_fallback_keeps_authored_handheld_orientations_reversal_and_duration() 
     let orientation = camera.motion.as_ref().unwrap().orientations.unwrap();
     let base = Transform::from_translation(camera.end)
         .looking_at(camera.target, Vec3::Y)
-        .rotation;
+        .rotation
+        * Quat::from_rotation_z(camera.roll_radians);
     // acos(dot(q, q)) can amplify a one-ULP norm error into a nonzero
     // angle. Compare the actual frame at the same tolerance instead.
     for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
@@ -484,7 +486,8 @@ fn person_fallback_accepts_authored_rotation_only_handheld_with_zero_minimum_pat
     let orientations = camera.motion.as_ref().unwrap().orientations.unwrap();
     let base = Transform::from_translation(camera.start)
         .looking_at(camera.target, Vec3::Y)
-        .rotation;
+        .rotation
+        * Quat::from_rotation_z(camera.roll_radians);
     for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
         assert!((orientations[1] * axis).distance(base * axis) < 1e-5);
     }

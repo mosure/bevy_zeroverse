@@ -186,7 +186,9 @@ timesteps and configuration import/export.
 Camera baseline coordinates spacing, shared surfaces and gaze variation across
 the requested camera count. **Moving cameras (%)** selects fixed or moving views
 (default 100%); travel bounds apply to moving cameras while scene animation stays
-independent. Continuous **lens preference/spread** controls include a live PDF
+independent. **Cameras → Roll & horizon** controls both fixed and moving room cameras.
+The default favors level framing and samples tails out to ±45°.
+Continuous **lens preference/spread** controls include a live PDF
 preview, separate from spatial baseline. Optional calibrated **fisheye lenses**
 add seeded per-camera frequency, angular FOV preference/spread, distortion and
 circular coverage, with aligned depth, flow, semantics and co-visibility.

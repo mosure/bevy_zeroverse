@@ -8,6 +8,7 @@ const BINS: usize = 24;
 pub enum DistributionKind {
     Perspective,
     Fisheye,
+    Roll,
     Clutter,
 }
 #[derive(Component)]
@@ -69,10 +70,20 @@ pub(super) fn synchronize(world: &mut World, state: &EditorState) {
     >(state.draft["indoor_clutter"].clone())
     .ok()
     .filter(|p| p.validate().is_ok());
+    let roll =
+        serde_json::from_value::<crate::scene::procedural_indoor::cameras::RollDistribution>(
+            state.draft["indoor_camera"]["roll"].clone(),
+        )
+        .ok()
+        .filter(|p| p.validate().is_ok());
     let kinds: &[DistributionKind] = if state.view.page == Page::Scene {
         &[DistributionKind::Clutter]
     } else {
-        &[DistributionKind::Perspective, DistributionKind::Fisheye]
+        &[
+            DistributionKind::Perspective,
+            DistributionKind::Fisheye,
+            DistributionKind::Roll,
+        ]
     };
     for &kind in kinds {
         let mut bins = [0_u32; BINS];
@@ -82,10 +93,12 @@ pub(super) fn synchronize(world: &mut World, state: &EditorState) {
                 .map(|p| [p.fov_y_min_degrees, p.fov_y_max_degrees]),
             DistributionKind::Fisheye => fisheye.as_ref().map(|p| p.fov_degrees),
             DistributionKind::Clutter => clutter.as_ref().map(|_| [0., 1.]),
+            DistributionKind::Roll => roll.map(|p| [-p.max_degrees, p.max_degrees]),
         };
         let quantile = |q| match kind {
             DistributionKind::Perspective => perspective.as_ref().unwrap().quantile(q),
             DistributionKind::Fisheye => fisheye.as_ref().unwrap().fov_quantile(q),
+            DistributionKind::Roll => roll.unwrap().quantile(q),
             DistributionKind::Clutter => {
                 let p = clutter.as_ref().unwrap();
                 let probability = p.selection_probability();
@@ -103,7 +116,9 @@ pub(super) fn synchronize(world: &mut World, state: &EditorState) {
                 let index = (((degrees - lo) / range * BINS as f32) as usize).min(BINS - 1);
                 bins[index] += 1;
             }
-            if kind == DistributionKind::Clutter {
+            if kind == DistributionKind::Roll {
+                format!("Signed camera roll · {lo:.0}° to {hi:.0}°\nMedian {:+.0}°   Central 90% {:+.1}° to {:+.1}°", quantile(0.5), quantile(0.05), quantile(0.95))
+            } else if kind == DistributionKind::Clutter {
                 let p = clutter.as_ref().unwrap();
                 let probability = p.selection_probability();
                 format!("{:.0}% clear tables · {:.0}% selected\nSelected amount — 10%: {:.2}   Median: {:.2}   90%: {:.2}\nProposal distribution; support and clearance can reduce realized counts.",

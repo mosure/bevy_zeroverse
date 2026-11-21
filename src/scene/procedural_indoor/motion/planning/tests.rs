@@ -144,6 +144,7 @@ fn camera_path_reservations_follow_route_instead_of_filling_its_bounding_box() {
     let a = Vec3::new(-2., 1., 2.);
     let b = Vec3::new(2., 1., -2.);
     scene.cameras.push(IndoorCamera {
+        roll_radians: 0.,
         ceiling_mount: None,
         fisheye: None,
         start: a,
@@ -259,6 +260,7 @@ fn ceiling_camera_mount_body_blocks_fan_even_when_lens_is_below_rotor() {
     let surface = Vec3::new(fan.radius_m * 0.75, fan.rotor_y + 0.10, 0.);
     let eye = surface - Vec3::Y * 0.8;
     scene.cameras.push(IndoorCamera {
+        roll_radians: 0.,
         ceiling_mount: Some(CeilingCameraMount {
             surface,
             inward_normal: Vec3::NEG_Y,

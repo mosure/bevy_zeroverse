@@ -123,6 +123,7 @@ mod tests {
             Some(lens::FisheyeFit::Elliptical),
         ] {
             let camera = IndoorCamera {
+                roll_radians: 0.,
                 ceiling_mount: None,
                 fisheye: fit.map(|fit| lens::FisheyeSensor {
                     lens: lens::Fisheye {

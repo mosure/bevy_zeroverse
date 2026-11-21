@@ -419,6 +419,7 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
             return fail("camera motion does not match requested role or travel bounds");
         }
         if !camera.target.is_finite()
+            || !camera.roll_radians.is_finite()
             || !scene
                 .camera_settings
                 .intrinsics_for(scene.seed, index)

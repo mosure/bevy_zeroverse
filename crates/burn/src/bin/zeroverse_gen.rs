@@ -142,7 +142,7 @@ struct Cli {
     #[arg(long)]
     human_motion: Option<String>,
 
-    /// Capture camera JSON with primary-room/path bounds and multiview {min_overlap, min_baseline, max_baseline}
+    /// Camera policy JSON for room placement, trajectories, roll {max_degrees, spread, wide_probability} and multi-view overlap.
     #[arg(long)]
     indoor_camera: Option<String>,
     /// Independent seeded material, illumination and exposure factors as JSON.

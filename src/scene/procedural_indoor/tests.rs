@@ -645,8 +645,10 @@ fn trajectory_validation_matches_runtime_poses_and_covers_metric_baselines() {
                     actual.translation + actual.rotation * Vec3::NEG_Z * 2.0
                 ));
                 assert!(
-                    (actual.rotation * Vec3::X).y.abs() < 0.14001,
-                    "camera roll exceeds sampled handheld bounds"
+                    super::cameras::horizon_roll_radians(actual.rotation)
+                        .is_none_or(|r| r.abs().to_degrees()
+                            <= scene.camera_settings.roll.max_degrees + 0.01),
+                    "camera horizon exceeds configured automatic roll bounds"
                 );
             }
         }

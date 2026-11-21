@@ -277,6 +277,10 @@ impl IndoorObject {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IndoorCamera {
+    /// Persistent room-camera bank around local +Z. Explicit motion quaternions
+    /// already include this offset. Defaults to zero for archived cameras.
+    #[serde(default)]
+    pub roll_radians: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ceiling_mount: Option<super::cameras::ceiling::CeilingCameraMount>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1187,6 +1191,7 @@ impl IndoorManifest {
     /// Lens clearance is continuous; view suitability is checked over the path.
     pub fn camera_trajectory_clear(&self, start: Vec3, end: Vec3, target: Vec3) -> bool {
         let camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,

@@ -681,4 +681,8 @@ fn population_schema_matches_renderer_and_rejects_stale_contracts() {
             .to_string()
             .contains("incompatible population schema/protocol"));
     }
+    // Archives from the last schema predate the camera-path roll column.
+    metrics["schema_version"] = json!(24);
+    io::write(&path, &metrics).unwrap();
+    Dataset::load_study(temp.path(), &protocol).unwrap();
 }

@@ -329,7 +329,7 @@ fn export_inner(
     let mut camera_rows = BufWriter::new(fs::File::create(directory.join("cameras.csv"))?);
     let mut overlaps = BufWriter::new(fs::File::create(directory.join("camera_overlap.csv"))?);
     let mut paths = BufWriter::new(fs::File::create(directory.join("camera_paths.csv"))?);
-    writeln!(paths, "seed,camera,time,x_m,y_m,z_m")?;
+    writeln!(paths, "seed,camera,time,x_m,y_m,z_m,roll_deg")?;
     let mut groups = BufWriter::new(fs::File::create(directory.join("camera_groups.csv"))?);
     writeln!(
         groups,
@@ -1640,8 +1640,6 @@ fn export_inner(
             let pitch = direction.y.clamp(-1., 1.).asin().to_degrees();
             let length = camera.path_length();
             if let Some(m) = &camera.motion {
-                numeric.push("camera_roll_start_radians", m.roll[0] as f64)?;
-                numeric.push("camera_roll_end_radians", m.roll[1] as f64)?;
                 numeric.push(
                     "camera_target_motion_m",
                     m.target_end.distance(camera.target) as f64,

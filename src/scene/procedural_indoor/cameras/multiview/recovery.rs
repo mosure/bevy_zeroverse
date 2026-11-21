@@ -194,6 +194,7 @@ fn alternate_reference(
         ][attempt % 8];
         let end = origin + direction * length;
         let mut camera = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,
@@ -442,7 +443,7 @@ pub(super) fn complete(
                                 reachable,
                                 Vec2::ZERO,
                                 policy,
-                                &scene.camera_settings.intrinsics,
+                                &scene.camera_settings,
                                 rng,
                             );
                             let offset = origin - camera.start;
@@ -475,6 +476,7 @@ pub(super) fn complete(
                             let direction = [optical, -optical, Vec3::Y][mode - 1];
                             let end = origin + direction * length;
                             IndoorCamera {
+                                roll_radians: 0.,
                                 ceiling_mount: None,
                                 fisheye: None,
                                 principal_point_offset: None,
@@ -544,6 +546,7 @@ pub(super) fn complete(
                         let end = origin + direction * length;
                         let aim = content[index % content.len()];
                         IndoorCamera {
+                            roll_radians: 0.,
                             ceiling_mount: None,
                             fisheye: None,
                             principal_point_offset: None,
@@ -622,7 +625,7 @@ pub(super) fn complete(
                             // height draw could have no interval under a sloping roof.
                             Vec2::ZERO,
                             policy,
-                            &scene.camera_settings.intrinsics,
+                            &scene.camera_settings,
                             rng,
                         );
                         let offset = origin - camera.start;
@@ -726,6 +729,9 @@ pub(super) fn complete(
                     }
                     // A saved trajectory may belong to another slot. Rebind
                     // its seeded lens before every coverage/overlap decision.
+                    scene
+                        .camera_settings
+                        .bind_room_roll(scene.seed, camera_index, &mut camera);
                     camera.fisheye = scene
                         .camera_settings
                         .lenses

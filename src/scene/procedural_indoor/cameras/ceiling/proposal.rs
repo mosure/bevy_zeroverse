@@ -75,6 +75,7 @@ impl Prototype {
             body_radius_m: mounting.body_radius_m,
         };
         let mut camera = IndoorCamera {
+            roll_radians: 0.,
             target: start + mount.optical_axis() * 2.,
             ceiling_mount: Some(mount),
             fisheye: self.lens,

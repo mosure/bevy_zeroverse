@@ -609,6 +609,7 @@ mod tests {
         )
         .unwrap();
         let wall_view = IndoorCamera {
+            roll_radians: 0.,
             ceiling_mount: None,
             fisheye: None,
             principal_point_offset: None,

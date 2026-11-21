@@ -13,6 +13,8 @@ pub mod multiview;
 mod navigation;
 mod program;
 pub mod rig;
+mod roll;
+pub use roll::{horizon_roll_radians, RollDistribution};
 mod sampling;
 pub mod viewpoint;
 use super::layout::{IndoorCamera, IndoorManifest};
@@ -47,6 +49,8 @@ pub struct CameraSettings {
     /// Probability that each camera moves through time. Zero fixes every pose;
     /// intrinsics are fixed for every camera regardless of this setting.
     pub motion_fraction: f32,
+    /// Signed room-camera bank around the optical axis, independent of mounting height and lens.
+    pub roll: RollDistribution,
     pub path_length_min: f32,
     pub path_length_max: f32,
     pub long_path_fraction: f32,
@@ -68,6 +72,7 @@ impl Default for CameraSettings {
             overlap_mixture: None,
             primary_room: true,
             motion_fraction: 1.0,
+            roll: RollDistribution::default(),
             path_length_min: 0.03,
             path_length_max: 8.0,
             long_path_fraction: 0.45,
@@ -92,6 +97,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         overlap_mixture: Option<mixture::OverlapMixture>,
         primary_room: bool,
         motion_fraction: f32,
+        roll: RollDistribution,
         path_length_min: f32,
         path_length_max: f32,
         long_path_fraction: f32,
@@ -112,6 +118,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
                 overlap_mixture: None,
                 primary_room: independent.primary_room,
                 motion_fraction: independent.motion_fraction,
+                roll: RollDistribution::level(),
                 path_length_min: independent.path_length_min,
                 path_length_max: independent.path_length_max,
                 long_path_fraction: independent.long_path_fraction,
@@ -130,6 +137,7 @@ pub(super) fn deserialize_archived_settings<'de, D: serde::Deserializer<'de>>(
         overlap_mixture: archived.overlap_mixture,
         primary_room: archived.primary_room,
         motion_fraction: archived.motion_fraction,
+        roll: archived.roll,
         path_length_min: archived.path_length_min,
         path_length_max: archived.path_length_max,
         long_path_fraction: archived.long_path_fraction,
@@ -141,6 +149,7 @@ impl CameraSettings {
     pub(super) fn archived_independent() -> Self {
         Self {
             intrinsics: intrinsics::IntrinsicsSettings::legacy(),
+            roll: RollDistribution::level(),
             ..Self::independent()
         }
     }
@@ -168,6 +177,7 @@ impl CameraSettings {
         if !(0.0..=1.0).contains(&self.motion_fraction) {
             return Err("indoor_camera.motion_fraction must be in [0,1]".into());
         }
+        self.roll.validate()?;
         if !self.principal_point_jitter.is_finite()
             || self.principal_point_jitter.cmplt(Vec2::ZERO).any()
             || self.principal_point_jitter.cmpgt(Vec2::splat(0.2)).any()
@@ -219,7 +229,7 @@ pub struct CameraMotion {
     pub orientations: Option<[Quat; 2]>,
     pub control: [Vec3; 2],
     pub target_end: Vec3,
-    /// Optical-axis roll in radians; small handheld deviations, not scene rotation.
+    /// Additional local +Z bank in radians at the two look-at knots.
     pub roll: [f32; 2],
     /// Collision-checked, arc-length-parametrized route including both endpoints.
     /// Empty retains the local cubic trajectory used by older manifests.
@@ -251,7 +261,7 @@ impl IndoorCamera {
                 Transform::from_translation(position)
                     .looking_at(target, Vec3::Y)
                     .rotation
-                    * Quat::from_rotation_z(roll)
+                    * Quat::from_rotation_z(self.roll_radians + roll)
             };
             if !m.route.is_empty() {
                 return TrajectorySampler::WaypointPath {
@@ -281,19 +291,31 @@ impl IndoorCamera {
                 }),
             }
         } else {
-            let pose = |p| ExtrinsicsSampler {
-                position: ExtrinsicsSamplerType::Transform(Transform::from_translation(p)),
+            let pose = |p| {
+                let mut tf = Transform::from_translation(p).looking_at(self.target, Vec3::Y);
+                tf.rotate_local_z(self.roll_radians);
+                tf
+            };
+            let sampler = |transform| ExtrinsicsSampler {
+                position: ExtrinsicsSamplerType::Transform(transform),
                 looking_at: LookingAtSampler::Exact(self.target),
-                ..default()
+                cache: Some(transform),
             };
             if self.start == self.end {
                 TrajectorySampler::Static {
-                    start: pose(self.start),
+                    start: sampler(pose(self.start)),
+                }
+            } else if self.roll_radians == 0. {
+                // Preserve the horizon-locked interpolation of archived linear trajectories.
+                TrajectorySampler::Linear {
+                    start: sampler(pose(self.start)),
+                    end: sampler(pose(self.end)),
                 }
             } else {
-                TrajectorySampler::Linear {
-                    start: pose(self.start),
-                    end: pose(self.end),
+                // Linear position with explicit orientations; legacy Linear levels its output.
+                TrajectorySampler::WaypointPath {
+                    positions: vec![self.start, self.end],
+                    rotations: [self.start, self.end].map(|p| pose(p).rotation).to_vec(),
                 }
             }
         }
@@ -446,6 +468,20 @@ impl IndoorManifest {
         {
             return false;
         }
+        // The upright prior belongs to automatic look-at paths. A handheld
+        // request may intentionally bank farther while clearing the same swept lens volume.
+        let limit_automatic_bank = camera
+            .motion
+            .as_ref()
+            .is_none_or(|m| m.orientations.is_none());
+        // Interpolation can add a little bank between independently aimed knots.
+        let max_slope = self
+            .camera_settings
+            .roll
+            .support_degrees()
+            .max(8.05)
+            .to_radians()
+            .tan();
         let mut previous = runtime.sample(0.0).translation;
         for i in 0..=64 {
             let pose = runtime.sample(i as f32 / 64.0);
@@ -462,7 +498,10 @@ impl IndoorManifest {
                 })
                 || pose.translation.y
                     > self.ceiling_height(pose.translation.xz()) - (self.room_size.y - ceiling)
-                || (pose.rotation * Vec3::X).y.abs() > 0.14
+                || (limit_automatic_bank && {
+                    let gravity_up = pose.rotation.inverse() * Vec3::Y;
+                    gravity_up.x.abs() > max_slope * gravity_up.y + 1e-5
+                })
                 || pose.translation.distance(camera.target) < 1.5
                 || obstacles.iter().any(|(lo, hi)| {
                     segment_hits_box(previous, pose.translation, *lo - pad, *hi + pad)

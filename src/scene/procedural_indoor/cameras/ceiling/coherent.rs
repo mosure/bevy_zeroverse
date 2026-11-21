@@ -201,7 +201,7 @@ pub(super) fn room(
             reachable,
             Vec2::new(floor + 0.7 - a.start.y, upper - a.start.y),
             &local,
-            &scene.camera_settings.intrinsics,
+            &scene.camera_settings,
             rng,
         );
         camera.fov_degrees = fov;
@@ -255,6 +255,7 @@ pub(super) fn room(
         .filter(|p| p.y < start.y && p.distance(start) > 1.0 && scene.in_primary_room(*p, 0.))
         .choose(rng)?;
     let mut camera = IndoorCamera {
+        roll_radians: 0.,
         ceiling_mount: None,
         fisheye: scene.camera_settings.lens_for(scene.seed, index),
         principal_point_offset: None,
