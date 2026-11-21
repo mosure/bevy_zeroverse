@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="An open-source procedural data engine for multi-view reconstruction. Explore current polygonal architecture, mezzanines, floor levels and matched annotations across 32 rooms, with a 512-room structural audit.">
-  <meta property="og:title" content="bevy_zeroverse 0.65.0 · Procedural rooms, shared geometry">
+  <meta property="og:title" content="bevy_zeroverse 0.66.0 · Procedural rooms, shared geometry">
   <meta property="og:description" content="Calibrated multi-view synthetic data, aligned annotations, optional human motion, and reproducible evaluation.">
   <meta property="og:url" content="https://mosure.github.io/bevy_zeroverse/project/">
   <meta property="og:image" content="https://mosure.github.io/bevy_zeroverse/project/static/media/social.jpg">
@@ -106,9 +106,9 @@
 <section id="camera-counts" class="container section" aria-labelledby="camera-count-title">
   <div class="section-heading"><div><div class="eyebrow">CAMERA COUNT × BASELINE</div><h2 id="camera-count-title">Wide spacing.<br>Shared focus.</h2></div><p>64 matched rooms, 1–12 cameras, baselines 0, 0.5 and 1. Every requested set is retained: 0/2304 rejected sets. Different camera counts resample complete sets over the same geometry.</p></div>
   <div class="camera-study-facts">
-    <div><strong>140.0° → 165.3°</strong><span>Median largest initial viewing angle<br>4 → 12 cameras · baseline 1</span></div>
-    <div><strong>2.70 m → 1.15 m</strong><span>Median initial nearest-neighbor spacing<br>4 → 12 cameras · baseline 1</span></div>
-    <div><strong>3.85–6.52 m</strong><span>Median diameter of look targets<br>4 and 12 cameras · baseline 1</span></div>
+    <div><strong>140.0° → 166.0°</strong><span>Median largest initial viewing angle<br>4 → 12 cameras · baseline 1</span></div>
+    <div><strong>2.70 m → 1.16 m</strong><span>Median initial nearest-neighbor spacing<br>4 → 12 cameras · baseline 1</span></div>
+    <div><strong>3.93–6.52 m</strong><span>Median diameter of look targets<br>4 and 12 cameras · baseline 1</span></div>
     <div><strong>0 exact repeats</strong><span>Within accepted camera sets<br>33 synchronized pose samples</span></div>
   </div>
   <p>Baseline widens metric spacing and lowers required overlap. Positive target variation samples reference-visible surface regions and ranks feasible candidates for count-aware spacing, optical-direction diversity and additional proxy surface cells. Temporal paths can retain related motion. The sampler has no 90° angle cap; a wide baseline does not promise a 360° arrangement or optimal reconstruction accuracy. With one camera, baseline has no pairwise effect.</p>
@@ -161,7 +161,7 @@
     <a class="paper-preview" href="fisheye/whitepaper.pdf" aria-label="Read the bevy_zeroverse whitepaper PDF"><img src="static/media/whitepaper.webp" loading="lazy" width="612" height="792" alt="First page of the bevy_zeroverse technical whitepaper"></a>
     <div>
       <div class="eyebrow">TECHNICAL WHITEPAPER</div><h2 id="paper-title">Auditable procedural indoor data for multi-view reconstruction.</h2>
-      <p class="paper-author">Mitchell Mosure · Generator 0.65.0 · Technical report</p>
+      <p class="paper-author">Mitchell Mosure · Generator 0.66.0 · Technical report</p>
       <p>The paper describes the generator, room envelopes, paired RGB and architectural plans, aligned annotations, and 512-room distributions. Camera-count and baseline measurements show placement, trajectories and rendered co-visibility. Object-category grids link rendered constructions to their sampled controls, measured shape coverage and geometry costs.</p>
       <p>It reports a bounded generator evaluation. Photographic realism, ten-million-sample learning utility and downstream reconstruction gains remain open evaluation questions.</p>
       <div class="actions"><a class="button primary" href="fisheye/whitepaper.pdf">Read PDF ↗</a><a class="button" href="static/papers/whitepaper-source.zip" download>Architecture LaTeX ↓</a><a class="button" href="fisheye/lens-source.zip" download>Lens LaTeX ↓</a><a class="button" href="static/papers/publication-run.json">Generation recipe and provenance ↗</a></div>

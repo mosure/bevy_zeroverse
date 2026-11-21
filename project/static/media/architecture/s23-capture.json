@@ -3043,14 +3043,14 @@
     ],
     "annotation_precision": "float32_geometry",
     "build_provenance": {
-      "capture_engine": "capture-v159;rgb_gizmos=1;sensor_optics=1;generated_rejection=1;ssaa=2;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=58;public_programs=15;kitchens=11;doors=1;multiview=24;camera_motion=2;ceiling_camera=8;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=19;finishes=28;seating=10;activity=3;playback=2;exterior=6;envelope=14;furnishings=24;botany=4;visual_content=8;equipment=28;palette=4;photometry=14;irradiance_domain=1;sun_shadow=2;material_compute=4;semantic=11;ceiling=7;floor_details=7;window_treatments=3",
-      "crate_version": "0.65.0",
+      "capture_engine": "capture-v160;rgb_gizmos=1;sensor_optics=1;generated_rejection=1;ssaa=2;capacity=1;primary_region=2;indoor_motion=3;calibration=2;fisheye=5;co_visibility=1;bevy=0.20.0;burn=0.22.1;burn_human=0.6.0;bevy_burn_human=0.7.0;burn_human_motion=0.2.0;burn_ardy=0.2.0;burn_llama=0.2.0;burn_human_inference=0.2.0;ardy_motion=9;static_pose=4;pose_annotations=2;surface_flow=1;indoor=58;public_programs=15;kitchens=11;doors=1;multiview=24;camera_motion=2;ceiling_camera=8;lens_distribution=3;ovoxel=3;glass=4;hair=6;wardrobe=5;footwear=1;bounds=4;morphology=3;face=1;position=3;tabletop=19;finishes=28;seating=10;activity=3;playback=2;exterior=6;envelope=14;furnishings=24;botany=4;visual_content=8;equipment=29;palette=4;photometry=15;irradiance_domain=1;sun_shadow=2;material_compute=4;semantic=11;ceiling=7;floor_details=7;window_treatments=3",
+      "crate_version": "0.66.0",
       "features": {
         "human_motion": false,
         "multi_threaded": true,
         "web": false
       },
-      "generator_version": 132,
+      "generator_version": 133,
       "locked_package_versions": {
         "bevy": [
           "0.20.0"
@@ -3059,19 +3059,19 @@
           "0.7.0"
         ],
         "bevy_zeroverse": [
-          "0.65.0"
+          "0.66.0"
         ],
         "bevy_zeroverse_burn": [
-          "0.49.0"
+          "0.50.0"
         ],
         "bevy_zeroverse_capture": [
-          "0.6.27"
+          "0.6.28"
         ],
         "bevy_zeroverse_ffi": [
-          "0.65.0"
+          "0.66.0"
         ],
         "bevy_zeroverse_publication": [
-          "0.9.16"
+          "0.9.17"
         ],
         "burn": [
           "0.22.1"
@@ -4020,7 +4020,7 @@
         }
       ],
       "semantic_taxonomy_version": 10,
-      "source_sha256": "53f39b28c92f8cf4ffbac0174312a18b55c7c2ea577ea27e0b78ab06ae7909aa",
+      "source_sha256": "613a5d678ee1cd062e6a5fb3348e6c3bf6705abbfc35d13579484838c4fde478",
       "target": "x86_64-unknown-linux-gnu"
     },
     "camera_qualification": {
@@ -4430,7 +4430,7 @@
       ],
       "requested_pairs": [],
       "scene_family": {
-        "id": "procedural_indoor/132/0000000000000017",
+        "id": "procedural_indoor/133/0000000000000017",
         "rule": "group all frames, cameras and appearance/sensor variants of a generator-version/seed family before assigning dataset splits",
         "split_bucket_10000": 30
       },
@@ -4535,24 +4535,24 @@
       "mean_radiance": null,
       "prefetch_hit": false,
       "prefetch_wait_ms": 0.0,
-      "preparation_ms": 1554.771525,
+      "preparation_ms": 1117.8749790000002,
       "primary_rays": 2322432,
       "probes": 2268,
       "relocated_probes": 270,
       "texture_bytes": 108864,
       "traced_primary_rays": 2045952,
-      "transport_bytes": 78874064,
-      "triangles": 828089
+      "transport_bytes": 78162320,
+      "triangles": 820337
     },
-    "elapsed_seconds": 136.86576059,
+    "elapsed_seconds": 85.506368929,
     "image_assets": 220,
     "image_size": [
       640,
       400
     ],
     "label_policy": "first geometric surface including glass; native indoor uses direct float32 MRT",
-    "material_assets": 267,
-    "mesh_assets": 783,
+    "material_assets": 261,
+    "mesh_assets": 774,
     "reconstruction_graphs": [
       {
         "graph": {
@@ -5196,7 +5196,7 @@
       }
     ],
     "renderer": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.5 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
-    "run_id": "22221-1795234674917163033",
+    "run_id": "11082-1795293595795592684",
     "seed": 23,
     "views": [
       {
@@ -7920,10 +7920,10 @@
     ]
   },
   "generator_identity": {
-    "crate_version": "0.65.0",
-    "generator_version": 132,
+    "crate_version": "0.66.0",
+    "generator_version": 133,
     "schema_version": 1,
-    "source_sha256": "53f39b28c92f8cf4ffbac0174312a18b55c7c2ea577ea27e0b78ab06ae7909aa"
+    "source_sha256": "613a5d678ee1cd062e6a5fb3348e6c3bf6705abbfc35d13579484838c4fde478"
   },
   "manifest": {
     "adjoining": {
@@ -9686,7 +9686,7 @@
     "floor_style": 0,
     "furnishing_quarter_turn": 1,
     "furniture_style": 0,
-    "generator_version": 132,
+    "generator_version": 133,
     "glazing_height": 3.7032008,
     "human_density": 0.25,
     "humans": [
@@ -9817,7 +9817,7 @@
         "hair_color": 0,
         "hairstyle": 13,
         "head_yaw": 0.13878071,
-        "id": 130,
+        "id": 129,
         "joints": [
           [
             0.013233073,
@@ -10110,7 +10110,7 @@
         "hair_color": 0,
         "hairstyle": 15,
         "head_yaw": 0.12151021,
-        "id": 131,
+        "id": 130,
         "joints": [
           [
             0.013622649,
@@ -10403,7 +10403,7 @@
         "hair_color": 5,
         "hairstyle": 9,
         "head_yaw": 0.7064948,
-        "id": 132,
+        "id": 131,
         "joints": [
           [
             -0.034705702,
@@ -12895,27 +12895,6 @@
       {
         "id": 109,
         "interaction_target": null,
-        "kind": "StringLights",
-        "neighbor": false,
-        "position": [
-          -6.9102263,
-          3.5604887,
-          -2.948107
-        ],
-        "seed": 17316749214535375328,
-        "size": [
-          3.5402994,
-          0.5087427,
-          0.08178823
-        ],
-        "solid": false,
-        "support": null,
-        "variant": 0,
-        "yaw": 1.513924
-      },
-      {
-        "id": 110,
-        "interaction_target": null,
         "kind": "FireDetector",
         "neighbor": false,
         "position": [
@@ -12935,7 +12914,7 @@
         "yaw": 0.38651672
       },
       {
-        "id": 111,
+        "id": 110,
         "interaction_target": null,
         "kind": "FirePullStation",
         "neighbor": false,
@@ -12956,7 +12935,7 @@
         "yaw": 3.1415927
       },
       {
-        "id": 112,
+        "id": 111,
         "interaction_target": null,
         "kind": "LightSwitch",
         "neighbor": false,
@@ -12977,7 +12956,7 @@
         "yaw": 0.0
       },
       {
-        "id": 113,
+        "id": 112,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -12998,7 +12977,7 @@
         "yaw": -1.5069696
       },
       {
-        "id": 114,
+        "id": 113,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13019,7 +12998,7 @@
         "yaw": -1.5707963
       },
       {
-        "id": 115,
+        "id": 114,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13040,7 +13019,7 @@
         "yaw": 1.513924
       },
       {
-        "id": 116,
+        "id": 115,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13061,7 +13040,7 @@
         "yaw": -0.5137499
       },
       {
-        "id": 117,
+        "id": 116,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13082,7 +13061,7 @@
         "yaw": 1.513924
       },
       {
-        "id": 118,
+        "id": 117,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13103,7 +13082,7 @@
         "yaw": 1.513924
       },
       {
-        "id": 119,
+        "id": 118,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13124,7 +13103,7 @@
         "yaw": 0.78539824
       },
       {
-        "id": 120,
+        "id": 119,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13145,7 +13124,7 @@
         "yaw": -1.5069696
       },
       {
-        "id": 121,
+        "id": 120,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13166,7 +13145,7 @@
         "yaw": 1.513924
       },
       {
-        "id": 122,
+        "id": 121,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13187,7 +13166,7 @@
         "yaw": 1.513924
       },
       {
-        "id": 123,
+        "id": 122,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13208,7 +13187,7 @@
         "yaw": 1.5707963
       },
       {
-        "id": 124,
+        "id": 123,
         "interaction_target": null,
         "kind": "WallOutlet",
         "neighbor": false,
@@ -13229,7 +13208,7 @@
         "yaw": -1.5069696
       },
       {
-        "id": 125,
+        "id": 124,
         "interaction_target": null,
         "kind": "FireAlarm",
         "neighbor": false,
@@ -13250,7 +13229,7 @@
         "yaw": 0.0
       },
       {
-        "id": 126,
+        "id": 125,
         "interaction_target": null,
         "kind": "Rug",
         "neighbor": false,
@@ -13271,7 +13250,7 @@
         "yaw": 2.715318
       },
       {
-        "id": 127,
+        "id": 126,
         "interaction_target": null,
         "kind": "Rug",
         "neighbor": false,
@@ -13292,7 +13271,7 @@
         "yaw": 1.3945774
       },
       {
-        "id": 128,
+        "id": 127,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -13313,7 +13292,7 @@
         "yaw": 13.225882
       },
       {
-        "id": 129,
+        "id": 128,
         "interaction_target": null,
         "kind": "FloorOutlet",
         "neighbor": false,
@@ -16524,9 +16503,9 @@
     "world_yaw": 0.0
   },
   "source_sha256": {
-    "seed_000023/capture.json": "4ab89037436cfdfafa8bbae6074b78db032ae4b69dcd5c3fbf22c0f12e894f64",
-    "seed_000023/manifest.json": "0791b14493b070cad11ea254fcde79764c6c13caa45986dfbdd99652a6b5cb53",
-    "seed_000023/schematic.svg": "d42db629e177d049c412f74e178183d447dc0ea14002321662b57dca3773fb80",
+    "seed_000023/capture.json": "cbc36983f0525acdff7786e51eda7b3fe31b7db362b73afe5e3c196fc7cb0f50",
+    "seed_000023/manifest.json": "5a66affd4587b8355a72d0fdd21bfea7edb6d908849380aafc6759188d330ffd",
+    "seed_000023/schematic.svg": "519edba82208f9d19000dbdee84969a7b85e40503fb85923204a9996bcf94152",
     "seed_000023/view_00_co_visibility.png": "398046eae2bbcdc33a65bdab97dad5dc259b985767e0ff389d9fb90d349083db",
     "seed_000023/view_00_co_visibility_mask.png": "27ec15d10b4f5af6d0e4f80ad703e45dd44889e98645d82e76b9e4ecb16e4931",
     "seed_000023/view_00_co_visibility_valid.png": "a0fa50e2bc2206a9034014dad115c052ada10b895deb4dcc6e601de425c737ea",
