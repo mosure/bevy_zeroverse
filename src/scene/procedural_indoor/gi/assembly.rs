@@ -179,6 +179,10 @@ impl GeometryTransport {
                 outer_cos: beam.outer.cos(),
             });
         }
+        result.scene.lights.extend(
+            objects::equipment::signals::strings::practical_lights(scene)
+                .map(|(_, _, l)| LocalLight::from(l)),
+        );
         result.timings.emission_seconds = started.elapsed().as_secs_f64();
         result.timings.triangles = result.scene.triangles.len();
         result.scene.preparation_ms = result.timings.emission_seconds * 1000.;
@@ -251,7 +255,9 @@ impl GeometryTransport {
                 .push(DiffuseMaterial::from_standard(mat, images, &set.gpu_bakes));
         }
         for object in &scene.objects {
-            if super::super::photometry::decorative_emission(object).is_none() {
+            if objects::equipment::signals::strings::practical(object)
+                || super::super::photometry::decorative_emission(object).is_none()
+            {
                 continue;
             }
             for channel in 0..crate::scene::procedural_indoor::photometry::emission_channels(object)

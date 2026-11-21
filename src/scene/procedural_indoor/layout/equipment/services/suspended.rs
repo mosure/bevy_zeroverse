@@ -91,9 +91,11 @@ impl IndoorManifest {
         } else {
             r.random_range(1..=2)
         };
+        let mut practical_installed = false;
         for ordinal in 0..runs {
             let mut r = sampling::Domain::StringLights.proposal(self.seed, ordinal);
             let suspended = r.random_bool(0.68);
+            let practical = !practical_installed && r.random_bool(0.54);
             for attempt in 0..32 {
                 // Wall runs are an explicit alternative, not a floating fallback.
                 let volume = suspended && attempt < 28;
@@ -103,12 +105,12 @@ impl IndoorManifest {
                         (span * r.random_range(0.42..0.90) * (1. - 0.30 * attempt as f32 / 28.))
                             .clamp(1.8, 7.5),
                         r.random_range(0.34..0.90),
-                        r.random_range(0.22..1.20),
+                        (span * r.random_range(0.06..0.46)).clamp(0.24, 3.4),
                     );
                     let mut pos = Vec3::new(
-                        r.random_range(-0.28..0.28) * self.room_size.x,
+                        r.random_range(-0.36..0.36) * self.room_size.x,
                         0.,
-                        r.random_range(-0.28..0.28) * self.room_size.z,
+                        r.random_range(-0.36..0.36) * self.room_size.z,
                     );
                     // Scale the requested drop to available headroom. Curves
                     // still receive the exact segment/bulb clearance check.
@@ -138,9 +140,10 @@ impl IndoorManifest {
                     continue;
                 }
                 let mut o = self.candidate(ObjectKind::StringLights, position, size, yaw, &mut r);
-                o.variant = u32::from(volume);
+                o.variant = u32::from(volume) | (u32::from(practical) << 1);
                 o.solid = false;
                 if mounted_clear(self, &o) {
+                    practical_installed |= practical;
                     self.objects.push(o);
                     break;
                 }

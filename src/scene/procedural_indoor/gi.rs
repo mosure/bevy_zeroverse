@@ -475,6 +475,9 @@ fn trace_triangles<const CULL_BACK: bool>(
 }
 
 fn decorative_emitter_slot(label: &str) -> Option<usize> {
+    if label.split('#').any(|tag| tag == "practical") {
+        return None;
+    }
     if !matches!(
         label.split('#').next()?,
         "exit_sign" | "fire_alarm" | "fire_detector" | "string_lights"
@@ -494,6 +497,22 @@ struct LocalLight {
     spot: bool,
     inner_cos: f32,
     outer_cos: f32,
+}
+
+impl From<objects::equipment::signals::strings::BulbLight> for LocalLight {
+    fn from(light: objects::equipment::signals::strings::BulbLight) -> Self {
+        let [inner_cos, outer_cos] = light.cone.map_or([1., 0.], |[i, o]| [i.cos(), o.cos()]);
+        Self {
+            direction: light.axis,
+            position: light.position,
+            color: linear(light.color),
+            candela: light.candela,
+            range: light.range,
+            spot: light.cone.is_some(),
+            inner_cos,
+            outer_cos,
+        }
+    }
 }
 
 /// Owns only immutable CPU data; safe to send to a preparation worker.

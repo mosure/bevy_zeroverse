@@ -32,8 +32,7 @@ pub fn objects() -> Vec<IndoorObject> {
                         Vec3::new(2.6, 0.44, 0.14)
                     };
                     let p = objects::equipment::signals::string_program(&o);
-                    ((p.colors_srgb.len() > 1) == colorful && (!suspended || p.bays > 1))
-                        .then_some(o)
+                    ((p.color_count() > 1) == colorful && (!suspended || p.bays > 1)).then_some(o)
                 })
                 .unwrap();
             result.push(o);

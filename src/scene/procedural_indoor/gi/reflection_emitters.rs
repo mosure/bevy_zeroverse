@@ -26,22 +26,13 @@ impl ReflectionEmitters {
                 if surface != Surface::Light {
                     continue;
                 }
-                for indices in geometry.indices.as_chunks::<3>().0 {
-                    let a = Vec3::from_array(geometry.positions[indices[0] as usize]);
-                    let b = Vec3::from_array(geometry.positions[indices[1] as usize]);
-                    let c = Vec3::from_array(geometry.positions[indices[2] as usize]);
-                    triangles.push(Triangle {
-                        a,
-                        ab: b - a,
-                        ac: c - a,
-                        // Match the visible emitter's back-face culling without a sqrt.
-                        normal: (b - a).cross(c - a),
-                        uv: [Vec2::ZERO; 3],
-                        material: i,
-                    });
-                }
+                append_face_triangles(&mut triangles, &geometry, i, None);
             }
         }
+        objects::equipment::signals::strings::reflection_apertures(scene, |geometry, tf, c| {
+            append_face_triangles(&mut triangles, geometry, emission.len(), Some(tf));
+            emission.push(Vec3::new(c.red, c.green, c.blue));
+        });
         let nodes = bvh::build_probe_tree(&mut triangles);
         Self {
             triangles,
@@ -62,6 +53,31 @@ impl ReflectionEmitters {
             false,
         )?;
         Some(self.emission[self.triangles[index].material])
+    }
+}
+
+fn append_face_triangles(
+    out: &mut Vec<Triangle>,
+    g: &super::super::geometry::Geometry,
+    material: usize,
+    tf: Option<Transform>,
+) {
+    let point = |i: u32| {
+        let p = Vec3::from_array(g.positions[i as usize]);
+        tf.map_or(p, |t| t.transform_point(p))
+    };
+    for &[a, b, c] in g.indices.as_chunks::<3>().0 {
+        let a = point(a);
+        let ab = point(b) - a;
+        let ac = point(c) - a;
+        out.push(Triangle {
+            a,
+            ab,
+            ac,
+            normal: ab.cross(ac),
+            uv: [Vec2::ZERO; 3],
+            material,
+        });
     }
 }
 
