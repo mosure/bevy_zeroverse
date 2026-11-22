@@ -966,11 +966,26 @@ pub fn sample_stream(
                     .map(|o| o.id as i64)
                     .or_else(|| human.map(|h| h.id as i64))
             };
-            ordered_obbs.sort_by_key(|(entity, _, object, human)| {
-                (
-                    instance_id(*object, *human).unwrap_or(i64::MAX),
-                    entity.to_bits(),
-                )
+            ordered_obbs.sort_unstable_by(|a, b| {
+                instance_id(a.2, a.3)
+                    .unwrap_or(i64::MAX)
+                    .cmp(&instance_id(b.2, b.3).unwrap_or(i64::MAX))
+                    .then_with(|| {
+                        if args.scene_type != crate::scene::ZeroverseSceneType::ProceduralIndoor {
+                            return a.0.to_bits().cmp(&b.0.to_bits());
+                        }
+                        // Unnumbered architectural OBBs have no persistent ECS entity across regenerations.
+                        let key = |obb: &ObjectObb| {
+                            (
+                                obb.center.to_array().map(f32::to_bits),
+                                obb.scale.to_array().map(f32::to_bits),
+                                obb.rotation.to_array().map(f32::to_bits),
+                            )
+                        };
+                        a.1.class_name
+                            .cmp(&b.1.class_name)
+                            .then_with(|| key(a.1).cmp(&key(b.1)))
+                    })
             });
             for (_, obb, object, human) in ordered_obbs {
                 buffered_sample.object_obbs.push(ObjectObbSample {
