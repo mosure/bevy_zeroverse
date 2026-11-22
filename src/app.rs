@@ -20,8 +20,6 @@ use bevy::{
     time::Stopwatch,
     winit::WinitPlugin,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use bevy_args::parse_args;
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
@@ -31,6 +29,7 @@ pub(crate) mod display;
 pub mod editor;
 #[cfg(feature = "viewer")]
 mod inspector;
+mod presentation;
 mod settings;
 #[cfg(feature = "viewer")]
 use bevy::camera_controller::pan_orbit_camera::{
@@ -274,6 +273,12 @@ fn deserialize_viewer_state<'de, D: serde::Deserializer<'de>>(
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
+    /// Present automated indoor rooms fullscreen with one moving RGB view and hidden controls.
+    #[pyo3(get, set)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub kiosk: bool,
+
     /// enable the Scene Studio controller
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
@@ -374,7 +379,7 @@ pub struct BevyZeroverseConfig {
 
     /// display a grid of Zeroverse cameras
     #[pyo3(get, set)]
-    #[arg(long, default_value = "false")]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
     pub camera_grid: bool,
 
     /// Display the primary room metric top-down schematic (takes precedence over camera_grid).
@@ -439,7 +444,7 @@ pub struct BevyZeroverseConfig {
     pub annotation_glass: crate::render::glass::AnnotationGlass,
 
     #[pyo3(get, set)]
-    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::ProceduralIndoor)]
     pub scene_type: ZeroverseSceneType,
 
     /// Base seed for procedural_indoor; successive scenes use seed + scene index.
@@ -618,6 +623,11 @@ impl BevyZeroverseConfig {
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
+    /// Present automated indoor rooms fullscreen with one moving RGB view and hidden controls.
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub kiosk: bool,
+
     /// enable the Scene Studio controller
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
@@ -699,7 +709,7 @@ pub struct BevyZeroverseConfig {
     pub num_cameras: usize,
 
     /// display a grid of Zeroverse cameras
-    #[arg(long, default_value = "false")]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
     pub camera_grid: bool,
 
     /// Display the primary room metric top-down schematic.
@@ -751,7 +761,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub annotation_glass: crate::render::glass::AnnotationGlass,
 
-    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::ProceduralIndoor)]
     pub scene_type: ZeroverseSceneType,
 
     /// Base seed for procedural_indoor; successive scenes use seed + scene index.
@@ -881,6 +891,7 @@ pub struct BevyZeroverseConfig {
 impl Default for BevyZeroverseConfig {
     fn default() -> BevyZeroverseConfig {
         BevyZeroverseConfig {
+            kiosk: false,
             editor: true,
             viewer_state: None,
             gizmos: true,
@@ -1203,7 +1214,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         None => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                studio_lens_defaults(parse_args::<BevyZeroverseConfig>())
+                presentation::parse_cli(std::env::args_os()).unwrap_or_else(|error| error.exit())
             }
             #[cfg(target_arch = "wasm32")]
             {

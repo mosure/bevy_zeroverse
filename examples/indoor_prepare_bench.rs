@@ -34,7 +34,7 @@ struct Args {
     fingerprints: bool,
     #[arg(long)]
     output: PathBuf,
-    /// Project directory containing assets/burn_human (defaults to this checkout).
+    /// Optional project asset root for a custom AnnyBody reference.
     #[arg(long)]
     asset_root: Option<PathBuf>,
 }

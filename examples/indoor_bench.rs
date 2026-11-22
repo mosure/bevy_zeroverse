@@ -51,7 +51,7 @@ struct Args {
     steps: u32,
     #[arg(long, default_value_t = 0.25)]
     human_density: f32,
-    /// Root containing assets/burn_human when occupied rooms are measured.
+    /// Optional project asset root for a custom AnnyBody reference.
     #[arg(long)]
     asset_root: Option<PathBuf>,
     /// JSON camera placement policy, identical to viewer/capture CLI.

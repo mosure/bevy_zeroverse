@@ -76,6 +76,11 @@ pub fn parse(
             return Err(format!("duplicate viewer setting: {key}"));
         }
     }
+    let defaults = match old.remove("kiosk").as_deref() {
+        Some("" | "true") => super::presentation::kiosk_defaults(defaults, |_| true),
+        Some("false") | None => defaults,
+        Some(_) => return Err("kiosk must be true or false".into()),
+    };
     let mut disabled: Vec<String> = old
         .iter()
         .filter(|(_, v)| v.trim() == "null")
@@ -184,9 +189,17 @@ fn set(value: &mut Value, keys: &[&str], path: &str, replacement: Value) -> Resu
 /// arrays/objects need two-character markers, never an encoded JSON document.
 pub fn encode(config: &BevyZeroverseConfig, view: &super::view_state::ViewState) -> String {
     let mut current = expand(config);
-    let mut defaults = expand(&super::web_viewer_defaults());
+    let base = super::web_viewer_defaults();
+    let base = if config.kiosk {
+        super::presentation::kiosk_defaults(base, |_| true)
+    } else {
+        base
+    };
+    let mut defaults = expand(&base);
+    // Keep the preset in the URL and encode only edits relative to it.
+    defaults["kiosk"] = json!(false);
     current["viewer_state"] = json!(view);
-    defaults["viewer_state"] = json!(super::view_state::ViewState::default());
+    defaults["viewer_state"] = json!(super::presentation::default_view(config.kiosk));
     let mut pairs = Vec::new();
     for (key, value) in current.as_object().unwrap() {
         flatten(value, &defaults[key], key, &mut pairs);

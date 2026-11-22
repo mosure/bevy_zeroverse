@@ -138,7 +138,7 @@ jobs:
           wasm-bindgen --out-name viewer --out-dir ./www/out/ --target web --remove-name-section --remove-producers-section ./target/wasm32-unknown-unknown/wasm-release/bevy_zeroverse.wasm
           test "$(wc -c < www/out/viewer_bg.wasm)" -lt 104857600
           mkdir -p www/assets
-          cp -R assets/. www/assets/
+          rsync -a --exclude='/embedded/' assets/ www/assets/
       - uses: actions/upload-artifact@v4
         with:
           name: viewer-${{ github.sha }}

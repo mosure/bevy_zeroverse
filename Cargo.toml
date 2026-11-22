@@ -29,7 +29,8 @@ exclude = [
   "www",
   "dist",
   "build",
-  "assets",
+  "/assets/*",
+  "!/assets/embedded",
   "credits",
   "out",
 ]
@@ -127,6 +128,7 @@ futures-lite = "2.3"
 bevy_burn_human = { version = "=0.7.0", default-features = false }
 burn_human = { version = "=0.6.0" }
 burn_human_motion = { version = "=0.2.0" }
+ruzstd = "0.8.3"
 burn_ardy = { version = "=0.2.0", default-features = false, features = ["wgpu", "transport"], optional = true }
 burn_llama = { version = "=0.2.0", features = ["wgpu"], optional = true }
 burn_human_inference = { version = "=0.2.0", features = ["wgpu", "transport"], optional = true }

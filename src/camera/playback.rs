@@ -35,6 +35,8 @@ pub enum PlaybackMode {
     Still,
     /// Quintic easing with zero speed and acceleration at both turnarounds.
     Smootherstep,
+    /// Cubic Hermite easing with zero speed at both turnarounds.
+    Smoothstep,
 }
 
 impl PlaybackMode {
@@ -45,6 +47,7 @@ impl PlaybackMode {
             Self::EaseIn => t * t,
             Self::EaseOut => t * (2.0 - t),
             Self::EaseInOut => sine_leg(t),
+            Self::Smoothstep => t * t * (3.0 - 2.0 * t),
             Self::EaseInCubic => t * t * t,
             Self::EaseOutCubic => t * (3.0 - 3.0 * t + t * t),
             Self::EaseInOutCubic | Self::Smootherstep => {
@@ -164,7 +167,7 @@ impl Playback {
                     (position + delta * f64::from(self.direction)).rem_euclid(1.0) as f32;
             }
             PingPong | Sin | EaseIn | EaseOut | EaseInOut | EaseInCubic | EaseOutCubic
-            | EaseInOutCubic | Smootherstep => {
+            | EaseInOutCubic | Smootherstep | Smoothstep => {
                 // Sin historically measures speed in round trips per second and
                 // stores the eased position. All other modes measure legs per second.
                 let (leg, travel) = if self.mode == Sin {

@@ -2,7 +2,7 @@ use super::*;
 use std::time::Duration;
 use PlaybackMode::*;
 
-const RETURNING: [PlaybackMode; 9] = [
+const RETURNING: [PlaybackMode; 10] = [
     PingPong,
     Sin,
     EaseIn,
@@ -12,6 +12,7 @@ const RETURNING: [PlaybackMode; 9] = [
     EaseOutCubic,
     EaseInOutCubic,
     Smootherstep,
+    Smoothstep,
 ];
 
 fn tick(clock: &mut Playback, seconds: f64) -> f32 {
@@ -37,6 +38,7 @@ fn returning_curves_retrace_each_leg_and_keep_their_forward_shapes() {
         0.578125,
         0.0625,
         0.103515625,
+        0.15625,
     ];
     for (mode, quarter) in RETURNING.into_iter().zip(quarter_leg) {
         let mut clock = Playback { mode, ..default() };
@@ -86,7 +88,7 @@ fn elapsed_time_survives_irregular_frames_and_reversed_speed() {
 
 #[test]
 fn smooth_turnarounds_and_stops_stay_inside_the_authored_path() {
-    for mode in [EaseInOut, EaseInOutCubic, Smootherstep] {
+    for mode in [EaseInOut, EaseInOutCubic, Smoothstep, Smootherstep] {
         let mut last = 0.;
         for i in 0..=4096 {
             let pos = mode.map_progress(i as f32 / 4096.);

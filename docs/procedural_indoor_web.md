@@ -6,7 +6,7 @@ annotation previews and optional human motion, with explicit rendering budgets.
 Use the [live viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=procedural-indoor&indoor_seed=24005&num_cameras=4&camera_grid=true&regenerate_ms=0)
 or build locally.
 
-People require `assets/burn_human`; `indoor_human_density=0` omits that reference.
+The WebAssembly module includes the AnnyBody reference. Setting `indoor_human_density=0` skips decoding it.
 Architecture and furnishings need no external mesh or material catalog.
 Browser dataset readback is unsupported: `image_copiers=true` reports an error.
 Use native `zeroverse_gen`, `indoor_validate` or the Python dataloader for datasets.
@@ -21,8 +21,6 @@ cargo build --locked --release --bin bevy_zeroverse --target wasm32-unknown-unkn
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
 wasm-bindgen --out-name viewer --out-dir www/out --target web \
   target/wasm32-unknown-unknown/release/bevy_zeroverse.wasm
-mkdir -p www/assets
-cp -R assets/burn_human www/assets/
 python3 -m http.server 8765 --directory www
 ```
 
@@ -36,6 +34,8 @@ The `human_motion` feature enables ARDY controls and browser model loading; moti
 models are only initialized when requested. Omit the feature for a smaller static
 viewer. See the [motion guide](human_motion.md) for cached weights, inference
 settings, waypoint planning and model limitations.
+
+Open `?kiosk` for a fullscreen presentation with one moving camera and a new room every 30 seconds. Click once to let the browser enter fullscreen.
 
 URL parameters accept underscore or hyphen field names, typed integer seeds,
 scene/layout/quality names and serialized enum names. Hosting requires HTTPS or

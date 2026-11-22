@@ -155,13 +155,21 @@ a fixed factor. Output dimensions and camera calibration remain unchanged.
 
 ## Quick start
 
-Install the native Studio and open a reproducible four-camera room.
+Install the native Studio. Running it with no arguments opens a procedural indoor room.
 
 ```sh
 cargo install bevy_zeroverse --locked
-bevy_zeroverse --scene-type procedural-indoor --indoor-seed 7 \
-  --num-cameras 4 --camera-grid
+bevy_zeroverse
+bevy_zeroverse --indoor-seed 7 --num-cameras 4 --camera-grid
+bevy_zeroverse --kiosk
 ```
+
+Kiosk mode presents one calibrated RGB view fullscreen, requests HDR, and hides the
+Studio controls. Each room runs for 30 seconds. The camera follows a collision-checked
+path of at least 2 m with smoothstep easing. It samples pinhole and full-frame fisheye
+lenses with horizon roll limited to ±10°. Explicit launch settings override the preset.
+F1 restores the controls and F11 toggles fullscreen. On the web, click once to allow
+fullscreen. HDR uses the available display mode. [Open kiosk mode](https://mosure.github.io/bevy_zeroverse/?kiosk)
 
 From a checkout, `cargo run -- --help` shows the same CLI and
 `cargo install --path . --locked` installs the working tree. The repository
@@ -232,9 +240,10 @@ cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
 
 Add `--schematic` to export top-down diagrams at each capture timestep.
 
-The native CLI requires a GPU but no display server. Capture waits for assets,
-render pipelines and requested motion. People use the body assets in
-`assets/burn_human`; set `--indoor-human-density 0` to generate interiors without them.
+The native capture CLI requires a GPU but no display server. Capture waits for assets,
+render pipelines and requested motion. The executable includes the AnnyBody reference
+for people. Each renderer process or browser tab decodes it once on first use and shares it
+across people and rooms. Set `--indoor-human-density 0` for unoccupied interiors.
 
 ## MatSynth
 

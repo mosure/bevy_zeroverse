@@ -2,8 +2,8 @@
 
 Indoor people use the `burn_human` AnnyBody reference surface with sampled
 phenotype, pose and appearance. `--indoor-human-density` defaults to 0.25 and
-accepts 0–1; zero omits both people and reference loading. The bundled reference
-lives in `assets/burn_human`.
+accepts 0–1. Zero skips people and reference loading. Native and WebAssembly
+binaries embed the lossless reference from `assets/embedded/burn_human`.
 
 Static poses sample continuous limb, torso, stance and chair-relative parameters.
 Placement checks furniture, partitions, walls, support surfaces, doorway approaches

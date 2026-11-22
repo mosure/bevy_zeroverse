@@ -3,7 +3,7 @@
 `procedural-indoor` (also accepted as `procedural_indoor`) is a separate scene mode.
 It creates geometry and textures in memory; it needs no MatSynth catalog, GLTF
 furniture or environment photographs. Occupied scenes use the bundled AnnyBody
-reference (`assets/burn_human`); zero human density omits that model. Cornell, object, room,
+reference embedded in the executable. Zero human density omits model decoding. Cornell, object, room,
 semantic room and human modes remain available.
 
 This is a substantial procedural/PBR baseline, **not a demonstrated state-of-the-art

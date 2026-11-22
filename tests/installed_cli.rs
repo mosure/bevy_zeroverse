@@ -51,4 +51,5 @@ fn package_installs_the_named_studio_and_keeps_tools_opt_in() {
     let help = String::from_utf8(help.stdout).unwrap();
     assert!(help.contains("Usage: bevy_zeroverse"));
     assert!(help.contains("--scene-type") && help.contains("--camera-grid"));
+    assert!(help.contains("--kiosk") && help.contains("[default: procedural-indoor]"));
 }
