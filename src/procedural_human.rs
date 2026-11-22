@@ -404,11 +404,11 @@ pub(crate) fn update_burn_human_inputs(params: BurnHumanInputParams) {
     let mut predicted = *playback;
     if !regen_events.is_empty() {
         regen_events.clear();
-        predicted.progress = 0.0;
+        predicted.rewind();
     } else {
         predicted.step(&time);
     }
-    let predicted_time = predicted.progress;
+    let predicted_time = predicted.trajectory_progress();
 
     for (entity, mut instance, placement, mut transform, mut input, animated, aabb) in
         humans.iter_mut()

@@ -1061,7 +1061,7 @@ pub fn sample_stream(
                 let view_idx = i + camera_count * state.step as usize;
                 let view = &mut buffered_sample.views[view_idx];
                 view.time = playback.progress;
-                view.trajectory_progress = Some(playback.mode.map_progress(playback.progress));
+                view.trajectory_progress = Some(playback.trajectory_progress());
                 view.time_seconds = indoor
                     .as_ref()
                     .and_then(|scene| scene.camera_settings.duration_seconds)

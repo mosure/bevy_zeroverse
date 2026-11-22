@@ -81,11 +81,26 @@ impl CarpetDesign {
         if let Some(rug) = &self.rug {
             return rug.evaluate(self, r, uv);
         }
-        let [u, v] = uv;
+        let cut = r
+            .flooring
+            .as_ref()
+            .filter(|f| {
+                f.layout != super::flooring::FloorLayout::Seamless
+                    && (f.tile_definition != 0. || f.piece_roughness != 0.)
+            })
+            .map(|f| (f, f.cut(r, uv)));
+        let yarn = cut
+            .as_ref()
+            .and_then(|(f, cut)| {
+                f.carpet_tiles
+                    .map(|tiles| tiles.yarn_uv(uv, cut.id, f, r.seed))
+            })
+            .unwrap_or(uv);
+        let [u, v] = yarn;
         let mask = self
             .dye
             .as_ref()
-            .map_or_else(|| self.legacy_mask(r, uv), |d| d.mask(self, r, uv));
+            .map_or_else(|| self.legacy_mask(r, yarn), |d| d.mask(self, r, yarn));
         let counts = self
             .dye
             .as_ref()
@@ -106,13 +121,12 @@ impl CarpetDesign {
             roughness: (r.roughness + nap * 0.055 + fleck * 0.025).clamp(0.80, 1.),
             occlusion: 0.97 + (nap + 0.5) * 0.03,
         };
-        if let Some(f) = &r.flooring {
+        if let Some((f, cut)) = cut {
             let before = t.color;
-            f.apply(r, uv, &mut t);
+            f.apply_cut(r, uv, &cut, &mut t);
             for (c, b) in t.color.iter_mut().zip(before) {
                 *c = b + (*c - b) * f.tile_definition;
             }
-            let cut = f.cut(r, uv);
             let seam = f.seam(r, &cut, 1) * f.tile_definition;
             t.color = t.color.map(|c| c * (1. - seam * 0.12));
             t.height -= seam * 0.00035 * r.detail_scale.unwrap_or(1.);

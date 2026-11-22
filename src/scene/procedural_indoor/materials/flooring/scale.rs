@@ -121,6 +121,7 @@ pub(super) fn resolve(r: &mut MaterialRecipe, style: u32) {
             (r.period_m / spacing).round().clamp(1., 16.) as u32
         });
         let d = c.dye.as_mut().unwrap();
+        super::carpet_tiles::CarpetTiles::install(f, r.seed, d.weights[1] + d.weights[2]);
         d.dye_cells = std::array::from_fn(|_| {
             let scale = log_uniform(&mut dye, 0.15, 3.0);
             (r.period_m / scale).round().clamp(1., 16.) as u32

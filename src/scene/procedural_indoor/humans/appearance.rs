@@ -160,6 +160,14 @@ fn default_weave_scale() -> f32 {
     1.0
 }
 impl Appearance {
+    pub(crate) fn weave_uv_transform(&self) -> bevy::math::Affine2 {
+        bevy::math::Affine2::from_scale_angle_translation(
+            Vec2::splat(self.weave_scale),
+            self.weave_rotation,
+            Vec2::ZERO,
+        )
+    }
+
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 46);
         let mut color = |light_lo, light_hi| {

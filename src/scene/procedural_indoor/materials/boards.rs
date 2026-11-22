@@ -457,7 +457,7 @@ pub(super) struct PreparedBoard {
 pub(super) fn prepare(seed: u64) -> PreparedBoard {
     let p = parameters(seed);
     let content = pixels(seed);
-    let roughness_map = p.finish.prepare(seed, true, &content);
+    let roughness_map = p.finish.prepare(seed, Some(&content));
     let mut texture = mip_image(content, 256, MapType::Color);
     texture.sampler = ImageSampler::linear();
     PreparedBoard {

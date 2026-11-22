@@ -73,9 +73,7 @@ fn walks_use_emitted_exterior_doors_across_a_population() {
     for seed in (57300..57332).chain([44214, 57496]) {
         let room =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-        let windows = window_rays(&room);
-        let sites = parcels_at(&room, &windows);
-        let rows = midground::plan(&room, &windows, &sites);
+        let ExteriorPlan { sites, rows, .. } = ExteriorPlan::new(&room, &District::sample(seed));
         let entries: Vec<_> = sites
             .iter()
             .enumerate()

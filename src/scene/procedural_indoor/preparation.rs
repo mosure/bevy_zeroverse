@@ -579,6 +579,7 @@ impl PreparedIndoor {
             }
             let root = root.id();
             for part in group.parts {
+                let sky = part.label == SemanticLabel::Sky;
                 let backlit = part.surface.is_some_and(|surface| {
                     super::materials::window_textile::receives_transmitted_shadows(
                         surface,
@@ -594,6 +595,9 @@ impl PreparedIndoor {
                     ChildOf(root),
                 ));
                 annotation_order += 1;
+                if sky {
+                    child.insert(super::architecture::background::SKY_TAG);
+                }
                 if let Some(bounds) = part.bounds {
                     child.insert(Aabb::from_min_max(bounds.0, bounds.1));
                 }

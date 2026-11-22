@@ -43,22 +43,39 @@ fn frit_bands(
 /// Frontal glass area inside the actually constructed mullions, sash and
 /// glazing beads. Rough privacy glazing still passes light; fired frit blocks it.
 pub(crate) fn visible_pane_area(f: &Facade, o: &WindowOpening) -> f32 {
+    visible_pane_area_with(f, o, |_, _| 0.)
+}
+
+/// Subtract an opaque covering's projected area inside each clear rectangle.
+/// A strip of frit behind the covering only blocks the light once.
+pub(super) fn visible_pane_area_with(
+    f: &Facade,
+    o: &WindowOpening,
+    covered: impl Fn(Vec2, Vec2) -> f32,
+) -> f32 {
     f.pane_rectangles(o)
         .into_iter()
         .map(|(lo, hi)| {
             let Some(program) = &o.glazing else {
-                return (hi - lo).element_product();
+                return ((hi - lo).element_product() - covered(lo, hi)).max(0.);
             };
             let (sash, bead) = edge_widths(f, o, hi - lo);
             let clear = (hi - lo - 2. * (sash + bead)).max(Vec2::ZERO);
-            let blocked = if program.treatment == 6 {
-                let strips: f32 = frit_bands(program, lo.y + sash, hi.y - sash, bead)
-                    .map(|(a, b)| b - a)
-                    .sum();
-                (clear.x - 0.001).max(0.) * strips
-            } else {
-                0.
-            };
+            let inner_lo = lo + Vec2::splat(sash + bead);
+            let inner_hi = hi - Vec2::splat(sash + bead);
+            let mut blocked = covered(inner_lo, inner_hi);
+            if program.treatment == 6 {
+                let mut strips = 0.;
+                let mut overlap = 0.;
+                for (a, b) in frit_bands(program, lo.y + sash, hi.y - sash, bead) {
+                    strips += b - a;
+                    overlap += covered(
+                        Vec2::new(inner_lo.x + 0.0005, a),
+                        Vec2::new(inner_hi.x - 0.0005, b),
+                    );
+                }
+                blocked += ((clear.x - 0.001).max(0.) * strips - overlap).max(0.);
+            }
             (clear.element_product() - blocked).max(0.)
         })
         .sum()

@@ -201,8 +201,9 @@ enum Action {
     },
     /// Capture a matched camera/aspect/appearance sweep, receipt and annotation gallery.
     Qualify {
-        #[arg(long, default_value = "target/debug/indoor_validate")]
-        validator: PathBuf,
+        /// Override the indoor_validate example in Cargo's debug examples directory.
+        #[arg(long)]
+        validator: Option<PathBuf>,
         #[arg(long, default_value = "out/qualification")]
         output: PathBuf,
         #[arg(long)]
@@ -425,12 +426,18 @@ fn main() -> Result<()> {
             validator,
             output,
             recipe,
-        } => bevy_zeroverse_publication::qualification::run(
-            &args.root,
-            &validator,
-            &output,
-            recipe.as_deref(),
-        )?,
+        } => {
+            let validator = match validator {
+                Some(path) => path,
+                None => bevy_zeroverse_publication::qualification::default_validator(&args.root)?,
+            };
+            bevy_zeroverse_publication::qualification::run(
+                &args.root,
+                &validator,
+                &output,
+                recipe.as_deref(),
+            )?;
+        }
         Action::VerifyQualification { output } => {
             bevy_zeroverse_publication::qualification::verify(&output)?
         }

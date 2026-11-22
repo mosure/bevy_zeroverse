@@ -102,7 +102,10 @@ pub fn emitting_area_at(scene: &IndoorManifest, position: Vec3) -> f32 {
 }
 
 pub fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    super::fixture_layout::size(scene, position)
+    super::ceiling::CeilingGrid::lamp_at(scene, position).map_or_else(
+        || super::fixture_layout::size(scene, position),
+        |grid| grid.lamp_size(),
+    )
 }
 
 fn area(p: &FixtureProgram, s: Vec3, insert: OpticalInsert) -> f32 {
@@ -132,7 +135,11 @@ pub fn emitter(scene: &IndoorManifest, position: Vec3) -> Vec3 {
 
 /// Seeded circuit orientation shared by mesh construction and placement audits.
 pub fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
-    super::fixture_layout::rotation(scene, position)
+    if super::ceiling::CeilingGrid::lamp_at(scene, position).is_some() {
+        Quat::IDENTITY
+    } else {
+        super::fixture_layout::rotation(scene, position)
+    }
 }
 
 pub fn direction(scene: &IndoorManifest, position: Vec3) -> Vec3 {
@@ -312,6 +319,10 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
             }
         }
     }
+    // Lay-in housings sit directly on the runners. Their apertures are horizontal.
+    if super::ceiling::CeilingGrid::lamp_at(scene, position).is_some() {
+        return a;
+    }
     let rotation = rotation(scene, position);
     for g in a.parts.values_mut() {
         for v in &mut g.positions {
@@ -342,10 +353,19 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                 || scene.ceiling_height((position + offset).xz()),
                 |m| m.deck.height - m.thickness,
             );
-        let roof = scene
-            .ceiling_installation
-            .as_ref()
-            .map_or(roof, |c| c.attachment_height(position + offset, roof));
+        let anchor = position + offset;
+        let roof = if let Some(grid) = super::ceiling::CeilingGrid::for_scene(scene).filter(|_| {
+            scene.envelope.as_ref().is_some_and(|e| {
+                super::super::envelope::polygon::contains(&e.footprint, anchor.xz(), 0.)
+            })
+        }) {
+            grid.mount_height(scene, anchor.xz())
+        } else {
+            scene
+                .ceiling_installation
+                .as_ref()
+                .map_or(roof, |c| c.attachment_height(anchor, roof))
+        };
         a.part(Surface::Chrome, &label).rod(
             position + offset,
             (position + offset).with_y(roof - 0.001),

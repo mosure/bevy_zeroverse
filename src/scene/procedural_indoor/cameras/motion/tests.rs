@@ -6,6 +6,57 @@ use crate::scene::procedural_indoor::{
 };
 
 #[test]
+fn peer_turns_respect_metric_budget_at_every_path_scale() {
+    for extent in [0.03, 0.3, 1., 8.] {
+        for radius in [0.35, 2., 10.] {
+            let mut last = 0.;
+            for variation in [0., 0.1, 0.5, 1.] {
+                let angle = peer_yaw_limit(extent, radius, variation);
+                assert!(angle >= last && angle <= std::f32::consts::PI);
+                assert!(2. * extent * (angle * 0.5).sin() <= 0.65 * radius * variation + 1e-6);
+                last = angle;
+            }
+        }
+    }
+    assert_eq!(peer_yaw_limit(0.2, 5., 0.), 0.);
+    assert!(peer_yaw_limit(0.2, 5., 0.5).to_degrees() > 90.);
+}
+
+#[test]
+fn short_admitted_room_trajectories_include_parallel_and_crossing_headings() {
+    let mut angles = Vec::new();
+    let settings = CameraSettings {
+        path_length_min: 0.10,
+        path_length_max: 0.35,
+        ..default()
+    };
+    for seed in 1_400..1_416 {
+        let mut scene = IndoorManifest::generate(seed, IndoorLayout::Mixed, 0.65, 0).unwrap();
+        scene.resample_cameras(4, settings.clone(), 1.2).unwrap();
+        assert!(scene.accepts_camera_geometry() && scene.accepts_camera_visibility());
+        assert!(scene.cameras.iter().all(|c| scene.camera_curve_clear(c)));
+        for (i, camera) in scene.cameras.iter().enumerate() {
+            let travel =
+                |c: &IndoorCamera| c.transform_at(1.).translation - c.transform_at(0.).translation;
+            for peer in &scene.cameras[..i] {
+                let (a, b) = (travel(camera), travel(peer));
+                if a.length().min(b.length()) > 0.01 {
+                    angles.push(a.angle_between(b).to_degrees());
+                }
+            }
+        }
+    }
+    assert!(
+        angles.iter().filter(|&&a| a < 30.).count() >= 8,
+        "{angles:?}"
+    );
+    assert!(
+        angles.iter().filter(|&&a| a > 80.).count() >= 8,
+        "{angles:?}"
+    );
+}
+
+#[test]
 fn seeded_roles_are_stable_unbiased_and_monotone() {
     let mut settings = CameraSettings::default();
     assert_eq!(settings.motion_fraction, 1.);

@@ -10,6 +10,7 @@ mod habits;
 mod palm;
 mod pots;
 mod sampling;
+mod soil;
 mod vines;
 mod woody;
 pub(super) use pots::dimensions as pot_dimensions;
@@ -176,18 +177,13 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     };
     let pot_program = PotProfile::sample(o.seed);
     let (soil, soil_radius) = pots::build(a, pot, r, ph, growth.pot_taper, &pot_program);
-    for _ in 0..18 {
-        let p = radial(rng.random_range(0.0..TAU))
-            * (soil_radius - h * 0.01).max(0.)
-            * rng.random_range(0.12..0.92)
-            + Vec3::Y * (soil + h * 0.008);
-        a.part(Surface::Soil, "other_prop").cuboid(
-            Vec3::splat(h * 0.009),
-            h * 0.002,
-            Transform::from_translation(p)
-                .with_rotation(Quat::from_rotation_y(rng.random_range(0.0..TAU))),
-        );
-    }
+    soil::dressing(
+        a.part(Surface::Soil, "other_prop"),
+        o.seed,
+        soil,
+        soil_radius,
+        &mut rng,
+    );
     let base = Vec3::Y * soil;
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.

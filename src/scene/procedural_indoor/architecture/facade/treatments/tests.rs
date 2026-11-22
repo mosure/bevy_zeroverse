@@ -64,6 +64,13 @@ fn split_coverings_reveal_the_window_as_they_retract() {
 pub(super) fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facade {
     let mut program = ShadeProgram::sample(seed).1;
     let mut rng = stream(seed, 42);
+    program.curtain_heading = (kind == Shade::Curtain).then_some(
+        [
+            CurtainHeading::Wave,
+            CurtainHeading::PinchPleat,
+            CurtainHeading::Gathered,
+        ][(seed % 3) as usize],
+    );
     program.slats =
         (kind == Shade::Venetian).then(|| SlatStock::sample(&mut rng, program.slat_material));
     if let Some(stock) = program.slats {
@@ -100,10 +107,16 @@ pub(super) fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facad
 #[test]
 fn seeded_population_spans_coverings_materials_stacks_and_continuous_shapes() {
     let mut kinds = BTreeMap::<String, usize>::new();
+    let mut independent = 0;
+    let mut installed = 0;
     let mut combinations = BTreeSet::new();
     let mut recipes = BTreeSet::new();
     for seed in 0..1024 {
         let (kind, p) = ShadeProgram::sample(seed);
+        if kind != Shade::None {
+            installed += 1;
+            independent += usize::from(p.deployment_spread.is_some());
+        }
         p.validate().unwrap();
         assert_eq!((kind, p.clone()), ShadeProgram::sample(seed));
         *kinds.entry(format!("{kind:?}")).or_default() += 1;
@@ -122,6 +135,92 @@ fn seeded_population_spans_coverings_materials_stacks_and_continuous_shapes() {
     assert!(kinds.values().all(|&n| n > 40), "{kinds:?}");
     assert!(combinations.len() > 95);
     assert_eq!(recipes.len(), 1024);
+    assert!((0.52..0.68).contains(&(independent as f32 / installed as f32)));
+}
+
+#[test]
+fn independent_window_draws_are_monotonic_replayable_and_drive_actual_geometry() {
+    let mut f = facade(19, Shade::Roller, Vec2::new(1.8, 2.2), 0.4);
+    let original = f.openings[0].clone();
+    f.treatment.as_mut().unwrap().deployment_spread = Some(2.4);
+    assert_eq!(f.shade_coverage_at(&original), 0.4);
+    for i in 1..4 {
+        let mut o = original.clone();
+        let shift = Vec2::X * (2.3 * i as f32);
+        o.min += shift;
+        o.max += shift;
+        f.openings.push(o);
+    }
+    let mut previous = vec![0.; 4];
+    for c in [0., 0.02, 0.25, 0.50, 0.86, 0.99, 1.] {
+        f.shade_coverage = c;
+        let mut linked = f.clone();
+        linked.treatment.as_mut().unwrap().deployment_spread = None;
+        let mut reordered = f.clone();
+        reordered.openings.reverse();
+        for (i, o) in f.openings.iter().enumerate() {
+            let draw = f.shade_coverage_at(o);
+            assert!(draw >= previous[i] && (0.0..=1.0).contains(&draw));
+            assert_eq!(reordered.shade_coverage_at(o), draw);
+            assert_eq!(linked.shade_coverage_at(o), c);
+            if c == 0. || c == 1. {
+                assert_eq!(draw, c);
+            }
+            previous[i] = draw;
+            if c == 0.50 {
+                let mut single = linked.clone();
+                single.shade_coverage = draw;
+                let mut actual = Assembly::default();
+                let mut expected = Assembly::default();
+                build(&mut actual, Transform::IDENTITY, &f, o);
+                build(&mut expected, Transform::IDENTITY, &single, o);
+                assert_eq!(actual.parts.len(), expected.parts.len());
+                for (key, part) in &actual.parts {
+                    assert_eq!(part.positions, expected.parts[key].positions);
+                    assert_eq!(part.indices, expected.parts[key].indices);
+                }
+            }
+        }
+        if c == 0.50 {
+            let (lo, hi) = previous
+                .iter()
+                .copied()
+                .fold((1_f32, 0_f32), |(lo, hi), v| (lo.min(v), hi.max(v)));
+            assert!(hi - lo > 0.01, "{previous:?}");
+        }
+    }
+    let mut wire = serde_json::to_value(&f).unwrap();
+    wire["treatment"]
+        .as_object_mut()
+        .unwrap()
+        .remove("deployment_spread");
+    let mut archived: Facade = serde_json::from_value(wire).unwrap();
+    archived.shade_coverage = 0.46;
+    assert!(archived
+        .openings
+        .iter()
+        .all(|o| archived.shade_coverage_at(o) == 0.46));
+    // An individually operated bank can happen to agree closely. Broad
+    // separation is a population property rather than a per-room quota.
+    f.shade_coverage = 0.50;
+    let wide = (0..128)
+        .filter(|seed| {
+            f.treatment.as_mut().unwrap().identity = *seed;
+            let (lo, hi) = f
+                .openings
+                .iter()
+                .map(|o| f.shade_coverage_at(o))
+                .fold((1_f32, 0_f32), |(lo, hi), draw| {
+                    (lo.min(draw), hi.max(draw))
+                });
+            hi - lo > 0.2
+        })
+        .count();
+    assert!(wide > 80, "{wide}/128 independent banks");
+    for bad in [f32::NAN, -0.1, 3.1] {
+        f.treatment.as_mut().unwrap().deployment_spread = Some(bad);
+        assert!(f.treatment.as_ref().unwrap().validate().is_err());
+    }
 }
 
 #[test]
@@ -222,6 +321,41 @@ fn installed_hardware_blocks_sash_sweep_even_when_retracted_and_legacy_replays()
     }
 }
 
+/// Orthographic occupancy of the production opaque triangles inside a rectangle.
+fn frontal_clear<const NX: usize, const NY: usize>(a: &Assembly, lo: Vec2, size: Vec2) -> f32 {
+    let mut blocked = vec![false; NX * NY];
+    let scale = Vec2::new(NX as f32, NY as f32) / size;
+    for ((surface, _), g) in &a.parts {
+        if *surface == Surface::Glass {
+            continue;
+        }
+        for t in g.indices.as_chunks::<3>().0 {
+            let p = t.map(|i| (Vec3::from(g.positions[i as usize]).truncate() - lo) * scale);
+            let area = (p[1] - p[0]).perp_dot(p[2] - p[0]);
+            if area.abs() < 1e-7 {
+                continue;
+            }
+            let min = p[0].min(p[1]).min(p[2]).floor().as_ivec2().max(IVec2::ZERO);
+            let max = p[0]
+                .max(p[1])
+                .max(p[2])
+                .ceil()
+                .as_ivec2()
+                .min(IVec2::new(NX as i32, NY as i32));
+            for y in min.y..max.y {
+                for x in min.x..max.x {
+                    let sample = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+                    if (0..3).all(|i| (p[(i + 1) % 3] - p[i]).perp_dot(sample - p[i]) * area >= 0.)
+                    {
+                        blocked[y as usize * NX + x as usize] = true;
+                    }
+                }
+            }
+        }
+    }
+    blocked.iter().filter(|&&b| !b).count() as f32 / blocked.len() as f32
+}
+
 #[test]
 fn track_meter_matches_frontal_rays_through_the_actual_assembly() {
     const NX: usize = 139;
@@ -233,39 +367,11 @@ fn track_meter_matches_frontal_rays_through_the_actual_assembly() {
             let track = f.treatment.as_ref().unwrap().track.unwrap();
             let mut a = Assembly::default();
             build(&mut a, Transform::IDENTITY, &f, &f.openings[0]);
-            let mut blocked = vec![false; NX * NY];
-            // Orthographic rays normal to the aperture, excluding the perimeter
-            // brackets. Rasterize actual triangles, including overlaps and ties.
-            let lo = Vec2::new(-size.x * 0.5 + 0.03, 0.13);
-            let scale = Vec2::new(NX as f32, NY as f32) / (size - Vec2::new(0.06, 0.18));
-            for g in a.parts.values() {
-                for t in g.indices.as_chunks::<3>().0 {
-                    let p =
-                        t.map(|i| (Vec3::from(g.positions[i as usize]).truncate() - lo) * scale);
-                    let area = (p[1] - p[0]).perp_dot(p[2] - p[0]);
-                    if area.abs() < 1e-7 {
-                        continue;
-                    }
-                    let min = p[0].min(p[1]).min(p[2]).floor().as_ivec2().max(IVec2::ZERO);
-                    let max = p[0]
-                        .max(p[1])
-                        .max(p[2])
-                        .ceil()
-                        .as_ivec2()
-                        .min(IVec2::new(NX as i32, NY as i32));
-                    for y in min.y..max.y {
-                        for x in min.x..max.x {
-                            let sample = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-                            if (0..3).all(|i| {
-                                (p[(i + 1) % 3] - p[i]).perp_dot(sample - p[i]) * area >= 0.
-                            }) {
-                                blocked[y as usize * NX + x as usize] = true;
-                            }
-                        }
-                    }
-                }
-            }
-            let measured = blocked.iter().filter(|&&b| !b).count() as f32 / blocked.len() as f32;
+            let measured = frontal_clear::<NX, NY>(
+                &a,
+                Vec2::new(-size.x * 0.5 + 0.03, 0.13),
+                size - Vec2::new(0.06, 0.18),
+            );
             let estimate = track.clear_fraction(size.x, coverage);
             assert!(
                 (estimate - measured).abs() < 0.052,
@@ -386,14 +492,17 @@ fn visible_roller_yarn_tracks_the_hem_at_intermediate_times_with_fixed_uvs() {
     for coverage in [0.12, 0.92] {
         f.shade_coverage = coverage;
         let mut a = Assembly::default();
-        mesh::build_with_angle(
+        mesh::build(
             &mut a,
             tf,
             &f,
             &o,
             f.treatment.as_ref().unwrap(),
-            None,
-            true,
+            mesh::Draw {
+                coverage: f.shade_coverage_at(&o),
+                fixed_angle: None,
+                moving: true,
+            },
         );
         endpoints.push(
             a.parts
@@ -535,5 +644,8 @@ fn archived_horizontal_blinds_replay_their_original_uniform_ladder() {
         .parts
         .keys()
         .all(|(_, name)| name == &format!("blinds#finish{}", p.finish_slot)));
-    assert!(slats::clear_fraction(&f, Vec2::splat(2.)).is_none());
+    assert!(slats::clear_fraction(&f, Vec2::splat(2.), f.shade_coverage).is_none());
 }
+
+#[path = "curtain_tests.rs"]
+mod curtain_checks;

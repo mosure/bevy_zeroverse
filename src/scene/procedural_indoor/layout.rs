@@ -1,6 +1,8 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
 mod adjoining;
-pub use adjoining::{AdjoiningFloor, AdjoiningReturn, AdjoiningSpace};
+pub use adjoining::{
+    AdjoiningElevation, AdjoiningFloor, AdjoiningReturn, AdjoiningSpace, AdjoiningWindows,
+};
 mod amenities;
 pub mod assemblies;
 pub(crate) mod botany;
@@ -329,6 +331,9 @@ pub struct IndoorManifest {
     /// Connected circulation space beyond the primary reconstruction region.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjoining: Option<AdjoiningSpace>,
+    /// Construction of the exterior walls beyond the shared interior partition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjoining_elevation: Option<AdjoiningElevation>,
     #[serde(default)]
     pub ceiling_installation: Option<super::architecture::ceiling::CeilingInstallation>,
     pub palette: u32,
@@ -523,6 +528,7 @@ impl IndoorManifest {
             room_size,
             envelope: None,
             adjoining: Some(AdjoiningSpace::sample(seed, room_size.x)),
+            adjoining_elevation: None,
             ceiling_installation: None,
             rug_supports: Vec::new(),
             palette: rng.random_range(0..6),
@@ -599,6 +605,7 @@ impl IndoorManifest {
         super::architecture::doors::sample_entry(&mut scene)?;
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
         functional::prepare_architecture(&mut scene);
+        scene.adjoining_elevation = Some(AdjoiningElevation::sample(&scene));
         super::architecture::doors::sample_partitions(&mut scene);
         super::architecture::doors::fit_floor_states(&mut scene);
         scene.ceiling_installation = Some(
@@ -1270,6 +1277,9 @@ impl IndoorManifest {
             boxes.extend(super::floorplan::obstacles(self));
             if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
                 boxes.extend(installation.obstacles());
+                if let Some(grid) = &installation.room_grid {
+                    boxes.extend(grid.air_reservations(self.room_size.y));
+                }
             }
             return boxes;
         }

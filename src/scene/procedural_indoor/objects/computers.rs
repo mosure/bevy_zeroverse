@@ -80,13 +80,17 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
         program.corner_m.min(program.lid_m * 0.35),
         lid.with_translation(lid.transform_point(Vec3::Y * screen_height * 0.5)),
     );
-    dest.part(Surface::Screen, label).cuboid(
-        Vec3::new(width - bezel * 2.0, screen_height - bezel * 2.0, 0.001),
-        0.0,
+    displays::screen_cover(
+        dest,
+        metal,
+        Surface::Screen,
+        label,
+        Vec3::new(width - bezel * 2., screen_height - bezel * 2., 0.0016),
+        0.,
         lid.with_translation(lid.transform_point(Vec3::new(
-            0.0,
+            0.,
             screen_height * 0.5,
-            program.lid_m * 0.5 + 0.0007,
+            program.lid_m * 0.5 + 0.0004,
         ))),
     );
     dest.part(Surface::Ink, label).ellipsoid(

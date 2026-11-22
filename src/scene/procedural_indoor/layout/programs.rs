@@ -7,6 +7,21 @@ mod primary;
 mod recovery;
 #[cfg(test)]
 mod tests;
+
+/// Position on a rectangular activity-zone edge and heading of its inward normal.
+/// Shelf openings and cabinet handles are on local +Z.
+fn zone_edge(min: Vec2, max: Vec2, side: usize, along: f32, setback: f32) -> (Vec2, f32) {
+    let p = min + (max - min) * along;
+    match side {
+        0 => (Vec2::new(min.x + setback, p.y), std::f32::consts::FRAC_PI_2),
+        1 => (
+            Vec2::new(max.x - setback, p.y),
+            -std::f32::consts::FRAC_PI_2,
+        ),
+        2 => (Vec2::new(p.x, min.y + setback), 0.),
+        _ => (Vec2::new(p.x, max.y - setback), std::f32::consts::PI),
+    }
+}
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
@@ -131,24 +146,7 @@ impl IndoorManifest {
                 let side = rng.random_range(0..4);
                 let t = rng.random_range(0.14..0.86);
                 let setback = transform_rng.random_range(0.48..0.92);
-                let (x, z, yaw) = match side {
-                    0 => (
-                        zone.min.x + setback,
-                        zone.min.y + t * extent.y,
-                        -std::f32::consts::FRAC_PI_2,
-                    ),
-                    1 => (
-                        zone.max.x - setback,
-                        zone.min.y + t * extent.y,
-                        std::f32::consts::FRAC_PI_2,
-                    ),
-                    2 => (zone.min.x + t * extent.x, zone.min.y + setback, 0.0),
-                    _ => (
-                        zone.min.x + t * extent.x,
-                        zone.max.y - setback,
-                        std::f32::consts::PI,
-                    ),
-                };
+                let (edge, inward) = zone_edge(zone.min, zone.max, side, t, setback);
                 let service = if rng.random_bool(
                     zone.composition
                         .as_ref()
@@ -213,9 +211,18 @@ impl IndoorManifest {
                 {
                     transform_rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
                 } else {
-                    yaw + transform_rng.random_range(-0.20..0.20)
+                    // Preserve the established orientations of loose items. Only units
+                    // with a front opening need a prescribed approach from the zone.
+                    let base = if side < 2
+                        && !matches!(kind, ObjectKind::Bookcase | ObjectKind::Cabinet)
+                    {
+                        -inward
+                    } else {
+                        inward
+                    };
+                    base + transform_rng.random_range(-0.20..0.20)
                 };
-                self.add(kind, Vec3::new(x, 0.0, z), size, yaw, rng);
+                self.add(kind, Vec3::new(edge.x, 0.0, edge.y), size, yaw, rng);
             }
         }
         // A usable upper floor gets its own work area; base-floor proposals do

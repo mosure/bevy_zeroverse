@@ -27,9 +27,8 @@ fn original_from_geometry(
         lights: Vec::new(),
         sun_direction: architecture::sun_direction(scene),
         sun: linear(architecture::sun_color(scene)) * architecture::sun_illuminance(scene),
-        // Isotropic hemispherical sky luminance. Sun is a separate analytic
-        // source; its disk must not be integrated a second time here.
         sky: scene.sky_radiance(),
+        sky_field: set.sky_field.clone(),
         bounds_min: Vec3::new(
             -scene.room_size.x * 0.5 - 0.10,
             scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
@@ -136,29 +135,24 @@ fn original_from_geometry(
             let mut material = if person.outfit.knitted()
                 && matches!(surface, HumanSurface::Top | HumanSurface::Seam)
             {
-                let mut material = knit.as_ref().expect("static knit proxy exists").clone();
-                // The knit template already includes the body's 2x atlas
-                // scale. Only the per-actor weave scale remains to apply.
-                material.uv_scale *= person.appearance.as_ref().map_or(1., |a| a.weave_scale);
-                material
+                knit.as_ref().expect("static knit proxy exists").clone()
             } else if cloth {
                 let key = humans::cloth_finish(person, surface);
                 let index = finish_indices.get(&key).copied().unwrap_or(key.0 as usize);
-                let mut material = result.materials[index].clone();
-                // The diffuse transport proxy resolves only coarse color;
-                // retain the wardrobe's atlas scale and selected structure.
-                material.uv_scale *= 2. * person.appearance.as_ref().map_or(1., |a| a.weave_scale);
-                material
+                result.materials[index].clone()
             } else {
                 DiffuseMaterial {
                     albedo: Vec3::ONE,
                     emission: Vec3::ZERO,
-                    uv_scale: Vec2::ONE,
-                    texture: None,
-                    address: Default::default(),
-                    textured_emission: false,
+                    uv_transform: Affine2::IDENTITY,
+                    base_map: None,
+                    emission_map: EmissionMap::Uniform,
                 }
             };
+            if cloth {
+                material.uv_transform =
+                    humans::person_material(person, surface, set, materials).uv_transform;
+            }
             material.albedo = linear(person.material_color(surface));
             let index = result.materials.len();
             result.materials.push(material);
@@ -225,6 +219,9 @@ fn original_from_geometry(
         objects::equipment::signals::strings::practical_lights(scene)
             .map(|(_, _, l)| LocalLight::from(l)),
     );
+    // The scalar oracle enumerates installed sources. A zero-candela source
+    // contributes nothing at any hit and need not occupy a transport slot.
+    result.lights.retain(|light| light.candela > 0.);
     result.nodes = original_median(&mut result.triangles);
     result.preparation_ms = started.elapsed().as_secs_f64() * 1000.0;
     result
@@ -383,23 +380,16 @@ fn same_scene(a: &BakeScene, b: &BakeScene) {
         assert_eq!(vec3_bits(a.albedo), vec3_bits(b.albedo));
         assert_eq!(vec3_bits(a.emission), vec3_bits(b.emission));
         assert_eq!(
-            a.uv_scale.to_array().map(f32::to_bits),
-            b.uv_scale.to_array().map(f32::to_bits)
+            a.uv_transform.to_cols_array().map(f32::to_bits),
+            b.uv_transform.to_cols_array().map(f32::to_bits)
         );
-        assert_eq!(a.textured_emission, b.textured_emission);
-        match (&a.texture, &b.texture) {
-            (Some((an, a)), Some((bn, b))) => {
-                assert_eq!(an, bn);
-                assert_eq!(a.len(), b.len());
-                for (a, b) in a.iter().zip(b) {
-                    assert_eq!(vec3_bits(*a), vec3_bits(*b));
-                }
-            }
-            (None, None) => {}
-            _ => panic!("diffuse texture attachment changed"),
-        }
+        assert_eq!(a.base_map, b.base_map);
+        assert_eq!(a.emission_map, b.emission_map);
         for uv in [Vec2::ZERO, Vec2::new(-0.19, 0.47), Vec2::new(0.95, 1.17)] {
-            assert_eq!(vec3_bits(a.albedo(uv)), vec3_bits(b.albedo(uv)));
+            let (diffuse_a, emitted_a) = a.response(uv);
+            let (diffuse_b, emitted_b) = b.response(uv);
+            assert_eq!(vec3_bits(diffuse_a), vec3_bits(diffuse_b));
+            assert_eq!(vec3_bits(emitted_a), vec3_bits(emitted_b));
         }
     }
     for (a, b) in [

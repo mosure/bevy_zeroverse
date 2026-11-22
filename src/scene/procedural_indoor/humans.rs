@@ -425,11 +425,7 @@ pub(crate) fn person_material(
         if cloth {
             // Preserve the spatial roughness map and only modulate it gently.
             material.perceptual_roughness = 0.72 + appearance.cloth_roughness * 0.25;
-            material.uv_transform *= bevy::math::Affine2::from_scale_angle_translation(
-                Vec2::splat(appearance.weave_scale),
-                appearance.weave_rotation,
-                Vec2::ZERO,
-            );
+            material.uv_transform *= appearance.weave_uv_transform();
             material.anisotropy_rotation -= appearance.weave_rotation;
         }
         if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {

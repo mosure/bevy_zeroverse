@@ -208,7 +208,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
 
         Table | Desk | CoffeeTable | SideTable => serde_json::json!(tables::parameters(o)),
         Chair if o.variant >= 10 => {
-            serde_json::json!({"family":if o.variant == 11 {"auditorium"} else {"tablet_arm"}, "folded":chairs::is_folded(o), "seat_height_metres":0.46, "width_metres":o.size.x,"height_metres":o.size.y,"depth_metres":o.size.z})
+            serde_json::json!(chairs::TeachingSeat::sample(o))
         }
         Chair if matches!(o.variant, 6 | 7) => serde_json::json!(chairs::stool::parameters(o)),
         Chair if o.variant == 8 => serde_json::json!(seating::parameters(o)),

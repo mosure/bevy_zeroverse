@@ -3,6 +3,15 @@ use super::{CameraMotion, CameraSettings, IndoorCamera};
 use bevy::prelude::*;
 use rand::Rng;
 
+/// Rotating a horizontal displacement of length L through angle a moves its
+/// endpoint by 2 L sin(a/2). Short sweeps can cross or oppose one another
+/// inside the same overlap volume; long sweeps need closer coordination.
+pub(super) fn peer_yaw_limit(extent_m: f32, baseline_m: f32, variation: f32) -> f32 {
+    let endpoint_budget = 0.65 * baseline_m * variation;
+    let chord = (endpoint_budget / (2. * extent_m.max(0.001))).min(1.);
+    (2. * chord.asin()).min(std::f32::consts::PI * variation.sqrt())
+}
+
 /// Small deformation of an already navigable trajectory. Its gaze and optical
 /// metadata are retained; every caller must requalify the resulting curve.
 pub(super) fn nearby_path(source: &IndoorCamera, rng: &mut impl Rng) -> IndoorCamera {

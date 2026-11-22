@@ -48,7 +48,7 @@ cargo run --example review_studio -- out/studio_review --groups
 `indoor_clutter` accepts a typed `items::distribution::ClutterSettings` policy as an object in configuration files or JSON in the native CLI. For example:
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural_indoor \
+cargo run --bin bevy_zeroverse -- --scene-type procedural_indoor \
   --indoor-clutter '{"probability":0.6,"minimum":0.05,"maximum":0.85,"bias":-0.3,"spread":0.8}'
 ```
 

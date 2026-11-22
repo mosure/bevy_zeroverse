@@ -144,6 +144,7 @@ mod tests {
             sun_direction: Vec3::Y,
             sun: Vec3::ZERO,
             sky: Vec3::ZERO,
+            sky_field: Default::default(),
             bounds_min: Vec3::ZERO,
             bounds_max: Vec3::ONE,
             preparation_ms: 0.,

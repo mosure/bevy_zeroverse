@@ -23,16 +23,16 @@ and geometric annotation evidence.
 ## Run and inspect
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 6
-cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 3 \
+cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor --indoor-seed 6
+cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor --indoor-seed 3 \
   --indoor-layout conference --indoor-density 0.8
 
 # CPU-only geometry/distribution audit: does not initialize a GPU.
-cargo run --no-default-features --features multi_threaded --bin indoor_validate -- \
+cargo run --no-default-features --features multi_threaded --example indoor_validate -- \
   --seed 0 --audit-seeds 10000 --output out/indoor_audit
 
 # Actual GPU RGB/depth/normal/semantic/position capture, including validation.
-cargo run --no-default-features --features multi_threaded --bin indoor_validate -- \
+cargo run --no-default-features --features multi_threaded --example indoor_validate -- \
   --seed 0 --audit-seeds 10000 --renders 8 --cameras 4 --width 800 --height 600 \
   --labels --output out/indoor_final
 ```
@@ -95,6 +95,13 @@ support relationships, camera paths and optional world rotation.
 - Furniture placement blends activity priors over continuously sampled functional
   zones, partitions, spacing, object proportions and coordinated finishes.
   Supporting surfaces and circulation space constrain placement.
+- Auditorium seats tip up about a rear bearing between two floor-mounted
+  supports. Folded seats are excluded from seated-human placement. Portable
+  classroom chairs have a bent-tube frame and a contoured writing tablet on
+  either side. The geometry audit records the seat and tablet dimensions.
+  Dataset metrics include tablet handedness, seat depth and installed fold angle.
+  Office caster chairs have paired tyres on offset swivel axles. The adjustment
+  lever follows the seat pan during swivel motion.
 - Office workstations can form rear-to-rear desk banks with outward seating.
   The available depth determines whether both desks and chairs fit. Other zones
   retain separate rows, and teaching rows share a forward direction. Desks
@@ -173,15 +180,35 @@ support relationships, camera paths and optional world rotation.
   metal. Wrapped shafts can have recessed horizontal joints and a separate base.
   Their texture coordinates follow the perimeter in metres and their tops follow
   the local ceiling slope.
+- Suspended acoustic grids use square lay-in, square tegular or beveled tegular
+  boards on painted metal T runners. The manifest records board thickness, edge
+  drop, web clearance, runner width and the installed mineral-fiber facing.
+  Fine-fiber, pinhole and fissured boards use metric color, normal and roughness
+  maps with independent cuts from the same stock. All parts retain the ceiling
+  semantic label. Recorded grids from earlier manifests retain their original shape.
+- Flat rooms can have a wall-to-wall acoustic ceiling. Its grid follows the
+  footprint through alcoves and chamfers. Square and rectangular stock uses
+  600, 609.6 or 625 mm modules with balanced border cuts. Compatible panel
+  lights fit complete bays on the existing circuit. The other service bays
+  contain four-way supply diffusers or slotted return grilles with real openings.
+  The manifest records their locations and dimensions in `ceiling_installation.room_grid`.
+  Recessed fixtures keep their lamp instance IDs for annotation. The border
+  layout and supply diffusers draw on commercial installation details.
+  [Suspended ceiling installation guide](https://www.armstrongceilings.com/pdbupimages-clg/225619.pdf/download/general-installation.pdf) ·
+  [Four-way diffuser section](https://www.titus-hvac.com/file/273/PCS-AA-SUB.pdf)
 - Wood, flooring, fabric, paint, foliage, concrete and other surfaces have distinct
   material roles and correlated construction/finish samplers. Each supported
   substrate blends four physical process regions with continuous scale and finish
   variation. Generated 256²/512² maps use metric UVs, linear normal/roughness data,
   sRGB albedo and full mip chains. Flooring includes varied timber/mineral
   installations, heathered carpet yarns, colored flecks and rug pile. Carpet
-  pile influences roughness and relief. Mineral floors can use matching or
-  contrasting grout. Mesh parts remain batched by material and
-  semantic class within each instance, with bounded texture slots.
+  pile influences roughness and relief. Broadloom runs continuously. On modular
+  carpet, dye and pile follow each cut tile. Installations include parallel pile,
+  opposing courses, quarter-turned square tiles and non-directional layouts.
+  Rectangular planks can reverse end for end while retaining their yarn scale.
+  Material manifests record the installation and pattern registration. Mineral
+  floors can use matching or contrasting grout. Mesh parts remain batched by
+  material and semantic class within each instance, with bounded texture slots.
 - Daylight, overcast and evening vary sun direction/intensity, luminaire output,
   exposure and color temperature. Shadowed lights, transmission, a generated
   environment reflection proxy, native SSAO, FXAA and restrained bloom serve RGB.
@@ -201,6 +228,14 @@ support relationships, camera paths and optional world rotation.
   Underfilled lounges complete accepted sofa groups with front or side tables and
   reading lamps after service furnishing. These bounded recovery proposals retain
   the same furnishing minimum, floor/step support and collision checks.
+- Bookcases and open cabinets hold upright rows, supported leaning rows and
+  horizontal stacks. Storage units placed along an activity-zone edge face
+  their openings into that zone. Leaning books rest on the shelf and bear against the next
+  volume, a solid divider or a weighted bookend. A short series may share a
+  trim size and jacket design while individual volumes vary in thickness.
+  Paper and case bindings, exposed page edges and printed spine marks use the
+  same geometry in RGB and surface annotations. Books retain the books semantic
+  label, and bookends belong to the shelving that supports them.
 - Cameras cover seated, low, standing and elevated viewpoints, roughly 0.7–3.25 m
   above the local floor, with both near-horizontal and content-directed gaze,
   varied intrinsics and configurable travel lengths. The independent
@@ -224,21 +259,53 @@ Tissue boxes sample sleeve finishes, height, aperture width and depth, sheet lea
 pleat amplitude and phase. The opening is geometric; the visible tissue is a
 pinched sheet with separate front/back normals. Bins vary continuously from
 round/oval to rounded rectangular profiles, with taper, rim thickness, finishes,
-open/divided chambers, pedal/sensor lids and moulded ribs. Their meshes remain
-inside the same placement reservations used for clearance and annotations.
+open/divided chambers, pedal/sensor lids and moulded ribs. Paired waste stations
+have a general-waste opening and a recycling inlet for paper, bottles and cans,
+or mixed recyclables. The clear opening, offset and molded lip have metric
+dimensions. Open baskets can have a folded liner cuff. Station lids and ribbed
+baskets can retain the liner below the rim. Its folds and bottom are physical
+surfaces with the bin's instance and semantic label. Metrics record the realized
+inlet, its dimensions, and which liners are visible.
 
 Wall hardware samples gang counts, faceplate finishes, edge radii, screw covers,
 rockers, toggles, rotary/sliding dimmers and push buttons. Receptacles vary their
 pin layouts and optional USB inserts. Connected leads use the builder's exact
 primary socket frame. These are visual models, not electrical design drawings.
 
-Exterior context samples disjoint parcels around the primary and adjoining room:
-stepped buildings with varied floor pitches, aperture spacing, roof equipment,
-planted courtyards, benches and open pergolas. A bounded finite sky closes rays
-between parcels. Exterior meshes remain excluded from primary-room O-voxel
-exports. The distribution report includes bin/tissue/fixture parameters and
-exterior parcel counts, so geometry diversity can be measured independently of
-scene seeds.
+Exterior windows look onto streets, planted courtyards and covered patios.
+The district samples building and garden counts first. For a street frontage,
+the planner can exchange up to two pairs of plot uses to give larger eye-level
+openings a view of neighboring buildings. The farther street samples the
+directions left open between these buildings, in proportion to the visible
+width and height of each aperture. Buildings and their sidewalks must fit
+outside the near plots and below the finite sky. Open greens and views through
+clerestories are part of the distribution. The layout depends on the permanent
+openings and the seed, so moving or adding cameras preserves the neighborhood.
+
+Pergolas have load-bearing posts and beams with open rafters, tilted louvres or
+partially covered fabric bays. Their shade cloth sags between supporting
+battens. Plant heights respect the installed headroom. The metrics export
+includes roof headroom, batten pitch, louvre angle, fabric coverage and the
+area-weighted fraction of sampled horizontal window directions intersecting
+building plots (`exterior_ground_storey_frontage_fraction`). This last measure
+describes placement. Captured depth and semantics measure what each camera sees.
+Exterior meshes carry `#exterior` for primary-room O-voxel exclusion. A finite
+sky surface supplies depth on unobstructed rays.
+
+The sky seen through these openings varies with viewing direction. Clear skies
+have a blue upper dome, haze near the horizon and a brighter region around the
+sun. Cloudier skies sample broad patches of cloud and brighten toward the
+zenith, following the altitude dependence of the CIE overcast sky. The same
+sampled beam transmission controls the strength of the direct sun. Each room's
+sky is normalized to its metered diffuse daylight in linear RGB.
+[CIE overcast sky definition](https://cie.co.at/eilvterm/17-29-111)
+
+The room manifest records beam transmission, haze, cloud frequency and the
+cloud seed under `program.domain.photometry.sky_distribution`. Visible sky,
+reflection probes, diffuse indirect lighting and the Cycles reference use one
+64 × 64 radiance map. The map follows room rotation and has no translational
+parallax. Depth and position continue to describe the finite sky geometry.
+Older manifests without a distribution use uniform sky radiance.
 
 ## Dataset use
 
@@ -357,7 +424,7 @@ not a photographic-realism or downstream-training qualification.
 Reproduce the architectural audit and report in a fresh output directory:
 
 ```sh
-cargo run --no-default-features --features multi_threaded --bin indoor_validate -- \
+cargo run --no-default-features --features multi_threaded --example indoor_validate -- \
   --seed 0 --audit-seeds 512 --renders 32 --cameras 4 \
   --width 640 --height 400 --playback-steps 2 --labels --no-raw \
   --gi-rays 1024 --output out/indoor_review
@@ -393,8 +460,8 @@ room/human modes still use their existing catalog assets.
 ## WebGPU / Wasm
 
 ```sh
-cargo build --bin viewer --target wasm32-unknown-unknown --no-default-features --features web
-wasm-bindgen --out-dir www/out --target web target/wasm32-unknown-unknown/debug/viewer.wasm
+cargo build --bin bevy_zeroverse --target wasm32-unknown-unknown --no-default-features --features web
+wasm-bindgen --out-name viewer --out-dir www/out --target web target/wasm32-unknown-unknown/debug/bevy_zeroverse.wasm
 python -m http.server 8765 --directory www
 ```
 
@@ -459,10 +526,10 @@ texture generation uses a bounded native CPU pool. The dataset CLI overlaps one
 CPU writer batch with the next capture; it has no unbounded work queue.
 
 ```sh
-cargo run --bin indoor_bench -- --scenes 1000 --warmup-scenes 64 \
+cargo run --example indoor_bench -- --scenes 1000 --warmup-scenes 64 \
   --cameras 3 --width 320 --height 240 --gpu-timings --output out/indoor_bench
 # Fixed-scene control separates regeneration behavior from repeated capture.
-cargo run --bin indoor_bench -- --scenes 1000 --warmup-scenes 64 \
+cargo run --example indoor_bench -- --scenes 1000 --warmup-scenes 64 \
   --fixed-scene --output out/indoor_bench_fixed
 ```
 

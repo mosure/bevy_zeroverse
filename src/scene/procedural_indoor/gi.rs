@@ -10,6 +10,10 @@ pub(crate) use assembly::GeometryTransport;
 mod bvh;
 mod probe_domain;
 use probe_domain::ProbeDomain;
+mod material;
+#[cfg(not(target_arch = "wasm32"))]
+use material::TransportMap;
+use material::{DiffuseMaterial, EmissionMap};
 mod reflection_emitters;
 mod texture_address;
 pub(crate) use reflection_emitters::ReflectionEmitters;
@@ -31,6 +35,7 @@ use super::{
 use bevy::{
     asset::RenderAssetUsages,
     image::ImageSampler,
+    math::Affine2,
     platform::time::Instant,
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
@@ -277,82 +282,6 @@ impl ProbeData {
     }
 }
 
-#[derive(Clone)]
-struct DiffuseMaterial {
-    albedo: Vec3,
-    emission: Vec3,
-    uv_scale: Vec2,
-    texture: Option<(u32, Vec<Vec3>)>,
-    address: TextureAddress,
-    textured_emission: bool,
-}
-
-impl DiffuseMaterial {
-    fn from_standard(
-        mat: &StandardMaterial,
-        images: &impl super::preparation::AssetStore<Image>,
-        baked: &super::materials::gpu::Requests,
-    ) -> Self {
-        let srgb_linear = srgb8_linear_table();
-        let texture = mat.base_color_texture.as_ref().and_then(|h| {
-            if let Some(samples) = baked.albedo(h.id()) {
-                return Some((
-                    32,
-                    samples
-                        .iter()
-                        .map(|c| {
-                            Vec3::new(
-                                srgb_linear[c[0] as usize],
-                                srgb_linear[c[1] as usize],
-                                srgb_linear[c[2] as usize],
-                            )
-                        })
-                        .collect(),
-                ));
-            }
-            let image = images.get(h)?;
-            image.data.as_ref().map(|data| {
-                // Preserve the full-map point-sampling and byte decoding
-                // contract used by both geometry and garment transport.
-                let width = image.width() as usize;
-                let n = 32usize;
-                let mut pixels = Vec::with_capacity(n * n);
-                for y in 0..n {
-                    for x in 0..n {
-                        let index = ((y * width / n) * width + x * width / n) * 4;
-                        pixels.push(Vec3::new(
-                            srgb_linear[data[index] as usize],
-                            srgb_linear[data[index + 1] as usize],
-                            srgb_linear[data[index + 2] as usize],
-                        ));
-                    }
-                }
-                (n as u32, pixels)
-            })
-        });
-        Self {
-            albedo: (linear(mat.base_color) * (1.0 - mat.metallic))
-                .clamp(Vec3::ZERO, Vec3::splat(0.95)),
-            emission: Vec3::new(mat.emissive.red, mat.emissive.green, mat.emissive.blue),
-            uv_scale: mat.uv_transform.matrix2 * Vec2::ONE,
-            texture,
-            address: mat
-                .base_color_texture
-                .as_ref()
-                .and_then(|h| images.get(h))
-                .map_or_else(TextureAddress::default, TextureAddress::for_image),
-            textured_emission: mat.emissive_texture.is_some(),
-        }
-    }
-
-    fn albedo(&self, uv: Vec2) -> Vec3 {
-        let Some((n, pixels)) = &self.texture else {
-            return self.albedo;
-        };
-        self.albedo * self.address.sample(uv * self.uv_scale, *n, pixels)
-    }
-}
-
 #[derive(Clone, Copy)]
 struct Triangle {
     a: Vec3,
@@ -534,6 +463,7 @@ pub struct BakeScene {
     sun_direction: Vec3,
     sun: Vec3,
     sky: Vec3,
+    sky_field: super::sky::SkyField,
     pub bounds_min: Vec3,
     pub bounds_max: Vec3,
     preparation_ms: f64,
@@ -629,7 +559,7 @@ impl BakeScene {
     ) -> Vec3 {
         let Some((index, distance, bary)) = surface else {
             return if direction.y > 0. {
-                self.sky
+                self.sky_field.radiance(direction, self.sky)
             } else {
                 Vec3::ZERO
             };
@@ -645,12 +575,7 @@ impl BakeScene {
         let uv = triangle.uv[0] * (1. - bary.x - bary.y)
             + triangle.uv[1] * bary.x
             + triangle.uv[2] * bary.y;
-        let albedo = mat.albedo(uv);
-        let emission = if mat.textured_emission {
-            mat.emission * albedo
-        } else {
-            mat.emission
-        };
+        let (albedo, emission) = mat.response(uv);
         emission + albedo * (self.direct(position, normal) / PI + Vec3::splat(ambient))
     }
 
@@ -849,9 +774,9 @@ impl BakeScene {
                 // Only upper-hemisphere sky is an emitter. Geometry (including
                 // the generated exterior ground/facades) handles the lower half.
                 if direction.y > 0.0 {
-                    light += throughput * self.sky;
+                    light += throughput * self.sky_field.radiance(direction, self.sky);
                 }
-                break;
+                return light;
             };
             let triangle = &self.triangles[index];
             let normal = if triangle.normal.dot(direction) > 0.0 {
@@ -864,19 +789,20 @@ impl BakeScene {
             let uv = triangle.uv[0] * (1.0 - bary.x - bary.y)
                 + triangle.uv[1] * bary.x
                 + triangle.uv[2] * bary.y;
-            let albedo = mat.albedo(uv);
-            let emission = if mat.textured_emission {
-                mat.emission * albedo
-            } else {
-                mat.emission
-            };
+            let (albedo, emission) = mat.response(uv);
             light += throughput * (emission + albedo * self.direct(position, normal) / PI);
             throughput *= albedo;
             if throughput.max_element() < 0.001 {
-                break;
+                return light;
             }
             origin = position + normal * 0.003;
             direction = cosine_direction(normal, rng.next(), rng.next());
+        }
+        // The last surface already received analytic direct lights. The sky is
+        // also a direct light there: the cosine sample accounts for the
+        // Lambertian BRDF and PDF, leaving only albedo and sky visibility.
+        if bounces > 0 && direction.y > 0.0 && !self.occluded(origin, direction, 1000.0) {
+            light += throughput * self.sky_field.radiance(direction, self.sky);
         }
         light
     }
@@ -1066,7 +992,7 @@ mod tests {
     }
 
     #[test]
-    fn knitted_garment_transport_uses_rendered_neutral_atlas_and_body_scale() {
+    fn knitted_garment_transport_uses_the_rendered_atlas_scale_and_rotation() {
         use super::super::{
             humans::{self, HumanOutfit, HumanSurface},
             layout::IndoorLayout,
@@ -1079,9 +1005,8 @@ mod tests {
         let person = scene.humans.first_mut().expect("occupied knit fixture");
         person.outfit = HumanOutfit::Knitwear;
         let appearance = person.appearance.as_mut().expect("sampled wardrobe");
-        // The diffuse proxy retains the existing scalar UV approximation. Zero
-        // rotation makes its scale independently comparable to rendered UVs.
-        appearance.weave_rotation = 0.;
+        // An off-axis weave must hit the same texels as the visible garment.
+        appearance.weave_rotation = -0.37;
         appearance.weave_scale = 1.7;
         appearance.top = [0.21, 0.37, 0.54];
         let (mut images, mut materials) = (Assets::default(), Assets::default());
@@ -1117,28 +1042,21 @@ mod tests {
                 );
                 let expected = DiffuseMaterial::from_standard(&rendered, &images, &set.gpu_bakes);
                 let actual = &transport.materials[index];
-                let (expected_n, expected_pixels) = expected.texture.as_ref().unwrap();
-                let (actual_n, actual_pixels) = actual.texture.as_ref().unwrap();
-                assert_eq!(actual_n, expected_n);
-                assert_eq!(actual_pixels.len(), 32 * 32);
-                for (a, b) in actual_pixels.iter().zip(expected_pixels) {
-                    assert_eq!(
-                        a.to_array().map(f32::to_bits),
-                        b.to_array().map(f32::to_bits)
-                    );
-                }
+                let actual_map = actual.base_map.as_ref().unwrap();
+                assert_eq!(actual_map.pixels.len(), 32 * 32);
+                assert_eq!(actual_map, expected.base_map.as_ref().unwrap());
                 assert_eq!(
-                    actual.uv_scale.to_array().map(f32::to_bits),
-                    expected.uv_scale.to_array().map(f32::to_bits)
+                    actual.uv_transform.to_cols_array().map(f32::to_bits),
+                    expected.uv_transform.to_cols_array().map(f32::to_bits)
                 );
                 for uv in [Vec2::ZERO, Vec2::new(0.037, 0.91), Vec2::new(-0.25, 1.125)] {
                     assert_eq!(
-                        actual.albedo(uv).to_array().map(f32::to_bits),
-                        expected.albedo(uv).to_array().map(f32::to_bits)
+                        actual.response(uv).0.to_array().map(f32::to_bits),
+                        expected.response(uv).0.to_array().map(f32::to_bits)
                     );
                 }
                 assert_eq!(actual.emission, expected.emission);
-                assert_eq!(actual.textured_emission, expected.textured_emission);
+                assert_eq!(actual.emission_map, expected.emission_map);
             }
         }
     }
@@ -1186,6 +1104,7 @@ mod tests {
             sun_direction: Vec3::Y,
             sun: Vec3::ZERO,
             sky: Vec3::ONE,
+            sky_field: default(),
             bounds_min: Vec3::splat(-1.0),
             bounds_max: Vec3::ONE,
             preparation_ms: 0.0,
@@ -1316,16 +1235,106 @@ mod tests {
         }
     }
 
+    /// A colored Lambertian floor under an unobstructed uniform sky. Give it
+    /// enough extent that all but grazing horizontal rays hit the floor.
+    pub(super) fn daylight_floor() -> BakeScene {
+        let mut scene = empty();
+        scene.sky = Vec3::new(1.8, 2.0, 2.4);
+        scene.materials.push(DiffuseMaterial {
+            albedo: Vec3::new(0.20, 0.50, 0.72),
+            emission: Vec3::ZERO,
+            uv_transform: Affine2::IDENTITY,
+            base_map: None,
+            emission_map: EmissionMap::Uniform,
+        });
+        let mut floor = Assembly::default();
+        floor.box_part(
+            Surface::Paint,
+            "floor",
+            Vec3::NEG_Y * 1.3,
+            Vec3::new(2000., 0.1, 2000.),
+            0.,
+        );
+        for geometry in floor.parts.values() {
+            scene.add_geometry(geometry, Transform::IDENTITY, 0);
+        }
+        drop(scene.build_bvh());
+        scene
+    }
+
+    #[test]
+    fn last_diffuse_surface_receives_visible_skylight_exactly_once() {
+        let mut scene = daylight_floor();
+        let reflected = scene.sky * scene.materials[0].albedo;
+        for budget in [1, 2, 3] {
+            assert_eq!(
+                scene.radiance(Vec3::ZERO, Vec3::NEG_Y, budget, &mut Rng(42)),
+                reflected
+            );
+            assert_eq!(
+                scene.radiance(Vec3::ZERO, Vec3::Y, budget, &mut Rng(42)),
+                scene.sky
+            );
+        }
+
+        let mut room = Assembly::default();
+        room.box_part(Surface::Paint, "enclosure", Vec3::ZERO, Vec3::splat(6.), 0.);
+        for geometry in room.parts.values() {
+            scene.add_geometry(geometry, Transform::IDENTITY, 0);
+        }
+        drop(scene.build_bvh());
+        for budget in [1, 2, 3] {
+            assert_eq!(
+                scene.radiance(Vec3::ZERO, Vec3::NEG_Y, budget, &mut Rng(42)),
+                Vec3::ZERO
+            );
+        }
+    }
+
+    #[test]
+    fn transport_reads_the_transformed_texel_of_a_rectangular_finish() {
+        let red = [255, 0, 0, 255];
+        let green = [0, 255, 0, 255];
+        let dark = [0, 0, 0, 255];
+        let mut images = Assets::default();
+        let pixels: [[u8; 4]; 8] = [dark, red, dark, dark, dark, dark, green, dark];
+        let handle = images.add(Image::new(
+            Extent3d {
+                width: 4,
+                height: 2,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            bytemuck::cast_slice(&pixels).to_vec(),
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::default(),
+        ));
+        let material = StandardMaterial {
+            base_color: Color::linear_rgb(0.5, 0.5, 0.5),
+            base_color_texture: Some(handle),
+            uv_transform: Affine2::from_cols(
+                Vec2::new(0., 0.75),
+                Vec2::new(-0.5, 0.),
+                Vec2::new(0.8, 0.2),
+            ),
+            ..default()
+        };
+        let transport = DiffuseMaterial::from_standard(&material, &images, &default());
+        // Transformed coordinates (0.65, 0.575) and (0.45, 0.35) fall in
+        // column 2, row 1 and column 1, row 0 of the 4-by-2 image.
+        assert_eq!(transport.response(Vec2::new(0.5, 0.3)).0, 0.5 * Vec3::Y);
+        assert_eq!(transport.response(Vec2::new(0.2, 0.7)).0, 0.5 * Vec3::X);
+    }
+
     #[test]
     fn diffuse_cavity_matches_independent_geometric_series_energy() {
         let mut scene = empty();
         scene.materials.push(DiffuseMaterial {
             albedo: Vec3::new(0.5, 0.25, 0.0),
             emission: Vec3::ONE,
-            uv_scale: Vec2::ONE,
-            texture: None,
-            address: Default::default(),
-            textured_emission: false,
+            uv_transform: Affine2::IDENTITY,
+            base_map: None,
+            emission_map: EmissionMap::Uniform,
         });
         let mut walls = Assembly::default();
         walls.box_part(Surface::Paint, "wall", Vec3::ZERO, Vec3::splat(4.0), 0.0);
@@ -1440,10 +1449,9 @@ mod tests {
         scene.materials.push(DiffuseMaterial {
             albedo: Vec3::ZERO,
             emission: Vec3::X,
-            uv_scale: Vec2::ONE,
-            texture: None,
-            address: Default::default(),
-            textured_emission: false,
+            uv_transform: Affine2::IDENTITY,
+            base_map: None,
+            emission_map: EmissionMap::Uniform,
         });
         let mut panel = Assembly::default();
         panel.box_part(

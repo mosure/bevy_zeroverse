@@ -1,17 +1,42 @@
 //! Closed rounded-section lofts for manufactured shells and storage bodies.
 use super::*;
 const N: usize = 32;
+/// Shared profile for inserts fitted to the actual polygonal housing.
+pub(crate) fn housing_outline(exponent: f32) -> [Vec2; N] {
+    std::array::from_fn(|i| {
+        let t = TAU * i as f32 / N as f32;
+        let f = |v: f32| {
+            if v.abs() < 1e-6 {
+                0.
+            } else {
+                v.signum() * v.abs().powf(2. / exponent)
+            }
+        };
+        Vec2::new(f(t.cos()), f(t.sin()))
+    })
+}
 impl Geometry {
     /// Each ring is (height, half-width/depth). Caps and side normals are separate.
     pub fn housing(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
-        self.housing_sections(rings, exponent, tf, true);
+        self.housing_sections(rings, exponent, tf, true, None);
+    }
+
+    /// Closed loft with an independently finished top face, e.g. a handset display.
+    pub(crate) fn housing_with_top(
+        &mut self,
+        top: &mut Geometry,
+        rings: &[(f32, Vec2)],
+        exponent: f32,
+        tf: Transform,
+    ) {
+        self.housing_sections(rings, exponent, tf, true, Some(top));
     }
 
     /// Closed cross-section for a hollow rim. Repeat the first section last;
     /// unlike a solid housing, no disk caps fill or overlap its aperture.
     pub fn housing_loop(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
         debug_assert_eq!(rings.first(), rings.last());
-        self.housing_sections(rings, exponent, tf, false);
+        self.housing_sections(rings, exponent, tf, false, None);
     }
 
     fn housing_sections(
@@ -20,65 +45,76 @@ impl Geometry {
         exponent: f32,
         tf: Transform,
         caps: bool,
+        mut separate_top: Option<&mut Geometry>,
     ) {
+        if rings.len() < 2 {
+            return;
+        }
         // Every ring shares its angular profile. Evaluate trig/powers once per
         // side, not again for each vertex, tangent and vertical normal sample.
         // Keep the same arithmetic order when applying metric ring dimensions.
-        let outline: [Vec2; N] = std::array::from_fn(|i| {
-            let t = TAU * i as f32 / N as f32;
-            let f = |v: f32| {
-                if v.abs() < 1e-6 {
-                    0.
-                } else {
-                    v.signum() * v.abs().powf(2. / exponent)
-                }
-            };
-            Vec2::new(f(t.cos()), f(t.sin()))
-        });
+        let outline = housing_outline(exponent);
         let point = |i: usize, ring: (f32, Vec2)| {
             let unit = outline[i % N];
             Vec3::new(ring.1.x * unit.x, ring.0, ring.1.y * unit.y)
         };
+        // Parameterize the patterned stock by metres along its widest section.
+        // Equal polar angles are very unequal lengths across a rounded rectangle.
+        let span = rings.iter().fold(Vec2::ZERO, |size, ring| size.max(ring.1));
+        let mut along = [0.; N + 1];
+        for i in 0..N {
+            along[i + 1] = along[i] + ((outline[(i + 1) % N] - outline[i]) * span).length();
+        }
+        let mut lower: [Vec3; N] = std::array::from_fn(|i| point(i, rings[0]));
+        let mut height = [0.; N];
         for pair in rings.windows(2) {
+            let planar = pair[0].0 == pair[1].0;
+            let upper: [Vec3; N] = std::array::from_fn(|i| point(i, pair[1]));
+            let rise: [Vec3; N] = std::array::from_fn(|i| upper[i] - lower[i]);
+            let next_height: [f32; N] = std::array::from_fn(|i| height[i] + rise[i].length());
             for i in 0..N {
-                let p = point(i, pair[0]);
-                let q = point(i, pair[1]);
-                let r = point(i + 1, pair[1]);
-                let s = point(i + 1, pair[0]);
                 let start = self.positions.len() as u32;
-                for (v, j, ring) in [
-                    (p, i, pair[0]),
-                    (q, i, pair[1]),
-                    (r, i + 1, pair[1]),
-                    (s, i + 1, pair[0]),
+                for (j, ring, distances) in [
+                    (i, &lower, &height),
+                    (i, &upper, &next_height),
+                    (i + 1, &upper, &next_height),
+                    (i + 1, &lower, &height),
                 ] {
-                    let tangent = point(j + 1, ring) - point(j + N - 1, ring);
-                    let vertical = point(j, pair[1]) - point(j, pair[0]);
-                    self.vertex(
-                        v,
-                        vertical.cross(tangent).normalize(),
-                        Vec2::new(j as f32 / N as f32 * TAU * pair[0].1.max_element(), v.y),
-                        &tf,
-                    );
+                    let k = j % N;
+                    let p = ring[k];
+                    let tangent = ring[(k + 1) % N] - ring[(k + N - 1) % N];
+                    let uv = if planar {
+                        p.xz()
+                    } else {
+                        Vec2::new(along[j], distances[k])
+                    };
+                    self.vertex(p, rise[k].cross(tangent).normalize(), uv, &tf);
                 }
                 self.indices
                     .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
             }
+            lower = upper;
+            height = next_height;
         }
         if !caps {
             return;
         }
         for (ring, sign) in [(rings[0], -1.), (*rings.last().unwrap(), 1.)] {
-            let start = self.positions.len() as u32;
-            self.vertex(Vec3::Y * ring.0, Vec3::Y * sign, Vec2::ZERO, &tf);
+            let face = if sign > 0. {
+                separate_top.as_deref_mut().unwrap_or(self)
+            } else {
+                &mut *self
+            };
+            let start = face.positions.len() as u32;
+            face.vertex(Vec3::Y * ring.0, Vec3::Y * sign, Vec2::ZERO, &tf);
             for i in 0..N {
                 let p = point(i, ring);
-                self.vertex(p, Vec3::Y * sign, p.xz(), &tf);
+                face.vertex(p, Vec3::Y * sign, p.xz(), &tf);
             }
             for i in 0..N as u32 {
                 let a = start + 1 + i;
                 let b = start + 1 + (i + 1) % N as u32;
-                self.indices.extend(if sign > 0. {
+                face.indices.extend(if sign > 0. {
                     [start, b, a]
                 } else {
                     [start, a, b]
@@ -90,6 +126,9 @@ impl Geometry {
     /// field. Keeps hard manufactured lofts in `housing` unchanged. Shared ring
     /// indexing avoids a welding map and extra allocations in the hot path.
     pub fn padded_housing(&mut self, rings: &[(f32, Vec2)], exponent: f32, tf: Transform) {
+        if rings.len() < 2 {
+            return;
+        }
         let first = self.normals.len();
         self.housing(rings, exponent, tf);
         let caps = first + (rings.len() - 1) * N * 4;

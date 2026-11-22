@@ -17,6 +17,7 @@ pub struct IndoorMaterials {
     pub(super) object_emitters:
         std::collections::BTreeMap<(usize, usize), Handle<StandardMaterial>>,
     pub(super) sky: Handle<StandardMaterial>,
+    pub(crate) sky_field: super::super::sky::SkyField,
     pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
 }
@@ -45,6 +46,8 @@ impl MaterialSelection {
             }
             // Smooth factory-coated stock owns its complete optical response.
             if slat_finish::supports(surface, slot)
+                || acoustic_tile::supports(surface, slot)
+                || bin_film::supports(surface, slot)
                 || cooktop::supports(surface, slot)
                 || worktop_finish::supports(surface, slot)
             {
@@ -120,7 +123,7 @@ impl IndoorMaterials {
     pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
         if let Some(handle) = label
             .rsplit_once("#glazing")
-            .and_then(|(_, key)| key.parse::<u64>().ok())
+            .and_then(|(_, key)| key.split('#').next()?.parse::<u64>().ok())
             .and_then(|key| self.glazing.get(&key))
         {
             return handle.clone();
@@ -515,6 +518,8 @@ impl IndoorMaterials {
         glass::door::install(scene, quality, materials, selection, &mut variants);
         variants.extend(supplies::build(scene, &handles, materials, selection));
         slat_finish::install(scene, materials, selection, &mut variants);
+        acoustic_tile::install(scene, images, materials, selection, &mut variants);
+        bin_film::install(scene, materials, selection, &mut variants);
         window_textile::install(scene, &handles, materials, selection, &mut variants);
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
@@ -582,10 +587,13 @@ impl IndoorMaterials {
                 );
             }
         }
+        let (sky_material, sky_field) =
+            super::super::architecture::background::material(scene, images);
         let mut result = Self {
             glazing: glazing::build(scene, quality, images, materials),
             reflections: Vec::new(),
-            sky: materials.add(super::super::architecture::background::material(scene)),
+            sky: materials.add(sky_material),
+            sky_field,
             handles,
             gpu_bakes,
             gpu_environment: gpu,
@@ -694,6 +702,8 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || supplies::supports(surface, slot)
         || window_textile::supports(surface, slot)
         || slat_finish::supports(surface, slot)
+        || acoustic_tile::supports(surface, slot)
+        || bin_film::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102 | 105)

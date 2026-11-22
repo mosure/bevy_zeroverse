@@ -1,6 +1,6 @@
 //! Reproducible navigation audit and optional real-model/render qualification.
 #[cfg(not(target_arch = "wasm32"))]
-#[path = "motion_validate/flow.rs"]
+#[path = "../src/qualification/flow.rs"]
 mod flow;
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "motion_validate/kinematics.rs"]

@@ -34,24 +34,104 @@ pub(super) fn sheet_rows(
     shape: impl Fn(f32, f32) -> Vec3,
 ) {
     let [nx, ny] = cells;
-    let p: Vec<_> = (0..=ny)
-        .flat_map(|j| {
-            let v = row_v(j as f32 / ny as f32);
+    let rows: Vec<_> = (0..=ny).map(|j| row_v(j as f32 / ny as f32)).collect();
+    let p: Vec<_> = rows
+        .iter()
+        .flat_map(|&v| {
             (0..=nx).map({
                 let shape = &shape;
                 move |i| shape(i as f32 / nx as f32, v)
             })
         })
         .collect();
+    append_sheet::<true>(
+        g,
+        tf,
+        nx,
+        &rows,
+        Rect::from_corners(Vec2::ZERO, uv_size),
+        thickness,
+        &p,
+    );
+}
+
+/// Gathered cloth has a continuous surface normal. Keep the same vertices and
+/// indices at all draw positions so the motion and optical-flow meshes agree.
+pub(super) fn smooth_sheet(
+    g: &mut Geometry,
+    tf: Transform,
+    nx: usize,
+    rows: &[f32],
+    cut: Rect,
+    p: &[Vec3],
+) {
+    append_sheet::<false>(g, tf, nx, rows, cut, 0.0012, p);
+}
+
+fn grid_normal(p: &[Vec3], nx: usize, ny: usize, i: usize, j: usize) -> Vec3 {
+    let stride = nx + 1;
+    let du = p[j * stride + (i + 1).min(nx)] - p[j * stride + i.saturating_sub(1)];
+    let dv = p[(j + 1).min(ny) * stride + i] - p[j.saturating_sub(1) * stride + i];
+    du.cross(dv).normalize()
+}
+
+// A compressed fold can turn almost 180 degrees between its two faces.
+// Keep each shared normal in the front hemisphere of all adjacent triangles.
+// The cloth is a depth field in the track's XY plane, so +Z is a common
+// interior direction. Only tighten normals that a real face would see backwards.
+fn draped_normals(p: &[Vec3], nx: usize, ny: usize) -> Vec<Vec3> {
+    let stride = nx + 1;
+    let mut normals: Vec<_> = (0..p.len())
+        .map(|k| grid_normal(p, nx, ny, k % stride, k / stride))
+        .collect();
+    let mut correction = vec![0_f32; p.len()];
+    for j in 0..ny {
+        for i in 0..nx {
+            let a = j * stride + i;
+            let d = a + stride;
+            for tri in [[a, a + 1, d + 1], [a, d + 1, d]] {
+                let [s, t, u] = tri.map(|k| p[k]);
+                let face = (t - s).cross(u - s);
+                let margin = face.z * 0.12;
+                for k in tri {
+                    let dot = normals[k].dot(face);
+                    if dot < margin {
+                        correction[k] = correction[k].max((margin - dot) / (face.z - dot));
+                    }
+                }
+            }
+        }
+    }
+    for (n, t) in normals.iter_mut().zip(correction) {
+        if t > 0. {
+            *n = n.lerp(Vec3::Z, t).normalize();
+        }
+    }
+    normals
+}
+
+fn append_sheet<const SPLIT_CREASES: bool>(
+    g: &mut Geometry,
+    tf: Transform,
+    nx: usize,
+    rows: &[f32],
+    cut: Rect,
+    thickness: f32,
+    p: &[Vec3],
+) {
+    let uv_size = cut.size();
+    let ny = rows.len() - 1;
     let start = g.positions.len() as u32;
     let stride = nx + 1;
     let layer = p.len() as u32;
+    let draped = (!SPLIT_CREASES).then(|| draped_normals(p, nx, ny));
     for side in [1., -1.] {
-        for j in 0..=ny {
+        for (j, &v) in rows.iter().enumerate() {
             for i in 0..=nx {
-                let du = p[j * stride + (i + 1).min(nx)] - p[j * stride + i.saturating_sub(1)];
-                let dv = p[(j + 1).min(ny) * stride + i] - p[j.saturating_sub(1) * stride + i];
-                let n = du.cross(dv).normalize();
+                let n = draped.as_ref().map_or_else(
+                    || grid_normal(p, nx, ny, i, j),
+                    |normals| normals[j * stride + i],
+                );
                 g.positions.push(
                     tf.transform_point(p[j * stride + i] + Vec3::Z * (thickness * 0.5 * side))
                         .to_array(),
@@ -59,8 +139,8 @@ pub(super) fn sheet_rows(
                 g.normals
                     .push(((tf.rotation * (n / tf.scale)).normalize() * side).to_array());
                 g.uvs.push([
-                    uv_size.x * i as f32 / nx as f32,
-                    uv_size.y * (1. - row_v(j as f32 / ny as f32)),
+                    cut.min.x + uv_size.x * i as f32 / nx as f32,
+                    cut.min.y + uv_size.y * (1. - v),
                 ]);
             }
         }
@@ -77,7 +157,11 @@ pub(super) fn sheet_rows(
                 [a + layer, c + layer, b + layer],
                 [a + layer, d + layer, c + layer],
             ] {
-                folded_triangle(g, triangle);
+                if SPLIT_CREASES {
+                    folded_triangle(g, triangle);
+                } else {
+                    g.indices.extend(triangle);
+                }
             }
         }
     }
@@ -99,7 +183,13 @@ pub(super) fn sheet_rows(
             .cross(points[2] - points[0])
             .normalize();
         let start = g.positions.len() as u32;
-        let length = (p[b] - p[a]).length();
+        let length = if SPLIT_CREASES {
+            (p[b] - p[a]).length()
+        } else if a / stride == b / stride {
+            uv_size.x / nx as f32
+        } else {
+            uv_size.y * (rows[b / stride] - rows[a / stride]).abs()
+        };
         // Each binding edge has its own tangent frame. Projecting onto XY
         // collapses the shell thickness to zero in UV space.
         for (v, uv) in

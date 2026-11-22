@@ -2,15 +2,15 @@
 //! primary-room openings. Camera count, position and time never select detail.
 use super::*;
 
-pub(super) fn viewed_sides(parcels: &[Parcel], windows: &[(Vec2, Vec2)]) -> Vec<Option<usize>> {
+pub(super) fn viewed_sides(parcels: &[Parcel], windows: &[WindowView]) -> Vec<Option<usize>> {
     let mut ranked = Vec::new();
     for (index, p) in parcels.iter().enumerate().filter(|(_, p)| p.kind == 0) {
         let best = windows
             .iter()
-            .filter_map(|&(eye, facing)| {
-                let delta = p.center - eye;
+            .filter_map(|w| {
+                let delta = p.center - w.center;
                 let distance = delta.length();
-                let alignment = facing.dot(delta.normalize_or_zero());
+                let alignment = w.normal.dot(delta.normalize_or_zero());
                 let gap = distance - 0.5 * p.size.min_element();
                 if alignment <= 0.60 || gap > 13.0 {
                     return None;
@@ -64,7 +64,13 @@ mod tests {
             site(0., -5., 0.),
             site(5., 1., 0.),
         ];
-        let primary = [(Vec2::ZERO, Vec2::Y)];
+        let primary = [WindowView {
+            center: Vec2::ZERO,
+            normal: Vec2::Y,
+            width: 2.,
+            sill: 0.7,
+            head: 2.5,
+        }];
         assert_eq!(
             viewed_sides(&sites, &primary),
             [Some(2), Some(1), Some(0), None, None, None, None]

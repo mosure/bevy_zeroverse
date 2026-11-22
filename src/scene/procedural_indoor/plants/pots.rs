@@ -1,4 +1,5 @@
 //! Continuously shaped, hollow planters with fitted soil and separate saucers.
+use super::super::geometry::{ProfileJoints, RevolvedOutline};
 use super::*;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -105,17 +106,17 @@ pub(super) fn build(
         (r * (taper - wall), h * 0.16),
         (0., h * 0.16),
     ];
-    if p.sides < 16 {
-        faceted_pot(a.part(material, "other_prop"), &profile, p.sides);
+    let outline = if p.sides < 16 {
+        RevolvedOutline::polygon(p.sides)
     } else {
-        a.part(material, "other_prop").fluted_lathe(
-            &profile,
-            p.sides,
-            p.flute_depth,
-            p.flute_count,
-            Transform::IDENTITY,
-        );
-    }
+        RevolvedOutline::round(p.sides, p.flute_depth, p.flute_count)
+    };
+    outline.sweep(
+        a.part(material, "other_prop"),
+        &profile,
+        ProfileJoints::Creased,
+        Transform::IDENTITY,
+    );
     if p.saucer {
         a.part(material, "other_prop").lathe(
             &[
@@ -131,59 +132,27 @@ pub(super) fn build(
         );
     }
     let soil = h * (1. - lip - 0.065);
-    // Fit the inscribed disc at its actual height, including inward flutes.
-    let t = ((soil / h - p.shoulder_height_fraction) / (1. - lip - p.shoulder_height_fraction))
-        .clamp(0., 1.);
-    let radius = r
-        * ((p.belly - wall) * (1. - t) + (p.neck - wall) * t)
-        * (1. - p.flute_depth)
-        * (PI / p.sides as f32).cos()
-        - r * 0.008;
-    a.part(Surface::Soil, "other_prop").cylinder(
-        radius,
-        h * 0.025,
-        Transform::from_xyz(0., soil - h * 0.0125, 0.),
+    // Intersect the inner shoulder at each fill height. A small embed inside
+    // the solid wall closes the seam even under floating-point roundoff.
+    let inner_radius = |y: f32| {
+        let t = ((y / h - p.shoulder_height_fraction) / (1. - lip - p.shoulder_height_fraction))
+            .clamp(0., 1.);
+        r * ((p.belly - wall) * (1. - t) + (p.neck - wall) * t)
+    };
+    let bottom = soil - h * 0.025;
+    let embed = r * wall * 0.12;
+    outline.sweep(
+        a.part(Surface::Soil, "other_prop"),
+        &[
+            (0., bottom),
+            (inner_radius(bottom) + embed, bottom),
+            (inner_radius(soil) + embed, soil),
+            (0., soil),
+        ],
+        ProfileJoints::Creased,
+        Transform::IDENTITY,
     );
-    (soil, radius)
-}
-
-/// Hard face normals for actual polygonal planter sides; radial normals would
-/// falsely make a four-sided pot look like a poorly tessellated smooth cylinder.
-fn faceted_pot(g: &mut super::super::geometry::Geometry, profile: &[(f32, f32)], sides: u32) {
-    for pair in profile.windows(2) {
-        for side in 0..sides {
-            let angles = [
-                side as f32 * TAU / sides as f32,
-                (side + 1) as f32 * TAU / sides as f32,
-            ];
-            let point =
-                |(r, y): (f32, f32), angle: f32| Vec3::new(r * angle.cos(), y, r * angle.sin());
-            let positions = [
-                point(pair[0], angles[0]),
-                point(pair[1], angles[0]),
-                point(pair[0], angles[1]),
-                point(pair[1], angles[1]),
-            ];
-            let mut triangles = Vec::with_capacity(2);
-            if pair[0].0 > 1e-5 {
-                triangles.push([0, 1, 2]);
-            }
-            if pair[1].0 > 1e-5 {
-                triangles.push([2, 1, 3]);
-            }
-            for t in triangles {
-                let [a, b, c] = t.map(|i| positions[i]);
-                let normal = (b - a).cross(c - a).normalize();
-                let first = g.positions.len() as u32;
-                for i in t {
-                    let p = positions[i];
-                    g.positions.push(p.to_array());
-                    g.normals.push(normal.to_array());
-                    g.uvs
-                        .push([angles[usize::from(i >= 2)] * pair[0].0.max(pair[1].0), p.y]);
-                }
-                g.indices.extend([first, first + 1, first + 2]);
-            }
-        }
-    }
+    // Plant roots use the original conservative clear radius in every direction.
+    let roots = inner_radius(soil) * (1. - p.flute_depth) * (PI / p.sides as f32).cos() - r * 0.008;
+    (soil, roots)
 }

@@ -164,19 +164,19 @@ the existing model loader/cache; the first uncached run can download its models.
 cargo test --lib --features human_motion
 cargo clippy --workspace --all-targets --features human_motion -- -D warnings
 cargo check --target wasm32-unknown-unknown --no-default-features \
-  --features web,human_motion --bin viewer
+  --features web,human_motion --bin bevy_zeroverse
 cargo run --release --example review_humans --features human_motion -- \
   out/hair_review/long --female --standing --hair-start 8 --same-person
 cargo run --release --example review_humans --features human_motion -- \
   out/hair_review/short --female --standing --hair-start 0 --same-person
 cargo run --release --example review_humans --features human_motion -- \
   out/hair_review/varied --female --hair-start 16 --seed 16
-cargo run --release --bin indoor_validate --features human_motion -- \
+cargo run --release --example indoor_validate --features human_motion -- \
   --seed 0 --audit-seeds 256 --audit-geometry --cameras 3 \
   --width 512 --height 512 --renders 8 --human-density 0.7 \
   --labels --co-visibility --no-raw --asset-root "$PWD" \
   --output out/hair_review/rooms
-cargo run --release --bin motion_validate --features human_motion -- \
+cargo run --release --example motion_validate --features human_motion -- \
   --seed 0 --seeds 64 --render-seeds 2 --flow \
   --policy '{"fraction":0.8,"max_actors":2,"frames":120,"batch_size":2,"max_attempts":2}' \
   --output out/hair_review/motion

@@ -45,14 +45,15 @@ fn update_preview(
         history.previous = None;
         return;
     }
+    let position = playback.trajectory_progress();
     if regenerated
         || history
             .previous
-            .is_none_or(|(mode, p)| mode != playback.mode || (p - playback.progress).abs() > 0.25)
+            .is_none_or(|(mode, p)| mode != playback.mode || (p - position).abs() > 0.25)
     {
         history.settle = 2;
     }
-    history.previous = Some((playback.mode, playback.progress));
+    history.previous = Some((playback.mode, position));
     let valid = history.settle == 0;
     history.settle = history.settle.saturating_sub(1);
     let preview = Vec4::new(

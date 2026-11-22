@@ -516,7 +516,27 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
         // underside, including the concave bays and oblique edges.
         for t in polygon::triangles(&e.footprint) {
             let p = (t[0] + t[1] + t[2]) / 3.;
-            let h = e.ceiling_height(scene.room_size, p);
+            let h = if let Some(grid) = architecture::ceiling::CeilingGrid::for_scene(&scene) {
+                // The structural shell follows the support faces and turns into
+                // equipment pockets. Lamps and blades can lie below this shell.
+                let socket = grid
+                    .air_terminals
+                    .iter()
+                    .map(|v| v.cell)
+                    .chain(grid.troffers.iter().map(|v| v.cell))
+                    .any(|cell| {
+                        let (lo, hi) = grid.cell_bounds(scene.room_size.xz(), cell);
+                        p.cmpgt(lo + grid.tile.flange_width_m * 0.5).all()
+                            && p.cmplt(hi - grid.tile.flange_width_m * 0.5).all()
+                    });
+                if socket {
+                    scene.room_size.y + 0.095
+                } else {
+                    grid.mount_height(&scene, p)
+                }
+            } else {
+                e.ceiling_height(scene.room_size, p)
+            };
             // At narrow re-entrant corners a footprint triangle's centroid may
             // lie within a wall's thickness. Test the ceiling support surface
             // itself; an intervening wall cap is not the roof oracle. Exposed
@@ -525,7 +545,9 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
             let hit = assembly
                 .parts
                 .iter()
-                .filter(|((_, label), _)| label == "ceiling")
+                .filter(|((_, label), _)| {
+                    crate::scene::procedural_indoor::objects::part_label(label) == "ceiling"
+                })
                 .flat_map(|(_, g)| {
                     g.indices.as_chunks::<3>().0.iter().filter_map(move |t| {
                         ray_triangle(
@@ -660,6 +682,8 @@ fn adjoining_shell_rays_match_clear_floor_rear_walls_and_roof() {
         let mut scene =
             IndoorManifest::generate_with_humans(42003, IndoorLayout::Conference, 0.6, 0, 0.)
                 .unwrap();
+        // This fixture exercises the uninterrupted, archived perimeter wall.
+        scene.adjoining_elevation = None;
         scene.adjoining = Some(AdjoiningSpace {
             depth_m: 2.6,
             side_return: Some(AdjoiningReturn {

@@ -3,6 +3,81 @@ use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLay
 use bevy::ecs::system::RunSystemOnce;
 
 #[test]
+fn playback_pause_scrub_share_and_resume_keep_the_selected_curve_and_position() {
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::CornellCube,
+        playback_mode: PlaybackMode::EaseInOutCubic,
+        ..default()
+    };
+    let mut world = World::new();
+    world.insert_resource(config.clone());
+    world.insert_resource(Playback {
+        mode: config.playback_mode,
+        progress: 0.75,
+        direction: -1.,
+        ..default()
+    });
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::View;
+    let choices = fields::items(&state)
+        .into_iter()
+        .find_map(|item| match item {
+            fields::Item::Field(f) if f.path == "/playback_mode" => Some(f.kind),
+            _ => None,
+        });
+    let Some(fields::Kind::Choice(options)) = choices else {
+        panic!("missing playback selector")
+    };
+    for mode in PlaybackMode::value_variants() {
+        assert!(
+            options.iter().any(|(_, value)| *value == json!(mode)),
+            "{mode:?}"
+        );
+    }
+    state.view.progress = 0.75;
+    assert_eq!(value(&state, "@progress"), json!(0.9375));
+    toggle_playback(&mut world, &mut state).unwrap();
+    assert_eq!(world.resource::<Playback>().mode, PlaybackMode::Still);
+    assert_eq!(world.resource::<Playback>().progress, 0.9375);
+    assert_eq!(state.view.paused_curve, Some(PlaybackMode::EaseInOutCubic));
+    let (active, view) = share::snapshot(&state).unwrap();
+    let link = share::query(&active, &view);
+    let restored = super::super::config_with_query(config, decode_query(&link)).unwrap();
+    let saved = model::ViewState::parse(restored.viewer_state.as_deref().unwrap()).unwrap();
+    assert_eq!(saved.paused_curve, view.paused_curve);
+    assert_eq!((saved.progress, saved.direction), (0.9375, -1.));
+    assert_eq!(restored.playback_mode, PlaybackMode::Still);
+
+    world.insert_resource(EditorState::new(&restored));
+    world.insert_resource(restored);
+    world.insert_resource(Playback::default());
+    world.init_resource::<Time>();
+    world.run_system_once(share::synchronize).unwrap();
+    let mut state = world.remove_resource::<EditorState>().unwrap();
+    toggle_playback(&mut world, &mut state).unwrap();
+    assert_eq!(
+        world.resource::<Playback>().mode,
+        PlaybackMode::EaseInOutCubic
+    );
+    assert_eq!(world.resource::<Playback>().direction, -1.);
+    assert!((world.resource::<Playback>().trajectory_progress() - 0.9375).abs() < 1e-6);
+    edit(&mut state, "/playback_mode", json!("Smootherstep")).unwrap();
+    live_update(&mut world, &mut state, "/playback_mode").unwrap();
+    assert!((world.resource::<Playback>().trajectory_progress() - 0.9375).abs() < 1e-6);
+    edit(&mut state, "@progress", json!(0.4)).unwrap();
+    live_update(&mut world, &mut state, "@progress").unwrap();
+    assert_eq!(world.resource::<Playback>().progress, 0.4);
+    toggle_playback(&mut world, &mut state).unwrap();
+    assert_eq!(
+        world.resource::<Playback>().mode,
+        PlaybackMode::Smootherstep
+    );
+    assert_eq!(world.resource::<Playback>().direction, -1.);
+    assert!((world.resource::<Playback>().trajectory_progress() - 0.4).abs() < 1e-6);
+    assert!(state.view.paused_curve.is_none());
+}
+
+#[test]
 fn room_roll_slider_shares_a_sparse_camera_policy() {
     let mut config = super::super::web_viewer_defaults();
     config.scene_type = ZeroverseSceneType::ProceduralIndoor;

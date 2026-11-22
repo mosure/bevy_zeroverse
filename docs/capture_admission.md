@@ -269,7 +269,7 @@ For sustained memory qualification, `indoor_bench` records RSS, live/free glibc
 heap bytes on Linux, live assets, WGPU registries and native GPU allocations for
 each completed room. Use a long regenerated-room run, rather than extrapolating
 startup growth; allocator arenas and driver pools retain high-water allocations.
-For example, `cargo run --bin indoor_bench -- --scenes 1024 --warmup-scenes 64
+For example, `cargo run --example indoor_bench -- --scenes 1024 --warmup-scenes 64
 --cameras 3 --width 512 --height 512 --co-visibility --asset-root .` measures full
 native quality with static people and all geometry labels. Compare late windows
 and replay matching seeds before accepting a memory or throughput change. A

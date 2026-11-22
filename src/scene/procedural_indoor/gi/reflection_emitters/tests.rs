@@ -60,10 +60,9 @@ fn visible_reflection_selects_the_nearest_front_face_and_keeps_opaque_ties() {
     scene.materials.push(DiffuseMaterial {
         albedo: Vec3::ZERO,
         emission: Vec3::Y * 2.,
-        uv_scale: Vec2::ONE,
-        texture: None,
-        address: Default::default(),
-        textured_emission: false,
+        uv_transform: Affine2::IDENTITY,
+        base_map: None,
+        emission_map: EmissionMap::Uniform,
     });
     for (height, expected) in [(1., Vec3::Y * 2.), (2., Vec3::Y * 2.), (4., Vec3::X * 40.)] {
         scene.triangles = vec![face(height, 0)];

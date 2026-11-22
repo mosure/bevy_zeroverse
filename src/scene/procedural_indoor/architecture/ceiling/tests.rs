@@ -53,6 +53,7 @@ fn late_floor_support_preserves_headroom_for_partial_and_contained_footprints() 
         IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let module = scene.ceiling_installation.as_ref().unwrap().modules[0].clone();
     let plan = CeilingInstallation {
+        room_grid: None,
         framing: None,
         exposed_slab: true,
         modules: vec![module.clone()],
@@ -316,7 +317,7 @@ fn ceiling_shapes_have_finite_wound_faces_and_bounded_complexity() {
                 pitch_m: rng.random_range(0.16..0.65),
                 thickness_m: rng.random_range(0.012..0.055),
                 seed,
-                detail: Some(CeilingDetail::sample(system, &mut rng, 0)),
+                detail: Some(CeilingDetail::sample(system, &mut rng, 0, scene.seed)),
             };
             assert!(m.detail.as_ref().unwrap().valid(system));
             let decoded: CeilingModule =
@@ -392,7 +393,7 @@ fn ceiling_detail_validation_and_legacy_manifest_replay() {
         assert_eq!(g.indices, decoded.parts[&key].indices);
     }
     let mut rng = stream(11, 32);
-    let mut detail = CeilingDetail::sample(CeilingSystem::Conduit, &mut rng, 0);
+    let mut detail = CeilingDetail::sample(CeilingSystem::Conduit, &mut rng, 0, 0);
     assert!(detail.valid(CeilingSystem::Conduit));
     assert!(!detail.valid(CeilingSystem::RoundDuct));
     if let CeilingShape::Conduit { ref mut rise, .. } = detail.shape {

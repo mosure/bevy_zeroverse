@@ -187,7 +187,16 @@ pub(super) fn build(
             .collect()
     };
     let mut result = BTreeMap::new();
-    for opening in facades.into_iter().flat_map(|f| &f.openings) {
+    let adjoining = scene
+        .adjoining_elevation
+        .as_ref()
+        .and_then(|p| p.windows.as_ref())
+        .map(|w| &w.facade);
+    for opening in facades
+        .into_iter()
+        .chain(adjoining)
+        .flat_map(|f| &f.openings)
+    {
         let Some(program) = &opening.glazing else {
             continue;
         };

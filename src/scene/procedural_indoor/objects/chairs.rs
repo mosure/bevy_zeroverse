@@ -5,11 +5,13 @@ pub const FAMILIES: u32 = 10;
 mod audience;
 mod back;
 mod base;
+mod casters;
 pub mod stool;
 #[cfg(test)]
 mod tests;
 mod upper;
 pub use audience::is_folded;
+pub(crate) use audience::TeachingSeat;
 
 /// Nominal floor footprint in metres. Seats ordered for one table share
 /// product proportions. An independently selected replacement can differ.
@@ -490,6 +492,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     }
     use super::super::motion::{construction as motion, MotionKind};
     let moving = matches!(family, 0 | 1 | 5 | 9) && a.motion_selected(MotionKind::Chair, o.seed);
+    if program.base_style < 4 {
+        base::tilt_control(a, width, depth, seat - padding - 0.023);
+    }
     let mut upper = if moving {
         std::mem::take(&mut a.parts)
     } else {

@@ -197,7 +197,8 @@ fn exterior_population_qualification() {
         let triangles = check(&a);
         let hash = fingerprint(&a);
         hashes.insert(hash.clone());
-        let sites = parcels(&scene);
+        let ExteriorPlan { windows, sites, .. } =
+            ExteriorPlan::new(&scene, &District::sample(seed));
         let mut programs = Vec::new();
         for p in sites.iter().filter(|p| p.kind == 0) {
             programs.push(json!({"parcel":p,"program":Building::sample(p,super::super::background::radius(&scene))}));
@@ -250,7 +251,7 @@ fn exterior_population_qualification() {
                 .contains_key(&(*s, format!("{label}#exterior"))));
         }
         samples.push(json!({"seed":seed,"layout":scene.layout,"district":District::sample(seed),
-            "parcel_counts":counts(&scene),"window_normal_context_fraction":window_context_fraction(&scene),
+            "parcel_counts":counts(&sites),"window_normal_context_fraction":window_context_fraction(&windows, &sites),
             "construction_ms":build_ms,"triangles":triangles,"batches":a.parts.len(),"mesh_sha256":hash,
             "building_programs":programs,"measurements":measurements(&scene),"validated_total_triangles":full.triangles}));
     }

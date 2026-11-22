@@ -10,7 +10,7 @@ pub enum TrussWeb {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CeilingDetail {
-    /// Reuses the existing bounded PBR finish pool; no installation textures.
+    /// Shared installation finish, including the supporting metalwork.
     pub finish: u8,
     pub shape: CeilingShape,
 }
@@ -37,6 +37,12 @@ pub enum CeilingShape {
     Grid {
         aspect: f32,
         recess_m: f32,
+    },
+    LayIn {
+        aspect: f32,
+        /// Runner underside above the module's lower reservation plane.
+        runner_base_m: f32,
+        tile: CeilingTile,
     },
     Duct {
         section: f32,
@@ -73,7 +79,12 @@ pub enum CeilingShape {
 }
 
 impl CeilingDetail {
-    pub(super) fn sample(system: CeilingSystem, r: &mut impl Rng, finish: u8) -> Self {
+    pub(super) fn sample(
+        system: CeilingSystem,
+        r: &mut impl Rng,
+        finish: u8,
+        room_seed: u64,
+    ) -> Self {
         use CeilingShape::*;
         let shape = match system {
             CeilingSystem::Coffers => Coffer {
@@ -94,7 +105,12 @@ impl CeilingDetail {
                     phase: r.random_range(0.0..std::f32::consts::TAU),
                 }
             }
-            CeilingSystem::SuspendedTiles | CeilingSystem::OpenCell => Grid {
+            CeilingSystem::SuspendedTiles => LayIn {
+                aspect: r.random_range(0.7..2.0),
+                runner_base_m: r.random_range(0.003..0.028) + 0.009,
+                tile: CeilingTile::sample(room_seed, finish),
+            },
+            CeilingSystem::OpenCell => Grid {
                 aspect: r.random_range(0.7..2.0),
                 recess_m: r.random_range(0.003..0.028),
             },
@@ -177,6 +193,16 @@ impl CeilingDetail {
                     CeilingSystem::SuspendedTiles | CeilingSystem::OpenCell
                 ) && in_range(aspect, 0.5, 2.5)
                     && in_range(recess_m, 0.002, 0.03)
+            }
+            LayIn {
+                aspect,
+                runner_base_m,
+                tile,
+            } => {
+                system == CeilingSystem::SuspendedTiles
+                    && in_range(aspect, 0.5, 2.5)
+                    && in_range(runner_base_m, 0.011, 0.039)
+                    && tile.valid()
             }
             Duct {
                 section,

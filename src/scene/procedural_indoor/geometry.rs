@@ -1,8 +1,11 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
 mod housing;
+pub(crate) use housing::housing_outline;
 #[cfg(test)]
 pub(crate) mod preview;
 mod primitives;
+mod revolution;
+pub(crate) use revolution::{ProfileJoints, RevolvedOutline};
 mod slab;
 mod sweep;
 mod upholstery;

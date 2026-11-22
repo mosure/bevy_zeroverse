@@ -125,6 +125,23 @@ pub struct CameraPairOverlap {
     pub samples: Vec<OverlapSample>,
 }
 
+fn measure_pair(
+    coverage: &Coverage,
+    a: &VisibilityView,
+    b: &VisibilityView,
+    time: f32,
+) -> OverlapSample {
+    let (ab, angle_a) = coverage.shared(a, b);
+    let (ba, angle_b) = coverage.shared(b, a);
+    OverlapSample {
+        time,
+        reference_to_view: ab,
+        view_to_reference: ba,
+        baseline_m: a.pose.translation.distance(b.pose.translation),
+        mean_triangulation_degrees: (angle_a + angle_b) * 0.5,
+    }
+}
+
 fn pair_samples(
     coverage: &Coverage,
     reference: &IndoorCamera,
@@ -155,28 +172,57 @@ pub(super) fn pair_samples_cached(
         .zip(reference_views)
         .zip(camera_views)
         .map(|((time, a), b)| {
-            let measure = || {
-                let (ab, angle_a) = coverage.shared(a, b);
-                let (ba, angle_b) = coverage.shared(b, a);
-                (ab, ba, (angle_a + angle_b) * 0.5)
-            };
-            let (ab, ba, angle) = if static_pair {
-                *static_measurement.get_or_insert_with(measure)
+            if static_pair {
+                OverlapSample {
+                    time,
+                    ..static_measurement
+                        .get_or_insert_with(|| measure_pair(coverage, a, b, time))
+                        .clone()
+                }
             } else {
-                measure()
-            };
-            OverlapSample {
-                time,
-                reference_to_view: ab,
-                view_to_reference: ba,
-                baseline_m: reference
-                    .transform_at(time)
-                    .translation
-                    .distance(camera.transform_at(time).translation),
-                mean_triangulation_degrees: angle,
+                measure_pair(coverage, a, b, time)
             }
         })
         .collect()
+}
+
+/// Each reference-edge constraint must hold at every checkpoint. A failed
+/// checkpoint decides this candidate before later views need to be ray cast.
+fn qualifying_peer_views(
+    coverage: &Coverage,
+    reference: &IndoorCamera,
+    reference_views: &[VisibilityView],
+    camera: &IndoorCamera,
+    aspect: f32,
+    accepts: impl Fn(&OverlapSample) -> bool,
+) -> Option<Vec<VisibilityView>> {
+    if reference_views.len() != CHECK_TIMES.len() {
+        return None;
+    }
+    let fixed = camera.motion.is_none() && camera.start == camera.end;
+    let mut views: Vec<VisibilityView> = Vec::with_capacity(CHECK_TIMES.len());
+    for (&time, anchor) in CHECK_TIMES.iter().zip(reference_views) {
+        let view = if fixed && !views.is_empty() {
+            views[0].clone()
+        } else {
+            coverage.view(camera, aspect, time)
+        };
+        let mut sample = measure_pair(coverage, anchor, &view, time);
+        if !accepts(&sample) {
+            return None;
+        }
+        if fixed && reference.motion.is_none() && reference.start == reference.end {
+            for &checkpoint in &CHECK_TIMES[1..] {
+                sample.time = checkpoint;
+                if !accepts(&sample) {
+                    return None;
+                }
+            }
+            return Some(vec![view; CHECK_TIMES.len()]);
+        }
+        views.push(view);
+    }
+    Some(views)
 }
 
 impl IndoorManifest {
@@ -390,9 +436,7 @@ impl IndoorManifest {
             } else {
                 Vec::new()
             };
-            let mut summaries = vec![super::program::ViewSummary::new(
-                &reference, &views[0], self,
-            )];
+            let mut summaries = vec![super::program::ViewSummary::new(&views[0], self)];
             for &camera_index in &placement_order {
                 let target = targets.get(camera_index - 1);
                 let mut found = None;
@@ -564,36 +608,41 @@ impl IndoorManifest {
                         self.camera_diagnostics.peer_rejections[reason] += 1;
                         continue;
                     }
-                    let candidate_views: Vec<_> = CHECK_TIMES
-                        .into_iter()
-                        .map(|t| coverage.view(&candidate, self.camera_aspect_ratio, t))
-                        .collect();
-                    let samples = pair_samples_cached(
+                    let candidate_views = qualifying_peer_views(
                         &coverage,
                         &reference,
                         &views,
                         &candidate,
-                        &candidate_views,
+                        self.camera_aspect_ratio,
+                        |sample| {
+                            let samples = std::slice::from_ref(sample);
+                            target.map_or_else(
+                                || policy.accepts(samples),
+                                |t| t.accepts(&policy, samples),
+                            )
+                        },
                     );
-                    if target.map_or_else(
-                        || policy.accepts(&samples),
-                        |t| t.accepts(&policy, &samples),
-                    ) && coherence.is_none_or(|c| {
-                        self.cameras
-                            .iter()
-                            .zip(&peer_views)
-                            .skip(1)
-                            .all(|(peer, views)| {
-                                c.supports(
-                                    &coverage,
-                                    views,
-                                    &candidate_views,
-                                    c.preferred_floor(peer, &candidate, self.camera_aspect_ratio),
-                                )
-                            })
+                    if let Some(candidate_views) = candidate_views.filter(|candidate_views| {
+                        coherence.is_none_or(|c| {
+                            self.cameras
+                                .iter()
+                                .zip(&peer_views)
+                                .skip(1)
+                                .all(|(peer, views)| {
+                                    c.supports(
+                                        &coverage,
+                                        views,
+                                        candidate_views,
+                                        c.preferred_floor(
+                                            peer,
+                                            &candidate,
+                                            self.camera_aspect_ratio,
+                                        ),
+                                    )
+                                })
+                        })
                     }) {
-                        let summary =
-                            super::program::ViewSummary::new(&candidate, &candidate_views[0], self);
+                        let summary = super::program::ViewSummary::new(&candidate_views[0], self);
                         let score = summary.score(&summaries, count, self);
                         accepted += 1;
                         first_valid.get_or_insert(attempt);
@@ -769,18 +818,22 @@ pub(super) fn propose(
     let vertical = rng.random_range(low..=high);
     let planar = (radius * radius - vertical * vertical).sqrt();
     let offset = Vec3::new(planar * azimuth.cos(), vertical, planar * azimuth.sin());
-    let horizontal_jitter = 0.03 + 0.32 * policy.target_variation;
-    let vertical_jitter = 0.015 + 0.135 * policy.target_variation;
-    let jitter = Vec3::new(
-        rng.random_range(-horizontal_jitter..horizontal_jitter),
-        rng.random_range(-vertical_jitter..vertical_jitter),
-        rng.random_range(-horizontal_jitter..horizontal_jitter),
+    let jitter = super::program::framing_offset(
+        reference,
+        reference.start + offset,
+        policy.target_variation,
+        Vec3::new(
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+        ),
     );
     // Deform in the reference path's local frame, preserving its navigated
     // topology while independently varying heading, distance, bend and height.
     // Long paths have bounded deformation so they can still share scene content.
     let budget = (reachable * 0.65).min(extent) * policy.trajectory_variation;
-    let angle = rng.random_range(-1.0..=1.0) * (budget / extent).min(std::f32::consts::PI);
+    let angle = rng.random_range(-1.0..=1.0)
+        * super::motion::peer_yaw_limit(extent, reachable, policy.trajectory_variation);
     let rotation = Quat::from_rotation_y(angle);
     let scale = 1.0 + rng.random_range(-1.0..=1.0) * (budget / extent).min(0.65);
     let deform = |p| reference.start + offset + rotation * (p - reference.start) * scale;
@@ -815,6 +868,48 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::CameraSettings, layout::IndoorLayout, validation::validate_layout,
     };
+
+    #[test]
+    fn reference_admission_matches_complete_time_samples() {
+        let mut scene = IndoorManifest::generate(128, IndoorLayout::Mixed, 0.65, 0).unwrap();
+        for fraction in [0., 1.] {
+            scene
+                .resample_cameras(
+                    2,
+                    CameraSettings {
+                        motion_fraction: fraction,
+                        ..default()
+                    },
+                    1.2,
+                )
+                .unwrap();
+            let coverage = Coverage::new(&scene);
+            let (a, b) = (&scene.cameras[0], &scene.cameras[1]);
+            let views: Vec<_> = CHECK_TIMES
+                .iter()
+                .map(|&t| coverage.view(a, 1.2, t))
+                .collect();
+            let all = pair_samples(&coverage, a, &views, b, 1.2);
+            for length in 0..=CHECK_TIMES.len() {
+                let checked = std::cell::Cell::new(0);
+                let result = qualifying_peer_views(&coverage, a, &views, b, 1.2, |s| {
+                    let i = checked.get();
+                    checked.set(i + 1);
+                    let expected = &all[i];
+                    assert_eq!(s.time, expected.time);
+                    assert_eq!(s.reference_to_view, expected.reference_to_view);
+                    assert_eq!(s.view_to_reference, expected.view_to_reference);
+                    assert_eq!(s.baseline_m, expected.baseline_m);
+                    i < length
+                });
+                assert_eq!(checked.get(), (length + 1).min(CHECK_TIMES.len()));
+                assert_eq!(
+                    result.map(|v| v.len()),
+                    (length == CHECK_TIMES.len()).then_some(length)
+                );
+            }
+        }
+    }
 
     #[test]
     fn fisheye_recovery_keeps_each_slots_calibration_and_all_admission_constraints() {

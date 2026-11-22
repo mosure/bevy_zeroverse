@@ -31,6 +31,7 @@ mod program_coverage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod reference;
 pub(crate) mod shading;
+mod sky;
 mod studio;
 pub use shading::GlassFilter;
 pub mod validation;

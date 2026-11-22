@@ -73,11 +73,15 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample, _floor: u32)
         // Installation scale and cut geometry remain exactly the authored floor.
     } else {
         let soil = r.surface == Surface::Soil;
-        m.aggregate_exposure = p.mix(if soil {
-            [0.06, 0.85, 0.60, 0.08]
+        m.aggregate_exposure = if soil {
+            // Potting mix contains bark, fine sand and grit in a dark organic
+            // matrix. Sampling polished concrete chips here made whole beds
+            // of pale aggregate, especially under a window.
+            m.aggregate_color = substrate_grains(r.seed, p);
+            p.mix([0.05, 0.49, 0.36, 0.09])
         } else {
-            [0.02, 0.58, 0.04, 0.35]
-        });
+            p.mix([0.02, 0.58, 0.04, 0.35])
+        };
         m.porosity = p.mix([0.10, 0.32, 0.07, 0.23]);
         m.polish = if soil { 0. } else { p.weights[2] * 0.55 };
         r.period_m = p.mix([0.10, 0.22, 0.085, 0.15]) * p.scale;
@@ -88,4 +92,29 @@ pub(super) fn apply(r: &mut MaterialRecipe, p: &ConstructionSample, _floor: u32)
             0.94 - m.polish * 0.42
         };
     }
+}
+
+fn substrate_grains(seed: u64, p: &ConstructionSample) -> [[f32; 3]; 2] {
+    let mut rng = stream(seed, u64::from_le_bytes(*b"gritdyes"));
+    // sRGB endpoints for organic, gritty, sandy and clay-rich mixes. Separate
+    // low/high pigments retain natural contrast and occasionally pale perlite.
+    let dark = [
+        [0.13, 0.086, 0.050],
+        [0.23, 0.19, 0.14],
+        [0.34, 0.24, 0.15],
+        [0.24, 0.13, 0.078],
+    ];
+    let mut light = [
+        [0.34, 0.25, 0.15],
+        [0.53, 0.45, 0.34],
+        [0.65, 0.53, 0.39],
+        [0.45, 0.26, 0.16],
+    ];
+    if rng.random_bool(0.18) {
+        light[1] = [0.72, 0.70, 0.62];
+    }
+    [dark, light].map(|dyes| {
+        let value = rng.random_range(0.76..1.12);
+        std::array::from_fn(|i| value * p.mix(dyes.map(|c| c[i])))
+    })
 }

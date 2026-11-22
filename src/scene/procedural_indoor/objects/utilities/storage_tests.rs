@@ -116,15 +116,70 @@ fn open_containers_have_real_cavities_and_closed_lids_have_seams() {
             let a = build_object(&o);
             let x = p.body.x * if p.divider_x >= 0. { -0.20 } else { 0.20 };
             let hit = top_at(&a, Vec2::new(x, 0.));
-            assert!(
-                (hit - p.floor).abs() < 1e-5,
-                "{seed}: bin cavity obscured {hit}, {p:?}"
-            );
+            let gap = hit - p.floor;
+            if let Some(liner) = p.liner {
+                assert!(
+                    (liner.roll_m * 0.35..=liner.roll_m + 1e-5).contains(&gap),
+                    "{seed}: liner bottom lost contact with the bin floor, gap {gap}"
+                );
+            } else {
+                assert!(gap.abs() < 1e-5, "{seed}: bin cavity obscured {hit}, {p:?}");
+            }
         }
     }
     assert!((60..145).contains(&open), "open boxes {open}/256");
     assert_eq!(bin_modes.len(), 5);
     println!("storage cavity audit: open_boxes={open}/256, bin_modes={bin_modes:?}");
+}
+
+#[test]
+fn station_inlets_are_open_through_the_lid_and_have_a_continuous_load_bearing_face() {
+    use bins::InletKind;
+    let mut seen = BTreeMap::new();
+    for seed in 0..256 {
+        let mut o = metrics(ObjectKind::TrashCan, seed);
+        for role in [bins::WASTE_STATION, bins::WASTE_STATION | bins::RECYCLING] {
+            o.variant = role;
+            let p = bins::parameters(&o);
+            let inlet = p.inlet.unwrap();
+            let half = inlet.width_depth_m * 0.5;
+            let a = build_object(&o);
+            let q = audit::check(&o, &a).unwrap();
+            assert!(q.max_envelope_overrun_m < 0.0001);
+            for u in [-0.60, 0., 0.60] {
+                for v in [-0.60, 0., 0.60] {
+                    let hit = top_at(&a, inlet.offset_m + Vec2::new(u, v) * half);
+                    assert!(
+                        (p.floor - 1e-5..p.body.y - p.rim_height * 0.2).contains(&hit),
+                        "{seed}/{role}: obstruction or missing bottom at {u}/{v}: {hit}"
+                    );
+                }
+            }
+            let top = p.body.y + p.seam + p.lid_height;
+            for sign in [-1., 1.] {
+                let edge = inlet.offset_m.x + sign * (half.x + inlet.bevel_m);
+                let land = Vec2::new((edge + sign * p.body.x * 0.47) * 0.5, inlet.offset_m.y);
+                assert!(
+                    (top_at(&a, land) - top).abs() < 1e-5,
+                    "{seed}: missing lid at {land}"
+                );
+            }
+            if inlet.kind == InletKind::BottlesAndCans {
+                assert_eq!(half.x, half.y);
+                let outside = inlet.offset_m + Vec2::splat(0.86) * (half + inlet.bevel_m);
+                assert!(
+                    (top_at(&a, outside) - top).abs() < 1e-5,
+                    "{seed}: square bottle port"
+                );
+            }
+            if inlet.kind == InletKind::Paper {
+                assert!(half.max_element() / half.min_element() > 2.6);
+            }
+            *seen.entry(format!("{:?}", inlet.kind)).or_insert(0) += 1;
+        }
+    }
+    assert_eq!(seen.len(), 4);
+    assert!(seen.values().all(|&n| n > 40));
 }
 
 #[test]

@@ -211,6 +211,14 @@ def load_geometry(document, directory, materials):
             mesh.materials.append(materials[instance["material"]])
         obj = bpy.data.objects.new(f'{index:04}_{instance["name"]}', mesh)
         bpy.context.collection.objects.link(obj)
+        # Keep its finite first hit in the geometry audit's viewport BVH.
+        # Cycles samples the world for these rays, including shadow rays.
+        obj.hide_render = instance.get("finite_sky_proxy", False)
+        definition = document["materials"][instance["material"]]
+        # Mirrors AnnotationGlass::Through on the exported StandardMaterial.
+        obj["annotation_transmissive"] = definition["specular_transmission"] > 0 or (
+            definition["thickness"] > 0 and definition["alpha_mode"] == "Blend"
+        )
         obj.material_slots[0].link = "OBJECT"
         obj.material_slots[0].material = materials[instance["material"]]
         obj.matrix_world = matrix(instance["world_from_mesh"])
@@ -221,7 +229,7 @@ def load_geometry(document, directory, materials):
     return triangles
 
 
-def lighting(document, manifest):
+def lighting(document, manifest, directory):
     # Same hemisphere radiance as the native baker, integrated through real
     # openings here. Preconvolved indoor environment lighting is not a sky.
     sky = sky_radiance(manifest)
@@ -241,6 +249,8 @@ def lighting(document, manifest):
     positive.operation = "LESS_THAN"
     connect(tree, separate, "Y", positive, 0)
     connect(tree, positive, 0, background, "Strength")
+    from indoor_cycles_sky import attach
+    attach(tree, background, coordinate, positive, document, directory)
     for index, definition in enumerate(document["lights"]):
         if definition["kind"] != "sun":
             continue  # Physical emitters replace the raster proxies; no double counting.
@@ -276,6 +286,24 @@ def setup_device(device):
 
 def geometry_audit(document, directory):
     """Independent Blender BVH first-surface intersections versus native float32 labels."""
+    capture = directory.parent / "capture.json"
+    through = capture.exists() and (
+        json.loads(capture.read_text()).get("capabilities", {}).get("annotation_glass") == "through"
+    )
+    panes = [
+        obj for obj in bpy.context.scene.objects
+        if through and obj.get("annotation_transmissive") and not obj.hide_viewport
+    ]
+    try:
+        for obj in panes:
+            obj.hide_viewport = True
+        return audit_intersections(document, directory)
+    finally:
+        for obj in panes:
+            obj.hide_viewport = False
+
+
+def audit_intersections(document, directory):
     bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     scene = bpy.context.scene
@@ -352,7 +380,7 @@ def main():
     devices = setup_device(args.device)
     materials = [material(m, directory, i) for i, m in enumerate(document["materials"])]
     triangles = load_geometry(document, directory, materials)
-    lighting(document, manifest)
+    lighting(document, manifest, directory)
     scene = bpy.context.scene
     scene.render.resolution_x, scene.render.resolution_y = document["image_size"]
     scene.render.resolution_percentage = 100
@@ -425,6 +453,7 @@ def main():
               "blender_hash": bpy.app.build_hash.decode(), "devices": devices,
               "source_sha256": hashes, "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               "contract_script_sha256": hashlib.sha256(Path(__file__).with_name("indoor_reference_contract.py").read_bytes()).hexdigest(),
+              "sky_script_sha256": hashlib.sha256(Path(__file__).with_name("indoor_cycles_sky.py").read_bytes()).hexdigest(),
               "radiometry": calibration,
               "radiometry_sha256": hashlib.sha256(args.radiometry_report.read_bytes()).hexdigest(),
               "seed": document["seed"], "capture_engine": document["capture_engine"],

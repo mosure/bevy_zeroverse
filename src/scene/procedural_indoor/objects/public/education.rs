@@ -173,18 +173,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     contents::build(
                         a,
                         o,
-                        &Content {
-                            kind: ObjectKind::Books,
-                            upright: true,
-                            seed: r.random(),
+                        &Content::upright_book(
+                            r.random(),
                             size,
-                            position: Vec3::new(
+                            Vec3::new(
                                 start + size.x * (i as f32 + 0.5) * 1.1,
                                 lo,
                                 (rear + front) * 0.5 + r.random_range(-0.025..0.025),
                             ),
-                            yaw: 0.,
-                        },
+                            0.,
+                        ),
                     );
                 }
             }

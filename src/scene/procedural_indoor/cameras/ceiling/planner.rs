@@ -408,7 +408,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                         continue;
                     }
                 }
-                let summary = ViewSummary::new(&camera, &candidate_views[0], scene);
+                let summary = ViewSummary::new(&candidate_views[0], scene);
                 let score = summary.score(&summaries, count, scene);
                 first.get_or_insert(attempt);
                 let candidate = Candidate {

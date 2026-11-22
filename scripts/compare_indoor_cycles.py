@@ -120,11 +120,15 @@ def optical_identity(document, directory):
     instances = []
     for instance in document["instances"]:
         resolved = dict(instance)
+        if not resolved.get("finite_sky_proxy"):
+            resolved.pop("finite_sky_proxy", None)
         resolved["mesh"] = meshes[instance["mesh"]]
         resolved["material"] = materials[instance["material"]]
         instances.append(resolved)
     canonical = {key: value for key, value in document.items()
-                 if key not in ("capture_engine", "meshes", "materials", "instances", "lights")}
+                 if key not in ("capture_engine", "meshes", "materials", "instances", "lights", "exterior_sky")}
+    if sky := document.get("exterior_sky"):
+        canonical["exterior_sky"] = dict(sky, material=materials[sky["material"]])
     canonical.update(meshes=sorted(meshes, key=encode), materials=sorted(materials, key=encode),
                      instances=sorted(instances, key=encode), lights=sorted(document["lights"], key=encode))
     canonical["external_sky_radiance"] = sky_radiance(manifest)
@@ -147,6 +151,8 @@ def compare(native_dir, cycles_dir, output, reference_repeat=None, reference_sou
         for field in ("source_sha256", "image_size", "seed", "bounces", "blender_hash", "radiometry_sha256"):
             if repeat_report[field] != report[field]:
                 raise ValueError(f"Independent reference mismatch: {field}")
+        if repeat_report.get("sky_script_sha256") != report.get("sky_script_sha256"):
+            raise ValueError("Independent reference sky shader mismatch")
         if report["denoised"] or repeat_report["denoised"]:
             raise ValueError("Reference convergence requires raw, independently sampled images")
         if not repeat_report["geometry_alignment_passed"]:

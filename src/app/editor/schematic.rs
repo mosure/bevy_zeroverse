@@ -294,7 +294,7 @@ pub(super) fn update(
         preview.last = None;
     }
     let mut plan = preview.plan.as_ref().unwrap().clone();
-    plan.trajectory_progress = playback.progress.clamp(0., 1.);
+    plan.trajectory_progress = playback.trajectory_progress();
     let mut live: Vec<_> = cameras.iter().collect();
     live.sort_by_key(|(i, ..)| i.0);
     let planned = std::mem::take(&mut plan.cameras);

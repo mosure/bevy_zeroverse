@@ -158,10 +158,17 @@ pub(super) fn sample(scene: &IndoorManifest) -> CeilingInstallation {
         },
     );
     let mut plan = CeilingInstallation {
+        room_grid: None,
         exposed_slab: exposed,
         modules: Vec::new(),
         framing: None,
     };
+    if !exposed {
+        plan.room_grid = CeilingGrid::sample(scene);
+        if plan.room_grid.is_some() {
+            return plan;
+        }
+    }
     let reserved = Reservations::new(scene);
     if exposed {
         plan.framing = Some(framing::CeilingFraming::sample(scene, &reserved));
@@ -386,7 +393,7 @@ fn module(
         pitch_m,
         thickness_m: rng.random_range(0.015..0.048),
         seed: rng.random(),
-        detail: Some(CeilingDetail::sample(system, rng, finish)),
+        detail: Some(CeilingDetail::sample(system, rng, finish, scene.seed)),
         suspension: None,
     };
     resize(scene, m, center, size, depth, gap)

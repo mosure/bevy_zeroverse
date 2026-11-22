@@ -11,7 +11,7 @@ embedding inference to the viewer.
 ```sh
 cargo run --locked -p bevy_zeroverse_publication -- compare-indoor \
   --before out/study/before --after out/study/after --output out/study/report
-cargo run --features embedding_audit --bin indoor_embed -- \
+cargo run --features embedding_audit --example indoor_embed -- \
   --index out/study/report/embedding-index.json --output out/study/embeddings \
   --variant base --batch-size 16
 cargo run --locked -p bevy_zeroverse_publication -- compare-indoor \

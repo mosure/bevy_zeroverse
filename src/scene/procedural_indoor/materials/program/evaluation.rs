@@ -30,6 +30,9 @@ impl MaterialRecipe {
             if self.surface != Surface::Floor {
                 return Err("floor installation requires a floor role".into());
             }
+            if f.carpet_tiles.is_some() && self.carpet.as_ref().is_none_or(|c| c.rug.is_some()) {
+                return Err("modular carpet installation requires a carpet floor".into());
+            }
         }
         if let Some(c) = &self.carpet {
             c.validate()?;

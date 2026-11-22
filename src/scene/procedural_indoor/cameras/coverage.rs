@@ -7,6 +7,27 @@ use std::collections::BTreeMap;
 mod index;
 mod triangles;
 
+const MAX_DOMINANT_CONTENT_RAYS: usize = 28;
+
+fn content_guaranteed(
+    counts: &BTreeMap<&str, usize>,
+    remaining: usize,
+    require_person: bool,
+    subject: Option<fn(&str) -> bool>,
+) -> bool {
+    counts.values().filter(|&&n| n >= 2).count() >= 4
+        && counts.values().copied().max().unwrap_or(0) + remaining <= MAX_DOMINANT_CONTENT_RAYS
+        && (!require_person || counts.get("person").copied().unwrap_or(0) >= 2)
+        && subject.is_none_or(|matches| {
+            counts
+                .iter()
+                .filter(|(label, _)| matches(label))
+                .map(|(_, n)| n)
+                .sum::<usize>()
+                >= 2
+        })
+}
+
 struct Collider {
     triangle: Option<[Vec3; 3]>,
     center: Vec3,
@@ -29,7 +50,7 @@ pub(crate) struct Coverage {
 #[derive(Clone)]
 pub(super) struct VisibilityView {
     lens: Option<bevy_zeroverse_capture::calibration::CameraCalibration>,
-    pose: Transform,
+    pub(super) pose: Transform,
     scale: Vec2,
     offset: Vec2,
     points: Vec<Option<Vec3>>,
@@ -408,10 +429,17 @@ impl Coverage {
         subject: Option<fn(&str) -> bool>,
     ) -> bool {
         let lens = self.calibration(camera);
-        [0.0, 0.5, 1.0].into_iter().all(|t| {
-            let pose = camera.transform_at(t);
-            let scale = (camera.fov_degrees.to_radians() * 0.5).tan();
-            let offset = self.optical_center(camera);
+        let scale = (camera.fov_degrees.to_radians() * 0.5).tan();
+        let offset = self.optical_center(camera);
+        let times: &[f32] = if camera.motion.is_none() && camera.start == camera.end {
+            &[0.]
+        } else {
+            &[0., 0.5, 1.]
+        };
+        let mut path = camera.runtime_trajectory();
+        times.iter().copied().all(|t| {
+            let pose = path.sample(t);
+            let required_subject = if t == 0. { subject } else { None };
             if require_person && lens.is_none() && !self.body_visible(pose, scale, offset) {
                 return false;
             }
@@ -448,21 +476,20 @@ impl Coverage {
                     {
                         label = self.colliders[index].label;
                     }
-                    *counts.entry(label).or_insert(0usize) += 1;
+                    let count = counts.entry(label).or_insert(0usize);
+                    *count += 1;
+                    if *count > MAX_DOMINANT_CONTENT_RAYS {
+                        return false;
+                    }
+                }
+                // Remaining rays could all hit the dominant class. Stop only
+                // when even that case passes and every lower bound is met.
+                let remaining = (4 - y) * 7;
+                if content_guaranteed(&counts, remaining, require_person, required_subject) {
+                    return true;
                 }
             }
-            counts.values().filter(|&&n| n >= 2).count() >= 4
-                && counts.values().copied().max().unwrap_or(35) <= 28
-                && (!require_person || counts.get("person").copied().unwrap_or(0) >= 2)
-                && (t != 0.
-                    || subject.is_none_or(|matches| {
-                        counts
-                            .iter()
-                            .filter(|(label, _)| matches(label))
-                            .map(|(_, n)| n)
-                            .sum::<usize>()
-                            >= 2
-                    }))
+            false
         })
     }
 }
@@ -490,6 +517,30 @@ fn ray_box(origin: Vec3, direction: Vec3, half: Vec3) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn content_prefix_cannot_hide_dominance_or_missing_subjects() {
+        let mut counts = BTreeMap::from([("wall", 15), ("desk", 2), ("chair", 3), ("person", 1)]);
+        let furnishings: Option<fn(&str) -> bool> = Some(|s| matches!(s, "desk" | "chair"));
+        assert!(!content_guaranteed(&counts, 14, false, furnishings));
+        counts.insert("floor", 5);
+        // Too many unknown rays could still become wall. A second person or
+        // requested subject must actually have appeared before accepting.
+        assert!(!content_guaranteed(&counts, 14, false, furnishings));
+        assert!(content_guaranteed(&counts, 7, false, furnishings));
+        assert!(!content_guaranteed(&counts, 7, true, furnishings));
+        assert!(!content_guaranteed(
+            &counts,
+            7,
+            false,
+            Some(|s| s == "stove")
+        ));
+        counts.insert("person", 2);
+        counts.insert("wall", 28);
+        assert!(content_guaranteed(&counts, 0, true, furnishings));
+        counts.insert("wall", 29);
+        assert!(!content_guaranteed(&counts, 0, true, furnishings));
+    }
+
     #[test]
     fn fisheye_overlap_excludes_invalid_sensor_pixels_but_preserves_pinhole_policy() {
         use crate::calibration::{Fisheye, FisheyeFit};

@@ -382,17 +382,28 @@ mod tests {
 
     #[test]
     fn interval_links_accept_cli_and_saved_playback_modes() {
-        for mode in ["ping-pong", "PingPong"] {
-            let config = parse(
-                crate::app::web_viewer_defaults(),
-                [
-                    ("regenerate_ms".into(), "2500".into()),
-                    ("playback_mode".into(), mode.into()),
-                ],
-            )
-            .unwrap();
-            assert_eq!(config.regenerate_ms, 2500);
-            assert_eq!(config.playback_mode, crate::camera::PlaybackMode::PingPong);
+        for &mode in crate::camera::PlaybackMode::value_variants() {
+            let possible = mode.to_possible_value().unwrap();
+            let cli = possible.get_name();
+            let saved = serde_json::to_value(mode).unwrap();
+            assert_eq!(
+                BevyZeroverseConfig::try_parse_from(["viewer", "--playback-mode", cli])
+                    .unwrap()
+                    .playback_mode,
+                mode
+            );
+            for name in [cli, saved.as_str().unwrap()] {
+                let config = parse(
+                    crate::app::web_viewer_defaults(),
+                    [
+                        ("regenerate_ms".into(), "2500".into()),
+                        ("playback_mode".into(), name.into()),
+                    ],
+                )
+                .unwrap();
+                assert_eq!(config.regenerate_ms, 2500);
+                assert_eq!(config.playback_mode, mode);
+            }
         }
     }
     #[test]

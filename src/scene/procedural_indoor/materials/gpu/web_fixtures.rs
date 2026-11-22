@@ -29,6 +29,9 @@ fn export_webgpu_material_fixtures() {
         .map(|s| recipes[s as usize].clone())
         .into();
         selected.push(super::super::super::human::knit_recipe(seed));
+        if seed == u64::MAX - 7 {
+            selected.extend(carpet_installations(&recipes[Surface::Floor as usize]));
+        }
         // All new dye poles, mixed stock, high shear/frequencies and archived
         // carpet are read back at every mip in Chrome, including overflow seeds.
         for pole in 0..8 {
@@ -40,6 +43,7 @@ fn export_webgpu_material_fixtures() {
                 d.weights[pole] = 1.;
                 d.shear = if pole % 2 == 0 { -1 } else { 1 };
             } else if pole == 6 {
+                floor.flooring.as_mut().unwrap().carpet_tiles = None;
                 floor
                     .flooring
                     .as_mut()
@@ -50,6 +54,7 @@ fn export_webgpu_material_fixtures() {
                     .cut_jitter = [0.39, 0.39];
             } else {
                 c.dye = None;
+                floor.flooring.as_mut().unwrap().carpet_tiles = None;
                 floor.flooring.as_mut().unwrap().stock = None;
             }
             selected.push(floor);

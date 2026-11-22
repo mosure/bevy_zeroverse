@@ -4,10 +4,11 @@ use super::*;
 use crate::scene::procedural_indoor::{
     architecture::{
         self,
-        facade::{Facade, Shade},
+        facade::{Facade, Shade, WindowOpening},
     },
     envelope::polygon,
 };
+mod borrowed;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct IndoorExposureMeter {
@@ -40,7 +41,31 @@ impl IndoorExposureMeter {
 /// Effective areas for diffuse sky and the collimated solar beam, in square
 /// metres. Shade deployment and opaque frit affect both channels.
 fn transmitted_apertures(facade: &Facade, sun_cosine: f32) -> Vec2 {
-    let coverage = facade.shade_coverage;
+    facade
+        .openings
+        .iter()
+        .map(|o| transmitted_opening(facade, o, sun_cosine))
+        .sum()
+}
+
+fn transmitted_opening(facade: &Facade, opening: &WindowOpening, sun_cosine: f32) -> Vec2 {
+    let coverage = facade.shade_coverage_at(opening);
+    let area = architecture::facade::treatments::drapery::visible_area(facade, opening, coverage)
+        .unwrap_or_else(|| other_covering_area(facade, opening, coverage));
+    let transmission = opening
+        .glazing
+        .as_ref()
+        .map_or(Vec2::new(0.85, 0.92), |pane| {
+            let recipe = pane.glass_recipe();
+            Vec2::new(
+                recipe.sky_transmittance(),
+                recipe.luminous_transmittance(sun_cosine),
+            )
+        });
+    area * transmission * Vec2::new(1., sun_cosine)
+}
+
+fn other_covering_area(facade: &Facade, opening: &WindowOpening, coverage: f32) -> f32 {
     let obstructed = match facade.shade {
         Shade::None => 0.,
         Shade::Venetian => {
@@ -53,35 +78,18 @@ fn transmitted_apertures(facade: &Facade, sun_cosine: f32) -> Vec2 {
         _ => coverage,
     };
     let clear_fraction = 1. - 0.95 * obstructed.clamp(0., 1.);
-    facade
-        .openings
-        .iter()
-        .map(|opening| {
-            let span = opening.max - opening.min;
-            let clear = facade
-                .treatment
-                .as_ref()
-                .and_then(|p| p.track)
-                .filter(|_| facade.shade == Shade::PanelTrack)
-                .map_or(clear_fraction, |track| {
-                    track.clear_fraction(span.x, coverage)
-                });
-            let clear = architecture::facade::treatments::slats::clear_fraction(facade, span)
-                .unwrap_or(clear);
-            let area = architecture::facade::visible_pane_area(facade, opening) * clear;
-            let transmission = opening
-                .glazing
-                .as_ref()
-                .map_or(Vec2::new(0.85, 0.92), |pane| {
-                    let recipe = pane.glass_recipe();
-                    Vec2::new(
-                        recipe.sky_transmittance(),
-                        recipe.luminous_transmittance(sun_cosine),
-                    )
-                });
-            area * transmission * Vec2::new(1., sun_cosine)
-        })
-        .sum()
+    let span = opening.max - opening.min;
+    let clear = facade
+        .treatment
+        .as_ref()
+        .and_then(|p| p.track)
+        .filter(|_| facade.shade == Shade::PanelTrack)
+        .map_or(clear_fraction, |track| {
+            track.clear_fraction(span.x, coverage)
+        });
+    let clear = architecture::facade::treatments::slats::clear_fraction(facade, span, coverage)
+        .unwrap_or(clear);
+    architecture::facade::visible_pane_area(facade, opening) * clear
 }
 
 /// Lower solar elevations travel through a longer atmospheric path. Retain
@@ -113,7 +121,7 @@ impl IndoorManifest {
             .sum();
         meter.electric_lux = flux * 0.70 / architecture::fixture_floor_area(self);
         let sun = architecture::sun_direction(self);
-        let mut apertures = Vec2::ZERO;
+        let mut apertures = borrowed::apertures(self, sun);
         for wall in &envelope.walls {
             if let Some(facade) = &wall.facade {
                 let outward = envelope.wall_transform(wall.edge).rotation * Vec3::NEG_Z;
@@ -219,6 +227,9 @@ mod tests {
     #[test]
     fn room_geometry_and_shades_control_daylight_without_affecting_electric_flux() {
         let mut scene = room();
+        // Isolate the selected facade so the 5% shade transmission below can
+        // be compared against its own unshaded illuminance.
+        scene.adjoining_elevation = None;
         let wall = scene
             .envelope
             .as_ref()

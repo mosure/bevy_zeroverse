@@ -165,13 +165,19 @@ fn placement_population_preserves_geometry_support_cameras_and_annotation_labels
     let mut fixture_widths = Vec::new();
     let mut rooms_with_varied_fixture_size = 0;
     let mut loose_sizes = std::collections::BTreeMap::<String, Vec<f32>>::new();
-    for layout in [
+    for (cohort, layout) in [
         IndoorLayout::Mixed,
         IndoorLayout::Kitchen,
         IndoorLayout::Kitchenette,
         IndoorLayout::Lounge,
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        // Circuit headings are keyed to the room seed. Reusing the same
+        // sixteen seeds in every layout would count the same headings again.
         for seed in 0..16 {
+            let seed = 16 * cohort as u64 + seed;
             let scene = IndoorManifest::generate_with_humans(seed, layout, 0.75, 3, 0.25)
                 .unwrap_or_else(|e| panic!("{layout:?} seed={seed}: {e}"));
             validate_layout(&scene).unwrap();

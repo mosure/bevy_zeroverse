@@ -1,6 +1,10 @@
 //! Finite sky geometry closes exterior rays without changing the primary-room bounds.
 //! Its metric depth is the distance to this proxy, not an astronomical sky distance.
 use super::*;
+use crate::scene::procedural_indoor::{preparation::AssetStore, sky};
+
+/// Directional emissive UVs on the regular annotated StandardMaterial mesh.
+pub(crate) const SKY_TAG: bevy::mesh::MeshTag = bevy::mesh::MeshTag::new(0x5a56534b);
 
 pub(crate) fn radius(scene: &IndoorManifest) -> f32 {
     // All primary-room cameras and the adjoining room are inside. Even at the
@@ -20,21 +24,35 @@ pub(crate) fn append(a: &mut Assembly, scene: &IndoorManifest) {
     }
 }
 
-pub(crate) fn material(scene: &IndoorManifest) -> StandardMaterial {
-    // Same scene-level radiance as GI/reflection transport. Surface::Light is
-    // excluded from the transport BVH and shadow casting, so this closure does
-    // not block sunlight or double-count the analytic sky illumination.
-    let radiance = scene
-        .domain()
-        .map_or(Vec3::splat(45.), |d| d.photometry.sky_radiance);
-    StandardMaterial {
-        base_color: Color::BLACK,
-        emissive: LinearRgba::new(radiance.x, radiance.y, radiance.z, 1.),
-        emissive_exposure_weight: 1.,
-        reflectance: 0.,
-        perceptual_roughness: 1.,
-        ..default()
-    }
+pub(crate) fn material(
+    scene: &IndoorManifest,
+    images: &mut impl AssetStore<Image>,
+) -> (StandardMaterial, sky::SkyField) {
+    let (radiance, texture, field) = match sky::bake(scene) {
+        Some(map) => (map.emission, Some(images.add(map.texture)), map.field),
+        // The oldest manifests predate both the daylight meter and the
+        // weather field. Their visible shell used a fixed emission.
+        None => (
+            scene
+                .domain()
+                .map_or(Vec3::splat(45.), |d| d.photometry.sky_radiance),
+            None,
+            sky::SkyField::default(),
+        ),
+    };
+    (
+        StandardMaterial {
+            base_color: Color::BLACK,
+            emissive: LinearRgba::new(radiance.x, radiance.y, radiance.z, 1.),
+            emissive_texture: texture,
+            emissive_channel: bevy::mesh::UvChannel::Uv1,
+            emissive_exposure_weight: 1.,
+            reflectance: 0.,
+            perceptual_roughness: 1.,
+            ..default()
+        },
+        field,
+    )
 }
 
 #[cfg(test)]

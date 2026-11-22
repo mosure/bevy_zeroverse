@@ -1,6 +1,8 @@
 //! Metric floor plan on the far side of the shared entry wall. Coordinates are
 //! room-local X/Z metres. The primary reconstruction region ends at the entry.
 use super::*;
+mod elevation;
+pub use elevation::{AdjoiningElevation, AdjoiningWindows};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AdjoiningFloor {
@@ -215,10 +217,13 @@ mod tests {
     fn archived_and_invalid_plans_have_explicit_behavior() {
         let room = IndoorManifest::generate(86, IndoorLayout::Mixed, 0.6, 0).unwrap();
         let mut archived = serde_json::to_value(room).unwrap();
-        archived.as_object_mut().unwrap().remove("adjoining");
+        let fields = archived.as_object_mut().unwrap();
+        fields.remove("adjoining");
+        fields.remove("adjoining_elevation");
         let replay: IndoorManifest = serde_json::from_value(archived).unwrap();
         assert_eq!(replay.adjoining_space(), AdjoiningSpace::default());
         assert_eq!(replay.adjoining_space().depth_m, 3.2);
+        assert!(replay.adjoining_elevation.is_none());
         let damaged = AdjoiningSpace {
             side_return: Some(AdjoiningReturn {
                 split_x_m: f32::NAN,
@@ -228,5 +233,25 @@ mod tests {
             ..Default::default()
         };
         assert!(damaged.validate(8.).is_err());
+    }
+
+    #[test]
+    fn adjoining_windows_replay_in_their_recorded_wall_and_reject_invalid_installations() {
+        let room = IndoorManifest::generate(44316, IndoorLayout::Mixed, 0.65, 0).unwrap();
+        let sampled = AdjoiningElevation::sample(&room);
+        assert_eq!(Some(&sampled), room.adjoining_elevation.as_ref());
+        let encoded = serde_json::to_vec(&room).unwrap();
+        let replay: IndoorManifest = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(replay.adjoining_elevation.as_ref(), Some(&sampled));
+        let mut window = sampled.windows.unwrap();
+        window.validate(&replay).unwrap();
+        let installed = window.edge;
+        for invalid in [0, usize::MAX] {
+            window.edge = invalid;
+            assert!(window.validate(&replay).is_err());
+        }
+        window.edge = installed;
+        window.facade.recess += 1.;
+        assert!(window.validate(&replay).is_err());
     }
 }

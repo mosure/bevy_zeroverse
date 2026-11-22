@@ -127,6 +127,7 @@ pub(crate) fn practical_lights(
                     let e = p.emission(b.channel, scale).expect("sampled bulb channel");
                     (o.id, i, b.light(tf, e))
                 })
+                .filter(|(_, _, light)| light.candela > 0.)
                 .collect::<Vec<_>>()
         })
 }

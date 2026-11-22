@@ -59,6 +59,14 @@ fn patches(scene: &IndoorManifest) -> impl Iterator<Item = Patch> + '_ {
 }
 
 pub(super) fn at(scene: &IndoorManifest, p: Vec2) -> (Vec3, Vec3) {
+    if let Some(grid) =
+        crate::scene::procedural_indoor::architecture::ceiling::CeilingGrid::for_scene(scene)
+    {
+        return (
+            Vec3::new(p.x, grid.mount_height(scene, p), p.y),
+            Vec3::NEG_Y,
+        );
+    }
     let height = scene.ceiling_height(p);
     let normal = scene.envelope.as_ref().map_or(Vec3::NEG_Y, |e| {
         if height < e.roof_height(scene.room_size, p) - 1e-5 {

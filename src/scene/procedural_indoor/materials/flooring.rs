@@ -29,6 +29,9 @@ pub struct FloorFinish {
     /// Product/installation variation. Omitted recipes retain their original cuts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stock: Option<stock::FloorStock>,
+    /// Pile direction and pattern registration of individually installed carpet tiles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carpet_tiles: Option<carpet_tiles::CarpetTiles>,
     /// Installations close exactly at atlas boundaries. Basket cells are square.
     pub cells: [u32; 2],
     pub basket_strips: u32,
@@ -82,6 +85,7 @@ impl FloorFinish {
             laying: Some(laying::FloorLaying::sample(seed)),
             craft: None,
             stock: None,
+            carpet_tiles: None,
             cells: [nx, ny],
             basket_strips: rng.random_range(3..=5),
             piece_tone: rng.random_range(0.12..if style == 0 { 0.48 } else { 0.30 }),
@@ -105,6 +109,9 @@ impl FloorFinish {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(tiles) = self.carpet_tiles {
+            tiles.validate(self)?;
+        }
         if let Some(laying) = self.laying {
             laying.validate()?;
         }
@@ -199,6 +206,16 @@ impl FloorFinish {
             return;
         }
         let cut = self.cut(r, uv);
+        self.apply_cut(r, uv, &cut, t);
+    }
+
+    pub(super) fn apply_cut(
+        &self,
+        r: &MaterialRecipe,
+        uv: [f32; 2],
+        cut: &Cut,
+        t: &mut super::program::Texel,
+    ) {
         let [x, y] = cut.id;
         let [mx, my] = self.stock.as_ref().map_or([3, 3], |s| s.mottle_cells);
         let gain = 1.
@@ -222,6 +239,7 @@ impl FloorFinish {
     }
 }
 
+pub mod carpet_tiles;
 pub mod installation;
 pub mod laying;
 mod pigment;

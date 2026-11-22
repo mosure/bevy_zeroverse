@@ -430,28 +430,38 @@ fn tabletop_wood_grain_follows_the_long_axis() {
             })
             .unwrap()
             .1;
-        let is_top = |index: usize| top.normals[index][1] > 0.99;
-        let top_indices: Vec<_> = (0..top.positions.len()).filter(|&i| is_top(i)).collect();
         let along = if size.x > size.z { 0 } else { 2 };
         let across = 2 - along;
-        let i = top_indices[0];
-        for j in top_indices {
+        let sign = if size.x > size.z { -1. } else { 1. };
+        let mut cap_triangles = 0;
+        for triangle in top.indices.as_chunks::<3>().0 {
+            let [a, b, c] = triangle.map(|i| i as usize);
+            if ![a, b, c]
+                .into_iter()
+                .all(|i| top.normals[i][1] > 0.99999 && (top.positions[i][1] - size.y).abs() < 1e-5)
+            {
+                continue;
+            }
+            cap_triangles += 1;
+            // Each veneer strip and modular leaf has its own UV origin. Within a
+            // triangle, bookmatching may mirror U and the cut may skew it by 2.5%.
+            let edges = [b, c].map(|v| {
+                let length = sign * (top.positions[v][along] - top.positions[a][along]);
+                let width = top.positions[v][across] - top.positions[a][across];
+                let du = top.uvs[v][0] - top.uvs[a][0];
+                let dv = top.uvs[v][1] - top.uvs[a][1];
+                assert!((dv - length).abs() < 1e-5, "wood UVs lost physical scale");
+                (du, width, length)
+            });
             assert!(
-                ((top.uvs[j][0] - top.uvs[i][0])
-                    - (top.positions[j][across] - top.positions[i][across]))
-                    .abs()
-                    < 1e-5,
+                [-1., 1.].into_iter().any(|mirror| edges
+                    .iter()
+                    .all(|&(du, width, length)| (du - mirror * width).abs()
+                        <= 0.025 * length.abs() + 1e-5)),
                 "grain crosses the long edge"
             );
-            let sign = if size.x > size.z { -1. } else { 1. };
-            assert!(
-                ((top.uvs[j][1] - top.uvs[i][1])
-                    - sign * (top.positions[j][along] - top.positions[i][along]))
-                    .abs()
-                    < 1e-5,
-                "wood UVs lost physical scale"
-            );
         }
+        assert!(cap_triangles > 0, "missing wooden tabletop at {size:?}");
     }
 }
 
@@ -971,7 +981,7 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
 fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
     use super::humans::{build_human, HumanPoseKind, HUMAN_BONE_NAMES};
     use std::collections::BTreeSet;
-    let mut poses = BTreeSet::new();
+    let mut poses = Vec::new();
     let mut outfits = BTreeSet::new();
     let mut skin = BTreeSet::new();
     let mut hair = BTreeSet::new();
@@ -1025,7 +1035,9 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
             counts[index] += scene.humans.len();
             for human in &scene.humans {
                 assert_eq!(human.joints.len(), HUMAN_BONE_NAMES.len());
-                poses.insert(format!("{:?}", human.pose));
+                if !poses.contains(&human.pose) {
+                    poses.push(human.pose);
+                }
                 outfits.insert(format!("{:?}", human.outfit));
                 skin.insert(human.skin_tone);
                 hair.insert(human.hairstyle);
@@ -1051,12 +1063,26 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
         counts[1] > 128 && counts[2] > counts[1],
         "human population collapsed: {counts:?}"
     );
-    assert_eq!(poses.len(), 8, "{poses:?}");
+    let expected_poses = [
+        HumanPoseKind::SeatedWorking,
+        HumanPoseKind::SeatedListening,
+        HumanPoseKind::SeatedTalking,
+        HumanPoseKind::StandingRelaxed,
+        HumanPoseKind::StandingPresenting,
+        HumanPoseKind::StandingConversation,
+        HumanPoseKind::StandingReading,
+        HumanPoseKind::StandingWalking,
+        HumanPoseKind::StandingPreparing,
+    ];
+    assert_eq!(poses.len(), expected_poses.len(), "{poses:?}");
+    assert!(
+        expected_poses.iter().all(|pose| poses.contains(pose)),
+        "{poses:?}"
+    );
     assert_eq!(outfits.len(), 6);
     assert_eq!(skin.len(), 8);
     assert_eq!(hair.len(), super::humans::hair::HairStyle::ALL.len());
     assert!(neighbor_count > 50, "neighbor chair occupancy disappeared");
-    assert!(poses.contains(&format!("{:?}", HumanPoseKind::SeatedWorking)));
     eprintln!(
         "128-seed human counts at densities 0/.25/1: {counts:?}; neighbor instances={neighbor_count}"
     );

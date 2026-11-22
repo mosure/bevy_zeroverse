@@ -22,7 +22,7 @@ generate samples online.
 ![Object-scene dataloader captures showing matched RGB, depth and normal views](docs/bevy_zeroverse_dataloader_grid.webp)
 
 ```sh
-cargo run --bin viewer -- --scene-type object --num-cameras 4 --camera-grid
+cargo run -- --scene-type object --num-cameras 4 --camera-grid
 ```
 
 [Open object scenes in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=object&num_cameras=4&camera_grid=true&regenerate_ms=8000)
@@ -155,14 +155,22 @@ a fixed factor. Output dimensions and camera calibration remain unchanged.
 
 ## Quick start
 
-Run the native viewer using the repository's pinned `nightly-2026-08-31` Rust toolchain (crate MSRV
-1.97.1). The pin keeps native and WebGPU builds on the qualified compiler.
-Optional motion and SigLIP2 inference use Burn 0.22.1:
+Install the native Studio and open a reproducible four-camera room.
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
+cargo install bevy_zeroverse --locked
+bevy_zeroverse --scene-type procedural-indoor --indoor-seed 7 \
   --num-cameras 4 --camera-grid
 ```
+
+From a checkout, `cargo run -- --help` shows the same CLI and
+`cargo install --path . --locked` installs the working tree. The repository
+pins `nightly-2026-08-31` (MSRV 1.97.1). Optional motion and SigLIP2 inference
+use Burn 0.22.1.
+
+Run developer tools explicitly, for example `cargo run --example indoor_capacity -- --help`
+or `cargo run --example indoor_prepare_bench -- --help`. To install an individual
+tool, use `cargo install bevy_zeroverse --locked --example indoor_validate`.
 
 Screens, TVs and phones use device-aware procedural content; whiteboards combine
 handwriting and diagrams. Rugs have whole-surface textile designs, and artwork
@@ -242,7 +250,7 @@ then resize them into the local material directory:
 
 ```sh
 python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials
-cargo run --bin viewer -- --material-grid
+cargo run -- --material-grid
 ```
 
 [Open the material grid in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?material_grid=true)

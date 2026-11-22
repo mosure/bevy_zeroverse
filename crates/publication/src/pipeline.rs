@@ -548,7 +548,7 @@ pub(crate) fn capture_dataset(root: &Path, config: &Config, recapture: bool) -> 
                             "--locked",
                             "-p",
                             "bevy_zeroverse",
-                            "--bin",
+                            "--example",
                             "indoor_validate",
                             "--no-default-features",
                             "--features",

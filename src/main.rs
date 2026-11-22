@@ -1,6 +1,6 @@
 use bevy_zeroverse::app::viewer_app;
 
-pub fn main() {
+fn main() {
     // The Studio worker instantiates the same compiled module for CPU-only jobs.
     #[cfg(target_arch = "wasm32")]
     {

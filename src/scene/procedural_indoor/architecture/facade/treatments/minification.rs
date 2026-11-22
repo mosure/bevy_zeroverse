@@ -52,7 +52,7 @@ fn covers(f: &Facade, wall: Transform) -> impl Iterator<Item = Cover> + '_ {
     f.openings.iter().filter_map(move |o| {
         let p = f.treatment.as_ref()?;
         let span = o.max - o.min;
-        let coverage = f.shade_coverage.clamp(0., 1.);
+        let coverage = f.shade_coverage_at(o);
         let mut center = (o.min + o.max) * 0.5;
         let (width, height, pitch) = match f.shade {
             Shade::Venetian if coverage > 0.08 => {

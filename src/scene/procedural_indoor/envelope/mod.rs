@@ -174,9 +174,7 @@ impl EnvelopeProgram {
     pub fn wall_transform(&self, edge: usize) -> Transform {
         let a = self.footprint[edge];
         let b = self.footprint[(edge + 1) % self.footprint.len()];
-        let d = b - a;
-        let c = (a + b) * 0.5;
-        Transform::from_xyz(c.x, 0., c.y).with_rotation(Quat::from_rotation_y((-d.y).atan2(d.x)))
+        polygon::wall_frame(a, b)
     }
     pub fn shared_edge(&self, edge: usize, size: Vec3) -> bool {
         self.footprint[edge].y > size.z * 0.5 - 0.001

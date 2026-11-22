@@ -42,11 +42,11 @@ pause training or describe a shared device as isolated. Run these workloads
 sequentially; compilation or another local benchmark would confound the study.
 
 ```sh
-cargo build --bin indoor_prepare_bench --bin indoor_bench
-cargo run --bin indoor_prepare_bench -- --rooms 64 --seed 400 --concurrent 1 --output out/timing/cpu1.json
-cargo run --bin indoor_prepare_bench -- --rooms 64 --seed 400 --concurrent 4 --output out/timing/cpu4.json
-cargo run --bin indoor_bench -- --scenes 80 --warmup-scenes 16 --seed 384 --cameras 3 --width 512 --height 512 --co-visibility --output out/timing/capture1
-cargo run --bin indoor_bench -- --scenes 80 --warmup-scenes 16 --seed 384 --cameras 3 --width 512 --height 512 --co-visibility --output out/timing/capture2
+cargo build --example indoor_prepare_bench --example indoor_bench
+cargo run --example indoor_prepare_bench -- --rooms 64 --seed 400 --concurrent 1 --output out/timing/cpu1.json
+cargo run --example indoor_prepare_bench -- --rooms 64 --seed 400 --concurrent 4 --output out/timing/cpu4.json
+cargo run --example indoor_bench -- --scenes 80 --warmup-scenes 16 --seed 384 --cameras 3 --width 512 --height 512 --co-visibility --output out/timing/capture1
+cargo run --example indoor_bench -- --scenes 80 --warmup-scenes 16 --seed 384 --cameras 3 --width 512 --height 512 --co-visibility --output out/timing/capture2
 cargo run -p bevy_zeroverse_publication -- timing-study --preparation out/timing/cpu1.json out/timing/cpu4.json --captures out/timing/capture1 out/timing/capture2 --environment out/timing/environment.json --output out/timing/paper
 ```
 

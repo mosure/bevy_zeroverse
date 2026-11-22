@@ -964,7 +964,7 @@ fn web_viewer_defaults() -> BevyZeroverseConfig {
         depth_format: DepthFormat::Turbo,
         width: 768.,
         height: 768.,
-        ..BevyZeroverseConfig::parse_from(["viewer"])
+        ..BevyZeroverseConfig::parse_from(["bevy_zeroverse"])
     })
 }
 

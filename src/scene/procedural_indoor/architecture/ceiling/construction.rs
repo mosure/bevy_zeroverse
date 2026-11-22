@@ -1,4 +1,5 @@
 //! Bounded local assemblies. All geometry shares the camera/placement reserve.
+mod grid;
 mod panels;
 mod recesses;
 mod services;
@@ -132,7 +133,28 @@ fn build_internal(
             taper,
             phase,
         } => panels::panels(&mut local, &f, camber, taper, phase),
-        CeilingShape::Grid { aspect, recess_m } => panels::grid(&mut local, &f, aspect, recess_m),
+        CeilingShape::Grid { aspect, recess_m } => {
+            let infill = if m.system == CeilingSystem::OpenCell {
+                grid::Infill::Open
+            } else {
+                grid::Infill::ArchivedTile(recess_m)
+            };
+            grid::build(&mut local, &f, aspect, infill, anchors_only)
+        }
+        CeilingShape::LayIn {
+            aspect,
+            runner_base_m,
+            tile,
+        } => grid::build(
+            &mut local,
+            &f,
+            aspect,
+            grid::Infill::Mineral {
+                base: runner_base_m,
+                stock: tile,
+            },
+            anchors_only,
+        ),
         CeilingShape::Duct {
             section,
             end_scale,

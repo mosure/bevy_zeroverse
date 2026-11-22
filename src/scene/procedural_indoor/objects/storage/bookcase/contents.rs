@@ -10,6 +10,26 @@ pub(crate) struct Content {
     pub size: Vec3,
     pub position: Vec3,
     pub yaw: f32,
+    /// Rotation about the shelf depth axis, with the origin at the book's lower edge.
+    pub lean: f32,
+    pub edition: Option<u64>,
+    pub bookend: Option<runs::Bookend>,
+}
+
+impl Content {
+    pub(crate) fn upright_book(seed: u64, size: Vec3, position: Vec3, yaw: f32) -> Self {
+        Self {
+            kind: ObjectKind::Books,
+            upright: true,
+            seed,
+            size,
+            position,
+            yaw,
+            lean: 0.,
+            edition: None,
+            bookend: None,
+        }
+    }
 }
 
 pub(crate) fn placements(
@@ -44,14 +64,12 @@ pub(crate) fn placements(
                 break;
             }
             let z = r.random_range(rear + half.y + 0.006..o.size.z * 0.5 - half.y - 0.006);
-            result.push(Content {
-                kind: ObjectKind::Books,
-                upright: true,
-                seed: r.random(),
+            result.push(Content::upright_book(
+                r.random(),
                 size,
-                position: Vec3::new(x + half.x, base, z),
+                Vec3::new(x + half.x, base, z),
                 yaw,
-            });
+            ));
             x += half.x * 2. + r.random_range(0.002..0.013);
         }
         // Shelved books may be left-, right- or loosely aligned. Move the
@@ -75,6 +93,7 @@ pub(crate) fn placements(
                 }
             }
         }
+        runs::arrange(o, p, bay, level, &mut result);
         return result;
     }
     let pattern = SurfacePattern::sample(&mut r);
@@ -118,6 +137,9 @@ pub(crate) fn placements(
                 size,
                 position: Vec3::new(q.center.x, base, q.center.y),
                 yaw,
+                lean: 0.,
+                edition: None,
+                bookend: None,
             });
             break;
         }
@@ -126,7 +148,8 @@ pub(crate) fn placements(
 }
 
 pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
-    let tf = Transform::from_translation(c.position).with_rotation(Quat::from_rotation_y(c.yaw));
+    let tf = Transform::from_translation(c.position)
+        .with_rotation(Quat::from_rotation_y(c.yaw) * Quat::from_rotation_z(c.lean));
     if c.kind == ObjectKind::Books && !c.upright {
         // Bound volumes share one construction in either orientation. Avoid
         // expanding a shelf stack into many rings of spiral-notebook geometry.
@@ -146,9 +169,10 @@ pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
             let w = width * fit;
             let q = Quat::from_rotation_y(angle);
             let local = q * Vec3::new(-w * 0.5, y + h * 0.5, 0.);
-            volume(
+            binding::volume(
                 a,
                 r.random(),
+                None,
                 Vec3::new(h, w, depth * fit),
                 Transform::from_translation(tf.transform_point(local))
                     .with_rotation(tf.rotation * q * Quat::from_rotation_z(-FRAC_PI_2)),
@@ -166,52 +190,8 @@ pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
         super::super::super::public::append_at(a, build_object(&child), tf);
         return;
     }
-    volume(a, c.seed, c.size, tf);
-}
-
-fn volume(a: &mut Assembly, seed: u64, s: Vec3, tf: Transform) {
-    let mut r = stream(seed, 0x424f_4f4b_4249_4e44);
-    let surface = [
-        Surface::FabricAlt,
-        Surface::Plastic,
-        Surface::Leather,
-        Surface::Paper,
-    ][r.random_range(0..4)];
-    let label = format!(
-        "books#finish{}",
-        r.random_range(0..crate::scene::procedural_indoor::materials::variants::COUNT)
-    );
-    let t = r.random_range(0.0012_f32..0.0024).min(s.x * 0.15);
-    let mut part = |surface, center: Vec3, size: Vec3| {
-        a.part(surface, &label).cuboid(
-            size,
-            0.0003,
-            tf.with_translation(tf.transform_point(center)),
-        );
-    };
-    for side in [-1., 1.] {
-        part(
-            surface,
-            Vec3::new(side * (s.x - t) * 0.5, s.y * 0.5, 0.),
-            Vec3::new(t, s.y, s.z),
-        );
-    }
-    part(
-        surface,
-        Vec3::new(0., s.y * 0.5, (s.z - t) * 0.5),
-        Vec3::new(s.x - 2. * t, s.y, t),
-    );
-    part(
-        Surface::Paper,
-        Vec3::new(0., s.y * 0.5, -t * 0.5),
-        Vec3::new(s.x - 2. * t - 0.0005, s.y - 2. * t, s.z - t - 0.0005),
-    );
-    if r.random_bool(0.65) {
-        // Labels vary in vertical position and aspect; no repeated paired stripe.
-        part(
-            Surface::Paper,
-            Vec3::new(0., s.y * r.random_range(0.24..0.76), s.z * 0.5 + 0.0003),
-            Vec3::new(s.x * 0.62, s.y * r.random_range(0.07..0.22), 0.0004),
-        );
+    binding::volume(a, c.seed, c.edition, c.size, tf);
+    if let Some(bookend) = &c.bookend {
+        bookend.build(a, parent, c);
     }
 }

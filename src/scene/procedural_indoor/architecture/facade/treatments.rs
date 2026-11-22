@@ -1,6 +1,8 @@
 //! Seeded, metric window coverings. Meshes stay inside the aperture's lateral
 //! extent and the existing 20 cm wall-clearance allowance. Static by default.
 mod cloth;
+pub(crate) mod drapery;
+pub use drapery::CurtainHeading;
 mod mesh;
 pub(crate) mod minification;
 pub(crate) mod slats;
@@ -44,6 +46,13 @@ pub struct ShadeProgram {
     pub finish_slot: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub textile: Option<WindowTextile>,
+    /// Absent in archived installations using the original curtain mesh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curtain_heading: Option<CurtainHeading>,
+    /// Maximum per-opening shift in log odds of deployment. A shared draw
+    /// or an archived installation uses the bank's coverage directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_spread: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub track: Option<PanelTrack>,
 }
@@ -100,8 +109,17 @@ impl ShadeProgram {
             },
             finish_slot: r.random_range(0..variants::COUNT),
             textile,
+            curtain_heading: None,
+            deployment_spread: None,
             track,
         };
+        if metric_stock && shade == Shade::Curtain {
+            program.curtain_heading = Some(match stock.random_range(0..3) {
+                0 => CurtainHeading::Wave,
+                1 => CurtainHeading::PinchPleat,
+                _ => CurtainHeading::Gathered,
+            });
+        }
         if metric_stock && shade == Shade::Venetian {
             let slats = SlatStock::sample(&mut stock, program.slat_material);
             program.slat_pitch = slats.depth_m * stock.random_range(0.86..0.96);
@@ -112,6 +130,12 @@ impl ShadeProgram {
         }
         if let Some(track) = &mut program.track {
             track.reed_variation = Some(stock.random_range(0.10..0.24));
+        }
+        if metric_stock && shade != Shade::None {
+            let mut controls = stream(seed, 0x44524157434f4e54);
+            if controls.random_bool(0.60) {
+                program.deployment_spread = Some(controls.random_range(0.7..2.6));
+            }
         }
         (shade, program)
     }
@@ -129,6 +153,9 @@ impl ShadeProgram {
             || !(0.0..=0.025).contains(&self.hem_sag)
             || !(0.25..=0.75).contains(&self.split)
             || !(0.0..=1.0).contains(&self.tieback)
+            || self
+                .deployment_spread
+                .is_some_and(|v| !(0.0..=3.).contains(&v))
             || !matches!(
                 self.slat_material,
                 Surface::WoodEdge | Surface::Metal | Surface::Plastic
@@ -148,8 +175,35 @@ fn installation_seed(p: &ShadeProgram, o: &WindowOpening) -> u64 {
     p.identity ^ o.min.x.to_bits() as u64 ^ ((o.min.y.to_bits() as u64) << 32)
 }
 
+impl Facade {
+    /// Realized draw in this opening. The two endpoints stay fully parked and
+    /// fully deployed, and every opening advances monotonically with the bank.
+    pub fn shade_coverage_at(&self, opening: &WindowOpening) -> f32 {
+        let c = self.shade_coverage.clamp(0., 1.);
+        let Some(p) = self.treatment.as_ref() else {
+            return c;
+        };
+        let Some(spread) = p.deployment_spread else {
+            return c;
+        };
+        if self.openings.len() < 2
+            || self.shade == Shade::None
+            || c == 0.
+            || c == 1.
+            || spread == 0.
+        {
+            return c;
+        }
+        let mut rng = stream(installation_seed(p, opening), 0x42415944524157);
+        let odds = (rng.random_range(-1.0_f32..1.) * spread).exp();
+        c * odds / ((1. - c) + c * odds)
+    }
+}
+
 fn head_contact(kind: Shade, p: &ShadeProgram, o: &WindowOpening, tf: Transform) -> Option<String> {
-    (matches!(kind, Shade::Roller | Shade::PanelTrack) && p.textile.is_some()).then(|| {
+    let tracked = matches!(kind, Shade::Roller | Shade::PanelTrack) && p.textile.is_some()
+        || kind == Shade::Curtain && p.curtain_heading.is_some();
+    tracked.then(|| {
         // Separate even repeated aperture templates on different wall segments.
         let center = tf.transform_point(((o.min + o.max) * 0.5).extend(0.11));
         format!(
@@ -179,20 +233,33 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
     };
     use super::super::super::motion::{construction as motion, MotionKind};
     let seed = installation_seed(p, o);
-    if a.motion_selected(MotionKind::Covering, seed) {
+    let coverage = f.shade_coverage_at(o);
+    if a.motion_selected(MotionKind::Covering, seed)
+        && !(f.shade == Shade::Curtain && drapery::tied(p, o, coverage))
+    {
         let mut first = Assembly::default();
         let mut last = Assembly::default();
-        mesh::build_with_angle(&mut first, tf, f, o, p, None, true);
-        let mut end = f.clone();
-        end.shade_coverage = motion::endpoint(seed, f.shade_coverage, 1.);
+        mesh::build(
+            &mut first,
+            tf,
+            f,
+            o,
+            p,
+            mesh::Draw {
+                coverage,
+                fixed_angle: None,
+                moving: true,
+            },
+        );
+        let mut end = motion::endpoint(seed, coverage, 1.);
         // Translate rigid slats without shearing or shrinking them. Tilting and
         // lifting are distinct degrees of freedom; this program opens the stack.
         let tilt = f.shade_tilt.clamp(-1.2, 1.2);
         let angle = match f.shade {
-            Shade::Venetian => Some(tilt * f.shade_coverage.sqrt()),
+            Shade::Venetian => Some(tilt * coverage.sqrt()),
             Shade::Vertical => Some(
                 if tilt < 0. { -1. } else { 1. }
-                    * (tilt.abs().max(0.12) * f.shade_coverage + 1.50 * (1. - f.shade_coverage)),
+                    * (tilt.abs().max(0.12) * coverage + 1.50 * (1. - coverage)),
             ),
             _ => None,
         };
@@ -204,9 +271,20 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
             let min_coverage = ((depth * angle.unwrap().sin().abs() + 0.002 - 0.004)
                 / (pitch - 0.004))
                 .clamp(0., 1.);
-            end.shade_coverage = end.shade_coverage.max(min_coverage);
+            end = end.max(min_coverage);
         }
-        mesh::build_with_angle(&mut last, tf, &end, o, p, angle, true);
+        mesh::build(
+            &mut last,
+            tf,
+            f,
+            o,
+            p,
+            mesh::Draw {
+                coverage: end,
+                fixed_angle: angle,
+                moving: true,
+            },
+        );
         let feed =
             (f.shade == Shade::Roller && p.textile.is_some()).then(|| mesh::feed_plane(tf, o));
         motion::morph(
@@ -219,6 +297,17 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
             head_contact(f.shade, p, o, tf),
         );
     } else {
-        mesh::build(a, tf, f, o, p);
+        mesh::build(
+            a,
+            tf,
+            f,
+            o,
+            p,
+            mesh::Draw {
+                coverage,
+                fixed_angle: None,
+                moving: false,
+            },
+        );
     }
 }

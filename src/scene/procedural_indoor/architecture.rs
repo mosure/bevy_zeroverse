@@ -304,7 +304,10 @@ pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
 /// Close-mounted luminaires below the deck prevent the upper floor from
 /// shadowing every light in the lower work area. Their anchors stop at the slab.
 pub(crate) fn fixture_half_extents(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    fixture_layout::half(scene, position)
+    ceiling::CeilingGrid::lamp_at(scene, position).map_or_else(
+        || fixture_layout::half(scene, position),
+        |grid| grid.lamp_size() * 0.5,
+    )
 }
 
 pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
@@ -313,7 +316,11 @@ pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
 
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
     if scene.program.is_some() {
-        return fixture_layout::positions(scene);
+        let mut positions = fixture_layout::positions(scene);
+        if let Some(grid) = ceiling::CeilingGrid::for_scene(scene) {
+            grid.fit_positions(scene.room_size.y, &mut positions);
+        }
+        return positions;
     }
     let mut positions = Vec::new();
     let spacing = [3.4, 4.0, 2.8][scene.lighting_design as usize % 3];
@@ -375,8 +382,7 @@ pub fn spawn_lights(
     commands: &mut Commands,
 ) {
     let positions = fixture_positions(scene);
-    for (i, p) in positions.iter().copied().enumerate() {
-        let (c, lumens) = fixture_photometry_at(scene, i, &positions);
+    for (i, p, c, lumens) in powered_ceiling_fixtures(scene, &positions) {
         let (inner, outer) = fixtures::beam_angles(scene, i, p);
         commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
@@ -445,17 +451,18 @@ pub fn spawn_lights(
     {
         // The bulb sits within a real open fabric shade; its shadowed point light
         // illuminates the nearby seating and wall instead of merely glowing.
+        let power = super::photometry::lamp(scene, lamp);
+        if power.lumens == 0. {
+            continue;
+        }
         let rest = Transform::from_translation(
             crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
         );
         let mut entity = commands.spawn((
             Name::new(format!("indoor_floor_lamp_{}", lamp.id)),
             PointLight {
-                color: {
-                    let c = super::photometry::lamp(scene, lamp).color;
-                    source_color(scene, c)
-                },
-                intensity: super::photometry::lamp(scene, lamp).lumens,
+                color: source_color(scene, power.color),
+                intensity: power.lumens,
                 range: 5.0,
                 radius: 0.035,
                 shadow_maps_enabled: quality.shadows(),
@@ -477,6 +484,9 @@ pub fn spawn_lights(
         )
     }) {
         let (beam, power) = object_fixture_photometry(scene, lamp);
+        if power.lumens == 0. {
+            continue;
+        }
         let rest = Transform::from_translation(beam.position).looking_to(beam.direction, Vec3::Z);
         let mut entity = commands.spawn((
             Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
@@ -613,6 +623,18 @@ pub(crate) fn fixture_photometry_at(
     )
 }
 
+/// The mount index also names its mesh, material and annotation. Dormant
+/// fixtures keep those identities but contribute no analytic light or shadow.
+pub(super) fn powered_ceiling_fixtures<'a>(
+    scene: &'a IndoorManifest,
+    positions: &'a [Vec3],
+) -> impl Iterator<Item = (usize, Vec3, Vec3, f32)> + 'a {
+    positions.iter().copied().enumerate().filter_map(|(i, p)| {
+        let (color, lumens) = fixture_photometry_at(scene, i, positions);
+        (lumens > 0.).then_some((i, p, color, lumens))
+    })
+}
+
 pub(super) fn primary_fixture_count(scene: &IndoorManifest, positions: &[Vec3]) -> usize {
     positions.len()
         - positions
@@ -707,7 +729,11 @@ mod lighting_tests {
                 )
                 .unwrap()
             })
-            .find(|scene| fixture_positions(scene).len() > 16)
+            .find(|scene| {
+                let mounts = fixture_positions(scene);
+                let on = powered_ceiling_fixtures(scene, &mounts).count();
+                on > 8 && on < mounts.len()
+            })
             .unwrap();
         let mut world = World::new();
         let root = world.spawn_empty().id();
@@ -719,13 +745,33 @@ mod lighting_tests {
             &mut Commands::new(&mut queue, &world),
         );
         queue.apply(&mut world);
-        let mut q = world.query::<(&Name, &SpotLight)>();
-        let ceiling: Vec<_> = q
+        let mut q = world.query::<(&Name, &SpotLight, &Transform)>();
+        let ceiling: std::collections::BTreeMap<_, _> = q
             .iter(&world)
-            .filter(|(name, _)| name.starts_with("indoor_luminaire_"))
+            .filter_map(|(name, light, tf)| {
+                let index = name
+                    .strip_prefix("indoor_luminaire_")?
+                    .parse::<usize>()
+                    .unwrap();
+                Some((index, (light, tf)))
+            })
             .collect();
-        assert_eq!(ceiling.len(), fixture_positions(&scene).len());
-        assert!(ceiling.iter().all(|(_, light)| light.shadow_maps_enabled));
+        let mounts = fixture_positions(&scene);
+        for (i, &p) in mounts.iter().enumerate() {
+            let (_, lm) = fixture_photometry_at(&scene, i, &mounts);
+            if lm == 0. {
+                assert!(!ceiling.contains_key(&i));
+                let geometry = fixtures::geometry(&scene, i, p);
+                assert!(geometry.parts.keys().any(|(s, _)| *s == Surface::Light));
+            } else {
+                let (light, tf) = ceiling[&i];
+                let (inner, outer) = fixtures::beam_angles(&scene, i, p);
+                assert_eq!(light.intensity, spot_intensity_for_lumens(lm, inner, outer));
+                assert_eq!(tf.translation, fixtures::emitter(&scene, p));
+                assert!(light.shadow_maps_enabled);
+            }
+        }
+        assert!(ceiling.len() > 8 && ceiling.len() < mounts.len());
     }
 
     #[test]

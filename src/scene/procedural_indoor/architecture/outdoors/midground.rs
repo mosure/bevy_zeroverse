@@ -32,19 +32,22 @@ impl Terrace {
 
 pub(super) fn plan(
     scene: &IndoorManifest,
-    windows: &[(Vec2, Vec2)],
+    district: &District,
+    horizon: &frontage_layout::Horizon,
     sites: &[Parcel],
 ) -> Vec<Terrace> {
     let mut rows: Vec<Terrace> = Vec::new();
-    if windows.is_empty() {
-        return rows;
-    }
     let mut rng = stream(scene.seed, 0x5354_5245_4554_524f);
-    let district = District::sample(scene.seed);
-    let target = ((district.building_fraction * 3.5 + rng.random_range(-0.9..1.0)) as usize).min(3);
+    let target = (district.building_fraction * 3.1 + rng.random_range(-0.95..1.05))
+        .round()
+        .clamp(0., 3.) as usize;
     if target == 0 {
         return rows;
     }
+    let bearings = horizon.street_bearings(sites);
+    let Some(mass) = bearings.last().map(|b| b.cumulative_weight) else {
+        return rows;
+    };
     let half = scene.room_size.xz() * 0.5;
     let neighboring = scene.adjoining_space().max_depth();
     let primary = Footprint::oriented(
@@ -64,7 +67,14 @@ pub(super) fn plan(
                 p.center,
                 Vec2::new(c, -s) * (p.size.x * 0.5),
                 Vec2::new(s, c) * (p.size.y * 0.5),
-                if p.kind == 0 { 1. } else { 0.4 },
+                // Courtyard furniture, planting and overhead rafters only
+                // partly screen the opposite side of the street at eye level.
+                match p.kind {
+                    0 => 1.,
+                    1 => 0.35,
+                    2 => 0.16,
+                    _ => 0.22,
+                },
             )
         })
         .collect();
@@ -72,18 +82,16 @@ pub(super) fn plan(
     // The analytic sky sphere is tessellated; keep even the roof corners
     // inside its inscribed surface. The building and sidewalk are on grade.
     let sky = super::super::background::radius(scene) * 0.965;
-    for i in 0..64 {
-        let (eye, facing) = windows[rng.random_range(0..windows.len())];
-        // Seek the two flanks of a window corridor as well as its centre. A
-        // near building often already intercepts the central ray.
-        let bearing = (match i % 3 {
-            0 => -0.55,
-            1 => 0.55,
-            _ => 0.,
-        }) + rng.random_range(-0.32..0.32);
+    for _ in 0..64 {
+        let pick = rng.random_range(0.0..mass);
+        let b = &bearings[bearings.partition_point(|v| v.cumulative_weight < pick)];
+        let facing = b.window.normal;
+        let tangent = Vec2::new(-facing.y, facing.x);
+        let eye = b.window.center + tangent * (b.window.width * rng.random_range(-0.36..0.36));
+        let bearing = b.angle + rng.random_range(-0.17..0.17);
         let ray = Vec2::from_angle(bearing).rotate(facing);
         let front = -Vec2::from_angle(rng.random_range(-0.18..0.18)).rotate(facing);
-        let size = Vec2::new(rng.random_range(5.0..9.6), rng.random_range(2.9..5.1));
+        let size = Vec2::new(rng.random_range(4.6..9.9), rng.random_range(2.6..5.1));
         let radius = sky - rng.random_range(2.9..5.0);
         let along = eye.dot(ray);
         let distance = (along * along + radius * radius - eye.length_squared()).sqrt() - along;
@@ -148,20 +156,28 @@ pub(super) fn plan(
                     });
                 exposure += transmission * dir.dot(facing).max(0.);
             }
-            candidates.push((exposure * size.x / distance, row));
-        }
-    }
-    candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
-    for (_, row) in candidates {
-        if rows
-            .iter()
-            .all(|p| !row.footprint().overlaps(p.footprint(), 0.65))
-        {
-            rows.push(row);
-            if rows.len() == target {
-                break;
+            if exposure > 0.1 {
+                candidates.push((exposure * size.x / distance, b.opening, row));
             }
         }
+    }
+    while rows.len() < target {
+        let Some((best, _)) = candidates
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.0.total_cmp(&b.0))
+        else {
+            break;
+        };
+        let (_, opening, row) = candidates.swap_remove(best);
+        let plot = row.footprint();
+        candidates.retain_mut(|(score, other_opening, other)| {
+            if *other_opening == opening {
+                *score *= 0.55;
+            }
+            !other.footprint().overlaps(plot, 0.65)
+        });
+        rows.push(row);
     }
     rows
 }
@@ -173,17 +189,46 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[test]
+    fn exterior_layout_replays_across_camera_rigs_and_room_rotations() {
+        for seed in [73161, 74222, 74226] {
+            let mut s =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.)
+                    .unwrap();
+            let district = District::sample(seed);
+            let a = ExteriorPlan::new(&s, &district);
+            s.cameras.clear();
+            s.world_yaw = 1.25;
+            let b = ExteriorPlan::new(&s, &district);
+            assert_eq!(a.sites, b.sites);
+            assert_eq!(a.rows, b.rows);
+            assert_eq!(a.frontage, b.frontage);
+        }
+    }
+
+    #[test]
     fn window_streets_fit_the_real_sky_and_keep_near_plots_clear() {
         let mut counts = BTreeSet::new();
         let mut built = 0;
         for seed in (57000..57096).chain([44214, 57496]) {
             let s = IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
                 .unwrap();
-            let windows = window_rays(&s);
-            let sites = parcels_at(&s, &windows);
-            let rows = plan(&s, &windows, &sites);
-            assert_eq!(rows, plan(&s, &windows, &sites));
-            assert!(plan(&s, &[], &sites).is_empty());
+            let d = District::sample(seed);
+            let ExteriorPlan {
+                windows,
+                sites,
+                rows,
+                ..
+            } = ExteriorPlan::new(&s, &d);
+            assert_eq!(
+                rows,
+                plan(
+                    &s,
+                    &d,
+                    &frontage_layout::Horizon::new(&sites, &windows),
+                    &sites
+                )
+            );
+            assert!(plan(&s, &d, &frontage_layout::Horizon::new(&sites, &[]), &sites).is_empty());
             assert!(rows.len() <= 3);
             counts.insert(rows.len());
             let bg = super::super::super::background::radius(&s);
@@ -220,7 +265,7 @@ mod tests {
             }
         }
         assert!(
-            built > 75 && counts.len() >= 3,
+            built > 75 && counts.len() >= 3 && counts.contains(&0),
             "built {built} rows, counts {counts:?}"
         );
     }

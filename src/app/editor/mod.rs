@@ -61,7 +61,12 @@ impl Plugin for EditorPlugin {
             .insert_resource(studio_theme())
             .add_systems(
                 Update,
-                (presentation_shortcut, scene_loaded, update).chain(),
+                (
+                    presentation_shortcut,
+                    scene_loaded,
+                    update.before(crate::camera::update_camera_trajectory),
+                )
+                    .chain(),
             )
             .add_systems(PostUpdate, shell::viewport.after(EditorCameraSetup))
             .add_systems(
@@ -197,7 +202,9 @@ pub fn value(state: &EditorState, path: &str) -> Value {
                 "custom"
             })
         }
-        "@progress" => json!(state.view.progress),
+        "@progress" => json!(PlaybackMode::deserialize(&state.applied["playback_mode"])
+            .unwrap_or_default()
+            .map_progress(state.view.progress)),
         "@editor_fov" => json!(state
             .view
             .camera
@@ -355,7 +362,10 @@ fn edit(state: &mut EditorState, path: &str, mut v: Value) -> Result<bool, Strin
             rebuild = true;
         }
         "@progress" => {
-            state.view.progress = v.as_f64().ok_or("Expected time")? as f32;
+            state.view.progress =
+                v.as_f64()
+                    .filter(|t| (0.0..=1.0).contains(t))
+                    .ok_or("Trajectory position must be between 0 and 1")? as f32;
             state.draft["playback_mode"] = json!("Still");
         }
         "@editor_fov" => {
@@ -503,10 +513,21 @@ fn live_update(world: &mut World, state: &mut EditorState, path: &str) -> Result
             .ok_or_else(|| format!("Missing applied field {field}"))? = value;
         world.insert_resource(config);
     }
-    if path == "@progress" {
-        let mut p = world.resource_mut::<Playback>();
-        p.progress = state.view.progress;
-        p.mode = PlaybackMode::Still;
+    if matches!(path, "@progress" | "/playback_mode") {
+        let mode = world.resource::<BevyZeroverseConfig>().playback_mode;
+        let mut playback = world.resource_mut::<Playback>();
+        if mode != PlaybackMode::Still {
+            state.view.paused_curve = None;
+        } else if playback.mode != PlaybackMode::Still {
+            state.view.paused_curve =
+                (playback.mode != PlaybackMode::Loop).then_some(playback.mode);
+        }
+        playback.set_mode(mode);
+        if path == "@progress" {
+            playback.progress = state.view.progress;
+        }
+        state.view.progress = playback.progress;
+        state.view.direction = playback.direction;
     }
     if path == "@editor_fov" {
         if let Some(camera) = &state.view.camera {
@@ -633,13 +654,9 @@ pub(super) fn update(world: &mut World) {
                 Action::Debug => {
                     state.debug = !state.debug;
                 }
-                Action::Play => {
-                    let playing = state.draft["playback_mode"] != "Still";
-                    state.draft["playback_mode"] = json!(if playing { "Still" } else { "Loop" });
-                    live_update(world, &mut state, "/playback_mode")?;
-                }
+                Action::Play => toggle_playback(world, &mut state)?,
                 Action::Rewind => {
-                    world.resource_mut::<Playback>().progress = 0.;
+                    world.resource_mut::<Playback>().rewind();
                     state.view.progress = 0.;
                 }
                 Action::ModelSpeed => {
@@ -653,7 +670,7 @@ pub(super) fn update(world: &mut World) {
                         json!(20. / frames.saturating_sub(1).max(1) as f32);
                     live_update(world, &mut state, "/playback_mode")?;
                     live_update(world, &mut state, "/playback_speed")?;
-                    world.resource_mut::<Playback>().progress = 0.;
+                    world.resource_mut::<Playback>().rewind();
                 }
                 Action::Loaded(seed) => {
                     state.active_seed = Some(seed);
@@ -695,4 +712,14 @@ pub(super) fn update(world: &mut World) {
         shell::status(world, &state);
     }
     world.insert_resource(state);
+}
+
+fn toggle_playback(world: &mut World, state: &mut EditorState) -> Result<(), String> {
+    let mode = if world.resource::<Playback>().mode == PlaybackMode::Still {
+        state.view.paused_curve.unwrap_or(PlaybackMode::Loop)
+    } else {
+        PlaybackMode::Still
+    };
+    state.draft["playback_mode"] = json!(mode);
+    live_update(world, state, "/playback_mode")
 }

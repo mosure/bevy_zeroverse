@@ -15,12 +15,12 @@ Use native `zeroverse_gen`, `indoor_validate` or the Python dataloader for datas
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo build --locked --release --bin viewer --target wasm32-unknown-unknown \
+cargo build --locked --release --bin bevy_zeroverse --target wasm32-unknown-unknown \
   --no-default-features --features web,human_motion
 # Match the wasm-bindgen CLI to the version recorded in Cargo.lock.
-cargo install wasm-bindgen-cli --version 0.2.128 --locked
-wasm-bindgen --out-dir www/out --target web \
-  target/wasm32-unknown-unknown/release/viewer.wasm
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
+wasm-bindgen --out-name viewer --out-dir www/out --target web \
+  target/wasm32-unknown-unknown/release/bevy_zeroverse.wasm
 mkdir -p www/assets
 cp -R assets/burn_human www/assets/
 python3 -m http.server 8765 --directory www

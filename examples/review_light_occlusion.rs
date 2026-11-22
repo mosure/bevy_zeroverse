@@ -18,17 +18,15 @@ use bevy_zeroverse::{
 };
 use std::{path::PathBuf, time::Instant};
 
+#[derive(Resource)]
+struct SelectedLight(String);
+
 fn main() -> Result<()> {
     let output = PathBuf::from(std::env::args().nth(1).expect("output directory required"));
     ensure!(!output.exists(), "use a new output directory");
     std::fs::create_dir_all(&output)?;
-    let scene = (0..64)
-        .map(|seed| IndoorManifest::generate_with_humans(seed, Default::default(), 0.65, 0, 0.))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(anyhow::Error::msg)?
-        .into_iter()
-        .find(|scene| architecture::fixture_positions(scene).len() > 16)
-        .expect("fixture with more than sixteen lights");
+    let scene = IndoorManifest::generate_with_humans(75155, Default::default(), 0.65, 0, 0.)
+        .map_err(anyhow::Error::msg)?;
     let seed = scene.seed;
     setup_globals(None);
     let modes = vec![RenderMode::Color];
@@ -63,13 +61,20 @@ fn main() -> Result<()> {
             commands.queue(|world: &mut World| {
                 // Isolate an actual late-index emitter; keep production optical
                 // and shadow settings. Moving it only defines the test fixture.
+                let selected = world.query::<(&Name, &SpotLight)>().iter(world)
+                    .filter_map(|(name, spot)| {
+                        let i: usize = name.strip_prefix("indoor_luminaire_")?.parse().ok()?;
+                        (i >= 8 && spot.intensity > 0.).then_some((i, name.to_string()))
+                    })
+                    .min_by_key(|(index, _)| *index)
+                    .expect("powered late-index ceiling fixture").1;
                 let lights: Vec<_> = world
                     .query_filtered::<(Entity, &Name), Or<(With<SpotLight>, With<DirectionalLight>, With<PointLight>)>>()
                     .iter(world)
                     .map(|(e, name)| (e, name.to_string()))
                     .collect();
                 for (e, name) in lights {
-                    if name == "indoor_luminaire_12" {
+                    if name == selected {
                         world.entity_mut(e).insert(
                             Transform::from_xyz(0., 3., 0.).looking_at(Vec3::ZERO, Vec3::Z),
                         );
@@ -77,6 +82,7 @@ fn main() -> Result<()> {
                         world.entity_mut(e).despawn();
                     }
                 }
+                world.insert_resource(SelectedLight(selected));
             });
             let white = materials.add(StandardMaterial {
                 base_color: Color::srgb(0.8, 0.8, 0.8),
@@ -187,7 +193,7 @@ fn main() -> Result<()> {
     std::fs::write(
         output.join("report.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "build":bevy_zeroverse::provenance::capture_provenance(), "source_seed":seed, "light":"indoor_luminaire_12", "ev100":8., "mean_exposed_linear_luminance":means,
+            "build":bevy_zeroverse::provenance::capture_provenance(), "source_seed":seed, "light":app.world().resource::<SelectedLight>().0, "ev100":8., "mean_exposed_linear_luminance":means,
             "blocked_over_clear":ratio, "passed":means[1] > 0.001 && ratio < 0.01,
             "scope":"Production late-index spot light; isolated direct receiver/deck geometry, no ambient, IBL or GI. This does not qualify indirect leakage or area-light equivalence."
         }))?,

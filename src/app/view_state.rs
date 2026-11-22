@@ -61,6 +61,9 @@ pub struct ViewState {
     pub closed_sections: std::collections::BTreeSet<String>,
     pub progress: f32,
     pub direction: f32,
+    /// Curve to resume from a paused or scrubbed Studio view. Old paused links use Loop.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paused_curve: Option<crate::camera::PlaybackMode>,
     pub flow_interval: f32,
     pub flow_scale: f32,
     pub camera: Option<CameraPose>,
@@ -89,6 +92,7 @@ impl Default for ViewState {
             closed_sections: default(),
             progress: 0.,
             direction: 1.,
+            paused_curve: None,
             flow_interval: 0.05,
             flow_scale: 32.,
             camera: None,
@@ -107,6 +111,7 @@ impl ViewState {
         if self.version != 1
             || !(0.0..=1.0).contains(&self.progress)
             || ![-1., 1.].contains(&self.direction)
+            || self.paused_curve == Some(crate::camera::PlaybackMode::Still)
             || !(0.005..=0.5).contains(&self.flow_interval)
             || !(1.0..=256.).contains(&self.flow_scale)
         {

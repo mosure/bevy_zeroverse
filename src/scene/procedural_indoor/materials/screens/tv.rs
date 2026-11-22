@@ -2,9 +2,6 @@
 use super::*;
 pub(super) fn pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
-    if p.dormant {
-        return dormant_canvas(seed).0;
-    }
     let colors = palette(&p);
     let mut rng = stream(seed, 3081);
     let mut c = Canvas::new(colors.panel);

@@ -45,7 +45,7 @@ actual sampled programs; they are not an estimate of independent scene entropy.
 ```sh
 cargo test --lib architecture::ceiling
 cargo run --example review_ceilings -- out/ceilings/details
-cargo run --bin indoor_validate -- --seed 0 --audit-seeds 256 --audit-geometry \
+cargo run --example indoor_validate -- --seed 0 --audit-seeds 256 --audit-geometry \
   --renders 8 --cameras 3 --width 512 --height 512 --labels --co-visibility \
   --no-raw --output out/ceilings/rooms
 ```

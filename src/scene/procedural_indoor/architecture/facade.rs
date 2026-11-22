@@ -298,79 +298,91 @@ impl ExteriorProgram {
             return Err("invalid exterior exposure".into());
         }
         let mut sides = std::collections::BTreeSet::new();
-        for f in &self.facades {
-            if !sides.insert(f.side)
-                || f.openings.is_empty()
-                || f.openings.len() > 16
-                || !matches!(
-                    f.frame,
-                    Surface::Metal | Surface::WoodEdge | Surface::Plastic
-                )
-                || !(0.02..=0.08).contains(&f.frame_width)
-                || !(0.04..=0.14).contains(&f.frame_depth)
-                || !(0.03..=0.70).contains(&f.recess)
-                || !(0.0..=0.20).contains(&f.sill_projection)
-                || !(0.0..=1.0).contains(&f.shade_coverage)
-                || !(-1.2..=1.2).contains(&f.shade_tilt)
-            {
-                return Err("invalid exterior frame or duplicate wall".into());
+        for facade in &self.facades {
+            if !sides.insert(facade.side) {
+                return Err("duplicate exterior wall".into());
             }
-            if f.shade == Shade::PanelTrack && f.treatment.as_ref().and_then(|p| p.track).is_none()
-            {
-                return Err("sliding screen is missing its track dimensions".into());
-            }
-            if let Some(program) = &f.treatment {
-                program.validate()?;
-            }
-            if let Some(joinery) = &f.joinery {
-                joinery.validate()?;
-                if let Some(reveal) = &joinery.reveal {
-                    reveal.validate(f.frame_depth, f.recess)?;
-                    if reveal
-                        .surround
-                        .as_ref()
-                        .is_some_and(|s| s.height_m > f.frame_width)
-                    {
-                        return Err("window surround covers the clear pane rectangle".into());
-                    }
-                }
-            }
-            for (i, o) in f.openings.iter().enumerate() {
-                if let Some(glazing) = &o.glazing {
-                    glazing.validate()?;
-                }
-                let mut levels = vec![0.];
-                levels.extend(o.rows());
-                levels.push(1.);
-                if levels.len() > 5
-                    || levels
-                        .windows(2)
-                        .any(|w| !w[1].is_finite() || w[1] - w[0] < 0.12)
+            facade.validate_span(facade.side.span(size), size.y)?;
+        }
+        Ok(())
+    }
+}
+
+impl Facade {
+    /// Check one installation against the wall it actually occupies.
+    pub(crate) fn validate_span(&self, span: f32, height: f32) -> Result<(), String> {
+        if self.openings.is_empty()
+            || self.openings.len() > 16
+            || !matches!(
+                self.frame,
+                Surface::Metal | Surface::WoodEdge | Surface::Plastic
+            )
+            || !(0.02..=0.08).contains(&self.frame_width)
+            || !(0.04..=0.14).contains(&self.frame_depth)
+            || !(0.03..=0.70).contains(&self.recess)
+            || !(0.0..=0.20).contains(&self.sill_projection)
+            || !(0.0..=1.0).contains(&self.shade_coverage)
+            || !(-1.2..=1.2).contains(&self.shade_tilt)
+        {
+            return Err("invalid exterior frame".into());
+        }
+        if self.shade == Shade::PanelTrack
+            && self.treatment.as_ref().and_then(|p| p.track).is_none()
+        {
+            return Err("sliding screen is missing its track dimensions".into());
+        }
+        if let Some(program) = &self.treatment {
+            program.validate()?;
+        }
+        if let Some(joinery) = &self.joinery {
+            joinery.validate()?;
+            if let Some(reveal) = &joinery.reveal {
+                reveal.validate(self.frame_depth, self.recess)?;
+                if reveal
+                    .surround
+                    .as_ref()
+                    .is_some_and(|s| s.height_m > self.frame_width)
                 {
-                    return Err("invalid window transom subdivision".into());
+                    return Err("window surround covers the clear pane rectangle".into());
                 }
-                if !o.min.is_finite()
-                    || !o.max.is_finite()
-                    || (o.max - o.min).min_element() < 0.35
-                    || o.min.x < -f.side.span(size) * 0.5 + 0.01
-                    || o.max.x > f.side.span(size) * 0.5 - 0.01
-                    || o.min.y < 0.01
-                    || o.max.y > size.y - 0.01
-                    || !(1..=6).contains(&o.columns)
-                    || (o.max.x - o.min.x - 2. * f.frame_width) / (o.columns as f32) < 0.10
-                    || !(o.transom == 0. || (0.20..=0.85).contains(&o.transom))
-                    || f.pane_rectangles(o)
-                        .iter()
-                        .any(|(a, b)| (*b - *a).min_element() < 0.04)
+            }
+        }
+        for (i, o) in self.openings.iter().enumerate() {
+            if let Some(glazing) = &o.glazing {
+                glazing.validate()?;
+            }
+            let mut levels = vec![0.];
+            levels.extend(o.rows());
+            levels.push(1.);
+            if levels.len() > 5
+                || levels
+                    .windows(2)
+                    .any(|w| !w[1].is_finite() || w[1] - w[0] < 0.12)
+            {
+                return Err("invalid window transom subdivision".into());
+            }
+            if !o.min.is_finite()
+                || !o.max.is_finite()
+                || (o.max - o.min).min_element() < 0.35
+                || o.min.x < -span * 0.5 + 0.01
+                || o.max.x > span * 0.5 - 0.01
+                || o.min.y < 0.01
+                || o.max.y > height - 0.01
+                || !(1..=6).contains(&o.columns)
+                || (o.max.x - o.min.x - 2. * self.frame_width) / (o.columns as f32) < 0.10
+                || !(o.transom == 0. || (0.20..=0.85).contains(&o.transom))
+                || self
+                    .pane_rectangles(o)
+                    .iter()
+                    .any(|(a, b)| (*b - *a).min_element() < 0.04)
+            {
+                return Err("invalid exterior opening dimensions".into());
+            }
+            for other in &self.openings[i + 1..] {
+                if o.min.cmplt(other.max + Vec2::splat(0.005)).all()
+                    && o.max.cmpgt(other.min - Vec2::splat(0.005)).all()
                 {
-                    return Err("invalid exterior opening dimensions".into());
-                }
-                for other in &f.openings[i + 1..] {
-                    if o.min.cmplt(other.max + Vec2::splat(0.005)).all()
-                        && o.max.cmpgt(other.min - Vec2::splat(0.005)).all()
-                    {
-                        return Err("exterior apertures overlap".into());
-                    }
+                    return Err("exterior apertures overlap".into());
                 }
             }
         }

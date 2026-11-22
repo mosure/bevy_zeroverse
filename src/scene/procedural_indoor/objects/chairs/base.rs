@@ -26,11 +26,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ChairProgram, width:
             );
         } else {
             let phase = stream(o.seed, 6433).random_range(0.0..TAU);
+            let mut wheels = stream(o.seed, u64::from_le_bytes(*b"CastorAx"));
+            let casters = p
+                .casters
+                .then(|| super::casters::CasterSet::sample(&mut wheels));
+            let (reach, mount_y) = casters.as_ref().map_or((radius, 0.072), |c| {
+                (
+                    radius.min(o.size.x.min(o.size.z) * 0.5 - c.sweep_radius() - 0.001),
+                    c.mount_height(),
+                )
+            });
             for i in 0..p.spoke_count {
                 let angle = phase + i as f32 * TAU / p.spoke_count as f32;
                 let radial = Vec3::new(angle.sin(), 0., angle.cos());
                 let start = Vec3::Y * 0.165;
-                let end = radial * radius + Vec3::Y * 0.072;
+                let end = radial * reach + Vec3::Y * mount_y;
                 match p.base_style {
                     0 => a.part(frame, label).rod(start, end, 0.020),
                     1 => {
@@ -58,18 +68,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ChairProgram, width:
                         );
                     }
                 }
-                if p.casters {
-                    for side in [-1., 1.] {
-                        let pos = end + Vec3::new(radial.z, 0., -radial.x) * side * 0.021
-                            - Vec3::Y * 0.039;
-                        a.part(Surface::Rubber, label).cylinder(
-                            0.032,
-                            0.016,
-                            Transform::from_translation(pos).with_rotation(
-                                Quat::from_rotation_y(angle) * Quat::from_rotation_z(FRAC_PI_2),
-                            ),
-                        );
-                    }
+                if let Some(set) = &casters {
+                    set.build(a, end, &mut wheels);
                 } else {
                     a.part(frame, label).rod(end, end.with_y(0.008), 0.012);
                     a.part(Surface::Rubber, label).cylinder(
@@ -80,11 +80,6 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ChairProgram, width:
                 }
             }
         }
-        a.part(Surface::Plastic, label).rod(
-            Vec3::new(width * 0.3, 0.40, 0.),
-            Vec3::new(width * 0.53, 0.40, -0.02),
-            0.009,
-        );
         return;
     }
     for side in [-1., 1.] {
@@ -169,4 +164,26 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ChairProgram, width:
             );
         }
     }
+}
+
+/// The tilt housing and paddle bolt to the upper seat pan and swivel with it.
+pub(super) fn tilt_control(a: &mut Assembly, width: f32, depth: f32, pan_bottom: f32) {
+    let center = Vec3::new(0., pan_bottom - 0.014, -depth * 0.032);
+    a.box_part(
+        Surface::Metal,
+        "chair",
+        center,
+        Vec3::new(width * 0.35, 0.031, depth * 0.34),
+        0.006,
+    );
+    let root = center + Vec3::X * (width * 0.13);
+    let grip = center + Vec3::new(width * 0.48, -0.013, -depth * 0.09);
+    a.part(Surface::Metal, "chair").rod(root, grip, 0.006);
+    a.box_part(
+        Surface::Plastic,
+        "chair",
+        grip,
+        Vec3::new(0.032, 0.014, 0.045),
+        0.006,
+    );
 }

@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.67.0"
+version = "0.68.0"
 edition = "2021"
 rust-version = "1.97.1"
 authors = ["mosure <mitchell@mosure.me>"]
@@ -33,7 +33,8 @@ exclude = [
   "credits",
   "out",
 ]
-default-run = "viewer"
+autobins = false
+default-run = "bevy_zeroverse"
 
 
 [workspace]
@@ -95,7 +96,7 @@ webgpu = [
 
 
 [dependencies]
-bevy_zeroverse_capture = { version = "=0.6.29", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.6.30", path = "crates/capture", features = ["provenance"] }
 bevy_args = { version = "4.0.0", default-features = false }
 bevy_mesh = "0.20.0"
 clap = { version = "4.5", features = ["derive"] }
@@ -206,13 +207,16 @@ features = [
 [dev-dependencies]
 rmp-serde = "1.3"
 sha2 = "0.10"
-criterion = { version = "0.7", features = ["html_reports"] }
 futures-intrusive = { version = "0.5.0" }
 pollster = { version = "0.4" }
 tempfile = "3.10"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# Criterion's Rayon backend is used by the native O-voxel benchmark.
+criterion = { version = "0.7", features = ["html_reports"] }
+
 [build-dependencies]
-bevy_zeroverse_capture = { version = "=0.6.29", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.6.30", path = "crates/capture", features = ["provenance"] }
 serde_json = "1.0"
 toml = "0.9"
 
@@ -242,25 +246,29 @@ codegen-units = 1
 path = "src/lib.rs"
 
 [[bin]]
-name = "viewer"
-path = "src/viewer.rs"
-
-[[bin]]
-name = "ovoxel_autoencode"
-path = "src/bin/ovoxel_autoencode.rs"
+name = "bevy_zeroverse"
+path = "src/main.rs"
 
 [[bench]]
 name = "ovoxel"
 harness = false
 
-[[bin]]
+[[example]]
+name = "indoor_capacity"
+test = true
+
+[[example]]
+name = "indoor_validate"
+# The publication capture frontend is part of the renderer's source digest.
+path = "src/qualification/main.rs"
+test = true
+
+[[example]]
 name = "motion_validate"
-path = "src/bin/motion_validate.rs"
 required-features = ["human_motion"]
 
-[[bin]]
+[[example]]
 name = "indoor_embed"
-path = "src/bin/indoor_embed.rs"
 required-features = ["embedding_audit"]
 
 [[example]]

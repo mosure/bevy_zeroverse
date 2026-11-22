@@ -434,8 +434,15 @@ fn export_inner(
         content::record_scene(&scene, &mut numeric, &mut report.categories)?;
         regularity::record(&scene, &mut numeric)?;
         envelope::record(&scene, &mut report, &mut numeric, &mut architecture)?;
+        let fixtures = super::architecture::fixture_positions(&scene);
+        numeric.push("ceiling_lights_per_scene", fixtures.len() as f64)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
+                if let Some(sky) = d.photometry.sky_distribution {
+                    numeric.push("sky_beam_transmission", f64::from(sky.beam_transmission))?;
+                    numeric.push("sky_haze", f64::from(sky.haze))?;
+                    numeric.push("sky_cloud_frequency", f64::from(sky.cloud_frequency))?;
+                }
                 if let Some(meter) = d.photometry.meter {
                     for (key, value) in [
                         ("exposure_meter_electric_lux", meter.electric_lux),
@@ -558,14 +565,20 @@ fn export_inner(
                     }
                 }
             }
-            let fixtures = super::architecture::fixture_positions(&scene);
+            let mut powered = 0_usize;
             for (i, &p) in fixtures.iter().enumerate() {
                 let (_, lumens) = super::architecture::fixture_photometry_at(&scene, i, &fixtures);
+                powered += usize::from(lumens > 0.);
                 let (inner, outer) = super::architecture::fixtures::beam_angles(&scene, i, p);
                 numeric.push("fixture_lumens", lumens as f64)?;
                 numeric.push("fixture_inner_angle", inner as f64)?;
                 numeric.push("fixture_outer_angle", outer as f64)?;
             }
+            numeric.push("powered_ceiling_lights_per_scene", powered as f64)?;
+            numeric.push(
+                "unpowered_ceiling_lights_per_scene",
+                (fixtures.len() - powered) as f64,
+            )?;
             for zone in &program.zones {
                 if let Some(f) = &zone.furnishing {
                     for (key, value) in [
@@ -683,14 +696,14 @@ fn export_inner(
                             scene.exterior.as_ref().map_or(scene.blinds, |e| {
                                 e.facades.iter().any(|f| {
                                     f.shade != super::architecture::facade::Shade::None
-                                        && f.shade_coverage >= 0.02
+                                        && f.openings.iter().any(|o| f.shade_coverage_at(o) >= 0.02)
                                 })
                             })
                         },
                         |e| {
                             e.walls.iter().filter_map(|w| w.facade.as_ref()).any(|f| {
                                 f.shade != super::architecture::facade::Shade::None
-                                    && f.shade_coverage >= 0.02
+                                    && f.openings.iter().any(|o| f.shade_coverage_at(o) >= 0.02)
                             })
                         },
                     )
@@ -925,10 +938,6 @@ fn export_inner(
                 .or_default() += 1;
         }
         numeric.push("people_per_scene", scene.humans.len() as f64)?;
-        numeric.push(
-            "ceiling_lights_per_scene",
-            super::architecture::fixture_positions(&scene).len() as f64,
-        )?;
         numeric.push(
             "camera_primary_room_fraction",
             scene

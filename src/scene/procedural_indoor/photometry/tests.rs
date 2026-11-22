@@ -119,20 +119,22 @@ fn lamps_fit_extreme_placement_envelopes_and_preserve_semantic_ownership() {
 #[test]
 fn runtime_lamp_lights_match_exportable_power_and_preserve_shadow_budget() {
     let mut scene = scene();
-    scene.objects = [
+    scene.objects.clear();
+    for kind in [
         ObjectKind::FloorLamp,
         ObjectKind::DeskLamp,
         ObjectKind::CeilingPendant,
         ObjectKind::WallSconce,
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(id, kind)| {
-        let mut o = audit::fixture(kind, 55 + id as u64);
-        o.id = id;
-        o
-    })
-    .collect();
+    ] {
+        for powered in [true, false] {
+            let mut o = (0..256)
+                .map(|seed| audit::fixture(kind, seed))
+                .find(|o| (lamp(&scene, o).lumens > 0.) == powered)
+                .unwrap();
+            o.id = scene.objects.len();
+            scene.objects.push(o);
+        }
+    }
     let mut world = World::new();
     let root = world.spawn_empty().id();
     let mut queue = bevy::ecs::world::CommandQueue::default();
@@ -155,14 +157,24 @@ fn runtime_lamp_lights_match_exportable_power_and_preserve_shadow_budget() {
         .collect();
     assert_eq!(
         spots.len(),
-        architecture::fixture_positions(&scene).len() + 3
+        architecture::powered_ceiling_fixtures(&scene, &architecture::fixture_positions(&scene))
+            .count()
+            + 3
     );
-    for o in &scene.objects[1..] {
-        let (_, light, pose) = spots
+    for o in scene
+        .objects
+        .iter()
+        .filter(|o| o.kind != ObjectKind::FloorLamp)
+    {
+        let source_entity = spots
             .iter()
-            .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", o.id))
-            .unwrap();
+            .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", o.id));
         let power = lamp(&scene, o);
+        if power.lumens == 0. {
+            assert!(source_entity.is_none());
+            continue;
+        }
+        let (_, light, pose) = source_entity.unwrap();
         let (beam, source) = architecture::object_fixture_photometry(&scene, o);
         assert_eq!((source.color, source.lumens), (power.color, power.lumens));
         assert!(Vec3::from(pose.forward()).abs_diff_eq(beam.direction, 1e-5));

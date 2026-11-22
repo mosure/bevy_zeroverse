@@ -65,11 +65,11 @@ continues to accept JSON such as `{"baseline":0.8}`.
 to build wasm run:
 
 ```bash
-cargo build --locked --target wasm32-unknown-unknown --bin viewer --release --no-default-features --features "web,human_motion"
+cargo build --locked --target wasm32-unknown-unknown --bin bevy_zeroverse --release --no-default-features --features "web,human_motion"
 ```
 
 to generate bindings:
-> `wasm-bindgen --out-dir ./www/out/ --target web ./target/wasm32-unknown-unknown/release/viewer.wasm`
+> `wasm-bindgen --out-name viewer --out-dir ./www/out/ --target web ./target/wasm32-unknown-unknown/release/bevy_zeroverse.wasm`
 
 
 open a live server of `www/index.html`

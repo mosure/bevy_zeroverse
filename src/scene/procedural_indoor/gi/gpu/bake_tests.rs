@@ -7,10 +7,10 @@ use bevy::render::{
 };
 use std::{sync::OnceLock, time::Duration};
 
-fn bake_lobes(app: &mut App, scene: &BakeScene) -> Vec<Vec3> {
+fn bake_lobes(app: &mut App, scene: &BakeScene, rays_per_probe: u32) -> Vec<Vec3> {
     let settings = BakeSettings {
         spacing: 4.,
-        rays_per_probe: 512,
+        rays_per_probe,
         diffuse_bounces: 1,
         ..default()
     };
@@ -109,12 +109,69 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
     let mut scene = super::super::tests::empty();
     // One probe is exactly at (0,0,0), inside the empty BVH root bounds.
     scene.bounds_max = Vec3::splat(3.);
-    let sky = bake_lobes(&mut app, &scene);
+    let sky = bake_lobes(&mut app, &scene, 512);
     // 2x2x2 probes. The texture packs the six lobes as +X/-X, +Y/-Y, +Z/-Z.
     for (i, rgb) in sky.iter().enumerate() {
         let face = i / 16 * 2 + i / 4 % 2;
         let expected = [0.5, 0.5, 1., 0., 0.5, 0.5][face];
         assert!((*rgb - Vec3::splat(expected)).abs().max_element() < 0.015);
+    }
+
+    let room = IndoorManifest::generate_with_humans(
+        73161,
+        crate::scene::procedural_indoor::layout::IndoorLayout::Cafe,
+        0.65,
+        0,
+        0.,
+    )
+    .unwrap();
+    scene.sky_field = crate::scene::procedural_indoor::sky::bake(&room)
+        .unwrap()
+        .field;
+    // The CPU and GPU rotate their Fibonacci rays with different PRNGs.
+    // Integrate to convergence before comparing the uploaded directional map.
+    let rays_per_probe = 16_384;
+    let actual = bake_lobes(&mut app, &scene, rays_per_probe);
+    let cpu = scene
+        .bake(
+            BakeSettings {
+                spacing: 4.,
+                rays_per_probe,
+                diffuse_bounces: 1,
+                ..default()
+            },
+            17,
+        )
+        .image();
+    let expected = cpu.data.unwrap();
+    assert_eq!(expected.len(), actual.len() * 8);
+    for (rgb, pixel) in actual.into_iter().zip(expected.as_chunks::<8>().0) {
+        for (i, v) in rgb.to_array().into_iter().enumerate() {
+            let reference = half::f16::from_le_bytes([pixel[2 * i], pixel[2 * i + 1]]).to_f32();
+            assert!(
+                (v - reference).abs() <= 0.003 * reference.max(1.),
+                "directional sky GPU {v}, CPU {reference}"
+            );
+        }
+    }
+    scene.sky_field = default();
+
+    // A downward-facing receiver sees only light reflected off the floor.
+    // It must receive that light even with a one-surface transport budget.
+    let mut floor = super::super::tests::daylight_floor();
+    floor.bounds_max = Vec3::splat(3.);
+    let reflected = floor.sky * floor.materials[0].albedo;
+    for (i, rgb) in bake_lobes(&mut app, &floor, 1024).into_iter().enumerate() {
+        let face = i / 16 * 2 + i / 4 % 2;
+        let expected = match face {
+            2 => floor.sky,
+            3 => reflected,
+            _ => 0.5 * (floor.sky + reflected),
+        };
+        assert!(
+            rgb.abs_diff_eq(expected, 0.015),
+            "lobe {face}: {rgb} vs {expected}"
+        );
     }
 
     let mut walls = Assembly::default();
@@ -125,13 +182,12 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
     scene.materials.push(DiffuseMaterial {
         albedo: Vec3::ONE,
         emission: Vec3::ZERO,
-        uv_scale: Vec2::ONE,
-        texture: None,
-        address: Default::default(),
-        textured_emission: false,
+        uv_transform: Affine2::IDENTITY,
+        base_map: None,
+        emission_map: EmissionMap::Uniform,
     });
     drop(scene.build_bvh());
-    let dark = bake_lobes(&mut app, &scene);
+    let dark = bake_lobes(&mut app, &scene, 512);
     assert!(dark.iter().all(|&lobe| lobe == Vec3::ZERO));
 
     scene.lights.push(LocalLight {
@@ -144,7 +200,7 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
         inner_cos: 1.,
         outer_cos: 0.,
     });
-    let lit = bake_lobes(&mut app, &scene);
+    let lit = bake_lobes(&mut app, &scene, 512);
     assert!(lit
         .iter()
         .all(|lobe| lobe.x > 0.005 && lobe.y == 0. && lobe.z == 0.));
@@ -162,10 +218,13 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
     indexed.materials.push(DiffuseMaterial {
         albedo: Vec3::ONE,
         emission: Vec3::ONE,
-        uv_scale: Vec2::ONE,
-        texture: Some((2, vec![Vec3::X, Vec3::Y, Vec3::Z, Vec3::ONE])),
-        address: Default::default(),
-        textured_emission: true,
+        uv_transform: Affine2::IDENTITY,
+        base_map: Some(TransportMap {
+            size: 2,
+            pixels: [Vec3::X, Vec3::Y, Vec3::Z, Vec3::ONE].into(),
+            address: default(),
+        }),
+        emission_map: EmissionMap::SharedWithBase,
     });
     use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
     for (u, v, expected) in [
@@ -186,16 +245,61 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
             Vec3::ZERO,
         ),
     ] {
-        indexed.materials[0].address = TextureAddress::from_descriptor(&ImageSamplerDescriptor {
-            address_mode_u: u,
-            address_mode_v: v,
-            ..default()
-        });
-        assert_eq!(indexed.materials[0].albedo(uv), expected);
-        for lobe in bake_lobes(&mut app, &indexed) {
+        indexed.materials[0].base_map.as_mut().unwrap().address =
+            TextureAddress::from_descriptor(&ImageSamplerDescriptor {
+                address_mode_u: u,
+                address_mode_v: v,
+                ..default()
+            });
+        assert_eq!(indexed.materials[0].response(uv).0, expected);
+        for lobe in bake_lobes(&mut app, &indexed, 512) {
             assert!(
                 (lobe - expected).abs().max_element() < 0.02,
                 "{u:?}/{v:?}: {lobe:?}"
+            );
+        }
+    }
+    // The off-diagonal basis and phase map (-0.25, 1.25) to (0.25, 0.25)
+    // before the border test. Only the red texel can light this enclosure.
+    indexed.materials[0].uv_transform = Affine2::from_cols(
+        Vec2::new(0., 1.25),
+        Vec2::new(-0.5, 0.),
+        Vec2::new(0.875, 0.5625),
+    );
+    assert_eq!(indexed.materials[0].response(uv).0, Vec3::X);
+    for lobe in bake_lobes(&mut app, &indexed, 512) {
+        assert!(lobe.abs_diff_eq(Vec3::X, 0.02), "affine atlas lobe {lobe}");
+    }
+    // A dark cover reflects very little, but its emissive pixels keep their
+    // radiance. A second map may have its own sampler, or no base map at all.
+    indexed.materials[0].uv_transform = Affine2::IDENTITY;
+    indexed.materials[0].albedo = Vec3::ZERO;
+    indexed.materials[0].emission = Vec3::new(2., 3., 4.);
+    indexed.materials[0].base_map.as_mut().unwrap().address =
+        TextureAddress::from_descriptor(&ImageSamplerDescriptor {
+            address_mode_u: ImageAddressMode::ClampToEdge,
+            address_mode_v: ImageAddressMode::ClampToEdge,
+            ..default()
+        });
+    let mut separate = indexed.materials[0].base_map.clone().unwrap();
+    separate.address = TextureAddress::default();
+    for (mode, (map, expected)) in [
+        (EmissionMap::SharedWithBase, 4. * Vec3::Z),
+        (EmissionMap::Separate(separate.clone()), 3. * Vec3::Y),
+        (EmissionMap::Separate(separate), 3. * Vec3::Y),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if mode == 2 {
+            indexed.materials[0].base_map = None;
+        }
+        indexed.materials[0].emission_map = map;
+        assert_eq!(indexed.materials[0].response(uv), (Vec3::ZERO, expected));
+        for lobe in bake_lobes(&mut app, &indexed, 512) {
+            assert!(
+                lobe.abs_diff_eq(expected, 0.025),
+                "map {mode}: {lobe} vs {expected}"
             );
         }
     }

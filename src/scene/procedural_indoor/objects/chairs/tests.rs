@@ -219,3 +219,45 @@ fn structural_controls_are_realized_and_mechanically_compatible() {
     assert_eq!(seats, (0..3).collect());
     assert_eq!(headrests, (0..3).collect());
 }
+
+#[test]
+fn swivel_controls_move_with_the_pan_while_casters_stay_on_the_base() {
+    use crate::scene::procedural_indoor::{motion::IndoorMotionConfig, objects};
+    let o = (0..128)
+        .find_map(|seed| {
+            let mut o = audit::fixture(ObjectKind::Chair, seed);
+            o.variant = 0;
+            parameters(&o).casters.then_some(o)
+        })
+        .unwrap();
+    let policy = IndoorMotionConfig {
+        chair_fraction: 1.,
+        ..default()
+    };
+    let a = objects::build_object_with_motion(&o, Some(&policy));
+    let upper = a.joints.iter().find(|j| j.angle != 0.).unwrap();
+    let base = a.joints.iter().find(|j| j.angle == 0.).unwrap();
+    let p = parameters(&o);
+    let width = (o.size.x * p.seat_width_fraction).min(0.56);
+    let depth = (o.size.z * p.seat_depth_fraction).min(0.55);
+    let mut r = stream(o.seed, 70);
+    let _ = r.random_range(0.43..0.52_f32);
+    let _ = r.random_range(0.42..0.49_f32);
+    let padding = r.random_range(0.044..0.075);
+    let mut lever = Assembly::default();
+    base::tilt_control(&mut lever, width, depth, 0.47 - padding - 0.023);
+    for ((surface, _), geometry) in lever.parts {
+        assert!(upper
+            .parts
+            .iter()
+            .filter(|(s, _)| *s == surface)
+            .any(|key| {
+                a.parts[key]
+                    .positions
+                    .windows(geometry.positions.len())
+                    .any(|v| v == geometry.positions)
+            }));
+    }
+    assert!(base.parts.iter().any(|(s, _)| *s == Surface::Rubber));
+    assert!(!upper.parts.iter().any(|(s, _)| *s == Surface::Rubber));
+}

@@ -214,25 +214,24 @@ pub(crate) fn update_camera_trajectory(
     regenerate_events.clear();
     loaded.clear();
     if reset {
-        global_playback.progress = 0.0;
-        global_playback.direction = 1.0;
+        global_playback.rewind();
         update_camera_playbacks = true;
     }
 
+    let shared_position = global_playback.trajectory_progress();
     for (mut transform, mut camera) in cameras.iter_mut() {
         if camera.override_transform.is_some() {
             continue;
         }
 
-        if update_camera_playbacks {
+        let position = if update_camera_playbacks {
             camera.playback = *global_playback;
+            shared_position
         } else {
             camera.playback.step(&time);
-        }
-
-        let playback = camera.playback;
-        let progress = playback.mode.map_progress(playback.progress);
-        *transform = camera.trajectory.sample(progress);
+            camera.playback.trajectory_progress()
+        };
+        *transform = camera.trajectory.sample(position);
     }
 }
 

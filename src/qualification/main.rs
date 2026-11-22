@@ -23,17 +23,12 @@ use clap::Parser;
 use serde::Serialize;
 use std::{fs, path::PathBuf, time::Instant};
 
-#[path = "indoor_validate/calibration.rs"]
 mod calibration;
-#[path = "indoor_validate/co_visibility.rs"]
 mod co_visibility;
 #[path = "../../tests/support/capture_deadline.rs"]
 mod deadline;
-#[path = "motion_validate/flow.rs"]
 mod flow;
-#[path = "indoor_validate/luminance.rs"]
 mod luminance;
-#[path = "indoor_validate/reconstruction.rs"]
 mod reconstruction;
 
 #[derive(Parser, Serialize)]

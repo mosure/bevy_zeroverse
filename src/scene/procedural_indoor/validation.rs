@@ -80,6 +80,13 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
     if let Some(bay) = scene.adjoining {
         bay.validate(scene.room_size.x)?;
     }
+    if let Some(windows) = scene
+        .adjoining_elevation
+        .as_ref()
+        .and_then(|p| p.windows.as_ref())
+    {
+        windows.validate(scene)?;
+    }
     scene.camera_settings.validate()?;
     scene.validate_doors()?;
     scene.validate_assemblies()?;

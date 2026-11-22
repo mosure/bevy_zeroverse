@@ -147,7 +147,20 @@ pub(super) fn motion(
         .ceiling_mount
         .as_ref()
         .map_or(Vec3::Y, |m| m.inward_normal);
-    let direction = Quat::from_rotation_y(rng.random_range(-1.0..=1.0) * contract.baseline)
+    let yaw_limit = a.map_or(contract.baseline, |anchor| {
+        let radius = if camera.is_ceiling_mounted() == anchor.is_ceiling_mounted() {
+            scene
+                .camera_settings
+                .multiview
+                .as_ref()
+                .unwrap()
+                .max_baseline
+        } else {
+            contract.max_cross_mount_horizontal_m
+        };
+        super::super::motion::peer_yaw_limit(length, radius, contract.baseline)
+    });
+    let direction = Quat::from_rotation_y(rng.random_range(-1.0..=1.0) * yaw_limit)
         * Vec3::new(direction.x, 0., direction.y);
     let delta = (direction - normal * normal.dot(direction)).normalize() * length;
     camera.end = camera.start + delta;

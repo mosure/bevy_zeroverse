@@ -3,16 +3,20 @@
 use super::super::{layout::IndoorObject, plants};
 use super::*;
 mod buildings;
-mod details;
+mod frontage_layout;
 mod frontages;
 mod midground;
+mod pergola;
 mod program;
 #[cfg(test)]
 mod qualification;
 use program::{Building, District};
 mod streets;
 
-#[derive(Clone, Debug, serde::Serialize)]
+const MAX_PARCELS: usize = 18;
+const _: () = assert!(MAX_PARCELS <= u32::BITS as usize);
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 struct Parcel {
     center: Vec2,
     size: Vec2,
@@ -20,9 +24,9 @@ struct Parcel {
     kind: u8,
     seed: u64,
 }
-pub(crate) fn counts(scene: &IndoorManifest) -> [usize; 4] {
+fn counts(sites: &[Parcel]) -> [usize; 4] {
     let mut counts = [0; 4];
-    for p in parcels(scene) {
+    for p in sites {
         counts[p.kind as usize] += 1;
     }
     counts
@@ -36,14 +40,37 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
         ("exterior_parcel_scale", d.parcel_scale),
         ("exterior_walkway_width_m", d.paving_width),
     ];
-    let windows = window_rays(scene);
-    let parcels = parcels_at(scene, &windows);
+    let ExteriorPlan {
+        windows,
+        sites: parcels,
+        rows: terraces,
+        frontage,
+    } = ExteriorPlan::new(scene, &d);
+    for (name, count) in [
+        "exterior_building_parcels",
+        "exterior_garden_parcels",
+        "exterior_courtyard_parcels",
+        "exterior_pergola_parcels",
+    ]
+    .into_iter()
+    .zip(counts(&parcels))
+    {
+        out.push((name, count as f32));
+    }
+    if let Some(fraction) = window_context_fraction(&windows, &parcels) {
+        out.push(("exterior_window_context_fraction", fraction));
+    }
+    if let Some(fraction) = frontage {
+        out.push(("exterior_ground_storey_frontage_fraction", fraction));
+    }
+    for p in parcels.iter().filter(|p| p.kind == 3) {
+        pergola::Program::sample(p).measure(&mut out);
+    }
     let sides = frontages::viewed_sides(&parcels, &windows);
     out.push((
         "exterior_viewed_frontages",
         sides.iter().flatten().count() as f32,
     ));
-    let terraces = midground::plan(scene, &windows, &parcels);
     out.push(("exterior_terrace_rows", terraces.len() as f32));
     for row in &terraces {
         out.push(("exterior_terrace_frontage_m", row.size.x));
@@ -85,50 +112,65 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
     streets::measure(scene, &parcels, &terraces, &entrances, &mut out);
     out
 }
-/// Window origins and outward normals are measured from the built envelope,
-/// including angled/recessed edges, rather than its enclosing rectangle.
-fn window_rays(scene: &IndoorManifest) -> Vec<(Vec2, Vec2)> {
-    let mut rays = Vec::new();
+/// Permanent facade apertures in the room frame. Landscape placement is
+/// independent of the requested cameras, trajectory and world yaw.
+#[derive(Clone, Copy)]
+struct WindowView {
+    center: Vec2,
+    normal: Vec2,
+    width: f32,
+    sill: f32,
+    head: f32,
+}
+
+fn window_openings(scene: &IndoorManifest) -> Vec<WindowView> {
+    let mut windows = Vec::new();
+    let mut collect = |tf: Transform, facade: &super::facade::Facade| {
+        let normal = (tf.rotation * Vec3::NEG_Z).xz();
+        for opening in &facade.openings {
+            let x = (opening.min.x + opening.max.x) * 0.5;
+            windows.push(WindowView {
+                center: tf.transform_point(Vec3::new(x, 0., 0.)).xz(),
+                normal,
+                width: opening.max.x - opening.min.x,
+                sill: opening.min.y,
+                head: opening.max.y,
+            });
+        }
+    };
     if let Some(e) = &scene.envelope {
         for wall in &e.walls {
             if let Some(f) = &wall.facade {
-                let tf = e.wall_transform(wall.edge);
-                for w in &f.openings {
-                    rays.push((
-                        tf.transform_point(Vec3::new((w.min.x + w.max.x) * 0.5, 0., 0.))
-                            .xz(),
-                        (tf.rotation * Vec3::NEG_Z).xz(),
-                    ));
-                }
+                collect(e.wall_transform(wall.edge), f);
             }
         }
     } else if let Some(exterior) = &scene.exterior {
         for f in &exterior.facades {
-            let tf = f.side.transform(scene.room_size);
-            for w in &f.openings {
-                rays.push((
-                    tf.transform_point(Vec3::new((w.min.x + w.max.x) * 0.5, 0., 0.))
-                        .xz(),
-                    (tf.rotation * Vec3::NEG_Z).xz(),
-                ));
-            }
+            collect(f.side.transform(scene.room_size), f);
         }
     }
-    rays
+    if let Some(w) = scene
+        .adjoining_elevation
+        .as_ref()
+        .and_then(|p| p.windows.as_ref())
+    {
+        if let Some((a, b)) = w.endpoints(scene) {
+            collect(super::super::envelope::polygon::wall_frame(a, b), &w.facade);
+        }
+    }
+    windows
 }
 
-pub(crate) fn window_context_fraction(scene: &IndoorManifest) -> Option<f32> {
-    let rays = window_rays(scene);
-    let sites = parcels_at(scene, &rays);
+fn window_context_fraction(rays: &[WindowView], sites: &[Parcel]) -> Option<f32> {
     if rays.is_empty() {
         return None;
     }
     Some(
         rays.iter()
-            .filter(|(p, n)| {
+            .filter(|w| {
                 sites.iter().any(|s| {
-                    let delta = s.center - *p;
-                    delta.normalize_or_zero().dot(*n) > 0.85 && delta.length() < 15.
+                    let delta = s.center - w.center;
+                    delta.normalize_or_zero().dot(w.normal) > 0.85 && delta.length() < 15.
                 })
             })
             .count() as f32
@@ -136,18 +178,42 @@ pub(crate) fn window_context_fraction(scene: &IndoorManifest) -> Option<f32> {
     )
 }
 
-fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
-    parcels_at(scene, &window_rays(scene))
+struct ExteriorPlan {
+    windows: Vec<WindowView>,
+    sites: Vec<Parcel>,
+    rows: Vec<midground::Terrace>,
+    frontage: Option<f32>,
 }
 
-fn parcels_at(scene: &IndoorManifest, windows: &[(Vec2, Vec2)]) -> Vec<Parcel> {
+impl ExteriorPlan {
+    fn new(scene: &IndoorManifest, district: &District) -> Self {
+        let windows = window_openings(scene);
+        let mut sites = propose_parcels(scene, &windows, district);
+        // The footprint intersections stay valid when a parcel changes use.
+        let horizon = frontage_layout::Horizon::new(&sites, &windows);
+        horizon.assign(&mut sites, scene.seed, district.building_fraction);
+        let frontage = horizon.coverage(&sites);
+        let rows = midground::plan(scene, district, &horizon, &sites);
+        Self {
+            windows,
+            sites,
+            rows,
+            frontage,
+        }
+    }
+}
+
+fn propose_parcels(
+    scene: &IndoorManifest,
+    windows: &[WindowView],
+    district: &District,
+) -> Vec<Parcel> {
     let mut rng = stream(scene.seed, 6340);
     let mut parcels: Vec<Parcel> = vec![];
     let half = scene.room_size.xz() * 0.5;
-    let district = District::sample(scene.seed);
     let directed = (windows.len() * 9).min(128);
     for attempt in 0..directed + 192 {
-        if parcels.len() >= 18 {
+        if parcels.len() >= MAX_PARCELS {
             break;
         }
         // Larger continuous footprints break the repeated narrow tower silhouette.
@@ -163,7 +229,11 @@ fn parcels_at(scene: &IndoorManifest, windows: &[(Vec2, Vec2)]) -> Vec<Parcel> {
         );
         let radius = size.length() * 0.5;
         let (center, yaw) = if attempt < directed {
-            let (origin, normal) = windows[attempt % windows.len()];
+            let WindowView {
+                center: origin,
+                normal,
+                ..
+            } = windows[attempt % windows.len()];
             let tangent = Vec2::new(-normal.y, normal.x);
             let center = origin
                 + normal * rng.random_range(3.2..12.5)
@@ -239,13 +309,14 @@ fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
     } else {
         rng.random_range(1..=4)
     };
+    let pergola_plant_height = (p.kind == 3).then(|| pergola::Program::sample(p).headroom() - 0.12);
     for i in 0..count {
         let mut plant: IndoorObject = template.clone();
         plant.kind = ObjectKind::Plant;
         plant.seed = rng.random();
         plant.size = Vec3::new(
             p.size.x * 0.26,
-            rng.random_range(1.0..if p.kind == 3 { 2.45 } else { 3.4 }),
+            rng.random_range(1.0..pergola_plant_height.unwrap_or(3.4)),
             p.size.y * 0.40,
         );
         plant.variant = plants::sample_species(plant.size, &mut rng);
@@ -363,10 +434,13 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             0.,
         );
     }
-    let windows = window_rays(scene);
-    let sites = parcels_at(scene, &windows);
+    let ExteriorPlan {
+        windows,
+        sites,
+        rows,
+        ..
+    } = ExteriorPlan::new(scene, &District::sample(scene.seed));
     let sides = frontages::viewed_sides(&sites, &windows);
-    let rows = midground::plan(scene, &windows, &sites);
     for row in &rows {
         buildings::terrace::build(a, row);
     }
@@ -446,7 +520,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 );
             }
         } else if p.kind == 3 {
-            details::pergola(a, p);
+            pergola::build(a, p);
         }
     }
     streets::build(a, scene, &sites, &rows, &entrances);
@@ -467,9 +541,8 @@ mod tests {
                 0.,
             )
             .unwrap();
-            if !window_rays(&scene).is_empty() {
-                fractions.push(window_context_fraction(&scene).unwrap());
-            }
+            let plan = ExteriorPlan::new(&scene, &District::sample(seed));
+            fractions.extend(window_context_fraction(&plan.windows, &plan.sites));
         }
         let mean = fractions.iter().sum::<f32>() / fractions.len() as f32;
         assert!(mean > 0.85, "window-normal near-field coverage {mean:.3}");
@@ -490,8 +563,9 @@ mod tests {
                 0.,
             )
             .unwrap();
-            let sites = parcels(&scene);
-            assert_eq!(format!("{sites:?}"), format!("{:?}", parcels(&scene)));
+            let d = District::sample(seed);
+            let sites = ExteriorPlan::new(&scene, &d).sites;
+            assert_eq!(sites, ExteriorPlan::new(&scene, &d).sites);
             assert!(sites.len() >= 4 && sites.len() <= 18);
             for (i, p) in sites.iter().enumerate() {
                 kinds.insert(p.kind);

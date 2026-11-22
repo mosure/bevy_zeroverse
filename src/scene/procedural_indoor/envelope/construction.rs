@@ -1,4 +1,5 @@
 use super::*;
+mod adjoining;
 mod ceiling_mesh;
 mod column_finish;
 mod lining_mesh;
@@ -7,6 +8,7 @@ mod normal_tests;
 use crate::scene::procedural_indoor::{
     architecture, geometry::Geometry, layout::AdjoiningFloor, materials::Surface, objects::Assembly,
 };
+const SHARED_WALL_THICKNESS_M: f32 = 0.18;
 
 /// Flat, metric UVs. Triangle winding and stored normals always agree, including
 /// negative floor levels, angled reveals and the underside of a sloping ceiling.
@@ -280,7 +282,7 @@ pub(super) fn wall(
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
     let thickness = if e.shared_edge(edge, size) {
-        0.18
+        SHARED_WALL_THICKNESS_M
     } else {
         e.wall_thickness()
     };
@@ -498,22 +500,26 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         .ceiling_installation
         .as_ref()
         .is_some_and(|c| c.exposed_slab);
-    ceiling_mesh::build(
-        a.part(
-            if exposed {
-                scene
-                    .ceiling_installation
-                    .as_ref()
-                    .and_then(|c| c.framing.as_ref())
-                    .map_or(Surface::Concrete, |f| f.roof_material)
-            } else {
-                Surface::Ceiling
-            },
-            "ceiling",
-        ),
-        e,
-        size,
-    );
+    if let Some(grid) = architecture::ceiling::CeilingGrid::for_scene(scene) {
+        architecture::ceiling::build_room_grid(&mut a, scene, grid, &yield_if_due).await;
+    } else {
+        ceiling_mesh::build(
+            a.part(
+                if exposed {
+                    scene
+                        .ceiling_installation
+                        .as_ref()
+                        .and_then(|c| c.framing.as_ref())
+                        .map_or(Surface::Concrete, |f| f.roof_material)
+                } else {
+                    Surface::Ceiling
+                },
+                "ceiling",
+            ),
+            e,
+            size,
+        );
+    }
     let feature_edges = super::super::materials::wall::feature_edges(scene);
     for entry in &e.walls {
         yield_if_due().await;
@@ -800,19 +806,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         |p| e.ceiling_height(size, p) + 0.14,
         0.14,
     );
-    for (p, q) in polygon::edges(&poly).skip(1) {
-        let n = Vec3::new(q.y - p.y, 0., p.x - q.x).normalize();
-        panel(
-            a.part(Surface::Paint, "wall"),
-            &[
-                Vec3::new(p.x, 0., p.y),
-                Vec3::new(q.x, 0., q.y),
-                Vec3::new(q.x, e.ceiling_height(size, q), q.y),
-                Vec3::new(p.x, e.ceiling_height(size, p), p.y),
-            ],
-            -n * 0.18,
-        );
-    }
+    adjoining::perimeter(a, scene, e, &poly);
 }
 
 /// Triangle-plane clipping retains interpolated normals/UVs; no vertex collapse.

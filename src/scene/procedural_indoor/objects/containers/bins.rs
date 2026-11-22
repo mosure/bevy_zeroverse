@@ -1,5 +1,12 @@
 //! Waste containers with independent metric walls, rim, lid and support details.
 use super::*;
+mod intake;
+mod liner;
+mod shell;
+#[cfg(test)]
+mod tests;
+pub use intake::{InletKind, StationInlet};
+pub use liner::{FilmFinish, Liner, LinerMount};
 
 /// Deliberately coordinated station identities. Ordinary bins retain variants
 /// 0..3; these flags carry the role through manifests and annotation replay.
@@ -16,6 +23,8 @@ pub enum WasteStream {
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct BinProgram {
     pub waste_stream: WasteStream,
+    pub inlet: Option<StationInlet>,
+    pub liner: Option<Liner>,
     pub squareness: f32,
     pub taper: f32,
     pub rim_width: f32,
@@ -66,8 +75,10 @@ pub fn parameters(o: &IndoorObject) -> BinProgram {
             - if lid == 2 { s.y * 0.003 } else { 0. },
         s.z * r.random_range(0.85..0.94),
     );
-    BinProgram {
+    let mut p = BinProgram {
         waste_stream,
+        inlet: None,
+        liner: None,
         squareness: r.random_range(2.0..8.5),
         taper: r.random_range(0.64..0.98),
         rim_width: r.random_range(0.025..0.075),
@@ -91,9 +102,26 @@ pub fn parameters(o: &IndoorObject) -> BinProgram {
         } else {
             Surface::Metal
         },
+    };
+    p.inlet = StationInlet::sample(o.seed, &p);
+    p.liner = Liner::sample(o.seed, &p);
+    if let Some(film) = p.liner.filter(|film| film.mount == LinerMount::OverRim) {
+        // The outer cuff, including its top fold, fits the object's existing reservation.
+        p.body.y -= film.roll_m;
     }
+    p
 }
 impl BinProgram {
+    fn rim_inner(&self) -> Vec2 {
+        let half = self.body.xz() * 0.5;
+        half - Vec2::splat(self.wall.max(half.min_element() * self.rim_width))
+    }
+
+    fn cavity_half(&self, y: f32) -> Vec2 {
+        let t = ((y - self.floor) / (self.body.y - self.rim_height - self.floor)).clamp(0., 1.);
+        (self.half_at(self.floor) - self.wall).lerp(self.rim_inner(), t)
+    }
+
     pub fn half_at(&self, y: f32) -> Vec2 {
         self.body.xz()
             * 0.5
@@ -125,7 +153,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let half = p.body.xz() * 0.5;
     let bottom = half * p.taper;
     let top = p.body.y;
-    let rim_inner = half - Vec2::splat(p.wall.max(half.min_element() * p.rim_width));
+    let rim_inner = p.rim_inner();
     a.part(p.finish, l).housing(
         &[
             (0., bottom),
@@ -141,32 +169,17 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     );
     if p.lid_height > 0. {
         let y = top + p.seam;
-        if p.lid == 5 {
-            // A genuine aperture, never a black rectangle over a closed cap.
-            // Paper/recycling uses a wide slot; general waste a larger opening.
-            let hole = half
-                * if p.waste_stream == WasteStream::Recycling {
-                    Vec2::new(0.65, 0.22)
-                } else {
-                    Vec2::new(0.57, 0.65)
-                };
+        if let Some(inlet) = p.inlet {
             let slot = if p.waste_stream == WasteStream::Recycling {
                 5
             } else {
                 1
             };
-            a.part(Surface::Plastic, &format!("{l}#finish{slot}"))
-                .housing_loop(
-                    &[
-                        (y, half * 1.015),
-                        (y + p.lid_height, half * 0.96),
-                        (y + p.lid_height, hole),
-                        (y, hole),
-                        (y, half * 1.015),
-                    ],
-                    p.squareness,
-                    Transform::IDENTITY,
-                );
+            inlet.build(
+                a.part(Surface::Plastic, &format!("{l}#finish{slot}")),
+                &p,
+                y,
+            );
         } else {
             a.part(p.hardware, l).housing(
                 &[
@@ -240,6 +253,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             let p1 = p.perimeter(t, top - p.rim_height * 1.15);
             a.part(p.finish, l).rod(p0, p1, p.rib_radius);
         }
+    }
+    if let Some(film) = p.liner {
+        film.build(a.part(Surface::Plastic, film.finish.label()), &p);
     }
 }
 

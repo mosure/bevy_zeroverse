@@ -206,7 +206,7 @@ cargo run --example review_materials -- out/materials-glaze 1 --close-up \
 cargo run --example review_materials -- out/materials-rough 1 --close-up \
   --surfaces=Paint,Concrete,Ceramic --wall-texture=0.9 --wall-knockdown=0.8 \
   --concrete-formwork=0.95 --concrete-polish=0.05 --ceramic-gloss=0.12
-cargo run --bin indoor_bench -- --scenes 64 --warmup-scenes 4 --seed 200 \
+cargo run --example indoor_bench -- --scenes 64 --warmup-scenes 4 --seed 200 \
   --cameras 3 --width 512 --height 512 --co-visibility --asset-root "$PWD" \
   --save-samples --output out/material-rooms
 ```

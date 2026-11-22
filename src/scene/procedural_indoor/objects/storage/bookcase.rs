@@ -1,6 +1,8 @@
 //! Fitted shelving programs: physical bays and independent adjustable levels.
 use super::*;
+mod binding;
 pub(crate) mod contents;
+mod runs;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ShelfBay {
@@ -134,4 +136,4 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

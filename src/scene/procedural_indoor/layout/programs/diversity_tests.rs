@@ -176,3 +176,29 @@ fn lounge_regularity_qualification() {
         "meshes":meshes,"coverage":coverage,"rooms":rooms,"cameras":3,"human_density":0.25
     })).unwrap()).unwrap();
 }
+
+#[test]
+fn storage_front_opens_to_the_approach_on_each_zone_edge() {
+    let (min, max) = (Vec2::new(-4.7, 1.2), Vec2::new(3.2, 8.6));
+    for side in 0..4 {
+        for t in [0.15, 0.52, 0.85] {
+            for setback in [0.34, 0.48, 0.92] {
+                let (center, yaw) = zone_edge(min, max, side, t, setback);
+                for skew in [-0.2, 0., 0.2] {
+                    let forward = (Quat::from_rotation_y(yaw + skew) * Vec3::Z).xz();
+                    let approach = center + forward * 0.5;
+                    assert!(approach.cmpgt(min).all() && approach.cmplt(max).all());
+                    // Opening a door or approaching the spines moves away from the chosen boundary.
+                    let distance = |p: Vec2| match side {
+                        0 => p.x - min.x,
+                        1 => max.x - p.x,
+                        2 => p.y - min.y,
+                        _ => max.y - p.y,
+                    };
+                    assert!((distance(center) - setback).abs() < 1e-5);
+                    assert!(distance(approach) > distance(center) + 0.48);
+                }
+            }
+        }
+    }
+}

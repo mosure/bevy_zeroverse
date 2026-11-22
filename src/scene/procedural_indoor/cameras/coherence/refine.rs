@@ -197,10 +197,7 @@ pub(crate) fn refine(scene: &mut IndoorManifest) {
                     time: 0.5,
                     reference_to_view: coverage.shared(&cache[0][2], &mid).0,
                     view_to_reference: coverage.shared(&mid, &cache[0][2]).0,
-                    baseline_m: scene.cameras[0]
-                        .transform_at(0.5)
-                        .translation
-                        .distance(candidate.transform_at(0.5).translation),
+                    baseline_m: cache[0][2].pose.translation.distance(mid.pose.translation),
                     mean_triangulation_degrees: 0.,
                 };
                 if !accepts_reference(&std::array::from_fn::<_, 5, _>(|_| sample.clone())) {

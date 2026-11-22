@@ -40,15 +40,15 @@ interventions and frames; this identity is never counted as an appearance class.
 ## Explicit local workflow
 
 ```sh
-cargo run --bin indoor_capacity -- plan --output out/capacity-plan.json
-cargo run --bin indoor_capacity -- audit \
+cargo run --example indoor_capacity -- plan --output out/capacity-plan.json
+cargo run --example indoor_capacity -- audit \
   --plan out/capacity-plan.json --output out/capacity-audit --workers 2
 cargo run -p bevy_zeroverse_publication -- capacity-qualify \
   --plan out/capacity-plan.json --records out/capacity-audit/records.jsonl \
   --output out/capacity-receipt.json
 cargo run -p bevy_zeroverse_publication -- capacity-report \
   --receipt out/capacity-receipt.json --output out/capacity-report
-cargo run --bin indoor_capacity -- estimate \
+cargo run --example indoor_capacity -- estimate \
   --plan out/capacity-plan.json --receipt out/capacity-receipt.json
 ```
 
@@ -91,7 +91,7 @@ cargo run -p bevy_zeroverse_publication -- capacity-embedding-index \
   --receipt out/render-receipt.json --records out/render-audit/records.jsonl \
   --captures out/render-audit --weights-sha256 LOADED_WEIGHT_SHA256 \
   --bandwidth 0.35 --max-rooms 512 --output out/embedding-index.json
-cargo run --features embedding_audit --bin indoor_embed -- \
+cargo run --features embedding_audit --example indoor_embed -- \
   --index out/embedding-index.json --output out/embeddings --batch-size 16
 cargo run -p bevy_zeroverse_publication -- capacity-embedding-report \
   --index out/embedding-index.json --embeddings out/embeddings \

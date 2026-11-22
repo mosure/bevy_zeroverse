@@ -7,6 +7,42 @@ mod minification_tests;
 #[path = "web_fixtures.rs"]
 mod web_fixtures;
 
+// Exercise every installation in both native and browser all-mip readback,
+// independent of the mix of products selected by the ordinary seed sweep.
+fn carpet_installations(parent: &MaterialRecipe) -> Vec<MaterialRecipe> {
+    use super::super::flooring::{
+        carpet_tiles::{CarpetTiles, PileDirection::*},
+        FloorLayout,
+    };
+    [
+        (Parallel, [3, 7]),
+        (OpposingCourses, [6, 3]),
+        (QuarterTurn, [4, 4]),
+        (NonDirectional, [4, 4]),
+        (NonDirectional, [5, 3]),
+    ]
+    .into_iter()
+    .map(|(direction, cells)| {
+        let mut r = parent.clone();
+        let f = r.flooring.as_mut().unwrap();
+        f.layout = if cells[0] == cells[1] {
+            FloorLayout::Straight
+        } else {
+            FloorLayout::BrokenBond
+        };
+        f.cells = cells;
+        f.tile_definition = 0.6;
+        f.piece_roughness = 0.028;
+        f.carpet_tiles = Some(CarpetTiles {
+            direction,
+            registration: 0.87,
+        });
+        r.validate().unwrap();
+        r
+    })
+    .collect()
+}
+
 #[test]
 fn chrome_bakes_retain_only_the_maps_its_material_samples() {
     let recipes = program::sample_with_floor(3, 0).unwrap();
@@ -277,6 +313,9 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
     for seed in [0, 1, 202, 400, u64::MAX - 7] {
         for floor in [0, 1, 2] {
             let mut recipes = program::sample_with_floor(seed, floor).unwrap();
+            if floor == 1 && seed == u64::MAX - 7 {
+                recipes.extend(carpet_installations(&recipes[Surface::Floor as usize]));
+            }
             if seed == 0 {
                 // Every expanded process pole, not only whichever blended pole
                 // a short seed list happened to select. Reuse the same strict

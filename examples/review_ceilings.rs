@@ -13,7 +13,7 @@ use bevy_zeroverse::{
     sample::{CaptureFailure, SamplerState},
     scene::{
         procedural_indoor::{
-            architecture::ceiling::CeilingModule,
+            architecture::ceiling::{CeilingModule, CeilingShape},
             layout::{IndoorLayout, IndoorManifest},
             materials::{IndoorMaterials, Surface},
             objects::Assembly,
@@ -21,9 +21,10 @@ use bevy_zeroverse::{
         SceneAabbNode, ZeroverseSceneRoot, ZeroverseSceneType,
     },
 };
+use clap::Parser;
 use serde_json::json;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::PathBuf,
     time::{Duration, Instant},
@@ -103,29 +104,49 @@ fn install(
     };
     batch.install = false;
 }
+#[derive(Parser)]
+struct Args {
+    output: PathBuf,
+    /// Show each installed mineral-fiber edge and facing at its original metric scale.
+    #[arg(long)]
+    tile_edges: bool,
+}
+
 fn main() -> Result<()> {
-    let output = PathBuf::from(std::env::args().nth(1).expect("output directory"));
+    let Args { output, tile_edges } = Args::parse();
     ensure!(!output.exists(), "use a new output directory");
     fs::create_dir_all(&output)?;
     let mut selected: BTreeMap<String, Vec<(IndoorManifest, CeilingModule)>> = BTreeMap::new();
-    for seed in 0..192 {
+    let (families, examples) = if tile_edges { (9, 1) } else { (13, 2) };
+    for seed in 0..512 {
         let scene = IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
             .map_err(anyhow::Error::msg)?;
         for module in &scene.ceiling_installation.as_ref().unwrap().modules {
-            let entries = selected.entry(format!("{:?}", module.system)).or_default();
-            if entries.len() < 2 && entries.iter().all(|(s, _)| s.seed != seed) {
+            let name = if tile_edges {
+                let Some(CeilingShape::LayIn { tile, .. }) =
+                    module.detail.as_ref().map(|d| &d.shape)
+                else {
+                    continue;
+                };
+                format!("{:?}-{:?}", tile.edge, tile.facing)
+            } else {
+                format!("{:?}", module.system)
+            };
+            let entries = selected.entry(name).or_default();
+            if entries.len() < examples && entries.iter().all(|(s, _)| s.seed != seed) {
                 entries.push((scene.clone(), module.clone()));
             }
         }
-        if selected.len() == 13 && selected.values().all(|v| v.len() == 2) {
+        if selected.len() == families && selected.values().all(|v| v.len() == examples) {
             break;
         }
     }
     ensure!(
-        selected.len() == 13 && selected.values().all(|v| v.len() == 2),
+        selected.len() == families && selected.values().all(|v| v.len() == examples),
         "missing ceiling types"
     );
     let cases: Vec<_> = selected.into_values().flatten().collect();
+    let batch_size = if tile_edges { 3 } else { 6 };
     std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
     setup_globals(None);
     let mut app = create_app(
@@ -138,7 +159,7 @@ fn main() -> Result<()> {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: 6,
+            num_cameras: batch_size,
             width: SIZE as f32,
             height: SIZE as f32,
             playback_steps: 1,
@@ -155,10 +176,19 @@ fn main() -> Result<()> {
     app.add_systems(PreUpdate, install);
     app.finish();
     app.cleanup();
-    for (p, lux) in [
-        (Vec3::new(-3., -5., 5.), 1400.),
-        (Vec3::new(2., -2., -4.), 600.),
-    ] {
+    let lights = if tile_edges {
+        // Raking illumination resolves millimetre-scale edges and pore relief.
+        [
+            (Vec3::new(-3.6, -1.55, 1.), 1100.),
+            (Vec3::new(1.5, -2., -1.), 110.),
+        ]
+    } else {
+        [
+            (Vec3::new(-3., -5., 5.), 1400.),
+            (Vec3::new(2., -2., -4.), 600.),
+        ]
+    };
+    for (p, lux) in lights {
         app.world_mut().spawn((
             DirectionalLight {
                 illuminance: lux,
@@ -176,15 +206,25 @@ fn main() -> Result<()> {
         .world_mut()
         .remove_resource::<Assets<StandardMaterial>>()
         .unwrap();
-    let palette = std::sync::Arc::new(IndoorMaterials::build(
+    let mut keys: BTreeSet<_> = cases
+        .iter()
+        .flat_map(|(scene, module)| module.geometry(scene).parts.into_keys())
+        .collect();
+    keys.insert((Surface::Concrete, "ceiling".into()));
+    let mut palette = IndoorMaterials::build_for_parts(
         &palette_scene,
         &mut images,
         &mut materials,
-    ));
+        keys.iter().map(|(surface, key)| (*surface, key.as_str())),
+    );
+    if tile_edges {
+        palette.environment.intensity *= 0.2;
+    }
+    let palette = std::sync::Arc::new(palette);
     app.world_mut().insert_resource(images);
     app.world_mut().insert_resource(materials);
     let mut records = Vec::new();
-    for (batch, chunk) in cases.chunks(6).enumerate() {
+    for (batch, chunk) in cases.chunks(batch_size).enumerate() {
         let mut assemblies = Vec::new();
         let mut targets = Vec::new();
         for (i, (scene, module)) in chunk.iter().enumerate() {
@@ -229,12 +269,19 @@ fn main() -> Result<()> {
                     .with_rotation(Quat::from_rotation_arc(Vec3::Y, n)),
             );
             let span = module.size.max_element().max(1.4);
-            targets.push((
-                shift + Vec3::new(span * 0.25, -span * 0.58, span * 1.10),
-                shift,
-            ));
+            let target = if tile_edges {
+                shift - Vec3::Y * module.size.y * 0.5
+            } else {
+                shift
+            };
+            let offset = if tile_edges {
+                Vec3::new(0.28, -0.64, 0.37)
+            } else {
+                Vec3::new(span * 0.25, -span * 0.58, span * 1.10)
+            };
+            targets.push((target + offset, target));
             records.push(
-                json!({"index":batch*6+i,"system":module.system,"room_seed":scene.seed,
+                json!({"index":batch*batch_size+i,"system":module.system,"room_seed":scene.seed,
                 "module":module,"triangles":triangles,"material_batches":a.parts.len(),
                 "median_build_microseconds":timings[timings.len()/2]}),
             );
@@ -251,11 +298,14 @@ fn main() -> Result<()> {
             app.update();
             ensure!(
                 started.elapsed() < Duration::from_secs(180),
-                "ceiling capture timeout"
+                "ceiling capture timeout for batch {batch}, readiness {:?}",
+                app.world()
+                    .resource::<bevy_zeroverse::sample::CaptureReadiness>()
             );
             ensure!(
                 app.world().resource::<CaptureFailure>().0.is_none(),
-                "ceiling capture failure"
+                "ceiling capture failure: {:?}",
+                app.world().resource::<CaptureFailure>().0
             );
             if let Ok(sample) = bevy_zeroverse::io::channels::sample_receiver()
                 .unwrap()
@@ -308,13 +358,16 @@ fn main() -> Result<()> {
                             .collect();
                         image::RgbImage::from_raw(SIZE, SIZE, pixels)
                             .unwrap()
-                            .save(output.join(format!("{:02}-{mode}.png", batch * 6 + i)))?;
+                            .save(
+                                output.join(format!("{:02}-{mode}.png", batch * batch_size + i)),
+                            )?;
                     }
                     ensure!(visible > 100, "missing ceiling pixels");
-                    records[batch * 6 + i]["ceiling_pixels"] = json!(visible);
+                    records[batch * batch_size + i]["ceiling_pixels"] = json!(visible);
                 }
                 break;
             }
+            std::thread::sleep(Duration::from_millis(1));
         }
         println!(
             "Ceiling batch {batch}: {:.2}s",
@@ -325,7 +378,7 @@ fn main() -> Result<()> {
         output.join("review.json"),
         serde_json::to_vec_pretty(&json!({
             "provenance":bevy_zeroverse::provenance::capture_provenance(),"image_size":[SIZE,SIZE],
-            "protocol":"Two production modules per family, isolated in a fixed PBR inspection rig with CPU reference maps. Geometry is not rescaled. Not a population or end-to-end throughput benchmark.","records":records
+            "protocol":"Production modules under fixed inspection lighting and palette, at their installed metric scale.","tile_edges":tile_edges,"records":records
         }))?,
     )?;
     Ok(())

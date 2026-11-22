@@ -1,6 +1,7 @@
 //! Handset construction, independent of screen content and finish identity.
 //! Dimensions describe the admitted object; details are fitted before meshing.
 use super::*;
+use crate::scene::procedural_indoor::geometry::Geometry;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PhoneProgram {
@@ -171,11 +172,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         (p.back, half * 0.94, 0.)
     };
-    a.part(surface, l).housing(
-        &[(h - p.face_height * 0.2, extent), (face_top, extent)],
-        p.roundness,
-        Transform::from_xyz(0., 0., z),
-    );
+    let cover = [(h - p.face_height * 0.2, extent), (face_top, extent)];
+    let cover_tf = Transform::from_xyz(0., 0., z);
+    if p.face_up {
+        let mut pixels = Geometry::default();
+        a.part(p.shell, l)
+            .housing_with_top(&mut pixels, &cover, p.roundness, cover_tf);
+        a.part(surface, l).append(pixels);
+    } else {
+        a.part(surface, l).housing(&cover, p.roundness, cover_tf);
+    }
     if p.rim_width > 0. {
         // A real raised protective edge, with an annular underside as well.
         // Solid loft caps would overlap the rear cover and fill the aperture.

@@ -140,7 +140,7 @@ the ordinary APIs; they add no consumer configuration or queued-room residency.
 To isolate preparation from GPU rendering, uploads and tensor transport:
 
 ```sh
-cargo run --bin indoor_prepare_bench -- --rooms 64 --concurrent 4 --output out/preparation.json
+cargo run --example indoor_prepare_bench -- --rooms 64 --concurrent 4 --output out/preparation.json
 ```
 
 This diagnostic prepares full native geometry, PBR maps and GPU-bake inputs,
