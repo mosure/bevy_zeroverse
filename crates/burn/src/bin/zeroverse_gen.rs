@@ -1193,8 +1193,6 @@ mod process_limit_tests {
         let mut cli = indoor(&[
             "--color-codec",
             "raw",
-            "--samples",
-            "1",
             "--cameras",
             "3",
             "--playback-steps",
@@ -1202,14 +1200,15 @@ mod process_limit_tests {
             "--ov-mode",
             "disabled",
         ]);
+        cli.samples = 1;
         cli.output = dir.path().join("output");
         cli.capture_requests = Some(file.clone());
-        let write =
-            |sequence: usize, rows: serde_json::Value| {
-                std::fs::write(&file, serde_json::to_vec(&serde_json::json!([{
-            "sequence":sequence,"seed":70,"rgb_artifact_eligible_cameras_by_timestep":rows
-        }])).unwrap()).unwrap()
-            };
+        let write = |sequence: usize, rows: serde_json::Value| {
+            let requests = serde_json::json!([{
+                "sequence": sequence, "seed": 70, "rgb_artifact_eligible_cameras_by_timestep": rows
+            }]);
+            std::fs::write(&file, serde_json::to_vec(&requests).unwrap()).unwrap();
+        };
         write(0, serde_json::json!([[2, 0], [1]]));
         prepare_generation_metadata(&mut cli).unwrap();
         cli.resume = true;
