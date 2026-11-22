@@ -23,22 +23,22 @@ impl Drop for Ticket {
         cancel(&self.0);
     }
 }
+async fn attempt(operation: &str, data: &JsValue) -> Result<Option<JsValue>, JsValue> {
+    let ticket = start(wasm_bindgen::module(), operation, data);
+    if ticket.is_null() {
+        return Ok(None);
+    }
+    let ticket = Ticket(ticket);
+    JsFuture::from(result(&ticket.0)).await.map(Some)
+}
 pub(in crate::scene::procedural_indoor) async fn run(
     operation: &str,
     data: &JsValue,
 ) -> Option<JsValue> {
-    let ticket = start(wasm_bindgen::module(), operation, data);
-    if ticket.is_null() {
-        return None;
-    }
-    let ticket = Ticket(ticket);
-    match JsFuture::from(result(&ticket.0)).await {
-        Ok(value) => Some(value),
-        Err(error) => {
-            warn!("Studio worker unavailable, preparing locally: {error:?}");
-            None
-        }
-    }
+    attempt(operation, data).await.unwrap_or_else(|error| {
+        warn!("Studio worker unavailable, preparing locally: {error:?}");
+        None
+    })
 }
 
 pub(super) async fn plan(request: &Request) -> Result<generated::Plan, CaptureError> {
@@ -48,11 +48,26 @@ pub(super) async fn plan(request: &Request) -> Result<generated::Plan, CaptureEr
     }
     let bytes = rmp_serde::to_vec_named(request).expect("serializable preparation request");
     let data = Uint8Array::from(bytes.as_slice());
-    if let Some(bytes) = run("plan", &data).await {
-        match rmp_serde::from_slice(&bytes.unchecked_into::<Uint8Array>().to_vec()) {
-            Ok(plan) => return plan,
-            Err(error) => warn!("Invalid Studio worker response; retrying locally: {error}"),
+    match attempt("plan", &data).await {
+        Ok(Some(bytes)) => {
+            match rmp_serde::from_slice(&bytes.unchecked_into::<Uint8Array>().to_vec()) {
+                Ok(plan) => return plan,
+                Err(error) => warn!("Invalid Studio worker response; retrying locally: {error}"),
+            }
         }
+        Err(error)
+            if web_sys::js_sys::Reflect::get(&error, &"name".into())
+                .ok()
+                .and_then(|n| n.as_string())
+                .as_deref()
+                == Some("TimeoutError") =>
+        {
+            // Repeating the same clearance search synchronously here would also
+            // freeze rendering and prevent Studio's room deadline from running.
+            return Err(format!("Studio room {} planning worker timed out", request.seed).into());
+        }
+        Err(error) => warn!("Studio planning worker unavailable, preparing locally: {error:?}"),
+        Ok(None) => {}
     }
     super::super::cooperate().await;
     generated::plan(request)

@@ -21,7 +21,9 @@ Use `--hdr --tonemapping auto` or `?hdr=true&tonemapping=agx`. The Studio report
 
 `zeroverse_gen --output ./captures --scene-type procedural-indoor --samples 1 --hdr` exports floating-point, display-linear RGB with the automatic curve. Its `--tonemapping` option accepts the same names as the viewer. The optional archive `--rgb-sensor` applies sRGB-domain augmentations and exports SDR. Use the scene's `indoor_appearance.sensor` policy for sensor artifacts on HDR captures.
 
-**Next scene interval** sets the minimum display time in milliseconds. With procedural indoor rooms, the Studio prepares one successor while the current room plays. A camera-placement or geometry rejection advances to the following seed. The browser URL follows the room actually on screen. Setting the interval to zero cancels the pending automatic transition.
+**Next scene interval** is the minimum time each room stays on screen. Studio prepares one successor during playback. A rejected seed or a room that spends 60 seconds in preparation, uploads and material baking is skipped. A ready room can wait for any configured display interval. The console records the attempted seed and the phase of a timeout. The browser URL follows the displayed room. Setting the interval to zero cancels the pending automatic transition.
+
+The standalone native `--kiosk` viewer also monitors presentation independently of the window thread. If a visible, active kiosk goes 60 seconds without a rendered window frame, it reopens with the current settings and advances past the last attempted seed. Three expired room deadlines without a successful transition also trigger recovery. After three unsuccessful restarts the process exits with a diagnostic. Closing the window exits normally.
 
 Controls are declared in `src/app/editor/fields/`, separate from retained Feathers widgets, distribution previews, validated editor state, and URL encoding. Updating a continuous control preserves its widget identity, focus and scroll position. Human motion controls do not initialize models until an enabled policy is applied.
 

@@ -10,16 +10,33 @@ pub(super) fn prepare(
     settings: gi::BakeSettings,
     seed: u64,
 ) -> Task<gi::ProbeData> {
-    // One bake at a time, including a canceled job still finishing its CPU work.
-    // Replacement tasks are canceled on drop; no detached jobs or growing queue.
+    // Serialize full-volume bakes; each may use the configured probe workers.
     static POOL: std::sync::OnceLock<TaskPool> = std::sync::OnceLock::new();
-    POOL.get_or_init(|| {
+    let pool = POOL.get_or_init(|| {
         TaskPoolBuilder::new()
             .num_threads(1)
             .thread_name("indoor-lighting".into())
             .build()
+    });
+    let Some(controller) = bevy::tasks::AsyncComputeTaskPool::try_get() else {
+        return pool.spawn(async move { scene.bake(settings, seed) });
+    };
+    // Dropping a Task cannot interrupt a synchronous poll already inside bake().
+    // Keep the scene in its owning future until the serialized worker actually
+    // starts. Canceled queued rooms release their geometry even if it is busy.
+    let input = std::sync::Arc::new(std::sync::Mutex::new(Some(scene)));
+    let owner = std::sync::Arc::new(());
+    let wanted = std::sync::Arc::downgrade(&owner);
+    let queued = std::sync::Arc::downgrade(&input);
+    let worker = pool.spawn(async move {
+        let scene = queued.upgrade()?.lock().unwrap().take()?;
+        scene.bake_while(settings, seed, || wanted.strong_count() != 0)
+    });
+    controller.spawn(async move {
+        let volume = worker.await.expect("a live lighting request owns the bake");
+        drop((owner, input));
+        volume
     })
-    .spawn(async move { scene.bake(settings, seed) })
 }
 
 #[derive(Resource)]

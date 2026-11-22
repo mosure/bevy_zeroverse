@@ -30,6 +30,8 @@ pub mod editor;
 #[cfg(feature = "viewer")]
 mod inspector;
 mod presentation;
+#[cfg(not(target_arch = "wasm32"))]
+pub use presentation::run_native_viewer;
 mod settings;
 #[cfg(feature = "viewer")]
 use bevy::camera_controller::pan_orbit_camera::{

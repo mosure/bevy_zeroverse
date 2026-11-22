@@ -202,6 +202,10 @@ pub(crate) struct Request {
 }
 
 impl Request {
+    pub(in crate::scene::procedural_indoor) fn valid_inputs(&self) -> bool {
+        generated::Inputs::parse(self).is_ok()
+    }
+
     pub(crate) fn matches_config(
         &self,
         args: &BevyZeroverseConfig,

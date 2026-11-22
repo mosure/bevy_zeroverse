@@ -259,6 +259,8 @@ pub(crate) struct IndoorGenerationStatus {
     pub pending: bool,
     pub lighting_pending: bool,
     pub skipped_seed: Option<u64>,
+    pub(crate) attempted_seed: Option<u64>,
+    pub(crate) consecutive_timeouts: u8,
 }
 impl IndoorGenerationStatus {
     pub fn busy(&self) -> bool {
@@ -347,6 +349,8 @@ fn regenerate(
         generation.pending = false;
         generation.lighting_pending = false;
         generation.skipped_seed = None;
+        generation.consecutive_timeouts = 0;
+        generation.attempted_seed = None;
         #[cfg(not(target_arch = "wasm32"))]
         {
             commands.remove_resource::<gi::gpu::GpuBakeRequest>();
@@ -443,11 +447,9 @@ fn regenerate(
     }
     // A request is a snapshot: dragging a slider during preparation cannot
     // restart the job or mix its geometry with newer lighting/motion settings.
+    let automatic =
+        !args.headless && args.regenerate_ms > 0 && !sampler.as_ref().is_some_and(|s| s.enabled);
     let (args, settings, gi_settings) = pending.settings.clone().expect("requested settings");
-    // Keep the old scene responsive while the model and phenotype surfaces load.
-    if args.indoor_human_density > 0.0 && human_assets.is_none() {
-        return;
-    }
     if sequence.base_seed.is_none() || sequence.configured_seed != args.indoor_seed {
         sequence.configured_seed = args.indoor_seed;
         sequence.base_seed = Some(args.indoor_seed.unwrap_or_else(|| rand::rng().random()));
@@ -455,6 +457,30 @@ fn regenerate(
         pending.task = None;
     }
     let seed = sequence.base_seed.unwrap().wrapping_add(sequence.index);
+    let waiting_for_humans = args.indoor_human_density > 0.0 && human_assets.is_none();
+    if automatic {
+        generation.attempted_seed = Some(seed);
+    }
+    if automatic
+        && pending
+            .studio
+            .requested_expired(seed, time.elapsed(), waiting_for_humans)
+    {
+        pending
+            .studio
+            .expire(time.elapsed(), &mut sequence, &mut generation);
+        pending.studio.recover_empty_viewport = old.is_empty();
+        pending.task = None;
+        pending.key = None;
+        pending.settings = None;
+        pending.requested = false;
+        generation.pending = false;
+        future_assets.clear();
+        return;
+    }
+    if waiting_for_humans {
+        return;
+    }
     let key = preparation::pipeline::Request::new(seed, &args, &settings, gi_settings);
     if pending.key.as_ref() != Some(&key) {
         pending.key = Some(key.clone());
@@ -510,14 +536,18 @@ fn regenerate(
         Err(error) => {
             error!("procedural_indoor generation rejected: {error}");
             if !args.headless && !sampler.as_ref().is_some_and(|s| s.enabled) {
-                if matches!(error, crate::sample::failure::CaptureError::Rejected { .. }) {
+                if let Some(retry_at) =
+                    studio::next_attempt(&key, &error, automatic, time.elapsed())
+                {
                     sequence.index = sequence.index.wrapping_add(1);
-                    if args.regenerate_ms > 0 {
+                    if automatic {
+                        pending.studio.retry_after = Some(retry_at);
                         generation.skipped_seed = Some(seed);
                         pending.studio.recover_empty_viewport = old.is_empty();
                     }
                 } else {
                     generation.skipped_seed = None;
+                    generation.consecutive_timeouts = 0;
                     pending.studio.block(&key);
                 }
             }
@@ -529,6 +559,7 @@ fn regenerate(
     if !args.headless && !sampler.as_ref().is_some_and(|s| s.enabled) {
         pending.studio.presented(time.elapsed());
         generation.skipped_seed = None;
+        generation.consecutive_timeouts = 0;
         commands.insert_resource(crate::sample::CaptureFailure::default());
         commands.insert_resource(crate::sample::failure::SceneCaptureError::default());
     }

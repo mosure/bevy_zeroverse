@@ -165,7 +165,9 @@ bevy_zeroverse --kiosk
 ```
 
 Kiosk mode presents one calibrated RGB view fullscreen, requests HDR, and hides the
-Studio controls. Each room runs for 30 seconds. The camera follows a collision-checked
+Studio controls. Each room stays on screen for at least 30 seconds while its successor
+loads. If preparation takes 60 seconds, the Studio skips that seed and continues playback.
+The camera follows a collision-checked
 path of at least 2 m with smoothstep easing. It samples pinhole and full-frame fisheye
 lenses with horizon roll limited to ±10°. Explicit launch settings override the preset.
 F1 restores the controls and F11 toggles fullscreen. On the web, click once to allow

@@ -21,6 +21,18 @@ pub(in crate::scene::procedural_indoor) struct Uploads {
 }
 impl Uploads {
     pub fn new(room: &PreparedIndoor) -> Self {
+        // Publish a bake's own destinations together. An unrelated CPU texture
+        // or large mesh must not serialize all uploads ahead of all GPU bakes.
+        let bakes = &room.material_set.gpu_bakes;
+        let mut seen = std::collections::HashSet::new();
+        let destinations: Vec<_> = bakes
+            .1
+            .iter()
+            .flat_map(|r| &r.images)
+            .chain(bakes.0.iter().flat_map(|r| &r.images))
+            .map(Handle::id)
+            .filter(|id| room.images.entries.contains_key(id) && seen.insert(*id))
+            .collect();
         let remaining = room
             .materials
             .entries
@@ -28,7 +40,15 @@ impl Uploads {
             .copied()
             .map(Asset::Material)
             .chain(room.meshes.entries.keys().copied().map(Asset::Mesh))
-            .chain(room.images.entries.keys().copied().map(Asset::Image))
+            .chain(
+                room.images
+                    .entries
+                    .keys()
+                    .filter(|id| !seen.contains(*id))
+                    .copied()
+                    .map(Asset::Image),
+            )
+            .chain(destinations.into_iter().rev().map(Asset::Image))
             .collect();
         Self {
             finished: false,
@@ -38,6 +58,9 @@ impl Uploads {
             reflection_recipes: 0,
             slow_frames: 0,
         }
+    }
+    pub fn remaining_assets(&self) -> usize {
+        self.remaining.len()
     }
     pub fn stage(
         &mut self,
@@ -50,7 +73,7 @@ impl Uploads {
     ) -> bool {
         // Give the displayed scene first use of the device. Catching up on uploads
         // after a slow frame compounds the stall, especially on integrated GPUs.
-        self.slow_frames = if frame >= Duration::from_millis(160) {
+        self.slow_frames = if frame >= Duration::from_millis(80) {
             self.slow_frames.saturating_add(1)
         } else {
             0
@@ -59,8 +82,15 @@ impl Uploads {
         // in a static room. Maintain a bounded upload rate per wall-clock second
         // there. A single hitch must not trigger a larger follow-up batch.
         let (limit, bytes_limit, slices) = if self.slow_frames >= 3 {
-            let periods = (frame.as_millis() / 80).clamp(2, 8) as usize;
-            (8 * periods, 256 * 1024 * periods as u64, periods.min(4))
+            // At one displayed frame per second the fast-frame byte limit
+            // would take over a minute just to stage a 128 MiB furnished room.
+            // Target ~10 MiB/s there, with 12 MiB and 2 ms batch budgets. A single asset can exceed either.
+            let periods = (frame.as_millis() / 80).clamp(1, 16) as usize;
+            (
+                16 * periods,
+                768 * 1024 * periods as u64,
+                (2 * periods).min(8),
+            )
         } else if frame >= Duration::from_millis(80) {
             (8, 256 * 1024, 1)
         } else if frame > Duration::from_millis(32) {
@@ -93,21 +123,30 @@ impl Uploads {
                 }
             }
             if bytes >= bytes_limit
-                || start.elapsed() >= Duration::from_micros(500 * slices.min(2) as u64)
+                || start.elapsed() >= Duration::from_micros(500 * slices.min(4) as u64)
             {
                 break;
             }
         }
-        if !room.images.entries.is_empty() {
-            return false;
-        }
         let requested = &room.material_set.gpu_bakes;
         // Supply a small batch per rendered frame. Each recipe shares its original
         // completion flag with the room, so promotion cannot bake it twice.
-        let end = (self.recipes + slices).min(requested.0.len());
+        let staged = |handle: &Handle<Image>| !room.images.entries.contains_key(&handle.id());
+        let end = self.recipes
+            + requested.0[self.recipes..]
+                .iter()
+                .take(slices)
+                .take_while(|r| r.images.iter().all(staged))
+                .count();
         bakes.0.extend_from_slice(&requested.0[self.recipes..end]);
         self.recipes = end;
-        let end = (self.reflection_recipes + 1).min(requested.1.len());
+        let end = self.reflection_recipes
+            + usize::from(
+                requested
+                    .1
+                    .get(self.reflection_recipes)
+                    .is_some_and(|r| r.images.iter().all(staged)),
+            );
         bakes
             .1
             .extend_from_slice(&requested.1[self.reflection_recipes..end]);

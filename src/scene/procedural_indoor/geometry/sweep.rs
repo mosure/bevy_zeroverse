@@ -130,12 +130,24 @@ mod tests {
     fn tube_rings_replay_the_angular_samples_at_cached_and_custom_resolutions() {
         for sides in [3, 6, 8, 10, 12, 20, 32, 47] {
             let ring = primitives::tube_angles(sides);
+            let replay = primitives::tube_angles(sides);
             assert_eq!(ring.len(), sides as usize + 1);
-            for (j, sample) in ring.iter().enumerate() {
+            for (j, (sample, repeated)) in ring.iter().zip(replay.iter()).enumerate() {
                 let angle = TAU * j as f32 / sides as f32;
                 assert_eq!(sample.radians.to_bits(), angle.to_bits());
-                assert_eq!(sample.cos.to_bits(), angle.cos().to_bits());
-                assert_eq!(sample.sin.to_bits(), angle.sin().to_bits());
+                // Scalar and paired libm calls can round differently on macOS.
+                // Check accuracy against a wider reference and replay bit for bit.
+                let (sin, cos) = f64::from(angle).sin_cos();
+                for (value, second, expected) in [
+                    (sample.cos, repeated.cos, cos as f32),
+                    (sample.sin, repeated.sin, sin as f32),
+                ] {
+                    assert_eq!(value.to_bits(), second.to_bits());
+                    assert!(
+                        value.to_bits().abs_diff(expected.to_bits()) <= 1,
+                        "ring {sides}, sample {j}: {value} versus {expected}"
+                    );
+                }
             }
         }
         let mut g = Geometry::default();

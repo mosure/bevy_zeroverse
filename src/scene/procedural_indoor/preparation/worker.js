@@ -54,9 +54,9 @@ function dispatch() {
         };
         ticket.timeout = setTimeout(() => {
             if (active !== ticket) return;
-            unavailable = true;
             stop();
-            complete(ticket, false, Error('Preparation worker timed out'));
+            // A slow seed does not invalidate module workers for later rooms.
+            complete(ticket, false, new DOMException('Preparation worker timed out', 'TimeoutError'));
         }, 60000);
         const buffers = (Array.isArray(ticket.data) ? ticket.data : [ticket.data]).map(a => a.buffer);
         worker.postMessage({operation: ticket.operation, data: ticket.data}, buffers);

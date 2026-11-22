@@ -237,8 +237,52 @@ fn deadline_with_unfinished_work_keeps_the_old_scene_and_disabling_releases_it()
 }
 
 #[test]
+fn stalled_successor_expires_after_one_minute_without_retiring_the_displayed_room() {
+    let (mut app, root) = setup();
+    let seed = 71;
+    let request = key(app.world(), seed);
+    app.world_mut()
+        .resource_mut::<PendingIndoor>()
+        .studio
+        .candidate = Some((request, PreparationJob::pending_for_test()));
+    tick(&mut app, 1);
+    tick(&mut app, 59_999);
+    assert_eq!(app.world().resource::<IndoorSequence>().index, 1);
+    tick(&mut app, 1);
+    assert_eq!(
+        app.world()
+            .resource::<IndoorGenerationStatus>()
+            .skipped_seed,
+        Some(seed)
+    );
+    assert_eq!(app.world().resource::<IndoorSequence>().index, 2);
+    assert!(app.world().get_entity(root).is_ok());
+    assert!(app
+        .world()
+        .resource::<PendingIndoor>()
+        .studio
+        .candidate
+        .is_none());
+    tick(&mut app, 1);
+    assert_eq!(
+        app.world()
+            .resource::<PendingIndoor>()
+            .studio
+            .candidate
+            .as_ref()
+            .unwrap()
+            .0
+            .seed,
+        72
+    );
+}
+
+#[test]
 fn invalid_configuration_does_not_spin_through_seeds_and_manual_requests_still_work() {
     let (mut app, root) = setup();
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .indoor_camera = Some("{".into());
     inject(app.world_mut(), 71, Err("invalid configuration".into()));
     for _ in 0..4 {
         tick(&mut app, 1000);
@@ -251,6 +295,9 @@ fn invalid_configuration_does_not_spin_through_seeds_and_manual_requests_still_w
         .candidate
         .is_none());
     assert_eq!(app.world().resource::<IndoorSequence>().index, 1);
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .indoor_camera = None;
     app.world_mut().write_message(RegenerateSceneEvent);
     tick(&mut app, 1);
     assert!(app.world().resource::<PendingIndoor>().requested);
@@ -260,6 +307,43 @@ fn invalid_configuration_does_not_spin_through_seeds_and_manual_requests_still_w
         .studio
         .blocked
         .is_none());
+}
+
+#[test]
+fn a_failed_worker_with_valid_settings_advances_after_a_bounded_delay() {
+    for initial in [false, true] {
+        let (mut app, root) = setup();
+        inject(
+            app.world_mut(),
+            71,
+            Err("planning worker unavailable".into()),
+        );
+        if initial {
+            app.world_mut().despawn(root);
+            app.world_mut().write_message(RegenerateSceneEvent);
+        }
+        tick(&mut app, 20);
+        assert_eq!(
+            app.world()
+                .resource::<IndoorGenerationStatus>()
+                .skipped_seed,
+            Some(71)
+        );
+        tick(&mut app, 999);
+        assert!(app
+            .world()
+            .resource::<PendingIndoor>()
+            .studio
+            .candidate
+            .is_none());
+        tick(&mut app, 1);
+        let pending = app.world().resource::<PendingIndoor>();
+        assert_eq!(
+            pending.studio.candidate.as_ref().map(|c| c.0.seed),
+            Some(72)
+        );
+        assert_eq!(app.world().get_entity(root).is_ok(), !initial);
+    }
 }
 
 #[test]
@@ -312,4 +396,183 @@ fn rejected_initial_room_recovers_without_waiting_for_a_display_interval() {
     }
     assert_eq!(app.world().resource::<layout::IndoorManifest>().seed, 72);
     assert!(app.world().resource::<Time<Real>>().elapsed() < Duration::from_secs(60));
+}
+
+#[test]
+fn startup_timeout_includes_missing_human_assets_but_never_skips_a_capture_request() {
+    for headless in [false, true] {
+        let (mut app, root) = setup();
+        app.world_mut().despawn(root);
+        let mut config = app.world_mut().resource_mut::<BevyZeroverseConfig>();
+        config.headless = headless;
+        config.indoor_human_density = 0.5;
+        app.world_mut().write_message(RegenerateSceneEvent);
+        tick(&mut app, 1);
+        tick(&mut app, 60_000);
+        let pending = app.world().resource::<PendingIndoor>();
+        assert_eq!(pending.requested, headless);
+        assert_eq!(pending.studio.recover_empty_viewport, !headless);
+        assert_eq!(
+            app.world()
+                .resource::<IndoorGenerationStatus>()
+                .skipped_seed,
+            (!headless).then_some(71)
+        );
+        assert_eq!(
+            app.world().resource::<IndoorSequence>().index,
+            if headless { 1 } else { 2 }
+        );
+    }
+}
+
+#[test]
+fn a_ready_room_can_wait_for_a_five_minute_display_interval() {
+    let (mut app, root) = setup();
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .regenerate_ms = 300_000;
+    let world = app.world();
+    let room = bevy::tasks::block_on(prepare_indoor_typed(
+        71,
+        world.resource(),
+        world.resource(),
+        *world.resource::<gi::IndoorGiSettings>(),
+        StagedAssets::new(world.resource()),
+        StagedAssets::new(world.resource()),
+        StagedAssets::new(world.resource()),
+    ))
+    .unwrap();
+    inject(app.world_mut(), 71, Ok(room));
+    for _ in 0..500 {
+        tick(&mut app, 16);
+        if app
+            .world()
+            .resource::<PendingIndoor>()
+            .studio
+            .work
+            .as_ref()
+            .is_some_and(|w| w.phase == Phase::Ready)
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        app.world()
+            .resource::<PendingIndoor>()
+            .studio
+            .work
+            .as_ref()
+            .unwrap()
+            .phase,
+        Phase::Ready
+    );
+    tick(&mut app, 250_000);
+    assert!(app.world().get_entity(root).is_ok());
+    assert_eq!(
+        app.world()
+            .resource::<IndoorGenerationStatus>()
+            .skipped_seed,
+        None
+    );
+    tick(&mut app, 50_000);
+    assert_eq!(app.world().resource::<layout::IndoorManifest>().seed, 71);
+}
+
+#[test]
+fn late_upload_releases_staged_handles_and_cpu_fallback_shares_the_seed_deadline() {
+    let (mut app, root) = setup();
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .indoor_gpu_materials = true;
+    app.world_mut()
+        .resource_mut::<materials::gpu::MaterialComputeAvailable>()
+        .0 = true;
+    let world = app.world();
+    let room = bevy::tasks::block_on(prepare_indoor_typed(
+        71,
+        world.resource(),
+        world.resource(),
+        *world.resource::<gi::IndoorGiSettings>(),
+        StagedAssets::new(world.resource()),
+        StagedAssets::new(world.resource()),
+        StagedAssets::new(world.resource()),
+    ))
+    .unwrap();
+    // These are the real material recipes, with no render device to complete them.
+    assert!(!room.material_set.gpu_bakes.ready());
+    inject(app.world_mut(), 71, Ok(room));
+    tick(&mut app, 1);
+    for _ in 0..300 {
+        tick(&mut app, 10);
+        if app
+            .world()
+            .resource::<PendingIndoor>()
+            .studio
+            .waiting_for_bakes
+            .is_some()
+        {
+            break;
+        }
+    }
+    assert!(app
+        .world()
+        .resource::<PendingIndoor>()
+        .studio
+        .waiting_for_bakes
+        .is_some());
+    assert!(!app
+        .world()
+        .resource::<preparation::residency::FutureAssets>()
+        .material_bakes
+        .ready());
+    // The failed GPU attempt uses 59 of the 60 seconds. CPU fallback has only
+    // the unused second, and may not display a room containing unbaked maps.
+    let elapsed = app.world().resource::<Time<Real>>().elapsed().as_millis() as u64;
+    tick(&mut app, 59_001 - elapsed);
+    {
+        let studio = &app.world().resource::<PendingIndoor>().studio;
+        assert!(studio.cpu_materials && studio.candidate.is_none() && studio.uploads.is_none());
+        assert!(app
+            .world()
+            .resource::<preparation::residency::FutureAssets>()
+            .material_bakes
+            .1
+            .is_empty());
+    }
+    tick(&mut app, 1000);
+    assert_eq!(
+        app.world()
+            .resource::<IndoorGenerationStatus>()
+            .skipped_seed,
+        Some(71)
+    );
+    assert!(app.world().get_entity(root).is_ok());
+}
+
+#[test]
+fn repeated_stalls_cannot_accumulate_requests_or_revisit_expired_seeds() {
+    let (mut app, root) = setup();
+    for seed in 71..=136 {
+        let request = key(app.world(), seed);
+        app.world_mut()
+            .resource_mut::<PendingIndoor>()
+            .studio
+            .candidate = Some((request, PreparationJob::pending_for_test()));
+        tick(&mut app, 1);
+        tick(&mut app, 60_001);
+        let pending = app.world().resource::<PendingIndoor>();
+        assert!(
+            pending.studio.candidate.is_none()
+                && pending.studio.uploads.is_none()
+                && pending.task.is_none()
+        );
+        assert!(app.world().get_entity(root).is_ok());
+        assert_eq!(
+            app.world()
+                .resource::<IndoorGenerationStatus>()
+                .skipped_seed,
+            Some(seed)
+        );
+    }
+    assert!(app.world().resource::<Time<Real>>().elapsed() > Duration::from_secs(3600));
 }

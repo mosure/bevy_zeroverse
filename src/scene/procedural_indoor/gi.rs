@@ -856,6 +856,21 @@ impl BakeScene {
     }
 
     pub fn bake(&self, settings: BakeSettings, seed: u64) -> ProbeData {
+        self.bake_while(settings, seed, || true)
+            .expect("unconditional irradiance bake")
+    }
+
+    /// Retiring a room releases even an already-running CPU bake at a probe
+    /// boundary. A partial irradiance volume must never reach a displayed room.
+    pub(super) fn bake_while(
+        &self,
+        settings: BakeSettings,
+        seed: u64,
+        wanted: impl Fn() -> bool + Sync,
+    ) -> Option<ProbeData> {
+        if !wanted() {
+            return None;
+        }
         assert!(settings.spacing.is_finite() && settings.spacing >= 0.2);
         assert!(settings.rays_per_probe >= 16 && (1..=32).contains(&settings.diffuse_bounces));
         let started = Instant::now();
@@ -889,8 +904,12 @@ impl BakeScene {
             std::thread::scope(|scope| {
                 for (chunk, output) in values.chunks_mut(count.div_ceil(workers)).enumerate() {
                     let calculate = &calculate;
+                    let wanted = &wanted;
                     scope.spawn(move || {
                         for (j, value) in output.iter_mut().enumerate() {
+                            if !wanted() {
+                                break;
+                            }
                             *value = calculate(chunk * count.div_ceil(workers) + j);
                         }
                     });
@@ -906,6 +925,9 @@ impl BakeScene {
         // A nearest valid sample is used at the original grid location; this is
         // bounded spatial extrapolation, not visibility-aware probe interpolation.
         for i in 0..count {
+            if !wanted() {
+                return None;
+            }
             if !valid[i] {
                 if let Some(nearest) = (0..count).filter(|&j| valid[j]).min_by(|&a, &b| {
                     points[a]
@@ -918,7 +940,7 @@ impl BakeScene {
             }
         }
         let mean = values.iter().flatten().copied().sum::<Vec3>() / (count * 6) as f32;
-        ProbeData {
+        Some(ProbeData {
             resolution,
             bounds_min: self.bounds_min,
             bounds_max: self.bounds_max,
@@ -943,7 +965,7 @@ impl BakeScene {
                 prefetch_hit: false,
                 prefetch_wait_ms: 0.0,
             },
-        }
+        })
     }
 }
 
@@ -1091,6 +1113,33 @@ mod tests {
         assert_eq!(moving.lights.len(), fixed.lights.len());
         assert_eq!(moving.bounds_min, fixed.bounds_min);
         assert_eq!(moving.bounds_max, fixed.bounds_max);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn canceling_an_in_progress_cpu_bake_discards_the_partial_volume() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let scene = daylight_floor();
+        let settings = BakeSettings {
+            spacing: 0.5,
+            rays_per_probe: 16,
+            diffuse_bounces: 1,
+            workers: 1,
+        };
+        let probes = AtomicUsize::new(0);
+        assert!(scene
+            .bake_while(settings, 70, || {
+                probes.fetch_add(1, Ordering::Relaxed) < 3
+            })
+            .is_none());
+        assert!(
+            probes.load(Ordering::Relaxed) <= 5,
+            "discarded room kept tracing probes"
+        );
+        assert_eq!(
+            scene.bake(settings, 70).values,
+            scene.bake_while(settings, 70, || true).unwrap().values
+        );
     }
 
     pub(super) fn empty() -> BakeScene {

@@ -6,6 +6,23 @@ use crate::{
     scene::procedural_indoor::cameras::{CameraSettings, RollDistribution},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+mod watchdog;
+
+/// Standalone native viewer. Embedded apps retain ownership of their process.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run_native_viewer() -> bevy::app::AppExit {
+    let cli = parse_cli(std::env::args_os()).unwrap_or_else(|error| error.exit());
+    if !cli.kiosk || cli.headless {
+        return super::viewer_app(None, Some(cli)).run();
+    }
+    let (config, failures) = watchdog::launch_config(cli);
+    let watch = watchdog::Watch::start(config.clone(), failures);
+    let mut app = watchdog::open_window(config, failures);
+    watch.install(&mut app);
+    app.run()
+}
+
 const SCENE_SECONDS: u32 = 30;
 
 pub(super) fn default_view(kiosk: bool) -> ViewState {
