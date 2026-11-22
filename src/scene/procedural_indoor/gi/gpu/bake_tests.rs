@@ -127,6 +127,7 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
         emission: Vec3::ZERO,
         uv_scale: Vec2::ONE,
         texture: None,
+        address: Default::default(),
         textured_emission: false,
     });
     drop(scene.build_bvh());
@@ -147,4 +148,55 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
     assert!(lit
         .iter()
         .all(|lobe| lobe.x > 0.005 && lobe.y == 0. && lobe.z == 0.));
+
+    // Same texture and UVs, two actual hardware address contracts. Every wall
+    // is emissive so the read-back six lobes directly identify the sampled texel.
+    let mut indexed = super::super::tests::empty();
+    indexed.bounds_max = Vec3::splat(3.);
+    let uv = Vec2::new(-0.25, 1.25);
+    for mut geometry in walls.parts.into_values() {
+        geometry.uvs.fill(uv.to_array());
+        indexed.add_geometry(&geometry, Transform::IDENTITY, 0);
+    }
+    drop(indexed.build_bvh());
+    indexed.materials.push(DiffuseMaterial {
+        albedo: Vec3::ONE,
+        emission: Vec3::ONE,
+        uv_scale: Vec2::ONE,
+        texture: Some((2, vec![Vec3::X, Vec3::Y, Vec3::Z, Vec3::ONE])),
+        address: Default::default(),
+        textured_emission: true,
+    });
+    use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
+    for (u, v, expected) in [
+        (ImageAddressMode::Repeat, ImageAddressMode::Repeat, Vec3::Y),
+        (
+            ImageAddressMode::ClampToEdge,
+            ImageAddressMode::ClampToEdge,
+            Vec3::Z,
+        ),
+        (
+            ImageAddressMode::MirrorRepeat,
+            ImageAddressMode::Repeat,
+            Vec3::X,
+        ),
+        (
+            ImageAddressMode::ClampToBorder,
+            ImageAddressMode::Repeat,
+            Vec3::ZERO,
+        ),
+    ] {
+        indexed.materials[0].address = TextureAddress::from_descriptor(&ImageSamplerDescriptor {
+            address_mode_u: u,
+            address_mode_v: v,
+            ..default()
+        });
+        assert_eq!(indexed.materials[0].albedo(uv), expected);
+        for lobe in bake_lobes(&mut app, &indexed) {
+            assert!(
+                (lobe - expected).abs().max_element() < 0.02,
+                "{u:?}/{v:?}: {lobe:?}"
+            );
+        }
+    }
 }

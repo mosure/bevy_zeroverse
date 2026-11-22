@@ -9,6 +9,7 @@ fn supplies_fit_metric_extremes_and_keep_semantics() {
         ObjectKind::CuttingBoard,
         ObjectKind::SoapDispenser,
         ObjectKind::Sponge,
+        ObjectKind::Flatware,
         ObjectKind::KnifeBlock,
     ] {
         for seed in 0..64 {

@@ -155,6 +155,7 @@ fn original_from_geometry(
                     emission: Vec3::ZERO,
                     uv_scale: Vec2::ONE,
                     texture: None,
+                    address: Default::default(),
                     textured_emission: false,
                 }
             };
@@ -745,4 +746,62 @@ fn complete_room_probe_trees_preserve_scalar_reference() {
             }
         }
     }
+}
+
+#[test]
+fn rest_pose_irradiance_does_not_leave_a_light_behind_after_the_lamp_moves() {
+    use crate::scene::procedural_indoor::{
+        motion::{IndoorMotionReport, MechanismReport, MotionKind},
+        objects::audit,
+    };
+    let mut room =
+        IndoorManifest::generate_with_humans(42, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut lamp = audit::fixture(ObjectKind::DeskLamp, 42);
+    lamp.id = 0;
+    lamp.position = Vec3::new(0.2, 0.65, -0.45);
+    let source = objects::accessories::lamps::beam(&lamp).position;
+    room.objects = vec![lamp];
+    room.humans.clear();
+    let geometry = SceneGeometry {
+        architecture: default(),
+        objects: vec![default()],
+        humans: vec![],
+    };
+    let baked = |room: &IndoorManifest| {
+        GeometryTransport::emit(room, &[], &geometry)
+            .0
+            .scene
+            .lights
+            .iter()
+            .any(|l| l.position.distance(source) < 1e-6)
+    };
+    assert!(baked(&room));
+    let mut report = IndoorMotionReport::new(default());
+    report.mechanisms.push(MechanismReport {
+        object_id: Some(0),
+        carried_object_ids: vec![],
+        semantic_labels: vec!["lamp".into()],
+        joint: 0,
+        kind: MotionKind::Prop,
+        interval: [0., 1.],
+        rejection: None,
+        swept_bounds: vec![],
+        translation_m: Vec3::X * 0.12,
+        angle_radians: 0.,
+        pivot: Vec3::ZERO,
+        axis: Vec3::Y,
+        attempts: 1,
+        adaptation: None,
+        requested_translation_m: Vec3::X * 0.12,
+        requested_angle_radians: 0.,
+    });
+    room.indoor_motion = Some(report);
+    assert!(!baked(&room));
+    let m = &mut room.indoor_motion.as_mut().unwrap().mechanisms[0];
+    m.object_id = Some(1);
+    m.carried_object_ids.push(0);
+    m.kind = MotionKind::Cart;
+    assert!(!baked(&room));
+    room.indoor_motion.as_mut().unwrap().mechanisms[0].rejection = Some("obstructed".into());
+    assert!(baked(&room));
 }

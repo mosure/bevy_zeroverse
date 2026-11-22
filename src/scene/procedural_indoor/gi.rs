@@ -11,7 +11,9 @@ mod bvh;
 mod probe_domain;
 use probe_domain::ProbeDomain;
 mod reflection_emitters;
+mod texture_address;
 pub(crate) use reflection_emitters::ReflectionEmitters;
+use texture_address::TextureAddress;
 #[cfg(not(target_arch = "wasm32"))]
 mod transport;
 #[cfg(not(target_arch = "wasm32"))]
@@ -281,6 +283,7 @@ struct DiffuseMaterial {
     emission: Vec3,
     uv_scale: Vec2,
     texture: Option<(u32, Vec<Vec3>)>,
+    address: TextureAddress,
     textured_emission: bool,
 }
 
@@ -333,6 +336,11 @@ impl DiffuseMaterial {
             emission: Vec3::new(mat.emissive.red, mat.emissive.green, mat.emissive.blue),
             uv_scale: mat.uv_transform.matrix2 * Vec2::ONE,
             texture,
+            address: mat
+                .base_color_texture
+                .as_ref()
+                .and_then(|h| images.get(h))
+                .map_or_else(TextureAddress::default, TextureAddress::for_image),
             textured_emission: mat.emissive_texture.is_some(),
         }
     }
@@ -341,10 +349,7 @@ impl DiffuseMaterial {
         let Some((n, pixels)) = &self.texture else {
             return self.albedo;
         };
-        let uv = (uv * self.uv_scale).rem_euclid(Vec2::ONE);
-        let x = (uv.x * *n as f32) as usize % *n as usize;
-        let y = (uv.y * *n as f32) as usize % *n as usize;
-        self.albedo * pixels[y * *n as usize + x]
+        self.albedo * self.address.sample(uv * self.uv_scale, *n, pixels)
     }
 }
 
@@ -1319,6 +1324,7 @@ mod tests {
             emission: Vec3::ONE,
             uv_scale: Vec2::ONE,
             texture: None,
+            address: Default::default(),
             textured_emission: false,
         });
         let mut walls = Assembly::default();
@@ -1436,6 +1442,7 @@ mod tests {
             emission: Vec3::X,
             uv_scale: Vec2::ONE,
             texture: None,
+            address: Default::default(),
             textured_emission: false,
         });
         let mut panel = Assembly::default();

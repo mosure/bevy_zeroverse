@@ -13,6 +13,7 @@ use anyhow::{Context as ContextExt, Result};
 use burn::data::dataset::{Dataset, DatasetError};
 
 use crate::chunk::{discover_chunks, load_chunk};
+use bevy_zeroverse_capture::request::CaptureRequest;
 
 pub type ZeroverseSample = bevy_zeroverse::sample::Sample;
 
@@ -193,6 +194,7 @@ impl LiveDataset {
 
     fn request_next(
         &self,
+        request: Option<&CaptureRequest>,
         prefetch_indoor: usize,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
         recover_scene_rejections: bool,
@@ -210,10 +212,12 @@ impl LiveDataset {
         let sender = bevy_zeroverse::io::channels::app_frame_sender();
         sender
             .send(bevy_zeroverse::io::channels::AppFrameRequest {
+                indoor_seed: request.map(|r| r.seed),
+                rgb_artifact_eligible_cameras_by_timestep: request
+                    .and_then(|r| r.rgb_artifact_eligible_cameras_by_timestep.clone()),
                 prefetch_indoor,
                 idle_work,
                 recover_scene_rejections,
-                ..Default::default()
             })
             .context("failed to signal zeroverse app for next sample")
     }
@@ -266,15 +270,28 @@ impl LiveDataset {
     )> {
         self.capture(
             None,
+            None,
             bevy_zeroverse::io::channels::IdleWork::Preflight,
             false,
         )
+    }
+
+    /// Capture an exact room and apply its timestep-major RGB eligibility on this transaction.
+    pub fn capture_request(&self, request: &CaptureRequest) -> Result<ZeroverseSample> {
+        self.capture(
+            Some(request),
+            Some(0),
+            bevy_zeroverse::io::channels::IdleWork::CpuOnly,
+            false,
+        )
+        .map(|(sample, _)| sample)
     }
 
     // Compatibility for the generator's existing diagnostic prefetch overrides.
     // Ordinary downstream callers use next_sample or Dataset::get.
     pub(crate) fn capture_next(
         &self,
+        request: Option<&CaptureRequest>,
         prefetch_indoor: usize,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
         recover_scene_rejections: bool,
@@ -282,11 +299,17 @@ impl LiveDataset {
         ZeroverseSample,
         Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
     )> {
-        self.capture(Some(prefetch_indoor), idle_work, recover_scene_rejections)
+        self.capture(
+            request,
+            Some(prefetch_indoor),
+            idle_work,
+            recover_scene_rejections,
+        )
     }
 
     fn capture(
         &self,
+        request: Option<&CaptureRequest>,
         lookahead_override: Option<usize>,
         idle_work: bevy_zeroverse::io::channels::IdleWork,
         recover_scene_rejections: bool,
@@ -294,6 +317,16 @@ impl LiveDataset {
         ZeroverseSample,
         Option<bevy_zeroverse::io::channels::CaptureTelemetry>,
     )> {
+        if let Some(request) = request {
+            let scene = &self.config.zeroverse_config;
+            anyhow::ensure!(
+                scene.scene_type == bevy_zeroverse::scene::ZeroverseSceneType::ProceduralIndoor,
+                "indexed capture requires procedural indoor"
+            );
+            request
+                .validate(scene.num_cameras, scene.playback_steps as usize)
+                .map_err(anyhow::Error::msg)?;
+        }
         let _transaction = CAPTURE_TRANSACTION
             .lock()
             .map_err(|_| anyhow::anyhow!("capture transaction lock poisoned"))?;
@@ -311,7 +344,7 @@ impl LiveDataset {
                 0
             }
         });
-        self.request_next(lookahead, idle_work, recover_scene_rejections)?;
+        self.request_next(request, lookahead, idle_work, recover_scene_rejections)?;
         let result = self.receive_sample();
         if result
             .as_ref()

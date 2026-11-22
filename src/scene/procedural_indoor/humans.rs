@@ -74,6 +74,7 @@ pub enum HumanPoseKind {
     StandingConversation,
     StandingReading,
     StandingWalking,
+    StandingPreparing,
 }
 impl HumanPoseKind {
     pub fn seated(self) -> bool {
@@ -131,6 +132,9 @@ pub struct IndoorHuman {
     /// Optional static tabletop support, in person-local metres.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktop_contact: Option<contact::WorktopContact>,
+    /// Installed preparation counter attended by this static standing person.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workstation: Option<usize>,
     pub chair: Option<usize>,
     pub neighbor: bool,
     pub outfit: HumanOutfit,
@@ -148,6 +152,12 @@ pub struct IndoorHuman {
 }
 
 impl IndoorHuman {
+    pub(crate) fn has_coiled_hair(&self) -> bool {
+        matches!(
+            hair::HairStyle::from_id(self.hairstyle),
+            Some(hair::HairStyle::TightCurls | hair::HairStyle::Afro)
+        )
+    }
     pub fn transform(&self) -> Transform {
         Transform::from_translation(self.position).with_rotation(Quat::from_rotation_y(self.yaw))
     }
@@ -344,7 +354,12 @@ pub(crate) fn person_material(
         mat.perceptual_roughness = 1.;
         mat
     } else if surface == HumanSurface::Hair {
-        materials.get(&indoor_materials.hair).unwrap().clone()
+        let hair = if person.has_coiled_hair() {
+            &indoor_materials.coiled_hair
+        } else {
+            &indoor_materials.hair
+        };
+        materials.get(hair).unwrap().clone()
     } else if matches!(
         surface,
         HumanSurface::Skin | HumanSurface::Lip | HumanSurface::FacialHair
@@ -421,13 +436,6 @@ pub(crate) fn person_material(
             material.perceptual_roughness = appearance.skin_roughness;
             material.reflectance = 0.42;
         }
-        if surface == HumanSurface::Hair {
-            // Aggregate fibre reflection is directional in the groom's tangent
-            // frame; curl broadens it continuously. This is still a surface PBR
-            // approximation, not multiple scattering between individual fibres.
-            material.perceptual_roughness =
-                0.64 + 0.10 * (appearance.hair_curl / 0.06).clamp(0.0, 1.0);
-        }
         if surface == HumanSurface::Eyewear {
             material.metallic = appearance.face.frame_metallic;
         }
@@ -436,13 +444,7 @@ pub(crate) fn person_material(
         }
     }
     if surface == HumanSurface::Hair {
-        material.reflectance = 0.28;
-        if person.hairstyle == hair::HairStyle::Afro as u8 {
-            material.perceptual_roughness = 0.90;
-            material.anisotropy_strength = 0.08;
-        } else if person.hairstyle == hair::HairStyle::TightCurls as u8 {
-            material.anisotropy_strength = 0.20;
-        }
+        hair::finish_material(&mut material, person);
     }
     if surface == HumanSurface::Eyewear {
         material.perceptual_roughness = 0.27;
@@ -576,6 +578,7 @@ fn sample_person(
     let joints = program.solve(stature, build, shoulder_width, pose.seated());
     let mut human = IndoorHuman {
         worktop_contact: None,
+        workstation: None,
         id,
         seed,
         position,
@@ -628,6 +631,7 @@ pub(crate) fn standing_at(
     let mut h = h.clone();
     h.pose = HumanPoseKind::StandingWalking;
     h.worktop_contact = None;
+    h.workstation = None;
     h.chair = None;
     h.neighbor = neighbor;
     h.position = position;
@@ -664,9 +668,7 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
     let Some(pose) = h.pose_program.as_mut() else {
         return;
     };
-    let torso = Quat::from_rotation_y(pose.torso_twist)
-        * Quat::from_rotation_x(pose.lean.y)
-        * Quat::from_rotation_z(-pose.lean.x);
+    let torso = pose.torso_rotation();
     let mut rng = stream(h.seed, 907 + proposal);
     // Feet adopt a compact but continuously varied stance in a worktop's knee
     // bay. This retains anatomical segment lengths and avoids splayed shoes
@@ -690,9 +692,7 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
                 -rng.random_range(0.26..0.40) * h.stature / 1.75,
             );
             let delta = torso.inverse() * (goal - h.joints[base]);
-            pose.arm_elevation[i] = delta.y.atan2(delta.xz().length());
-            pose.arm_sweep[i] = ((if i == 0 { -1. } else { 1. }) * delta.x).atan2(-delta.z);
-            pose.arm_reach[i] = (delta.length() / (0.55 * h.stature / 1.75)).clamp(0.25, 0.98);
+            pose.aim_wrist(i, delta, h.stature);
         }
     }
     if h.pose == HumanPoseKind::SeatedTalking && proposal > 0 {
@@ -706,9 +706,7 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
                 -rng.random_range(0.18..0.36),
             );
             let delta = torso.inverse() * (goal - h.joints[base]);
-            pose.arm_elevation[i] = delta.y.atan2(delta.xz().length());
-            pose.arm_sweep[i] = ((if i == 0 { -1. } else { 1. }) * delta.x).atan2(-delta.z);
-            pose.arm_reach[i] = (delta.length() / (0.55 * h.stature / 1.75)).clamp(0.25, 0.98);
+            pose.aim_wrist(i, delta, h.stature);
         }
     }
     h.joints = pose.solve(h.stature, h.build, h.shoulder_width, true);
@@ -1033,7 +1031,12 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             }
         }
         let size = object.size;
-        for &(a, b, r) in if table.is_some() && (person.worktop_contact.is_none() || supported) {
+        let prep_furniture = person
+            .workstation
+            .is_some_and(|id| object.id == id || object.support == Some(id));
+        for &(a, b, r) in if prep_furniture
+            || table.is_some() && (person.worktop_contact.is_none() || supported)
+        {
             &table_capsules
         } else {
             &capsules
@@ -1117,6 +1120,12 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
             }
         } else if human.chair.is_some() {
             return Err("standing human has a chair support".into());
+        }
+        if !population::workstation::valid_relationship(scene, human) {
+            return Err(format!(
+                "invalid preparation counter for human {}",
+                human.id
+            ));
         }
         if !(1.50..=1.95).contains(&human.stature)
             || human.skin_tone >= 8

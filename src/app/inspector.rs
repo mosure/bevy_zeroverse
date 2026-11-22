@@ -58,6 +58,25 @@ pub(super) fn panel(world: &mut World) {
         world.insert_resource(state);
         return;
     }
+    let hidden = world
+        .resource::<editor::model::EditorState>()
+        .view
+        .viewport_only;
+    if let Some(root) = state.root {
+        let visibility = if hidden {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
+        world
+            .get_mut::<Visibility>(root)
+            .unwrap()
+            .set_if_neq(visibility);
+    }
+    if hidden {
+        world.insert_resource(state);
+        return;
+    }
     let scene = world.resource::<BevyZeroverseConfig>().scene_type.clone();
     if state.scene.as_ref() != Some(&scene) {
         if let Some(root) = state.root.take() {

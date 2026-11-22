@@ -78,6 +78,11 @@ pub fn items(state: &EditorState) -> Vec<Item> {
     let d = &state.draft;
     let indoor = d["scene_type"] == "ProceduralIndoor";
     let mut v = pages::base(state.view.page);
+    let rgb = d["render_mode"] == "Color"
+        || (d["render_mode"] == "CoVisibility" && d["camera_grid"] != true);
+    if !rgb {
+        v.retain(|item| !matches!(item, Item::Field(f) if matches!(f.path.as_str(), "/tonemapping" | "/hdr")));
+    }
     cameras::append(state, &mut v);
     motion::append(state, &mut v);
     if indoor && state.view.page == Page::Scene {
@@ -129,6 +134,8 @@ pub fn items(state: &EditorState) -> Vec<Item> {
         v.retain(|item| match item {
             Item::Field(f) => ![
                 "/render_mode",
+                "/hdr",
+                "/tonemapping",
                 "@editor_fov",
                 "/gizmos",
                 "/draw_obb_gizmo",

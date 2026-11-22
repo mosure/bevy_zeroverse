@@ -2,10 +2,7 @@ use super::*;
 use bevy_zeroverse::sample::failure::{CaptureError, SceneRejectionKind};
 
 fn request(sequence: usize) -> CaptureRequest {
-    CaptureRequest {
-        sequence,
-        seed: 100 + sequence as u64,
-    }
+    CaptureRequest::new(sequence, 100 + sequence as u64)
 }
 fn rejection(sequence: usize) -> SceneRejection {
     SceneRejection {

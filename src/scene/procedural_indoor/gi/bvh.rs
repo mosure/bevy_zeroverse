@@ -94,6 +94,23 @@ fn build_probe_tree_with_parallelism(
     parallel: bool,
 ) -> (Vec<Node>, Vec<Primitive>) {
     let mut primitives = primitives(triangles);
+    let nodes = probe_nodes(&mut primitives, parallel);
+    // Apply the permutation in place, cycle by cycle. Each complete triangle
+    // moves only here; no second full triangle allocation or persistent cache.
+    for start in 0..primitives.len() {
+        let mut current = start;
+        while primitives[current].original != start {
+            let next = primitives[current].original;
+            triangles.swap(current, next);
+            primitives[current].original = current;
+            current = next;
+        }
+        primitives[current].original = current;
+    }
+    (nodes, primitives)
+}
+
+fn probe_nodes(primitives: &mut [Primitive], parallel: bool) -> Vec<Node> {
     fn split(
         triangles: &mut [Primitive],
         start: usize,
@@ -154,7 +171,7 @@ fn build_probe_tree_with_parallelism(
         #[cfg(target_arch = "wasm32")]
         let _ = parallel;
     }
-    let count = probe_node_count(triangles.len());
+    let count = probe_node_count(primitives.len());
     let mut nodes = Vec::with_capacity(count);
     nodes.resize_with(count, || Node {
         lo: Vec3::ZERO,
@@ -164,23 +181,14 @@ fn build_probe_tree_with_parallelism(
         right: 0,
         axis: 0,
     });
-    if !triangles.is_empty() {
-        split(&mut primitives, 0, 0, &mut nodes, parallel);
+    if !primitives.is_empty() {
+        split(primitives, 0, 0, &mut nodes, parallel);
     }
-    // Apply the permutation in place, cycle by cycle. Each complete triangle
-    // moves only here; no second full triangle allocation or persistent cache.
-    for start in 0..primitives.len() {
-        let mut current = start;
-        while primitives[current].original != start {
-            let next = primitives[current].original;
-            triangles.swap(current, next);
-            primitives[current].original = current;
-            current = next;
-        }
-        primitives[current].original = current;
-    }
-    (nodes, primitives)
+    nodes
 }
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(super) mod web;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod sah;

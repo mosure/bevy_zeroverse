@@ -14,6 +14,27 @@ struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f3
 @group(0) @binding(7) var output:texture_storage_3d<rgba16float,write>;
 const PI:f32=3.141592653589793;
 
+// Mirror the image sampler for the downsampled diffuse map. Size is also the
+// sentinel for a border tap. The hot repeated-map path keeps its vector lookup.
+fn texel_axis(value: f32, mode: u32, size: u32) -> u32 {
+    if mode == 0u { return u32(fract(value) * f32(size)) % size; }
+    if mode == 3u && (value < 0.0 || value >= 1.0) { return size; }
+    var coordinate = clamp(value, 0.0, 1.0);
+    if mode == 2u { coordinate = 1.0 - abs(fract(value * 0.5) * 2.0 - 1.0); }
+    return min(u32(coordinate * f32(size)), size - 1u);
+}
+fn diffuse_texel(material: Material, uv: vec2<f32>) -> vec3<f32> {
+    let size = material.tex.y;
+    let address = material.tex.w;
+    var pixel: vec2<u32>;
+    if address == 0u {
+        pixel = vec2<u32>(fract(uv) * f32(size)) % vec2(size);
+    } else {
+        pixel = vec2(texel_axis(uv.x, address & 3u, size), texel_axis(uv.y, (address >> 2u) & 3u, size));
+        if any(pixel == vec2(size)) { return vec3(f32((address >> 4u) & 1u)); }
+    }
+    return texels[material.tex.x + pixel.y * size + pixel.x].xyz;
+}
 fn random(state:ptr<function,u32>)->f32 {
     *state=*state*747796405u+2891336453u;
     let shift=((*state>>28u)+4u);
@@ -91,8 +112,7 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
         let uv=triangle.uv01.xy*(1.0-hit.u-hit.v)+triangle.uv01.zw*hit.u+triangle.uv2_material.xy*hit.v;
         var albedo=material.albedo.xyz;
         if material.tex.y!=0u {
-            let texcoord=vec2<u32>(fract(uv*material.uv_scale.xy)*f32(material.tex.y))%vec2(material.tex.y);
-            albedo*=texels[material.tex.x+texcoord.y*material.tex.y+texcoord.x].xyz;
+            albedo *= diffuse_texel(material, uv * material.uv_scale.xy);
         }
         let emission=select(material.emission.xyz,material.emission.xyz*albedo,material.tex.z!=0u);
         result+=throughput*(emission+albedo*direct(position,normal)/PI);

@@ -55,6 +55,26 @@ impl GeometryTransport {
         Self::emit(scene, moving_humans, geometry).finish(gpu_transport)
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) async fn build_interactive(
+        manifest: &IndoorManifest,
+        moving_humans: &[usize],
+        geometry: &super::super::preparation::SceneGeometry,
+    ) -> Self {
+        let mut input = Self::emit(manifest, moving_humans, geometry);
+        let started = Instant::now();
+        if let Some(nodes) = super::bvh::web::build(&mut input.0.scene.triangles).await {
+            let mut result = input.0;
+            result.scene.nodes = nodes;
+            result.timings.probe_tree_seconds = started.elapsed().as_secs_f64();
+            result.timings.probe_nodes = result.scene.nodes.len();
+            result.scene.preparation_ms += result.timings.probe_tree_seconds * 1000.;
+            result
+        } else {
+            input.finish(false)
+        }
+    }
+
     pub(crate) fn emit(
         scene: &IndoorManifest,
         moving_humans: &[usize],
@@ -142,6 +162,9 @@ impl GeometryTransport {
             .iter()
             .filter(|o| o.kind == ObjectKind::FloorLamp)
         {
+            if !super::super::photometry::stationary_source(scene, lamp) {
+                continue;
+            }
             result.scene.lights.push(LocalLight {
                 direction: Vec3::NEG_Y,
                 position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
@@ -163,6 +186,9 @@ impl GeometryTransport {
                 ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
             )
         }) {
+            if !super::super::photometry::stationary_source(scene, lamp) {
+                continue;
+            }
             let (beam, power) = architecture::object_fixture_photometry(scene, lamp);
             result.scene.lights.push(LocalLight {
                 direction: beam.direction,
@@ -333,6 +359,7 @@ impl GeometryTransport {
                             emission: Vec3::ZERO,
                             uv_scale: Vec2::ONE,
                             texture: None,
+                            address: Default::default(),
                             textured_emission: false,
                         }
                     };

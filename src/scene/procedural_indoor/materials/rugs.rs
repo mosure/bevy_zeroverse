@@ -117,8 +117,9 @@ pub(super) async fn build(
         .collect();
     for slot in slots {
         let r = recipe(&program.materials[Surface::FabricAlt as usize], slot);
-        let [color, normal, data] =
-            gpu::Maps::prepare(&r, scene.floor_style, gpu).insert(images, requests);
+        let [color, normal, data] = gpu::Maps::scheduled(&r, scene.floor_style, gpu, cooperative)
+            .await
+            .insert(images, requests);
         let mut mat = StandardMaterial {
             base_color: Color::WHITE,
             base_color_texture: Some(color),

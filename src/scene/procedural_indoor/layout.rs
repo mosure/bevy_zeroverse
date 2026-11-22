@@ -925,11 +925,20 @@ impl IndoorManifest {
                 let mut light_rng = stream(surface.seed, 5540);
                 if light_rng.random_bool(0.26) {
                     let handed = if light_rng.random_bool(0.5) { -1. } else { 1. };
+                    let chair = self.objects.iter().find(|o| {
+                        o.kind == ObjectKind::Chair && o.interaction_target == Some(surface.id)
+                    });
+                    let (offset, size) = surfaces::desk_lamp_placement(
+                        &surface,
+                        chair.map(|o| o.position),
+                        handed,
+                        light_rng.random_range(0.29..0.54),
+                    );
                     self.prop(
                         &surface,
                         ObjectKind::DeskLamp,
-                        Vec3::new(handed * surface.size.x * 0.34, 0., -surface.size.z * 0.27),
-                        Vec3::new(0.20, light_rng.random_range(0.31..0.48), 0.22),
+                        offset,
+                        size,
                         light_rng.random_range(-0.12..0.12),
                         &mut light_rng,
                     );
@@ -940,7 +949,9 @@ impl IndoorManifest {
                 continue;
             }
             if surface.kind == ObjectKind::Table {
-                self.conference_props(&surface, rng);
+                if !self.is_dining_table(&surface) {
+                    self.conference_props(&surface, rng);
+                }
                 continue;
             }
             self.decorate_workspace(&surface);
@@ -979,11 +990,17 @@ impl IndoorManifest {
         let pos = support
             .transform()
             .transform_point(offset + Vec3::Y * support.size.y);
-        let mut obj = self.candidate(kind, pos, size, support.yaw + yaw, rng);
+        let obj = self.candidate(kind, pos, size, support.yaw + yaw, rng);
+        self.admit_supported_prop(support, obj);
+    }
+
+    fn admit_supported_prop(&mut self, support: &IndoorObject, mut obj: IndoorObject) -> bool {
+        let kind = obj.kind;
+        let pos = obj.position;
         // Consume the candidate's small fixed draw even when the table is
         // clear, keeping later proposals on this stream reproducible.
         if !self.permits_table_item(support, kind) {
-            return;
+            return false;
         }
         obj.solid = false;
         obj.support = Some(support.id);
@@ -1003,11 +1020,12 @@ impl IndoorManifest {
                 obj.interaction_target = Some(chair.id);
             }
         }
-        if !self.prop_clear(&obj, support, 0.012) {
+        if !self.orient_and_check_prop(&mut obj, support) {
             self.rejected_placements += 1;
-            return;
+            return false;
         }
         self.objects.push(obj);
+        true
     }
 
     /// Check actual rotated prop footprints in the supporting surface's frame.

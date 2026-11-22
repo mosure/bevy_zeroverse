@@ -181,6 +181,10 @@ See the [tensor contract and benchmark](docs/gpu_jit.md).
 Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
+**F1** presents the editor camera, camera grid or schematic edge to edge. Press F1
+again to restore the controls. With **Next scene interval** enabled, Studio prepares
+one indoor successor during playback and skips rejected seeds. The interval is
+the minimum display time for each room.
 Collapsible task groups and **Jump to group…** keep related controls together;
 each page remembers its scroll position. **Capture & tools** groups output size,
 timesteps and configuration import/export.

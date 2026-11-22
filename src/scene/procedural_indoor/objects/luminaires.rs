@@ -139,11 +139,7 @@ pub(super) fn shade(
     for (r, y) in [(radius, 0.), (upper, height)] {
         // Rolled rims sit inside the declared shade extent.
         let low = if y == 0. { y } else { y - wall };
-        let inner = r - if p.shape == 3 {
-            r * 0.065 + wall
-        } else {
-            wall * 2.
-        };
+        let inner = shade_opening(p, radius, r);
         a.part(p.trim, label).lathe(
             &[
                 (inner, low),
@@ -155,6 +151,15 @@ pub(super) fn shade(
             32,
             Transform::from_translation(center),
         );
+    }
+}
+
+pub(super) fn shade_opening(p: &ShadeProgram, lower: f32, rim: f32) -> f32 {
+    let wall = (lower * 0.018).clamp(0.001, 0.004);
+    rim - if p.shape == 3 {
+        rim * 0.065 + wall
+    } else {
+        wall * 2.
     }
 }
 

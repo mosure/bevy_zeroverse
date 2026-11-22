@@ -68,6 +68,87 @@ pub(super) fn validate(scene: &IndoorManifest) -> Result<(), CaptureError> {
         .map_err(|error| failure(scene.seed, "validation", error))
 }
 
+/// The worker and local paths call the identical seed-local oracle. Only owned
+/// manifest data crosses the browser boundary. GPU and Bevy handles stay local.
+#[cfg_attr(
+    any(test, target_arch = "wasm32"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+pub(super) struct Plan {
+    pub scene: IndoorManifest,
+    pub moving_humans: Vec<usize>,
+    pub layout_seconds: f64,
+    pub cameras_seconds: f64,
+    pub validation_seconds: f64,
+    pub motion_planning_seconds: f64,
+}
+pub(super) fn plan(request: &Request) -> Result<Plan, CaptureError> {
+    // Configuration is external to the sampled room. Validate it before the
+    // seed-local boundary; invalid configuration must not consume every seed.
+    let inputs = Inputs::parse(request)?;
+    let started = bevy::platform::time::Instant::now();
+    let mut scene = IndoorManifest::generate_with_clutter(
+        request.seed,
+        request.layout,
+        f32::from_bits(request.density),
+        0,
+        f32::from_bits(request.humans),
+        inputs.clutter,
+    )
+    .map_err(|error| failure(request.seed, "layout", error.into()))?;
+    if let Some(appearance) = inputs.appearance {
+        scene
+            .apply_appearance(appearance)
+            .map_err(|error| failure(request.seed, "appearance", error.into()))?;
+    }
+    let layout_seconds = started.elapsed().as_secs_f64();
+    let started = bevy::platform::time::Instant::now();
+    let policy = inputs.camera;
+    if let Err(error) =
+        scene.resample_cameras_typed(request.cameras, policy, f32::from_bits(request.aspect))
+    {
+        if matches!(error, CaptureError::Rejected { .. }) {
+            // Prefer the generated layout's diagnostic over a downstream
+            // failed search. Only rejection incurs this additional check.
+            validate(&scene)?;
+        }
+        return Err(failure(request.seed, "camera placement", error));
+    }
+    let cameras_seconds = started.elapsed().as_secs_f64();
+    let started = bevy::platform::time::Instant::now();
+    validate(&scene)?;
+    let validation_seconds = started.elapsed().as_secs_f64();
+    let started = bevy::platform::time::Instant::now();
+    if request.rotation {
+        scene.world_yaw = layout::stream(request.seed, 11).random_range(0.0..std::f32::consts::TAU);
+    }
+    let moving_humans = if let Some(config) = inputs.motion {
+        crate::human_motion::planning::prepare_scene(&mut scene, &config)
+            .map_err(|error| failure(request.seed, "motion preparation", error.into()))?;
+        crate::human_motion::planning::plan(&scene, &config)
+            .map_err(|error| failure(request.seed, "motion planning", error.into()))?
+            .0
+            .into_iter()
+            .map(|p| p.actor_id)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    if let Some(config) = inputs.indoor_motion {
+        scene.indoor_motion =
+            Some(crate::scene::procedural_indoor::motion::IndoorMotionReport::new(config));
+    }
+    let motion_planning_seconds = started.elapsed().as_secs_f64();
+    Ok(Plan {
+        scene,
+        moving_humans,
+        layout_seconds,
+        cameras_seconds,
+        validation_seconds,
+        motion_planning_seconds,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +160,29 @@ mod tests {
         }
     }
 
+    #[test]
+    fn studio_worker_wire_preserves_full_seed_camera_poses_and_typed_errors() {
+        let mut key = Request::new((1u64 << 60) + 9, &default(), &settings(), default());
+        key.humans = 0.5f32.to_bits();
+        key.indoor_motion = Some("{}".into());
+        let bytes = rmp_serde::to_vec_named(&key).unwrap();
+        let received: Request = rmp_serde::from_slice(&bytes).unwrap();
+        assert_eq!(received, key);
+        let original = plan(&received).unwrap();
+        let bytes = rmp_serde::to_vec_named(&Ok::<_, CaptureError>(&original)).unwrap();
+        let restored: Result<Plan, CaptureError> = rmp_serde::from_slice(&bytes).unwrap();
+        let restored = restored.unwrap();
+        assert_eq!(original.scene, restored.scene);
+        assert_eq!(original.moving_humans, restored.moving_humans);
+        let error = CaptureError::rejected(
+            key.seed,
+            SceneRejectionKind::CameraPlacement,
+            "camera".into(),
+        );
+        let bytes = rmp_serde::to_vec_named(&Err::<Plan, _>(&error)).unwrap();
+        let decoded: Result<Plan, CaptureError> = rmp_serde::from_slice(&bytes).unwrap();
+        assert_eq!(decoded.err(), Some(error));
+    }
     #[test]
     fn generated_validation_is_seed_local_but_direct_manifest_validation_is_not() {
         // This historical failure now validates after the upstream scene update.

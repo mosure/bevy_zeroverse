@@ -246,7 +246,12 @@ pub fn prepare(
                 albedo: m.albedo.extend(0.0).to_array(),
                 emission: m.emission.extend(0.0).to_array(),
                 uv_scale: [m.uv_scale.x, m.uv_scale.y, 0.0, 0.0],
-                texture: [offset, size, u32::from(m.textured_emission), 0],
+                texture: [
+                    offset,
+                    size,
+                    u32::from(m.textured_emission),
+                    m.address.gpu_flags(),
+                ],
             }
         })
         .collect();

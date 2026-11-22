@@ -50,7 +50,37 @@ pub(super) struct Building {
     pub stagger: f32,
     pub fins: bool,
     pub hood: f32,
+    pub window_installation: WindowInstallation,
 }
+#[derive(Clone, Debug, serde::Serialize)]
+pub(super) struct WindowInstallation {
+    pub recess_m: f32,
+    pub rebate_m: f32,
+    pub roller_probability: f64,
+}
+impl WindowInstallation {
+    fn sample(seed: u64, wall: Surface) -> Self {
+        let mut r = stream(seed, 0x524542415445);
+        let recess_m = match wall {
+            Surface::Metal | Surface::WoodEdge => r.random_range(0.025..0.145),
+            _ if r.random_bool(0.23) => r.random_range(0.032..0.095),
+            _ => r.random_range(0.10..0.285),
+        };
+        Self {
+            recess_m,
+            rebate_m: r.random_range(0.009..0.028),
+            roller_probability: if r.random_bool(0.50) {
+                r.random_range(0.38..0.94)
+            } else {
+                0.
+            },
+        }
+    }
+    pub fn recess(&self, footprint: Vec2) -> f32 {
+        self.recess_m.min(footprint.min_element() * 0.13)
+    }
+}
+
 impl Building {
     pub fn sample(p: &Parcel, sky_radius: f32) -> Self {
         let mut r = stream(p.seed, 6381);
@@ -65,29 +95,37 @@ impl Building {
             .min(((available - 1.7) / pitch).floor().max(1.) as usize);
         let terrace_level = r.random_range(1..=levels);
         let roof = r.random_range(0..3);
+        let setback = r.random_range(0.08..0.30);
+        let shift = Vec2::new(r.random_range(-0.8..0.8), r.random_range(-0.8..0.8));
+        let split = if levels > 1 && p.size.x >= 5.8 && r.random_bool(0.60) {
+            r.random_range(0.38..0.64)
+        } else {
+            1.
+        };
+        let wing_depth = r.random_range(0.55..0.96);
+        let wing_levels = r.random_range(1..=levels.saturating_sub(1).max(1));
+        let roof_rise = (p.size.x * r.random_range(0.12..0.34)).min(1.45);
+        let parapet = r.random_range(0.10..0.42);
+        let wall = [
+            Surface::Concrete,
+            Surface::Paint,
+            Surface::Terracotta,
+            Surface::WoodEdge,
+            Surface::Metal,
+        ][r.random_range(0..5)];
         Self {
             levels,
             pitch,
             terrace_level,
-            setback: r.random_range(0.08..0.30),
-            shift: Vec2::new(r.random_range(-0.8..0.8), r.random_range(-0.8..0.8)),
-            split: if levels > 1 && p.size.x >= 5.8 && r.random_bool(0.60) {
-                r.random_range(0.38..0.64)
-            } else {
-                1.
-            },
-            wing_depth: r.random_range(0.55..0.96),
-            wing_levels: r.random_range(1..=levels.saturating_sub(1).max(1)),
+            setback,
+            shift,
+            split,
+            wing_depth,
+            wing_levels,
             roof,
-            roof_rise: (p.size.x * r.random_range(0.12..0.34)).min(1.45),
-            parapet: r.random_range(0.10..0.42),
-            wall: [
-                Surface::Concrete,
-                Surface::Paint,
-                Surface::Terracotta,
-                Surface::WoodEdge,
-                Surface::Metal,
-            ][r.random_range(0..5)],
+            roof_rise,
+            parapet,
+            wall,
             roof_material: [Surface::Metal, Surface::Terracotta, Surface::Concrete]
                 [r.random_range(0..3)],
             frame: if r.random_bool(0.8) {
@@ -111,6 +149,7 @@ impl Building {
             } else {
                 0.
             },
+            window_installation: WindowInstallation::sample(p.seed, wall),
         }
     }
 }

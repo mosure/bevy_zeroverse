@@ -270,9 +270,39 @@ pub fn export_metrics_with_clutter(
     appearance: Option<&super::appearance::AppearanceSettings>,
     clutter: &super::items::distribution::ClutterSettings,
 ) -> Result<CoverageReport, String> {
+    export_metrics_for_seeds(
+        (0..seeds).map(|i| first_seed.wrapping_add(i as u64)),
+        cameras,
+        density,
+        layout,
+        width,
+        height,
+        directory,
+        human_density,
+        camera_settings,
+        appearance,
+        clutter,
+    )
+}
+
+/// Audit the exact captured seed sequence, including repeated evaluation rooms.
+#[allow(clippy::too_many_arguments)]
+pub fn export_metrics_for_seeds(
+    seeds: impl ExactSizeIterator<Item = u64>,
+    cameras: usize,
+    density: f32,
+    layout: IndoorLayout,
+    width: u32,
+    height: u32,
+    directory: &Path,
+    human_density: f32,
+    camera_settings: &super::cameras::CameraSettings,
+    appearance: Option<&super::appearance::AppearanceSettings>,
+    clutter: &super::items::distribution::ClutterSettings,
+) -> Result<CoverageReport, String> {
     camera_settings.validate()?;
     clutter.validate()?;
-    if seeds == 0
+    if seeds.len() == 0
         || cameras == 0
         || cameras > 256
         || width == 0
@@ -285,7 +315,6 @@ pub fn export_metrics_with_clutter(
         return Err("metrics require a nonempty audit, 1..=256 cameras, positive image dimensions and density in [0, 1]".into());
     }
     export_inner(
-        first_seed,
         seeds,
         cameras,
         density,
@@ -303,8 +332,7 @@ pub fn export_metrics_with_clutter(
 
 #[allow(clippy::too_many_arguments)]
 fn export_inner(
-    first_seed: u64,
-    seeds: usize,
+    seeds: impl ExactSizeIterator<Item = u64>,
     cameras: usize,
     density: f32,
     layout: IndoorLayout,
@@ -360,7 +388,7 @@ fn export_inner(
         camera_overlap_policy: "Proxy first-surface pixel overlap at normalized times 0,.25,.5,.75,1. Reference policy exports camera-zero edges; connected policy exports all pairs and requires a stable connected graph. Full capture aspect ratio, 13x9 rays/view. Glass is annotation-opaque. Not a rendered-pixel guarantee.",
         camera_group_geometry_policy: "Worst geometry over 33 synchronized times including both endpoints. All-pair minimum Euclidean separation and maximum reference baseline, metres. Horizontal spread is minor/major standard deviation for 3+ views. Relative motion is RMS displacement difference with starts removed, normalized by the larger RMS travel, over all moving pairs. Static pairs and groups with fewer than 3 views omit inapplicable scores. These are sampled constraints, not a continuous-time proof.",
         generator_version: GENERATOR_VERSION,
-        scenes: seeds,
+        scenes: seeds.len(),
         image_size: [width, height],
         density,
         human_density,
@@ -382,9 +410,9 @@ fn export_inner(
     };
     let mut signatures = super::program_coverage::OccupancySketch::default();
     let mut numeric = super::metrics_sort::NumericCollector::new(directory)?;
-    for offset in 0..seeds {
+    for seed in seeds {
         let mut scene = IndoorManifest::generate_with_clutter(
-            first_seed.wrapping_add(offset as u64),
+            seed,
             layout,
             density,
             0,
@@ -757,6 +785,19 @@ fn export_inner(
         }
         for plant in scene.objects.iter().filter(|o| o.kind == ObjectKind::Plant) {
             let p = super::plants::Growth::sample(plant.seed);
+            if plant.variant % super::plants::SPECIES == 5 {
+                let cane = super::plants::CaneHabit::sample(plant.seed);
+                for (key, value) in [
+                    ("plant_cane_leaf_half_width_over_reach", cane.width_fraction),
+                    (
+                        "plant_cane_leaf_arch_control_over_reach",
+                        cane.arch_fraction,
+                    ),
+                    ("plant_cane_leaf_twist_limit_radians", cane.twist_radians),
+                ] {
+                    numeric.push(key, value as f64)?;
+                }
+            }
             let pot = super::plants::PotProfile::sample(plant.seed);
             let (pot_radius, pot_height) = super::plants::pot_dimensions(plant, &p);
             let support = plant
@@ -1101,8 +1142,28 @@ fn export_inner(
                 numeric.push("bookshelf_levels", p.levels as f64)?;
                 numeric.push("bookshelf_columns", p.columns as f64)?;
             }
+            if let Some(meal) = super::objects::kitchen::serving_for_object(object) {
+                *report
+                    .categories
+                    .entry("dining_serving".into())
+                    .or_default()
+                    .entry(format!("{meal:?}"))
+                    .or_default() += 1;
+            }
             if object.kind.has_table_outline() {
                 let p = super::objects::tables::parameters(object);
+                if p.top_surface == super::materials::Surface::Wood {
+                    let wood = super::objects::tables::TimberProgram::sample(object.seed);
+                    *report
+                        .categories
+                        .entry("table_timber_stock".into())
+                        .or_default()
+                        .entry(format!("{:?}", wood.stock))
+                        .or_default() += 1;
+                    if let Some(pitch) = wood.pitch_m {
+                        numeric.push("table_timber_nominal_strip_width_m", f64::from(pitch))?;
+                    }
+                }
                 let bays = super::objects::tables::support_bay_count(object);
                 *report
                     .categories

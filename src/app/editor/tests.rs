@@ -713,7 +713,12 @@ fn small_editor_viewports_stay_inside_the_window() {
             ..default()
         };
         for left in [0., 380.] {
-            let v = shell::bounded_viewport(&window, left);
+            let v = shell::Insets {
+                left,
+                top: 54.,
+                bottom: 42.,
+            }
+            .viewport(&window);
             assert!(v.physical_size.min_element() >= 1);
             assert!(v.physical_position.x + v.physical_size.x <= window.physical_width());
             assert!(v.physical_position.y + v.physical_size.y <= window.physical_height());
@@ -1136,4 +1141,101 @@ fn studio_group_navigation_shares_compactly_without_pending_generation() {
     assert_eq!(restored.view.closed_sections, state.view.closed_sections);
     assert_eq!(restored.applied, state.applied);
     assert!(!restored.pending());
+}
+
+#[test]
+fn f1_presents_and_restores_every_viewport_without_rebuilding_controls() {
+    for mode in ["editor", "grid", "schematic"] {
+        let mut app = studio_app(Page::Cameras);
+        let world = app.world_mut();
+        world
+            .resource_mut::<Actions>()
+            .0
+            .push(Action::Set("@viewport".into(), json!(mode)));
+        update(world);
+        world.flush();
+        let root = world
+            .query::<(Entity, &Name)>()
+            .iter(world)
+            .find(|(_, n)| n.as_str() == "zeroverse_editor")
+            .unwrap()
+            .0;
+        let revision = world.resource::<EditorState>().revision;
+        let field = world.spawn_empty().id();
+        world
+            .resource_mut::<InputFocus>()
+            .set(field, bevy::input_focus::FocusCause::Navigated);
+        let window = Window {
+            resolution: bevy::window::WindowResolution::new(1280, 720)
+                .with_scale_factor_override(2.),
+            ..default()
+        };
+        for hidden in [true, false] {
+            let mut keys = world.resource_mut::<ButtonInput<KeyCode>>();
+            keys.reset(KeyCode::F1);
+            keys.press(KeyCode::F1);
+            world.run_system_once(presentation_shortcut).unwrap();
+            update(world);
+            let state = world.resource::<EditorState>();
+            assert_eq!(state.view.viewport_only, hidden);
+            assert_eq!(value(state, "@viewport"), json!(mode));
+            assert_eq!(state.revision, revision);
+            assert_eq!(
+                world.get::<Visibility>(root),
+                Some(if hidden {
+                    &Visibility::Hidden
+                } else {
+                    &Visibility::Inherited
+                })
+            );
+            assert!(world.resource::<InputFocus>().get().is_none());
+            let viewport = shell::Insets::for_view(&state.view, &window).viewport(&window);
+            if hidden {
+                assert_eq!(viewport.physical_position, UVec2::ZERO);
+                assert_eq!(viewport.physical_size, UVec2::new(1280, 720));
+                let (config, view) = share::snapshot(state).unwrap();
+                assert!(share::query(&config, &view).contains("view.viewport_only=true"));
+            } else {
+                assert!(viewport.physical_position.min_element() > 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn display_controls_are_live_and_do_not_require_regeneration() {
+    let mut app = App::new();
+    let config = super::super::web_viewer_defaults();
+    app.insert_resource(config.clone());
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::View;
+    for (path, value) in [
+        ("/hdr", json!(true)),
+        ("/tonemapping", json!("agx")),
+        ("/fullscreen", json!(true)),
+    ] {
+        assert!(fields::items(&state)
+            .iter()
+            .any(|i| matches!(i,fields::Item::Field(f) if f.path==path)));
+        edit(&mut state, path, value).unwrap();
+        live_update(app.world_mut(), &mut state, path).unwrap();
+    }
+    assert!(!state.pending());
+    let active = app.world().resource::<BevyZeroverseConfig>();
+    assert!(active.hdr && active.fullscreen);
+    assert_eq!(
+        active.tonemapping,
+        crate::render::color::RgbTonemapping::AgX
+    );
+    for (mode, schematic) in [("Depth", false), ("Color", true)] {
+        state.draft["render_mode"] = json!(mode);
+        state.draft["room_schematic"] = json!(schematic);
+        let items = fields::items(&state);
+        assert!(items
+            .iter()
+            .any(|i| matches!(i,fields::Item::Field(f) if f.path=="/fullscreen")));
+        assert!(!items.iter().any(
+            |i| matches!(i,fields::Item::Field(f) if f.path=="/hdr" || f.path=="/tonemapping")
+        ));
+    }
 }

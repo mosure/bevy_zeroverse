@@ -1,24 +1,6 @@
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
 
-fn face(g: &mut Geometry, points: [Vec3; 4], outside: Vec3) {
-    let mut p = points;
-    if (p[1] - p[0]).cross(p[2] - p[0]).dot(outside) < 0. {
-        p.reverse();
-    }
-    let normal = (p[1] - p[0]).cross(p[2] - p[0]).normalize();
-    let u = (p[1] - p[0]).normalize();
-    let v = normal.cross(u);
-    let base = g.positions.len() as u32;
-    for point in p {
-        g.positions.push(point.to_array());
-        g.normals.push(normal.to_array());
-        g.uvs.push([point.dot(u), point.dot(v)]);
-    }
-    g.indices
-        .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
-}
-
 fn cell(
     g: &mut Geometry,
     m: &FrameMember,
@@ -39,13 +21,12 @@ fn cell(
         m.point(1., lower[1], bottom),
         m.point(0., lower[1], bottom),
     ];
-    face(g, a, Vec3::Y);
-    face(g, b, -Vec3::Y);
+    g.metric_quad(a, Vec3::Y);
+    g.metric_quad(b, -Vec3::Y);
     let center = (m.top[0] + m.top[2]) * 0.5;
     for i in 0..4 {
         let j = (i + 1) % 4;
-        face(
-            g,
+        g.metric_quad(
             [a[i], a[j], b[j], b[i]],
             ((a[i] + a[j]) * 0.5 - center).with_y(0.),
         );

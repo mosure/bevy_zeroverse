@@ -142,6 +142,7 @@ fn run_headless_generation(
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -157,7 +158,7 @@ fn run_headless_generation(
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("headless generation should succeed");
 
@@ -201,6 +202,7 @@ fn run_generation_with_offsets(
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -216,7 +218,7 @@ fn run_generation_with_offsets(
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("headless generation should succeed with offsets");
 }
@@ -519,6 +521,7 @@ fn resume_offsets_continue_fs_indices() {
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -534,7 +537,7 @@ fn resume_offsets_continue_fs_indices() {
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("initial fs generation should succeed");
 
@@ -572,6 +575,7 @@ fn resume_offsets_continue_fs_indices() {
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -587,7 +591,7 @@ fn resume_offsets_continue_fs_indices() {
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("fs resume generation should succeed");
 
@@ -637,6 +641,7 @@ fn resume_offsets_continue_chunk_indices() {
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -652,7 +657,7 @@ fn resume_offsets_continue_chunk_indices() {
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("initial chunk generation should succeed");
 
@@ -690,6 +695,7 @@ fn resume_offsets_continue_chunk_indices() {
         indoor_camera: None,
         indoor_appearance: None,
         rgb_gizmos: Default::default(),
+        capture_requests: None,
         rgb_sensor: None,
         indoor_gi_rays: 256,
         indoor_quality: Default::default(),
@@ -705,7 +711,7 @@ fn resume_offsets_continue_chunk_indices() {
         ov_resolution: 128,
         ov_max_output_voxels: bevy_zeroverse::ovoxel::GPU_DEFAULT_MAX_OUTPUT_VOXELS,
         main_thread_app: false,
-        progress: None,
+        ..Default::default()
     })
     .expect("resumed chunk generation should succeed");
 

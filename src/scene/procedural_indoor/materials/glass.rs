@@ -5,6 +5,10 @@ use crate::scene::procedural_indoor::{layout::stream, IndoorQuality};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+pub mod display;
+pub(crate) mod door;
+mod sheet;
+pub use sheet::SheetGauge;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlassRecipe {
@@ -15,6 +19,41 @@ pub struct GlassRecipe {
     pub attenuation_distance_m: f32,
 }
 impl GlassRecipe {
+    /// Photopic transmittance of a flat pane in air. Cosine is relative to the
+    /// pane normal. Sum internal reflections incoherently and apply the same
+    /// linear Beer attenuation and metric thickness as the PBR material.
+    pub(crate) fn luminous_transmittance(&self, cosine: f32) -> f32 {
+        let c = cosine.clamp(0., 1.);
+        if c == 0. {
+            return 0.;
+        }
+        let n = self.ior;
+        let ct = (1. - (1. - c * c) / (n * n)).sqrt();
+        let rs = ((c - n * ct) / (c + n * ct)).powi(2);
+        let rp = ((n * c - ct) / (n * c + ct)).powi(2);
+        let path = self.thickness_m / (ct * self.attenuation_distance_m);
+        let transmitted = Vec3::from_array(self.attenuation.map(|channel| {
+            let absorb = channel.powf(path);
+            let plate = |r: f32| {
+                (1. - r).powi(2) * absorb / (1. - (r * absorb).powi(2)).max(f32::MIN_POSITIVE)
+            };
+            0.5 * (plate(rs) + plate(rp))
+        }));
+        transmitted.dot(Vec3::new(0.2126, 0.7152, 0.0722))
+    }
+
+    /// Cosine-weighted transmission under an isotropic sky. Three-point
+    /// Gauss-Legendre quadrature over the incident hemisphere.
+    pub(crate) fn sky_transmittance(&self) -> f32 {
+        [
+            (0.11270166, 5. / 18.),
+            (0.5, 4. / 9.),
+            (0.88729835, 5. / 18.),
+        ]
+        .into_iter()
+        .map(|(c, w)| 2. * w * c * self.luminous_transmittance(c))
+        .sum()
+    }
     pub fn sample(seed: u64, surface: Surface) -> Self {
         let interior = surface == Surface::GlassInterior;
         let mut rng = stream(seed, if interior { 152 } else { 151 });
@@ -75,6 +114,29 @@ impl GlassRecipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pane_transmission_matches_clear_plate_and_diffuse_integral() {
+        let mut clear = GlassRecipe::sample(7, Surface::Glass);
+        clear.attenuation = [1.; 3];
+        clear.ior = 1.5;
+        assert!((clear.luminous_transmittance(1.) - 0.96 / 1.04).abs() < 1e-6);
+        assert_eq!(clear.luminous_transmittance(0.), 0.);
+        assert!(clear.luminous_transmittance(1e-9).is_finite());
+        for seed in 0..64 {
+            let recipe = GlassRecipe::sample(seed, Surface::Glass);
+            let integral: f64 = (0..256)
+                .map(|i| {
+                    let c = (i as f32 + 0.5) / 256.;
+                    f64::from(2. * c * recipe.luminous_transmittance(c)) / 256.
+                })
+                .sum();
+            assert!((integral - f64::from(recipe.sky_transmittance())).abs() < 0.003);
+            let mut thicker = recipe.clone();
+            thicker.thickness_m *= 2.;
+            assert!(thicker.luminous_transmittance(0.7) <= recipe.luminous_transmittance(0.7));
+            assert!(recipe.luminous_transmittance(0.05) < recipe.luminous_transmittance(0.70));
+        }
+    }
     #[test]
     fn glazing_roles_span_clear_tinted_and_frosted_optics() {
         let mut frosted = 0;

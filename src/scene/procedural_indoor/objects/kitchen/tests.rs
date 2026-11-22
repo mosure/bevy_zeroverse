@@ -299,7 +299,7 @@ fn aligned_worktops_preserve_body_depth_and_door_envelopes() {
 }
 
 #[test]
-fn range_burners_are_above_the_carcass_in_the_actual_mesh() {
+fn range_burner_centers_hit_the_glass_work_plane_or_raised_gas_cap() {
     for seed in 0..64 {
         let o = super::super::audit::fixture(ObjectKind::Range, seed);
         let p = parameters(&o);
@@ -311,11 +311,16 @@ fn range_burners_are_above_the_carcass_in_the_actual_mesh() {
         );
         let a = super::super::build_object(&o);
         assert!(!plan.burners.is_empty());
+        let expected = 0.94
+            + plan
+                .gas_grate
+                .as_ref()
+                .map_or(0., |grate| 0.07 * grate.height_fraction * 0.59);
         for burner in &plan.burners {
             let hit = top_at(&a, burner.center + Vec2::new(0., z)) / o.size.y;
             assert!(
-                (0.945..0.98).contains(&hit),
-                "seed {seed}: burner hidden by casing at {hit}"
+                (hit - expected).abs() < 2e-5,
+                "seed {seed}: ray hit {hit}, expected burner surface at {expected}"
             );
         }
     }
@@ -498,4 +503,67 @@ fn kitchen_accepted_placements_cover_every_new_kind_and_replay() {
             "unreachable composition {configuration}: {configurations:?}"
         );
     }
+}
+
+#[test]
+fn fitted_upper_cabinet_leaves_share_installed_hinges_and_rest_geometry() {
+    use crate::scene::procedural_indoor::{motion::IndoorMotionConfig, objects::audit};
+    let mut mechanisms = std::collections::BTreeSet::new();
+    for seed in 0..64 {
+        let o = audit::fixture(ObjectKind::KitchenCupboard, seed);
+        let p = parameters(&o);
+        if p.door_style == 2 {
+            continue;
+        }
+        let mut rest = Assembly::default();
+        cabinet::build(&mut rest, &o, &p);
+        let mut moving = Assembly {
+            motion_policy: Some(IndoorMotionConfig {
+                cabinet_fraction: 1.,
+                ..default()
+            }),
+            ..default()
+        };
+        cabinet::build(&mut moving, &o, &p);
+        assert!(rest.joints.is_empty());
+        let height = o.size.y * p.upper_bottom_fraction;
+        let width = o.size.x - 0.012;
+        let upper_width = width * p.upper_width_fraction;
+        let offset = (width - upper_width) * p.upper_offset_fraction;
+        let upper: Vec<_> = moving
+            .joints
+            .iter()
+            .filter(|j| j.frame.translation.y >= height)
+            .collect();
+        assert!(!upper.is_empty());
+        for j in upper {
+            assert!(j
+                .parts
+                .iter()
+                .any(|(_, key)| key.starts_with("cabinet#joint")));
+            match p.cabinet_motion {
+                0 => {
+                    assert!(((j.pivot.x - offset).abs() - (upper_width * 0.5 - 0.022)).abs() < 1e-5)
+                }
+                1 => assert!(j.translation.x.abs() > 0. && j.angle == 0.),
+                _ => assert!((j.pivot.x - offset).abs() < 1e-6 && j.axis == Vec3::X),
+            }
+            mechanisms.insert(p.cabinet_motion);
+        }
+        let vertices = |a: &Assembly| {
+            let mut all: Vec<_> = a
+                .parts
+                .values()
+                .flat_map(|g| g.positions.iter().map(|p| p.map(f32::to_bits)))
+                .collect();
+            all.sort_unstable();
+            all
+        };
+        assert_eq!(
+            vertices(&rest),
+            vertices(&moving),
+            "rest mesh moved at seed {seed}"
+        );
+    }
+    assert_eq!(mechanisms.len(), 3);
 }

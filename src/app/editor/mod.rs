@@ -59,7 +59,10 @@ impl Plugin for EditorPlugin {
             .init_resource::<EditorInputCapture>()
             .add_plugins(FeathersPlugins)
             .insert_resource(studio_theme())
-            .add_systems(Update, (scene_loaded, update).chain())
+            .add_systems(
+                Update,
+                (presentation_shortcut, scene_loaded, update).chain(),
+            )
             .add_systems(PostUpdate, shell::viewport.after(EditorCameraSetup))
             .add_systems(
                 PostUpdate,
@@ -75,6 +78,19 @@ impl Plugin for EditorPlugin {
                     .after(crate::annotation::pose::compute_human_poses)
                     .after(crate::scene::procedural_indoor::humans::update_human_poses),
             );
+    }
+}
+fn presentation_shortcut(
+    keys: Res<ButtonInput<KeyCode>>,
+    config: Res<BevyZeroverseConfig>,
+    mut state: ResMut<EditorState>,
+    mut focus: ResMut<InputFocus>,
+) {
+    if config.keybinds && keys.just_pressed(KeyCode::F1) {
+        state.view.viewport_only = !state.view.viewport_only;
+        if state.view.viewport_only {
+            focus.clear();
+        }
     }
 }
 fn studio_theme() -> UiTheme {
@@ -519,6 +535,11 @@ pub(super) fn update(world: &mut World) {
         return;
     }
     let mut state = world.remove_resource::<EditorState>().unwrap();
+    let fullscreen = world.resource::<BevyZeroverseConfig>().fullscreen;
+    if state.applied["fullscreen"] != fullscreen {
+        state.applied["fullscreen"] = json!(fullscreen);
+        state.draft["fullscreen"] = json!(fullscreen);
+    }
     let focus = world.get_resource::<InputFocus>().and_then(InputFocus::get);
     let typing = focus.is_some_and(|e| world.get::<EditableText>(e).is_some());
     world.resource_mut::<EditorInputCapture>().keyboard = typing;
@@ -669,6 +690,9 @@ pub(super) fn update(world: &mut World) {
     if dirty && state.error.is_none() {
         state.error = state.config().err();
     }
-    shell::status(world, &state);
+    shell::show_chrome(world, &state);
+    if !state.view.viewport_only {
+        shell::status(world, &state);
+    }
     world.insert_resource(state);
 }

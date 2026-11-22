@@ -87,6 +87,17 @@ struct Args {
     /// Export exposed scene-linear HDR RGB for transport comparisons, with display effects disabled.
     #[arg(long)]
     linear_rgb: bool,
+    /// RGB display transform used for the float capture and its SDR preview.
+    #[arg(
+        long,
+        value_enum,
+        default_value = "auto",
+        conflicts_with = "linear_rgb"
+    )]
+    tonemapping: bevy_zeroverse::render::color::RgbTonemapping,
+    /// Use unbounded linear RGB with automatic tone mapping.
+    #[arg(long)]
+    hdr: bool,
     /// Offline glass sampling ablation; references integrate 2048 samples per pixel.
     #[arg(long, value_enum, default_value_t = GlassFilter::Default)]
     glass_filter: GlassFilter,
@@ -442,6 +453,12 @@ fn run(args: &Args) -> Result<()> {
         // this capture. Its CPU oracle retains those pixels; production GPU
         // synthesis intentionally keeps generated textures device-resident.
         indoor_gpu_materials: !args.export_reference,
+        hdr: args.hdr || args.linear_rgb,
+        tonemapping: if args.linear_rgb {
+            bevy_zeroverse::render::color::RgbTonemapping::None
+        } else {
+            args.tonemapping
+        },
         annotation_glass: args.annotation_glass,
         indoor_gi_rays: args.gi_rays,
         headless: true,
@@ -757,10 +774,13 @@ fn run(args: &Args) -> Result<()> {
                 "shadow_map_size": args.quality.shadow_map_size(),
                 "sun_shadow_filter": if args.quality.shadows() && !args.no_shadows { "pcss_non_temporal" } else { "disabled" },
                 "exposure_ev100": manifest.ev100(),
+                "tonemapping": if args.linear_rgb { bevy_zeroverse::render::color::RgbTonemapping::None } else { args.tonemapping }, "hdr_requested": args.hdr || args.linear_rgb,
                 "annotation_hdr_format": if sample.annotation_precision == bevy_zeroverse::sample::AnnotationPrecision::Float32Geometry { "RGBA32Float_direct" } else { "RGBA16Float" } }),
             aabb: sample.aabb,
             color_encoding: if args.linear_rgb {
                 "raw: exposed scene-linear little-endian RGBA32F (RGBA16F rendering intermediate); PNG: clipped sRGB preview; no tone map, bloom, FXAA or dither"
+            } else if args.tonemapping.preserves_hdr(args.hdr) {
+                "raw: unbounded display-linear little-endian RGBA32F; PNG: clipped sRGB preview"
             } else {
                 "PNG: sRGB OETF of Bevy tone-mapped linear RGB; raw: little-endian RGBA32F"
             },
@@ -870,7 +890,12 @@ fn save_sample(
                     "non-finite {name} at pixel {pixel}: {p:?}"
                 );
                 if name == "color" {
-                    light.push(p, pixel, intrinsics, !args.linear_rgb);
+                    light.push(
+                        p,
+                        pixel,
+                        intrinsics,
+                        !args.linear_rgb && !args.tonemapping.preserves_hdr(args.hdr),
+                    );
                 }
                 let c = match name {
                     "color" | "semantic" => [

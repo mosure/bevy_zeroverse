@@ -1179,6 +1179,11 @@ pub fn save_sample_to_fs_with_codec(
     }
     let stored_encoding = match sample.color_encoding {
         bevy_zeroverse::render::color::ColorEncoding::Legacy => sample.color_encoding,
+        bevy_zeroverse::render::color::ColorEncoding::LinearHdr
+            if color_codec == crate::chunk::ColorCodec::Raw =>
+        {
+            sample.color_encoding
+        }
         _ => bevy_zeroverse::render::color::ColorEncoding::Srgb,
     };
     if let Some(provenance) = &sample.indoor_render_metadata {
@@ -1424,7 +1429,10 @@ pub fn save_sample_to_fs_with_codec(
                     3,
                 );
             }
-            bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear => color_buf
+            bevy_zeroverse::render::color::ColorEncoding::LinearHdr
+                if color_codec == crate::chunk::ColorCodec::Raw => {}
+            bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear
+            | bevy_zeroverse::render::color::ColorEncoding::LinearHdr => color_buf
                 .iter_mut()
                 .for_each(|v| *v = bevy_zeroverse::render::color::linear_to_srgb(*v)),
             bevy_zeroverse::render::color::ColorEncoding::Srgb => (),
@@ -1445,12 +1453,13 @@ pub fn save_sample_to_fs_with_codec(
                 let mut rgba = Vec::with_capacity(pixel_count * 4);
                 for i in 0..pixel_count {
                     let src = base + i * 3;
-                    rgba.extend_from_slice(&[
-                        color_buf[src],
-                        color_buf[src + 1],
-                        color_buf[src + 2],
-                        1.0,
-                    ]);
+                    let rgb = [color_buf[src], color_buf[src + 1], color_buf[src + 2]];
+                    if stored_encoding == bevy_zeroverse::render::color::ColorEncoding::LinearHdr {
+                        rgba.extend(rgb.map(bevy_zeroverse::render::color::linear_to_srgb));
+                    } else {
+                        rgba.extend(rgb);
+                    }
+                    rgba.push(1.0);
                 }
                 let jpg = encode_jpeg_from_rgba_f32(&rgba, width, height)?;
                 fs::write(scene_dir.join(format!("color_{t:03}_{v:02}.jpg")), jpg)?;

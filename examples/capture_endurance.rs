@@ -241,6 +241,7 @@ fn main() -> Result<()> {
             // completion, exactly like LiveDataset. Indexed requests instead
             // regenerate before capture and must not be mixed into this stream.
             indoor_seed: None,
+            rgb_artifact_eligible_cameras_by_timestep: None,
             prefetch_indoor: 3.min(args.rooms - index - 1),
             // Match controlled generation: CPU work can finish during a hold,
             // but future uploads/dispatches wait for an admitted request.

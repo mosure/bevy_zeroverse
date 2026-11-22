@@ -258,3 +258,61 @@ fn kitchen_review_samples_capture_independent_finishes_and_live_programs() {
     }
     std::fs::write(std::path::Path::new(&path).join("kitchen-metric-audit.json"),serde_json::to_vec(&serde_json::json!({"categories":categories,"build_provenance":crate::provenance::capture_provenance()})).unwrap()).unwrap();
 }
+
+#[test]
+fn cast_grates_have_seated_feet_clear_centers_and_a_level_pot_plane() {
+    use crate::scene::procedural_indoor::materials::cooktop::IRON_LABEL;
+    let mut counts = BTreeSet::new();
+    let mut frames = BTreeSet::new();
+    for seed in 0..80 {
+        let o = audit::fixture(ObjectKind::Cooktop, seed);
+        let mut p = super::super::parameters(&o);
+        p.gas = true;
+        let plan = cooktop::parameters(seed, o.size, &p);
+        let grate = plan.gas_grate.as_ref().unwrap();
+        let mut a = Assembly::default();
+        cooktop::build(&mut a, o.size, Vec3::ZERO, &p, seed);
+        audit::check(&o, &a).unwrap();
+        let points = &a.parts[&(Surface::Metal, IRON_LABEL.to_owned())].positions;
+        let deck = o.size.y * 0.24;
+        let pot = deck + o.size.y * grate.height_fraction;
+        counts.insert(grate.fingers);
+        frames.insert(grate.frame_segments / grate.fingers);
+        for b in plan.burners {
+            for i in 0..grate.fingers {
+                let turn = Quat::from_rotation_y(
+                    grate.phase_radians + TAU * i as f32 / grate.fingers as f32,
+                );
+                let mut foot = false;
+                let mut tip = false;
+                let mut connected = false;
+                let mid = turn * Quat::from_rotation_y(TAU * 0.5 / grate.fingers as f32);
+                for &point in points {
+                    let v = Vec3::from_array(point);
+                    let delta = v.xz() - b.center;
+                    if delta.length() > b.grate_radius_m {
+                        continue;
+                    }
+                    assert!(v.y >= deck - 1e-6 && v.y <= pot + 1e-6);
+                    let local = turn.inverse() * Vec3::new(delta.x, 0., delta.y);
+                    if local.z.abs() < b.radius_m * grate.width_fraction {
+                        foot |= local.x > b.radius_m && (v.y - deck).abs() < 1e-6;
+                        tip |= local.x > b.radius_m * 0.53
+                            && local.x < b.radius_m * 0.80
+                            && (v.y - pot).abs() < 1e-6;
+                    }
+                    if delta.length() < b.radius_m * 0.50 {
+                        assert!(v.y < deck + (pot - deck) * 0.61);
+                    }
+                    let between = mid.inverse() * Vec3::new(delta.x, 0., delta.y);
+                    connected |= between.x > b.radius_m
+                        && between.z.abs() < b.radius_m * 0.01
+                        && (v.y - (deck + (pot - deck) * 0.34)).abs() < 1e-6;
+                }
+                assert!(foot && tip && connected, "incomplete casting {seed}/{i}");
+            }
+        }
+    }
+    assert_eq!(counts, BTreeSet::from([3, 4, 5]));
+    assert_eq!(frames, BTreeSet::from([2, 8]));
+}

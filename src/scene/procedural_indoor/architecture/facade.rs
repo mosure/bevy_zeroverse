@@ -4,6 +4,7 @@ mod joinery;
 pub use joinery::WindowJoinery;
 mod legacy;
 mod pane;
+pub(crate) use pane::visible_pane_area;
 pub mod reveal;
 #[cfg(test)]
 mod tests;

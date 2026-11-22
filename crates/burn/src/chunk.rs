@@ -568,6 +568,10 @@ pub fn save_chunk_with_codec(
         .map(|s| {
             if s.color_encoding == bevy_zeroverse::render::color::ColorEncoding::Legacy {
                 0
+            } else if s.color_encoding == bevy_zeroverse::render::color::ColorEncoding::LinearHdr
+                && color_codec == ColorCodec::Raw
+            {
+                3
             } else {
                 2
             }
@@ -771,7 +775,10 @@ pub fn save_chunk_with_codec(
                         3,
                     );
                 }
-                bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear => color
+                bevy_zeroverse::render::color::ColorEncoding::LinearHdr
+                    if color_codec == ColorCodec::Raw => {}
+                bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear
+                | bevy_zeroverse::render::color::ColorEncoding::LinearHdr => color
                     .iter_mut()
                     .for_each(|v| *v = bevy_zeroverse::render::color::linear_to_srgb(*v)),
                 bevy_zeroverse::render::color::ColorEncoding::Srgb => (),
@@ -1367,6 +1374,7 @@ pub fn load_chunk(path: impl AsRef<Path>) -> Result<Vec<ZeroverseSample>> {
             sample.color_encoding = match encoding {
                 0 => bevy_zeroverse::render::color::ColorEncoding::Legacy,
                 2 => bevy_zeroverse::render::color::ColorEncoding::Srgb,
+                3 => bevy_zeroverse::render::color::ColorEncoding::LinearHdr,
                 _ => anyhow::bail!("unsupported stored color encoding {encoding}"),
             };
         }

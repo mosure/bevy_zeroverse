@@ -9,7 +9,7 @@ pub(super) fn base(page: Page) -> Vec<Item> {
             choices("/indoor_layout","Room program",&[("Mixed · all room types","Mixed"),("Conference","Conference"),("Open office","OpenOffice"),("Coworking","Coworking"),("Training","Training"),("Breakroom","Breakroom"),("Kitchenette","Kitchenette"),("Kitchen","Kitchen"),("Elevator landing","ElevatorLanding"),("Cafe","Cafe"),("Cafeteria","Cafeteria"),("Classroom","Classroom"),("Lecture hall","LectureHall"),("Showroom","Showroom"),("Gallery","Gallery"),("Public suite","PublicSuite"),("Reception","Reception"),("Workshop","Workshop"),("Lounge","Lounge"),("Library","Library"),("Studio","Studio")],"Mixed samples all 20 room programs uniformly, including kitchens, cafes, classrooms, galleries and public suites. Choose a specific program to restrict generation."),
             section("scene.automation", "Variation & automation", "World orientation and automatic scene changes."),
             toggle("/rotation_augmentation","Randomize world orientation","Dataset augmentation applied during generation."),
-            num("/regenerate_ms","Next scene interval (ms)",0.,60000.,1000.,"0 disables automatic generation. Waits for construction to finish."),
+            num("/regenerate_ms","Next scene interval (ms)",0.,60000.,1000.,"Minimum time to display each room. The next indoor seed prepares during playback. Set to 0 to stop."),
         ],
         Page::Cameras=>vec![
             section("cameras.rig", "Placement & baseline","Spacing and overlap are constrained together."),
@@ -45,6 +45,9 @@ pub(super) fn base(page: Page) -> Vec<Item> {
             section("view.preview", "Viewport & annotation","Changes here update the current scene immediately."),
             choices("@viewport","Viewport",&[("Editor camera","editor"),("Capture grid","grid"),("Room schematic","schematic")],"Schematic shows metric primary-room footprints, live capture cameras, paths and human poses."),
             choices("/render_mode","Annotation",&[("Color / PBR","Color"),("Depth","Depth"),("Surface normals","Normal"),("World position","Position"),("Semantic classes","Semantic"),("Optical flow","OpticalFlow"),("Motion vectors","MotionVectors"),("Co-visibility","CoVisibility")],"Co-visibility uses capture views, excluding the editor camera."),
+            toggle("/fullscreen","Fullscreen · F11","F11 toggles the current viewport. In a browser, click the viewer to honor a fullscreen startup link."),
+            choices("/tonemapping","RGB tone mapping",&[("Automatic","auto"),("Tony McMapface","tony-mcmapface"),("AgX","agx"),("ACES fitted","aces-fitted"),("Blender Filmic","blender-filmic"),("Khronos PBR Neutral","khronos-pbr-neutral"),("Reinhard","reinhard"),("Reinhard luminance","reinhard-luminance"),("Somewhat Boring Display Transform","somewhat-boring-display-transform"),("Linear · keep grading","linear"),("None · bypass grading","none")],"Automatic uses Tony McMapface for SDR and linear grading for HDR."),
+            toggle("/hdr","HDR RGB output","Uses display headroom when available. Floating-point captures can retain highlights above reference white."),
             num("@editor_fov","Editor field of view (degrees)",15.,150.,1.,"Editor lens only; capture intrinsics remain the seeded dataset cameras."),
             section("view.geometry", "Depth & glass", "Shared geometric-hit rules for capture annotations."),
             choices("/depth_format","Depth visualization",&[("Grayscale","Normalized"),("Turbo · warm near / cool far","Turbo"),("Original color ramp","Colorized"),("Linear distance","Linear")],"Turbo uses log distance for indoor detail, with a fixed scale per camera. Linear and normalized numeric depth encodings are unchanged."),

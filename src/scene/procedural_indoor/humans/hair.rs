@@ -1,5 +1,6 @@
 //! Opaque fitted grooms: directional scalp relief, a tapered hairline and curved
 //! bundles. Roots follow the Anny head and supported long ends follow the torso.
+mod coils;
 mod curtain;
 mod groom;
 mod program;
@@ -8,6 +9,20 @@ use super::{super::geometry::Geometry, IndoorHuman};
 use bevy::prelude::*;
 pub(crate) use program::torso_weight;
 pub use program::{HairProgram, HairStyle};
+
+pub(super) fn finish_material(material: &mut StandardMaterial, h: &IndoorHuman) {
+    material.reflectance = 0.28;
+    if let Some(style @ (HairStyle::TightCurls | HairStyle::Afro)) = HairStyle::from_id(h.hairstyle)
+    {
+        let radius = h
+            .appearance
+            .as_ref()
+            .map_or(0.012, |a| a.hair_program.curl_radius_m);
+        coils::finish(material, style, radius);
+    } else if let Some(a) = &h.appearance {
+        material.perceptual_roughness = 0.64 + 0.10 * (a.hair_curl / 0.06).clamp(0., 1.);
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Vertex {
@@ -49,6 +64,7 @@ pub(super) fn append(
     if h.hairstyle == 5 {
         return;
     }
+    let style = HairStyle::from_id(h.hairstyle).expect("validated hair style");
     let head = |i: usize| labels[dominant[i]] == "head";
     let mut lo = Vec3::splat(f32::INFINITY);
     let mut hi = Vec3::splat(f32::NEG_INFINITY);
@@ -60,17 +76,20 @@ pub(super) fn append(
     let inv_rotation = rotation.inverse();
     // Tessellate only head quads intersecting the hairline. Phong interpolation
     // removes the polygonal silhouette without altering the underlying Anny mesh.
-    let steps: usize = if h.hairstyle == HairStyle::Afro as u8 {
-        3
-    } else {
-        2
-    };
+    const MAX_STEPS: usize = 3;
+    let steps = if style.coiled() { MAX_STEPS } else { 2 };
+    let mut hairline = vec![f32::NAN; rest.len()];
     for q in faces.as_chunks::<4>().0 {
         if !q.iter().all(|&i| head(i as usize)) {
             continue;
         }
         let indices = q.map(|i| i as usize);
-        if indices.iter().all(|&i| groom.sample(rest[i]).1 < -0.012) {
+        if indices.iter().all(|&i| {
+            if hairline[i].is_nan() {
+                hairline[i] = groom.sample(rest[i]).1;
+            }
+            hairline[i] < -0.012
+        }) {
             continue;
         }
         let grid: Vec<_> = (0..=steps)
@@ -117,33 +136,53 @@ pub(super) fn append(
                 }
             })
             .collect();
+        // Share diced vertices inside a scalp quad. Only the two sides of an
+        // actual atlas seam need distinct vertices at the same position.
+        let mut emitted = [[u32::MAX; 2]; (MAX_STEPS + 1) * (MAX_STEPS + 1)];
         for y in 0..steps {
             for x in 0..steps {
                 let i = y * (steps + 1) + x;
-                let mut quad = [
-                    grid[i],
-                    grid[i + 1],
-                    grid[i + steps + 2],
-                    grid[i + steps + 1],
-                ];
+                let cells = [i, i + 1, i + steps + 2, i + steps + 1];
+                let mut quad = cells.map(|i| grid[i]);
                 let period = groom.uv_period();
                 let min = quad.iter().map(|v| v.uv.y).fold(f32::INFINITY, f32::min);
                 let max = quad
                     .iter()
                     .map(|v| v.uv.y)
                     .fold(f32::NEG_INFINITY, f32::max);
-                if max - min > period * 0.5 {
+                let seam = max - min > period * 0.5;
+                if seam {
                     for vertex in &mut quad {
                         if vertex.uv.y < 0.0 {
                             vertex.uv.y += period;
                         }
                     }
                 }
-                clip_cell(quad, g);
+                if quad.iter().all(|v| v.field >= 0.) {
+                    let indices: [u32; 4] = std::array::from_fn(|k| {
+                        let cell = cells[k];
+                        let wrap = usize::from(seam && grid[cell].uv.y < 0.);
+                        let id = &mut emitted[cell][wrap];
+                        if *id == u32::MAX {
+                            *id = emit_vertex(quad[k], g);
+                        }
+                        *id
+                    });
+                    for [a, b, c] in [[0, 1, 2], [0, 2, 3]] {
+                        if (quad[b].p - quad[a].p)
+                            .cross(quad[c].p - quad[a].p)
+                            .length_squared()
+                            > 1e-18
+                        {
+                            g.indices.extend([indices[a], indices[b], indices[c]]);
+                        }
+                    }
+                } else {
+                    clip_cell(quad, g);
+                }
             }
         }
     }
-    let style = HairStyle::from_id(h.hairstyle).expect("validated hair style");
     let start = g.positions.len();
     let first_index = g.indices.len();
     if style.loose() {
@@ -195,6 +234,9 @@ pub(super) fn append(
 }
 
 fn clip_cell(quad: [Vertex; 4], g: &mut Geometry) {
+    if quad.iter().all(|v| v.field < 0.) {
+        return;
+    }
     let mut poly = Vec::with_capacity(6);
     let mut edge = Vec::with_capacity(2);
     for k in 0..4 {
@@ -216,20 +258,7 @@ fn clip_cell(quad: [Vertex; 4], g: &mut Geometry) {
             edge.push((c, a.field >= 0.0));
         }
     }
-    let base = g.positions.len() as u32;
-    for v in &poly {
-        g.positions.push(v.p.to_array());
-        g.normals.push(v.n.to_array());
-        g.uvs.push(v.uv.to_array());
-    }
-    for i in 1..poly.len().saturating_sub(1) as u32 {
-        let a = poly[0].p;
-        let b = poly[i as usize].p;
-        let c = poly[i as usize + 1].p;
-        if (b - a).cross(c - a).length_squared() > 1e-18 {
-            g.indices.extend([base, base + i, base + i + 1]);
-        }
-    }
+    append_face(&poly, g);
     if let [(a, exiting), (b, _)] = edge.as_slice() {
         let points = if *exiting {
             [a.p, a.inner, b.inner, b.p]
@@ -252,6 +281,28 @@ fn clip_cell(quad: [Vertex; 4], g: &mut Geometry) {
             }
         }
     }
+}
+
+fn append_face(vertices: &[Vertex], g: &mut Geometry) {
+    let base = g.positions.len() as u32;
+    for &v in vertices {
+        emit_vertex(v, g);
+    }
+    for i in 1..vertices.len().saturating_sub(1) {
+        let [a, b, c] = [vertices[0].p, vertices[i].p, vertices[i + 1].p];
+        if (b - a).cross(c - a).length_squared() > 1e-18 {
+            g.indices
+                .extend([base, base + i as u32, base + i as u32 + 1]);
+        }
+    }
+}
+
+fn emit_vertex(v: Vertex, g: &mut Geometry) -> u32 {
+    let index = g.positions.len() as u32;
+    g.positions.push(v.p.to_array());
+    g.normals.push(v.n.to_array());
+    g.uvs.push(v.uv.to_array());
+    index
 }
 
 #[cfg(test)]

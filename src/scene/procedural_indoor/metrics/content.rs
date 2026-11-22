@@ -65,6 +65,18 @@ pub(super) fn record_scene(
         .filter(|o| super::super::photometry::is_lamp(o.kind))
     {
         let source = super::super::photometry::lamp(scene, object);
+        if object.kind == ObjectKind::DeskLamp {
+            let beam = super::super::objects::accessories::lamps::beam(object);
+            numeric.push(
+                "desk_lamp_tilt_degrees",
+                beam.tilt_from_down_degrees() as f64,
+            )?;
+            numeric.push(
+                "desk_lamp_workplane_offset_m",
+                ((beam.position.y - object.position.y) * beam.direction.xz().length()
+                    / -beam.direction.y) as f64,
+            )?;
+        }
         for (key, value) in [
             ("kelvin", source.kelvin),
             ("tint", source.tint),

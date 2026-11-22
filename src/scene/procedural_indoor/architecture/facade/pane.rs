@@ -2,6 +2,68 @@
 //! leave a real gap; the renderer and every annotation see the same geometry.
 use super::*;
 
+use crate::scene::procedural_indoor::materials::glazing::GlazingProgram;
+
+fn edge_widths(f: &Facade, opening: &WindowOpening, span: Vec2) -> (f32, f32) {
+    let sash = if opening.operable {
+        f.joinery
+            .as_ref()
+            .map_or(0.021, |j| j.sash_width_m)
+            .min(span.min_element() * 0.09)
+    } else {
+        f.joinery.as_ref().map_or(0.004, |j| j.seal_width_m * 2.)
+    };
+    let bead = f
+        .joinery
+        .as_ref()
+        .map_or(0.002, |j| j.seal_width_m)
+        .min(sash * 0.3);
+    (sash, bead)
+}
+
+/// Metric strip intervals shared by the ceramic deposit and daylight metering.
+fn frit_bands(
+    program: &GlazingProgram,
+    lo: f32,
+    hi: f32,
+    bead: f32,
+) -> impl Iterator<Item = (f32, f32)> + '_ {
+    let start = (lo / program.pitch_m).ceil() * program.pitch_m;
+    std::iter::successors(Some(start), |y| Some(*y + program.pitch_m))
+        .take_while(move |&y| y < hi)
+        .filter_map(move |y| {
+            let bottom = y.max(lo + bead + 0.0005).max(program.band_m.x);
+            let top = (y + program.pitch_m * program.duty)
+                .min(hi - bead - 0.0005)
+                .min(program.band_m.y);
+            (top - bottom > 0.001).then_some((bottom, top))
+        })
+}
+
+/// Frontal glass area inside the actually constructed mullions, sash and
+/// glazing beads. Rough privacy glazing still passes light; fired frit blocks it.
+pub(crate) fn visible_pane_area(f: &Facade, o: &WindowOpening) -> f32 {
+    f.pane_rectangles(o)
+        .into_iter()
+        .map(|(lo, hi)| {
+            let Some(program) = &o.glazing else {
+                return (hi - lo).element_product();
+            };
+            let (sash, bead) = edge_widths(f, o, hi - lo);
+            let clear = (hi - lo - 2. * (sash + bead)).max(Vec2::ZERO);
+            let blocked = if program.treatment == 6 {
+                let strips: f32 = frit_bands(program, lo.y + sash, hi.y - sash, bead)
+                    .map(|(a, b)| b - a)
+                    .sum();
+                (clear.x - 0.001).max(0.) * strips
+            } else {
+                0.
+            };
+            (clear.element_product() - blocked).max(0.)
+        })
+        .sum()
+}
+
 pub(super) fn build(
     a: &mut Assembly,
     tf: Transform,
@@ -20,14 +82,7 @@ pub(super) fn build(
         );
         return;
     };
-    let sash = if opening.operable {
-        f.joinery
-            .as_ref()
-            .map_or(0.021, |j| j.sash_width_m)
-            .min((max - min).min_element() * 0.09)
-    } else {
-        f.joinery.as_ref().map_or(0.004, |j| j.seal_width_m * 2.)
-    };
+    let (sash, bead) = edge_widths(f, opening, max - min);
     let sash_depth = f.joinery.as_ref().map_or(0.026, |j| j.sash_depth_m);
     let frame_label = f.frame_label();
     let lo = min + Vec2::splat(sash);
@@ -70,11 +125,6 @@ pub(super) fn build(
     }
     // Visible compressible beads capture the pane edge. Only their back face
     // meets the glazing; their front face is 2 mm forward, avoiding z fighting.
-    let bead = f
-        .joinery
-        .as_ref()
-        .map_or(0.002, |j| j.seal_width_m)
-        .min(sash * 0.3);
     for x in [lo.x + bead * 0.5, hi.x - bead * 0.5] {
         block(
             Surface::Rubber,
@@ -105,22 +155,14 @@ pub(super) fn build(
     if program.treatment == 6 {
         // Frit is an opaque ceramic deposit with actual ownership. Through-glass
         // annotations retain it; frosting is instead a roughness-only treatment.
-        let mut y = (lo.y / program.pitch_m).ceil() * program.pitch_m;
-        while y < hi.y {
-            let bottom = y.max(lo.y + bead + 0.0005).max(program.band_m.x);
-            let top = (y + program.pitch_m * program.duty)
-                .min(hi.y - bead - 0.0005)
-                .min(program.band_m.y);
-            if top - bottom > 0.001 {
-                block(
-                    Surface::Paint,
-                    "window#frit",
-                    Vec3::new((lo.x + hi.x) * 0.5, (bottom + top) * 0.5, 0.0008),
-                    Vec3::new(hi.x - lo.x - 2. * (bead + 0.0005), top - bottom, 0.0006),
-                    0.,
-                );
-            }
-            y += program.pitch_m;
+        for (bottom, top) in frit_bands(program, lo.y, hi.y, bead) {
+            block(
+                Surface::Paint,
+                "window#frit",
+                Vec3::new((lo.x + hi.x) * 0.5, (bottom + top) * 0.5, 0.0008),
+                Vec3::new(hi.x - lo.x - 2. * (bead + 0.0005), top - bottom, 0.0006),
+                0.,
+            );
         }
     }
     let mut g = super::super::super::geometry::Geometry::default();

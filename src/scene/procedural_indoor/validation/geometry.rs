@@ -65,6 +65,23 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
     for human in &scene.humans {
         let human_geometry = super::super::humans::build_human(human);
         qualify_human(scene.seed, human, &human_geometry, &mut stats)?;
+        if let Some(id) = human.workstation {
+            let counter = scene.objects.get(id).ok_or("missing preparation counter")?;
+            let (lo, hi) = super::super::objects::kitchen::counter_top_bounds(counter);
+            let tf =
+                counter.transform().compute_affine().inverse() * human.transform().compute_affine();
+            let lowest = human_geometry
+                .parts
+                .values()
+                .flat_map(|g| &g.positions)
+                .map(|&v| tf.transform_point3(Vec3::from_array(v)))
+                .filter(|p| p.xz().cmpgt(lo).all() && p.xz().cmplt(hi).all())
+                .map(|p| p.y - counter.size.y)
+                .fold(f32::INFINITY, f32::min);
+            if !lowest.is_finite() || lowest < -0.001 {
+                return Err(format!("seed {}: person {} has invalid posed mesh clearance at preparation counter {id} ({lowest} m)", scene.seed, human.id));
+            }
+        }
         accumulate(
             scene,
             &mut stats,

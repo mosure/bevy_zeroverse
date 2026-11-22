@@ -10,6 +10,7 @@ pub use pipeline::{prepare_indoor, prepare_indoor_typed};
 pub use timings::{PreparationTimings, PreparationWall, TransportTimings};
 pub(crate) mod pipeline;
 pub(crate) mod residency;
+pub(super) mod studio_upload;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod wait;
 #[cfg(not(target_arch = "wasm32"))]
@@ -130,7 +131,7 @@ impl StagedAssets<Mesh> {
             let mut ready = Vec::with_capacity(jobs.len());
             for (handle, geometry) in jobs {
                 cooperate().await;
-                ready.push((handle, geometry.into_mesh()));
+                ready.push((handle, pipeline::browser::realize(geometry).await));
             }
             ready
         };
@@ -378,7 +379,8 @@ impl PreparedIndoor {
             let materials_seconds = started.elapsed().as_secs_f64();
             let started = bevy::platform::time::Instant::now();
             let transport =
-                gi::GeometryTransport::build(&manifest, &moving_humans, &geometry, false);
+                gi::GeometryTransport::build_interactive(&manifest, &moving_humans, &geometry)
+                    .await;
             (
                 material_set,
                 transport,

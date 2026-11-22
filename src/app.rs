@@ -26,6 +26,7 @@ use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
 mod camera_grid;
+pub(crate) mod display;
 #[cfg(feature = "viewer")]
 pub mod editor;
 #[cfg(feature = "viewer")]
@@ -410,6 +411,24 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    /// RGB tone curve for the editor and calibrated capture cameras.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "auto")]
+    #[pyo3(get, set)]
+    pub tonemapping: crate::render::color::RgbTonemapping,
+
+    /// Request extended dynamic range for RGB captures and the Studio display.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[pyo3(get, set)]
+    pub hdr: bool,
+
+    /// Start the viewer fullscreen on its current monitor.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[pyo3(get, set)]
+    pub fullscreen: bool,
+
     #[pyo3(get, set)]
     pub render_modes: Vec<RenderMode>,
 
@@ -710,6 +729,21 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    /// RGB tone curve for the editor and calibrated capture cameras.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "auto")]
+    pub tonemapping: crate::render::color::RgbTonemapping,
+
+    /// Request extended dynamic range for RGB captures and the Studio display.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    pub hdr: bool,
+
+    /// Start the viewer fullscreen on its current monitor.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    pub fullscreen: bool,
+
     pub render_modes: Vec<RenderMode>,
 
     /// Geometric annotations hit glass surfaces, or follow straight rays through them.
@@ -873,6 +907,9 @@ impl Default for BevyZeroverseConfig {
             regenerate_scene_mesh_shuffle_period: 0,
             yaw_speed: 0.0,
             render_mode: Default::default(),
+            tonemapping: Default::default(),
+            hdr: false,
+            fullscreen: false,
             render_modes: vec![],
             annotation_glass: Default::default(),
             scene_type: Default::default(),
@@ -1225,6 +1262,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     #[cfg(not(target_arch = "wasm32"))]
     let primary_window = (!args.headless).then(|| Window {
+        // Apply startup fullscreen before the first rendered frame. Creating the
+        // window at its requested size first gives winit a windowed size to restore.
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
         resolution: bevy::window::WindowResolution::new(
@@ -1315,6 +1354,9 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         default_plugins
     };
     app.add_plugins(default_plugins);
+    if !args.headless {
+        app.add_plugins(display::DisplayPlugin);
+    }
 
     if args.image_copiers
         && args.scene_type == ZeroverseSceneType::ProceduralIndoor
@@ -1681,28 +1723,33 @@ fn regenerate_scene_system(
     if sampler.is_some_and(|state| state.enabled) {
         return;
     }
-    if args.regenerate_ms > 0 {
+    // The interactive indoor sequence raises the ordinary regeneration event
+    // only when its exact successor is prepared. Manual R still works below.
+    let timed = args.regenerate_ms > 0
+        && (args.headless || args.scene_type != ZeroverseSceneType::ProceduralIndoor);
+    if timed {
         regenerate_stopwatch.tick(time.delta());
+    } else {
+        regenerate_stopwatch.reset();
     }
 
-    let mut regenerate_scene = args.regenerate_ms > 0
-        && regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128
+    let due = timed
+        && regenerate_stopwatch.elapsed().as_millis() >= args.regenerate_ms as u128
         && !indoor.is_some_and(|status| status.busy());
+    #[cfg(feature = "viewer")]
+    let typing = input_capture.is_some_and(|input| input.keyboard);
+    #[cfg(not(feature = "viewer"))]
+    let typing = false;
+    let manual = args.keybinds && !typing && keys.just_pressed(KeyCode::KeyR);
 
-    if args.keybinds {
+    if manual || due {
         #[cfg(feature = "viewer")]
-        let typing = input_capture.is_some_and(|input| input.keyboard);
-        #[cfg(not(feature = "viewer"))]
-        let typing = false;
-        regenerate_scene |= !typing && keys.just_pressed(KeyCode::KeyR);
-    }
-
-    if regenerate_scene {
-        #[cfg(feature = "viewer")]
-        if let Some(actions) = &mut editor_actions {
-            actions.0.push(editor::Action::Next);
-            regenerate_stopwatch.reset();
-            return;
+        if manual {
+            if let Some(actions) = &mut editor_actions {
+                actions.0.push(editor::Action::Next);
+                regenerate_stopwatch.reset();
+                return;
+            }
         }
         regenerate_event.write(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
@@ -1746,6 +1793,7 @@ fn press_m_shuffle_materials_and_meshes(
 
 fn press_esc_close(
     keys: Res<ButtonInput<KeyCode>>,
+    mut config: ResMut<BevyZeroverseConfig>,
     #[cfg(feature = "viewer")] focus: Option<Res<bevy::input_focus::InputFocus>>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -1754,6 +1802,10 @@ fn press_esc_close(
         return;
     }
     if keys.just_pressed(KeyCode::Escape) {
+        if config.fullscreen {
+            config.fullscreen = false;
+            return;
+        }
         exit.write(AppExit::Success);
     }
 }

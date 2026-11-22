@@ -218,7 +218,9 @@ fn extract(
     mut jobs: ResMut<Jobs>,
     mode: Extract<Res<RenderMode>>,
     config: Extract<Res<crate::app::BevyZeroverseConfig>>,
+    display: Extract<Option<Res<crate::app::display::DisplayStatus>>>,
     playback: Extract<Res<crate::camera::Playback>>,
+    sampler: Extract<Option<Res<crate::sample::SamplerState>>>,
     cameras: Extract<
         Query<(
             &SsaaCamera,
@@ -228,11 +230,18 @@ fn extract(
             Option<&crate::camera::lens::LensCamera>,
             Option<&crate::camera::ZeroverseCamera>,
             Option<&CameraSensorProfile>,
+            Option<&crate::camera::CaptureCameraIndex>,
         )>,
     >,
 ) {
     jobs.0.clear();
-    for (ssaa, camera, copier, gt, lens, logical, sensor) in &cameras {
+    let preserve_hdr = config
+        .tonemapping
+        .preserves_hdr(crate::app::display::hdr_destination(
+            &config,
+            display.as_deref(),
+        ));
+    for (ssaa, camera, copier, gt, lens, logical, sensor, index) in &cameras {
         let source = if **mode == RenderMode::CoVisibility {
             gt.and_then(|g| g.co_visibility.as_ref())
                 .and_then(|v| v.preview.clone())
@@ -242,21 +251,27 @@ fn extract(
         };
         let factor = filter_factor(&mode, copier.is_some() || lens.is_some(), ssaa.factor);
         let normal = **mode == RenderMode::Normal && copier.is_none();
-        let params = if let Some(profile) = sensor.filter(|_| **mode == RenderMode::Color) {
-            let center = lens.map_or_else(
-                || Vec2::splat(0.5) + logical.map_or(Vec2::ZERO, |c| c.principal_point_offset),
-                |lens| {
-                    let k = &lens.calibration;
-                    Vec2::new(
-                        k.k[0][2] / k.image_size[0] as f32,
-                        k.k[1][2] / k.image_size[1] as f32,
-                    )
-                },
-            );
-            Uniform::Sensor(profile.uniform(factor, center.to_array(), playback.progress))
-        } else {
-            Uniform::Box([factor, u32::from(normal), 0, 0])
-        };
+        let eligible = sampler
+            .as_ref()
+            .is_none_or(|s| s.rgb_artifact_eligible(index.map(|i| i.0)));
+        let params =
+            if let Some(profile) = sensor.filter(|_| **mode == RenderMode::Color && eligible) {
+                let center = lens.map_or_else(
+                    || Vec2::splat(0.5) + logical.map_or(Vec2::ZERO, |c| c.principal_point_offset),
+                    |lens| {
+                        let k = &lens.calibration;
+                        Vec2::new(
+                            k.k[0][2] / k.image_size[0] as f32,
+                            k.k[1][2] / k.image_size[1] as f32,
+                        )
+                    },
+                );
+                let mut params = profile.uniform(factor, center.to_array(), playback.progress);
+                params.header[2] = u32::from(preserve_hdr);
+                Uniform::Sensor(params)
+            } else {
+                Uniform::Box([factor, u32::from(normal), 0, 0])
+            };
         jobs.0.push(Job {
             camera: ssaa.clone(),
             source,

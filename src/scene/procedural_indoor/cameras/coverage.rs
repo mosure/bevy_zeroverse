@@ -396,6 +396,17 @@ impl Coverage {
         })
     }
     pub fn suitable(&self, camera: &IndoorCamera, require_person: bool) -> bool {
+        self.suitable_with_subject(camera, require_person, None)
+    }
+
+    /// Optional composition uses the same first-surface rays as ordinary
+    /// admission. An occluded subject in the nominal frustum does not count.
+    pub(super) fn suitable_with_subject(
+        &self,
+        camera: &IndoorCamera,
+        require_person: bool,
+        subject: Option<fn(&str) -> bool>,
+    ) -> bool {
         let lens = self.calibration(camera);
         [0.0, 0.5, 1.0].into_iter().all(|t| {
             let pose = camera.transform_at(t);
@@ -443,6 +454,15 @@ impl Coverage {
             counts.values().filter(|&&n| n >= 2).count() >= 4
                 && counts.values().copied().max().unwrap_or(35) <= 28
                 && (!require_person || counts.get("person").copied().unwrap_or(0) >= 2)
+                && (t != 0.
+                    || subject.is_none_or(|matches| {
+                        counts
+                            .iter()
+                            .filter(|(label, _)| matches(label))
+                            .map(|(_, n)| n)
+                            .sum::<usize>()
+                            >= 2
+                    }))
         })
     }
 }
@@ -588,6 +608,17 @@ mod tests {
         assert!(coverage.body_visible(pose, 1.0, Vec2::ZERO));
         coverage.body_points[0].x = 2.0;
         assert!(!coverage.body_visible(pose, 1.0, Vec2::ZERO));
+    }
+
+    #[test]
+    fn requesting_a_visible_subject_reuses_the_existing_first_surface_samples() {
+        use super::super::super::layout::IndoorLayout;
+        let scene = IndoorManifest::generate(2631, IndoorLayout::Kitchen, 0.65, 3).unwrap();
+        let coverage = Coverage::new(&scene);
+        let reference = &scene.cameras[0];
+        assert!(coverage.suitable(reference, true));
+        assert!(coverage.suitable_with_subject(reference, true, Some(|_| true)));
+        assert!(!coverage.suitable_with_subject(reference, true, Some(|_| false)));
     }
 
     #[test]

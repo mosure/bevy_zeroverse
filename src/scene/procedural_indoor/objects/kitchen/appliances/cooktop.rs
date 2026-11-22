@@ -1,6 +1,8 @@
 //! Bounded burner packing and an independent control strip. The admitted plan
 //! drives gas/induction geometry and exported metadata, including empty space.
 use super::*;
+mod gas;
+mod glass;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Burner {
@@ -9,8 +11,19 @@ pub struct Burner {
     pub grate_radius_m: f32,
 }
 #[derive(Clone, Debug, serde::Serialize)]
+pub struct GasGrate {
+    pub fingers: u32,
+    pub frame_segments: u32,
+    pub height_fraction: f32,
+    pub tip_fraction: f32,
+    pub width_fraction: f32,
+    pub phase_radians: f32,
+}
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct CooktopProgram {
     pub burners: Vec<Burner>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gas_grate: Option<GasGrate>,
     pub controls: Vec<Vec2>,
     pub knob_radius_m: f32,
     pub pointer_angles: Vec<f32>,
@@ -79,8 +92,22 @@ pub fn parameters(seed: u64, size: Vec3, p: &KitchenProgram) -> CooktopProgram {
             }
         })
         .collect();
+    let gas_grate = p.gas.then(|| {
+        let mut stock = stream(seed, 0x4341_5354_4952_4f4e);
+        let fingers = stock.random_range(3..=5);
+        GasGrate {
+            fingers,
+            height_fraction: stock.random_range(0.40..0.60),
+            tip_fraction: stock.random_range(0.54..0.68),
+            width_fraction: stock.random_range(0.09..0.16),
+            phase_radians: stock.random_range(-0.60..0.60),
+            // Both the faceted and rounded castings have a vertex at every foot.
+            frame_segments: fingers * if stock.random_bool(0.52) { 2 } else { 8 },
+        }
+    });
     CooktopProgram {
         burners,
+        gas_grate,
         controls,
         knob_radius_m: knob_radius,
         pointer_angles: (0..n).map(|_| r.random_range(-2.6..2.6)).collect(),
@@ -89,60 +116,37 @@ pub fn parameters(seed: u64, size: Vec3, p: &KitchenProgram) -> CooktopProgram {
 
 pub(super) fn build(a: &mut Assembly, s: Vec3, base: Vec3, p: &KitchenProgram, seed: u64) {
     let plan = parameters(seed, s, p);
-    a.box_part(
-        if p.gas { Surface::Metal } else { Surface::Ink },
-        "stove",
-        base + Vec3::Y * s.y * 0.12,
-        Vec3::new(s.x, s.y * 0.24, s.z),
-        0.005,
-    );
-    for burner in &plan.burners {
-        let c = base + Vec3::new(burner.center.x, s.y * 0.30, burner.center.y);
-        let radius = burner.radius_m;
-        a.part(Surface::Ink, "stove")
-            .cylinder(radius, s.y * 0.18, Transform::from_translation(c));
-        if p.gas {
-            a.part(Surface::Metal, "stove").cylinder(
-                radius * 0.72,
-                s.y * 0.12,
-                Transform::from_translation(c + Vec3::Y * s.y * 0.15),
-            );
-            for axis in [Vec3::X, Vec3::Z] {
-                pipe(
-                    a,
-                    Surface::Ink,
-                    "stove",
-                    &[
-                        c - axis * radius * 1.30 + Vec3::Y * s.y * 0.20,
-                        c + axis * radius * 1.30 + Vec3::Y * s.y * 0.20,
-                    ],
-                    (s.y * 0.07).min(0.006),
-                );
-            }
-        } else {
-            for ring in [0.72, 0.94] {
-                let points: Vec<_> = (0..=32)
-                    .map(|k| {
-                        let t = TAU * k as f32 / 32.;
-                        c + Vec3::new(t.cos() * radius * ring, s.y * 0.12, t.sin() * radius * ring)
-                    })
-                    .collect();
-                pipe(a, Surface::Metal, "stove", &points, 0.0012);
-            }
-        }
+    if let Some(grate) = &plan.gas_grate {
+        gas::build(a, s, base, &plan, grate);
+    } else {
+        glass::build(a, s, base, &plan.burners);
     }
     for (&c, &angle) in plan.controls.iter().zip(&plan.pointer_angles) {
-        let center = base + Vec3::new(c.x, s.y * 0.42, c.y);
-        a.part(p.hardware, "stove").cylinder(
+        let center = base + Vec3::new(c.x, s.y * 0.40, c.y);
+        a.part(
+            if p.hardware == Surface::WoodEdge {
+                // Cabinet pulls may be timber. The control on the hot deck is metal.
+                Surface::Metal
+            } else {
+                p.hardware
+            },
+            "stove",
+        )
+        .cylinder(
             plan.knob_radius_m,
             s.y * 0.32,
             Transform::from_translation(center),
         );
+        let rotation = Quat::from_rotation_y(angle);
         a.part(Surface::Ink, "stove").cuboid(
             Vec3::new(plan.knob_radius_m * 0.16, 0.0007, plan.knob_radius_m * 0.55),
             0.,
-            Transform::from_translation(center + Vec3::Y * (s.y * 0.16 + 0.0006))
-                .with_rotation(Quat::from_rotation_y(angle)),
+            Transform::from_translation(
+                center
+                    + Vec3::Y * (s.y * 0.16 + 0.00035)
+                    + rotation * Vec3::Z * (plan.knob_radius_m * 0.47),
+            )
+            .with_rotation(rotation),
         );
     }
 }

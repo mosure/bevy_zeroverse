@@ -4,6 +4,8 @@ use super::super::{layout::IndoorObject, plants};
 use super::*;
 mod buildings;
 mod details;
+mod frontages;
+mod midground;
 mod program;
 #[cfg(test)]
 mod qualification;
@@ -34,8 +36,25 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
         ("exterior_parcel_scale", d.parcel_scale),
         ("exterior_walkway_width_m", d.paving_width),
     ];
-    for p in parcels(scene).into_iter().filter(|p| p.kind == 0) {
-        let b = Building::sample(&p, super::background::radius(scene));
+    let windows = window_rays(scene);
+    let parcels = parcels_at(scene, &windows);
+    let sides = frontages::viewed_sides(&parcels, &windows);
+    out.push((
+        "exterior_viewed_frontages",
+        sides.iter().flatten().count() as f32,
+    ));
+    let terraces = midground::plan(scene, &windows, &parcels);
+    out.push(("exterior_terrace_rows", terraces.len() as f32));
+    for row in &terraces {
+        out.push(("exterior_terrace_frontage_m", row.size.x));
+        out.push(("exterior_terrace_roof_clearance_m", row.eaves_limit));
+    }
+    let mut entrances = Vec::new();
+    for (i, p) in parcels.iter().enumerate().filter(|(_, p)| p.kind == 0) {
+        let b = Building::sample(p, super::background::radius(scene));
+        if let Some(entry) = buildings::main_entrance(p, &b) {
+            entrances.push((i, entry));
+        }
         out.extend([
             ("exterior_building_width_m", p.size.x),
             ("exterior_building_depth_m", p.size.y),
@@ -52,9 +71,18 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
                 b.window_fraction,
             ),
             ("exterior_window_height_fraction", b.window_height),
+            (
+                "exterior_window_nominal_recess_m",
+                b.window_installation.recess_m,
+            ),
+            (
+                "exterior_window_sash_rebate_m",
+                b.window_installation.rebate_m,
+            ),
             ("exterior_building_distance_m", p.center.length()),
         ]);
     }
+    streets::measure(scene, &parcels, &terraces, &entrances, &mut out);
     out
 }
 /// Window origins and outward normals are measured from the built envelope,
@@ -91,7 +119,7 @@ fn window_rays(scene: &IndoorManifest) -> Vec<(Vec2, Vec2)> {
 
 pub(crate) fn window_context_fraction(scene: &IndoorManifest) -> Option<f32> {
     let rays = window_rays(scene);
-    let sites = parcels(scene);
+    let sites = parcels_at(scene, &rays);
     if rays.is_empty() {
         return None;
     }
@@ -109,11 +137,14 @@ pub(crate) fn window_context_fraction(scene: &IndoorManifest) -> Option<f32> {
 }
 
 fn parcels(scene: &IndoorManifest) -> Vec<Parcel> {
+    parcels_at(scene, &window_rays(scene))
+}
+
+fn parcels_at(scene: &IndoorManifest, windows: &[(Vec2, Vec2)]) -> Vec<Parcel> {
     let mut rng = stream(scene.seed, 6340);
     let mut parcels: Vec<Parcel> = vec![];
     let half = scene.room_size.xz() * 0.5;
     let district = District::sample(scene.seed);
-    let windows = window_rays(scene);
     let directed = (windows.len() * 9).min(128);
     for attempt in 0..directed + 192 {
         if parcels.len() >= 18 {
@@ -332,19 +363,29 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             0.,
         );
     }
-    streets::build(a, scene);
-    for p in parcels(scene) {
+    let windows = window_rays(scene);
+    let sites = parcels_at(scene, &windows);
+    let sides = frontages::viewed_sides(&sites, &windows);
+    let rows = midground::plan(scene, &windows, &sites);
+    for row in &rows {
+        buildings::terrace::build(a, row);
+    }
+    let mut entrances = Vec::new();
+    for (index, (p, side)) in sites.iter().zip(sides).enumerate() {
         if p.kind == 0 {
-            buildings::build(
+            if let Some(entry) = buildings::build(
                 a,
-                &p,
-                &Building::sample(&p, super::background::radius(scene)),
-            );
+                p,
+                &Building::sample(p, super::background::radius(scene)),
+                side,
+            ) {
+                entrances.push((index, entry));
+            }
             continue;
         }
         box_at(
             a,
-            &p,
+            p,
             if p.kind == 1 {
                 Surface::Soil
             } else {
@@ -355,13 +396,13 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             Vec3::new(p.size.x, 0.11, p.size.y),
             0.012,
         );
-        garden(a, scene, &p);
+        garden(a, scene, p);
         if p.kind == 2 {
             // Courtyard bench, backrest and two legs, kept inside its parcel.
             for z in [-0.22, 0., 0.22] {
                 box_at(
                     a,
-                    &p,
+                    p,
                     Surface::Wood,
                     "chair",
                     Vec3::new(0., 0.47, p.size.y * 0.32 + z * 0.35),
@@ -374,7 +415,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 let x = (i as f32 / supports as f32 - 0.5) * 0.60;
                 box_at(
                     a,
-                    &p,
+                    p,
                     Surface::Metal,
                     "chair",
                     Vec3::new(p.size.x * x, 0.25, p.size.y * 0.32),
@@ -384,7 +425,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             }
             box_at(
                 a,
-                &p,
+                p,
                 Surface::Wood,
                 "chair",
                 Vec3::new(0., 0.76, p.size.y * 0.32 + 0.12),
@@ -396,7 +437,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 let x = (i as f32 / supports as f32 - 0.5) * 0.60;
                 box_at(
                     a,
-                    &p,
+                    p,
                     Surface::Metal,
                     "chair",
                     Vec3::new(p.size.x * x, 0.60, p.size.y * 0.32 + 0.12),
@@ -405,9 +446,10 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 );
             }
         } else if p.kind == 3 {
-            details::pergola(a, &p);
+            details::pergola(a, p);
         }
     }
+    streets::build(a, scene, &sites, &rows, &entrances);
 }
 
 #[cfg(test)]

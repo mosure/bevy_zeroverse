@@ -23,6 +23,25 @@ pub struct Geometry {
 }
 
 impl Geometry {
+    /// A planar quad with outward winding and continuous world-metric UVs.
+    pub(crate) fn metric_quad(&mut self, points: [Vec3; 4], outside: Vec3) {
+        let mut p = points;
+        if (p[1] - p[0]).cross(p[2] - p[0]).dot(outside) < 0. {
+            p.reverse();
+        }
+        let normal = (p[1] - p[0]).cross(p[2] - p[0]).normalize();
+        let u = (p[1] - p[0]).normalize();
+        let v = normal.cross(u);
+        let base = self.positions.len() as u32;
+        for point in p {
+            self.positions.push(point.to_array());
+            self.normals.push(normal.to_array());
+            self.uvs.push([point.dot(u), point.dot(v)]);
+        }
+        self.indices
+            .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+
     pub fn append(&mut self, other: Self) {
         let offset = self.positions.len() as u32;
         self.positions.extend(other.positions);
@@ -142,6 +161,11 @@ impl Geometry {
 
     pub fn ellipsoid(&mut self, radii: Vec3, tf: Transform) {
         self.mesh_ref(primitives::unit_sphere(), tf.with_scale(tf.scale * radii));
+    }
+
+    /// Bounded mesh for centimetre-scale details with smooth sphere normals.
+    pub(crate) fn small_ellipsoid(&mut self, radii: Vec3, tf: Transform) {
+        self.mesh_ref(primitives::small_sphere(), tf.with_scale(tf.scale * radii));
     }
 
     /// A surface of revolution; profile goes from bottom outside to top, then inside.
@@ -347,15 +371,19 @@ impl Geometry {
         }
     }
 
-    pub fn into_mesh(self) -> Mesh {
-        let mut mesh = Mesh::new(
+    pub(crate) fn into_mesh_base(self) -> Mesh {
+        Mesh::new(
             PrimitiveTopology::TriangleList,
             RenderAssetUsages::default(),
         )
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, self.positions)
         .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, self.normals)
         .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs)
-        .with_inserted_indices(Indices::U32(self.indices));
+        .with_inserted_indices(Indices::U32(self.indices))
+    }
+
+    pub fn into_mesh(self) -> Mesh {
+        let mut mesh = self.into_mesh_base();
         mesh.generate_tangents()
             .expect("procedural indoor meshes have valid normals and UVs");
         repair_tangent_frames(&mut mesh);

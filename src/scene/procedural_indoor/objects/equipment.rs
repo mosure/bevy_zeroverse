@@ -198,6 +198,7 @@ pub(crate) fn fixture_beam(o: &IndoorObject) -> super::super::photometry::Fixtur
     let world = o.transform();
     super::super::photometry::FixtureBeam {
         position: world.transform_point(local),
+        radius: 0.018,
         direction: world.rotation * direction,
         inner: rng.random_range(0.37..0.64),
         outer: rng.random_range(0.82..1.18),

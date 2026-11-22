@@ -1,6 +1,29 @@
 //! One hollow, dimensioned dish program for loose dishes, shelves and appliances.
 use super::*;
 
+// Distinguish individual place settings from legacy loose or stacked dishes.
+pub(crate) const SERVED_PLATE: u32 = 16;
+pub(crate) const SERVED_BOWL: u32 = 17;
+
+pub(crate) fn served_style(o: &IndoorObject) -> Option<u8> {
+    match (o.kind, o.variant) {
+        (ObjectKind::Dishware, SERVED_PLATE) => Some(0),
+        (ObjectKind::Dishware, SERVED_BOWL) => Some(1),
+        _ => None,
+    }
+}
+
+pub(super) fn for_object(o: &IndoorObject, p: &props::PropProgram) -> DishProgram {
+    if let Some(style) = served_style(o) {
+        let mut dish = parameters(o.size, style, 1, o.seed);
+        // Dish sets share a finish while their outlines and rim profiles vary.
+        dish.surface = Surface::Ceramic;
+        dish
+    } else {
+        parameters(o.size, p.style, p.count, o.seed)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DishProgram {
     pub style: u8,

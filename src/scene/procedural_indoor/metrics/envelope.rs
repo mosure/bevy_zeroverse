@@ -43,6 +43,24 @@ pub(super) fn record(
         numeric.push("wall_lining_height_m", lining.height_m as f64)?;
         numeric.push("wall_lining_module_width_m", lining.module_width_m as f64)?;
         numeric.push("wall_lining_joint_depth_m", lining.joint_depth_m as f64)?;
+        let arrangement = match lining.courses {
+            None => "Upright",
+            Some(c) => {
+                numeric.push("wall_lining_course_height_m", f64::from(c.height_m))?;
+                numeric.push("wall_lining_bond_offset", f64::from(c.bond_offset))?;
+                if c.bond_offset == 0. {
+                    "Stacked"
+                } else {
+                    "Staggered"
+                }
+            }
+        };
+        *report
+            .categories
+            .entry("wall_lining_arrangement".into())
+            .or_default()
+            .entry(arrangement.into())
+            .or_default() += 1;
     }
     numeric.push("wall_lining_wall_count", lined_walls as f64)?;
     let adjoining = scene.adjoining_space();

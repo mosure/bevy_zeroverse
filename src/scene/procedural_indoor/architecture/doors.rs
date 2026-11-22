@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 pub(crate) const ENTRY_APPROACH_DEPTH_M: f32 = 1.35;
+/// Distance from the revolving axis to the inner end of each wing.
+const ROTOR_HEEL_RADIUS_M: f32 = 0.052;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DoorMechanism {
@@ -258,9 +260,10 @@ impl DoorInstallation {
                 for i in 0..4 {
                     let rotation = Quat::from_rotation_y(p.rotor_phase + i as f32 * FRAC_PI_2);
                     leaf(
-                        rotation * Vec3::X * (r * 0.5 + 0.026) + Vec3::Y * (height * 0.5 + 0.012),
+                        rotation * Vec3::X * ((r + ROTOR_HEEL_RADIUS_M) * 0.5)
+                            + Vec3::Y * (height * 0.5 + 0.012),
                         rotation,
-                        r - 0.052,
+                        r - ROTOR_HEEL_RADIUS_M,
                     );
                 }
             }

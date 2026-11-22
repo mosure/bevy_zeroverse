@@ -30,28 +30,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         s.x - 0.035,
         0.12,
         top - 0.15,
-        z + d * 0.5 - 0.012,
+        Vec2::new(0., z + d * 0.5 - 0.012),
         p,
         "cabinet",
     );
-    let lo = plan.aperture_min;
-    let hi = plan.aperture_max;
-    for (x0, x1, z0, z1) in [
-        (-s.x * 0.5, lo.x, z - d * 0.5, z + d * 0.5),
-        (hi.x, s.x * 0.5, z - d * 0.5, z + d * 0.5),
-        (lo.x, hi.x, z - d * 0.5, lo.y),
-        (lo.x, hi.x, hi.y, z + d * 0.5),
-    ] {
-        a.box_part(
-            p.top,
-            "counter",
-            Vec3::new((x0 + x1) * 0.5, top - 0.017, (z0 + z1) * 0.5),
-            Vec3::new(x1 - x0, 0.034, z1 - z0),
-            // These are regions of one slab. Bevelled shared edges create
-            // grooves under props even though the footprint is fully supported.
-            0.,
-        );
-    }
+    worktop::pierced(
+        a,
+        o,
+        p.top,
+        (
+            Vec2::new(-s.x * 0.5, z - d * 0.5),
+            Vec2::new(s.x * 0.5, z + d * 0.5),
+        ),
+        (plan.aperture_min, plan.aperture_max),
+        top,
+    );
     for bowl in &plan.basins {
         basin::build(a, bowl, top, plan.basin_finish);
     }

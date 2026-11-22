@@ -63,8 +63,3 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 fn organizer(a: &mut Assembly, o: &IndoorObject, _: &AccessoryProgram) {
     organizers::build(a, o);
 }
-
-/// Shared direct/indirect lighting proxy for the generated task-lamp head.
-pub(crate) fn lamp_photometry(o: &IndoorObject) -> (Vec3, Vec3, f32, f32, f32) {
-    lamps::photometry(o)
-}

@@ -116,8 +116,8 @@ mod tests {
         app.add_plugins(bevy::transform::TransformPlugin);
         app.add_systems(PreUpdate, finish_gpu);
         app.insert_resource(IndoorGenerationStatus {
-            pending: false,
             lighting_pending: true,
+            ..default()
         });
         let parent = Transform::from_xyz(3., 1., -2.).with_rotation(Quat::from_rotation_y(0.7));
         let root = app.world_mut().spawn((ZeroverseScene, parent)).id();

@@ -24,6 +24,11 @@ pub struct GlazingProgram {
     pub opening: f32,
 }
 impl GlazingProgram {
+    pub(crate) fn glass_recipe(&self) -> glass::GlassRecipe {
+        let mut recipe = glass::GlassRecipe::sample(self.installation, Surface::Glass);
+        recipe.thickness_m = self.thickness_m;
+        recipe
+    }
     pub fn sample(seed: u64, index: usize, operable: bool) -> Self {
         let mut installation = stream(seed, 3100);
         let mut rng = stream(seed, 3101 + index as u64);
@@ -186,8 +191,7 @@ pub(super) fn build(
         let Some(program) = &opening.glazing else {
             continue;
         };
-        let mut recipe = glass::GlassRecipe::sample(program.installation, Surface::Glass);
-        recipe.thickness_m = program.thickness_m;
+        let recipe = program.glass_recipe();
         let mut material = StandardMaterial::default();
         recipe.apply(&mut material, quality);
         if (1..=5).contains(&program.treatment) {

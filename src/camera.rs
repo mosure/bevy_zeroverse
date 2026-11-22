@@ -48,7 +48,7 @@ use crate::{
     io,
     // plucker::PluckerCamera,
     render::RenderMode,
-    scene::RegenerateSceneEvent,
+    scene::{RegenerateSceneEvent, SceneLoadedEvent, ZeroverseSceneType},
 };
 
 /// Stable dataset camera index, independent of ECS archetype iteration order.
@@ -99,6 +99,12 @@ impl Plugin for ZeroverseCameraPlugin {
             gate_interactive_views.before(bevy::camera::CameraUpdateSystems),
         );
 
+        app.add_systems(
+            PostUpdate,
+            apply_camera_tone_curves
+                .before(lens::LensPhotometry)
+                .before(bevy::camera::CameraUpdateSystems),
+        );
         app.init_resource::<Playback>();
         app.register_type::<Playback>();
 
@@ -187,14 +193,27 @@ pub(crate) fn update_camera_trajectory(
     mut cameras: Query<(&mut Transform, &mut ZeroverseCamera)>,
     mut global_playback: ResMut<Playback>,
     time: Res<Time>,
+    config: Res<BevyZeroverseConfig>,
     mut regenerate_events: MessageReader<RegenerateSceneEvent>,
+    mut loaded: MessageReader<SceneLoadedEvent>,
 ) {
     let mut update_camera_playbacks =
         global_playback.is_changed() || global_playback.mode != PlaybackMode::Still;
     global_playback.step(&time);
 
-    if !regenerate_events.is_empty() {
-        regenerate_events.clear();
+    // Built-in studios can wait for asynchronous meshes, material catalogs or
+    // a prepared room. The old cameras keep their clock until replacement.
+    let presenting = !config.headless
+        && config.regenerate_ms > 0
+        && config.scene_type != ZeroverseSceneType::Custom;
+    let reset = if presenting {
+        !loaded.is_empty()
+    } else {
+        !regenerate_events.is_empty()
+    };
+    regenerate_events.clear();
+    loaded.clear();
+    if reset {
         global_playback.progress = 0.0;
         global_playback.direction = 1.0;
         update_camera_playbacks = true;
@@ -403,6 +422,43 @@ fn setup_editor_camera(
 
         #[cfg(not(feature = "web"))]
         entity.insert((DepthPrepass, NormalPrepass));
+    }
+}
+
+/// Re-evaluate the output transform without resetting indoor bloom or exposure.
+#[allow(clippy::type_complexity)] // One disjoint pass over logical and editor cameras, excluding lens faces.
+fn apply_camera_tone_curves(
+    mode: Res<RenderMode>,
+    args: Res<BevyZeroverseConfig>,
+    display: Option<Res<crate::app::display::DisplayStatus>>,
+    mut previous: Local<
+        Option<(
+            bevy::render::view::Tonemapping,
+            bevy::render::view::Tonemapping,
+        )>,
+    >,
+    mut cameras: Query<
+        (
+            &mut bevy::render::view::Tonemapping,
+            Has<ProcessedEditorCameraMarker>,
+        ),
+        Or<(With<ZeroverseCamera>, With<ProcessedEditorCameraMarker>)>,
+    >,
+) {
+    let curve = crate::app::display::camera_curve(&mode, &args, display.as_deref());
+    let editor_curve = if *mode == RenderMode::CoVisibility {
+        crate::app::display::camera_curve(&RenderMode::Color, &args, display.as_deref())
+    } else {
+        curve
+    };
+    let changed =
+        previous.replace((curve, editor_curve)) != Some((curve, editor_curve)) || mode.is_changed();
+    for (mut current, editor) in &mut cameras {
+        if !changed && !current.is_added() {
+            continue;
+        }
+        let desired = if editor { editor_curve } else { curve };
+        current.set_if_neq(desired);
     }
 }
 

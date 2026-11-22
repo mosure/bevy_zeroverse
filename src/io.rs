@@ -12,9 +12,11 @@ pub mod channels {
 
     /// An indexed indoor request regenerates exactly this seed before capture.
     /// A default request advances the existing scene stream.
-    #[derive(Clone, Copy, Debug, Default)]
+    #[derive(Clone, Debug, Default)]
     pub struct AppFrameRequest {
         pub indoor_seed: Option<u64>,
+        pub rgb_artifact_eligible_cameras_by_timestep:
+            Option<bevy_zeroverse_capture::request::CameraRows>,
         /// Future consecutive indoor rooms to prepare on the CPU (capped at 4).
         /// Limit to remaining requests; zero disables speculative preparation.
         pub prefetch_indoor: usize,

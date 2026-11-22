@@ -32,7 +32,10 @@ pub mod residency;
 pub mod semantic;
 pub mod sensor;
 pub mod ssaa;
-#[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+#[cfg(any(
+    target_arch = "wasm32",
+    all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")
+))]
 mod upload;
 #[cfg(any(
     target_arch = "wasm32",
@@ -117,7 +120,7 @@ impl RenderMode {
 
     pub fn tonemapping(&self) -> Tonemapping {
         match self {
-            RenderMode::Color => Tonemapping::TonyMcMapface,
+            RenderMode::Color => color::RgbTonemapping::Auto.resolve(false),
             _ => Tonemapping::None,
         }
     }
@@ -169,7 +172,10 @@ impl Plugin for RenderPlugin {
         preview_shadows::install(app);
         raster_order::install(app);
         #[cfg(target_arch = "wasm32")]
-        webgpu_mesh::install(app);
+        {
+            upload::install(app);
+            webgpu_mesh::install(app);
+        }
         // GPU clustering appends lights with atomics, so floating point lighting
         // accumulation can vary between identical captures. Use the same stable
         // light assignment in interactive and dataset views, including WebGPU.

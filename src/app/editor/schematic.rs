@@ -159,9 +159,10 @@ pub(super) fn update(
         return;
     };
     let (width, height) = windows.single().map_or((1024., 768.), |w| {
+        let insets = shell::Insets::for_view(&editor.view, w);
         (
-            (w.width() - if editor.view.collapsed { 0. } else { PANEL }).max(128.),
-            (w.height() - 96.).max(128.),
+            (w.width() - insets.left).max(128.),
+            (w.height() - insets.top - insets.bottom).max(128.),
         )
     });
     let scale = (1600.0_f32 / width).min(1200. / height).min(1.);

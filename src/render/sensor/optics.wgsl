@@ -111,5 +111,5 @@ fn sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> 
         let n = vec3(unit_noise(key),unit_noise(key+1u),unit_noise(key+2u));
         rgb += n * sqrt(vec3(p.sensor.x*p.sensor.x) + p.sensor.y*p.sensor.y * max(rgb,vec3(0.)));
     }
-    return vec4(clamp(rgb,vec3(0.),vec3(1.))*base.a,base.a);
+    return vec4(select(clamp(rgb,vec3(0.),vec3(1.)), max(rgb,vec3(0.)), p.header.z != 0u)*base.a,base.a);
 }

@@ -53,6 +53,8 @@ pub struct ViewState {
     pub version: u32,
     pub page: Page,
     pub collapsed: bool,
+    /// F1 presents the selected viewport edge to edge, preserving the controls underneath.
+    pub viewport_only: bool,
     pub expanded: std::collections::BTreeSet<String>,
     /// Explicitly closed default-open Studio groups. Empty in old links.
     #[serde(skip_serializing_if = "std::collections::BTreeSet::is_empty")]
@@ -82,6 +84,7 @@ impl Default for ViewState {
             version: 1,
             page: Page::Scene,
             collapsed: false,
+            viewport_only: false,
             expanded: default(),
             closed_sections: default(),
             progress: 0.,

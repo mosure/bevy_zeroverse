@@ -11,6 +11,18 @@ Scene Studio uses the same validated policies as native generation and the brows
 | View & playback | Editor/grid/schematic, annotations, overlays, timeline |
 | Capture & tools | Image dimensions and timesteps, O-voxel, complete policy import, qualification evidence |
 
+**F1** hides every Studio control and expands the selected editor, grid or schematic view to the window edges. Press it again to restore the same panel and scroll position. A shared browser link can open directly in this mode with `view.viewport_only=true`.
+
+**F11** toggles fullscreen independently of F1. The same setting is in **View & playback → Viewport & annotation**. Start the native viewer with `--fullscreen` or open the browser with `?fullscreen=true`. A browser needs a click or keypress to enter fullscreen from a link.
+
+The same group offers **RGB tone mapping** and **HDR RGB output**. Automatic uses Tony McMapface for SDR and Bevy’s linear curve for HDR. You can also pick any of Bevy’s ten curves. **Linear** retains grading and exposure, while **None** bypasses the tone-mapping stage. Changes apply immediately to the editor and capture grid, including fisheye views. Numeric annotations keep their own rendering path.
+
+Use `--hdr --tonemapping auto` or `?hdr=true&tonemapping=agx`. The Studio reports the negotiated output in the footer. HDR requires a compatible monitor, OS display mode and adapter. On an SDR display the automatic preview retains the SDR curve. Windowless HDR capture is independent of the monitor and retains highlights above 1.0 in floating-point RGB. JPEG previews use the SDR range.
+
+`zeroverse_gen --output ./captures --scene-type procedural-indoor --samples 1 --hdr` exports floating-point, display-linear RGB with the automatic curve. Its `--tonemapping` option accepts the same names as the viewer. The optional archive `--rgb-sensor` applies sRGB-domain augmentations and exports SDR. Use the scene's `indoor_appearance.sensor` policy for sensor artifacts on HDR captures.
+
+**Next scene interval** sets the minimum display time in milliseconds. With procedural indoor rooms, the Studio prepares one successor while the current room plays. A camera-placement or geometry rejection advances to the following seed. The browser URL follows the room actually on screen. Setting the interval to zero cancels the pending automatic transition.
+
 Controls are declared in `src/app/editor/fields/`, separate from retained Feathers widgets, distribution previews, validated editor state, and URL encoding. Updating a continuous control preserves its widget identity, focus and scroll position. Human motion controls do not initialize models until an enabled policy is applied.
 
 ## Navigating groups

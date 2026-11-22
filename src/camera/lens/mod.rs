@@ -17,6 +17,7 @@ pub(crate) use resolve::LensResolveLabel;
 pub(crate) use runtime::sync as sync_faces;
 pub use runtime::{FisheyeCameraPlugin, LensCamera, LensFace};
 pub use sampling::LensSampling;
+pub(crate) use settings::LensPhotometry;
 
 pub fn calibration(
     projection: &bevy::prelude::Projection,

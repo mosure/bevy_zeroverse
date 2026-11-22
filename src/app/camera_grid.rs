@@ -79,17 +79,23 @@ struct GridCamera {
     marked: Has<CameraGridMarker>,
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn setup_camera_grid(
     mut commands: Commands,
     args: Res<BevyZeroverseConfig>,
     mut materials: ResMut<Assets<GridImage>>,
-    camera_grids: Query<Entity, With<CameraGrid>>,
+    camera_grids: Query<(Entity, &Children), With<CameraGrid>>,
+    mut sources: Query<&mut CameraGridSource>,
+    acquiring: Query<(), (With<ZeroverseCamera>, Without<RenderTarget>)>,
     zeroverse_cameras: Query<GridCamera, With<ZeroverseCamera>>,
     mut scene_loaded: MessageReader<SceneLoadedEvent>,
     mut previous_camera_grid: Local<Option<(bool, usize)>>,
 ) {
     if zeroverse_cameras.is_empty() {
-        for grid in &camera_grids {
+        if args.camera_grid && !args.room_schematic && !acquiring.is_empty() {
+            return; // Previous tiles own the last rendered frame until replacement targets exist.
+        }
+        for (grid, _) in &camera_grids {
             commands.entity(grid).despawn();
         }
         *previous_camera_grid = None;
@@ -115,18 +121,27 @@ fn setup_camera_grid(
         }
     }
 
-    for grid in &camera_grids {
+    let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
+    cameras.sort_by_key(|camera| {
+        (
+            camera.index.map_or(usize::MAX, |i| i.0),
+            camera.entity.to_bits(),
+        )
+    });
+    if state.0 {
+        if let Ok((_, tiles)) = camera_grids.single() {
+            if tiles.len() == cameras.len() && tiles.iter().all(|tile| sources.contains(tile)) {
+                for (tile, camera) in tiles.iter().zip(&cameras) {
+                    sources.get_mut(tile).unwrap().0 = camera.entity;
+                }
+                return;
+            }
+        }
+    }
+    for (grid, _) in &camera_grids {
         commands.entity(grid).despawn();
     }
-
     if state.0 {
-        let mut cameras: Vec<_> = zeroverse_cameras.iter().collect();
-        cameras.sort_by_key(|camera| {
-            (
-                camera.index.map_or(usize::MAX, |i| i.0),
-                camera.entity.to_bits(),
-            )
-        });
         let camera_count = cameras.len();
         let rows = (camera_count as f32).sqrt().ceil() as u16;
         let cols = (camera_count as f32 / rows as f32).ceil() as u16;
@@ -173,6 +188,68 @@ fn setup_camera_grid(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn studio_grid_keeps_its_tile_and_last_image_while_the_successor_acquires_a_target() {
+        let mut app = App::new();
+        app.init_resource::<Assets<GridImage>>()
+            .init_resource::<Assets<Image>>()
+            .insert_resource(RenderMode::Color)
+            .add_message::<SceneLoadedEvent>()
+            .insert_resource(BevyZeroverseConfig {
+                camera_grid: true,
+                ..default()
+            })
+            .add_systems(Update, (setup_camera_grid, update_images).chain());
+        let [first, next] = [(); 2].map(|_| {
+            app.world_mut()
+                .resource_mut::<Assets<Image>>()
+                .add(Image::default())
+        });
+        let camera = app
+            .world_mut()
+            .spawn((
+                ZeroverseCamera::default(),
+                RenderTarget::Image(first.clone().into()),
+                crate::camera::CaptureCameraIndex(0),
+            ))
+            .id();
+        app.update();
+        let world = app.world_mut();
+        let (tile, material) = world
+            .query::<(Entity, &MaterialNode<GridImage>)>()
+            .single(world)
+            .unwrap();
+        let material = material.0.clone();
+        world.despawn(camera);
+        let successor = world
+            .spawn((
+                ZeroverseCamera::default(),
+                crate::camera::CaptureCameraIndex(0),
+            ))
+            .id();
+        app.update();
+        assert_eq!(app.world().get::<ImageNode>(tile).unwrap().image, first);
+        app.world_mut()
+            .entity_mut(successor)
+            .insert(RenderTarget::Image(next.clone().into()));
+        app.update();
+        let world = app.world();
+        assert_eq!(world.get::<CameraGridSource>(tile).unwrap().0, successor);
+        assert_eq!(world.get::<ImageNode>(tile).unwrap().image, next);
+        assert_eq!(
+            world.get::<MaterialNode<GridImage>>(tile).unwrap().0,
+            material
+        );
+        assert_eq!(
+            world
+                .resource::<Assets<GridImage>>()
+                .get(&material)
+                .unwrap()
+                .image,
+            next
+        );
+    }
 
     #[test]
     fn tiles_follow_live_capture_targets_including_the_last_removal() {

@@ -68,36 +68,57 @@ pub(super) struct Plan {
 }
 impl Maps {
     pub(super) fn prepare(r: &MaterialRecipe, floor: u32, gpu: bool) -> Self {
-        if gpu {
-            if let Some(recipe) = recipe::Recipe::new(r, floor) {
-                let n = r.map_size(floor);
-                // The transport proxy samples the same material program as the
-                // full CPU map. Reuse its immutable evaluator rather than
-                // reconstructing per-recipe constants at every proxy texel.
-                let prepared = r.prepare_texels(floor);
-                let mut albedo = Vec::with_capacity(1024);
-                for y in 0..32 {
-                    for x in 0..32 {
-                        // Retain original texel-grid coordinates, truncation, and later sRGB decoding.
-                        let t = r.texel_prepared(
-                            (x * n / 32) as f32 / n as f32,
-                            (y * n / 32) as f32 / n as f32,
-                            floor,
-                            prepared.as_ref(),
-                        );
-                        albedo.push(t.color.map(|v| (v.clamp(0., 1.) * 255.) as u8));
-                    }
-                }
-                return Self::Gpu(Box::new(Plan {
-                    recipe,
-                    albedo,
-                    // Polished chrome intentionally has no normal texture: RGBA8
-                    // quantization would exaggerate its microscopic slopes.
-                    normal_output: r.surface != super::Surface::Chrome,
-                }));
+        Self::gpu_plan(r, floor, gpu).unwrap_or_else(|| Self::Cpu(Box::new(r.maps(floor))))
+    }
+    pub(super) fn gpu_plan(r: &MaterialRecipe, floor: u32, gpu: bool) -> Option<Self> {
+        if !gpu {
+            return None;
+        }
+        let recipe = recipe::Recipe::new(r, floor)?;
+        let n = r.map_size(floor);
+        // The transport proxy samples the same material program as the
+        // full CPU map. Reuse its immutable evaluator rather than
+        // reconstructing per-recipe constants at every proxy texel.
+        let prepared = r.prepare_texels(floor);
+        let mut albedo = Vec::with_capacity(1024);
+        for y in 0..32 {
+            for x in 0..32 {
+                // Retain original texel-grid coordinates, truncation, and later sRGB decoding.
+                let t = r.texel_prepared(
+                    (x * n / 32) as f32 / n as f32,
+                    (y * n / 32) as f32 / n as f32,
+                    floor,
+                    prepared.as_ref(),
+                );
+                albedo.push(t.color.map(|v| (v.clamp(0., 1.) * 255.) as u8));
             }
         }
-        Self::Cpu(Box::new(r.maps(floor)))
+        Some(Self::Gpu(Box::new(Plan {
+            recipe,
+            albedo,
+            // Polished chrome intentionally has no normal texture: RGBA8
+            // quantization would exaggerate its microscopic slopes.
+            normal_output: r.surface != super::Surface::Chrome,
+        })))
+    }
+    pub(super) async fn scheduled(
+        r: &MaterialRecipe,
+        floor: u32,
+        gpu: bool,
+        cooperative: bool,
+    ) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        if cooperative {
+            if let Some(plan) = Self::gpu_plan(r, floor, gpu) {
+                return plan;
+            }
+            return Self::Cpu(Box::new(
+                super::browser_maps::prepare(r.surface, floor, r.seed, r.roughness, Some(r)).await,
+            ));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = cooperative;
+        Self::prepare(r, floor, gpu)
     }
     pub(super) fn insert(
         self,

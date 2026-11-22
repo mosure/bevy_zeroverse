@@ -38,9 +38,7 @@ impl AnimatedLight {
         id: usize,
         rest: Transform,
     ) -> Option<Self> {
-        let m = scene.indoor_motion.as_ref()?.mechanisms.iter().find(|m| {
-            m.rejection.is_none() && (m.object_id == Some(id) || m.carried_object_ids.contains(&id))
-        })?;
+        let m = scene.indoor_motion.as_ref()?.mechanism_for_object(id)?;
         let mut joint =
             construction::rigid(m.kind, 0, m.pivot, m.axis, m.angle_radians, m.translation_m);
         joint.interval = m.interval;

@@ -550,7 +550,7 @@ class Sample:
                 linear <= 0.0031308, linear * 12.92,
                 1.055 * torch.pow(linear, 1.0 / 2.4) - 0.055,
             )
-        normalize_keys = [] if color_encoding in ("tonemapped_linear", "srgb") else ['color']
+        normalize_keys = [] if color_encoding in ("tonemapped_linear", "srgb", "linear_hdr") else ['color']
         for key in normalize_keys:
             if key in sample:
                 sample[key] = normalize_hdr_image_tonemap(sample[key])
@@ -572,7 +572,8 @@ class Sample:
 
         if self.indoor_manifest is not None:
             sample['indoor_manifest'] = torch.tensor(list(self.indoor_manifest.encode("utf-8")), dtype=torch.uint8)
-            sample['color_encoding'] = torch.tensor(2, dtype=torch.uint8)  # stored sRGB
+        if self.indoor_manifest is not None or color_encoding == "linear_hdr":
+            sample['color_encoding'] = torch.tensor(3 if color_encoding == "linear_hdr" else 2, dtype=torch.uint8)
 
         if self.indoor_render_metadata is not None:
             sample['indoor_render_metadata'] = torch.tensor(list(self.indoor_render_metadata.encode("utf-8")), dtype=torch.uint8)
@@ -845,6 +846,18 @@ def normalize_color_float01(tensor: torch.Tensor) -> torch.Tensor:
     return color.clamp_(0.0, 1.0)
 
 
+def storage_rgb(tensor, encoding, *, jpeg):
+    if int(encoding) != 3:
+        return normalize_color_float01(tensor) if not jpeg else tensor
+    if not tensor.is_floating_point() or not torch.isfinite(tensor).all():
+        raise ValueError("Linear HDR RGB must be finite floating-point data")
+    if not jpeg:
+        return tensor.to(torch.float32)
+    linear = tensor.clamp(0, 1)
+    return torch.where(linear <= 0.0031308, linear * 12.92,
+                       1.055 * linear.pow(1 / 2.4) - 0.055)
+
+
 def numeric_prefix(s: str) -> int | None:
     digits = ''.join(takewhile(str.isdigit, s))
     return int(digits) if digits else None
@@ -1020,7 +1033,10 @@ def chunk_and_save(
             for field in (*numeric_flow.NAMES, "co_visibility"):
                 if field in sample:
                     batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *sample[field].shape[:-1], 3], dtype=torch.int64))
+            encoding = sample.get("color_encoding", 0)
             for name, tensor in sample.items():
+                if name == "color_encoding" and int(encoding) == 3 and color_codec != "raw":
+                    tensor = torch.full_like(tensor, 2)
                 if name in {"indoor_manifest", "indoor_render_metadata", "co_visibility_metadata"}:
                     batch[f"{name}_{sample_index}"] = tensor.cpu().contiguous()
                 elif name in {"flow_metadata", "camera_calibration"}:
@@ -1030,11 +1046,10 @@ def chunk_and_save(
                 elif name == "color":
                     if color_codec == "raw":
                         batch.setdefault("color_shape", torch.tensor([len(chunk_samples), *tensor.shape], dtype=torch.int64))
-                        # Raw storage path: enforce float32 [0, 1].
-                        batch.setdefault(name, []).append(normalize_color_float01(tensor).cpu())
+                        batch.setdefault(name, []).append(storage_rgb(tensor, encoding, jpeg=False).cpu())
                         continue
                     T, V, H, W, C = tensor.shape
-                    flat_views = tensor.view(-1, H, W, C)
+                    flat_views = storage_rgb(tensor, encoding, jpeg=True).view(-1, H, W, C)
                     for idx, view in enumerate(flat_views):
                         view_jpg = encode_tensor_to_jpg(view, quality=jpg_quality)
                         batch[f"{name}_jpg_{offset + idx}"] = view_jpg
@@ -1775,10 +1790,15 @@ def write_sample(sample: dict, *, jpg_quality: int = 75) -> None:
             key = f"{parent}_jpg_{offset + v_i}"
             tensors[key] = encode_tensor_to_jpg(view, quality=jpg_quality)
 
+    encoding = sample.get("color_encoding", tensors.get("color_encoding", [0] * (idx + 1))[idx])
     for key, val in sample.items():
+        if key == "color" and "color" not in tensors:
+            val = storage_rgb(val, encoding, jpeg=True)
+        elif key == "color_encoding" and int(encoding) == 3 and "color" not in tensors:
+            val = torch.full_like(val, 2)
         if key in tensors:
             if key == "color":
-                val = normalize_color_float01(val)
+                val = storage_rgb(val, encoding, jpeg=False)
             tensors[key][idx] = val.to(tensors[key].dtype)
             continue
 
@@ -1834,7 +1854,8 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
                         np.savez_compressed(stem.with_suffix('.npz'), **{name: rgba.numpy()})
                     elif name == 'color':
                         np.savez_compressed(stem.with_suffix('.npz'), color=plane.numpy())
-                        save_image(plane.permute(2, 0, 1), str(stem.with_suffix('.jpg')))
+                        preview = storage_rgb(plane, sample.get('color_encoding', 0), jpeg=True)
+                        save_image(preview.permute(2, 0, 1), str(stem.with_suffix('.jpg')))
                     else:
                         data = plane[..., 0] if name == 'depth' else plane
                         np.savez_compressed(stem.with_suffix('.npz'), **{name: data.numpy()})
@@ -1846,7 +1867,7 @@ def save_to_folders(dataset, output_dir: Path, n_workers: int = 1):
         metadata = {key: value.cpu().contiguous() for key, value in sample.items() if key not in planes | flow_masks | {"co_visibility", "co_visibility_valid", "co_visibility_metadata"}}
         if 'indoor_manifest' in sample:
             manifest = json.loads(bytes(sample['indoor_manifest'].tolist()))
-            (scene_dir / 'render_metadata.json').write_text(json.dumps(['Srgb', manifest]))
+            (scene_dir / 'render_metadata.json').write_text(json.dumps(['LinearHdr' if int(sample.get('color_encoding', 0)) == 3 else 'Srgb', manifest]))
         save_file(metadata, str(scene_dir / 'meta.safetensors'))
         scene_dir.rename(final_dir)
 
@@ -1906,7 +1927,7 @@ class FolderDataset(Dataset):
         path = scene_dir / 'render_metadata.json'
         if path.exists() and 'indoor_manifest' not in metadata:
             encoding, manifest = json.loads(path.read_text())
-            metadata['color_encoding'] = torch.tensor({'Legacy': 0, 'TonemappedLinear': 1, 'Srgb': 2}[encoding], dtype=torch.uint8)
+            metadata['color_encoding'] = torch.tensor({'Legacy': 0, 'TonemappedLinear': 1, 'Srgb': 2, 'LinearHdr': 3}[encoding], dtype=torch.uint8)
             if manifest is not None:
                 metadata['indoor_manifest'] = torch.tensor(list(json.dumps(manifest).encode()), dtype=torch.uint8)
         provenance_path = scene_dir / 'indoor_render_metadata.json'

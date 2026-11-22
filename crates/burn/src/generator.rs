@@ -38,6 +38,8 @@ pub struct GenConfig {
     pub chunk_size: usize,
     pub samples: usize,
     pub sample_offset: usize,
+    /// Explicit per-room requests in global sample-index order. Multiple entries can capture the same seed.
+    pub capture_requests: Option<Arc<[CaptureRequest]>>,
     pub chunk_offset: usize,
     pub playback_step: f32,
     pub playback_steps: u32,
@@ -67,6 +69,9 @@ pub struct GenConfig {
     pub indoor_clutter: Option<String>,
     /// Presentation-only drawings embedded in the RGB attachment.
     pub rgb_gizmos: bevy_zeroverse::camera::gizmo::RgbGizmos,
+    /// Request HDR RGB capture independently of any attached display.
+    pub hdr: bool,
+    pub tonemapping: bevy_zeroverse::render::color::RgbTonemapping,
     pub rgb_sensor: Option<crate::sensor::SensorSettings>,
     pub indoor_gi_rays: u32,
     pub annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
@@ -95,6 +100,7 @@ impl Default for GenConfig {
             chunk_size: 256,
             samples: 0,
             sample_offset: 0,
+            capture_requests: None,
             chunk_offset: 0,
             playback_step: 0.05,
             playback_steps: 5,
@@ -118,6 +124,8 @@ impl Default for GenConfig {
             indoor_appearance: None,
             indoor_clutter: None,
             rgb_gizmos: Default::default(),
+            hdr: false,
+            tonemapping: Default::default(),
             rgb_sensor: None,
             indoor_gi_rays: 256,
             annotation_glass: Default::default(),
@@ -158,9 +166,16 @@ impl GenConfig {
             self.ov_resolution,
             self.ov_max_output_voxels,
         );
-        scene.indoor_seed = self.seed.map(|s| s.wrapping_add(self.sample_offset as u64));
+        scene.indoor_seed = self
+            .capture_requests
+            .as_ref()
+            .and_then(|r| r.get(self.sample_offset))
+            .map(|r| r.seed)
+            .or_else(|| self.seed.map(|s| s.wrapping_add(self.sample_offset as u64)));
         scene.ssaa_factor = self.ssaa_factor;
         scene.rgb_gizmos = self.rgb_gizmos;
+        scene.hdr = self.hdr;
+        scene.tonemapping = self.tonemapping;
         scene.schematic_camera_gizmo_scale = self.schematic_camera_gizmo_scale;
         scene.indoor_layout = self.indoor_layout;
         scene.indoor_density = self.indoor_density;
@@ -209,6 +224,27 @@ impl GenConfig {
 
 /// Validate the capture contract before starting a GPU process or writing data.
 pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
+    if let Some(requests) = &config.capture_requests {
+        anyhow::ensure!(
+            config.scene_type == ZeroverseSceneType::ProceduralIndoor
+                && config.samples > 0
+                && config
+                    .sample_offset
+                    .checked_add(config.samples)
+                    .is_some_and(|end| end <= requests.len()),
+            "capture request list must cover every requested global sample index in a finite indoor dataset"
+        );
+        for (sequence, request) in requests.iter().enumerate() {
+            anyhow::ensure!(
+                request.sequence == sequence,
+                "expected capture request sequence {sequence}, got {}",
+                request.sequence
+            );
+            request
+                .validate(config.cameras, config.playback_steps as usize)
+                .map_err(anyhow::Error::msg)?;
+        }
+    }
     bevy_zeroverse::camera::gizmo::scale::validate(config.rgb_gizmos.camera_scale)
         .map_err(anyhow::Error::msg)?;
     bevy_zeroverse::camera::gizmo::scale::validate(config.schematic_camera_gizmo_scale)
@@ -620,7 +656,7 @@ pub fn run_chunk_generation_controlled(
     anyhow::ensure!(
         config.workers == 1
             && config.chunk_size == 1
-            && config.seed.is_some()
+            && (config.seed.is_some() || config.capture_requests.is_some())
             && config.scene_type == ZeroverseSceneType::ProceduralIndoor,
         "controlled generation requires seeded procedural_indoor, one worker and chunk_size=1"
     );
@@ -629,13 +665,20 @@ pub fn run_chunk_generation_controlled(
     if control.snapshot().cancelled {
         // A pre-cancelled run needs no GPU/device/model initialization, including
         // main-thread renderers. Still emit the first request's terminal receipt.
-        let _ = control.acquire(CaptureRequest {
-            sequence: config.sample_offset,
-            seed: config
-                .seed
-                .unwrap()
-                .wrapping_add(config.sample_offset as u64),
-        })?;
+        let request = config
+            .capture_requests
+            .as_ref()
+            .map(|rows| rows[config.sample_offset].clone())
+            .unwrap_or_else(|| {
+                CaptureRequest::new(
+                    config.sample_offset,
+                    config
+                        .seed
+                        .unwrap()
+                        .wrapping_add(config.sample_offset as u64),
+                )
+            });
+        let _ = control.acquire(request)?;
         return Ok(());
     }
     run_generation(config, Some(control))
@@ -650,6 +693,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         chunk_size,
         samples,
         sample_offset,
+        capture_requests,
         chunk_offset,
         playback_step: _,
         playback_steps,
@@ -672,6 +716,8 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
         indoor_appearance: _,
         indoor_clutter: _,
         rgb_gizmos: _,
+        hdr: _,
+        tonemapping: _,
         rgb_sensor,
         indoor_gi_rays: _,
         indoor_quality: _,
@@ -748,6 +794,7 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
     for _worker_id in 0..workers {
         let control = control.clone();
         let rgb_sensor = rgb_sensor.clone();
+        let capture_requests = capture_requests.clone();
         let dataset = Arc::clone(&dataset);
         let output_dir = Arc::clone(&output_dir);
         let sample_counter = Arc::clone(&sample_counter);
@@ -813,8 +860,10 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                     break;
                 }
 
+                let explicit = capture_requests.as_ref().map(|requests| &requests[idx]);
+                let expected_seed = explicit.map(|r| r.seed).or_else(|| seed.map(|s| s.wrapping_add(idx as u64)));
                 let mut permit = if let Some(control) = &control {
-                    match control.acquire(CaptureRequest { sequence: idx, seed: seed.unwrap().wrapping_add(idx as u64) })? {
+                    match control.acquire(explicit.cloned().unwrap_or_else(|| CaptureRequest::new(idx, expected_seed.unwrap())))? {
                         Some(permit) => Some(permit),
                         None => break,
                     }
@@ -827,12 +876,15 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                     let lookahead = if indoor_prefetch && scene_type == ZeroverseSceneType::ProceduralIndoor {
                         indoor_prefetch_depth.min(4).min(target_samples - idx - 1)
                     } else { 0 };
-                    let result = dataset.capture_next(lookahead, if control.is_some() { bevy_zeroverse::io::channels::IdleWork::CpuOnly } else { bevy_zeroverse::io::channels::IdleWork::Preflight }, control.as_ref().is_some_and(|c| c.recovers_rejections()));
+                    // Prepare consecutive successors only when they are present in the caller's ledger.
+                    let lookahead = capture_requests.as_ref().map_or(lookahead, |requests|
+                        requests[idx+1..].iter().take(lookahead).enumerate().take_while(|(i, next)| next.seed == expected_seed.unwrap().wrapping_add(*i as u64+1)).count());
+                    let result = dataset.capture_next(explicit,lookahead, if control.is_some() { bevy_zeroverse::io::channels::IdleWork::CpuOnly } else { bevy_zeroverse::io::channels::IdleWork::Preflight }, control.as_ref().is_some_and(|c| c.recovers_rejections()));
                     let (sample, telemetry) = match result {
                         Ok(result) => result,
                         Err(error) => {
                             if let Some(bevy_zeroverse::sample::failure::CaptureError::Rejected { rejection, retired: true }) = error.downcast_ref::<bevy_zeroverse::sample::failure::CaptureError>() {
-                                anyhow::ensure!(seed.map(|s| s.wrapping_add(idx as u64)) == Some(rejection.seed), "rejected capture seed differs from admitted seed");
+                                anyhow::ensure!(expected_seed == Some(rejection.seed), "rejected capture seed differs from admitted seed");
                                 if let Some(permit) = permit.take() {
                                     // Join the previous archive's completion order without
                                     // serializing the normal successful capture/export path.
@@ -854,8 +906,8 @@ fn run_generation(config: GenConfig, control: Option<Arc<CaptureControl>>) -> Re
                         if scene_type == ZeroverseSceneType::ProceduralIndoor {
                             let manifest = sample.indoor.as_ref().context("indoor capture missing manifest")?;
                             anyhow::ensure!(sample.human_instance_ids == manifest.humans.iter().map(|human| human.id as i64).collect::<Vec<_>>() && sample.human_pose_steps.len() == playback_steps as usize && sample.human_pose_steps.iter().all(|step| step.len() == manifest.humans.len()), "sample {idx} human IDs/counts do not match its manifest and trajectory steps");
-                            if let Some(base) = seed {
-                                anyhow::ensure!(manifest.seed == base.wrapping_add(idx as u64), "sample {idx} has unexpected seed {}; refusing reordered or skipped capture", manifest.seed);
+                            if let Some(expected) = expected_seed {
+                                anyhow::ensure!(manifest.seed == expected, "sample {idx} has unexpected seed {}; refusing reordered or skipped capture", manifest.seed);
                             }
                             anyhow::ensure!(sample.view_dim as usize == cameras && sample.views.len() == cameras * playback_steps as usize,
                                 "sample {idx} has wrong camera/timestep dimensions");

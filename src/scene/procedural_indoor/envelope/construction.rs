@@ -451,6 +451,15 @@ fn cornice(
 }
 
 pub fn build(scene: &IndoorManifest) -> Assembly {
+    bevy::tasks::block_on(build_with_yields(scene, || std::future::ready(())))
+}
+
+/// The native builder runs on a preparation thread. The single-threaded browser
+/// can give rendering and input time between the same ordered construction steps.
+pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
+    scene: &IndoorManifest,
+    yield_if_due: impl Fn() -> F,
+) -> Assembly {
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
     let mut a = Assembly {
@@ -458,6 +467,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         ..default()
     };
     floors(&mut a, e, size);
+    yield_if_due().await;
     let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {
         if let Some(g) = &e.tier_guard {
@@ -506,6 +516,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     );
     let feature_edges = super::super::materials::wall::feature_edges(scene);
     for entry in &e.walls {
+        yield_if_due().await;
         let holes = entry
             .facade
             .as_ref()
@@ -527,6 +538,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             architecture::facade::glazing_at(&mut a, e.wall_transform(entry.edge), f);
         }
     }
+    yield_if_due().await;
     shared_and_neighbor(&mut a, scene, e);
     // Partition tops are cut by the same analytic roof plane, not scaled: door
     // dimensions and all metric material coordinates are preserved.
@@ -538,6 +550,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     clip_roof(&mut partitions, e, size);
     a.append_assembly(partitions);
     for p in &e.pillars {
+        yield_if_due().await;
         if p.profile.is_some() {
             column(&mut a, p, e, size);
             continue;
@@ -561,6 +574,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         mezzanine::build(&mut a, m);
     }
     architecture::fixture_geometry(&mut a, scene);
+    yield_if_due().await;
     architecture::ceiling::build(&mut a, scene);
     if let Some(frame) = super::super::materials::flooring::laying::mapping(scene) {
         // Set UVs before Bevy generates tangents so normal/roughness/color
@@ -568,10 +582,12 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         super::super::materials::flooring::laying::apply(a.part(Surface::Floor, "floor"), frame);
     }
     let mut exterior = Assembly::default();
+    yield_if_due().await;
     architecture::facade::backdrop(&mut exterior, scene);
     for ((surface, label), g) in exterior.parts {
         a.part(surface, &format!("{label}#exterior")).append(g);
     }
+    yield_if_due().await;
     architecture::background::append(&mut a, scene);
     a
 }

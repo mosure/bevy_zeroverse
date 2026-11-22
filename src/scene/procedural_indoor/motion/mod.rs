@@ -152,7 +152,14 @@ impl IndoorMotionReport {
             .filter(|m| m.rejection.is_none())
             .flat_map(|m| m.swept_bounds.iter().copied())
     }
+
+    pub(crate) fn mechanism_for_object(&self, id: usize) -> Option<&MechanismReport> {
+        self.mechanisms.iter().find(|m| {
+            m.rejection.is_none() && (m.object_id == Some(id) || m.carried_object_ids.contains(&id))
+        })
+    }
 }
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MechanismReport {
     pub object_id: Option<usize>,

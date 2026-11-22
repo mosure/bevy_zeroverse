@@ -363,6 +363,12 @@ fn legacy(
                 .transpose()
                 .map_err(|e| e.to_string())?
                 .unwrap_or(parsed),
+            "playback_mode" => crate::camera::PlaybackMode::from_str(&value, true)
+                .ok()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
+                .unwrap_or(parsed),
             _ if field.is_string() => serde_json::Value::String(value),
             _ => parsed,
         };
@@ -373,6 +379,22 @@ fn legacy(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interval_links_accept_cli_and_saved_playback_modes() {
+        for mode in ["ping-pong", "PingPong"] {
+            let config = parse(
+                crate::app::web_viewer_defaults(),
+                [
+                    ("regenerate_ms".into(), "2500".into()),
+                    ("playback_mode".into(), mode.into()),
+                ],
+            )
+            .unwrap();
+            assert_eq!(config.regenerate_ms, 2500);
+            assert_eq!(config.playback_mode, crate::camera::PlaybackMode::PingPong);
+        }
+    }
     #[test]
     fn camera_gizmo_scales_validate_share_sparsely_and_restore_defaults() {
         let base = web_viewer_defaults();

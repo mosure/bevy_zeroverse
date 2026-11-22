@@ -28,12 +28,17 @@ pub(super) fn build(
     if !scene.objects.iter().any(|o| o.kind.is_kitchen()) {
         return result;
     }
+    let mut menu = super::super::layout::stream(scene.material_seed(), 0x534f555050414c);
+    let soup =
+        [[0.70, 0.24, 0.095], [0.83, 0.47, 0.12], [0.43, 0.48, 0.19]][menu.random_range(0..3)];
     for (slot, surface, color) in [
         (100, Surface::Ceramic, [0.68, 0.12, 0.055]),
         (101, Surface::Ceramic, [0.42, 0.55, 0.13]),
         (102, Surface::Ceramic, [0.88, 0.64, 0.13]),
         (103, Surface::Terracotta, [0.53, 0.27, 0.085]),
         (104, Surface::Paper, [0.85, 0.69, 0.43]),
+        (105, Surface::Ceramic, soup),
+        (106, Surface::Terracotta, [0.27, 0.14, 0.08]),
     ] {
         if used.is_some_and(|u| !u.contains(&(surface, slot))) {
             continue;
@@ -61,6 +66,16 @@ pub(super) fn build(
         mat.metallic = 0.;
         mat.perceptual_roughness = if slot < 103 { 0.35 } else { 0.86 };
         mat.clearcoat = if slot < 103 { 0.12 } else { 0. };
+        if slot == 105 {
+            // A calm liquid has a level dielectric interface. Glazed ceramic
+            // normal and ORM maps would emboss the broth with porcelain relief.
+            mat.normal_map_texture = None;
+            mat.metallic_roughness_texture = None;
+            mat.occlusion_texture = None;
+            mat.perceptual_roughness = 0.26;
+            mat.reflectance = 0.35;
+            mat.ior = 1.33;
+        }
         mat.uv_transform = bevy::math::Affine2::from_scale(Vec2::splat(7.));
         result.insert((surface, slot), materials.add(mat));
     }

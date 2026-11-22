@@ -6,6 +6,8 @@ pub mod art;
 mod atlas;
 pub mod boards;
 pub mod botanical;
+#[cfg(target_arch = "wasm32")]
+mod browser_maps;
 pub mod carpet;
 pub mod ceramic;
 pub mod coating;
@@ -13,6 +15,7 @@ pub mod composition;
 pub mod concrete;
 pub mod construction;
 mod content;
+pub(crate) mod cooktop;
 pub mod display_finish;
 pub(crate) mod emitters;
 mod environment;
@@ -50,6 +53,7 @@ pub mod timber;
 pub mod variants;
 pub mod wall;
 pub mod window_textile;
+pub(crate) mod worktop_finish;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,

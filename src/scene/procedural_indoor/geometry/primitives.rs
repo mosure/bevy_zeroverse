@@ -8,6 +8,11 @@ pub(super) fn unit_sphere() -> &'static Mesh {
     SPHERE.get_or_init(|| Sphere::new(1.0).mesh().uv(20, 12))
 }
 
+pub(super) fn small_sphere() -> &'static Mesh {
+    static SPHERE: OnceLock<Mesh> = OnceLock::new();
+    SPHERE.get_or_init(|| Sphere::new(1.0).mesh().uv(12, 8))
+}
+
 #[derive(Clone, Copy)]
 pub(super) struct LatheAngle {
     pub radians: f32,

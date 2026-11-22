@@ -7,9 +7,12 @@ mod structure;
 mod supports;
 #[cfg(test)]
 mod tests;
+mod timber;
+mod top;
 mod workstation;
 pub(crate) use clearance::Clearance;
 use structure::{PartSink, StructureSink};
+pub(crate) use timber::StockProgram as TimberProgram;
 pub use workstation::{DeskFrame, ModestyPanel};
 /// Shared lecture/dining rows need usable work surface across their full bank.
 /// Keep broad catalogue shapes for freestanding tables and desks.
@@ -195,23 +198,13 @@ fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let p = parameters(o);
-    let label = o.kind.class_name();
     let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
     if o.variant == BOARDROOM_VARIANT {
         conference::joined_top(a, o, &p, &outline);
     } else {
-        a.part(p.top_surface, label).profile_slab(
-            &outline,
-            p.top_thickness,
-            p.edge_bevel,
-            Transform::from_xyz(0.0, s.y - p.top_thickness * 0.5, 0.0),
-        );
-    }
-    if s.x > s.z && p.top_surface == Surface::Wood {
-        for uv in &mut a.part(Surface::Wood, label).uvs {
-            *uv = [uv[1], -uv[0]];
-        }
+        let tf = Transform::from_xyz(0., s.y - p.top_thickness * 0.5, 0.);
+        top::TopStock::sample(o, &p).build(a, o, &p, &outline, tf, 0);
     }
     let edge: Vec<_> = outline.iter().map(|p| *p * 0.985).collect();
     a.part(
@@ -220,7 +213,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         } else {
             p.top_surface
         },
-        label,
+        &super::super::materials::worktop_finish::table_label(o, p.top_surface),
     )
     .profile_slab(
         &edge,

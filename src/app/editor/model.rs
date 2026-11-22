@@ -153,6 +153,9 @@ pub fn live(path: &str) -> bool {
         || matches!(
             path,
             "/render_mode"
+                | "/tonemapping"
+                | "/hdr"
+                | "/fullscreen"
                 | "/depth_format"
                 | "/z_depth"
                 | "/annotation_glass"

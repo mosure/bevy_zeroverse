@@ -55,7 +55,17 @@ fn signaled_runner(mut app: App) -> AppExit {
         };
 
         match recv_result {
-            Ok(request) => {
+            Ok(mut request) => {
+                let mut state = match SamplerState::for_request(
+                    app.world().resource(),
+                    request.rgb_artifact_eligible_cameras_by_timestep.take(),
+                ) {
+                    Ok(s) => s,
+                    Err(error) => {
+                        channels::report_capture_failure(error);
+                        continue;
+                    }
+                };
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(error) = preflight.begin_request(request.indoor_seed.is_some()) {
                     channels::report_capture_failure(error);
@@ -87,9 +97,6 @@ fn signaled_runner(mut app: App) -> AppExit {
                     // Apply regeneration while the sampler is disabled, before scheduling modalities.
                     app.update();
                 }
-                let args = app.world().resource::<BevyZeroverseConfig>();
-
-                let mut state = SamplerState::from_config(args);
                 state.regenerate_scene = request.indoor_seed.is_none();
                 app.insert_resource(state);
 

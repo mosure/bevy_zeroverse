@@ -45,7 +45,7 @@ impl IndoorManifest {
         o.solid = false;
         o.support = Some(support.id);
         o.finish_seed = support.finish_seed;
-        if !self.prop_clear(&o, support, 0.012) {
+        if !self.orient_and_check_prop(&mut o, support) {
             return false;
         }
         if let Some(p) = self

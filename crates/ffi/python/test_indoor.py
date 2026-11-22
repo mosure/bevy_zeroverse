@@ -28,6 +28,26 @@ def sample(seed):
 
 
 class IndoorExportTests(unittest.TestCase):
+    def test_linear_hdr_colors_survive_raw_storage_and_have_srgb_previews(self):
+        item = sample(3)
+        item['color'][..., 0] = 4.
+        item['color_encoding'] = torch.tensor(3, dtype=torch.uint8)
+        for codec, encoding in [('raw', 3), ('jpeg', 2)]:
+            with tempfile.TemporaryDirectory() as root:
+                paths = chunk_and_save([item], Path(root), samples_per_chunk=1, color_codec=codec,
+                                       compression=None, persistent_workers=False, n_workers=0)
+                decoded = load_chunk(paths[0])
+                self.assertEqual(decoded['color_encoding'].tolist(), [encoding])
+                if codec == 'raw':
+                    self.assertTrue(torch.equal(decoded['color'][0], item['color']))
+                else:
+                    self.assertTrue(torch.all(decoded['color'][0, ..., 0] > 0.95))
+        with tempfile.TemporaryDirectory() as root:
+            save_to_folders([item], Path(root), n_workers=0)
+            decoded = FolderDataset(Path(root))[0]
+            self.assertEqual(int(decoded['color_encoding']), 3)
+            self.assertTrue(torch.equal(decoded['color'], item['color']))
+
     def test_fixed_transfer_keeps_constant_gray(self):
         tensors = sample(3)
         self.assertTrue(torch.allclose(tensors['color'], torch.full_like(tensors['color'], 0.4613561)))

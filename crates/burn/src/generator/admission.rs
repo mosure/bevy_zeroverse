@@ -9,13 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub struct CaptureRequest {
-    /// Absolute attempted capture index, including `sample_offset`; distinct from archive index after a rejection.
-    pub sequence: usize,
-    /// Exact indoor seed; all views/timesteps belong to this one physical room.
-    pub seed: u64,
-}
+pub use bevy_zeroverse_capture::request::CaptureRequest;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum CaptureStage {
     WaitingForDemand,
@@ -162,7 +156,7 @@ impl CaptureControl {
         drop(state);
         let permit = Permit {
             control: self.clone(),
-            request,
+            request: request.clone(),
             admitted: true,
             wait: Duration::ZERO,
             capture: Duration::ZERO,
@@ -183,11 +177,11 @@ impl CaptureControl {
     ) -> anyhow::Result<Option<Permit>> {
         let started = Instant::now();
         self.emit(CaptureEvent::Stage {
-            request,
+            request: request.clone(),
             stage: CaptureStage::WaitingForDemand,
         });
         let mut state = self.state.lock().unwrap();
-        state.snapshot.waiting = Some(request);
+        state.snapshot.waiting = Some(request.clone());
         while !state.snapshot.cancelled
             && (state.snapshot.held
                 || state.snapshot.admitted - state.snapshot.returned >= state.snapshot.credits)
@@ -203,7 +197,7 @@ impl CaptureControl {
         drop(state);
         let mut permit = Permit {
             control: self.clone(),
-            request,
+            request: request.clone(),
             admitted,
             wait: started.elapsed(),
             capture: Duration::ZERO,
@@ -254,7 +248,7 @@ impl Permit {
     }
     pub(crate) fn exporting(&self) {
         self.control.emit(CaptureEvent::Stage {
-            request: self.request,
+            request: self.request.clone(),
             stage: CaptureStage::Exporting,
         });
     }
@@ -320,7 +314,7 @@ impl Permit {
         self.completed = true;
         self.control.state.lock().unwrap().snapshot.completed += 1;
         self.control.emit(CaptureEvent::Completed {
-            request: self.request,
+            request: self.request.clone(),
             admitted: self.admitted,
             publication: self.publication.take(),
             outcome,
@@ -354,28 +348,26 @@ mod tests {
     use super::*;
     use std::{sync::mpsc, thread};
     fn request(sequence: usize) -> CaptureRequest {
-        CaptureRequest {
-            sequence,
-            seed: 500 + sequence as u64,
-        }
+        CaptureRequest::new(sequence, 500 + sequence as u64)
     }
     #[test]
     fn gpu_admission_is_nonblocking_and_delivery_is_not_publication() {
         let control = Arc::new(CaptureControl::default());
         control.start().unwrap();
-        let request = CaptureRequest {
-            sequence: 9,
-            seed: 77,
-        };
-        assert!(control.try_acquire(request).unwrap().is_none());
+        let request = CaptureRequest::new(9, 77);
+        assert!(control.try_acquire(request.clone()).unwrap().is_none());
         control.grant_through(1);
         control.hold(true);
-        assert!(control.try_acquire(request).unwrap().is_none());
+        assert!(control.try_acquire(request.clone()).unwrap().is_none());
         assert_eq!(control.snapshot().admitted, 0);
         control.hold(false);
-        control.try_acquire(request).unwrap().unwrap().delivered();
+        control
+            .try_acquire(request.clone())
+            .unwrap()
+            .unwrap()
+            .delivered();
         assert_eq!(control.snapshot().completed, 1);
-        assert!(control.try_acquire(request).unwrap().is_none());
+        assert!(control.try_acquire(request.clone()).unwrap().is_none());
         control.cancel();
         assert!(control.try_acquire(request).is_err());
     }

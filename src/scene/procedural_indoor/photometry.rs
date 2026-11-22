@@ -22,12 +22,23 @@ pub struct SourcePower {
 }
 
 /// World-space geometry shared by direct lighting, diffuse transport and capture metrics.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct FixtureBeam {
     pub position: Vec3,
     pub direction: Vec3,
+    pub radius: f32,
     pub inner: f32,
     pub outer: f32,
+}
+
+impl FixtureBeam {
+    pub(crate) fn tilt_from_down_degrees(self) -> f32 {
+        self.direction
+            .xz()
+            .length()
+            .atan2(-self.direction.y)
+            .to_degrees()
+    }
 }
 
 pub fn lighting_seed(scene: &IndoorManifest) -> u64 {
@@ -111,6 +122,15 @@ pub fn is_lamp(kind: ObjectKind) -> bool {
     )
 }
 
+/// Static probes represent the whole capture sequence. A lamp moved directly
+/// or carried on a cart can contribute its live direct light at playback time.
+pub(crate) fn stationary_source(scene: &IndoorManifest, object: &IndoorObject) -> bool {
+    scene
+        .indoor_motion
+        .as_ref()
+        .is_none_or(|m| m.mechanism_for_object(object.id).is_none())
+}
+
 /// Independently operated task/decorative sources. The common component keeps
 /// most fixtures coherent with the room; replacement bulbs and tunable LEDs
 /// fill the interval between warm residential and cool work lighting.
@@ -156,6 +176,13 @@ pub fn lamp(scene: &IndoorManifest, object: &IndoorObject) -> SourcePower {
         lumens: rated * dimmer * scale,
         color: tinted_white(kelvin, tint),
     }
+}
+
+/// Exit-aperture radiance shared by the visible lamp and reflection probes.
+pub(crate) fn lamp_emission(scene: &IndoorManifest, power: SourcePower, area: f32) -> LinearRgba {
+    let c = source_color(scene, power.color).to_linear();
+    let radiance = power.lumens / (std::f32::consts::PI * area.max(0.0001));
+    LinearRgba::new(c.red * radiance, c.green * radiance, c.blue * radiance, 1.)
 }
 
 /// White-pixel emission normalized to photopic luminance. Display content then

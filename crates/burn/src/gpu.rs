@@ -290,10 +290,14 @@ impl Renderer {
     }
     #[cfg(test)]
     fn sample_seed(&mut self, seed: u64) -> Result<GpuSample> {
-        self.capture(seed, true)
+        self.capture(seed, None)
     }
-    fn capture(&mut self, seed: u64, reset_sequence: bool) -> Result<GpuSample> {
-        let (metadata, images) = self.render(seed, reset_sequence)?;
+    fn capture(
+        &mut self,
+        seed: u64,
+        rows: Option<bevy_zeroverse_capture::request::CameraRows>,
+    ) -> Result<GpuSample> {
+        let (metadata, images) = self.render(seed, rows)?;
         let start = Instant::now();
         let tensors = images
             .into_iter()
@@ -314,11 +318,13 @@ impl Renderer {
     fn render(
         &mut self,
         seed: u64,
-        reset_sequence: bool,
+        rows: Option<bevy_zeroverse_capture::request::CameraRows>,
     ) -> Result<(
         bevy_zeroverse::sample::Sample,
         Vec<(usize, bevy_zeroverse::io::image_copy::GpuCapturedImages)>,
     )> {
+        let mut sampler =
+            SamplerState::for_request(&self.config, rows).map_err(anyhow::Error::msg)?;
         self.last_capture_timings = None;
         let producer_started = Instant::now();
         let geometry_before = self
@@ -335,13 +341,10 @@ impl Renderer {
         self.app.world_mut().resource_mut::<CaptureFailure>().0 = None;
         self.app.world_mut().resource_mut::<SamplerState>().enabled = false;
         let reset_started = Instant::now();
-        if reset_sequence {
-            procedural_indoor::reset_indoor_sequence(self.app.world_mut(), seed);
-            self.app.world_mut().write_message(RegenerateSceneEvent);
-            self.app.update();
-        }
+        procedural_indoor::reset_indoor_sequence(self.app.world_mut(), seed);
+        self.app.world_mut().write_message(RegenerateSceneEvent);
+        self.app.update();
         let sequence_reset_seconds = reset_started.elapsed().as_secs_f64();
-        let mut sampler = SamplerState::from_config(&self.config);
         // Preserve the continuous sequence so complete future-room uploads and
         // lighting preparation can overlap capture, just like the CPU transport.
         sampler.regenerate_scene = self
@@ -502,7 +505,7 @@ impl Renderer {
                 "version": 2, "layout": "HWC", "dtype": "float32",
                 "color_output": self.spec.color_output(), "attachments": self.spec.plan,
                 "capture_policy": self.spec.fingerprint,
-                "source_color": "tonemapped linear RGBA", "world_depth": "world XYZ; alpha is metric camera Z for pinhole or ray range for angular fisheye (per-view calibration)",
+                "source_color": if metadata.color_encoding == bevy_zeroverse::render::color::ColorEncoding::LinearHdr {"unbounded display-linear RGBA"} else {"tonemapped linear RGBA"}, "world_depth": "world XYZ; alpha is metric camera Z for pinhole or ray range for angular fisheye (per-view calibration)",
                 "normal_semantic": "view normal encoded in [0,1] and integer semantic class ID",
                 "optical_flow": "forward pixel dx/dy, source validity, target visibility",
                 "co_visibility": "camera membership bits, peer count, source validity, zero",
@@ -665,6 +668,8 @@ fn pack_sample(
     }
     metadata.color_encoding = if spec.color_output().is_srgb() {
         bevy_zeroverse::render::color::ColorEncoding::Srgb
+    } else if metadata.color_encoding == bevy_zeroverse::render::color::ColorEncoding::LinearHdr {
+        metadata.color_encoding
     } else {
         bevy_zeroverse::render::color::ColorEncoding::TonemappedLinear
     };
@@ -735,6 +740,7 @@ fn primitive(tensor: Tensor<4>) -> Result<CubeTensor> {
 
 #[cfg(test)]
 mod tests {
+    mod eligibility;
     use super::*;
     use bevy_zeroverse::{
         headless::update_capture,

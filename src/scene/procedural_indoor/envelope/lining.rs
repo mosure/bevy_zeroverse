@@ -25,6 +25,15 @@ impl LiningStock {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WallCourses {
+    pub height_m: f32,
+    /// Height of the first horizontal joint as a fraction of the module.
+    pub phase: f32,
+    /// Horizontal displacement of alternate rows in module widths.
+    pub bond_offset: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WallLining {
     pub stock: LiningStock,
     pub height_m: f32,
@@ -34,17 +43,57 @@ pub struct WallLining {
     pub joint_width_m: f32,
     pub joint_depth_m: f32,
     pub finish_slot: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub courses: Option<WallCourses>,
 }
 
 impl WallLining {
     pub(super) fn valid(&self) -> bool {
         (0.55..=2.25).contains(&self.height_m)
-            && (0.30..=1.60).contains(&self.module_width_m)
+            && (0.24..=1.60).contains(&self.module_width_m)
             && (0.0..1.0).contains(&self.phase)
             && (0.002..=0.02).contains(&self.joint_width_m)
             && (0.001..=0.012).contains(&self.joint_depth_m)
             && self.finish_slot < variants::COUNT
+            && self.courses.is_none_or(|c| {
+                (0.14..=1.20).contains(&c.height_m)
+                    && (0.0..1.0).contains(&c.phase)
+                    && (0.0..=0.5).contains(&c.bond_offset)
+            })
     }
+}
+
+fn sample_modules(lining: &mut WallLining, seed: u64) {
+    use LiningStock::*;
+    let mut r = stream(seed, 0x46494e495348524f);
+    let installed = match lining.stock {
+        CeramicSlab => 0.84,
+        AcousticFabric => 0.66,
+        Veneer => 0.32,
+    };
+    if !r.random_bool(installed) {
+        return;
+    }
+    let (height, width, stagger) = match lining.stock {
+        CeramicSlab if r.random_bool(0.48) => (0.14..0.32, 0.24..0.58, 0.74),
+        CeramicSlab => (0.32..0.68, 0.52..1.22, 0.46),
+        AcousticFabric => (0.44..1.12, 0.48..1.36, 0.19),
+        Veneer => (0.32..0.72, 0.70..1.56, 0.62),
+    };
+    lining.module_width_m = r.random_range(width);
+    lining.courses = Some(WallCourses {
+        height_m: r.random_range(height),
+        phase: r.random(),
+        bond_offset: if r.random_bool(stagger) {
+            if r.random_bool(0.57) {
+                0.5
+            } else {
+                r.random_range(0.22..0.44)
+            }
+        } else {
+            0.
+        },
+    });
 }
 
 pub(super) fn install(e: &mut EnvelopeProgram, scene: &IndoorManifest) {
@@ -67,7 +116,7 @@ pub(super) fn install(e: &mut EnvelopeProgram, scene: &IndoorManifest) {
         AcousticFabric => (1.06..2.15, 0.44..1.36, 0.005..0.018, 0.003..0.010),
         CeramicSlab => (0.82..1.72, 0.43..1.54, 0.003..0.009, 0.0015..0.004),
     };
-    let series = WallLining {
+    let mut series = WallLining {
         stock,
         height_m: r.random_range(height),
         module_width_m: r.random_range(pitch),
@@ -75,7 +124,9 @@ pub(super) fn install(e: &mut EnvelopeProgram, scene: &IndoorManifest) {
         joint_width_m: r.random_range(width),
         joint_depth_m: r.random_range(depth),
         finish_slot: r.random_range(0..variants::COUNT),
+        courses: None,
     };
+    sample_modules(&mut series, scene.seed);
     let mut candidates = Vec::new();
     for (index, wall) in e.walls.iter().enumerate() {
         let a = e.footprint[wall.edge];
@@ -122,12 +173,54 @@ mod tests {
             joint_width_m: 0.008,
             joint_depth_m: 0.003,
             finish_slot: 1,
+            courses: None,
         };
         assert!(sample.valid());
+        let archive = serde_json::to_value(sample).unwrap();
+        assert!(archive.get("courses").is_none());
+        assert_eq!(
+            serde_json::from_value::<WallLining>(archive).unwrap(),
+            sample
+        );
         sample.module_width_m = 0.;
         assert!(!sample.valid());
         sample.module_width_m = 0.8;
         sample.joint_depth_m = f32::NAN;
         assert!(!sample.valid());
+    }
+
+    #[test]
+    fn each_stock_admits_upright_stacked_and_staggered_installations() {
+        for stock in [
+            LiningStock::AcousticFabric,
+            LiningStock::CeramicSlab,
+            LiningStock::Veneer,
+        ] {
+            let mut counts = [0_u32; 3];
+            for seed in 0..192 {
+                let mut s = WallLining {
+                    stock,
+                    height_m: 1.48,
+                    module_width_m: 0.72,
+                    phase: 0.13,
+                    joint_width_m: 0.008,
+                    joint_depth_m: 0.004,
+                    finish_slot: 0,
+                    courses: None,
+                };
+                sample_modules(&mut s, seed);
+                assert!(s.valid());
+                counts[match s.courses {
+                    None => 0,
+                    Some(c) if c.bond_offset == 0. => 1,
+                    Some(_) => 2,
+                }] += 1;
+                if let Some(c) = &mut s.courses {
+                    c.height_m = f32::NAN;
+                    assert!(!s.valid());
+                }
+            }
+            assert!(counts.iter().all(|&v| v >= 7), "{stock:?} {counts:?}");
+        }
     }
 }

@@ -2,6 +2,8 @@
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
 mod broadleaf;
+mod cane;
+pub(crate) use cane::CaneHabit;
 mod leaf;
 use leaf::{blade, incline};
 mod habits;
@@ -299,44 +301,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                 );
             }
         }
-        _ => {
-            // Dracaena: cane trunks and narrow drooping rosettes at distinct heights.
-            for cane in 0..growth.leader_count {
-                let dir = radial(growth.angle(cane));
-                let start = base + dir * r * 0.35;
-                let top = start
-                    + Vec3::Y
-                        * (h - soil)
-                        * (0.43 + growth.node(cane, growth.leader_count - 1) * 0.38);
-                stem(
-                    a,
-                    &[
-                        start,
-                        start.lerp(top, 0.5) + dir * spread * 0.05,
-                        top,
-                        top + Vec3::Y * h * 0.013,
-                    ],
-                    h * 0.013,
-                );
-                // Age-graded whorls form a crown, rather than a single sparse
-                // star of blades at one point. Older outer leaves hang lower;
-                // the compact centre retains upright new growth.
-                for j in 0..growth.count(34) {
-                    let tier = (j % 3) as f32;
-                    let d = radial(j as f32 * growth.phyllotaxis + cane as f32);
-                    blade(
-                        a,
-                        top + Vec3::Y * h * (tier - 1.) * 0.012,
-                        d * spread * rng.random_range(0.52..0.79) * (1. - tier * 0.16)
-                            + Vec3::Y * h * (rng.random_range(-0.13..-0.045) + tier * 0.075),
-                        spread * rng.random_range(0.046..0.065),
-                        1,
-                        rng.random(),
-                        &growth,
-                    );
-                }
-            }
-        }
+        _ => cane::build(a, o, &growth, base, spread, soil_radius),
     }
 }
 

@@ -284,7 +284,7 @@ fn fits_budget(full: u64, probe: u64) -> bool {
         .is_some_and(|bytes| bytes <= MAX_FUTURE_UPLOAD_BYTES)
 }
 
-fn image_upload_bytes(image: &Image) -> u64 {
+pub(super) fn image_upload_bytes(image: &Image) -> u64 {
     let d = &image.texture_descriptor;
     let base = u64::from(d.size.width)
         * u64::from(d.size.height)

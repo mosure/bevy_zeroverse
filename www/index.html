@@ -20,6 +20,11 @@
   <div id="status" role="status"><small>SCENE STUDIO</small><strong>ZERO / VERSE</strong><span id="message">Starting WebGPU…</span></div>
   <script type="module">
     import init from './out/viewer.js';
+    // Share the compiled binary and its matching glue with the CPU worker.
+    globalThis.zeroverseViewerModule = new URL('./out/viewer.js', import.meta.url).href;
+    document.addEventListener('keydown', event => {
+      if (event.key === 'F1') event.preventDefault();
+    });
     const status = document.getElementById('status');
     const message = document.getElementById('message');
     try {

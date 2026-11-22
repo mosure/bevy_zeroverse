@@ -276,6 +276,7 @@ fn geometry_selection_preserves_all_referenced_pbr_and_human_maps() {
             assert_eq!(used.cloth, used.get(Surface::Fabric));
             assert_eq!(used.skin, used.cloth);
             assert_eq!(used.hair, used.cloth);
+            assert_eq!(used.coiled_hair, used.hair);
         } else {
             for (person, assembly) in scene.humans.iter().zip(&geometry.humans) {
                 for &surface in assembly.parts.keys() {

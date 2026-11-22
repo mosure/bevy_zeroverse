@@ -66,6 +66,42 @@ GPU irradiance probes enter the lighting scene only after their bake is encoded
 and their parent room has passed transform propagation. Capture readiness also
 waits for that publication; no extra device fence or probe readback is required.
 
+## RGB artifact eligibility for each room
+
+A capture request identifies a room seed and its position in the caller's sequence. Its optional
+`rgb_artifact_eligible_cameras_by_timestep` field lists zero-based logical camera indices at each
+captured instant. Omit it to permit all cameras. An empty row guarantees clean RGB for that instant.
+Rows may be in any camera order. Each request must have exactly one row per timestep and each index
+must be in range and unique within its row.
+
+```json
+{
+  "sequence": 0,
+  "seed": 70,
+  "rgb_artifact_eligible_cameras_by_timestep": [[0, 2, 5, 7], [1, 3, 4, 6], [0, 1, 6, 7]]
+}
+```
+
+The renderer samples the existing `indoor_appearance.sensor` policy once per room and logical camera.
+An eligible camera receives its sampled profile when one is present. Changing rows preserves that
+camera's optics and noise stream. For example, at probability 0.65, camera 0 above has one 65%
+chance of receiving optics on both instants 0 and 2, and is clean on instant 1. The optional archive
+`rgb_sensor` stage also respects eligibility and records its own operations.
+
+Use `bevy_zeroverse_capture::request::CaptureRequest` with `LiveDataset::capture_request`,
+`GpuCaptureSession::try_submit`, or `CudaCaptureReceiver::try_admit`. The existing Burn admission
+module re-exports the same type. `CaptureRequest::new(sequence, seed)` uses the default eligibility.
+For archive jobs, set `GenConfig::capture_requests` or supply `zeroverse_gen --capture-requests
+requests.json`, where the file is an array indexed by global sample number. Specify the number of
+rooms with `--samples`. Seeds may repeat with different assignments. The Python extension accepts
+the field as a keyword argument to `next`.
+
+In returned and archived samples, `indoor_render_metadata.rgb_artifacts` records the canonical request,
+resolved eligibility, the cameras processed by the optics and archive stages, and their union in
+`applied_cameras_by_timestep`. Every row uses the logical order of `Sample::views` within its
+timestep. Explicit masks have a SHA-256 in the room metadata, and CLI resume verifies the full
+request list against `generation_config.json`. CUDA workers advertise eligibility before admission.
+
 ## Demand-controlled archives
 
 `bevy_zeroverse_burn::generator::run_chunk_generation_controlled(config, control)`

@@ -72,6 +72,10 @@ impl HairStyle {
                 Self::Braid | Self::TwinBraids | Self::Ponytail | Self::HighPonytail
             )
     }
+
+    pub(super) fn coiled(self) -> bool {
+        matches!(self, Self::TightCurls | Self::Afro)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

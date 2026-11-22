@@ -62,6 +62,7 @@ fn visible_reflection_selects_the_nearest_front_face_and_keeps_opaque_ties() {
         emission: Vec3::Y * 2.,
         uv_scale: Vec2::ONE,
         texture: None,
+        address: Default::default(),
         textured_emission: false,
     });
     for (height, expected) in [(1., Vec3::Y * 2.), (2., Vec3::Y * 2.), (4., Vec3::X * 40.)] {
@@ -213,4 +214,39 @@ fn practical_string_reflections_hit_the_real_aperture_once_and_respect_occlusion
             .radiance(light.position - 0.1 * light.axis, light.axis, 0.12)
             .is_none());
     }
+}
+
+#[test]
+fn static_task_lamp_reflects_from_its_real_diffuser_and_honors_occlusion() {
+    let mut room = scene(FixtureShape::Panel);
+    let mut lamp = objects::audit::fixture(super::super::super::layout::ObjectKind::DeskLamp, 0);
+    lamp.position = Vec3::new(0.3, 0.8, -0.4);
+    lamp.yaw = 0.7;
+    room.objects.clear();
+    let mut seen = [false; 4];
+    for seed in 0..64 {
+        lamp.seed = seed;
+        let power = super::super::super::photometry::lamp(&room, &lamp);
+        let head = objects::accessories::lamp_parameters(&lamp).head as usize;
+        if seen[head] || power.lumens <= 0. {
+            continue;
+        }
+        seen[head] = true;
+        room.objects = vec![lamp.clone()];
+        let beam = objects::accessories::lamps::beam(&lamp);
+        let eye = beam.position + beam.direction * 0.04;
+        let emitters = ReflectionEmitters::new(&room);
+        let observed = emitters.radiance(eye, -beam.direction, 0.06).unwrap();
+        let area = objects::accessories::lamps::emitting_area(&lamp);
+        let material = super::super::super::photometry::lamp_emission(&room, power, area);
+        assert_eq!(
+            observed,
+            Vec3::new(material.red, material.green, material.blue)
+        );
+        assert!(emitters.radiance(eye, -beam.direction, 0.03).is_none());
+        assert!(emitters
+            .radiance(beam.position - beam.direction * 0.03, beam.direction, 0.05)
+            .is_none());
+    }
+    assert_eq!(seen, [true; 4]);
 }

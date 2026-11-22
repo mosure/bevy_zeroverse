@@ -15,12 +15,21 @@ pub(super) fn build(a: &mut Assembly, p: &program::Basin, top: f32, finish: Surf
     ];
     // All rings sample the same metric rays. Parametric superellipse angles
     // change their polar angle with aspect/roundness and can fold rim quads.
+    // Include the four actual rectangular cutout corners for every aspect.
+    // Uniform polar angles miss off-diagonal corners and expose the cabinet below.
+    let octants = [
+        Vec2::X,
+        Vec2::ONE,
+        Vec2::Y,
+        Vec2::new(-1., 1.),
+        Vec2::NEG_X,
+        Vec2::NEG_ONE,
+        Vec2::NEG_Y,
+        Vec2::new(1., -1.),
+    ];
     let directions: [Vec2; N] = std::array::from_fn(|i| {
-        let t = TAU * i as f32 / N as f32;
-        {
-            let clean = |v: f32| if v.abs() < 1e-6 { 0. } else { v };
-            Vec2::new(clean(t.cos()), clean(t.sin()))
-        }
+        let o = i / (N / 8);
+        octants[o].lerp(octants[(o + 1) % 8], (i % (N / 8)) as f32 / (N / 8) as f32) * p.size * 0.5
     });
     let rings: [[Vec3; N]; 6] = std::array::from_fn(|ring| {
         std::array::from_fn(|i| {
@@ -37,7 +46,10 @@ pub(super) fn build(a: &mut Assembly, p: &program::Basin, top: f32, finish: Surf
         })
     });
     let point = |ring: usize, i: usize| rings[ring][i % N];
-    let g = a.part(finish, "sink");
+    let g = a.part(
+        finish,
+        crate::scene::procedural_indoor::materials::worktop_finish::BASIN_LABEL,
+    );
     for ring in 0..sections.len() - 1 {
         for i in 0..N {
             let start = g.positions.len() as u32;

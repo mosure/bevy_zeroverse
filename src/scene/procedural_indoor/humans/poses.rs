@@ -31,7 +31,10 @@ impl PoseProgram {
         let mut rng = stream(seed, 44);
         let seated = pose.seated();
         let desk = pose == HumanPoseKind::SeatedWorking;
-        let reading = pose == HumanPoseKind::StandingReading;
+        let reading = matches!(
+            pose,
+            HumanPoseKind::StandingReading | HumanPoseKind::StandingPreparing
+        );
         let presenting = pose == HumanPoseKind::StandingPresenting;
         let talking = matches!(
             pose,
@@ -86,7 +89,7 @@ impl PoseProgram {
                 rng.random_range(-0.14..0.045),
             ),
             torso_twist: rng.random_range(-1_f32..1.)
-                * if desk {
+                * if desk || pose == HumanPoseKind::StandingPreparing {
                     0.22
                 } else if seated {
                     0.42
@@ -126,6 +129,19 @@ impl PoseProgram {
             index_extension: pointing,
         }
     }
+    pub(super) fn torso_rotation(&self) -> Quat {
+        Quat::from_rotation_y(self.torso_twist)
+            * Quat::from_rotation_x(self.lean.y)
+            * Quat::from_rotation_z(-self.lean.x)
+    }
+
+    /// Set a wrist target in torso space, respecting the arm lengths used by the pose solver.
+    pub(super) fn aim_wrist(&mut self, arm: usize, delta: Vec3, stature: f32) {
+        let side = if arm == 0 { -1. } else { 1. };
+        self.arm_elevation[arm] = delta.y.atan2(delta.xz().length());
+        self.arm_sweep[arm] = (side * delta.x).atan2(-delta.z);
+        self.arm_reach[arm] = (delta.length() / (0.55 * stature / 1.75)).clamp(0.25, 0.98);
+    }
     pub fn solve(&self, stature: f32, build: f32, shoulder_width: f32, seated: bool) -> Vec<Vec3> {
         let s = stature / 1.75;
         let hip_half_span = 0.092 * build.sqrt() * s;
@@ -144,9 +160,7 @@ impl PoseProgram {
                 .fold(0.0, f32::max);
             pelvis.y = 0.105 + ((0.86 * s * 0.987).powi(2) - horizontal).max(0.1).sqrt();
         }
-        let torso = Quat::from_rotation_y(self.torso_twist)
-            * Quat::from_rotation_x(self.lean.y)
-            * Quat::from_rotation_z(-self.lean.x);
+        let torso = self.torso_rotation();
         let waist = pelvis + torso * Vec3::Y * 0.15 * s;
         let chest = pelvis + torso * Vec3::Y * 0.43 * s;
         let neck = pelvis + torso * Vec3::Y * 0.55 * s;
