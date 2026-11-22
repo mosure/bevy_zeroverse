@@ -55,6 +55,26 @@ impl GeometryTransport {
         Self::emit(scene, moving_humans, geometry).finish(gpu_transport)
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) async fn build_interactive(
+        manifest: &IndoorManifest,
+        moving_humans: &[usize],
+        geometry: &super::super::preparation::SceneGeometry,
+    ) -> Self {
+        let mut input = Self::emit(manifest, moving_humans, geometry);
+        let started = Instant::now();
+        if let Some(nodes) = super::bvh::web::build(&mut input.0.scene.triangles).await {
+            let mut result = input.0;
+            result.scene.nodes = nodes;
+            result.timings.probe_tree_seconds = started.elapsed().as_secs_f64();
+            result.timings.probe_nodes = result.scene.nodes.len();
+            result.scene.preparation_ms += result.timings.probe_tree_seconds * 1000.;
+            result
+        } else {
+            input.finish(false)
+        }
+    }
+
     pub(crate) fn emit(
         scene: &IndoorManifest,
         moving_humans: &[usize],
@@ -72,6 +92,7 @@ impl GeometryTransport {
                 sun_direction: architecture::sun_direction(scene),
                 sun: linear(architecture::sun_color(scene)) * architecture::sun_illuminance(scene),
                 sky: scene.sky_radiance(),
+                sky_field: default(),
                 bounds_min: Vec3::new(
                     -scene.room_size.x * 0.5 - 0.10,
                     scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
@@ -123,8 +144,7 @@ impl GeometryTransport {
             }
         }
         let fixture_positions = architecture::fixture_positions(scene);
-        for (i, p) in fixture_positions.iter().copied().enumerate() {
-            let (c, lumens) = architecture::fixture_photometry_at(scene, i, &fixture_positions);
+        for (i, p, c, lumens) in architecture::powered_ceiling_fixtures(scene, &fixture_positions) {
             let (inner, outer) = architecture::fixtures::beam_angles(scene, i, p);
             result.scene.lights.push(LocalLight {
                 direction: architecture::fixtures::direction(scene, p),
@@ -142,15 +162,18 @@ impl GeometryTransport {
             .iter()
             .filter(|o| o.kind == ObjectKind::FloorLamp)
         {
+            if !super::super::photometry::stationary_source(scene, lamp) {
+                continue;
+            }
+            let power = super::super::photometry::lamp(scene, lamp);
+            if power.lumens == 0. {
+                continue;
+            }
             result.scene.lights.push(LocalLight {
                 direction: Vec3::NEG_Y,
                 position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
-                color: {
-                    let c = crate::scene::procedural_indoor::photometry::lamp(scene, lamp).color;
-                    linear(source_color(scene, c))
-                },
-                candela: crate::scene::procedural_indoor::photometry::lamp(scene, lamp).lumens
-                    / (4.0 * PI),
+                color: linear(source_color(scene, power.color)),
+                candela: power.lumens / (4.0 * PI),
                 range: 5.0,
                 spot: false,
                 inner_cos: 1.0,
@@ -163,7 +186,13 @@ impl GeometryTransport {
                 ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
             )
         }) {
+            if !super::super::photometry::stationary_source(scene, lamp) {
+                continue;
+            }
             let (beam, power) = architecture::object_fixture_photometry(scene, lamp);
+            if power.lumens == 0. {
+                continue;
+            }
             result.scene.lights.push(LocalLight {
                 direction: beam.direction,
                 position: beam.position,
@@ -236,6 +265,7 @@ impl GeometryTransport {
         moving_humans: &[usize],
     ) -> BakeScene {
         let started = Instant::now();
+        self.scene.sky_field = set.sky_field.clone();
         let mut finish_indices = BTreeMap::new();
         let handles = super::super::materials::program::SURFACES
             .into_iter()
@@ -316,26 +346,25 @@ impl GeometryTransport {
                     let mut material = if person.outfit.knitted()
                         && matches!(surface, HumanSurface::Top | HumanSurface::Seam)
                     {
-                        let mut material = knit.as_ref().expect("static knit proxy exists").clone();
-                        material.uv_scale *=
-                            person.appearance.as_ref().map_or(1., |a| a.weave_scale);
-                        material
+                        knit.as_ref().expect("static knit proxy exists").clone()
                     } else if cloth {
                         let key = humans::cloth_finish(person, surface);
                         let index = finish_indices.get(&key).copied().unwrap_or(key.0 as usize);
                         let mut material = self.scene.materials[index].clone();
-                        material.uv_scale *=
-                            2. * person.appearance.as_ref().map_or(1., |a| a.weave_scale);
+                        material.uv_transform *= Affine2::from_scale(Vec2::splat(2.));
                         material
                     } else {
                         DiffuseMaterial {
                             albedo: Vec3::ONE,
                             emission: Vec3::ZERO,
-                            uv_scale: Vec2::ONE,
-                            texture: None,
-                            textured_emission: false,
+                            uv_transform: Affine2::IDENTITY,
+                            base_map: None,
+                            emission_map: EmissionMap::Uniform,
                         }
                     };
+                    if let Some(appearance) = person.appearance.as_ref().filter(|_| cloth) {
+                        material.uv_transform *= appearance.weave_uv_transform();
+                    }
                     material.albedo = linear(person.material_color(surface));
                     let index = self.scene.materials.len();
                     self.scene.materials.push(material);

@@ -118,6 +118,7 @@ pub(super) fn record(
             }
         }
     }
+    let mut start_axes = Vec::with_capacity(scene.cameras.len());
     for (i, camera) in scene.cameras.iter().enumerate() {
         numeric.push("camera_fisheye", f64::from(camera.fisheye.is_some()))?;
         if let Some(lens) = camera.fisheye {
@@ -140,11 +141,11 @@ pub(super) fn record(
             let time = step as f32 / (PATH_SAMPLES - 1) as f32;
             let pose = path.sample(time);
             let p = pose.translation;
-            let pitch = (pose.rotation * Vec3::NEG_Z)
-                .y
-                .clamp(-1., 1.)
-                .asin()
-                .to_degrees();
+            let axis = pose.rotation * Vec3::NEG_Z;
+            if step == 0 {
+                start_axes.push(axis);
+            }
+            let pitch = axis.y.clamp(-1., 1.).asin().to_degrees();
             let roll = horizon_roll_radians(pose.rotation);
             if let Some(angle) = roll {
                 if step == 0 {
@@ -178,6 +179,39 @@ pub(super) fn record(
             "camera_near_horizontal_path_fraction",
             near_horizontal as f64 / PATH_SAMPLES as f64,
         )?;
+    }
+    let reference_target = scene
+        .cameras
+        .first()
+        .filter(|c| {
+            !c.is_ceiling_mounted() && c.motion.as_ref().is_none_or(|m| m.orientations.is_none())
+        })
+        .map(|c| c.target);
+    for (i, a) in scene.cameras.iter().enumerate() {
+        if let Some(toward_landmark) = reference_target
+            .filter(|_| i > 0 && !a.is_ceiling_mounted())
+            .and_then(|target| (target - a.start).try_normalize())
+        {
+            numeric.push(
+                "room_peer_reference_target_angle_degrees",
+                start_axes[i].angle_between(toward_landmark).to_degrees() as f64,
+            )?;
+        }
+        for (j, b) in scene.cameras.iter().enumerate().skip(i + 1) {
+            numeric.push(
+                "camera_pair_start_axis_angle_degrees",
+                start_axes[i].angle_between(start_axes[j]).to_degrees() as f64,
+            )?;
+            let da = a.end - a.start;
+            let db = b.end - b.start;
+            // A fixed camera or a path returning to its origin has no net heading.
+            if da.length_squared().min(db.length_squared()) > 0.01_f32.powi(2) {
+                numeric.push(
+                    "camera_pair_net_travel_angle_degrees",
+                    da.angle_between(db).to_degrees() as f64,
+                )?;
+            }
+        }
     }
     Ok(())
 }
@@ -217,6 +251,49 @@ mod tests {
         cameras::CameraMotion,
         layout::{IndoorCamera, IndoorLayout},
     };
+
+    #[test]
+    fn pair_metrics_use_actual_axes_and_exclude_stationary_headings() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(0, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        let moving = |x, dx, rotation| {
+            let start = Vec3::new(x, 1.5, 0.);
+            let end = start + Vec3::X * dx;
+            IndoorCamera {
+                start,
+                end,
+                target: start + Vec3::NEG_Z,
+                fov_degrees: 60.,
+                fisheye: None,
+                ceiling_mount: None,
+                principal_point_offset: None,
+                roll_radians: 0.,
+                motion: Some(CameraMotion {
+                    control: [start.lerp(end, 0.33), start.lerp(end, 0.67)],
+                    roll: [0.; 2],
+                    route: vec![],
+                    target_end: end + Vec3::NEG_Z,
+                    orientations: Some([rotation; 2]),
+                }),
+            }
+        };
+        scene.cameras = vec![
+            moving(-1., 0.5, Quat::IDENTITY),
+            moving(1., -0.5, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
+            moving(3., 0., Quat::IDENTITY),
+        ];
+        let directory = tempfile::tempdir().unwrap();
+        let mut numeric = NumericCollector::new(directory.path()).unwrap();
+        record(&scene, &mut numeric, &mut Vec::new(), &mut Vec::new()).unwrap();
+        let values = numeric.finish().unwrap();
+        let motion = &values["camera_pair_net_travel_angle_degrees"];
+        assert_eq!(motion.count, 1);
+        assert!((motion.mean - 180.).abs() < 0.001);
+        let axis = &values["camera_pair_start_axis_angle_degrees"];
+        assert_eq!(axis.count, 3);
+        assert!((axis.mean - 60.).abs() < 0.001);
+        assert!(!values.contains_key("room_peer_reference_target_angle_degrees"));
+    }
 
     #[test]
     fn path_metrics_use_rendered_orientation_and_floor_relative_height() {

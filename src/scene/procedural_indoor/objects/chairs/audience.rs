@@ -1,17 +1,218 @@
-//! Tablet-arm and linked auditorium construction, preserving the adult seating datum.
+//! Teaching seats. The writing surface, real hinge and back shell use the same
+//! metric installation as placement clearance, including left-handed tablets.
 use super::*;
+mod backrest;
+mod frame;
+#[cfg(test)]
+mod tests;
+
 pub fn is_folded(o: &IndoorObject) -> bool {
     o.variant == 11 && stream(o.seed, 8260).random_bool(0.22)
 }
-fn seat_depth(o: &IndoorObject) -> f32 {
-    // Fit the upright seat at the adult hinge height, including pad thickness.
-    (o.size.z * 0.67).min(if is_folded(o) {
-        (o.size.y - 0.46 - 0.039 * 1.42_f32.cos() - 0.002) / (0.45 + 0.5 * 1.42_f32.sin())
-    } else {
-        f32::INFINITY
-    })
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub(crate) struct Tablet {
+    pub left_handed: bool,
+    /// Half-width and half-depth of the writing surface.
+    half: Vec2,
+    center: Vec3,
+    thickness: f32,
+    cutback: f32,
 }
+
+impl Tablet {
+    fn side(self) -> f32 {
+        if self.left_handed {
+            -1.
+        } else {
+            1.
+        }
+    }
+
+    fn build(self, a: &mut Assembly, stock: Surface) {
+        // The generous writing end faces forward (-Z); the elbow end narrows
+        // toward the outside. Mirror both the outline and its winding.
+        let x = self.half.x;
+        let z = self.half.y;
+        let c = x.min(z) * 0.19;
+        let mut outline = [
+            Vec2::new(-x + c, -z),
+            Vec2::new(x - c, -z),
+            Vec2::new(x, -z + c),
+            Vec2::new(x, z - c),
+            Vec2::new(x - c, z),
+            Vec2::new(-x + self.cutback * x, z),
+            Vec2::new(-x, z * 0.04),
+            Vec2::new(-x, -z + c),
+        ];
+        if self.left_handed {
+            outline.reverse();
+            for p in &mut outline {
+                p.x = -p.x;
+            }
+        }
+        a.part(stock, "chair").profile_slab(
+            &outline,
+            self.thickness,
+            0.0025,
+            Transform::from_translation(self.center),
+        );
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub(crate) struct TeachingSeat {
+    pub family: &'static str,
+    pub folded: bool,
+    pub seat_height_metres: f32,
+    pub width_metres: f32,
+    pub height_metres: f32,
+    pub depth_metres: f32,
+    seat_width: f32,
+    pub(crate) seat_depth: f32,
+    pad: f32,
+    crown: f32,
+    dish: f32,
+    hinge: Vec3,
+    pub(crate) fold_angle: f32,
+    back: backrest::Backrest,
+    pub(crate) tablet: Option<Tablet>,
+    face_stock: Surface,
+    shell_stock: Surface,
+    frame_stock: Surface,
+}
+
+impl TeachingSeat {
+    pub(crate) fn sample(o: &IndoorObject) -> Self {
+        let fixed = o.variant == 11;
+        let mut r = stream(o.seed, u64::from_le_bytes(*b"TeachFit"));
+        let mut finish = stream(
+            o.finish_seed.unwrap_or(o.seed),
+            u64::from_le_bytes(*b"SeatSkin") ^ o.variant as u64,
+        );
+        let shell_stock = if finish.random_bool(if fixed { 0.48 } else { 0.54 }) {
+            Surface::Wood
+        } else {
+            Surface::Plastic
+        };
+        let face_stock = if fixed {
+            if finish.random_bool(0.64) {
+                Surface::Fabric
+            } else {
+                Surface::FabricAlt
+            }
+        } else {
+            shell_stock
+        };
+        let frame_stock = if !fixed && finish.random_bool(0.37) {
+            Surface::Chrome
+        } else {
+            Surface::Metal
+        };
+        let pad = if fixed {
+            r.random_range(0.058..0.079)
+        } else {
+            r.random_range(0.027..0.039)
+        };
+        let seat_height_metres = 0.47;
+        let dish = if fixed { 0.006 } else { 0.003 };
+        let seat_y = seat_height_metres - pad * 0.5 + dish;
+        let seat_width = (o.size.x * r.random_range(0.64..0.73)).min(0.59);
+        let fraction = r.random_range(0.29..0.39);
+        let fold_angle: f32 = r.random_range(1.16..1.39);
+        let (sin, cos) = fold_angle.sin_cos();
+        let mut seat_depth = (o.size.z * r.random_range(0.60..0.70)).min(0.51);
+        if fixed {
+            // The same physical seat fits in either state, including short
+            // rows. The upholstered front edge reaches highest when folded.
+            seat_depth = seat_depth
+                .min((o.size.y - 0.009 - seat_y - 0.5 * pad * cos) / ((0.5 + fraction) * sin));
+        }
+        let hinge = Vec3::new(0., seat_y, fraction * seat_depth);
+        // The rear seat corner initially swings slightly behind its open
+        // position. Clear the complete circular sweep, not just the end poses.
+        let back_z = hinge.z + (0.5 * seat_depth - hinge.z).hypot(0.5 * pad) + 0.008;
+        let back = backrest::Backrest::sample(o, seat_width, back_z, fixed, &mut r);
+        let tablet = (!fixed).then(|| {
+            let left_handed = stream(o.seed, u64::from_le_bytes(*b"WriteArm")).random_bool(0.15);
+            let half = Vec2::new(
+                o.size.x * r.random_range(0.143..0.183),
+                o.size.z * r.random_range(0.225..0.278),
+            );
+            let center = Vec3::new(
+                (o.size.x * 0.472 - half.x) * if left_handed { -1. } else { 1. },
+                r.random_range(0.685..0.743),
+                -o.size.z * r.random_range(0.13..0.165),
+            );
+            Tablet {
+                left_handed,
+                half,
+                center,
+                thickness: r.random_range(0.015..0.024),
+                cutback: r.random_range(0.46..0.94),
+            }
+        });
+        Self {
+            family: if fixed { "auditorium" } else { "tablet_arm" },
+            folded: is_folded(o),
+            seat_height_metres,
+            width_metres: o.size.x,
+            height_metres: o.size.y,
+            depth_metres: o.size.z,
+            seat_width,
+            seat_depth,
+            pad,
+            dish,
+            crown: r.random_range(2.9..4.9),
+            hinge,
+            fold_angle,
+            back,
+            tablet,
+            face_stock,
+            shell_stock,
+            frame_stock,
+        }
+    }
+
+    fn seat_pose(&self, angle: f32) -> Transform {
+        let rotation = Quat::from_rotation_x(angle);
+        Transform::from_translation(self.hinge - rotation * (Vec3::Z * self.hinge.z))
+            .with_rotation(rotation)
+    }
+
+    fn pose(&self) -> Transform {
+        self.seat_pose(if self.folded { self.fold_angle } else { 0. })
+    }
+
+    fn build(&self, a: &mut Assembly) {
+        let size = Vec3::new(self.seat_width, self.pad, self.seat_depth);
+        // Both shells have a soft waterfall nose. The rigid tablet-chair pan is
+        // shallower; the fixed seat exposes a protective shell when tipped up.
+        let mut underside = Geometry::default();
+        let separate = self.face_stock != self.shell_stock;
+        a.part(self.face_stock, "chair").cushion_panels::<25, 8>(
+            size,
+            super::super::super::geometry::CushionProfile {
+                roundness: if self.tablet.is_some() { 5.5 } else { 4.2 },
+                crown: self.crown,
+                dish: self.dish,
+            },
+            self.pose(),
+            separate.then_some(&mut underside),
+        );
+        if separate {
+            a.part(self.shell_stock, "chair").append(underside);
+        }
+        self.back.build(a, self.face_stock, self.shell_stock);
+        frame::build(a, self);
+        if let Some(t) = self.tablet {
+            t.build(a, self.shell_stock);
+        }
+    }
+}
+
 pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
+    let p = TeachingSeat::sample(o);
     let half = o.size * 0.5;
     let mut boxes = vec![
         (
@@ -19,111 +220,32 @@ pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
             Vec3::new(half.x, 0.50, half.z),
         ),
         (
-            Vec3::new(-half.x, 0.48, (seat_depth(o) * 0.35 - 0.016).min(0.17)),
+            Vec3::new(-half.x, 0.48, p.back.z - 0.017),
             Vec3::new(half.x, o.size.y, half.z),
         ),
     ];
-    if o.variant == 10 {
+    if let Some(t) = p.tablet {
+        let outer = half.x * t.side();
+        let inner = t.center.x - t.half.x * t.side();
         boxes.push((
-            Vec3::new(o.size.x * 0.10, 0.48, -o.size.z * 0.44),
-            Vec3::new(half.x, 0.77, o.size.z * 0.15),
+            Vec3::new(outer.min(inner), 0.48, t.center.z - t.half.y),
+            Vec3::new(
+                outer.max(inner),
+                t.center.y + 0.5 * t.thickness,
+                t.center.z + t.half.y,
+            ),
         ));
     }
-    if is_folded(o) {
-        boxes.push((
-            Vec3::new(-half.x, 0.44, 0.),
-            Vec3::new(half.x, o.size.y, half.z),
-        ));
+    if p.folded {
+        let tf = p.pose();
+        let extent = tf.rotation.mul_vec3(Vec3::Y).abs() * p.pad * 0.5
+            + tf.rotation.mul_vec3(Vec3::Z).abs() * p.seat_depth * 0.5
+            + Vec3::X * p.seat_width * 0.5;
+        boxes.push((tf.translation - extent, tf.translation + extent));
     }
     boxes
 }
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let mut r = stream(o.seed, 8261);
-    let w = o.size.x * 0.66;
-    let folded = is_folded(o);
-    let d = seat_depth(o);
-    let label = "chair";
-    let audience = o.variant == 11;
-    for x in [-w * 0.48, w * 0.48] {
-        for z in [-d * 0.36, d * 0.36] {
-            a.part(Surface::Metal, label).rod(
-                Vec3::new(x, 0.018, z),
-                Vec3::new(x * 0.91, 0.47, z * 0.8),
-                0.018,
-            );
-            a.box_part(
-                Surface::Rubber,
-                label,
-                Vec3::new(x, 0.009, z),
-                Vec3::new(0.045, 0.018, 0.045),
-                0.005,
-            );
-        }
-    }
-    a.part(Surface::Metal, label).rod(
-        Vec3::new(-o.size.x * 0.48, 0.30, 0.12),
-        Vec3::new(o.size.x * 0.48, 0.30, 0.12),
-        0.020,
-    );
-    let seat_tf = if folded {
-        Transform::from_xyz(0., 0.46 + d * 0.45, d * 0.38)
-            .with_rotation(Quat::from_rotation_x(-1.42))
-    } else {
-        Transform::from_xyz(0., 0.46, 0.)
-    };
-    if audience {
-        a.part(Surface::FabricAlt, label).cushion(
-            Vec3::new(w, 0.078, d),
-            super::super::super::geometry::CushionProfile {
-                roundness: r.random_range(3.0..5.5),
-                crown: r.random_range(2.8..4.5),
-                dish: 0.006,
-            },
-            seat_tf,
-        );
-    } else {
-        a.part(Surface::Wood, label)
-            .cuboid(Vec3::new(w, 0.062, d), 0.025, seat_tf);
-    }
-    for x in [-w * 0.43, w * 0.43] {
-        a.part(Surface::Metal, label).rod(
-            Vec3::new(x, 0.43, d * 0.35),
-            Vec3::new(x, o.size.y - 0.08, d * 0.47),
-            0.014,
-        );
-    }
-    let height = (o.size.y - 0.58).max(0.20);
-    a.part(
-        if audience {
-            Surface::FabricAlt
-        } else {
-            Surface::Plastic
-        },
-        label,
-    )
-    .chair_back_profile(
-        w,
-        height,
-        [
-            r.random_range(0.025..0.055),
-            r.random_range(-0.04..0.10),
-            0.05,
-            0.035,
-        ],
-        Transform::from_xyz(0., 0.58, d * 0.46),
-    );
-    if !audience {
-        a.part(Surface::Metal, label).rod(
-            Vec3::new(w * 0.48, 0.30, 0.10),
-            Vec3::new(o.size.x * 0.29, 0.69, -0.10),
-            0.014,
-        );
-        a.box_part(
-            Surface::Wood,
-            label,
-            Vec3::new(o.size.x * 0.29, 0.71, -o.size.z * 0.15),
-            Vec3::new(o.size.x * 0.34, 0.027, o.size.z * 0.48),
-            0.018,
-        );
-    }
+    TeachingSeat::sample(o).build(a);
 }

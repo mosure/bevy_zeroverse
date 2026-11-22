@@ -324,17 +324,18 @@ impl IndoorCamera {
         self.runtime_trajectory().sample(progress)
     }
     pub fn path_length(&self) -> f32 {
+        if self.motion.is_none() && self.start == self.end {
+            return 0.;
+        }
         if let Some(m) = &self.motion {
             if !m.route.is_empty() {
                 return m.route.windows(2).map(|p| p[0].distance(p[1])).sum();
             }
         }
-        (0..32)
-            .map(|i| {
-                self.transform_at(i as f32 / 32.0)
-                    .translation
-                    .distance(self.transform_at((i + 1) as f32 / 32.0).translation)
-            })
+        diversity::Track::new(self)
+            .0
+            .windows(2)
+            .map(|p| p[0].distance(p[1]))
             .sum()
     }
 }

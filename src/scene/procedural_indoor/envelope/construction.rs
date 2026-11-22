@@ -1,4 +1,5 @@
 use super::*;
+mod adjoining;
 mod ceiling_mesh;
 mod column_finish;
 mod lining_mesh;
@@ -7,6 +8,7 @@ mod normal_tests;
 use crate::scene::procedural_indoor::{
     architecture, geometry::Geometry, layout::AdjoiningFloor, materials::Surface, objects::Assembly,
 };
+const SHARED_WALL_THICKNESS_M: f32 = 0.18;
 
 /// Flat, metric UVs. Triangle winding and stored normals always agree, including
 /// negative floor levels, angled reveals and the underside of a sloping ceiling.
@@ -280,7 +282,7 @@ pub(super) fn wall(
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
     let thickness = if e.shared_edge(edge, size) {
-        0.18
+        SHARED_WALL_THICKNESS_M
     } else {
         e.wall_thickness()
     };
@@ -451,6 +453,15 @@ fn cornice(
 }
 
 pub fn build(scene: &IndoorManifest) -> Assembly {
+    bevy::tasks::block_on(build_with_yields(scene, || std::future::ready(())))
+}
+
+/// The native builder runs on a preparation thread. The single-threaded browser
+/// can give rendering and input time between the same ordered construction steps.
+pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
+    scene: &IndoorManifest,
+    yield_if_due: impl Fn() -> F,
+) -> Assembly {
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
     let mut a = Assembly {
@@ -458,6 +469,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         ..default()
     };
     floors(&mut a, e, size);
+    yield_if_due().await;
     let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {
         if let Some(g) = &e.tier_guard {
@@ -488,24 +500,29 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         .ceiling_installation
         .as_ref()
         .is_some_and(|c| c.exposed_slab);
-    ceiling_mesh::build(
-        a.part(
-            if exposed {
-                scene
-                    .ceiling_installation
-                    .as_ref()
-                    .and_then(|c| c.framing.as_ref())
-                    .map_or(Surface::Concrete, |f| f.roof_material)
-            } else {
-                Surface::Ceiling
-            },
-            "ceiling",
-        ),
-        e,
-        size,
-    );
+    if let Some(grid) = architecture::ceiling::CeilingGrid::for_scene(scene) {
+        architecture::ceiling::build_room_grid(&mut a, scene, grid, &yield_if_due).await;
+    } else {
+        ceiling_mesh::build(
+            a.part(
+                if exposed {
+                    scene
+                        .ceiling_installation
+                        .as_ref()
+                        .and_then(|c| c.framing.as_ref())
+                        .map_or(Surface::Concrete, |f| f.roof_material)
+                } else {
+                    Surface::Ceiling
+                },
+                "ceiling",
+            ),
+            e,
+            size,
+        );
+    }
     let feature_edges = super::super::materials::wall::feature_edges(scene);
     for entry in &e.walls {
+        yield_if_due().await;
         let holes = entry
             .facade
             .as_ref()
@@ -527,6 +544,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
             architecture::facade::glazing_at(&mut a, e.wall_transform(entry.edge), f);
         }
     }
+    yield_if_due().await;
     shared_and_neighbor(&mut a, scene, e);
     // Partition tops are cut by the same analytic roof plane, not scaled: door
     // dimensions and all metric material coordinates are preserved.
@@ -538,6 +556,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
     clip_roof(&mut partitions, e, size);
     a.append_assembly(partitions);
     for p in &e.pillars {
+        yield_if_due().await;
         if p.profile.is_some() {
             column(&mut a, p, e, size);
             continue;
@@ -561,6 +580,7 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         mezzanine::build(&mut a, m);
     }
     architecture::fixture_geometry(&mut a, scene);
+    yield_if_due().await;
     architecture::ceiling::build(&mut a, scene);
     if let Some(frame) = super::super::materials::flooring::laying::mapping(scene) {
         // Set UVs before Bevy generates tangents so normal/roughness/color
@@ -568,10 +588,12 @@ pub fn build(scene: &IndoorManifest) -> Assembly {
         super::super::materials::flooring::laying::apply(a.part(Surface::Floor, "floor"), frame);
     }
     let mut exterior = Assembly::default();
+    yield_if_due().await;
     architecture::facade::backdrop(&mut exterior, scene);
     for ((surface, label), g) in exterior.parts {
         a.part(surface, &format!("{label}#exterior")).append(g);
     }
+    yield_if_due().await;
     architecture::background::append(&mut a, scene);
     a
 }
@@ -784,19 +806,7 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         |p| e.ceiling_height(size, p) + 0.14,
         0.14,
     );
-    for (p, q) in polygon::edges(&poly).skip(1) {
-        let n = Vec3::new(q.y - p.y, 0., p.x - q.x).normalize();
-        panel(
-            a.part(Surface::Paint, "wall"),
-            &[
-                Vec3::new(p.x, 0., p.y),
-                Vec3::new(q.x, 0., q.y),
-                Vec3::new(q.x, e.ceiling_height(size, q), q.y),
-                Vec3::new(p.x, e.ceiling_height(size, p), p.y),
-            ],
-            -n * 0.18,
-        );
-    }
+    adjoining::perimeter(a, scene, e, &poly);
 }
 
 /// Triangle-plane clipping retains interpolated normals/UVs; no vertex collapse.

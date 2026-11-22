@@ -4,6 +4,31 @@ use crate::io;
 
 pub const PUBLISHED_DIRECTORY: &str = "www/project/static/media/qualification";
 
+pub(crate) fn debug_examples_dir(root: &Path) -> Result<PathBuf> {
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+    let metadata = Command::new(cargo)
+        .current_dir(root)
+        .args(["metadata", "--format-version", "1", "--no-deps", "--locked"])
+        .output()?;
+    ensure!(
+        metadata.status.success(),
+        "could not locate Cargo target directory"
+    );
+    let metadata: Value = serde_json::from_slice(&metadata.stdout)?;
+    Ok(Path::new(
+        metadata["target_directory"]
+            .as_str()
+            .context("missing Cargo target directory")?,
+    )
+    .join("debug")
+    .join("examples"))
+}
+
+/// Locate the capture example built in this checkout, honoring Cargo's target directory.
+pub fn default_validator(root: &Path) -> Result<PathBuf> {
+    Ok(debug_examples_dir(root)?.join(format!("indoor_validate{}", std::env::consts::EXE_SUFFIX)))
+}
+
 /// Cached only for the exact current executable inputs and the canonical recipe.
 pub fn verify_current(
     output: &Path,
@@ -35,7 +60,7 @@ pub fn refresh_cache(
             .args([
                 "build",
                 "--locked",
-                "--bin",
+                "--example",
                 "indoor_validate",
                 "--no-default-features",
                 "--features",
@@ -45,22 +70,7 @@ pub fn refresh_cache(
             .success(),
         "qualification validator build failed"
     );
-    let metadata = Command::new(&cargo)
-        .current_dir(root)
-        .args(["metadata", "--format-version", "1", "--no-deps"])
-        .output()?;
-    ensure!(
-        metadata.status.success(),
-        "could not locate Cargo target directory"
-    );
-    let metadata: Value = serde_json::from_slice(&metadata.stdout)?;
-    let validator = Path::new(
-        metadata["target_directory"]
-            .as_str()
-            .context("missing target directory")?,
-    )
-    .join("debug")
-    .join(format!("indoor_validate{}", std::env::consts::EXE_SUFFIX));
+    let validator = default_validator(root)?;
     let temporary = tempfile::Builder::new()
         .prefix("qualification-")
         .tempdir_in(
@@ -85,7 +95,7 @@ use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -266,7 +276,7 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
     let root = root.canonicalize()?;
     let validator = validator
         .canonicalize()
-        .context("build indoor_validate first")?;
+        .context("build the validator with cargo build --example indoor_validate first")?;
     let recipe: Recipe = recipe_path.map(io::read).transpose()?.unwrap_or_default();
     validate_recipe(&recipe)?;
     ensure!(

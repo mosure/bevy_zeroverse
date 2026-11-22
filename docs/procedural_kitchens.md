@@ -8,9 +8,9 @@ areas inside the existing polygonal architectural envelope. The existing
 ## Use
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor \
+cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor \
   --indoor-layout kitchen --indoor-seed 60
-cargo run --bin indoor_validate -- --layout kitchenette --seed 0 \
+cargo run --example indoor_validate -- --layout kitchenette --seed 0 \
   --audit-seeds 512 --audit-geometry --renders 32 --cameras 3 \
   --width 512 --height 512 --labels --co-visibility --no-raw \
   --output out/kitchenette_review

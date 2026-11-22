@@ -84,11 +84,11 @@ fn build(root: &Path) -> Result<PathBuf> {
             "--no-default-features",
             "--features",
             "multi_threaded",
-            "--bin",
+            "--example",
             "indoor_validate",
-            "--bin",
+            "--example",
             "indoor_prepare_bench",
-            "--bin",
+            "--example",
             "indoor_bench",
             "--example",
             "audit_cameras",
@@ -96,18 +96,7 @@ fn build(root: &Path) -> Result<PathBuf> {
             "validate_fisheye",
         ]),
     )?;
-    let metadata = Command::new(cargo)
-        .current_dir(root)
-        .args(["metadata", "--format-version", "1", "--no-deps", "--locked"])
-        .output()?;
-    ensure!(metadata.status.success(), "Cargo metadata failed");
-    let metadata: Value = serde_json::from_slice(&metadata.stdout)?;
-    Ok(Path::new(
-        metadata["target_directory"]
-            .as_str()
-            .context("Cargo target directory")?,
-    )
-    .join("debug"))
+    crate::qualification::debug_examples_dir(root)
 }
 
 fn hashes(path: &Path) -> Result<BTreeMap<String, String>> {
@@ -206,13 +195,13 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         .join("automatic")
         .join(planned["cache_key"].as_str().unwrap());
     fs::create_dir_all(&cache)?;
-    let target = build(&root)?;
+    let examples = build(&root)?;
     // Capture once, then derive room qualification from exactly this population.
     let dataset = pipeline::capture_dataset(&root, &config, recapture)?;
     let audit = stage(&cache, "camera-audit", recapture, Value::Null, |dir| {
         tool(
             &root,
-            &target.join("examples"),
+            &examples,
             "audit_cameras",
             &strings(&[
                 "--seed",
@@ -241,7 +230,7 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         io::write(&recipe, &plan::camera_recipe(&config))?;
         crate::qualification::run(
             &root,
-            &target.join(format!("indoor_validate{}", std::env::consts::EXE_SUFFIX)),
+            &examples.join(format!("indoor_validate{}", std::env::consts::EXE_SUFFIX)),
             &dir.join("captures"),
             Some(&recipe),
         )
@@ -279,13 +268,13 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         let output = format!("--output={}", captures.display());
         tool(
             &root,
-            &target.join("examples"),
+            &examples,
             "validate_fisheye",
             &strings(&["--cpu", &output]),
         )?;
         tool(
             &root,
-            &target.join("examples"),
+            &examples,
             "validate_fisheye",
             &strings(&[
                 "--rooms=6",
@@ -299,7 +288,7 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         )?;
         tool(
             &root,
-            &target.join("examples"),
+            &examples,
             "validate_fisheye",
             &strings(&[
                 "--fixture",
@@ -310,9 +299,7 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         // The established publication contract instead requires continuity of
         // the final production composite and publishes raw failures explicitly.
         let status = Command::new(
-            target
-                .join("examples")
-                .join(format!("validate_fisheye{}", std::env::consts::EXE_SUFFIX)),
+            examples.join(format!("validate_fisheye{}", std::env::consts::EXE_SUFFIX)),
         )
         .current_dir(&root)
         .arg("--lighting-fixture")
@@ -345,7 +332,7 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         let capture = dir.join("capture");
         tool(
             &root,
-            &target,
+            &examples,
             "indoor_prepare_bench",
             &strings(&[
                 "--rooms",
@@ -362,7 +349,7 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         )?;
         tool(
             &root,
-            &target,
+            &examples,
             "indoor_bench",
             &strings(&[
                 "--scenes",

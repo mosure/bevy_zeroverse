@@ -120,13 +120,12 @@ impl SlatLayout {
     }
 }
 
-pub(crate) fn clear_fraction(f: &Facade, span: Vec2) -> Option<f32> {
+pub(crate) fn clear_fraction(f: &Facade, span: Vec2, coverage: f32) -> Option<f32> {
     let p = f.treatment.as_ref()?;
     let stock = p.slats?;
     if f.shade != Shade::Venetian {
         return None;
     }
-    let coverage = f.shade_coverage.clamp(0., 1.);
     let tilt = f.shade_tilt.clamp(-1.2, 1.2) * coverage.sqrt();
     let layout = stock.layout(span.y - 0.028 - 0.095, p.slat_pitch, coverage, tilt);
     // Header and rail have disjoint silhouettes. The two thin lift ladders

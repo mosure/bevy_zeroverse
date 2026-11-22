@@ -2,7 +2,10 @@ struct Params { resolution:vec4<u32>, budget:vec4<u32>, sun_direction:vec4<f32>,
 struct Triangle {a:vec4<f32>,ab:vec4<f32>,ac:vec4<f32>,uv01:vec4<f32>,uv2_material:vec4<f32>}
 struct Node {lo:vec3<f32>,index:u32,hi:vec3<f32>,tag:u32}
 const LEAF_BIT: u32 = 0x80000000u;
-struct Material {albedo:vec4<f32>,emission:vec4<f32>,uv_scale:vec4<f32>,tex:vec4<u32>}
+struct Material {
+    albedo_offset_u: vec4<f32>, emission_offset_v: vec4<f32>,
+    uv_columns: vec4<f32>, base_map: vec2<u32>, emission_map: vec2<u32>,
+}
 struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> triangles:array<Triangle>;
@@ -14,6 +17,40 @@ struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f3
 @group(0) @binding(7) var output:texture_storage_3d<rgba16float,write>;
 const PI:f32=3.141592653589793;
 
+// Same hemispherical texel grid and linear interpolation as SkyField::radiance.
+fn exterior_sky(d: vec3<f32>) -> vec3<f32> {
+    let size = u32(params.sky.w);
+    if size == 0u { return params.sky.xyz; }
+    let p = d.xz / max(abs(d.x) + max(d.y, 0.0) + abs(d.z), 1e-8);
+    let grid = saturate(0.5 + 0.5 * vec2(p.x + p.y, p.x - p.y)) * f32(size - 1u);
+    let lo = vec2<u32>(floor(grid));
+    let hi = min(lo + 1u, vec2(size - 1u));
+    let f = fract(grid);
+    return mix(mix(texels[lo.y * size + lo.x].rgb, texels[lo.y * size + hi.x].rgb, f.x),
+               mix(texels[hi.y * size + lo.x].rgb, texels[hi.y * size + hi.x].rgb, f.x), f.y);
+}
+
+// Mirror the image sampler for the downsampled diffuse map. Size is also the
+// sentinel for a border tap. The hot repeated-map path keeps its vector lookup.
+fn texel_axis(value: f32, mode: u32, size: u32) -> u32 {
+    if mode == 0u { return u32(fract(value) * f32(size)) % size; }
+    if mode == 3u && (value < 0.0 || value >= 1.0) { return size; }
+    var coordinate = clamp(value, 0.0, 1.0);
+    if mode == 2u { coordinate = 1.0 - abs(fract(value * 0.5) * 2.0 - 1.0); }
+    return min(u32(coordinate * f32(size)), size - 1u);
+}
+fn transport_texel(map: vec2<u32>, uv: vec2<f32>) -> vec3<f32> {
+    let size = map.y >> 5u;
+    let address = map.y & 31u;
+    var pixel: vec2<u32>;
+    if address == 0u {
+        pixel = vec2<u32>(fract(uv) * f32(size)) % vec2(size);
+    } else {
+        pixel = vec2(texel_axis(uv.x, address & 3u, size), texel_axis(uv.y, (address >> 2u) & 3u, size));
+        if any(pixel == vec2(size)) { return vec3(f32((address >> 4u) & 1u)); }
+    }
+    return texels[map.x + pixel.y * size + pixel.x].xyz;
+}
 fn random(state:ptr<function,u32>)->f32 {
     *state=*state*747796405u+2891336453u;
     let shift=((*state>>28u)+4u);
@@ -82,25 +119,45 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
     var origin=start;var direction=initial;var throughput=vec3(1.0);var result=vec3(0.0);
     for(var bounce=0u;bounce<params.budget.y;bounce+=1u) {
         let hit=intersect(origin,direction,1000.0,false);
-        if hit.index==0xffffffffu {if direction.y>0.0 {result+=throughput*params.sky.xyz;}break;}
+        if hit.index==0xffffffffu {if direction.y>0.0 {result+=throughput*exterior_sky(direction);}return result;}
         let triangle=triangles[hit.index];
         let n=vec3(triangle.a.w,triangle.ab.w,triangle.ac.w);
         let normal=select(n,-n,dot(n,direction)>0.0);
         let position=origin+direction*hit.distance;
         let material=materials[u32(triangle.uv2_material.z)];
         let uv=triangle.uv01.xy*(1.0-hit.u-hit.v)+triangle.uv01.zw*hit.u+triangle.uv2_material.xy*hit.v;
-        var albedo=material.albedo.xyz;
-        if material.tex.y!=0u {
-            let texcoord=vec2<u32>(fract(uv*material.uv_scale.xy)*f32(material.tex.y))%vec2(material.tex.y);
-            albedo*=texels[material.tex.x+texcoord.y*material.tex.y+texcoord.x].xyz;
+        var albedo=material.albedo_offset_u.xyz;
+        var emission=material.emission_offset_v.xyz;
+        if material.base_map.y!=0u || material.emission_map.y!=0u {
+            let basis = mat2x2<f32>(material.uv_columns.xy, material.uv_columns.zw);
+            let offset = vec2(material.albedo_offset_u.w, material.emission_offset_v.w);
+            let chart = basis * uv + offset;
+            var base_texel = vec3(1.0);
+            if material.base_map.y!=0u {
+                base_texel = transport_texel(material.base_map, chart);
+                albedo *= base_texel;
+            }
+            if material.emission_map.y!=0u {
+                if all(material.base_map==material.emission_map) {
+                    emission *= base_texel;
+                } else {
+                    emission *= transport_texel(material.emission_map, chart);
+                }
+            }
         }
-        let emission=select(material.emission.xyz,material.emission.xyz*albedo,material.tex.z!=0u);
         result+=throughput*(emission+albedo*direct(position,normal)/PI);
-        throughput*=albedo;if max(max(throughput.x,throughput.y),throughput.z)<0.001 {break;}
+        throughput*=albedo;if max(max(throughput.x,throughput.y),throughput.z)<0.001 {return result;}
         origin=position+normal*0.003;
         let tangent=normalize(cross(normal,select(vec3(0.0,1.0,0.0),vec3(1.0,0.0,0.0),abs(normal.y)>0.9)));
         let bitangent=cross(normal,tangent);let u=random(state);let angle=random(state)*2.0*PI;
         let r=sqrt(u);direction=tangent*(r*cos(angle))+bitangent*(r*sin(angle))+normal*sqrt(1.0-u);
+    }
+    // Match the CPU transport. Test visibility to the sky from the last
+    // diffuse vertex without shading another surface or resampling its lights.
+    if params.budget.y > 0u && direction.y > 0.0 {
+        if intersect(origin, direction, 1000.0, true).index == 0xffffffffu {
+            result += throughput * exterior_sky(direction);
+        }
     }
     return result;
 }

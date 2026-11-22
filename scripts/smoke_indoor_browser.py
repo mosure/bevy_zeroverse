@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check occupied indoor rooms in headed WebGPU Chrome using RGB/semantic pairs.
 
-Serve www plus current WASM bindings and assets/burn_human first. Nonblank RGB
+Serve www with the current WASM bindings first. Nonblank RGB
 alone cannot detect missing floors, walls or people. Each fixed-camera scene is
 also rendered as annotation-opaque semantics, and its RGB opaque-surface coverage is
 checked. These are bounded smoke fixtures, not photographic quality metrics.

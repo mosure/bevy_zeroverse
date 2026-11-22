@@ -5,7 +5,7 @@ use rand::Rng;
 
 pub(crate) const FIRST: usize = 200;
 pub(crate) const COUNT: usize = 6;
-const SURFACES: [Surface; 7] = [
+const SURFACES: [Surface; 8] = [
     Surface::Concrete,
     Surface::Paint,
     Surface::Terracotta,
@@ -13,6 +13,7 @@ const SURFACES: [Surface; 7] = [
     Surface::Metal,
     Surface::Glass,
     Surface::Soil,
+    Surface::FabricAlt,
 ];
 
 pub(crate) fn supports(surface: Surface, slot: usize) -> bool {
@@ -57,6 +58,11 @@ pub(crate) fn apply(material: &mut StandardMaterial, seed: u64, surface: Surface
             r.random_range(20.0..240.0),
             r.random_range(0.01..0.15),
             r.random_range(0.20..0.78),
+        ),
+        Surface::FabricAlt => (
+            r.random_range(18.0..58.0),
+            r.random_range(0.015..0.13),
+            r.random_range(0.40..0.83),
         ),
         Surface::Glass => (
             r.random_range(170.0..235.0),
@@ -115,6 +121,21 @@ pub(super) fn build(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn near_and_proxy_windows_resolve_under_both_glass_policies() {
+        use crate::render::glass::AnnotationGlass;
+        use crate::scene::procedural_indoor::IndoorQuality;
+        let mut proxy = StandardMaterial::default();
+        apply(&mut proxy, 31, Surface::Glass, FIRST);
+        assert!(AnnotationGlass::Through.includes(Some(&proxy)));
+        assert!(finish_slot(Surface::Glass, "window#exterior").is_none());
+        for quality in [IndoorQuality::Auto, IndoorQuality::Portable] {
+            let mut pane = StandardMaterial::default();
+            glass::GlassRecipe::sample(31, Surface::Glass).apply(&mut pane, quality);
+            assert!(AnnotationGlass::Surface.includes(Some(&pane)));
+            assert!(!AnnotationGlass::Through.includes(Some(&pane)));
+        }
+    }
     #[test]
     fn exterior_tags_resolve_after_annotation_ownership_and_keep_maps() {
         for surface in SURFACES {

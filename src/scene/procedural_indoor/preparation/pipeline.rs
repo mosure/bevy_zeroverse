@@ -13,6 +13,8 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 use rand::Rng;
+#[cfg(target_arch = "wasm32")]
+pub(in crate::scene::procedural_indoor) mod browser;
 mod generated;
 
 pub(crate) type PreparationTask = Task<Result<PreparedIndoor, CaptureError>>;
@@ -25,10 +27,19 @@ pub(crate) struct PreparationJob {
 }
 impl PreparationJob {
     #[cfg(test)]
-    pub(super) fn completed(ready: Result<PreparedIndoor, CaptureError>) -> Self {
+    pub(in crate::scene::procedural_indoor) fn completed(
+        ready: Result<PreparedIndoor, CaptureError>,
+    ) -> Self {
         Self {
             task: None,
             ready: Some(ready),
+        }
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(in crate::scene::procedural_indoor) fn pending_for_test() -> Self {
+        Self {
+            task: Some(AsyncComputeTaskPool::get().spawn(std::future::pending())),
+            ready: None,
         }
     }
     fn poll(&mut self) {
@@ -46,6 +57,10 @@ impl PreparationJob {
     pub(crate) fn prepared(&mut self) -> Option<&mut PreparedIndoor> {
         self.poll();
         self.ready.as_mut().and_then(|result| result.as_mut().ok())
+    }
+    pub(crate) fn error(&mut self) -> Option<&CaptureError> {
+        self.poll();
+        self.ready.as_ref()?.as_ref().err()
     }
     pub(crate) fn is_ready(&mut self) -> bool {
         self.poll();
@@ -162,8 +177,12 @@ impl<T> Lookahead<T> {
 /// All inputs consumed by CPU construction, including camera/appearance/motion
 /// JSON. A change to any of these must invalidate a speculative room.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    any(test, target_arch = "wasm32"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(crate) struct Request {
-    seed: u64,
+    pub(crate) seed: u64,
     layout: layout::IndoorLayout,
     density: u32,
     humans: u32,
@@ -183,7 +202,10 @@ pub(crate) struct Request {
 }
 
 impl Request {
-    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::scene::procedural_indoor) fn valid_inputs(&self) -> bool {
+        generated::Inputs::parse(self).is_ok()
+    }
+
     pub(crate) fn matches_config(
         &self,
         args: &BevyZeroverseConfig,
@@ -236,6 +258,10 @@ impl Request {
         }
     }
 
+    pub(crate) fn gpu_materials_available(&mut self, available: bool) {
+        self.gpu_materials &= available;
+    }
+
     pub(crate) fn successor(&self) -> Self {
         Self {
             seed: self.seed.wrapping_add(1),
@@ -267,64 +293,19 @@ impl Request {
         meshes: StagedAssets<Mesh>,
     ) -> Result<PreparedIndoor, CaptureError> {
         let request = self;
-        // Configuration is external to the sampled room. Validate it before the
-        // seed-local boundary; invalid configuration must not consume every seed.
-        let inputs = generated::Inputs::parse(&request)?;
-        let started = bevy::platform::time::Instant::now();
-        let all_started = started;
-        let mut scene = IndoorManifest::generate_with_clutter(
-            request.seed,
-            request.layout,
-            f32::from_bits(request.density),
-            0,
-            f32::from_bits(request.humans),
-            inputs.clutter,
-        )
-        .map_err(|error| generated::failure(request.seed, "layout", error.into()))?;
-        if let Some(appearance) = inputs.appearance {
-            scene
-                .apply_appearance(appearance)
-                .map_err(|error| generated::failure(request.seed, "appearance", error.into()))?;
-        }
-        let layout_seconds = started.elapsed().as_secs_f64();
-        let started = bevy::platform::time::Instant::now();
-        let policy = inputs.camera;
-        if let Err(error) =
-            scene.resample_cameras_typed(request.cameras, policy, f32::from_bits(request.aspect))
-        {
-            if matches!(error, CaptureError::Rejected { .. }) {
-                // Prefer the generated layout's diagnostic over a downstream
-                // failed search. Only rejection incurs this additional check.
-                generated::validate(&scene)?;
-            }
-            return Err(generated::failure(request.seed, "camera placement", error));
-        }
-        let cameras_seconds = started.elapsed().as_secs_f64();
-        let started = bevy::platform::time::Instant::now();
-        generated::validate(&scene)?;
-        let validation_seconds = started.elapsed().as_secs_f64();
-        let started = bevy::platform::time::Instant::now();
-        if request.rotation {
-            scene.world_yaw =
-                layout::stream(request.seed, 11).random_range(0.0..std::f32::consts::TAU);
-        }
-        let moving_humans = if let Some(config) = inputs.motion {
-            crate::human_motion::planning::prepare_scene(&mut scene, &config).map_err(|error| {
-                generated::failure(request.seed, "motion preparation", error.into())
-            })?;
-            crate::human_motion::planning::plan(&scene, &config)
-                .map_err(|error| generated::failure(request.seed, "motion planning", error.into()))?
-                .0
-                .into_iter()
-                .map(|p| p.actor_id)
-                .collect()
-        } else {
-            Vec::new()
-        };
-        if let Some(config) = inputs.indoor_motion {
-            scene.indoor_motion = Some(super::super::motion::IndoorMotionReport::new(config));
-        }
-        let motion_planning_seconds = started.elapsed().as_secs_f64();
+        let all_started = bevy::platform::time::Instant::now();
+        #[cfg(not(target_arch = "wasm32"))]
+        let plan = generated::plan(&request)?;
+        #[cfg(target_arch = "wasm32")]
+        let plan = browser::plan(&request).await?;
+        let generated::Plan {
+            scene,
+            moving_humans,
+            layout_seconds,
+            cameras_seconds,
+            validation_seconds,
+            motion_planning_seconds,
+        } = plan;
         let mut prepared = PreparedIndoor::build_with_materials(
             scene,
             request.quality,

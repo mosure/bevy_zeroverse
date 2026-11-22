@@ -13,6 +13,34 @@ pub(super) fn screen_facing_yaw(screen: &IndoorObject, viewer: Vec3) -> f32 {
     };
     delta.x.atan2(delta.z) + stream(screen.seed, 0x5343_5245_454e_5941).random_range(-range..range)
 }
+/// An edge station has room for an articulated head, a writing patch and
+/// either a left- or right-handed seated user. Work in the support's own frame.
+pub(super) fn desk_lamp_placement(
+    desk: &IndoorObject,
+    seat: Option<Vec3>,
+    handed: f32,
+    height: f32,
+) -> (Vec3, Vec3) {
+    let mut r = stream(desk.seed, 0x4453_4b4c_5354_4154);
+    let diameter: f32 = r.random_range(0.15..0.29);
+    let aspect = r.random_range(0.76_f32..1.36).sqrt();
+    let size = Vec3::new(diameter * aspect, height, diameter / aspect);
+    let along = seat
+        .and_then(|p| {
+            let local = desk.transform().rotation.inverse() * (p - desk.position);
+            (local.xz() / desk.size.xz()).try_normalize()
+        })
+        .unwrap_or(Vec2::Y);
+    let side = Vec2::new(along.y, -along.x) * handed;
+    let bearing: f32 = r.random_range(0.22..1.70);
+    let axis = side * bearing.sin() - along * bearing.cos();
+    let available =
+        (desk.size.xz() * 0.5 - Vec2::splat(size.xz().length() * 0.5 + 0.016)).max(Vec2::ZERO);
+    let edge_fraction = 0.40 + 0.56 * r.random_range(0.0_f32..1.).sqrt();
+    let offset = available * axis / axis.abs().max_element() * edge_fraction;
+    (Vec3::new(offset.x, 0., offset.y), size)
+}
+
 /// A desk's equipment and paper use vary continuously before any item is
 /// proposed. Display geometry and every accepted footprint remain independent.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -69,6 +97,46 @@ pub(crate) fn workspace_parameters(support: &IndoorObject) -> WorkspaceProgram {
 }
 
 impl IndoorManifest {
+    /// Aim edge-mounted adjustable lamps toward a usable part of a worktop.
+    /// Each heading still has to pass full support, peer and cable clearance.
+    pub(super) fn orient_and_check_prop(
+        &self,
+        prop: &mut IndoorObject,
+        support: &IndoorObject,
+    ) -> bool {
+        if prop.kind == ObjectKind::DeskLamp
+            && matches!(
+                support.kind,
+                ObjectKind::Desk
+                    | ObjectKind::Table
+                    | ObjectKind::CoffeeTable
+                    | ObjectKind::SideTable
+            )
+        {
+            let lamp = super::super::objects::accessories::lamp_parameters(prop);
+            let offset =
+                support.transform().rotation.inverse() * (prop.position - support.position);
+            let distance_from_center = (offset.xz() / support.size.xz()).length();
+            if lamp.head_tilt_radians > 0.06 && distance_from_center > 0.15 {
+                let mut r = stream(prop.seed, 0x574f_524b_4c49_4748);
+                let target = support.transform().transform_point(Vec3::new(
+                    support.size.x * r.random_range(-0.13..0.13),
+                    0.,
+                    support.size.z * r.random_range(-0.13..0.13),
+                ));
+                let toward = target - prop.position;
+                let proposed = prop.yaw;
+                prop.yaw = toward.x.atan2(toward.z) - lamp.head_swivel_radians
+                    + r.random_range(-0.21..0.21);
+                if self.prop_clear(prop, support, 0.012) {
+                    return true;
+                }
+                prop.yaw = proposed;
+            }
+        }
+        self.prop_clear(prop, support, 0.012)
+    }
+
     /// Functional work areas vary within every room activity, rather than
     /// restricting desktop displays to one named office profile. Proposals
     /// reference the actual chair and all use the unchanged support/peer gate.
@@ -380,6 +448,92 @@ pub(super) fn scatter_proposal(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn desk_lamp_stations_vary_metric_footprints_and_seated_side_without_edge_clipping() {
+        let mut desk = super::super::super::objects::audit::fixture(ObjectKind::Desk, 0);
+        desk.yaw = 0.83;
+        desk.size = Vec3::new(1.50, 0.74, 0.78);
+        let seat = desk.transform().transform_point(Vec3::new(0., 0., 1.20));
+        let opposite = desk.transform().transform_point(Vec3::new(0., 0., -1.20));
+        let mut patches = std::collections::BTreeSet::new();
+        let mut sizes = std::collections::BTreeSet::new();
+        for seed in 0..128 {
+            desk.seed = seed;
+            let (p, s) = desk_lamp_placement(&desk, Some(seat), 1., 0.4);
+            assert_eq!((p, s), desk_lamp_placement(&desk, Some(seat), 1., 0.4));
+            let (q, qs) = desk_lamp_placement(&desk, Some(opposite), 1., 0.4);
+            assert_eq!(s, qs);
+            assert!((p + q).length() < 1e-6);
+            let (left, _) = desk_lamp_placement(&desk, Some(seat), -1., 0.4);
+            assert!(p.x > 0. && left.x < 0.);
+            assert!((p.xz().abs() + Vec2::splat(s.xz().length() * 0.5 + 0.012))
+                .cmple(desk.size.xz() * 0.5)
+                .all());
+            patches.insert(((p.x * 20.).round() as i32, (p.z * 20.).round() as i32));
+            sizes.insert(((s.x * 100.).round() as i32, (s.z * 100.).round() as i32));
+        }
+        assert!(patches.len() > 35 && sizes.len() > 32);
+    }
+
+    #[test]
+    fn task_lamp_targets_an_interior_work_area_and_preserves_blocked_pose_fallback() {
+        use super::super::super::objects::{accessories, audit};
+        let mut room =
+            IndoorManifest::generate_with_humans(42, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+        room.objects.clear();
+        let mut desk = audit::fixture(ObjectKind::Desk, 0);
+        desk.id = 0;
+        desk.position = Vec3::ZERO;
+        desk.yaw = 0.72;
+        desk.size = Vec3::new(2.0, 0.75, 1.2);
+        room.objects.push(desk.clone());
+        let mut count = 0;
+        for seed in 0..32 {
+            let mut lamp = audit::fixture(ObjectKind::DeskLamp, seed);
+            lamp.id = 1;
+            lamp.support = Some(desk.id);
+            lamp.solid = false;
+            lamp.size = Vec3::new(0.26, 0.44, 0.19);
+            lamp.position = desk
+                .transform()
+                .transform_point(Vec3::new(0.63, 0.75, 0.26));
+            lamp.yaw = desk.yaw + 1.2;
+            if accessories::lamp_parameters(&lamp).head_tilt_radians < 0.08 {
+                continue;
+            }
+            assert!(room.orient_and_check_prop(&mut lamp, &desk));
+            assert!(room.prop_clear(&lamp, &desk, 0.012));
+            let beam = accessories::lamps::beam(&lamp);
+            let intercept = beam.position
+                + beam.direction * ((lamp.position.y - beam.position.y) / beam.direction.y);
+            let toward = (desk.position - lamp.position).xz().normalize();
+            assert!((intercept - beam.position).xz().normalize().dot(toward) > 0.71);
+            assert!(
+                intercept.xz().distance(desk.position.xz())
+                    < beam.position.xz().distance(desk.position.xz())
+            );
+            count += 1;
+        }
+        assert!(count > 12);
+        // On a narrow top only the original lengthwise reservation can fit.
+        desk.size = Vec3::new(1.4, 0.75, 0.23);
+        room.objects[0] = desk.clone();
+        let mut lamp = audit::fixture(ObjectKind::DeskLamp, 89);
+        lamp.seed = (0..99)
+            .find(|&s| {
+                lamp.seed = s;
+                accessories::lamp_parameters(&lamp).head_tilt_radians > 0.1
+            })
+            .unwrap();
+        lamp.id = 1;
+        lamp.support = Some(0);
+        lamp.size = Vec3::new(0.32, 0.44, 0.14);
+        lamp.position = desk.transform().transform_point(Vec3::new(0.38, 0.75, 0.));
+        lamp.yaw = desk.yaw;
+        assert!(room.orient_and_check_prop(&mut lamp, &desk));
+        assert_eq!(lamp.yaw, desk.yaw);
+    }
+
     #[test]
     fn coherent_monitor_widths_accept_zero_and_sub_ulp_spread() {
         let support = super::super::super::objects::audit::fixture(ObjectKind::Desk, 7);

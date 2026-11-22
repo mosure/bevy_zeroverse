@@ -4,40 +4,19 @@ use super::rig::{segment, torso_segment};
 use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use burn_human::{AnnyBody, AnnyInput};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
 
-static REFERENCE: OnceLock<Arc<AnnyBody>> = OnceLock::new();
+#[cfg(feature = "human_motion")]
+pub(crate) use crate::procedural_human::reference::installed;
 type CachedPerson = (IndoorHuman, HumanAssembly);
 static CACHE: Mutex<std::collections::VecDeque<CachedPerson>> =
     Mutex::new(std::collections::VecDeque::new());
 const CACHE_CAPACITY: usize = 24;
 
-pub(crate) fn installed() -> Option<Arc<AnnyBody>> {
-    REFERENCE.get().cloned()
-}
-
-pub(crate) fn install(reference: Arc<AnnyBody>) {
-    let _ = REFERENCE.set(reference);
-}
-
-fn reference() -> &'static Arc<AnnyBody> {
-    REFERENCE.get_or_init(|| {
-        #[cfg(not(target_family = "wasm"))]
-        {
-            // Offline validators/reference exporters use the same model. The viewer
-            // installs its asynchronously loaded asset before starting preparation.
-            let root = crate::asset::asset_root().join("burn_human");
-            Arc::new(
-                AnnyBody::from_reference_paths(
-                    root.join("fullbody_default.safetensors"),
-                    root.join("fullbody_default.meta.json"),
-                )
-                .expect("AnnyBody reference required for indoor people"),
-            )
-        }
-        #[cfg(target_family = "wasm")]
-        panic!("wait for the AnnyBody asset before building indoor people")
-    })
+fn reference() -> &'static AnnyBody {
+    &crate::procedural_human::reference::get()
+        .expect("AnnyBody reference required for indoor people")
+        .body
 }
 
 pub(super) fn build(h: &IndoorHuman) -> HumanAssembly {

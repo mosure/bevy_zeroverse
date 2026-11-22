@@ -11,11 +11,13 @@ pub struct IndoorMaterials {
     pub cloth: Handle<StandardMaterial>,
     pub skin: Handle<StandardMaterial>,
     pub hair: Handle<StandardMaterial>,
+    pub coiled_hair: Handle<StandardMaterial>,
     pub knit: Handle<StandardMaterial>,
     pub(super) light_variants: Vec<Handle<StandardMaterial>>,
     pub(super) object_emitters:
         std::collections::BTreeMap<(usize, usize), Handle<StandardMaterial>>,
     pub(super) sky: Handle<StandardMaterial>,
+    pub(crate) sky_field: super::super::sky::SkyField,
     pub(crate) variants: std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
     pub environment: EnvironmentMapLight,
 }
@@ -34,8 +36,6 @@ impl MaterialSelection {
         if scene.program.is_none()
             || !self.surfaces.contains(&surface)
             || self.direct_surfaces.contains(&surface)
-            || !variants::supports(surface)
-            || variants::structure_count(surface) <= 1
         {
             return false;
         }
@@ -45,13 +45,21 @@ impl MaterialSelection {
                 continue;
             }
             // Smooth factory-coated stock owns its complete optical response.
-            if slat_finish::supports(surface, slot) {
+            if slat_finish::supports(surface, slot)
+                || acoustic_tile::supports(surface, slot)
+                || bin_film::supports(surface, slot)
+                || cooktop::supports(surface, slot)
+                || worktop_finish::supports(surface, slot)
+            {
                 replacements = true;
                 continue;
             }
             // Unresolved slots fall back to the base material. Structure zero
             // also inherits its maps; only nonzero groups replace all four.
-            if slot >= variants::COUNT || slot % variants::structure_count(surface) == 0 {
+            if !variants::supports(surface)
+                || slot >= variants::COUNT
+                || slot % variants::structure_count(surface) == 0
+            {
                 return false;
             }
             replacements = true;
@@ -115,7 +123,7 @@ impl IndoorMaterials {
     pub fn for_part(&self, surface: Surface, label: &str) -> Handle<StandardMaterial> {
         if let Some(handle) = label
             .rsplit_once("#glazing")
-            .and_then(|(_, key)| key.parse::<u64>().ok())
+            .and_then(|(_, key)| key.split('#').next()?.parse::<u64>().ok())
             .and_then(|key| self.glazing.get(&key))
         {
             return handle.clone();
@@ -232,12 +240,34 @@ impl IndoorMaterials {
             let mut maps = Vec::with_capacity(definitions.len());
             for definition in &definitions {
                 super::super::preparation::cooperate().await;
-                maps.push(
-                    selection
-                        .is_none_or(|s| s.needs_maps(scene, definition.0))
-                        .then(|| prepare_map(scene, definition, gpu))
-                        .flatten(),
-                );
+                let (surface, _, roughness, _, _) = *definition;
+                let map = if !surface.has_procedural_maps()
+                    || selection.is_some_and(|s| !s.needs_maps(scene, surface))
+                {
+                    None
+                } else if let Some(p) = &scene.program {
+                    Some(
+                        gpu::Maps::scheduled(
+                            &p.materials[surface as usize],
+                            scene.floor_style,
+                            gpu,
+                            true,
+                        )
+                        .await,
+                    )
+                } else {
+                    Some(gpu::Maps::Cpu(Box::new(
+                        super::browser_maps::prepare(
+                            surface,
+                            scene.floor_style,
+                            scene.material_seed(),
+                            roughness,
+                            None,
+                        )
+                        .await,
+                    )))
+                };
+                maps.push(map);
             }
             Self::insert_prepared(
                 scene,
@@ -475,6 +505,8 @@ impl IndoorMaterials {
             materials,
             selection.map(|s| &s.finishes),
         ));
+        cooktop::install(scene, images, materials, selection, &mut variants);
+        worktop_finish::install(scene, images, materials, selection, &mut variants);
         variants.extend(exterior::build(
             scene,
             &handles,
@@ -482,19 +514,46 @@ impl IndoorMaterials {
             selection.map(|s| &s.finishes),
         ));
         variants.extend(signals::build(scene, materials, selection));
+        glass::display::install(scene, quality, materials, selection, &mut variants);
+        glass::door::install(scene, quality, materials, selection, &mut variants);
         variants.extend(supplies::build(scene, &handles, materials, selection));
         slat_finish::install(scene, materials, selection, &mut variants);
+        acoustic_tile::install(scene, images, materials, selection, &mut variants);
+        bin_film::install(scene, materials, selection, &mut variants);
         window_textile::install(scene, &handles, materials, selection, &mut variants);
         let cloth_template = materials
             .get(&handles[Surface::Fabric as usize])
             .unwrap()
             .clone();
-        let [cloth, skin, hair] = if selection.is_none() || !scene.humans.is_empty() {
-            human::maps(scene.material_seed(), cloth_template, images, materials)
+        let needs_coils = scene.humans.iter().any(|h| h.has_coiled_hair());
+        let only_coils = selection.is_some()
+            && needs_coils
+            && scene.humans.iter().all(|h| {
+                h.has_coiled_hair()
+                    || h.hairstyle == super::super::humans::hair::HairStyle::Bald as u8
+            });
+        let [cloth, skin, straight_hair] = if selection.is_none() || !scene.humans.is_empty() {
+            human::maps(
+                scene.material_seed(),
+                cloth_template,
+                !only_coils,
+                images,
+                materials,
+            )
         } else {
             // No actor refers to these templates. Aliases preserve the handle
             // contract without paying for skin and hair atlases in empty rooms.
             std::array::from_fn(|_| handles[Surface::Fabric as usize].clone())
+        };
+        let coiled_hair = if needs_coils {
+            human::coiled_hair(scene.material_seed(), images, materials)
+        } else {
+            straight_hair.clone()
+        };
+        let hair = if only_coils {
+            coiled_hair.clone()
+        } else {
+            straight_hair
         };
         if cooperative {
             super::super::preparation::cooperate().await;
@@ -528,10 +587,13 @@ impl IndoorMaterials {
                 );
             }
         }
+        let (sky_material, sky_field) =
+            super::super::architecture::background::material(scene, images);
         let mut result = Self {
             glazing: glazing::build(scene, quality, images, materials),
             reflections: Vec::new(),
-            sky: materials.add(super::super::architecture::background::material(scene)),
+            sky: materials.add(sky_material),
+            sky_field,
             handles,
             gpu_bakes,
             gpu_environment: gpu,
@@ -541,6 +603,7 @@ impl IndoorMaterials {
             cloth,
             skin,
             hair,
+            coiled_hair,
             knit,
             variants,
         };
@@ -632,12 +695,20 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
     (variants::supports(surface) && slot < variants::count(surface))
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
+        || glass::display::supports(surface, slot)
+        || glass::door::supports(surface, slot)
+        || cooktop::supports(surface, slot)
+        || worktop_finish::supports(surface, slot)
         || supplies::supports(surface, slot)
         || window_textile::supports(surface, slot)
         || slat_finish::supports(surface, slot)
+        || acoustic_tile::supports(surface, slot)
+        || bin_film::supports(surface, slot)
         || matches!(
             (surface, slot),
-            (Surface::Ceramic, 100..=102) | (Surface::Terracotta, 103) | (Surface::Paper, 104)
+            (Surface::Ceramic, 100..=102 | 105)
+                | (Surface::Terracotta, 103 | 106)
+                | (Surface::Paper, 104)
         )
 }
 /// Shared by raster material resolution and symbolic diffuse-transport binding.

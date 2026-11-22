@@ -313,6 +313,7 @@ impl From<core_sample::Sample> for Sample {
                     "tonemapped_linear"
                 }
                 bevy_zeroverse::render::color::ColorEncoding::Srgb => "srgb",
+                bevy_zeroverse::render::color::ColorEncoding::LinearHdr => "linear_hdr",
             }
             .to_owned(),
             views,
@@ -399,8 +400,12 @@ pub fn initialize(
 }
 
 #[pyfunction]
-#[pyo3(signature = (indoor_seed=None))]
-pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
+#[pyo3(signature = (indoor_seed=None, rgb_artifact_eligible_cameras_by_timestep=None))]
+pub fn next(
+    py: Python<'_>,
+    indoor_seed: Option<u64>,
+    rgb_artifact_eligible_cameras_by_timestep: Option<Vec<Vec<usize>>>,
+) -> PyResult<Sample> {
     if indoor_seed.is_some() && !INDOOR_INITIALIZED.load(Ordering::Acquire) {
         return Err(PyRuntimeError::new_err(
             "indoor_seed requests require a procedural_indoor configuration",
@@ -417,6 +422,7 @@ pub fn next(py: Python<'_>, indoor_seed: Option<u64>) -> PyResult<Sample> {
         channels::app_frame_sender()
             .send(channels::AppFrameRequest {
                 indoor_seed,
+                rgb_artifact_eligible_cameras_by_timestep,
                 ..Default::default()
             })
             .map_err(|_| PyRuntimeError::new_err("failed to request next frame from app"))?;
@@ -457,6 +463,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PlaybackMode>()?;
     m.add_class::<OvoxelMode>()?;
     m.add_class::<RenderMode>()?;
+    m.add_class::<bevy_zeroverse::render::color::RgbTonemapping>()?;
     m.add_class::<bevy_zeroverse::render::glass::AnnotationGlass>()?;
     m.add_class::<bevy_zeroverse::render::depth::DepthFormat>()?;
     m.add_class::<ZeroverseSceneType>()?;

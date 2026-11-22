@@ -17,6 +17,9 @@ use bevy::{
     render::view::{ColorGrading, Msaa},
 };
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct LensPhotometry;
+
 pub(super) fn install(app: &mut App) {
     app.add_systems(
         PostUpdate,
@@ -43,6 +46,7 @@ pub(super) fn install(app: &mut App) {
                 inherit::<NormalPrepass>,
             ),
         )
+            .in_set(LensPhotometry)
             .before(bevy::camera::CameraUpdateSystems),
     );
 }

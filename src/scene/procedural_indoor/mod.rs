@@ -31,6 +31,8 @@ mod program_coverage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod reference;
 pub(crate) mod shading;
+mod sky;
+mod studio;
 pub use shading::GlassFilter;
 pub mod validation;
 
@@ -135,8 +137,12 @@ impl Plugin for ProceduralIndoorPlugin {
         app.init_resource::<gi::GiPrefetch>();
         #[cfg(not(target_arch = "wasm32"))]
         app.add_plugins(gi::gpu::GpuGiPlugin);
-        app.add_systems(PreUpdate, regenerate);
+        app.add_systems(
+            PreUpdate,
+            (studio::advance.run_if(studio::enabled_or_armed), regenerate).chain(),
+        );
         app.init_resource::<preparation::residency::FutureAssets>();
+        preparation::studio_upload::install(app);
         #[cfg(not(target_arch = "wasm32"))]
         app.add_systems(
             PreUpdate,
@@ -252,6 +258,9 @@ struct IndoorCameraConfigured;
 pub(crate) struct IndoorGenerationStatus {
     pub pending: bool,
     pub lighting_pending: bool,
+    pub skipped_seed: Option<u64>,
+    pub(crate) attempted_seed: Option<u64>,
+    pub(crate) consecutive_timeouts: u8,
 }
 impl IndoorGenerationStatus {
     pub fn busy(&self) -> bool {
@@ -271,6 +280,7 @@ pub fn indoor_generation_pending(world: &World) -> bool {
 
 #[derive(Resource, Default)]
 struct PendingIndoor {
+    studio: studio::Automation,
     key: Option<preparation::pipeline::Request>,
     prefetched: preparation::pipeline::Lookahead<preparation::pipeline::PreparationJob>,
     requested: bool,
@@ -284,6 +294,7 @@ struct PendingIndoor {
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct SpeculativePreparation<'w, 's> {
+    time: Res<'w, Time<Real>>,
     future_assets: ResMut<'w, preparation::residency::FutureAssets>,
     material_compute: Res<'w, materials::gpu::MaterialComputeAvailable>,
     capture: Option<Res<'w, crate::sample::CaptureProgress>>,
@@ -316,6 +327,7 @@ fn regenerate(
     speculative: SpeculativePreparation,
 ) {
     let SpeculativePreparation {
+        time,
         mut future_assets,
         material_compute,
         capture,
@@ -336,6 +348,9 @@ fn regenerate(
         commands.remove_resource::<materials::gpu::MaterialBakeStatistics>();
         generation.pending = false;
         generation.lighting_pending = false;
+        generation.skipped_seed = None;
+        generation.consecutive_timeouts = 0;
+        generation.attempted_seed = None;
         #[cfg(not(target_arch = "wasm32"))]
         {
             commands.remove_resource::<gi::gpu::GpuBakeRequest>();
@@ -351,13 +366,16 @@ fn regenerate(
         future_assets.cancel_gi();
         events.clear();
         let mut snapshot = args.clone();
-        snapshot.indoor_gpu_materials &= material_compute.0;
+        snapshot.indoor_gpu_materials &= pending.studio.gpu_available(material_compute.0);
         pending.settings = Some((snapshot, settings.clone(), *gi_settings));
         pending.task = None;
         pending.requested = true;
         generation.pending = true;
     }
     if !pending.requested {
+        if !args.headless && args.regenerate_ms > 0 {
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if prefetch.depth == 0
             || !current_indoor
@@ -429,11 +447,9 @@ fn regenerate(
     }
     // A request is a snapshot: dragging a slider during preparation cannot
     // restart the job or mix its geometry with newer lighting/motion settings.
+    let automatic =
+        !args.headless && args.regenerate_ms > 0 && !sampler.as_ref().is_some_and(|s| s.enabled);
     let (args, settings, gi_settings) = pending.settings.clone().expect("requested settings");
-    // Keep the old scene responsive while the model and phenotype surfaces load.
-    if args.indoor_human_density > 0.0 && human_assets.is_none() {
-        return;
-    }
     if sequence.base_seed.is_none() || sequence.configured_seed != args.indoor_seed {
         sequence.configured_seed = args.indoor_seed;
         sequence.base_seed = Some(args.indoor_seed.unwrap_or_else(|| rand::rng().random()));
@@ -441,6 +457,30 @@ fn regenerate(
         pending.task = None;
     }
     let seed = sequence.base_seed.unwrap().wrapping_add(sequence.index);
+    let waiting_for_humans = args.indoor_human_density > 0.0 && human_assets.is_none();
+    if automatic {
+        generation.attempted_seed = Some(seed);
+    }
+    if automatic
+        && pending
+            .studio
+            .requested_expired(seed, time.elapsed(), waiting_for_humans)
+    {
+        pending
+            .studio
+            .expire(time.elapsed(), &mut sequence, &mut generation);
+        pending.studio.recover_empty_viewport = old.is_empty();
+        pending.task = None;
+        pending.key = None;
+        pending.settings = None;
+        pending.requested = false;
+        generation.pending = false;
+        future_assets.clear();
+        return;
+    }
+    if waiting_for_humans {
+        return;
+    }
     let key = preparation::pipeline::Request::new(seed, &args, &settings, gi_settings);
     if pending.key.as_ref() != Some(&key) {
         pending.key = Some(key.clone());
@@ -449,9 +489,13 @@ fn regenerate(
     if pending.task.is_none() {
         // From this point the requested room must satisfy the ordinary complete
         // asset barrier, whether it came from lookahead or fresh construction.
+        let studio_job = pending.studio.take(&key);
         let (task, discarded) = pending.prefetched.take(&key);
         prefetch.discarded += discarded as u64;
-        if let Some(mut task) = task {
+        if let Some(job) = studio_job {
+            future_assets.clear();
+            pending.task = Some(job);
+        } else if let Some(mut task) = task {
             future_assets.promote(&key);
             prefetch.ready_hits += u64::from(task.is_ready());
             prefetch.staged_hits += u64::from(task.prepared().is_some_and(|p| p.assets_staged()));
@@ -491,11 +535,34 @@ fn regenerate(
         Ok(scene) => scene,
         Err(error) => {
             error!("procedural_indoor generation rejected: {error}");
+            if !args.headless && !sampler.as_ref().is_some_and(|s| s.enabled) {
+                if let Some(retry_at) =
+                    studio::next_attempt(&key, &error, automatic, time.elapsed())
+                {
+                    sequence.index = sequence.index.wrapping_add(1);
+                    if automatic {
+                        pending.studio.retry_after = Some(retry_at);
+                        generation.skipped_seed = Some(seed);
+                        pending.studio.recover_empty_viewport = old.is_empty();
+                    }
+                } else {
+                    generation.skipped_seed = None;
+                    generation.consecutive_timeouts = 0;
+                    pending.studio.block(&key);
+                }
+            }
             commands.insert_resource(crate::sample::CaptureFailure(Some(error.to_string())));
             commands.insert_resource(crate::sample::failure::SceneCaptureError(Some(error)));
             return;
         }
     };
+    if !args.headless && !sampler.as_ref().is_some_and(|s| s.enabled) {
+        pending.studio.presented(time.elapsed());
+        generation.skipped_seed = None;
+        generation.consecutive_timeouts = 0;
+        commands.insert_resource(crate::sample::CaptureFailure::default());
+        commands.insert_resource(crate::sample::failure::SceneCaptureError::default());
+    }
     let insertion_started = bevy::platform::time::Instant::now();
     sequence.index = sequence.index.wrapping_add(1);
     for entity in &old {

@@ -43,6 +43,24 @@ pub(super) fn record(
         numeric.push("wall_lining_height_m", lining.height_m as f64)?;
         numeric.push("wall_lining_module_width_m", lining.module_width_m as f64)?;
         numeric.push("wall_lining_joint_depth_m", lining.joint_depth_m as f64)?;
+        let arrangement = match lining.courses {
+            None => "Upright",
+            Some(c) => {
+                numeric.push("wall_lining_course_height_m", f64::from(c.height_m))?;
+                numeric.push("wall_lining_bond_offset", f64::from(c.bond_offset))?;
+                if c.bond_offset == 0. {
+                    "Stacked"
+                } else {
+                    "Staggered"
+                }
+            }
+        };
+        *report
+            .categories
+            .entry("wall_lining_arrangement".into())
+            .or_default()
+            .entry(arrangement.into())
+            .or_default() += 1;
     }
     numeric.push("wall_lining_wall_count", lined_walls as f64)?;
     let adjoining = scene.adjoining_space();
@@ -54,6 +72,19 @@ pub(super) fn record(
         .iter()
         .map(|o| (o.max - o.min).element_product())
         .sum();
+    let windows = scene
+        .adjoining_elevation
+        .as_ref()
+        .and_then(|p| p.windows.as_ref());
+    let apertures = windows.map_or(&[][..], |w| w.facade.openings.as_slice());
+    numeric.push("adjoining_exterior_window_count", apertures.len() as f64)?;
+    numeric.push(
+        "adjoining_exterior_window_area_m2",
+        apertures.iter().map(|o| f64::from(o.area())).sum(),
+    )?;
+    for opening in apertures {
+        numeric.push("adjoining_exterior_sill_m", f64::from(opening.min.y))?;
+    }
     for (key, value) in [
         ("adjoining_full_width_depth_m", adjoining.depth_m),
         ("adjoining_max_depth_m", adjoining.max_depth()),
@@ -233,11 +264,46 @@ pub(super) fn record(
     }
     serde_json::to_writer(
         &mut *writer,
-        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "executive_boardroom": boardroom, "envelope": e, "adjoining": adjoining, "adjoining_footprint": adjoining_outline,
+        &serde_json::json!({"seed": scene.seed, "room_size": scene.room_size, "executive_boardroom": boardroom, "envelope": e, "adjoining": adjoining, "adjoining_elevation": scene.adjoining_elevation, "adjoining_footprint": adjoining_outline,
         "shared_glazing_openings": glazing.openings, "shared_glazing_fraction_of_clear_wall": opening_area/(height*scene.room_size.x), "finishes": finishes, "ceiling_installation":scene.ceiling_installation, "luminaire_program":fixture, "luminaire_optical_insert":insert, "topology": topology, "functional_programs":scene.functional_programs(), "support_regions":super::super::layout::functional::support_regions(scene), "doors":doors,"partitions": scene.program.as_ref().map(|p| &p.partitions)}),
     )?;
     writeln!(writer)?;
     if let Some(ceiling) = &scene.ceiling_installation {
+        let coverage = if let Some(grid) = &ceiling.room_grid {
+            for (name, value) in [
+                ("ceiling_grid_area_m2", polygon::area(&e.footprint)),
+                ("ceiling_grid_pitch_x_m", grid.pitch_m.x),
+                ("ceiling_grid_pitch_z_m", grid.pitch_m.y),
+                ("ceiling_grid_recessed_lights", grid.troffers.len() as f32),
+                (
+                    "ceiling_grid_air_terminals",
+                    grid.air_terminals.len() as f32,
+                ),
+            ] {
+                numeric.push(name, value as f64)?;
+            }
+            for air in &grid.air_terminals {
+                *report
+                    .categories
+                    .entry("ceiling_air_terminal".into())
+                    .or_default()
+                    .entry(format!("{:?}", air.pattern))
+                    .or_default() += 1;
+            }
+            "WallToWall"
+        } else if ceiling.exposed_slab {
+            "Exposed"
+        } else if ceiling.modules.is_empty() {
+            "Plain"
+        } else {
+            "SuspendedModules"
+        };
+        *report
+            .categories
+            .entry("ceiling_coverage".into())
+            .or_default()
+            .entry(coverage.into())
+            .or_default() += 1;
         if let Some(frame) = &ceiling.framing {
             numeric.push("ceiling_frame_members", frame.members.len() as f64)?;
             for m in &frame.members {
@@ -328,6 +394,33 @@ pub(super) fn record(
                         numeric.push("ceiling_grid_pitch_m", m.pitch_m as f64)?;
                         if m.system == crate::scene::procedural_indoor::architecture::ceiling::CeilingSystem::SuspendedTiles {
                             numeric.push("ceiling_tile_recess_m",recess_m as f64)?;
+                        }
+                    }
+                    CeilingShape::LayIn {
+                        aspect,
+                        runner_base_m,
+                        tile,
+                    } => {
+                        for (key, value) in [
+                            ("ceiling_grid_aspect", aspect),
+                            ("ceiling_grid_pitch_m", m.pitch_m),
+                            ("ceiling_tile_recess_m", tile.drop_m),
+                            ("ceiling_tile_thickness_m", tile.thickness_m),
+                            ("ceiling_runner_base_m", runner_base_m),
+                            ("ceiling_runner_flange_m", tile.flange_width_m),
+                        ] {
+                            numeric.push(key, f64::from(value))?;
+                        }
+                        for (key, value) in [
+                            ("ceiling_tile_edge", format!("{:?}", tile.edge)),
+                            ("ceiling_tile_facing", format!("{:?}", tile.facing)),
+                        ] {
+                            *report
+                                .categories
+                                .entry(key.into())
+                                .or_default()
+                                .entry(value)
+                                .or_default() += 1;
                         }
                     }
                     CeilingShape::Conduit {

@@ -2,12 +2,15 @@
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
 mod broadleaf;
+mod cane;
+pub(crate) use cane::CaneHabit;
 mod leaf;
 use leaf::{blade, incline};
 mod habits;
 mod palm;
 mod pots;
 mod sampling;
+mod soil;
 mod vines;
 mod woody;
 pub(super) use pots::dimensions as pot_dimensions;
@@ -174,18 +177,13 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
     };
     let pot_program = PotProfile::sample(o.seed);
     let (soil, soil_radius) = pots::build(a, pot, r, ph, growth.pot_taper, &pot_program);
-    for _ in 0..18 {
-        let p = radial(rng.random_range(0.0..TAU))
-            * (soil_radius - h * 0.01).max(0.)
-            * rng.random_range(0.12..0.92)
-            + Vec3::Y * (soil + h * 0.008);
-        a.part(Surface::Soil, "other_prop").cuboid(
-            Vec3::splat(h * 0.009),
-            h * 0.002,
-            Transform::from_translation(p)
-                .with_rotation(Quat::from_rotation_y(rng.random_range(0.0..TAU))),
-        );
-    }
+    soil::dressing(
+        a.part(Surface::Soil, "other_prop"),
+        o.seed,
+        soil,
+        soil_radius,
+        &mut rng,
+    );
     let base = Vec3::Y * soil;
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
@@ -299,44 +297,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                 );
             }
         }
-        _ => {
-            // Dracaena: cane trunks and narrow drooping rosettes at distinct heights.
-            for cane in 0..growth.leader_count {
-                let dir = radial(growth.angle(cane));
-                let start = base + dir * r * 0.35;
-                let top = start
-                    + Vec3::Y
-                        * (h - soil)
-                        * (0.43 + growth.node(cane, growth.leader_count - 1) * 0.38);
-                stem(
-                    a,
-                    &[
-                        start,
-                        start.lerp(top, 0.5) + dir * spread * 0.05,
-                        top,
-                        top + Vec3::Y * h * 0.013,
-                    ],
-                    h * 0.013,
-                );
-                // Age-graded whorls form a crown, rather than a single sparse
-                // star of blades at one point. Older outer leaves hang lower;
-                // the compact centre retains upright new growth.
-                for j in 0..growth.count(34) {
-                    let tier = (j % 3) as f32;
-                    let d = radial(j as f32 * growth.phyllotaxis + cane as f32);
-                    blade(
-                        a,
-                        top + Vec3::Y * h * (tier - 1.) * 0.012,
-                        d * spread * rng.random_range(0.52..0.79) * (1. - tier * 0.16)
-                            + Vec3::Y * h * (rng.random_range(-0.13..-0.045) + tier * 0.075),
-                        spread * rng.random_range(0.046..0.065),
-                        1,
-                        rng.random(),
-                        &growth,
-                    );
-                }
-            }
-        }
+        _ => cane::build(a, o, &growth, base, spread, soil_radius),
     }
 }
 

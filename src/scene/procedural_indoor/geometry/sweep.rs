@@ -11,53 +11,20 @@ impl Geometry {
         lobes: u32,
         tf: Transform,
     ) {
-        for pair in profile.windows(2) {
-            let delta = Vec2::new(pair[1].0 - pair[0].0, pair[1].1 - pair[0].1);
-            if delta.length_squared() < 1e-12 {
-                continue;
-            }
-            let first = self.positions.len() as u32;
-            for &(r, y) in pair {
-                for i in 0..=segments {
-                    let angle = TAU * (i % segments) as f32 / segments as f32;
-                    let phase = lobes as f32 * angle;
-                    let f = 1. - depth * (0.5 + 0.5 * phase.cos());
-                    let df = depth * 0.5 * lobes as f32 * phase.sin();
-                    let (sin, cos) = angle.sin_cos();
-                    let n = Vec3::new(
-                        delta.y * (f * cos + df * sin),
-                        -delta.x * f * f,
-                        delta.y * (f * sin - df * cos),
-                    )
-                    .normalize();
-                    self.vertex(
-                        Vec3::new(r * f * cos, y, r * f * sin),
-                        n,
-                        Vec2::new(
-                            TAU * i as f32 / segments as f32 * pair[0].0.max(pair[1].0),
-                            y + r,
-                        ),
-                        &tf,
-                    );
-                }
-            }
-            for i in 0..segments {
-                let a = first + i;
-                let b = a + segments + 1;
-                if pair[0].0 > 1e-5 {
-                    self.indices.extend([a, b, a + 1]);
-                }
-                if pair[1].0 > 1e-5 {
-                    self.indices.extend([a + 1, b, b + 1]);
-                }
-            }
+        if segments >= 3 && profile.len() >= 2 {
+            RevolvedOutline::round(segments, depth, lobes).sweep(
+                self,
+                profile,
+                ProfileJoints::Creased,
+                tf,
+            );
         }
     }
 
     /// Continuous circular sweep for handles, goosenecks and binding wire.
     /// The caller provides distinct adjacent points; end caps are separate faces.
     pub fn tube(&mut self, points: &[Vec3], radius: f32, sides: u32) {
-        if points.len() < 2 {
+        if points.len() < 2 || sides < 3 {
             return;
         }
         let start = self.positions.len() as u32;
@@ -94,24 +61,24 @@ impl Geometry {
         } else {
             0.
         };
+        let angles = primitives::tube_angles(sides);
         for (i, (&p, &(tangent, frame, along))) in points.iter().zip(&frames).enumerate() {
             let frame = Quat::from_axis_angle(tangent, twist * along / distance.max(1e-6)) * frame;
             let cross = tangent.cross(frame);
-            for j in 0..=sides {
-                let angle = TAU * j as f32 / sides as f32;
-                let normal = frame * angle.cos() + cross * angle.sin();
+            for (j, angle) in angles.iter().enumerate() {
+                let normal = frame * angle.cos + cross * angle.sin;
                 self.vertex(
                     p + radius * normal,
                     normal,
-                    Vec2::new(angle * radius, along),
+                    Vec2::new(angle.radians * radius, along),
                     &Transform::IDENTITY,
                 );
                 // Position/normal welding is exact, while metric UVs retain the
                 // intentional cloth/metal sweep seams at each wrap boundary.
                 let index = self.positions.len() - 1;
                 let source = if closed && i == points.len() - 1 {
-                    Some(start as usize + j as usize)
-                } else if j == sides {
+                    Some(start as usize + j)
+                } else if j == sides as usize {
                     Some(index - sides as usize)
                 } else {
                     None
@@ -159,6 +126,35 @@ impl Geometry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tube_rings_replay_the_angular_samples_at_cached_and_custom_resolutions() {
+        for sides in [3, 6, 8, 10, 12, 20, 32, 47] {
+            let ring = primitives::tube_angles(sides);
+            let replay = primitives::tube_angles(sides);
+            assert_eq!(ring.len(), sides as usize + 1);
+            for (j, (sample, repeated)) in ring.iter().zip(replay.iter()).enumerate() {
+                let angle = TAU * j as f32 / sides as f32;
+                assert_eq!(sample.radians.to_bits(), angle.to_bits());
+                // Scalar and paired libm calls can round differently on macOS.
+                // Check accuracy against a wider reference and replay bit for bit.
+                let (sin, cos) = f64::from(angle).sin_cos();
+                for (value, second, expected) in [
+                    (sample.cos, repeated.cos, cos as f32),
+                    (sample.sin, repeated.sin, sin as f32),
+                ] {
+                    assert_eq!(value.to_bits(), second.to_bits());
+                    assert!(
+                        value.to_bits().abs_diff(expected.to_bits()) <= 1,
+                        "ring {sides}, sample {j}: {value} versus {expected}"
+                    );
+                }
+            }
+        }
+        let mut g = Geometry::default();
+        g.tube(&[Vec3::ZERO, Vec3::Y], 0.013, 2);
+        assert!(g.positions.is_empty());
+    }
+
     #[test]
     fn closed_nonplanar_sweeps_weld_the_frame_and_uv_wraps() {
         let points: Vec<_> = (0..=64)

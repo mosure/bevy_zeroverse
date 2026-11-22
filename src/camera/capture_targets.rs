@@ -1,6 +1,6 @@
-//! Bounded headless capture storage. Cameras still get new entities, poses and
-//! frame epochs per room; only completed GPU attachments and staging buffers
-//! survive regeneration. Interactive cameras never enter this pool.
+//! Reuse compatible attachments by capture index across sequential rooms.
+//! Readbacks require a retired copier. An automated viewer can retain its last
+//! displayed image while a replacement camera acquires the same texture.
 use super::*;
 use std::collections::HashMap;
 
@@ -150,7 +150,10 @@ impl Targets {
         Some(Self {
             color: self.color.clone(),
             ssaa: self.ssaa.as_ref().map(|ssaa| ssaa.recycled()),
-            copier: Some(self.copier.as_ref()?.recycled()?),
+            copier: match &self.copier {
+                Some(copier) => Some(copier.recycled()?),
+                None => None,
+            },
             #[cfg(not(target_arch = "wasm32"))]
             geometry: self.geometry.as_ref().map(|gt| gt.recycled()),
         })
@@ -166,13 +169,16 @@ struct Entry {
 #[derive(Resource, Default)]
 pub(super) struct CaptureTargets(HashMap<usize, Entry>);
 impl CaptureTargets {
+    fn reusable(args: &BevyZeroverseConfig, index: usize) -> bool {
+        index < args.num_cameras
+            && ((cfg!(not(target_arch = "wasm32")) && args.headless && args.image_copiers)
+                || (!args.headless
+                    && !args.image_copiers
+                    && args.regenerate_ms > 0
+                    && args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor))
+    }
     pub fn retain(&mut self, args: &BevyZeroverseConfig) {
-        self.0.retain(|index, _| {
-            cfg!(not(target_arch = "wasm32"))
-                && args.headless
-                && args.image_copiers
-                && *index < args.num_cameras
-        });
+        self.0.retain(|index, _| Self::reusable(args, *index));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -190,12 +196,7 @@ impl CaptureTargets {
     ) -> Targets {
         let key = Key::new(args, resolution);
         let slot = index
-            .filter(|index| {
-                cfg!(not(target_arch = "wasm32"))
-                    && args.headless
-                    && args.image_copiers
-                    && index.0 < args.num_cameras
-            })
+            .filter(|index| Self::reusable(args, index.0))
             .map(|index| index.0);
         // Never share attachments with another live camera, or a canceled
         // capture whose asynchronous map callback has not completed.
@@ -223,6 +224,36 @@ impl CaptureTargets {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn automated_presentation_reuses_indexed_outputs_without_cpu_copiers() {
+        let mut args = BevyZeroverseConfig {
+            headless: false,
+            image_copiers: false,
+            regenerate_ms: 1000,
+            num_cameras: 2,
+            scene_type: crate::scene::ZeroverseSceneType::ProceduralIndoor,
+            ..default()
+        };
+        assert!(CaptureTargets::reusable(&args, 1));
+        assert!(!CaptureTargets::reusable(&args, 2));
+        let mut images = Assets::<Image>::default();
+        let output = images.add(Image::default());
+        let mut targets = Targets {
+            color: output.clone(),
+            ssaa: None,
+            copier: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            geometry: None,
+        };
+        targets.set_raster(Some(2), UVec2::splat(64), &mut images);
+        let next = targets.recycled().unwrap();
+        assert_eq!(next.color, targets.color);
+        assert_eq!(next.ssaa.unwrap().output, output);
+        assert!(next.copier.is_none());
+        args.regenerate_ms = 0;
+        assert!(!CaptureTargets::reusable(&args, 0));
+    }
 
     #[test]
     fn changing_rgb_density_preserves_the_resolved_color_and_geometric_planes() {

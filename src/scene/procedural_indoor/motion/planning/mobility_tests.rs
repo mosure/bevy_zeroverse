@@ -191,6 +191,7 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
         CuttingBoard,
         Bowl,
         Dishware,
+        Flatware,
         Bread,
         UtensilHolder,
         KnifeBlock,
@@ -349,6 +350,10 @@ fn moving_desk_lamp_keeps_direct_light_attached_during_reverse_playback() {
     prepare(&mut scene, &mut g);
     let m = &scene.indoor_motion.as_ref().unwrap().mechanisms[0];
     assert!(m.rejection.is_none(), "{m:?}");
+    let beam = super::super::super::objects::accessories::lamps::beam(&scene.objects[1]);
+    let eye = beam.position + beam.direction * 0.04;
+    let reflections = super::super::super::gi::ReflectionEmitters::new(&scene);
+    assert!(reflections.radiance(eye, -beam.direction, 0.06).is_none());
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>()
         .init_resource::<crate::camera::Playback>()

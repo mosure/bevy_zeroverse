@@ -602,7 +602,7 @@ fn playback(
     mut transforms: Query<&mut Transform>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let t = time.mode.map_progress(time.progress).clamp(0.0, 1.0);
+    let t = time.trajectory_progress();
     let baked = config.image_copiers || config.ovoxel_mode != OvoxelMode::Disabled;
     for (mut actor, mut human, mut aabb) in &mut actors {
         if actor.last == Some((t.to_bits(), baked)) {

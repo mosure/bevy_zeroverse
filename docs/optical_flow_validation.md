@@ -89,11 +89,11 @@ workspace/all-target Clippy passes; Cargo still reports the upstream
 cargo run --features human_motion --example validate_optical_flow
 cargo test -p bevy_zeroverse_burn --features human_motion \
   --test flow_roundtrip --test indoor_roundtrip
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 0 --render-seed-list 1,2,13 --flow --output out/flow_motion
 cargo clippy --workspace --all-targets --features human_motion -- -D warnings
 CARGO_PROFILE_DEV_DEBUG=0 cargo check --target wasm32-unknown-unknown \
-  --bin viewer --no-default-features --features web,human_motion
+  --bin bevy_zeroverse --no-default-features --features web,human_motion
 python -m unittest discover -s crates/ffi/python -p 'test_flow.py'
 python -m unittest discover -s crates/ffi/python -p 'test_indoor.py'
 cargo run -p bevy_zeroverse_burn --features human_motion --bin zeroverse_gen -- \

@@ -94,7 +94,51 @@ impl SensorSettings {
         let quality = self
             .jpeg_quality
             .map(|[lo, hi]| stream(root_seed, 5).random_range(lo..=hi));
+        let cameras = (sample.view_dim as usize).max(1);
+        ensure!(
+            sample.views.len().is_multiple_of(cameras),
+            "sensor requires complete timesteps"
+        );
+        let steps = sample.views.len() / cameras;
+        let mut receipt: bevy_zeroverse_capture::request::RgbArtifactReceipt = match sample
+            .indoor_render_metadata
+            .as_ref()
+            .and_then(|m| m.get("rgb_artifacts"))
+            .filter(|v| !v.is_null())
+        {
+            Some(r) => serde_json::from_value(r.clone()).context("RGB artifact receipt")?,
+            None => bevy_zeroverse_capture::request::RgbArtifactReceipt::for_capture(
+                None,
+                cameras,
+                steps,
+                |_| false,
+            ),
+        };
+        bevy_zeroverse_capture::request::validate_eligibility(
+            Some(&receipt.eligible_cameras_by_timestep),
+            cameras,
+            steps,
+        )
+        .map_err(anyhow::Error::msg)?;
+        let active = gains != [1.; 3] || sigma > 0. || noise > 0. || quality.is_some();
+        let encoding = sample.color_encoding;
         for (index, view) in sample.views.iter_mut().enumerate() {
+            let eligible =
+                receipt.eligible_cameras_by_timestep[index / cameras].contains(&(index % cameras));
+            if !active || !eligible {
+                if encoding == ColorEncoding::TonemappedLinear {
+                    // Raw SDR archives store sRGB. Apply exactly their ordinary transfer once.
+                    let mut rgba = crate::chunk::decode_rgba_bytes(&view.color, size[0], size[1])?
+                        .into_owned();
+                    for pixel in rgba.as_chunks_mut::<4>().0 {
+                        for c in &mut pixel[..3] {
+                            *c = linear_to_srgb(*c);
+                        }
+                    }
+                    view.color = bytemuck::cast_slice(&rgba).to_vec();
+                }
+                continue;
+            }
             let rgba = crate::chunk::decode_rgba_bytes(&view.color, size[0], size[1])?;
             ensure!(rgba.iter().all(|v| v.is_finite()), "non-finite RGB input");
             let mut rgb: ImageBuffer<Rgb<f32>, Vec<f32>> =
@@ -140,14 +184,30 @@ impl SensorSettings {
                 .0
                 .iter()
                 .enumerate()
-                .flat_map(|(p, v)| [v[0], v[1], v[2], rgba[p * 4 + 3]])
+                .flat_map(|(p, v)| {
+                    let alpha = rgba[p * 4 + 3];
+                    let rgb = if alpha <= 0. {
+                        [0.; 3]
+                    } else if encoding == ColorEncoding::LinearHdr {
+                        v.map(srgb_to_linear)
+                    } else {
+                        *v
+                    };
+                    [rgb[0], rgb[1], rgb[2], alpha]
+                })
                 .collect();
             view.color = bytemuck::cast_slice(&output).to_vec();
         }
-        sample.color_encoding = ColorEncoding::Srgb;
+        if encoding != ColorEncoding::LinearHdr {
+            sample.color_encoding = ColorEncoding::Srgb;
+        }
+        if active {
+            receipt.mark_archive_applied();
+        }
         let metadata = sample
             .indoor_render_metadata
             .get_or_insert_with(|| serde_json::json!({}));
+        metadata["rgb_artifacts"] = serde_json::to_value(receipt)?;
         metadata.as_object_mut().context("indoor render metadata must be an object")?.insert("rgb_sensor".into(), serde_json::json!({
             "schema_version":1, "requested":self, "seed":root_seed,
             "white_balance_gain":gains, "blur_sigma_pixels":sigma, "noise_std_srgb":noise, "jpeg_quality":quality,
@@ -227,6 +287,73 @@ mod tests {
             c.indoor.as_ref().unwrap().objects,
             original.indoor.as_ref().unwrap().objects
         );
+    }
+    #[test]
+    fn archive_postprocess_respects_switched_roles_and_hdr() {
+        let settings = SensorSettings {
+            noise_std_srgb: [0.04; 2],
+            blur_sigma_pixels: [0.5; 2],
+            jpeg_quality: Some([80; 2]),
+            ..Default::default()
+        };
+        let all = vec![vec![0, 1]; 3];
+        let none = vec![vec![]; 3];
+        let mixed = vec![vec![0], vec![1], vec![0]];
+        for encoding in [
+            ColorEncoding::TonemappedLinear,
+            ColorEncoding::Srgb,
+            ColorEncoding::LinearHdr,
+        ] {
+            let mut source = sample();
+            source.color_encoding = encoding;
+            source.view_dim = 2;
+            let view = &mut source.views[0];
+            let mut rgba = crate::chunk::decode_rgba_bytes(&view.color, 8, 8)
+                .unwrap()
+                .into_owned();
+            rgba[..4].fill(0.); // off-sensor pixel
+            rgba[4] = if encoding == ColorEncoding::LinearHdr {
+                3.5
+            } else {
+                0.75
+            };
+            view.color = bytemuck::cast_slice(&rgba).to_vec();
+            source.views.resize(6, source.views[0].clone());
+            let capture = |rows: &Vec<Vec<usize>>| {
+                let mut s = source.clone();
+                s.indoor_render_metadata = Some(
+                    serde_json::json!({"rgb_artifacts":bevy_zeroverse_capture::request::RgbArtifactReceipt::for_capture(Some(rows),2,3,|_|false)}),
+                );
+                settings.apply(&mut s, [8, 8]).unwrap();
+                let receipt = &s.indoor_render_metadata.as_ref().unwrap()["rgb_artifacts"];
+                assert_eq!(
+                    receipt["archive_applied_cameras_by_timestep"],
+                    serde_json::json!(rows)
+                );
+                assert_eq!(
+                    receipt["applied_cameras_by_timestep"],
+                    serde_json::json!(rows)
+                );
+                s
+            };
+            let (clean, augmented, switched) = (capture(&none), capture(&all), capture(&mixed));
+            for i in 0..6 {
+                let view = &switched.views[i];
+                let expected = if mixed[i / 2].contains(&(i % 2)) {
+                    &augmented.views[i]
+                } else {
+                    &clean.views[i]
+                };
+                assert_eq!(view.color, expected.color);
+                assert_ne!(clean.views[i].color, augmented.views[i].color);
+                assert_eq!(view.depth, source.views[i].depth);
+                let output = crate::chunk::decode_rgba_bytes(&view.color, 8, 8).unwrap();
+                assert_eq!(&output[..4], &[0.; 4]);
+            }
+            if encoding == ColorEncoding::LinearHdr {
+                assert_eq!(clean.views[0].color, source.views[0].color);
+            }
+        }
     }
     #[test]
     fn neutral_settings_preserve_display_values() {

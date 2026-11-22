@@ -100,7 +100,7 @@ pub(super) fn sample(
             .map(|t| coverage.view(&scene.cameras[0], scene.camera_aspect_ratio, t))
             .collect()];
         let mut tracks = vec![Track::new(&scene.cameras[0])];
-        let mut summaries = vec![ViewSummary::new(&scene.cameras[0], &views[0][0], scene)];
+        let mut summaries = vec![ViewSummary::new(&views[0][0], scene)];
         while scene.cameras.len() < count {
             let mut best = None;
             let mut first = None;
@@ -219,7 +219,7 @@ pub(super) fn sample(
                     scene.camera_diagnostics.peer_rejections[5] += 1;
                     continue;
                 }
-                let summary = ViewSummary::new(&candidate, &candidate_views[0], scene);
+                let summary = ViewSummary::new(&candidate_views[0], scene);
                 let score = summary.score(&summaries, count, scene);
                 accepted += 1;
                 first.get_or_insert(attempt);

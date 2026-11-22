@@ -14,6 +14,8 @@ use crate::app::BevyZeroverseConfig;
 use crate::camera::Playback;
 use crate::scene::RegenerateSceneEvent;
 
+pub(crate) mod reference;
+
 pub struct ZeroverseBurnHumanPlugin;
 
 impl Plugin for ZeroverseBurnHumanPlugin {
@@ -22,7 +24,7 @@ impl Plugin for ZeroverseBurnHumanPlugin {
             BurnHumanPlugin::from_asset(Handle::default())
                 .with_render_mode(BurnHumanMeshMode::SkinnedMesh),
         );
-        app.add_systems(Update, load_human_reference);
+        app.add_systems(Update, reference::hydrate);
         app.init_resource::<BurnHumanSettings>();
         app.init_resource::<BurnHumanPhenotypeSampler>();
         app.init_resource::<BurnHumanPoseNoiseSettings>();
@@ -38,46 +40,6 @@ impl Plugin for ZeroverseBurnHumanPlugin {
             update_burn_human_inputs.run_if(resource_exists::<BurnHumanAssets>),
         );
     }
-}
-
-// Keep the renderer registered without decoding a human model for unrelated scenes.
-fn load_human_reference(
-    mut commands: Commands,
-    demand: Res<crate::asset::SceneAssetDemand>,
-    server: Res<AssetServer>,
-    references: Res<Assets<bevy_burn_human::BurnHumanReferenceAsset>>,
-    existing: Option<Res<BurnHumanAssets>>,
-    mut handle: Local<Option<Handle<bevy_burn_human::BurnHumanReferenceAsset>>>,
-    mut failed: Local<bool>,
-) {
-    if existing.is_some() || !demand.humans {
-        return;
-    }
-    let body = if let Some(body) = crate::scene::procedural_indoor::humans::body::installed() {
-        body
-    } else {
-        let handle =
-            handle.get_or_insert_with(|| server.load("burn_human/fullbody_default.meta.json"));
-        if let bevy::asset::LoadState::Failed(error) = server.load_state(handle.id()) {
-            let message = format!("AnnyBody reference failed to load: {error}; install assets/burn_human or set indoor_human_density=0 for an unoccupied indoor scene");
-            if !*failed {
-                error!("{message}");
-            }
-            commands.insert_resource(crate::sample::CaptureFailure(Some(message)));
-            *failed = true;
-            return;
-        }
-        let Some(reference) = references.get(handle) else {
-            return;
-        };
-        reference.0.clone()
-    };
-    crate::scene::procedural_indoor::humans::body::install(body.clone());
-    commands.insert_resource(BurnHumanAssets {
-        faces: std::sync::Arc::new(body.faces_quads().clone()),
-        uvs: std::sync::Arc::new(body.metadata().static_data.texture_coordinates.clone()),
-        body,
-    });
 }
 
 #[derive(Resource, Reflect, Debug, Clone)]
@@ -404,11 +366,11 @@ pub(crate) fn update_burn_human_inputs(params: BurnHumanInputParams) {
     let mut predicted = *playback;
     if !regen_events.is_empty() {
         regen_events.clear();
-        predicted.progress = 0.0;
+        predicted.rewind();
     } else {
         predicted.step(&time);
     }
-    let predicted_time = predicted.progress;
+    let predicted_time = predicted.trajectory_progress();
 
     for (entity, mut instance, placement, mut transform, mut input, animated, aabb) in
         humans.iter_mut()

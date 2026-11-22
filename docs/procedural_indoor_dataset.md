@@ -130,6 +130,13 @@ dimensions, shade coverage and near-full-height classification. Architecture
 metrics and `architecture.jsonl` record polygon outlines, roof slopes, floor
 patches, pillars, arches and mezzanines; see the [architectural evaluation](architecture_v22.md).
 
+`architecture.jsonl` also records the adjoining room's footprint and
+`adjoining_elevation`. Its optional `windows.edge` indexes that footprint,
+with aperture coordinates measured in metres from the edge midpoint along
+the wall and up from the floor. The distribution report includes adjoining
+exterior window count, rough opening area and sill height. Through-glass
+annotations can see scenery beyond both the interior partition and these windows.
+
 To append another 100 samples, repeat the capture settings with `--resume
 --samples 100`. The seed can be omitted on resume: the saved base seed is
 restored. The sample count means additional samples, not a target total.
@@ -162,6 +169,13 @@ precision is explicitly recorded per sample: `annotation_precision=1`
 (`float32_geometry`) selects the native indoor MRT geometry pass, while `0`
 (`float16_hdr`) identifies the legacy/fallback HDR intermediate. This field
 records the render path, independently of float32 storage.
+
+In the Auto indoor quality setting, rough architectural glass filters the opaque
+HDR background before tone mapping. Each camera builds its own view of that
+background. Near objects and window frames use the depth prepass where
+available. Clear glass retains its sharp refraction. The surface/through glass
+annotation policy still determines which physical intersection supplies depth,
+normals, semantics and co-visibility.
 
 Procedural people use an independent seeded stream. `--indoor-human-density`
 defaults to `0.25`; zero disables people without changing room furnishings.

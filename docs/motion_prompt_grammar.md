@@ -106,14 +106,14 @@ run was `e134af98b985517b4f068e3755ae90d4e9cd2d45d328325dc503f1c6b2d06cc7`.
 Token-only checks do not load model weights.
 
 ```sh
-cargo build --features human_motion --bin motion_validate --locked
+cargo build --features human_motion --example motion_validate --locked
 
-target/debug/motion_validate --seeds 128 \
+target/debug/examples/motion_validate --seeds 128 \
   --tokenizer /path/to/tokenizer.json \
   --policy '{"fraction":1,"locomotion_fraction":1,"sequence_fraction":0.8,"energetic_fraction":0.2,"max_actors":16,"frames":160,"batch_size":4}' \
   --output out/motion_prompt_grammar/planning
 
-target/debug/motion_validate --seeds 0 --render-seed-list 0,44 --flow \
+target/debug/examples/motion_validate --seeds 0 --render-seed-list 0,44 --flow \
   --policy '{"fraction":1,"locomotion_fraction":1,"sequence_fraction":0.8,"energetic_fraction":0.2,"max_actors":16,"frames":160,"batch_size":4}' \
   --output out/motion_prompt_grammar/render
 

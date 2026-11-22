@@ -50,6 +50,11 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
     let point = |(x, z): (i32, i32)| Vec3::new(x as f32 * step, start.y, z as f32 * step);
     let cell = |p: Vec3| ((p.x / step).round() as i32, (p.z / step).round() as i32);
     let (a, b) = (cell(start), cell(end));
+    let pad = Vec3::splat(super::super::layout::CAMERA_CLEARANCE);
+    let primary = scene
+        .camera_settings
+        .primary_room
+        .then(|| scene.primary_region());
     let obstacles: Vec<_> = scene
         .camera_obstacles()
         .into_iter()
@@ -65,20 +70,25 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
                 .iter()
                 .map(super::super::humans::IndoorHuman::bounds),
         )
+        .map(|(lo, hi)| (lo - pad, hi + pad))
+        // Every grid edge has lens height; the two end connectors and rounded
+        // corners also stay within the start/end height interval.
+        .filter(|(lo, hi)| lo.y <= start.y.max(end.y) + 1e-5 && hi.y >= start.y.min(end.y) - 1e-5)
         .collect();
     let clear = |a: Vec3, b: Vec3| {
-        let pad = Vec3::splat(super::super::layout::CAMERA_CLEARANCE);
         (a.x.abs().max(b.x.abs()) < scene.room_size.x * 0.5 - 0.5)
             && (a.z.abs().max(b.z.abs()) < scene.room_size.z * 0.5 - 0.5)
+            && !obstacles
+                .iter()
+                .any(|&(lo, hi)| super::super::layout::segment_hits_box(a, b, lo, hi))
             && scene
                 .envelope
                 .as_ref()
                 .is_none_or(|e| e.segment_clear(scene.room_size, a, b, pad.x))
-            && (!scene.camera_settings.primary_room
-                || (scene.in_primary_room(a, pad.x) && scene.in_primary_room(b, pad.x)))
-            && !obstacles
-                .iter()
-                .any(|(lo, hi)| super::super::layout::segment_hits_box(a, b, *lo - pad, *hi + pad))
+            && primary.as_ref().is_none_or(|region| {
+                region.contains_projection(a.xz(), pad.x)
+                    && region.contains_projection(b.xz(), pad.x)
+            })
     };
     if !clear(start, point(a)) || !clear(point(b), end) {
         return None;
@@ -144,11 +154,8 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
                     continue;
                 }
                 let n = (c.0 + dx, c.1 + dz);
-                if !clear(point(c), point(n)) {
-                    continue;
-                }
                 let next = g + if dx == 0 || dz == 0 { 10 } else { 14 };
-                if cost.get(&n).is_none_or(|v| next < *v) {
+                if cost.get(&n).is_none_or(|v| next < *v) && clear(point(c), point(n)) {
                     cost.insert(n, next);
                     parents.insert(n, c);
                     queue.push(Reverse((next + heuristic(n), next, n)));

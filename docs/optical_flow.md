@@ -99,7 +99,7 @@ are not dataset annotations.
 ```sh
 cargo run --features human_motion --example validate_optical_flow
 cargo test -p bevy_zeroverse_burn --features human_motion --test flow_roundtrip
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 0 --render-seed-list 1,2,13 --flow --output out/flow_motion
 ```
 

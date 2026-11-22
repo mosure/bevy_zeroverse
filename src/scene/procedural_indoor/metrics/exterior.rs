@@ -8,7 +8,7 @@ use std::io::{self, Write};
 pub(super) fn header(writer: &mut impl Write) -> io::Result<()> {
     writeln!(
         writer,
-        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height,crossbar_count,transom_fractions"
+        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height,crossbar_count,transom_fractions,facade_shade_coverage"
     )
 }
 
@@ -165,11 +165,26 @@ pub(super) fn record(
                 numeric.push("window_treatment_fold_depth_m", p.fold_depth as f64)?;
             }
             if f.shade == Shade::Curtain {
+                if let Some(heading) = p.curtain_heading {
+                    category("window_curtain_heading", format!("{heading:?}"));
+                    numeric.push(
+                        "window_curtain_parked_width_fraction",
+                        heading.parked_fraction(p) as f64,
+                    )?;
+                }
                 numeric.push("window_treatment_fullness", p.fullness as f64)?;
                 numeric.push("window_treatment_tieback", p.tieback as f64)?;
             }
         }
+        let mut min_draw = 1_f32;
+        let mut max_draw = 0_f32;
         for (i, o) in f.openings.iter().enumerate() {
+            let draw = f.shade_coverage_at(o);
+            if f.shade != Shade::None {
+                min_draw = min_draw.min(draw);
+                max_draw = max_draw.max(draw);
+                numeric.push("exterior_opening_shade_coverage", draw as f64)?;
+            }
             if let Some(glazing) = &o.glazing {
                 category("exterior_glazing_treatment", glazing.treatment.to_string());
                 numeric.push("exterior_glass_thickness_m", glazing.thickness_m as f64)?;
@@ -202,7 +217,7 @@ pub(super) fn record(
             }
             writeln!(
                 writer,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{},{},{},{}",
                 scene.seed,
                 side,
                 i,
@@ -221,14 +236,21 @@ pub(super) fn record(
                 f.frame_depth,
                 f.recess,
                 f.shade,
-                f.shade_coverage,
+                draw,
                 full,
                 o.rows().len(),
                 o.rows()
                     .iter()
                     .map(f32::to_string)
                     .collect::<Vec<_>>()
-                    .join(";")
+                    .join(";"),
+                f.shade_coverage
+            )?;
+        }
+        if f.shade != Shade::None && f.openings.len() > 1 {
+            numeric.push(
+                "exterior_bank_shade_coverage_range",
+                (max_draw - min_draw) as f64,
             )?;
         }
     }

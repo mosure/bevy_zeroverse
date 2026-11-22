@@ -97,6 +97,7 @@ impl Assembly {
                 .expect("indoor semantic vocabulary is valid");
             let backlit =
                 super::materials::window_textile::receives_transmitted_shadows(surface, &semantic);
+            let sky = semantic == SemanticLabel::Sky;
             let mut entity = commands.spawn((
                 Name::new(format!("{label}/{surface:?}")),
                 Mesh3d(meshes.add(geometry.into_mesh())),
@@ -108,6 +109,9 @@ impl Assembly {
             ));
             if backlit {
                 entity.insert(bevy::light::TransmittedShadowReceiver);
+            }
+            if sky {
+                entity.insert(super::architecture::background::SKY_TAG);
             }
             if label.split('#').any(|tag| tag == "exterior") {
                 entity.insert(OvoxelExcluded);

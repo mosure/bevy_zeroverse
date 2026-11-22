@@ -1,6 +1,5 @@
 //! Lightweight per-lamp emission bindings; no new image synthesis or lights.
 use super::*;
-use crate::scene::procedural_indoor::photometry::source_color;
 use crate::scene::procedural_indoor::{
     layout::ObjectKind, objects, photometry, preparation::AssetStore,
 };
@@ -78,10 +77,7 @@ pub(super) fn build(
                 }
             } else {
                 let power = photometry::lamp(scene, o);
-                let c = source_color(scene, power.color).to_linear();
-                let radiance = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
-                material.emissive =
-                    LinearRgba::new(c.red * radiance, c.green * radiance, c.blue * radiance, 1.);
+                material.emissive = photometry::lamp_emission(scene, power, area(o));
             }
             bindings.insert((o.id, channel), materials.add(material));
         }
@@ -203,7 +199,7 @@ mod tests {
         for o in &scene.objects {
             let power = photometry::lamp(&scene, o);
             let mat = materials.get(&variants[&(o.id, 0)]).unwrap();
-            let c = source_color(&scene, power.color).to_linear();
+            let c = photometry::source_color(&scene, power.color).to_linear();
             let scale = power.lumens / (std::f32::consts::PI * area(o).max(0.0001));
             assert_eq!(
                 mat.emissive,

@@ -21,6 +21,7 @@ fn capture(seed: u64) -> Result<Sample, CaptureError> {
     channels::app_frame_sender()
         .send(AppFrameRequest {
             indoor_seed: Some(seed),
+            rgb_artifact_eligible_cameras_by_timestep: None,
             prefetch_indoor: 2,
             idle_work: IdleWork::CpuOnly,
             recover_scene_rejections: true,

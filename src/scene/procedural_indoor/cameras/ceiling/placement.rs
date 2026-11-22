@@ -2,18 +2,42 @@
 use super::*;
 use crate::scene::procedural_indoor::layout::{segment_hits_box, IndoorManifest, IndoorObject};
 
+mod frame;
+
+#[derive(Default)]
 pub(super) struct MountSpace {
+    sloped: Vec<frame::SlopedFrame>,
     obstacles: Vec<(Vec3, Vec3)>,
 }
 impl MountSpace {
     pub fn new(scene: &IndoorManifest) -> Self {
-        let mut obstacles = scene.camera_obstacles();
+        let mut sloped = Vec::new();
+        let mut obstacles = if let Some((installation, framing)) = scene
+            .ceiling_installation
+            .as_ref()
+            .and_then(|c| c.framing.as_ref().map(|f| (c, f)))
+        {
+            let mut obstacles = scene.structural_obstacles_with_ceiling(false);
+            obstacles
+                .extend(crate::scene::procedural_indoor::architecture::fixture_obstacles(scene));
+            obstacles.extend(installation.modules.iter().flat_map(|m| m.obstacles()));
+            for member in &framing.members {
+                if let Some(prism) = frame::SlopedFrame::new(member) {
+                    sloped.push(prism);
+                } else {
+                    obstacles.push(member.bounds());
+                }
+            }
+            obstacles
+        } else {
+            scene.camera_obstacles()
+        };
         obstacles.extend(scene.objects.iter().flat_map(IndoorObject::obstacle_bounds));
         obstacles.extend(scene.humans.iter().map(|h| h.bounds()));
         if let Some(motion) = &scene.indoor_motion {
             obstacles.extend(motion.reservations());
         }
-        Self { obstacles }
+        Self { obstacles, sloped }
     }
 
     pub fn clear(&self, scene: &IndoorManifest, camera: &IndoorCamera) -> bool {
@@ -84,7 +108,7 @@ impl MountSpace {
             broad_lo.cmplt(*b).all()
                 && broad_hi.cmpgt(*a).all()
                 && segment_hits_box(Vec3::ZERO, delta, *a - hi, *b - lo)
-        })
+        }) && !self.sloped.iter().any(|m| m.hits((lo, hi), delta))
     }
 
     /// Recover a requested moving rail from a clear mount, without shortening
@@ -203,12 +227,20 @@ impl MountSpace {
             .obstacles
             .iter()
             .any(|(lo, hi)| segment_hits_box(base, front, *lo - pad, *hi + pad))
+            || self
+                .sloped
+                .iter()
+                .any(|m| m.hits((base - pad, base + pad), front - base))
         {
             return false;
         }
         // Reject near-field obstructions along the optical axis as well as a
         // clipped lens. Peripheral occlusion is legitimate scene content.
         if !near_clear(scene, camera, &self.obstacles)
+            || (!self.sloped.is_empty() && {
+                let near = near_bounds(scene, camera);
+                self.sloped.iter().any(|m| m.hits(near, Vec3::ZERO))
+            })
             || !shell_segment_clear(scene, eye, eye + forward * 0.6, 0.)
         {
             return false;
@@ -217,6 +249,10 @@ impl MountSpace {
             .obstacles
             .iter()
             .any(|(lo, hi)| segment_hits_box(eye, eye + forward * 0.6, *lo, *hi))
+            && !self
+                .sloped
+                .iter()
+                .any(|m| m.hits((eye, eye), forward * 0.6))
     }
 }
 
@@ -368,7 +404,7 @@ mod tests {
     #[test]
     fn moving_mount_reserves_body_lens_and_optical_sweeps_without_empty_corners() {
         let (mut scene, camera) = fixture();
-        let mut space = MountSpace { obstacles: vec![] };
+        let mut space = MountSpace::default();
         assert!(space.clear(&scene, &camera));
         // Above the lens's near sphere, beside the narrower body: real space,
         // even though it lies inside the combined swept bounding box.
@@ -445,7 +481,7 @@ mod tests {
         camera.target = camera.start + axis * 2.;
         camera.motion = None;
         camera.end = camera.start;
-        let mut space = MountSpace { obstacles: vec![] };
+        let mut space = MountSpace::default();
         assert!(space.clear(&scene, &camera));
         let p = camera.start + axis * 0.45;
         space.obstacles = vec![(p - Vec3::splat(0.01), p + Vec3::splat(0.01))];
@@ -526,7 +562,7 @@ mod tests {
         camera.start = mount.surface + mount.inward_normal * mount.standoff_m;
         camera.end = camera.start;
         camera.target = camera.start + mount.optical_axis() * 2.;
-        let space = MountSpace { obstacles: vec![] };
+        let space = MountSpace::default();
         assert!(near_corners(&scene, &camera).iter().any(|p| p.y > 4.));
         assert!(!space.clear(&scene, &camera));
         camera.ceiling_mount.as_mut().unwrap().rotation = base;

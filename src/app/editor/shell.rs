@@ -29,6 +29,19 @@ pub(super) struct Shell {
     seed: Entity,
     error: Entity,
 }
+pub(super) fn show_chrome(world: &mut World, state: &EditorState) {
+    let root = world.resource::<Shell>().root;
+    let visibility = if state.view.viewport_only {
+        Visibility::Hidden
+    } else {
+        Visibility::Inherited
+    };
+    world
+        .get_mut::<Visibility>(root)
+        .unwrap()
+        .set_if_neq(visibility);
+}
+
 fn row(world: &mut World, parent: Entity) -> Entity {
     world
         .spawn((
@@ -290,9 +303,28 @@ pub(super) fn status(world: &mut World, state: &EditorState) {
     } else {
         "Drag: orbit   ·   Shift-drag: pan   ·   Wheel: zoom"
     };
-    set_text(world, hint, hint_text.into());
+    let output = world
+        .get_resource::<crate::app::display::DisplayStatus>()
+        .filter(|_| {
+            state.applied["hdr"] == true
+                && state.applied["render_mode"] == "Color"
+                && state.applied["room_schematic"] != true
+        })
+        .map_or("", |display| display.label());
+    let prefix = if output.is_empty() {
+        String::new()
+    } else {
+        format!("{output}   ·   ")
+    };
+    set_text(
+        world,
+        hint,
+        format!("{prefix}{hint_text}   ·   F1: viewport only   ·   F11: fullscreen"),
+    );
     let pending = world.get_resource::<crate::scene::procedural_indoor::IndoorGenerationStatus>();
-    let message = if let Some(crate::sample::CaptureFailure(Some(e))) =
+    let message = if let Some(seed) = pending.and_then(|p| p.skipped_seed) {
+        format!("Skipped seed {seed} · preparing another room")
+    } else if let Some(crate::sample::CaptureFailure(Some(e))) =
         world.get_resource::<crate::sample::CaptureFailure>()
     {
         format!("Generation failed: {e}")
@@ -374,16 +406,12 @@ pub(super) fn viewport(
     let Ok(window) = windows.single() else {
         return;
     };
-    let left = if state.view.collapsed {
-        0.
-    } else {
-        PANEL.min(window.width())
-    };
+    let insets = Insets::for_view(&state.view, window);
     if window.physical_width() == 0 || window.physical_height() == 0 {
         return;
     }
     for (mut camera, mut pan) in &mut editor {
-        let rect = bounded_viewport(window, left);
+        let rect = insets.viewport(window);
         if camera.viewport.as_ref().is_none_or(|v| {
             v.physical_position != rect.physical_position || v.physical_size != rect.physical_size
         }) {
@@ -398,10 +426,10 @@ pub(super) fn viewport(
     }
     for mut node in &mut grids {
         node.position_type = PositionType::Absolute;
-        node.left = px(left);
-        node.top = px(54);
-        node.width = px((window.width() - left).max(1.));
-        node.height = px((window.height() - 96.).max(1.));
+        node.left = px(insets.left);
+        node.top = px(insets.top);
+        node.width = px((window.width() - insets.left).max(1.));
+        node.height = px((window.height() - insets.top - insets.bottom).max(1.));
     }
 }
 
@@ -411,16 +439,12 @@ pub(in crate::app) fn orbit_enabled(
     window: &Window,
     capture: &EditorInputCapture,
 ) -> bool {
-    let left = if state.view.collapsed {
-        0.
-    } else {
-        PANEL.min(window.width())
-    };
-    let over = window
-        .cursor_position()
-        .is_some_and(|p| p.x < left || p.y < 54. || p.y > window.height() - 42.);
+    let insets = Insets::for_view(&state.view, window);
+    let over = window.cursor_position().is_some_and(|p| {
+        p.x < insets.left || p.y < insets.top || p.y > window.height() - insets.bottom
+    });
     window.focused
-        && !state.debug
+        && (!state.debug || state.view.viewport_only)
         && !over
         && !capture.keyboard
         && state.applied["room_schematic"] != true
@@ -428,21 +452,43 @@ pub(in crate::app) fn orbit_enabled(
 }
 
 /// A collapsed/narrow/minimized viewport must never extend beyond its render target.
-pub(super) fn bounded_viewport(window: &Window, left: f32) -> Viewport {
-    let width = window.physical_width().max(1);
-    let height = window.physical_height().max(1);
-    let scale = window.scale_factor();
-    let x = ((left * scale) as u32).min(width - 1);
-    let y = ((54. * scale) as u32).min(height - 1);
-    Viewport {
-        physical_position: UVec2::new(x, y),
-        physical_size: UVec2::new(
-            width - x,
-            height
-                .saturating_sub(y)
-                .saturating_sub((42. * scale) as u32)
-                .max(1),
-        ),
-        ..default()
+#[derive(Default, Clone, Copy)]
+pub(super) struct Insets {
+    pub left: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+impl Insets {
+    pub fn for_view(view: &model::ViewState, window: &Window) -> Self {
+        if view.viewport_only {
+            return Self::default();
+        }
+        Self {
+            left: if view.collapsed {
+                0.
+            } else {
+                PANEL.min(window.width())
+            },
+            top: 54.,
+            bottom: 42.,
+        }
+    }
+    pub fn viewport(self, window: &Window) -> Viewport {
+        let width = window.physical_width().max(1);
+        let height = window.physical_height().max(1);
+        let scale = window.scale_factor();
+        let x = ((self.left * scale) as u32).min(width - 1);
+        let y = ((self.top * scale) as u32).min(height - 1);
+        Viewport {
+            physical_position: UVec2::new(x, y),
+            physical_size: UVec2::new(
+                width - x,
+                height
+                    .saturating_sub(y)
+                    .saturating_sub((self.bottom * scale) as u32)
+                    .max(1),
+            ),
+            ..default()
+        }
     }
 }

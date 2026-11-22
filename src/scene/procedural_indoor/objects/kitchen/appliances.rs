@@ -283,16 +283,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     o.seed,
                 );
             }
-            a.box_part(
+            let screen_center = if lower {
+                center + Vec3::new(w * 0.30, 0., 0.014)
+            } else {
+                Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.77, front + 0.030)
+            };
+            computers::displays::screen_cover(
+                a,
+                Surface::Metal,
                 Surface::Screen,
                 label,
-                if lower {
-                    center + Vec3::new(w * 0.30, 0., 0.014)
-                } else {
-                    Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.77, front + 0.030)
-                },
                 Vec3::new(w * 0.12, s.y * 0.11, 0.002),
-                0.001,
+                0.,
+                Transform::from_translation(screen_center),
             );
             let tray_y = if lower {
                 s.y * 0.34 + 0.01

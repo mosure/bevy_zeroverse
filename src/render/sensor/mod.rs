@@ -166,7 +166,7 @@ pub(crate) struct ResolveParams {
     sensor: [f32; 4],
 }
 
-pub(crate) fn captures_rgb(config: &crate::app::BevyZeroverseConfig) -> bool {
+pub fn captures_rgb(config: &crate::app::BevyZeroverseConfig) -> bool {
     if config.render_modes.is_empty() {
         config.render_mode == super::RenderMode::Color
     } else {
@@ -178,6 +178,7 @@ pub(crate) fn metadata(
     scene: &crate::scene::procedural_indoor::layout::IndoorManifest,
     views: &[crate::sample::View],
     camera_count: usize,
+    unbounded: bool,
 ) -> Option<serde_json::Value> {
     let policy = scene.appearance.as_ref()?.sensor;
     if policy.probability == 0. || camera_count == 0 {
@@ -196,7 +197,7 @@ pub(crate) fn metadata(
         })
         .collect();
     Some(
-        serde_json::json!({"schema_version": 1, "stage":"tonemapped_linear_rgb_before_srgb",
+        serde_json::json!({"schema_version": 1, "stage":if unbounded { "unbounded_linear_rgb" } else { "tonemapped_linear_rgb_before_srgb" },
         "policy": policy, "cameras": cameras, "noise_seeds_by_step": noise_seeds}),
     )
 }

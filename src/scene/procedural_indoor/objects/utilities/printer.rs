@@ -166,12 +166,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         0.001,
     );
     if p.screen {
-        a.box_part(
+        computers::displays::screen_cover(
+            a,
+            Surface::Plastic,
             Surface::Screen,
             l,
-            Vec3::new(cx, cy + control_h * 0.10, front + 0.003),
-            Vec3::new(cwidth * 0.79, control_h * 0.51, 0.0007),
-            0.0001,
+            Vec3::new(cwidth * 0.79, control_h * 0.51, 0.001),
+            0.,
+            Transform::from_xyz(cx, cy + control_h * 0.10, front + 0.00285),
         );
     }
     for i in 0..p.controls {

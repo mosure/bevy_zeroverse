@@ -250,13 +250,15 @@ async fn structures(
             (1..structure_count(s))
                 .filter(move |g| {
                     used.is_none_or(|keys| {
-                        keys.iter()
-                            .any(|(surface, slot)| *surface == s && slot % structure_count(s) == *g)
+                        keys.iter().any(|(surface, slot)| {
+                            *surface == s && *slot < count(s) && slot % structure_count(s) == *g
+                        })
                     })
                 })
                 .map(move |g| (s, g, p.materials[s as usize].variant(g)))
         })
         .collect();
+    #[cfg(not(target_arch = "wasm32"))]
     let prepare = |(s, g, r): &(Surface, usize, program::MaterialRecipe)| {
         let maps = gpu::Maps::prepare(r, scene.floor_style, gpu);
         ((*s, *g), r.clone(), maps)
@@ -271,8 +273,9 @@ async fn structures(
     #[cfg(target_arch = "wasm32")]
     let ready = {
         let mut ready = Vec::with_capacity(jobs.len());
-        for job in &jobs {
-            ready.push(prepare(job));
+        for (surface, group, recipe) in jobs {
+            let maps = gpu::Maps::scheduled(&recipe, scene.floor_style, gpu, cooperative).await;
+            ready.push(((surface, group), recipe, maps));
             if cooperative {
                 super::super::preparation::cooperate().await;
             }

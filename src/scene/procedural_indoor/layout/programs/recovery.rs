@@ -152,17 +152,11 @@ impl IndoorManifest {
                 for side in 0..4 {
                     for i in 0..12 {
                         let t = (i as f32 + 0.5) / 12.;
-                        let point = zone.min.lerp(zone.max, t);
-                        let (x, z, yaw) = match side {
-                            0 => (zone.min.x + 0.34, point.y, -std::f32::consts::FRAC_PI_2),
-                            1 => (zone.max.x - 0.34, point.y, std::f32::consts::FRAC_PI_2),
-                            2 => (point.x, zone.min.y + 0.34, 0.),
-                            _ => (point.x, zone.max.y - 0.34, std::f32::consts::PI),
-                        };
+                        let (point, yaw) = zone_edge(zone.min, zone.max, side, t, 0.34);
                         if self
                             .add(
                                 ObjectKind::Bookcase,
-                                Vec3::new(x, 0., z),
+                                Vec3::new(point.x, 0., point.y),
                                 size,
                                 yaw,
                                 &mut rng,

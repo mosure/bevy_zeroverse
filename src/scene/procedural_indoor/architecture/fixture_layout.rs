@@ -23,6 +23,10 @@ pub(super) fn yaw(scene: &IndoorManifest, position: Vec3) -> f32 {
 }
 
 pub(super) fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
+    rotation_for(scene, position, fixtures::parameters(scene).shape)
+}
+
+fn rotation_for(scene: &IndoorManifest, position: Vec3, shape: fixtures::FixtureShape) -> Quat {
     let yaw = Quat::from_rotation_y(yaw(scene, position));
     if scene.program.is_none() {
         return yaw;
@@ -30,7 +34,7 @@ pub(super) fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
     let key = position.x.to_bits() as u64 | (position.z.to_bits() as u64) << 32;
     let mut r = stream(scene.seed ^ key, 0x41494d4544464958);
     let directional = matches!(
-        fixtures::parameters(scene).shape,
+        shape,
         fixtures::FixtureShape::Downlight | fixtures::FixtureShape::Tube
     );
     // Pendants may be subtly tilted; adjustable downlights include aimed spots.
@@ -55,7 +59,10 @@ pub(super) fn half(scene: &IndoorManifest, position: Vec3) -> Vec3 {
 /// Realized dimensions are keyed only by x/z, so roof/drop calculation and
 /// final geometry use the same sample. Legacy fixtures retain their sizes.
 pub(super) fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    let nominal = super::fixture_size(scene);
+    size_from(scene, position, super::fixture_size(scene))
+}
+
+fn size_from(scene: &IndoorManifest, position: Vec3, nominal: Vec3) -> Vec3 {
     if scene.program.is_none() {
         return nominal;
     }
@@ -66,10 +73,30 @@ pub(super) fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
     nominal * Vec3::new(scale * aspect, r.random_range(0.70..1.40), scale / aspect)
 }
 
-fn field(min: Vec2, max: Vec2, spacing: Vec2, phase: Vec2, seed: u64, domain: u64) -> Vec<Vec2> {
+/// Distance between mounts depends on the throw to the occupied plane. Blend
+/// that estimate with the circuit's sampled axial pitches so narrow-beam and
+/// decorative fittings, tall halls and low offices retain different layouts.
+fn roof_cells(extent: Vec2, requested: Vec2, throw: f32, shape: fixtures::FixtureShape) -> UVec2 {
+    use fixtures::FixtureShape::*;
+    let (spacing_to_height, max_pitch) = match shape {
+        Downlight => (0.95, 3.4),
+        Louver => (1.12, 4.6),
+        Panel | Tube => (1.25, 4.8),
+        Drum | Ring => (1.40, 5.5),
+    };
+    let coverage = (throw * spacing_to_height).clamp(1.8, 6.5);
+    let nominal = requested.element_product().sqrt();
+    // A compact downlight cannot cover an arbitrarily large task area merely
+    // because the ceiling is high. Large rooms can still have many fixtures.
+    let pitch = requested * ((0.5 * (nominal + coverage)).min(max_pitch) / nominal);
+    // Choose the closest row count on each axis. Always rounding up added a
+    // whole row and column to every partition just over a multiple of its pitch.
+    (extent / pitch).round().max(Vec2::ONE).as_uvec2()
+}
+
+fn field(min: Vec2, max: Vec2, count: UVec2, phase: Vec2, seed: u64, domain: u64) -> Vec<Vec2> {
     let mut r = stream(seed, domain);
     let extent = max - min;
-    let count = (extent / spacing).ceil().max(Vec2::ONE).as_uvec2();
     let pitch = extent / count.as_vec2();
     let phase = phase + Vec2::new(r.random_range(-0.05..0.05), r.random_range(-0.05..0.05));
     let jitter = r.random_range(0.16..0.34);
@@ -102,16 +129,20 @@ pub(super) fn under_mezzanine(scene: &IndoorManifest) -> Vec<Vec3> {
     for p in field(
         m.deck.min,
         m.deck.max,
-        Vec2::splat(2.5),
+        ((m.deck.max - m.deck.min) / 2.5)
+            .ceil()
+            .max(Vec2::ONE)
+            .as_uvec2(),
         Vec2::ZERO,
         scene.seed,
         7595,
     ) {
         let mut position = Vec3::new(p.x, 0., p.y);
-        position.y = m.underside_height() - (half(scene, position).y + 0.035);
-        let half = half(scene, position).xz();
-        if (p - half).cmpgt(m.deck.min + Vec2::splat(0.03)).all()
-            && (p + half).cmplt(m.deck.max - Vec2::splat(0.03)).all()
+        let body = half(scene, position);
+        position.y = m.underside_height() - (body.y + 0.035);
+        let half_xz = body.xz();
+        if (p - half_xz).cmpgt(m.deck.min + Vec2::splat(0.03)).all()
+            && (p + half_xz).cmplt(m.deck.max - Vec2::splat(0.03)).all()
         {
             positions.push(position);
         }
@@ -122,6 +153,7 @@ pub(super) fn under_mezzanine(scene: &IndoorManifest) -> Vec<Vec3> {
 pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
     let program = scene.program.as_ref().expect("procedural ceiling program");
     let fixture = fixtures::parameters(scene);
+    let nominal = super::fixture_size(scene);
     let mut positions: Vec<Vec3> = Vec::new();
     let mut occupied: Vec<(Vec3, Vec3)> = Vec::new();
     let mut obstacles = super::super::floorplan::obstacles(scene);
@@ -129,21 +161,42 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
         obstacles.extend(e.structural_boxes(scene.room_size));
     }
     for (index, zone) in program.zones.iter().enumerate() {
-        for p in field(
-            zone.min,
-            zone.max,
-            program.light_spacing,
-            program.light_phase,
-            scene.seed,
-            7600 + index as u64,
-        ) {
+        let extent = zone.max - zone.min;
+        let legacy = scene.generator_version < 152;
+        let center = (zone.min + zone.max) * 0.5;
+        let count = if legacy {
+            (extent / program.light_spacing)
+                .ceil()
+                .max(Vec2::ONE)
+                .as_uvec2()
+        } else {
+            let floor = scene.envelope.as_ref().map_or(0., |e| {
+                e.mezzanine
+                    .as_ref()
+                    .filter(|m| m.deck.contains(center))
+                    .map_or_else(|| e.floor_height(center), |m| m.deck.height)
+            });
+            let drop = if fixture.shape == fixtures::FixtureShape::Downlight {
+                nominal.y * 0.5
+            } else {
+                program.light_drop
+            };
+            roof_cells(
+                extent,
+                program.light_spacing,
+                scene.ceiling_height(center) - floor - drop - 0.75,
+                fixture.shape,
+            )
+        };
+        let mut install = |p: Vec2| {
             let mut position = Vec3::new(p.x, 0., p.y);
-            let body_half = half(scene, position);
+            let body_half = Mat3::from_quat(rotation_for(scene, position, fixture.shape)).abs()
+                * (size_from(scene, position, nominal) * 0.5);
             let half = body_half.xz();
             if scene.envelope.as_ref().is_some_and(|e| {
                 !super::super::envelope::polygon::box_inside(&e.footprint, p - half, p + half, 0.15)
             }) {
-                continue;
+                return false;
             }
             let mut roof = [
                 p - half,
@@ -181,7 +234,7 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
                 (position - body_half).cmplt(*hi + Vec3::splat(0.004)).all()
                     && (position + body_half).cmpgt(*lo - Vec3::splat(0.004)).all()
             }) {
-                continue;
+                return false;
             }
             // Adjacent zone circuits may approach their shared edge. Reject
             // overlapping bodies before fixtures become ceiling reservations.
@@ -191,10 +244,43 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
                     .cmplt(body_half + *half + Vec3::splat(0.08))
                     .all()
             }) {
-                continue;
+                return false;
             }
             occupied.push((position, body_half));
             positions.push(position);
+            true
+        };
+        let mut fitted = false;
+        for p in field(
+            zone.min,
+            zone.max,
+            count,
+            program.light_phase,
+            scene.seed,
+            7600 + index as u64,
+        ) {
+            fitted |= install(p);
+        }
+        // A small chamfered or obstructed room can lose its single sampled
+        // cell. Prefer a central clear mount for coverage in that case.
+        if !legacy && !fitted {
+            let mut candidates = field(
+                zone.min,
+                zone.max,
+                UVec2::splat(3),
+                Vec2::ZERO,
+                scene.seed,
+                0x4649585245545259 ^ index as u64,
+            );
+            candidates.sort_unstable_by(|a, b| {
+                a.distance_squared(center)
+                    .total_cmp(&b.distance_squared(center))
+            });
+            for p in candidates {
+                if install(p) {
+                    break;
+                }
+            }
         }
     }
     positions.extend(under_mezzanine(scene));
@@ -284,6 +370,44 @@ fn find_bay_mount(
 #[cfg(test)]
 mod bay_tests {
     use super::*;
+
+    #[test]
+    fn circuit_pitch_tracks_mounting_height_optics_and_available_floor_area() {
+        use fixtures::FixtureShape::{Downlight, Panel, Ring};
+        let spacing = Vec2::splat(3.);
+        assert_eq!(
+            roof_cells(Vec2::splat(6.3), spacing, 2.4, Panel),
+            UVec2::splat(2)
+        );
+        assert_eq!(roof_cells(Vec2::splat(1.), spacing, 4., Panel), UVec2::ONE);
+        let hall = Vec2::new(24., 16.);
+        let low = roof_cells(hall, spacing, 2., Ring);
+        let high = roof_cells(hall, spacing, 5.5, Ring);
+        let downlights = roof_cells(hall, spacing, 5.5, Downlight);
+        assert!(high.cmplt(low).all() && high.cmplt(downlights).all());
+        assert!(high.x * high.y > 12);
+        let axial = roof_cells(Vec2::splat(20.), Vec2::new(2.1, 4.8), 3., Panel);
+        assert!(axial.x > axial.y);
+    }
+
+    #[test]
+    fn archived_dense_lecture_hall_replays_its_installed_mounts() {
+        let mut hall = IndoorManifest::generate_with_humans(
+            75155,
+            super::super::super::layout::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.25,
+        )
+        .unwrap();
+        let current = positions(&hall);
+        assert_eq!(current, positions(&hall));
+        let current_primary = super::super::primary_fixture_count(&hall, &current);
+        hall.generator_version = 151;
+        let archive = positions(&hall);
+        assert_eq!(super::super::primary_fixture_count(&hall, &archive), 50);
+        assert!((9..40).contains(&current_primary));
+    }
 
     #[test]
     fn bay_mounts_vary_within_the_slab_and_keep_furniture_clear() {

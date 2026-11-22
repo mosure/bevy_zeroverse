@@ -1,5 +1,6 @@
-//! Native uploads without libc's large REP MOVSB copy into uncached Vulkan BAR
-//! mappings. Uses published Bevy/WGPU APIs; shaders and texture bytes are unchanged.
+//! Pack complete initial mip chains into a staging buffer. Browser WebGPU avoids
+//! synchronous queue.writeTexture calls per mip. Native Vulkan avoids large
+//! libc copies into uncached BAR mappings.
 use bevy::{
     image::ImageSampler,
     prelude::*,
@@ -14,12 +15,13 @@ use bevy::{
     },
 };
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod replay;
 
 /// Fixed-size copies stay below libc's ERMS threshold. The opaque destination
 /// prevents LLVM coalescing the loop back into one large memcpy. Safe slices
 /// preserve all alignment/tail cases; no CPU features, unsafe stores or env vars.
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) fn copy_upload(destination: wgpu::WriteOnly<'_, [u8]>, source: &[u8]) {
     assert_eq!(destination.len(), source.len());
     let (dst, mut dst_tail) = destination.into_chunks::<256>();
@@ -30,11 +32,20 @@ pub(super) fn copy_upload(destination: wgpu::WriteOnly<'_, [u8]>, source: &[u8])
     dst_tail.copy_from_slice(src_tail);
 }
 
+#[cfg(target_arch = "wasm32")]
+fn copy_upload(mut destination: wgpu::WriteOnly<'_, [u8]>, source: &[u8]) {
+    destination.copy_from_slice(source);
+}
+
 pub(super) fn install(app: &mut App) {
     let Some(adapter) = app.world().get_resource::<RenderAdapterInfo>() else {
         return;
     };
-    if adapter.vendor != 0x10de || adapter.backend != wgpu::Backend::Vulkan {
+    #[cfg(target_arch = "wasm32")]
+    let supported = adapter.backend == wgpu::Backend::BrowserWebGpu;
+    #[cfg(not(target_arch = "wasm32"))]
+    let supported = adapter.vendor == 0x10de && adapter.backend == wgpu::Backend::Vulkan;
+    if !supported {
         return;
     }
     if let Some(render) = app.get_sub_app_mut(RenderApp) {
@@ -160,6 +171,14 @@ fn upload_images(
         if assets.get(*id).is_some() || removed.contains(id) {
             return true;
         }
+        #[cfg(target_arch = "wasm32")]
+        if image
+            .data
+            .as_ref()
+            .is_none_or(|data| data.len() < 32 * 1024)
+        {
+            return true;
+        }
         let Some((regions, size)) = plan(image) else {
             return true;
         };
@@ -170,8 +189,9 @@ fn upload_images(
             label: Some("zeroverse_image_upload"),
             size,
             usage: BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
+            mapped_at_creation: cfg!(target_arch = "wasm32"),
         });
+        #[cfg(not(target_arch = "wasm32"))]
         {
             // mapped_at_creation would zero the entire BAR mapping with libc
             // memset before our copy, recreating the same stall. Queue staging
@@ -180,6 +200,16 @@ fn upload_images(
                 .write_buffer_with(&staging, 0, std::num::NonZeroU64::new(size).unwrap())
                 .expect("nonempty aligned image upload");
             pack(mapped.slice(..), image.data.as_ref().unwrap(), &regions);
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut mapped = staging
+                .slice(..)
+                .get_mapped_range_mut()
+                .expect("mapped initial upload");
+            pack(mapped.slice(..), image.data.as_ref().unwrap(), &regions);
+            drop(mapped);
+            staging.unmap();
         }
         let mut desc = image.texture_descriptor.clone();
         desc.usage |= TextureUsages::COPY_DST;

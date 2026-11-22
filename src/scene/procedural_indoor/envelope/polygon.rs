@@ -32,6 +32,13 @@ pub fn edges(p: &[Vec2]) -> impl Iterator<Item = (Vec2, Vec2)> + '_ {
         .take(p.len())
 }
 
+/// X follows a counterclockwise wall, Y is up and +Z faces the occupied space.
+pub(crate) fn wall_frame(a: Vec2, b: Vec2) -> Transform {
+    let d = b - a;
+    let c = (a + b) * 0.5;
+    Transform::from_xyz(c.x, 0., c.y).with_rotation(Quat::from_rotation_y((-d.y).atan2(d.x)))
+}
+
 fn point_segment(p: Vec2, a: Vec2, b: Vec2) -> f32 {
     if a.distance_squared(b) < 1e-12 {
         return p.distance(a);

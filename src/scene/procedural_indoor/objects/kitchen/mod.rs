@@ -4,20 +4,24 @@ pub mod appliances;
 mod cabinet;
 pub(crate) mod contents;
 pub mod dishware;
+pub mod flatware;
 mod island;
 pub mod packaging;
 mod props;
+mod serving;
 pub mod sink;
 pub mod supplies;
 #[cfg(test)]
 mod supply_program_tests;
 #[cfg(test)]
 mod tests;
+mod worktop;
 use super::*;
 pub use cabinet::fronts::FrontProgram;
 pub(crate) use cabinet::{drawer_tray, shell as case_shell};
 pub use island::{configure_island, is_island, island_parameters, IslandProgram};
 use serde::Serialize;
+pub(crate) use serving::{biscuit, sample as serving_for_object};
 
 /// Usable slab bounds, shared by prop admission and countertop geometry.
 pub fn counter_top_bounds(o: &IndoorObject) -> (Vec2, Vec2) {
@@ -175,6 +179,7 @@ pub fn fixture_size(kind: ObjectKind) -> Vec3 {
         PaperTowel => [0.29, 0.32, 0.16],
         KitchenTowel => [0.24, 0.022, 0.31],
         Dishware => [0.25, 0.15, 0.25],
+        Flatware => [0.032, 0.012, 0.18],
         CuttingBoard => [0.37, 0.025, 0.27],
         FruitBowl => [0.31, 0.19, 0.29],
         Bread => [0.30, 0.11, 0.17],
@@ -365,8 +370,13 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
                 CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
                 Sponge => serde_json::json!(supplies::sponge::parameters(o)),
                 Dishware => {
-                    serde_json::json!(dishware::parameters(o.size, p.style, p.count, o.seed))
+                    let mut value = serde_json::json!(dishware::for_object(o, &p));
+                    if let Some(meal) = serving::sample(o) {
+                        value["serving"] = serde_json::json!(meal);
+                    }
+                    value
                 }
+                Flatware => serde_json::json!(flatware::parameters(o)),
                 FruitBowl => serde_json::json!({"basket":p.basket,"fruit_count":p.count}),
                 KnifeBlock => serde_json::json!(supplies::knives::parameters(o)),
                 UtensilHolder => serde_json::json!(supplies::utensils::parameters(o)),

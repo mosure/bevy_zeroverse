@@ -133,7 +133,14 @@ impl SceneGeometry {
         {
             let mut timings = timings::GeometryJobs::default();
             let start = bevy::platform::time::Instant::now();
-            let architecture = architecture::architecture(scene);
+            let architecture = if scene.envelope.is_some() {
+                crate::scene::procedural_indoor::envelope::construction::build_with_yields(
+                    scene, cooperate,
+                )
+                .await
+            } else {
+                architecture::architecture(scene)
+            };
             timings.architecture.add(start.elapsed().as_secs_f64());
             let mut objects = Vec::with_capacity(scene.objects.len());
             for object in &scene.objects {

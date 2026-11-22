@@ -50,6 +50,7 @@ fn handsets_fit_replay_and_preserve_screen_and_semantic_contracts() {
             assert_eq!(g.positions, replay.parts[key].positions);
             assert_eq!(g.indices, replay.parts[key].indices);
             if key.0 == Surface::PhoneScreen {
+                assert!(g.normals.iter().all(|&n| n == Vec3::Y.to_array()));
                 for axis in 0..2 {
                     let min = g.uvs.iter().map(|v| v[axis]).fold(f32::INFINITY, f32::min);
                     let max = g

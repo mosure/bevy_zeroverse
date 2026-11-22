@@ -13,7 +13,7 @@ View → Capture grid reserves the same viewport for dataset cameras.
 - **People & motion:** population, ARDY sampling, diffusion, guidance, batching,
   prompt-family weights and exact custom actor trajectories.
 - **View & playback:** annotations, camera grid, overlays, editor lens, timeline,
-  playback curves (including Sin) and fixed-interval optical-flow visualization.
+  playback curves and fixed-interval optical-flow visualization.
 - **Advanced:** complete policy JSON, capture resolution and timesteps, O-voxel,
   depth units, navigation preferences and optional scene-resource diagnostics.
 
@@ -21,9 +21,17 @@ View → Capture grid reserves the same viewport for dataset cameras.
 configuration and advances from the displayed seed. Moving sliders or typing
 never regenerates a scene. Pending changes are visibly marked; Discard returns
 them to the last applied configuration. Preview controls update immediately.
-Space controls playback when the scene has keyboard focus; focused buttons retain
-their normal keyboard activation.
+Space pauses and resumes the selected curve when the scene has keyboard focus.
+Focused buttons retain their regular keyboard action.
 Invalid fields remain editable and block generation with a readable error.
+
+In **View & playback → Timeline & playback**, **Ease in / out**, **Cubic in / out**
+and **Smootherstep** slow down at each end and retrace the path. Smootherstep
+also eases acceleration to zero at the turn. **Once** holds the last pose and
+**Loop (restart)** cuts back to the first. Drag **Trajectory position** to inspect
+a pose. A paused Studio link preserves that pose, curve and travel direction.
+The quintic curve is also available as `--playback-mode smootherstep` or
+`?playback_mode=smootherstep`.
 
 **Mixed · all room types** samples every concrete room program uniformly: the ten
 office/lounge profiles, Kitchenette, Kitchen, ElevatorLanding, Cafe, Cafeteria,

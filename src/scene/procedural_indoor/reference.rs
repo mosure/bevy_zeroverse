@@ -31,14 +31,16 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
             &MeshMaterial3d<StandardMaterial>,
             &GlobalTransform,
             Option<&Name>,
+            Option<&crate::render::semantic::SemanticLabel>,
         )>()
         .iter(world)
-        .map(|(mesh, material, transform, name)| {
+        .map(|(mesh, material, transform, name, label)| {
             (
                 mesh.0.id(),
                 material.0.id(),
                 transform.to_matrix().to_cols_array_2d(),
                 name.map_or_else(String::new, ToString::to_string),
+                label == Some(&crate::render::semantic::SemanticLabel::Sky),
             )
         })
         .collect();
@@ -85,9 +87,10 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
     let mut exported_meshes = Vec::new();
     let mut exported_materials = Vec::new();
     let mut exported_instances = Vec::new();
+    let mut exterior_sky = None;
     let mut binary = std::io::BufWriter::new(fs::File::create(directory.join("geometry.bin"))?);
     let mut offset = 0u64;
-    for (mesh_id, material_id, matrix, name) in instances {
+    for (mesh_id, material_id, matrix, name, is_sky) in instances {
         let next_mesh = mesh_ids.len();
         let mesh_index = *mesh_ids.entry(mesh_id).or_insert(next_mesh);
         if mesh_index == exported_meshes.len() {
@@ -173,7 +176,15 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
                 "emissive_texture":texture(&m.emissive_texture)?,
             }));
         }
-        exported_instances.push(json!({"mesh":mesh_index,"material":material_index,"world_from_mesh":matrix,"name":name}));
+        let directional_sky = is_sky
+            && materials
+                .get(material_id)
+                .is_some_and(|m| m.emissive_texture.is_some());
+        if directional_sky {
+            exterior_sky =
+                Some(json!({"material":material_index,"mapping":"upper_hemisphere_octahedral_v1"}));
+        }
+        exported_instances.push(json!({"mesh":mesh_index,"material":material_index,"world_from_mesh":matrix,"name":name,"finite_sky_proxy":directional_sky}));
     }
     binary.flush()?;
     let environment = world.resource::<super::IndoorEnvironment>();
@@ -190,6 +201,7 @@ pub fn export(world: &mut World, sample: &Sample, size: [u32; 2], directory: &Pa
         "radiometry":"RGB photometric proxy units: directional irradiance in lux, point intensity in lumens, emission in cd/m2; no spectral conversion",
         "ev100":environment.ev100,"environment_intensity":environment.map.intensity,
         "world_yaw":sample.indoor.as_ref().unwrap().world_yaw,
+        "exterior_sky":exterior_sky,
         "meshes":exported_meshes,"materials":exported_materials,"instances":exported_instances,
         "lights":lights,"cameras":cameras,
     });

@@ -65,7 +65,9 @@ automatic consecutive stream. `plan_requests()` reserves up to four actual futur
 seeds for CPU preparation, including lane-strided seeds; it grants no rendering
 credit. `try_submit()` bounds pending, active and completed-but-unreceived rooms.
 `try_receive()` and `receive_timeout()` leave outstanding requests intact on a
-timeout. Each completion carries its sequence and exact seed.
+timeout. Each completion carries its sequence and exact seed. In-process and CUDA IPC sessions
+accept a different per-timestep RGB eligibility mask on each admitted room. RGB sensor effects run on the logical image after lens projection. The existing resolve writes one RGB
+output per view directly on the rendering device. See the [room request and receipt](capture_admission.md#rgb-artifact-eligibility-for-each-room).
 
 An optional shared `CaptureControl` supplies cumulative room credits, hold and
 cancel. GPU delivery emits `CaptureOutcome::Delivered`, distinct from durable

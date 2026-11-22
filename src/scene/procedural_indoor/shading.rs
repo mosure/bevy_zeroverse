@@ -2,6 +2,8 @@
 //! (and its depth, semantic, flow and voxel contracts), without a renderer fork.
 use bevy::{prelude::*, shader::Source};
 
+mod frost;
+
 pub(super) struct IndoorShadingPlugin;
 
 /// Offline validation controls. Dense references are deliberately expensive;
@@ -43,6 +45,7 @@ impl Plugin for IndoorShadingPlugin {
                 installed: [false; 2],
             })
             .add_systems(PreUpdate, install.run_if(pending));
+        frost::build(app);
     }
 }
 
@@ -66,12 +69,12 @@ fn install(
             panic!("Expected Bevy 0.20 WESL PBR libraries");
         };
         let updated = if i == 0 {
-            clearcoat_prepass(&anisotropy_prepass(source))
+            directional_sky(&clearcoat_prepass(&anisotropy_prepass(source)))
         } else {
             match *filter {
-                GlassFilter::Default => transmission_filter(source),
+                GlassFilter::Default => transmission_filter(source, false),
                 GlassFilter::Legacy => source.to_string(),
-                GlassFilter::Reference => transmission_filter(source)
+                GlassFilter::Reference => transmission_filter(source, true)
                     .replace(
                         "let taps = 2 * constants::SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS;",
                         "let taps = 2048;",
@@ -83,6 +86,19 @@ fn install(
         shader.source = Source::Wesl(updated.into());
         state.installed[i] = true;
     }
+}
+
+/// The tagged sky uses Bevy's UV1 emissive specialization. Every other
+/// material retains its usual coordinates and texture filters.
+fn directional_sky(source: &str) -> String {
+    let marker = "@if(STANDARD_MATERIAL_EMISSIVE_UV_B)\n            let coords = uv_b;\n            @else\n            let coords = uv;";
+    assert_eq!(
+        source.matches(marker).count(),
+        1,
+        "requalify sky projection after Bevy upgrade"
+    );
+    let source = format!("import package::render::mesh_functions;\n{source}");
+    source.replace(marker, include_str!("shading/sky_uv.wesl"))
 }
 
 // Bevy 0.20 implements Beer-Lambert absorption directly (T^(thickness/distance));
@@ -176,30 +192,33 @@ fn clearcoat_prepass(source: &str) -> String {
     without.replace(prepass, &format!("    {{\n{prepass}\n    pbr_input.clearcoat_N = normalize(pbr_input.world_normal);\n    }}"))
 }
 
-fn transmission_filter(source: &str) -> String {
+fn transmission_filter(source: &str, reference: bool) -> String {
     // Keep upstream Snell refraction, IOR, Fresnel and exposure. Quadrature and
     // coverage are corrected here; attenuation is corrected separately above.
     let marker = "fn fetch_transmissive_background(offset_position:";
     let start = source
         .find(marker)
         .expect("Bevy transmission changed: requalify glass quadrature");
-    let body = start + source[start..].find('{').unwrap();
-    let mut depth = 0;
-    let end = source[body..]
-        .char_indices()
-        .find_map(|(offset, c)| {
-            match c {
-                '{' => depth += 1,
-                '}' => depth -= 1,
-                _ => {}
-            }
-            (depth == 0).then_some(body + offset + 1)
-        })
-        .expect("unclosed Bevy transmission function");
-    format!(
-        "{}{}{}",
-        &source[..start],
-        include_str!("shading/transmission.wesl"),
-        &source[end..]
-    )
+    let end = block_end(source, start);
+    // Offset UV is in full-target coordinates. Bevy's clear fast path uses the
+    // viewport size for the depth lookup, which addresses the wrong pixels in
+    // views that occupy only part of a render target.
+    let prefix = source[..start].replace(
+        "offset_position * view_bindings::view.viewport.zw",
+        "offset_position * vec2<f32>(textureDimensions(view_bindings::view_transmission_texture))",
+    );
+    // Views with the stock single-level background keep the point integrator.
+    // The dense oracle also uses that path regardless of the runtime camera.
+    let mut point = include_str!("shading/transmission.wesl")
+        .replace("FROST_RADIAL_CDF", &frost::kernel::radial_cdf());
+    let mut code = prefix;
+    if !reference {
+        code.push_str(&frost::kernel::shader());
+        code.push_str(include_str!("shading/frost/sample.wesl"));
+        code.push_str(include_str!("shading/frost/integrate.wesl"));
+        point = point.replace("// FROST_MIP_FILTER", "if textureNumLevels(view_bindings::view_transmission_texture) > 1u { return filtered_frost(offset_position, frag_coord, full_size, radius * full_size.x, taps); }");
+    }
+    code.push_str(&point);
+    code.push_str(&source[end..]);
+    code
 }

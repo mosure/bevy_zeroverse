@@ -1,6 +1,8 @@
 //! Seeded, renderer-independent layout grammar. All lengths are metres.
 mod adjoining;
-pub use adjoining::{AdjoiningFloor, AdjoiningReturn, AdjoiningSpace};
+pub use adjoining::{
+    AdjoiningElevation, AdjoiningFloor, AdjoiningReturn, AdjoiningSpace, AdjoiningWindows,
+};
 mod amenities;
 pub mod assemblies;
 pub(crate) mod botany;
@@ -329,6 +331,9 @@ pub struct IndoorManifest {
     /// Connected circulation space beyond the primary reconstruction region.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjoining: Option<AdjoiningSpace>,
+    /// Construction of the exterior walls beyond the shared interior partition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjoining_elevation: Option<AdjoiningElevation>,
     #[serde(default)]
     pub ceiling_installation: Option<super::architecture::ceiling::CeilingInstallation>,
     pub palette: u32,
@@ -523,6 +528,7 @@ impl IndoorManifest {
             room_size,
             envelope: None,
             adjoining: Some(AdjoiningSpace::sample(seed, room_size.x)),
+            adjoining_elevation: None,
             ceiling_installation: None,
             rug_supports: Vec::new(),
             palette: rng.random_range(0..6),
@@ -599,6 +605,7 @@ impl IndoorManifest {
         super::architecture::doors::sample_entry(&mut scene)?;
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
         functional::prepare_architecture(&mut scene);
+        scene.adjoining_elevation = Some(AdjoiningElevation::sample(&scene));
         super::architecture::doors::sample_partitions(&mut scene);
         super::architecture::doors::fit_floor_states(&mut scene);
         scene.ceiling_installation = Some(
@@ -925,11 +932,20 @@ impl IndoorManifest {
                 let mut light_rng = stream(surface.seed, 5540);
                 if light_rng.random_bool(0.26) {
                     let handed = if light_rng.random_bool(0.5) { -1. } else { 1. };
+                    let chair = self.objects.iter().find(|o| {
+                        o.kind == ObjectKind::Chair && o.interaction_target == Some(surface.id)
+                    });
+                    let (offset, size) = surfaces::desk_lamp_placement(
+                        &surface,
+                        chair.map(|o| o.position),
+                        handed,
+                        light_rng.random_range(0.29..0.54),
+                    );
                     self.prop(
                         &surface,
                         ObjectKind::DeskLamp,
-                        Vec3::new(handed * surface.size.x * 0.34, 0., -surface.size.z * 0.27),
-                        Vec3::new(0.20, light_rng.random_range(0.31..0.48), 0.22),
+                        offset,
+                        size,
                         light_rng.random_range(-0.12..0.12),
                         &mut light_rng,
                     );
@@ -940,7 +956,9 @@ impl IndoorManifest {
                 continue;
             }
             if surface.kind == ObjectKind::Table {
-                self.conference_props(&surface, rng);
+                if !self.is_dining_table(&surface) {
+                    self.conference_props(&surface, rng);
+                }
                 continue;
             }
             self.decorate_workspace(&surface);
@@ -979,11 +997,17 @@ impl IndoorManifest {
         let pos = support
             .transform()
             .transform_point(offset + Vec3::Y * support.size.y);
-        let mut obj = self.candidate(kind, pos, size, support.yaw + yaw, rng);
+        let obj = self.candidate(kind, pos, size, support.yaw + yaw, rng);
+        self.admit_supported_prop(support, obj);
+    }
+
+    fn admit_supported_prop(&mut self, support: &IndoorObject, mut obj: IndoorObject) -> bool {
+        let kind = obj.kind;
+        let pos = obj.position;
         // Consume the candidate's small fixed draw even when the table is
         // clear, keeping later proposals on this stream reproducible.
         if !self.permits_table_item(support, kind) {
-            return;
+            return false;
         }
         obj.solid = false;
         obj.support = Some(support.id);
@@ -1003,11 +1027,12 @@ impl IndoorManifest {
                 obj.interaction_target = Some(chair.id);
             }
         }
-        if !self.prop_clear(&obj, support, 0.012) {
+        if !self.orient_and_check_prop(&mut obj, support) {
             self.rejected_placements += 1;
-            return;
+            return false;
         }
         self.objects.push(obj);
+        true
     }
 
     /// Check actual rotated prop footprints in the supporting surface's frame.
@@ -1252,6 +1277,9 @@ impl IndoorManifest {
             boxes.extend(super::floorplan::obstacles(self));
             if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
                 boxes.extend(installation.obstacles());
+                if let Some(grid) = &installation.room_grid {
+                    boxes.extend(grid.air_reservations(self.room_size.y));
+                }
             }
             return boxes;
         }

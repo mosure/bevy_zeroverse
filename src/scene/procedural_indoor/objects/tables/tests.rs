@@ -1,4 +1,71 @@
 use super::*;
+
+#[test]
+fn timber_charts_preserve_support_area_edge_grain_and_metric_tangents() {
+    use crate::scene::procedural_indoor::geometry::Geometry;
+    let mut band_counts = std::collections::BTreeSet::new();
+    for seed in 0..128 {
+        for size in [Vec3::new(1.1, 0.77, 2.7), Vec3::new(2.7, 0.77, 1.1)] {
+            let mut o = object(ObjectKind::Table, seed);
+            o.size = size;
+            let p = parameters(&o);
+            let outline = outline(&o);
+            let tf = Transform::from_xyz(0., size.y - p.top_thickness * 0.5, 0.);
+            let mut old = Geometry::default();
+            old.profile_slab(&outline, p.top_thickness, p.edge_bevel, tf);
+            let mut g = Geometry::default();
+            TimberProgram::sample(o.seed).build(&mut g, &o, &p, &outline, tf, 0);
+            let area = |g: &Geometry| {
+                g.indices
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .filter(|t| g.normals[t[0] as usize][1] > 0.99999)
+                    .map(|t| {
+                        let [p, q, r] = t.map(|i| Vec3::from_array(g.positions[i as usize]));
+                        (q - p).cross(r - p).y * 0.5
+                    })
+                    .sum::<f32>()
+            };
+            assert!((area(&g) - area(&old)).abs() < 2e-5);
+            let along = if size.x > size.z {
+                Vec2::NEG_X
+            } else {
+                Vec2::Y
+            };
+            for t in g.indices.as_chunks::<3>().0 {
+                let [a, b, c] = t.map(|i| i as usize);
+                if g.normals[a][1] < 0.99999 {
+                    continue;
+                }
+                let pos = |i| Vec3::from_array(g.positions[i]).xz();
+                for v in [b, c] {
+                    assert!(
+                        (g.uvs[v][1] - g.uvs[a][1] - (pos(v) - pos(a)).dot(along)).abs() < 1e-5
+                    );
+                }
+            }
+            let sides = |g: &Geometry| {
+                g.normals
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, n)| {
+                        (n[1].abs() < 0.99999).then_some((g.positions[i], g.uvs[i]))
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let a = sides(&old);
+            let b = sides(&g);
+            assert_eq!(a.len(), b.len());
+            for ((pa, [distance, h]), (pb, uv)) in a.into_iter().zip(b) {
+                assert_eq!(pa, pb);
+                assert_eq!(uv, [h, -distance]);
+            }
+            band_counts.insert(g.positions.len());
+        }
+    }
+    assert!(band_counts.len() > 10);
+}
 #[test]
 fn workstation_frames_ground_both_feet_preserve_knee_space_and_cover_the_mesh() {
     let mut with_screen = 0;
@@ -65,18 +132,19 @@ fn boardroom_panel_mesh_covers_its_calibrated_support_outline() {
             let outline = outline(&o);
             let mut a = Assembly::default();
             conference::joined_top(&mut a, &o, &recipe, &outline);
-            let top = a.part(recipe.top_surface, o.kind.class_name());
-            assert!(top
-                .normals
-                .iter()
-                .all(|n| Vec3::from_array(*n).is_normalized()));
             let mut area = 0.;
-            for triangle in top.indices.as_chunks::<3>().0 {
-                let [a, b, c] =
-                    [0, 1, 2].map(|i| Vec3::from_array(top.positions[triangle[i] as usize]));
-                // An overhead ray also hits the upward-facing bevel. The only
-                // gaps in the leaf projection should be the physical join lines.
-                area += (b - a).cross(c - a).y.max(0.) * 0.5;
+            for top in a.parts.values() {
+                assert!(top
+                    .normals
+                    .iter()
+                    .all(|n| Vec3::from_array(*n).is_normalized()));
+                for triangle in top.indices.as_chunks::<3>().0 {
+                    let [a, b, c] =
+                        [0, 1, 2].map(|i| Vec3::from_array(top.positions[triangle[i] as usize]));
+                    // An overhead ray also hits the upward-facing bevel. The only
+                    // gaps in the leaf projection should be the physical join lines.
+                    area += (b - a).cross(c - a).y.max(0.) * 0.5;
+                }
             }
             let coverage = area / polygon::area(&outline);
             assert!(
@@ -84,6 +152,50 @@ fn boardroom_panel_mesh_covers_its_calibrated_support_outline() {
                 "{seed}/{width}/{length}: {coverage}"
             );
             assert!(support_bay_count(&o) >= 3);
+        }
+    }
+}
+
+#[test]
+fn laminate_edges_partition_the_original_slab_and_keep_faceted_sheets_in_register() {
+    fn triangles(g: &Geometry) -> impl Iterator<Item = [[u32; 3]; 3]> + '_ {
+        g.indices
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .map(|t| t.map(|i| g.positions[i as usize].map(f32::to_bits)))
+    }
+    let o = object(ObjectKind::Desk, 901);
+    let mut p = parameters(&o);
+    p.top_surface = Surface::Plastic;
+    let outline = outline(&o);
+    let tf = Transform::from_xyz(0.32, 0.74, -0.61);
+    let mut original = Geometry::default();
+    original.profile_slab(&outline, p.top_thickness, p.edge_bevel, tf);
+    let mut prior: Vec<_> = triangles(&original).collect();
+    prior.sort_unstable();
+    for timber_lip in [false, true] {
+        let mut a = Assembly::default();
+        let label = super::super::super::materials::worktop_finish::table_label(&o, p.top_surface);
+        top::TopStock::Sheet {
+            label: label.clone(),
+            timber_lip,
+        }
+        .build(&mut a, &o, &p, &outline, tf, 0);
+        let mut present: Vec<_> = a.parts.values().flat_map(triangles).collect();
+        present.sort_unstable();
+        assert_eq!(present, prior);
+        assert_eq!(a.parts.len(), if timber_lip { 2 } else { 1 });
+        let face = &a.parts[&(Surface::Plastic, label.into_owned())];
+        for ((point, normal), uv) in face.positions.iter().zip(&face.normals).zip(&face.uvs) {
+            if normal[1].abs() > 0.99999 {
+                assert!(
+                    Vec3::from_array(*point)
+                        .xz()
+                        .distance(Vec2::from_array(*uv))
+                        < 1e-5
+                );
+            }
         }
     }
 }

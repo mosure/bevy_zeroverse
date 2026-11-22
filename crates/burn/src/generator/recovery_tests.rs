@@ -26,17 +26,11 @@ fn rejection_receipt_waits_for_previous_atomic_export_and_writer_errors_remain_f
         );
         control.grant_through(2);
         let previous = control
-            .acquire(CaptureRequest {
-                sequence: 0,
-                seed: 100,
-            })
+            .acquire(CaptureRequest::new(0, 100))
             .unwrap()
             .unwrap();
         let rejected = control
-            .acquire(CaptureRequest {
-                sequence: 1,
-                seed: 101,
-            })
+            .acquire(CaptureRequest::new(1, 101))
             .unwrap()
             .unwrap();
         let (tx, rx) = mpsc::sync_channel::<WriteJob>(0);

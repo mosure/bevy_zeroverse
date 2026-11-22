@@ -26,6 +26,7 @@ impl GpuCaptureServer {
         socket.send(
             &Message::Hello {
                 protocol: wire::PROTOCOL_VERSION,
+                rgb_artifact_eligibility: true,
                 session,
                 policy: spec.fingerprint.clone(),
                 device_uuid: export.exporter.uuid,
@@ -58,19 +59,33 @@ impl GpuCaptureServer {
             socket.0.set_read_timeout(None)?; // Demand waits do not consume capture deadlines.
             let (message, fds) = socket.receive()?;
             ensure!(fds.is_empty(), "unexpected command FDs");
-            let (request, lookahead) = match message {
+            let (request, lookahead, rows) = match message {
                 Message::Stop => return Ok(()),
-                Message::Capture { request, lookahead } => (request, lookahead),
+                Message::Capture {
+                    request,
+                    lookahead,
+                    rgb_artifact_eligible_cameras_by_timestep,
+                } => (
+                    request,
+                    lookahead,
+                    rgb_artifact_eligible_cameras_by_timestep,
+                ),
                 _ => anyhow::bail!("unexpected GPU server command"),
             };
             ensure!(lookahead.len() <= 4, "preparation plan exceeds capacity");
+            bevy_zeroverse_capture::request::validate_eligibility(
+                rows.as_deref(),
+                spec.scene().num_cameras,
+                spec.scene().playback_steps as usize,
+            )
+            .map_err(anyhow::Error::msg)?;
             let lease = state.begin(request).map_err(anyhow::Error::msg)?;
             renderer
                 .app
                 .world_mut()
                 .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
                 .explicit_seeds = Some(lookahead);
-            let (mut metadata, images) = match renderer.render(request.seed, true) {
+            let (mut metadata, images) = match renderer.render(request.seed, rows) {
                 Ok(output) => output,
                 Err(error) => {
                     if let Some(bevy_zeroverse::sample::failure::CaptureError::Rejected {

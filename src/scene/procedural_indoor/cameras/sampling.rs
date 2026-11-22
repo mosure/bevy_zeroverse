@@ -3,6 +3,7 @@ use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
 use bevy::prelude::*;
 use rand::Rng;
 mod fallback;
+mod kitchen;
 #[cfg(test)]
 mod tests;
 
@@ -85,6 +86,7 @@ impl IndoorManifest {
             self.camera_diagnostics.long_reference_requests += usize::from(long_path);
             let edge = rng.random_range(0..4);
             let require_person = requires_person(self, index);
+            let mut kitchen = kitchen::KitchenFraming::for_slot(self, index);
             let mut found = None;
             let mut rejected = [0usize; 5];
             for attempt in 0..attempts {
@@ -113,6 +115,17 @@ impl IndoorManifest {
                         2 => p.z = -half.z + inset,
                         _ => p.x = half.x - inset,
                     }
+                }
+                let composition = if require_person && attempt < attempts / 2 {
+                    kitchen
+                        .as_mut()
+                        .and_then(|framing| framing.composition(self, &people))
+                } else {
+                    None
+                };
+                if let Some(pair) = &composition {
+                    p.x = pair.eye.x;
+                    p.z = pair.eye.y;
                 }
                 // Propose relative to the actual local floor and slanted roof.
                 // A room-seeded continuous mixture replaces seed%5 height bands.
@@ -159,12 +172,12 @@ impl IndoorManifest {
                 }
                 // Aim at actual content in this room zone as well as broad views.
                 // A central target shared by every camera over-samples glass walls.
-                let zone = self.program.as_ref().and_then(|program| {
-                    program
-                        .zones
-                        .iter()
-                        .find(|z| p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y)
+                let zone_index = self.program.as_ref().and_then(|program| {
+                    program.zones.iter().position(|z| {
+                        p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y
+                    })
                 });
+                let zone = zone_index.and_then(|i| self.program.as_ref()?.zones.get(i));
                 let candidates: Vec<_> = self
                     .objects
                     .iter()
@@ -216,6 +229,21 @@ impl IndoorManifest {
                         rng.random_range(0.85..1.4),
                         rng.random_range(-half.z * 0.32..half.z * 0.25),
                     )
+                };
+                let target = if let Some(pair) = &composition {
+                    pair.target(p)
+                } else if attempt < attempts / 2 {
+                    if let (Some(framing), Some(zone)) = (&mut kitchen, zone_index) {
+                        let Some(target) = framing.target(zone, p, target, require_person) else {
+                            rejected[1] += 1;
+                            continue;
+                        };
+                        target
+                    } else {
+                        target
+                    }
+                } else {
+                    target
                 };
                 let level_pitch = viewpoint.level_pitch(rng);
                 let target = level_pitch.map_or(target, |pitch| {
@@ -309,7 +337,10 @@ impl IndoorManifest {
                     rejected[3] += 1;
                     continue;
                 }
-                if !coverage.suitable(&camera, require_person) {
+                let subject = composition
+                    .as_ref()
+                    .map(|_| kitchen::fixture_label as fn(&str) -> bool);
+                if !coverage.suitable_with_subject(&camera, require_person, subject) {
                     rejected[4] += 1;
                     continue;
                 }

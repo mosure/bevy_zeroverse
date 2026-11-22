@@ -111,40 +111,9 @@ impl Canvas {
         }
     }
     pub(super) fn text(&mut self, text: &str, x: i32, y: i32, scale: i32, color: [u8; 3]) {
-        // A compact bitmap alphabet gives headings actual readable content;
-        // no font loading, hidden Unicode fallback, or per-frame rasterization.
-        const LETTERS: [[u8; 5]; 26] = [
-            [2, 5, 7, 5, 5],
-            [6, 5, 6, 5, 6],
-            [3, 4, 4, 4, 3],
-            [6, 5, 5, 5, 6],
-            [7, 4, 6, 4, 7],
-            [7, 4, 6, 4, 4],
-            [3, 4, 5, 5, 3],
-            [5, 5, 7, 5, 5],
-            [7, 2, 2, 2, 7],
-            [1, 1, 1, 5, 2],
-            [5, 5, 6, 5, 5],
-            [4, 4, 4, 4, 7],
-            [5, 7, 7, 5, 5],
-            [5, 7, 7, 7, 5],
-            [2, 5, 5, 5, 2],
-            [6, 5, 6, 4, 4],
-            [2, 5, 5, 3, 1],
-            [6, 5, 6, 5, 5],
-            [3, 4, 2, 1, 6],
-            [7, 2, 2, 2, 2],
-            [5, 5, 5, 5, 7],
-            [5, 5, 5, 5, 2],
-            [5, 5, 7, 7, 5],
-            [5, 5, 2, 5, 5],
-            [5, 5, 2, 2, 2],
-            [7, 1, 2, 4, 7],
-        ];
         for (index, letter) in text.bytes().enumerate() {
             let x = x + index as i32 * 4 * scale;
-            if letter.is_ascii_alphabetic() {
-                let glyph = LETTERS[(letter.to_ascii_uppercase() - b'A') as usize];
+            if let Some(glyph) = letter_rows(letter) {
                 for (row, bits) in glyph.into_iter().enumerate() {
                     for col in 0..3 {
                         if bits & (1 << (2 - col)) != 0 {
@@ -235,6 +204,43 @@ impl Canvas {
             self.rect(x + scale * 14, y + scale * dy, scale, scale, color);
         }
     }
+}
+
+/// Compact print shared by document textures and integral lettering on bindings.
+pub(crate) fn letter_rows(letter: u8) -> Option<[u8; 5]> {
+    // A compact bitmap alphabet gives headings actual readable content;
+    // no font loading, hidden Unicode fallback, or per-frame rasterization.
+    const LETTERS: [[u8; 5]; 26] = [
+        [2, 5, 7, 5, 5],
+        [6, 5, 6, 5, 6],
+        [3, 4, 4, 4, 3],
+        [6, 5, 5, 5, 6],
+        [7, 4, 6, 4, 7],
+        [7, 4, 6, 4, 4],
+        [3, 4, 5, 5, 3],
+        [5, 5, 7, 5, 5],
+        [7, 2, 2, 2, 7],
+        [1, 1, 1, 5, 2],
+        [5, 5, 6, 5, 5],
+        [4, 4, 4, 4, 7],
+        [5, 7, 7, 5, 5],
+        [5, 7, 7, 7, 5],
+        [2, 5, 5, 5, 2],
+        [6, 5, 6, 4, 4],
+        [2, 5, 5, 3, 1],
+        [6, 5, 6, 5, 5],
+        [3, 4, 2, 1, 6],
+        [7, 2, 2, 2, 2],
+        [5, 5, 5, 5, 7],
+        [5, 5, 5, 5, 2],
+        [5, 5, 7, 7, 5],
+        [5, 5, 2, 5, 5],
+        [5, 5, 2, 2, 2],
+        [7, 1, 2, 4, 7],
+    ];
+    letter
+        .is_ascii_alphabetic()
+        .then(|| LETTERS[(letter.to_ascii_uppercase() - b'A') as usize])
 }
 
 #[cfg(test)]

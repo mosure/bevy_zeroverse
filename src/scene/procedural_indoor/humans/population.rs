@@ -3,6 +3,7 @@
 use super::*;
 use rand::seq::{IteratorRandom, SliceRandom};
 use rand_chacha::ChaCha8Rng;
+pub(super) mod workstation;
 
 fn seated_pose(
     surface: bool,
@@ -208,6 +209,7 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
     }
     let standing = (density * 2.0).floor() as usize
         + usize::from(rng.random_bool((density * 2.0).fract() as f64));
+    let first_standing = scene.humans.len();
     for _ in 0..standing {
         for _ in 0..96 {
             let pose = [
@@ -235,6 +237,9 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
                 scene.rejected_human_placements += 1;
             }
         }
+    }
+    if first_standing < scene.humans.len() && !scene.assembly_diagnostics.kitchens.is_empty() {
+        workstation::stage(scene, first_standing);
     }
 }
 

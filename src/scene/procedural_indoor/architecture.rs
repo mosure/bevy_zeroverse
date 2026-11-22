@@ -304,7 +304,10 @@ pub(crate) fn fixture_size(scene: &IndoorManifest) -> Vec3 {
 /// Close-mounted luminaires below the deck prevent the upper floor from
 /// shadowing every light in the lower work area. Their anchors stop at the slab.
 pub(crate) fn fixture_half_extents(scene: &IndoorManifest, position: Vec3) -> Vec3 {
-    fixture_layout::half(scene, position)
+    ceiling::CeilingGrid::lamp_at(scene, position).map_or_else(
+        || fixture_layout::half(scene, position),
+        |grid| grid.lamp_size() * 0.5,
+    )
 }
 
 pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
@@ -313,7 +316,11 @@ pub(crate) fn under_mezzanine_fixtures(scene: &IndoorManifest) -> Vec<Vec3> {
 
 pub fn fixture_positions(scene: &IndoorManifest) -> Vec<Vec3> {
     if scene.program.is_some() {
-        return fixture_layout::positions(scene);
+        let mut positions = fixture_layout::positions(scene);
+        if let Some(grid) = ceiling::CeilingGrid::for_scene(scene) {
+            grid.fit_positions(scene.room_size.y, &mut positions);
+        }
+        return positions;
     }
     let mut positions = Vec::new();
     let spacing = [3.4, 4.0, 2.8][scene.lighting_design as usize % 3];
@@ -375,8 +382,7 @@ pub fn spawn_lights(
     commands: &mut Commands,
 ) {
     let positions = fixture_positions(scene);
-    for (i, p) in positions.iter().copied().enumerate() {
-        let (c, lumens) = fixture_photometry_at(scene, i, &positions);
+    for (i, p, c, lumens) in powered_ceiling_fixtures(scene, &positions) {
         let (inner, outer) = fixtures::beam_angles(scene, i, p);
         commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
@@ -445,17 +451,18 @@ pub fn spawn_lights(
     {
         // The bulb sits within a real open fabric shade; its shadowed point light
         // illuminates the nearby seating and wall instead of merely glowing.
+        let power = super::photometry::lamp(scene, lamp);
+        if power.lumens == 0. {
+            continue;
+        }
         let rest = Transform::from_translation(
             crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
         );
         let mut entity = commands.spawn((
             Name::new(format!("indoor_floor_lamp_{}", lamp.id)),
             PointLight {
-                color: {
-                    let c = super::photometry::lamp(scene, lamp).color;
-                    source_color(scene, c)
-                },
-                intensity: super::photometry::lamp(scene, lamp).lumens,
+                color: source_color(scene, power.color),
+                intensity: power.lumens,
                 range: 5.0,
                 radius: 0.035,
                 shadow_maps_enabled: quality.shadows(),
@@ -477,6 +484,9 @@ pub fn spawn_lights(
         )
     }) {
         let (beam, power) = object_fixture_photometry(scene, lamp);
+        if power.lumens == 0. {
+            continue;
+        }
         let rest = Transform::from_translation(beam.position).looking_to(beam.direction, Vec3::Z);
         let mut entity = commands.spawn((
             Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
@@ -484,7 +494,12 @@ pub fn spawn_lights(
                 color: source_color(scene, power.color),
                 intensity: spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer),
                 range: 3.0,
-                radius: 0.018,
+                radius: beam.radius,
+                shadow_map_near_z: if lamp.kind == ObjectKind::DeskLamp {
+                    0.012
+                } else {
+                    SpotLight::DEFAULT_SHADOW_MAP_NEAR_Z
+                },
                 inner_angle: beam.inner,
                 outer_angle: beam.outer,
                 shadow_maps_enabled: quality.shadows(),
@@ -556,13 +571,7 @@ pub(crate) fn object_fixture_photometry(
     super::photometry::SourcePower,
 ) {
     let beam = if lamp.kind == ObjectKind::DeskLamp {
-        let (position, _, _, inner, outer) = super::objects::accessories::lamp_photometry(lamp);
-        super::photometry::FixtureBeam {
-            position,
-            direction: Vec3::NEG_Y,
-            inner,
-            outer,
-        }
+        super::objects::accessories::lamps::beam(lamp)
     } else {
         super::objects::equipment::fixture_beam(lamp)
     };
@@ -612,6 +621,18 @@ pub(crate) fn fixture_photometry_at(
         super::photometry::tinted_white(kelvin, rng.random_range(-0.045..0.045)),
         flux,
     )
+}
+
+/// The mount index also names its mesh, material and annotation. Dormant
+/// fixtures keep those identities but contribute no analytic light or shadow.
+pub(super) fn powered_ceiling_fixtures<'a>(
+    scene: &'a IndoorManifest,
+    positions: &'a [Vec3],
+) -> impl Iterator<Item = (usize, Vec3, Vec3, f32)> + 'a {
+    positions.iter().copied().enumerate().filter_map(|(i, p)| {
+        let (color, lumens) = fixture_photometry_at(scene, i, positions);
+        (lumens > 0.).then_some((i, p, color, lumens))
+    })
 }
 
 pub(super) fn primary_fixture_count(scene: &IndoorManifest, positions: &[Vec3]) -> usize {
@@ -708,7 +729,11 @@ mod lighting_tests {
                 )
                 .unwrap()
             })
-            .find(|scene| fixture_positions(scene).len() > 16)
+            .find(|scene| {
+                let mounts = fixture_positions(scene);
+                let on = powered_ceiling_fixtures(scene, &mounts).count();
+                on > 8 && on < mounts.len()
+            })
             .unwrap();
         let mut world = World::new();
         let root = world.spawn_empty().id();
@@ -720,13 +745,33 @@ mod lighting_tests {
             &mut Commands::new(&mut queue, &world),
         );
         queue.apply(&mut world);
-        let mut q = world.query::<(&Name, &SpotLight)>();
-        let ceiling: Vec<_> = q
+        let mut q = world.query::<(&Name, &SpotLight, &Transform)>();
+        let ceiling: std::collections::BTreeMap<_, _> = q
             .iter(&world)
-            .filter(|(name, _)| name.starts_with("indoor_luminaire_"))
+            .filter_map(|(name, light, tf)| {
+                let index = name
+                    .strip_prefix("indoor_luminaire_")?
+                    .parse::<usize>()
+                    .unwrap();
+                Some((index, (light, tf)))
+            })
             .collect();
-        assert_eq!(ceiling.len(), fixture_positions(&scene).len());
-        assert!(ceiling.iter().all(|(_, light)| light.shadow_maps_enabled));
+        let mounts = fixture_positions(&scene);
+        for (i, &p) in mounts.iter().enumerate() {
+            let (_, lm) = fixture_photometry_at(&scene, i, &mounts);
+            if lm == 0. {
+                assert!(!ceiling.contains_key(&i));
+                let geometry = fixtures::geometry(&scene, i, p);
+                assert!(geometry.parts.keys().any(|(s, _)| *s == Surface::Light));
+            } else {
+                let (light, tf) = ceiling[&i];
+                let (inner, outer) = fixtures::beam_angles(&scene, i, p);
+                assert_eq!(light.intensity, spot_intensity_for_lumens(lm, inner, outer));
+                assert_eq!(tf.translation, fixtures::emitter(&scene, p));
+                assert!(light.shadow_maps_enabled);
+            }
+        }
+        assert!(ceiling.len() > 8 && ceiling.len() < mounts.len());
     }
 
     #[test]
@@ -751,6 +796,27 @@ mod lighting_tests {
     }
 
     #[test]
+    fn desk_lamps_keep_the_swept_arm_valid_at_compact_workstations() {
+        use super::super::objects::{audit, build_object};
+
+        // Conference seed 57304 seats the rear pin of a tilted puck close to
+        // the base. A longitudinal bow used to fold the tube inside itself.
+        let mut lamp = audit::fixture(ObjectKind::DeskLamp, 11_291_326_550_121_891_613);
+        lamp.size = Vec3::new(0.28978533, 0.31738603, 0.27421623);
+        audit::check(&lamp, &build_object(&lamp)).unwrap();
+        for seed in 0..128 {
+            let mut r = stream(seed, 0x5441_534b_4e45_434b);
+            lamp.seed = seed;
+            lamp.size = Vec3::new(
+                r.random_range(0.13..0.33),
+                r.random_range(0.29..0.54),
+                r.random_range(0.14..0.32),
+            );
+            audit::check(&lamp, &build_object(&lamp)).unwrap();
+        }
+    }
+
+    #[test]
     fn desk_lamps_have_seeded_shadowed_downward_emitters_at_the_diffuser() {
         let scene = IndoorManifest::generate_with_humans(
             0,
@@ -765,36 +831,41 @@ mod lighting_tests {
         lamp.size = Vec3::new(0.23, 0.41, 0.24);
         lamp.position = Vec3::new(1., 0.8, -1.);
         lamp.yaw = 0.7;
-        let mut colors = std::collections::BTreeSet::new();
-        for seed in 0..32 {
+        let mut heads = std::collections::BTreeSet::new();
+        let mut tilts = Vec::new();
+        for seed in 0..96 {
             lamp.seed = seed;
-            let sample = super::super::objects::accessories::lamp_photometry(&lamp);
-            assert_eq!(
-                sample,
-                super::super::objects::accessories::lamp_photometry(&lamp)
-            );
-            let local = lamp
-                .transform()
-                .compute_affine()
-                .inverse()
-                .transform_point3(sample.0);
+            let (beam, power) = object_fixture_photometry(&scene, &lamp);
+            assert_eq!((beam, power), object_fixture_photometry(&scene, &lamp));
+            let (mut area, mut centroid) = (0., Vec3::ZERO);
+            let world = lamp.transform();
             let mesh = super::super::objects::build_object(&lamp);
-            let aperture = mesh
-                .parts
-                .iter()
-                .filter(|((surface, _), _)| *surface == Surface::Light)
-                .flat_map(|(_, g)| &g.positions)
-                .map(|p| p[1])
-                .fold(f32::INFINITY, f32::min);
+            for ((surface, _), g) in mesh.parts {
+                if surface != Surface::Light {
+                    continue;
+                }
+                for t in g.indices.as_chunks::<3>().0 {
+                    let [a, b, c] =
+                        t.map(|i| world.transform_point(Vec3::from_array(g.positions[i as usize])));
+                    let cross = (b - a).cross(c - a);
+                    assert!(cross.normalize().dot(beam.direction) > 0.99999);
+                    let face = cross.length() * 0.5;
+                    centroid += (a + b + c) * (face / 3.);
+                    area += face;
+                }
+            }
+            assert!((centroid / area + beam.direction * 0.003).distance(beam.position) < 1e-5);
             assert!(
-                (0.001..0.006).contains(&(aperture - local.y)),
-                "emitter must sit just outside its actual diffuser"
+                (area - super::super::objects::accessories::lamps::emitting_area(&lamp)).abs()
+                    < 1e-6
             );
-            assert!((150.0..550.0).contains(&sample.2));
-            assert!(sample.3 < sample.4);
-            colors.insert(sample.1.to_array().map(f32::to_bits));
+            let tilt = beam.tilt_from_down_degrees();
+            assert!(tilt <= 47.01 && beam.inner < beam.outer && beam.radius > 0.);
+            heads.insert(super::super::objects::accessories::lamp_parameters(&lamp).head);
+            tilts.push(tilt);
         }
-        assert_eq!(colors.len(), 32);
+        assert_eq!(heads.len(), 4);
+        assert!(tilts.iter().any(|&t| t < 0.01) && tilts.iter().any(|&t| t > 40.));
         let mut scene = scene;
         scene.objects = vec![lamp.clone()];
         let mut world = World::new();
@@ -816,8 +887,9 @@ mod lighting_tests {
             .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", lamp.id))
             .unwrap();
         assert!(light.shadow_maps_enabled);
-        assert!(Vec3::from(transform.forward()).distance(Vec3::NEG_Y) < 1e-6);
         let (beam, power) = object_fixture_photometry(&scene, &lamp);
+        assert!(Vec3::from(transform.forward()).distance(beam.direction) < 1e-6);
+        assert_eq!(light.radius, beam.radius);
         assert!(transform.translation.distance(beam.position) < 1e-6);
         assert_eq!(
             light.intensity,

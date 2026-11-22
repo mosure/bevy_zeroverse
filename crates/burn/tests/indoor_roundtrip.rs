@@ -504,3 +504,50 @@ fn pose_projection_and_clip_identity_survive_chunk_roundtrip() {
         );
     }
 }
+
+#[test]
+fn unbounded_rgb_roundtrips_floating_point_and_converts_jpeg_once() {
+    use bevy_zeroverse_burn::{
+        chunk::{ColorCodec, save_chunk_with_codec},
+        fs::save_sample_to_fs_with_codec,
+    };
+    let mut input = sample();
+    input.color_encoding = ColorEncoding::LinearHdr;
+    let rgba: Vec<f32> = (0..64).flat_map(|_| [4.0, 0.18, 0.0, 1.0]).collect();
+    input.views[0].color = bytemuck::cast_slice(&rgba).to_vec();
+    let labels = [[0.25_f32, 0.5, 0.75, 1.0]; 64];
+    input.views[0].semantic = bytemuck::cast_slice(&labels).to_vec();
+    for codec in [ColorCodec::Raw, ColorCodec::Jpeg] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_chunk_with_codec(
+            std::slice::from_ref(&input),
+            dir.path(),
+            0,
+            Compression::None,
+            8,
+            8,
+            false,
+            codec,
+        )
+        .unwrap();
+        let chunk = load_chunk(path).unwrap().remove(0);
+        save_sample_to_fs_with_codec(&input, dir.path(), 0, 8, 8, false, codec).unwrap();
+        let folder = FsDataset::from_dir(dir.path()).unwrap().get(0).unwrap();
+        for restored in [chunk, folder] {
+            // Both archive formats store exactly three channels for the semantic palette.
+            let semantic: &[[f32; 4]] = bytemuck::cast_slice(&restored.views[0].semantic);
+            assert_eq!(semantic.len(), labels.len());
+            for (pixel, expected) in semantic.iter().zip(labels) {
+                assert_eq!(pixel[..3], expected[..3]);
+            }
+            let pixels: &[f32] = bytemuck::cast_slice(&restored.views[0].color);
+            if codec == ColorCodec::Raw {
+                assert_eq!(restored.color_encoding, ColorEncoding::LinearHdr);
+                assert_eq!(pixels, &rgba);
+            } else {
+                assert_eq!(restored.color_encoding, ColorEncoding::Srgb);
+                assert!(pixels[0] > 0.95 && (pixels[1] - linear_to_srgb(0.18)).abs() < 0.025);
+            }
+        }
+    }
+}

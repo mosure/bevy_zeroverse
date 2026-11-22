@@ -126,7 +126,7 @@ PNG export and active downstream training, so it is not a controlled throughput
 comparison.
 
 ```sh
-cargo run --release --bin indoor_validate -- \
+cargo run --release --example indoor_validate -- \
   --seed 0 --audit-seeds 1024 --audit-geometry \
   --cameras 3 --width 512 --height 512 --renders 64 \
   --labels --co-visibility --no-raw --asset-root "$PWD" \

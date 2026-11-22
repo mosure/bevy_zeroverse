@@ -27,6 +27,71 @@ fn receipt(name: &str, value: serde_json::Value) {
         .unwrap();
     }
 }
+
+#[test]
+fn served_food_contacts_the_inside_of_the_dish_and_inventory_stays_bare() {
+    use super::serving::Serving;
+    let mut counts = [0; 5];
+    for seed in 0..192 {
+        let mut o = fixture(ObjectKind::Dishware, seed);
+        assert!(serving::sample(&o).is_none());
+        assert!(metadata(&o).get("serving").is_none());
+        for (variant, style) in [(dishware::SERVED_PLATE, 0), (dishware::SERVED_BOWL, 1)] {
+            o.variant = variant;
+            o.size =
+                crate::scene::procedural_indoor::items::sizing::dish(style, &mut stream(seed, 321));
+            let d = dishware::for_object(&o, &props::program(&o));
+            let meal = serving::sample(&o).unwrap();
+            assert_eq!(meal, serving::sample(&o).unwrap());
+            assert_eq!(metadata(&o)["serving"], serde_json::json!(meal));
+            counts[meal as usize] += 1;
+            let mut built = Assembly::default();
+            props::build(&mut built, &o);
+            assert_fits(&o, &built);
+            let food: Vec<_> = built
+                .parts
+                .iter()
+                .filter(|((_, label), _)| label.starts_with("food#finish"))
+                .collect();
+            assert_eq!(food.is_empty(), meal == Serving::Empty);
+            assert!(food.iter().map(|(_, g)| g.indices.len() / 3).sum::<usize>() <= 1200);
+            if meal == Serving::Empty {
+                continue;
+            }
+            let points = food
+                .iter()
+                .flat_map(|(_, g)| &g.positions)
+                .map(|p| Vec3::from_array(*p));
+            if meal == Serving::Soup {
+                let liquid = &built.parts[&(Surface::Ceramic, "food#finish105".into())];
+                let y = liquid.positions[0][1];
+                let middle = d.height * d.shoulder_height + d.wall * 0.25;
+                assert!(y > middle && y < d.height && liquid.normals.iter().all(|n| n[1] > 0.999));
+                let r = d.radius - d.wall
+                    + (d.mouth - 1.) * d.radius * (y - middle) / (d.height - middle);
+                for v in &liquid.positions[..d.segments as usize + 1] {
+                    assert!(((Vec3::from_array(*v).xz() / d.aspect).length() - r).abs() < 1e-6);
+                }
+                assert!(points.into_iter().all(|v| v.y > d.wall && v.y < o.size.y));
+            } else {
+                let foot = d.radius * d.foot - if style == 1 { d.wall } else { 0. };
+                let mut bottom = f32::INFINITY;
+                for v in points {
+                    bottom = bottom.min(v.y);
+                    assert!(
+                        (v.xz() / d.aspect).length()
+                            <= foot * (PI / d.segments as f32).cos() + 1e-6
+                    );
+                }
+                assert!(
+                    (bottom - d.wall).abs() < 1e-6,
+                    "floating serving {meal:?} {seed}: {bottom}"
+                );
+            }
+        }
+    }
+    assert!(counts.iter().all(|&n| n > 15), "{counts:?}");
+}
 #[test]
 fn dishes_have_hollow_interiors_supported_stacks_and_correct_yawed_footprints() {
     let mut materials = BTreeSet::new();

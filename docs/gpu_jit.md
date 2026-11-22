@@ -30,9 +30,9 @@ bytes stay unchanged. Numeric annotations use exact final pixel-center rays,
 preserving categorical IDs and aligned surfaces. `metadata.sampling` stores the
 resolved factor; absent metadata means native-resolution sampling. Compare
 throughput at the same SSAA factor and report the policy alongside resolution.
-Occupied rooms need the AnnyBody assets in `assets/burn_human`. Set
-`BEVY_ASSET_ROOT` to the project directory containing `assets` before constructing
-the dataset, just as for native capture. Missing assets return a capture error.
+Occupied rooms load the embedded AnnyBody reference on first use. Existing native
+installations may point `BEVY_ASSET_ROOT` at a project containing a custom
+`assets/burn_human/fullbody_default` metadata and tensor pair.
 
 One persistent capture worker automatically prepares one future GPU sample
 while the consumer trains. Requests and results are bounded; retained samples
@@ -140,7 +140,7 @@ the ordinary APIs; they add no consumer configuration or queued-room residency.
 To isolate preparation from GPU rendering, uploads and tensor transport:
 
 ```sh
-cargo run --bin indoor_prepare_bench -- --rooms 64 --concurrent 4 --output out/preparation.json
+cargo run --example indoor_prepare_bench -- --rooms 64 --concurrent 4 --output out/preparation.json
 ```
 
 This diagnostic prepares full native geometry, PBR maps and GPU-bake inputs,

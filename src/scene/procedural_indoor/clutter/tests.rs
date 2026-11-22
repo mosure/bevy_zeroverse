@@ -97,12 +97,17 @@ fn clock_hands_share_fractional_time_and_screens_do_not_repeat_one_dashboard() {
     let mut times = BTreeSet::new();
     let mut images = BTreeSet::new();
     let mut mobile_images = BTreeSet::new();
+    let mut active = [0, 0];
     for seed in 0..64 {
         let p = screens::parameters(seed);
         layouts.insert(p.layout);
         times.insert(p.minutes);
         if !p.dormant {
+            active[0] += 1;
             images.insert(screens::pixels(seed));
+        }
+        if !screens::parameters_for(seed, screens::DisplayKind::Phone).dormant {
+            active[1] += 1;
             let mobile = screens::mobile_pixels(seed);
             assert_ne!(mobile, screens::pixels(seed));
             mobile_images.insert(mobile);
@@ -115,5 +120,6 @@ fn clock_hands_share_fractional_time_and_screens_do_not_repeat_one_dashboard() {
     assert!(times.len() > 55);
     assert!(images.len() > 50);
     assert!(mobile_images.len() > 50);
+    assert_eq!([images.len(), mobile_images.len()], active);
     assert_eq!(screens::pixels(10), screens::pixels(10));
 }

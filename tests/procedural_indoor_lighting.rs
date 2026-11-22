@@ -1,4 +1,7 @@
 //! Controlled renderer ablations. Run explicitly with a native graphics device.
+#[path = "support/directional_sky.rs"]
+mod directional_sky;
+
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,

@@ -65,6 +65,18 @@ pub(super) fn record_scene(
         .filter(|o| super::super::photometry::is_lamp(o.kind))
     {
         let source = super::super::photometry::lamp(scene, object);
+        if object.kind == ObjectKind::DeskLamp {
+            let beam = super::super::objects::accessories::lamps::beam(object);
+            numeric.push(
+                "desk_lamp_tilt_degrees",
+                beam.tilt_from_down_degrees() as f64,
+            )?;
+            numeric.push(
+                "desk_lamp_workplane_offset_m",
+                ((beam.position.y - object.position.y) * beam.direction.xz().length()
+                    / -beam.direction.y) as f64,
+            )?;
+        }
         for (key, value) in [
             ("kelvin", source.kelvin),
             ("tint", source.tint),
@@ -215,15 +227,6 @@ pub(super) fn record_scene(
             )?;
         }
     }
-    for (kind, count) in ["building", "garden", "courtyard", "pergola"]
-        .into_iter()
-        .zip(super::super::architecture::outdoors::counts(scene))
-    {
-        numeric.push(&format!("exterior_{kind}_parcels"), count as f64)?;
-    }
-    if let Some(fraction) = super::super::architecture::outdoors::window_context_fraction(scene) {
-        numeric.push("exterior_window_context_fraction", fraction as f64)?;
-    }
     for (name, value) in super::super::architecture::outdoors::measurements(scene) {
         numeric.push(name, value as f64)?;
     }
@@ -331,6 +334,20 @@ pub(super) fn record_material(
 ) -> io::Result<()> {
     if let Some(f) = &material.flooring {
         category(categories, "floor_installation", format!("{:?}", f.layout));
+        if material.carpet.is_some() {
+            let installation = if let Some(tiles) = f.carpet_tiles {
+                numeric.push(
+                    "material_Floor_carpet_registration_fraction",
+                    tiles.registration as f64,
+                )?;
+                format!("{:?}", tiles.direction)
+            } else if f.tile_definition == 0. {
+                "Broadloom".into()
+            } else {
+                "ContinuousTilePattern".into()
+            };
+            category(categories, "carpet_installation", installation);
+        }
         if let Some(laying) = f.laying {
             numeric.push(
                 "material_Floor_turn_from_wall_degrees",
@@ -708,6 +725,26 @@ pub(super) fn record_object(
     record_equipment(scene, o, categories, numeric)?;
     service_equipment::record(o, categories, numeric)?;
     service_furniture::record(o, categories, numeric)?;
+    if o.kind == ObjectKind::Chair && o.variant >= 10 {
+        let chair = super::super::objects::chairs::TeachingSeat::sample(o);
+        category(categories, "teaching_seat_family", chair.family);
+        numeric.push("teaching_seat_depth_m", chair.seat_depth as f64)?;
+        if let Some(tablet) = chair.tablet {
+            category(
+                categories,
+                "writing_tablet_side",
+                if tablet.left_handed { "left" } else { "right" },
+            );
+        } else {
+            category(categories, "auditorium_seat_folded", chair.folded);
+            if chair.folded {
+                numeric.push(
+                    "auditorium_fold_degrees",
+                    chair.fold_angle.to_degrees() as f64,
+                )?;
+            }
+        }
+    }
     kitchen_fittings::record(o, categories, numeric)?;
     if o.kind == ObjectKind::Cabinet {
         let p = super::super::objects::storage::parameters(o);
@@ -841,6 +878,23 @@ pub(super) fn record_object(
             let p = super::super::objects::containers::bin_parameters(o);
             category(categories, "bin_lid", p.lid);
             category(categories, "bin_finish", format!("{:?}", p.finish));
+            if let Some(inlet) = p.inlet {
+                category(categories, "bin_station_inlet", format!("{:?}", inlet.kind));
+                numeric.push(
+                    "bin_station_inlet_width_m",
+                    f64::from(inlet.width_depth_m.x),
+                )?;
+                numeric.push(
+                    "bin_station_inlet_depth_m",
+                    f64::from(inlet.width_depth_m.y),
+                )?;
+            }
+            if let Some(film) = p.liner {
+                category(categories, "bin_liner", format!("{:?}", film.mount));
+                category(categories, "bin_liner_finish", format!("{:?}", film.finish));
+            } else {
+                category(categories, "bin_liner", "NoneVisible");
+            }
             numeric.push("bin_squareness", p.squareness as f64)?;
             numeric.push("bin_taper", p.taper as f64)?;
             numeric.push("bin_rim_width_fraction", p.rim_width as f64)?;

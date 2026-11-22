@@ -37,7 +37,7 @@ impl DisplayFinish {
         mat: &mut StandardMaterial,
         images: &mut impl AssetStore<Image>,
     ) {
-        self.apply_prepared(self.prepare(seed, board, content), mat, images);
+        self.apply_prepared(self.prepare(seed, board.then_some(content)), mat, images);
     }
 
     pub(super) fn apply_prepared(
@@ -60,7 +60,7 @@ impl DisplayFinish {
 
     /// Pure image synthesis: native content jobs can run without borrowing the
     /// asset stores. Binding remains ordered on the preparation task.
-    pub(super) fn prepare(&self, seed: u64, board: bool, content: &[u8]) -> Option<Image> {
+    pub(super) fn prepare(&self, seed: u64, board_ink: Option<&[u8]>) -> Option<Image> {
         let mut rng = stream(seed, 0x534d55444745);
         let marks: Vec<_> = (0..self.smudges)
             .map(|_| {
@@ -72,14 +72,14 @@ impl DisplayFinish {
                 ]
             })
             .collect();
-        if !board && marks.is_empty() {
+        if board_ink.is_none() && marks.is_empty() {
             // Uniform cover finishes need no texture allocation or upload.
             return None;
         }
         // Each mark is separable. Reuse the exact squared X/Y terms instead of
         // dividing twice per mark at every texel. Rows outside its support need
         // no work; max-composition is unchanged, including overlap between marks.
-        let mut smudges = vec![0.0_f32; content.len() / 4];
+        let mut smudges = vec![0.0_f32; 256 * 256];
         for m in marks {
             let horizontal: [f32; 256] =
                 std::array::from_fn(|x| ((x as f32 / 256. - m[0]) / m[2]).powi(2));
@@ -94,12 +94,11 @@ impl DisplayFinish {
             }
         }
         let mut data = Vec::with_capacity(256 * 256 * 4);
-        for (pixel, smudge) in content.as_chunks::<4>().0.iter().zip(smudges) {
-            let ink = if board {
+        for (i, smudge) in smudges.into_iter().enumerate() {
+            let ink = board_ink.map_or(0., |content| {
+                let pixel = &content[i * 4..i * 4 + 3];
                 1. - f32::from(pixel[0].max(pixel[1]).max(pixel[2])) / 255.
-            } else {
-                0.
-            };
+            });
             let value = (0.83 + self.haze * 0.25 + smudge * 0.15 - ink * 0.13).clamp(0.65, 1.);
             data.extend([255, (value * 255.).round() as u8, 0, 255]);
         }

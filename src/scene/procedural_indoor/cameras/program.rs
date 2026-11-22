@@ -11,8 +11,8 @@ pub(super) struct ViewSummary {
     cells: BTreeSet<[i32; 3]>,
 }
 impl ViewSummary {
-    pub fn new(camera: &IndoorCamera, view: &VisibilityView, scene: &IndoorManifest) -> Self {
-        let pose = camera.transform_at(0.0);
+    pub fn new(view: &VisibilityView, scene: &IndoorManifest) -> Self {
+        let pose = view.pose;
         let region = scene.primary_region();
         let cell = ((region.max - region.min).length() / 24.).max(0.15);
         Self {
@@ -51,6 +51,33 @@ impl ViewSummary {
             / self.cells.len().max(1) as f32;
         0.45 * (nearest / spacing).min(1.) + 0.25 * (angle / 0.9).min(1.) + 0.30 * novel
     }
+}
+
+/// Frame shared content at a continuously varying angular offset. A fixed
+/// world-space offset alone makes distant landmarks converge at image center.
+/// The anchor lens defines the scale even when a mixed rig preassigns peer lenses.
+pub(super) fn framing_offset(
+    reference: &IndoorCamera,
+    origin: Vec3,
+    variation: f32,
+    sample: Vec3,
+) -> Vec3 {
+    let jitter = sample * Vec3::new(0.03, 0.015, 0.03);
+    if variation == 0. {
+        return jitter;
+    }
+    let sightline = reference.target - origin;
+    let Some(forward) = sightline.try_normalize() else {
+        return jitter;
+    };
+    let right = forward.cross(Vec3::Y).try_normalize().unwrap_or(Vec3::X);
+    let up = right.cross(forward);
+    let half_fov = reference.fisheye.map_or_else(
+        || 0.5 * reference.fov_degrees.to_radians(),
+        |model| model.lens.max_angle,
+    );
+    let scale = variation * half_fov.min(std::f32::consts::FRAC_PI_4).tan() * sightline.length();
+    jitter + scale * (0.8 * sample.x * right + 0.52 * sample.y * up)
 }
 
 pub(super) fn retarget(
@@ -98,6 +125,36 @@ pub(super) fn pool_size(variation: f32, count: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn framing_is_angular_across_subject_distances_and_finite_at_poles() {
+        let mut camera = IndoorCamera {
+            start: Vec3::ZERO,
+            end: Vec3::ZERO,
+            target: Vec3::NEG_Z,
+            fov_degrees: 70.,
+            fisheye: None,
+            ceiling_mount: None,
+            principal_point_offset: None,
+            roll_radians: 0.,
+            motion: None,
+        };
+        let sample = Vec3::new(0.7, -0.6, 0.2);
+        let offset = |camera: &IndoorCamera, variation| {
+            framing_offset(camera, Vec3::ZERO, variation, sample)
+        };
+        let small_jitter = offset(&camera, 0.);
+        let nearby = offset(&camera, 0.5) - small_jitter;
+        assert!(nearby.x > 0.1 && nearby.y < -0.05 && nearby.z.abs() < 1e-6);
+        camera.target *= 12.;
+        assert!(((offset(&camera, 0.5) - small_jitter) / 12.).distance(nearby) < 1e-6);
+        camera.fov_degrees = 28.;
+        assert!((offset(&camera, 0.5) - small_jitter).length() < 12. * nearby.length());
+        for target in [Vec3::Y, Vec3::NEG_Y, Vec3::ZERO] {
+            camera.target = target;
+            assert!(offset(&camera, 1.).is_finite());
+        }
+    }
+
     #[test]
     fn count_aware_score_rewards_spacing_angle_and_new_surfaces() {
         let mut scene =

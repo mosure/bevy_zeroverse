@@ -22,7 +22,7 @@ generate samples online.
 ![Object-scene dataloader captures showing matched RGB, depth and normal views](docs/bevy_zeroverse_dataloader_grid.webp)
 
 ```sh
-cargo run --bin viewer -- --scene-type object --num-cameras 4 --camera-grid
+cargo run -- --scene-type object --num-cameras 4 --camera-grid
 ```
 
 [Open object scenes in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=object&num_cameras=4&camera_grid=true&regenerate_ms=8000)
@@ -155,14 +155,32 @@ a fixed factor. Output dimensions and camera calibration remain unchanged.
 
 ## Quick start
 
-Run the native viewer using the repository's pinned `nightly-2026-08-31` Rust toolchain (crate MSRV
-1.97.1). The pin keeps native and WebGPU builds on the qualified compiler.
-Optional motion and SigLIP2 inference use Burn 0.22.1:
+Install the native Studio. Running it with no arguments opens a procedural indoor room.
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 7 \
-  --num-cameras 4 --camera-grid
+cargo install bevy_zeroverse --locked
+bevy_zeroverse
+bevy_zeroverse --indoor-seed 7 --num-cameras 4 --camera-grid
+bevy_zeroverse --kiosk
 ```
+
+Kiosk mode presents one calibrated RGB view fullscreen, requests HDR, and hides the
+Studio controls. Each room stays on screen for at least 30 seconds while its successor
+loads. If preparation takes 60 seconds, the Studio skips that seed and continues playback.
+The camera follows a collision-checked
+path of at least 2 m with smoothstep easing. It samples pinhole and full-frame fisheye
+lenses with horizon roll limited to ±10°. Explicit launch settings override the preset.
+F1 restores the controls and F11 toggles fullscreen. On the web, click once to allow
+fullscreen. HDR uses the available display mode. [Open kiosk mode](https://mosure.github.io/bevy_zeroverse/?kiosk)
+
+From a checkout, `cargo run -- --help` shows the same CLI and
+`cargo install --path . --locked` installs the working tree. The repository
+pins `nightly-2026-08-31` (MSRV 1.97.1). Optional motion and SigLIP2 inference
+use Burn 0.22.1.
+
+Run developer tools explicitly, for example `cargo run --example indoor_capacity -- --help`
+or `cargo run --example indoor_prepare_bench -- --help`. To install an individual
+tool, use `cargo install bevy_zeroverse --locked --example indoor_validate`.
 
 Screens, TVs and phones use device-aware procedural content; whiteboards combine
 handwriting and diagrams. Rugs have whole-surface textile designs, and artwork
@@ -181,6 +199,10 @@ See the [tensor contract and benchmark](docs/gpu_jit.md).
 Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
 on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
 keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
+**F1** presents the editor camera, camera grid or schematic edge to edge. Press F1
+again to restore the controls. With **Next scene interval** enabled, Studio prepares
+one indoor successor during playback and skips rejected seeds. The interval is
+the minimum display time for each room.
 Collapsible task groups and **Jump to group…** keep related controls together;
 each page remembers its scroll position. **Capture & tools** groups output size,
 timesteps and configuration import/export.
@@ -220,9 +242,10 @@ cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
 
 Add `--schematic` to export top-down diagrams at each capture timestep.
 
-The native CLI requires a GPU but no display server. Capture waits for assets,
-render pipelines and requested motion. People use the body assets in
-`assets/burn_human`; set `--indoor-human-density 0` to generate interiors without them.
+The native capture CLI requires a GPU but no display server. Capture waits for assets,
+render pipelines and requested motion. The executable includes the AnnyBody reference
+for people. Each renderer process or browser tab decodes it once on first use and shares it
+across people and rooms. Set `--indoor-human-density 0` for unoccupied interiors.
 
 ## MatSynth
 
@@ -238,7 +261,7 @@ then resize them into the local material directory:
 
 ```sh
 python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials
-cargo run --bin viewer -- --material-grid
+cargo run -- --material-grid
 ```
 
 [Open the material grid in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?material_grid=true)

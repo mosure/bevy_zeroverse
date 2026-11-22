@@ -150,14 +150,16 @@ fn main() -> anyhow::Result<()> {
     for round in 0..args.rooms {
         for lane in 0..args.lanes {
             let requests: Vec<_> = (round..args.rooms.min(round + 5))
-                .map(|r| CaptureRequest {
-                    sequence: r * args.lanes as usize + lane as usize,
-                    seed: args.seed + r as u64 * args.lanes as u64 + lane as u64,
+                .map(|r| {
+                    CaptureRequest::new(
+                        r * args.lanes as usize + lane as usize,
+                        args.seed + r as u64 * args.lanes as u64 + lane as u64,
+                    )
                 })
                 .collect();
             receiver.plan_requests(lane, &requests)?;
             ensure!(
-                receiver.try_admit(lane, requests[0])?,
+                receiver.try_admit(lane, requests[0].clone())?,
                 "unexpected admission backpressure"
             );
         }
@@ -255,13 +257,7 @@ fn main() -> anyhow::Result<()> {
             receiver.replace_lane(lane, Duration::from_secs(5))?;
             ensure!(
                 receiver
-                    .try_admit(
-                        0,
-                        CaptureRequest {
-                            sequence: 0,
-                            seed: args.seed
-                        }
-                    )
+                    .try_admit(0, CaptureRequest::new(0, args.seed))
                     .is_err(),
                 "replacement erased sequence history"
             );

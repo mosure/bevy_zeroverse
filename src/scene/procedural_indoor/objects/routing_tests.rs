@@ -42,6 +42,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::PaperTowel
         | ObjectKind::KitchenTowel
         | ObjectKind::Dishware
+        | ObjectKind::Flatware
         | ObjectKind::CuttingBoard
         | ObjectKind::FruitBowl
         | ObjectKind::Bread => kitchen::build(a, o),

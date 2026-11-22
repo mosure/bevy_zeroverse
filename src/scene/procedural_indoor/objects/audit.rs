@@ -15,8 +15,8 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         | ExhibitionPanel | ExtractionHood | Banquette => public::dimensions(kind, seed).to_array(),
         KitchenCounter | KitchenSink | KitchenCupboard | Pantry | Cooktop | Range | Oven
         | Microwave | Dishwasher | Refrigerator | DryingRack | SoapDispenser | Sponge
-        | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | CuttingBoard
-        | FruitBowl | Bread => kitchen::fixture_size(kind).to_array(),
+        | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
+        | CuttingBoard | FruitBowl | Bread => kitchen::fixture_size(kind).to_array(),
 
         Table => [1.6, 0.75, 1.2],
         Desk => [1.3, 0.75, 0.75],
@@ -203,22 +203,30 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         | ExhibitionPanel | ExtractionHood | Banquette => serde_json::json!(public::parameters(o)),
         KitchenCounter | KitchenSink | KitchenCupboard | Pantry | Cooktop | Range | Oven
         | Microwave | Dishwasher | Refrigerator | DryingRack | SoapDispenser | Sponge
-        | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | CuttingBoard
-        | FruitBowl | Bread => kitchen::metadata(o),
+        | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
+        | CuttingBoard | FruitBowl | Bread => kitchen::metadata(o),
 
         Table | Desk | CoffeeTable | SideTable => serde_json::json!(tables::parameters(o)),
         Chair if o.variant >= 10 => {
-            serde_json::json!({"family":if o.variant == 11 {"auditorium"} else {"tablet_arm"}, "folded":chairs::is_folded(o), "seat_height_metres":0.46, "width_metres":o.size.x,"height_metres":o.size.y,"depth_metres":o.size.z})
+            serde_json::json!(chairs::TeachingSeat::sample(o))
         }
         Chair if matches!(o.variant, 6 | 7) => serde_json::json!(chairs::stool::parameters(o)),
         Chair if o.variant == 8 => serde_json::json!(seating::parameters(o)),
         Chair => serde_json::json!(chairs::parameters(o)),
         Sofa => serde_json::json!(seating::parameters(o)),
         Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
-        Plant => serde_json::json!({"growth":super::super::plants::Growth::sample(o.seed),
-            "pot":super::super::plants::PotProfile::sample(o.seed),
-            "pot_radius_height_m":super::super::plants::pot_dimensions(o, &super::super::plants::Growth::sample(o.seed)),
-            "species":super::super::plants::species_name(o.variant)}),
+        Plant => {
+            let growth = super::super::plants::Growth::sample(o.seed);
+            let mut data = serde_json::json!({"growth":growth,
+                "pot":super::super::plants::PotProfile::sample(o.seed),
+                "pot_radius_height_m":super::super::plants::pot_dimensions(o,&growth),
+                "species":super::super::plants::species_name(o.variant)});
+            if o.variant % super::super::plants::SPECIES == 5 {
+                data["cane_habit"] =
+                    serde_json::json!(super::super::plants::CaneHabit::sample(o.seed));
+            }
+            data
+        }
         TrashCan => serde_json::json!(containers::bin_parameters(o)),
         TissueBox => serde_json::json!(containers::tissue_parameters(o)),
         Monitor | Display => serde_json::json!(computers::display_parameters(o)),

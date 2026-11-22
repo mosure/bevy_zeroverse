@@ -9,7 +9,7 @@ The [batch-fix upgrade review](human_motion_registry_upgrade.md) records the new
 version requirements, serial/batch checks and registry transition validation.
 
 ```sh
-cargo run --features human_motion --bin viewer -- \
+cargo run --features human_motion --bin bevy_zeroverse -- \
   --scene-type procedural_indoor --indoor-seed 13 \
   --indoor-density 0.35 --indoor-human-density 0.7 --num-cameras 2 \
   --playback-mode ping-pong --playback-speed 0.167 \
@@ -28,7 +28,8 @@ guidance (0–10), dense path conditioning, batch size and retry limit.
 Defaults remain 10 steps, 80 history frames, text guidance 2 and trajectory guidance 3.
 Ten steps is the published model's maximum; increasing guidance is not a general
 motion-quality improvement. Clip duration and viewer trajectory traversal time
-are separate: Sin/PingPong deliberately reverse clips, while Once plays forward.
+are separate. Once plays a clip forward and holds the last frame. Ping-pong,
+Sine and the easing presets play the clip in both directions.
 **Play once at model speed (20 Hz)** restarts the active generated clip with a linear
 forward timeline lasting `(frames - 1) / 20` seconds. It uses the active clip's
 length, not unapplied policy edits. Default Sin playback at speed 0.2 traverses a
@@ -142,9 +143,16 @@ Every clip is sampled from `Playback.mode.map_progress(Playback.progress)`.
 Progress zero selects the first frame and one selects the last. This uses the
 same easing and capture clock as camera trajectories. No accumulated animation
 delta is used: pausing, jumping backward, and repeated capture times are stable.
-`frames` sets source duration at 20 Hz; interactive `playback_speed` controls
-how quickly normalized scene time advances. Looping can jump between endpoints;
-use `once` or `ping-pong` when a discontinuity is undesirable.
+`frames` sets source duration at 20 Hz. In Studio, **View & playback → Timeline
+& playback** controls cameras, people and moving objects together. **Loop**
+restarts at the beginning. **Ping-pong** retraces the path at constant timeline
+speed. **Ease in / out** and **Cubic in / out** slow to a stop at each turnaround.
+**Smootherstep** also brings acceleration to zero there. The one-sided eases
+turn gently at one end and sharply at the other. At playback speed 0.2, each
+leg takes five seconds, except for **Sine**, which completes the whole round
+trip in five seconds. Space pauses and resumes the selected curve. Scrubbing
+selects the displayed trajectory position. Headless captures sample their
+explicitly requested normalized positions directly.
 
 Headless captures hold their render cameras inactive until scene construction,
 required assets, indirect lighting and the applied motion policy are complete.
@@ -246,16 +254,16 @@ their original static placement.
 
 ```sh
 # CPU manifest/navigation coverage, without model initialization
-cargo run --features human_motion --bin motion_validate -- --seeds 128
+cargo run --features human_motion --example motion_validate -- --seeds 128
 # Also validate prompts with a local copy of the upstream Llama tokenizer
 # (reads tokenizer metadata only; no model weights or GPU initialization):
-cargo run --features human_motion --bin motion_validate -- --seeds 128 \
+cargo run --features human_motion --example motion_validate -- --seeds 128 \
   --tokenizer /path/to/tokenizer.json --output out/motion_prompt_audit
 # Real inference, five time samples, RGB/depth/normal/semantic and pose artifacts
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 0 --render-seeds 4 --output out/human_motion_render
 # Verify the same native path with motion disabled
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 0 --render-seeds 1 --static-only --output out/human_motion_static
 # Dataset generator; allow initial model loading time
 cargo run -p bevy_zeroverse_burn --features human_motion --bin zeroverse_gen -- \

@@ -126,7 +126,7 @@ this work is local and unpublished.
 ## Reproduce
 
 ```sh
-cargo run --release --features human_motion --bin indoor_validate -- \
+cargo run --release --features human_motion --example indoor_validate -- \
   --seed 0 --audit-seeds 512 --audit-geometry \
   --density 0.85 --human-density 0.7 \
   --cameras 3 --width 512 --height 512 --renders 8 \
@@ -135,5 +135,5 @@ cargo run --release --features human_motion --bin indoor_validate -- \
 cargo test --lib --features human_motion
 cargo clippy --workspace --all-targets --features human_motion -- -D warnings
 cargo check --target wasm32-unknown-unknown --no-default-features \
-  --features web,human_motion --bin viewer
+  --features web,human_motion --bin bevy_zeroverse
 ```

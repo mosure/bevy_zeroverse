@@ -92,6 +92,7 @@ mod tests {
         };
         let bounds = module.bounds();
         scene.ceiling_installation = Some(CeilingInstallation {
+            room_grid: None,
             framing: None,
             exposed_slab: true,
             modules: vec![module],
@@ -157,6 +158,7 @@ mod tests {
             web_pitch: 1.,
         };
         scene.ceiling_installation = Some(CeilingInstallation {
+            room_grid: None,
             exposed_slab: true,
             modules: vec![],
             framing: Some(CeilingFraming {

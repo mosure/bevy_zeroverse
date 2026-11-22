@@ -8,7 +8,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, time::Instant};
 
-fn check(a: &Assembly) -> usize {
+pub(super) fn check(a: &Assembly) -> usize {
     let mut triangles = 0;
     for ((surface, label), g) in &a.parts {
         assert!(
@@ -85,7 +85,8 @@ fn building_programs_are_bounded_replayable_and_structurally_varied() {
         };
         let b = Building::sample(&p, 30.);
         let mut a = Assembly::default();
-        buildings::build(&mut a, &p, &b);
+        let viewed = (seed % 5 != 0).then_some((seed % 4) as usize);
+        buildings::build(&mut a, &p, &b, viewed);
         let n = check(&a);
         assert!(n < 12_000, "unbounded exterior facade {n}");
         let inverse = Transform::from_translation(Vec3::new(p.center.x, 0., p.center.y))
@@ -101,7 +102,7 @@ fn building_programs_are_bounded_replayable_and_structurally_varied() {
             );
         }
         let mut replay = Assembly::default();
-        buildings::build(&mut replay, &p, &Building::sample(&p, 30.));
+        buildings::build(&mut replay, &p, &Building::sample(&p, 30.), viewed);
         assert_eq!(fingerprint(&a), fingerprint(&replay));
         hashes.insert(fingerprint(&a));
         roofs.insert(b.roof);
@@ -130,11 +131,13 @@ fn parapets_and_grounded_plants_have_continuous_support() {
         b.split = 1.;
         b.terrace_level = b.levels;
         let mut a = Assembly::default();
-        buildings::build(&mut a, &p, &b);
+        buildings::build(&mut a, &p, &b, None);
         // Sweep a vertical line through a parapet and every slab beneath it.
         // Signed events union overlapping closed components, exposing real air
         // gaps without mistaking deliberately embedded supports for collisions.
-        let point = Vec2::new(p.size.x * 0.5 - 0.0317, 0.1173);
+        // The corner pier supports the parapet through every storey. A line
+        // through a window reveal may legitimately cross air below its lintel.
+        let point = p.size * 0.5 - Vec2::new(0.0317, 0.0329);
         let mut events = Vec::new();
         for g in a.parts.values() {
             for tri in g.indices.as_chunks::<3>().0 {
@@ -194,7 +197,8 @@ fn exterior_population_qualification() {
         let triangles = check(&a);
         let hash = fingerprint(&a);
         hashes.insert(hash.clone());
-        let sites = parcels(&scene);
+        let ExteriorPlan { windows, sites, .. } =
+            ExteriorPlan::new(&scene, &District::sample(seed));
         let mut programs = Vec::new();
         for p in sites.iter().filter(|p| p.kind == 0) {
             programs.push(json!({"parcel":p,"program":Building::sample(p,super::super::background::radius(&scene))}));
@@ -222,7 +226,7 @@ fn exterior_population_qualification() {
         };
         let b = Building::sample(&p, 30.);
         let mut sample = Assembly::default();
-        buildings::build(&mut sample, &p, &b);
+        buildings::build(&mut sample, &p, &b, Some(0));
         let height = b.levels as f32 * b.pitch + b.roof_rise;
         let image = preview::orthographic(
             &sample,
@@ -247,7 +251,7 @@ fn exterior_population_qualification() {
                 .contains_key(&(*s, format!("{label}#exterior"))));
         }
         samples.push(json!({"seed":seed,"layout":scene.layout,"district":District::sample(seed),
-            "parcel_counts":counts(&scene),"window_normal_context_fraction":window_context_fraction(&scene),
+            "parcel_counts":counts(&sites),"window_normal_context_fraction":window_context_fraction(&windows, &sites),
             "construction_ms":build_ms,"triangles":triangles,"batches":a.parts.len(),"mesh_sha256":hash,
             "building_programs":programs,"measurements":measurements(&scene),"validated_total_triangles":full.triangles}));
     }

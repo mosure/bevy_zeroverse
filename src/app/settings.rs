@@ -74,7 +74,15 @@ pub(super) fn synchronize(
     sync!(max_camera_radius, scene, max_camera_radius);
     sync!(cuboid_only, semantic, cuboid_only);
     if !sampler.is_some_and(|s| s.enabled) {
-        sync!(playback_mode, playback, mode);
+        let mut mode = playback.mode;
+        reconcile(
+            &mut config.playback_mode,
+            &mut mode,
+            previous.as_ref().map(|p| &p.playback_mode),
+        );
+        if mode != playback.mode {
+            playback.set_mode(mode);
+        }
         sync!(playback_speed, playback, speed);
     }
     let old_mode = render.clone();
@@ -181,5 +189,20 @@ mod tests {
             app.world().resource::<BevyZeroverseConfig>().render_mode,
             RenderMode::Semantic
         );
+        let mut playback = app.world_mut().resource_mut::<Playback>();
+        playback.set_mode(PlaybackMode::EaseInOutCubic);
+        playback.progress = 0.25;
+        playback.direction = -1.;
+        app.update();
+        assert_eq!(
+            app.world().resource::<BevyZeroverseConfig>().playback_mode,
+            PlaybackMode::EaseInOutCubic
+        );
+        app.world_mut()
+            .resource_mut::<BevyZeroverseConfig>()
+            .playback_mode = PlaybackMode::Still;
+        app.update();
+        let paused = app.world().resource::<Playback>();
+        assert_eq!((paused.progress, paused.direction), (0.0625, -1.));
     }
 }

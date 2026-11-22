@@ -2,10 +2,14 @@
 //! synthesis/filtering, and asset bindings have separate ownership. Geometry
 //! requests a surface/finish; only bindings install Bevy material/image assets.
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
+pub(crate) mod acoustic_tile;
 pub mod art;
 mod atlas;
+pub(crate) mod bin_film;
 pub mod boards;
 pub mod botanical;
+#[cfg(target_arch = "wasm32")]
+mod browser_maps;
 pub mod carpet;
 pub mod ceramic;
 pub mod coating;
@@ -13,6 +17,7 @@ pub mod composition;
 pub mod concrete;
 pub mod construction;
 mod content;
+pub(crate) mod cooktop;
 pub mod display_finish;
 pub(crate) mod emitters;
 mod environment;
@@ -37,6 +42,7 @@ pub mod program;
 #[cfg(test)]
 mod qualification;
 mod raster;
+pub(crate) use raster::letter_rows;
 mod reflections;
 mod response;
 pub mod rug_design;
@@ -50,6 +56,7 @@ pub mod timber;
 pub mod variants;
 pub mod wall;
 pub mod window_textile;
+pub(crate) mod worktop_finish;
 use super::layout::{IndoorManifest, LightingMood};
 use bevy::{
     asset::RenderAssetUsages,
@@ -63,6 +70,7 @@ use bevy::{
 mod bindings;
 mod defaults;
 mod mipmaps;
+mod sheet;
 mod surface;
 mod synthesis;
 pub(crate) use bindings::{finish_slot, MaterialSelection};

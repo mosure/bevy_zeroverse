@@ -29,7 +29,7 @@ fallback. All dependencies are published; no patches or vendored forks are neede
 
 ```toml
 [dependencies]
-bevy_zeroverse_burn = { version = "0.45.0", features = ["gpu_tensor"] }
+bevy_zeroverse_burn = { version = "0.53", features = ["gpu_tensor"] }
 ```
 
 ```rust,no_run
@@ -74,8 +74,8 @@ mixed rigs retain per-view pinhole Z-depth or fisheye ray range. Use calibration
 co-visibility, flow and the GPU color-space conversion. Camera intrinsics stay
 fixed through a trajectory. Existing pinhole configuration remains unchanged.
 
-Set `BEVY_ASSET_ROOT` to the directory containing `assets/burn_human` for rooms
-with AnnyBody people. Missing assets return an error. CPU archives, filesystem
+Occupied rooms use the embedded AnnyBody reference. To use a local reference,
+set `BEVY_ASSET_ROOT` to the project containing your `assets/burn_human` pair. CPU archives, filesystem
 datasets, O-voxels and browser captures use the existing export APIs.
 
 The [tensor contract and benchmarks](https://github.com/mosure/bevy_zeroverse/blob/main/docs/gpu_jit.md)

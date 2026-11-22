@@ -20,16 +20,18 @@ use bevy::{
     time::Stopwatch,
     winit::WinitPlugin,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use bevy_args::parse_args;
 use bevy_args::{Deserialize, Parser, Serialize, ValueEnum};
 
 #[cfg(feature = "viewer")]
 mod camera_grid;
+pub(crate) mod display;
 #[cfg(feature = "viewer")]
 pub mod editor;
 #[cfg(feature = "viewer")]
 mod inspector;
+mod presentation;
+#[cfg(not(target_arch = "wasm32"))]
+pub use presentation::run_native_viewer;
 mod settings;
 #[cfg(feature = "viewer")]
 use bevy::camera_controller::pan_orbit_camera::{
@@ -273,6 +275,12 @@ fn deserialize_viewer_state<'de, D: serde::Deserializer<'de>>(
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
+    /// Present automated indoor rooms fullscreen with one moving RGB view and hidden controls.
+    #[pyo3(get, set)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub kiosk: bool,
+
     /// enable the Scene Studio controller
     #[pyo3(get, set)]
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
@@ -373,7 +381,7 @@ pub struct BevyZeroverseConfig {
 
     /// display a grid of Zeroverse cameras
     #[pyo3(get, set)]
-    #[arg(long, default_value = "false")]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
     pub camera_grid: bool,
 
     /// Display the primary room metric top-down schematic (takes precedence over camera_grid).
@@ -410,6 +418,24 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    /// RGB tone curve for the editor and calibrated capture cameras.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "auto")]
+    #[pyo3(get, set)]
+    pub tonemapping: crate::render::color::RgbTonemapping,
+
+    /// Request extended dynamic range for RGB captures and the Studio display.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[pyo3(get, set)]
+    pub hdr: bool,
+
+    /// Start the viewer fullscreen on its current monitor.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[pyo3(get, set)]
+    pub fullscreen: bool,
+
     #[pyo3(get, set)]
     pub render_modes: Vec<RenderMode>,
 
@@ -420,7 +446,7 @@ pub struct BevyZeroverseConfig {
     pub annotation_glass: crate::render::glass::AnnotationGlass,
 
     #[pyo3(get, set)]
-    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::ProceduralIndoor)]
     pub scene_type: ZeroverseSceneType,
 
     /// Base seed for procedural_indoor; successive scenes use seed + scene index.
@@ -599,6 +625,11 @@ impl BevyZeroverseConfig {
 #[command(about = "bevy_zeroverse viewer", version, long_about = None)]
 #[reflect(Resource)]
 pub struct BevyZeroverseConfig {
+    /// Present automated indoor rooms fullscreen with one moving RGB view and hidden controls.
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub kiosk: bool,
+
     /// enable the Scene Studio controller
     #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
     pub editor: bool,
@@ -680,7 +711,7 @@ pub struct BevyZeroverseConfig {
     pub num_cameras: usize,
 
     /// display a grid of Zeroverse cameras
-    #[arg(long, default_value = "false")]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
     pub camera_grid: bool,
 
     /// Display the primary room metric top-down schematic.
@@ -710,6 +741,21 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = RenderMode::Color)]
     pub render_mode: RenderMode,
 
+    /// RGB tone curve for the editor and calibrated capture cameras.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "auto")]
+    pub tonemapping: crate::render::color::RgbTonemapping,
+
+    /// Request extended dynamic range for RGB captures and the Studio display.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    pub hdr: bool,
+
+    /// Start the viewer fullscreen on its current monitor.
+    #[serde(default)]
+    #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
+    pub fullscreen: bool,
+
     pub render_modes: Vec<RenderMode>,
 
     /// Geometric annotations hit glass surfaces, or follow straight rays through them.
@@ -717,7 +763,7 @@ pub struct BevyZeroverseConfig {
     #[serde(default)]
     pub annotation_glass: crate::render::glass::AnnotationGlass,
 
-    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::Object)]
+    #[arg(long, value_enum, default_value_t = ZeroverseSceneType::ProceduralIndoor)]
     pub scene_type: ZeroverseSceneType,
 
     /// Base seed for procedural_indoor; successive scenes use seed + scene index.
@@ -847,6 +893,7 @@ pub struct BevyZeroverseConfig {
 impl Default for BevyZeroverseConfig {
     fn default() -> BevyZeroverseConfig {
         BevyZeroverseConfig {
+            kiosk: false,
             editor: true,
             viewer_state: None,
             gizmos: true,
@@ -873,6 +920,9 @@ impl Default for BevyZeroverseConfig {
             regenerate_scene_mesh_shuffle_period: 0,
             yaw_speed: 0.0,
             render_mode: Default::default(),
+            tonemapping: Default::default(),
+            hdr: false,
+            fullscreen: false,
             render_modes: vec![],
             annotation_glass: Default::default(),
             scene_type: Default::default(),
@@ -927,7 +977,7 @@ fn web_viewer_defaults() -> BevyZeroverseConfig {
         depth_format: DepthFormat::Turbo,
         width: 768.,
         height: 768.,
-        ..BevyZeroverseConfig::parse_from(["viewer"])
+        ..BevyZeroverseConfig::parse_from(["bevy_zeroverse"])
     })
 }
 
@@ -1166,7 +1216,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         None => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                studio_lens_defaults(parse_args::<BevyZeroverseConfig>())
+                presentation::parse_cli(std::env::args_os()).unwrap_or_else(|error| error.exit())
             }
             #[cfg(target_arch = "wasm32")]
             {
@@ -1225,6 +1275,8 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     #[cfg(not(target_arch = "wasm32"))]
     let primary_window = (!args.headless).then(|| Window {
+        // Apply startup fullscreen before the first rendered frame. Creating the
+        // window at its requested size first gives winit a windowed size to restore.
         mode: bevy::window::WindowMode::Windowed,
         prevent_default_event_handling: false,
         resolution: bevy::window::WindowResolution::new(
@@ -1315,6 +1367,9 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         default_plugins
     };
     app.add_plugins(default_plugins);
+    if !args.headless {
+        app.add_plugins(display::DisplayPlugin);
+    }
 
     if args.image_copiers
         && args.scene_type == ZeroverseSceneType::ProceduralIndoor
@@ -1681,28 +1736,33 @@ fn regenerate_scene_system(
     if sampler.is_some_and(|state| state.enabled) {
         return;
     }
-    if args.regenerate_ms > 0 {
+    // The interactive indoor sequence raises the ordinary regeneration event
+    // only when its exact successor is prepared. Manual R still works below.
+    let timed = args.regenerate_ms > 0
+        && (args.headless || args.scene_type != ZeroverseSceneType::ProceduralIndoor);
+    if timed {
         regenerate_stopwatch.tick(time.delta());
+    } else {
+        regenerate_stopwatch.reset();
     }
 
-    let mut regenerate_scene = args.regenerate_ms > 0
-        && regenerate_stopwatch.elapsed().as_millis() > args.regenerate_ms as u128
+    let due = timed
+        && regenerate_stopwatch.elapsed().as_millis() >= args.regenerate_ms as u128
         && !indoor.is_some_and(|status| status.busy());
+    #[cfg(feature = "viewer")]
+    let typing = input_capture.is_some_and(|input| input.keyboard);
+    #[cfg(not(feature = "viewer"))]
+    let typing = false;
+    let manual = args.keybinds && !typing && keys.just_pressed(KeyCode::KeyR);
 
-    if args.keybinds {
+    if manual || due {
         #[cfg(feature = "viewer")]
-        let typing = input_capture.is_some_and(|input| input.keyboard);
-        #[cfg(not(feature = "viewer"))]
-        let typing = false;
-        regenerate_scene |= !typing && keys.just_pressed(KeyCode::KeyR);
-    }
-
-    if regenerate_scene {
-        #[cfg(feature = "viewer")]
-        if let Some(actions) = &mut editor_actions {
-            actions.0.push(editor::Action::Next);
-            regenerate_stopwatch.reset();
-            return;
+        if manual {
+            if let Some(actions) = &mut editor_actions {
+                actions.0.push(editor::Action::Next);
+                regenerate_stopwatch.reset();
+                return;
+            }
         }
         regenerate_event.write(RegenerateSceneEvent);
         regenerate_stopwatch.reset();
@@ -1746,6 +1806,7 @@ fn press_m_shuffle_materials_and_meshes(
 
 fn press_esc_close(
     keys: Res<ButtonInput<KeyCode>>,
+    mut config: ResMut<BevyZeroverseConfig>,
     #[cfg(feature = "viewer")] focus: Option<Res<bevy::input_focus::InputFocus>>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -1754,6 +1815,10 @@ fn press_esc_close(
         return;
     }
     if keys.just_pressed(KeyCode::Escape) {
+        if config.fullscreen {
+            config.fullscreen = false;
+            return;
+        }
         exit.write(AppExit::Success);
     }
 }

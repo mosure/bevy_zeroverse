@@ -151,11 +151,19 @@ class ReferenceComparisonTests(unittest.TestCase):
         scene["meshes"].append(dict(scene["meshes"][0], offset=len(geometry)))
         scene["materials"].append({"roughness": .8})
         scene["instances"].append({"mesh": 1, "material": 1})
+        scene["exterior_sky"] = {"material": 1, "mapping": "upper_hemisphere_octahedral_v1"}
         expected = optical_identity(scene, directory)
         scene["meshes"].reverse()
         scene["materials"].reverse()
         scene["instances"] = [{"mesh": 1, "material": 1}, {"mesh": 0, "material": 0}]
+        self.assertNotEqual(expected, optical_identity(scene, directory))
+        scene["exterior_sky"]["material"] = 0
         self.assertEqual(expected, optical_identity(scene, directory))
+        scene["instances"][0]["finite_sky_proxy"] = False
+        self.assertEqual(expected, optical_identity(scene, directory))
+        scene["instances"][0]["finite_sky_proxy"] = True
+        self.assertNotEqual(expected, optical_identity(scene, directory))
+        del scene["instances"][0]["finite_sky_proxy"]
         scene["instances"][0]["material"] = 0
         self.assertNotEqual(expected, optical_identity(scene, directory))
 

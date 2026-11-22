@@ -1,6 +1,11 @@
 //! Vitrines, tray stations and plinths with shared load-bearing geometry.
 use super::*;
 pub mod plinth;
+mod service_glazing;
+mod stocking;
+#[cfg(test)]
+mod tests;
+pub use service_glazing::{CaseDoor, ServiceGlazing, ShelfEdge};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct CaseProgram {
@@ -14,6 +19,10 @@ pub struct CaseProgram {
     pub glazed_top: bool,
     pub frame: Surface,
     pub finish: Surface,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_glazing: Option<ServiceGlazing>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shelf_edge: Option<ShelfEdge>,
 }
 pub fn parameters(o: &IndoorObject) -> CaseProgram {
     let mut r = stream(o.seed, 0x43415345574f524b);
@@ -27,8 +36,9 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
     let levels = (0..n)
         .map(|i| base + 0.025 + (0.90 - base) * (i as f32 + r.random_range(0.02..0.24)) / n as f32)
         .collect();
+    let structure = r.random_range(0..4);
     CaseProgram {
-        structure: r.random_range(0..4),
+        structure,
         base_fraction: base,
         wall_fraction: r.random_range(0.018..0.045),
         taper: r.random_range(0.60..0.95),
@@ -43,6 +53,12 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
             Surface::Plastic,
             Surface::Concrete,
         ][f.random_range(0..4)],
+        service_glazing: (o.kind == ObjectKind::DisplayCase).then(|| ServiceGlazing::sample(o)),
+        shelf_edge: if o.kind == ObjectKind::DisplayCase && structure == 1 {
+            ShelfEdge::sample(o)
+        } else {
+            None
+        },
     }
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
@@ -77,105 +93,74 @@ fn display(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
     let s = o.size;
     let l = o.kind.class_name();
     let base = s.y * p.base_fraction;
-    let frame = s.x.min(s.z) * p.wall_fraction;
+    let glazing = p
+        .service_glazing
+        .expect("display cases have service glazing");
+    let cabinet = service_glazing::Cabinet::new(s, p, glazing);
+    let frame = cabinet.frame;
     if p.structure < 2 {
         a.box_part(
             p.finish,
             l,
-            Vec3::Y * base * 0.5,
-            Vec3::new(s.x * 0.96, base, s.z * 0.96),
+            Vec3::Y * (base - frame * 0.5) * 0.5,
+            Vec3::new(s.x * 0.96, base - frame * 0.5, s.z * 0.96),
             frame * 0.3,
         );
     } else {
-        feet(a, o, p, base);
+        feet(a, o, p, base - frame * 0.5);
     }
     a.box_part(
         p.frame,
         l,
         Vec3::Y * base,
-        Vec3::new(s.x * 0.96, frame, s.z * 0.96),
-        0.002,
-    );
-    for x in [-1., 1.] {
-        for z in [-1., 1.] {
-            a.box_part(
-                p.frame,
-                l,
-                Vec3::new(
-                    x * (s.x * 0.5 - frame * 0.5),
-                    (base + s.y) * 0.5,
-                    z * (s.z * 0.5 - frame * 0.5),
-                ),
-                Vec3::new(frame, s.y - base, frame),
-                frame * 0.2,
-            );
-        }
-    }
-    let glass_bottom = base + frame * 0.5 + 0.002;
-    let glass_top = s.y - frame - 0.003;
-    for x in [-1., 1.] {
-        a.box_part(
-            Surface::ContainerGlass,
-            l,
-            Vec3::new(
-                x * (s.x * 0.5 - frame * 0.5),
-                (glass_top + glass_bottom) * 0.5,
-                0.,
-            ),
-            Vec3::new(0.004, glass_top - glass_bottom, s.z - frame * 2. - 0.003),
-            0.0005,
-        );
-    }
-    for z in [-1., 1.] {
-        a.box_part(
-            Surface::ContainerGlass,
-            l,
-            Vec3::new(
-                0.,
-                (glass_top + glass_bottom) * 0.5,
-                z * (s.z * 0.5 - frame * 0.5),
-            ),
-            Vec3::new(s.x - frame * 2. - 0.003, glass_top - glass_bottom, 0.004),
-            0.0005,
-        );
-    }
-    a.box_part(
-        if p.glazed_top {
-            Surface::ContainerGlass
-        } else {
-            p.finish
-        },
-        l,
-        Vec3::Y * (s.y - frame * 0.5),
         Vec3::new(s.x, frame, s.z),
         0.002,
     );
-    for (i, &y) in p.levels.iter().enumerate() {
-        let shelf = y * s.y;
+    cabinet.enclosure(a, p, glazing);
+    let (shelf_stock, shelf_label) = if p.structure == 1 {
+        (
+            Surface::ContainerGlass,
+            crate::scene::procedural_indoor::materials::glass::display::SheetGauge::Eight.label(),
+        )
+    } else {
+        (p.frame, l)
+    };
+    for (i, &level) in p.levels.iter().enumerate() {
+        let shelf = cabinet.shelf_height(level, s.y);
+        let (lo, hi) = cabinet.shelf;
+        cabinet.shelf_supports(a, p.frame, shelf, glazing.pane.metres());
+        let glass_end = cabinet.shelf_front(a, shelf);
         a.box_part(
-            if p.structure == 1 {
-                Surface::ContainerGlass
-            } else {
-                p.frame
-            },
-            l,
-            Vec3::Y * shelf,
-            Vec3::new(s.x - frame * 2.5, 0.008, s.z - frame * 2.5),
+            shelf_stock,
+            shelf_label,
+            Vec3::new(0., shelf, (lo.y + glass_end) * 0.5),
+            Vec3::new(hi.x - lo.x, cabinet.shelf_thickness, glass_end - lo.y),
             0.001,
         );
-        let headroom =
-            p.levels.get(i + 1).copied().unwrap_or(1. - frame / s.y) * s.y - shelf - 0.018;
+        let support_y = shelf + cabinet.shelf_thickness * 0.5;
+        let above = p.levels.get(i + 1).map_or(cabinet.head, |next| {
+            cabinet.shelf_height(*next, s.y) - cabinet.shelf_thickness * 0.5
+        });
         if p.contents {
-            contents(a, o, i, shelf + 0.004, headroom, frame);
+            contents(a, o, i, support_y, above - support_y - 0.012, cabinet.shelf);
         }
     }
 }
-fn contents(a: &mut Assembly, o: &IndoorObject, level: usize, y: f32, headroom: f32, frame: f32) {
+fn contents(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    level: usize,
+    y: f32,
+    headroom: f32,
+    bounds: (Vec2, Vec2),
+) {
     use crate::scene::procedural_indoor::placement::{Footprint, SurfacePattern};
     let mut r = stream(o.seed, 0x43415345434f4e54 + level as u64);
     let pattern = SurfacePattern::sample(&mut r);
     let mut occupied: Vec<Footprint> = Vec::new();
-    let half = o.size.xz() * 0.5 - Vec2::splat(frame * 1.6 + 0.01);
+    if o.variant < 16 {
+        occupied.extend(stocking::bakery_tray(a, o, level, y, headroom, bounds));
+    }
     for _ in 0..r.random_range(1..=5) {
         let mut child = o.clone();
         child.kind = if o.variant >= 16 {
@@ -185,13 +170,16 @@ fn contents(a: &mut Assembly, o: &IndoorObject, level: usize, y: f32, headroom: 
         };
         child.seed = r.random();
         child.position = Vec3::ZERO;
+        child.yaw = 0.;
+        child.finish_seed = None;
+        child.variant = (child.seed % 8) as u32;
         child.size = hospitality::content_size(child.kind, child.seed, &mut r);
         if child.size.y > headroom {
             continue;
         }
         for _ in 0..16 {
             let yaw = pattern.yaw(&mut r);
-            let Some(proposal) = pattern.propose((-half, half), child.size.xz(), yaw, 0.01, &mut r)
+            let Some(proposal) = pattern.propose(bounds, child.size.xz(), yaw, 0.013, &mut r)
             else {
                 continue;
             };

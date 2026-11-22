@@ -38,9 +38,7 @@ impl AnimatedLight {
         id: usize,
         rest: Transform,
     ) -> Option<Self> {
-        let m = scene.indoor_motion.as_ref()?.mechanisms.iter().find(|m| {
-            m.rejection.is_none() && (m.object_id == Some(id) || m.carried_object_ids.contains(&id))
-        })?;
+        let m = scene.indoor_motion.as_ref()?.mechanism_for_object(id)?;
         let mut joint =
             construction::rigid(m.kind, 0, m.pivot, m.axis, m.angle_radians, m.translation_m);
         joint.interval = m.interval;
@@ -55,7 +53,7 @@ fn animate_lights(
     time: Res<crate::camera::Playback>,
     mut lights: Query<(&mut AnimatedLight, &mut Transform)>,
 ) {
-    let t = time.mode.map_progress(time.progress);
+    let t = time.trajectory_progress();
     for (mut light, mut tf) in &mut lights {
         let amount = light.joint.amount(t);
         if amount != light.last {
@@ -108,7 +106,7 @@ fn animate(
     mut failure: ResMut<crate::sample::CaptureFailure>,
     mut parts: Query<(&mut AnimatedPart, &Mesh3d, &mut Transform, &mut Aabb)>,
 ) {
-    let t = time.mode.map_progress(time.progress);
+    let t = time.trajectory_progress();
     for (mut part, mesh, mut transform, mut aabb) in &mut parts {
         let amount = part.joint.amount(t);
         if part.last == Some(amount) {
@@ -206,9 +204,15 @@ mod tests {
     use super::*;
     #[test]
     fn playback_changes_real_mesh_transforms_bounds_and_preserves_correspondence() {
+        use crate::camera::{Playback, PlaybackMode, TrajectorySampler, ZeroverseCamera};
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>()
-            .init_resource::<crate::camera::Playback>()
+            .init_resource::<Playback>()
+            .init_resource::<Time>()
+            .init_resource::<crate::app::BevyZeroverseConfig>()
+            .add_message::<crate::scene::RegenerateSceneEvent>()
+            .add_message::<crate::scene::SceneLoadedEvent>()
+            .add_systems(Update, crate::camera::update_camera_trajectory)
             .add_plugins(IndoorMotionPlugin);
         let mut g = Geometry::default();
         g.cuboid(Vec3::ONE, 0., Transform::IDENTITY);
@@ -249,6 +253,38 @@ mod tests {
                     < 1e-5
             );
             assert_eq!(app.world().get::<Mesh3d>(part).unwrap().0.id(), handle.id());
+        }
+        // Drive the actual camera and the moving mesh from the same clock,
+        // including the return leg and the start of the next cycle.
+        let camera = app
+            .world_mut()
+            .spawn((
+                Transform::IDENTITY,
+                ZeroverseCamera {
+                    trajectory: TrajectorySampler::WaypointPath {
+                        positions: vec![Vec3::ZERO, Vec3::X],
+                        rotations: vec![Quat::IDENTITY; 2],
+                    },
+                    ..default()
+                },
+            ))
+            .id();
+        app.world_mut()
+            .resource_mut::<Playback>()
+            .set_mode(PlaybackMode::EaseInOutCubic);
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(250));
+        for t in [0.0625, 0.5, 0.9375, 1., 0.9375, 0.5, 0.0625, 0., 0.0625] {
+            app.update();
+            assert_eq!(
+                app.world().get::<Transform>(camera).unwrap().translation,
+                t * Vec3::X
+            );
+            assert_eq!(
+                *app.world().get::<Transform>(part).unwrap(),
+                joint.transform(joint.amount(t))
+            );
         }
     }
 }

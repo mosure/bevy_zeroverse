@@ -4,6 +4,7 @@ use super::*;
 use crate::scene::procedural_indoor::{
     architecture::facade::WindowOpening, envelope::lining::WallLining,
 };
+mod courses;
 
 struct Skin {
     board: Geometry,
@@ -81,6 +82,9 @@ pub(super) fn build(
     height: f32,
     holes: &[WindowOpening],
 ) {
+    if let Some(program) = s.courses {
+        return courses::build(a, tf, s, program, span, height, holes);
+    }
     let (left, right) = (-span * 0.5, span * 0.5);
     let mut holes: Vec<_> = holes
         .iter()
@@ -150,7 +154,10 @@ pub(super) fn build(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scene::procedural_indoor::envelope::{lining::LiningStock, tests::ray_triangle};
+    use crate::scene::procedural_indoor::envelope::{
+        lining::{LiningStock, WallCourses},
+        tests::ray_triangle,
+    };
 
     #[test]
     fn ray_coverage_preserves_apertures_and_signed_relief_on_oblique_walls() {
@@ -182,8 +189,20 @@ mod tests {
             joint_width_m: 0.012,
             joint_depth_m: 0.005,
             finish_slot: 3,
+            courses: None,
         };
-        for angle in [0., 1.13, 2.68] {
+        let bond = WallCourses {
+            height_m: 0.42,
+            phase: 0.17,
+            bond_offset: 0.5,
+        };
+        for (angle, courses) in [
+            (0., None),
+            (1.13, None),
+            (0., Some(bond)),
+            (2.68, Some(bond)),
+        ] {
+            let s = WallLining { courses, ..s };
             let tf = Transform::from_xyz(7., 0., -5.).with_rotation(Quat::from_rotation_y(angle));
             let n = tf.rotation * Vec3::Z;
             let mut a = Assembly::default();
@@ -224,9 +243,16 @@ mod tests {
                     assert!(hits.iter().all(|t| (0.14999..=0.15501).contains(t)));
                 }
             }
-            let seam = s.phase * s.module_width_m;
+            let seam = (s.phase + courses.map_or(0., |c| c.bond_offset)) * s.module_width_m;
             assert!((hit(seam, 0.70)[0] - 0.155).abs() < 1e-5);
             assert!((hit(seam + 0.04, 0.70)[0] - 0.15).abs() < 1e-5);
+            if let Some(c) = courses {
+                let joint = (c.phase + 1.) * c.height_m;
+                assert!((hit(0.30, joint)[0] - 0.155).abs() < 1e-5);
+                assert!((hit(seam, joint - 0.06)[0] - 0.15).abs() < 1e-5);
+                // The recessed horizontal mortar returns flush at the open jamb.
+                assert!(hit(-0.20 + 0.0003, joint)[0] < 0.151);
+            }
         }
     }
 }

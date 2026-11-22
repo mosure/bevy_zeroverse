@@ -65,6 +65,8 @@ pub struct ScreenProgram {
     pub dark: bool,
     /// cd/m² of a white pixel. Content texture modulates this emission.
     pub luminance: f32,
+    /// Linear diffuse reflectance of the dark panel beneath its specular cover.
+    pub panel_diffuse_reflectance: f32,
     pub white_kelvin: f32,
     pub white_tint: f32,
     pub dormant: bool,
@@ -113,6 +115,9 @@ pub(super) fn base_parameters(seed: u64) -> ScreenProgram {
         // The device output distribution resolves this field below. Keep this
         // f32 draw here so appearance changes do not reshuffle content/dormancy.
         luminance: rng.random_range(65.0..280.0),
+        panel_diffuse_reflectance: stream(seed, 0x50414e454c524546)
+            .random_range(0.003_f32.ln()..0.025_f32.ln())
+            .exp(),
         white_kelvin,
         white_tint: output.random_range(-0.025..0.025),
         dormant: rng.random_bool(0.12),
@@ -165,13 +170,17 @@ pub fn mobile_pixels(seed: u64) -> Vec<u8> {
 fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
     let p = device_parameters(seed, kind);
     if p.dormant {
-        return dormant_canvas(seed).0;
+        return Canvas::new([0; 3]).0;
     }
+    active_pixels(seed, kind, &p)
+}
+
+fn active_pixels(seed: u64, kind: DisplayKind, p: &ScreenProgram) -> Vec<u8> {
     if p.full_bleed {
         return art::illustration(seed ^ 0x4d45444941);
     }
     if p.composed {
-        return workspace::pixels(seed, kind, &p);
+        return workspace::pixels(seed, kind, p);
     }
     match kind {
         DisplayKind::Desktop => single_pixels(seed),
@@ -182,23 +191,25 @@ fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
 pub(super) struct PreparedScreen {
     finish: display_finish::DisplayFinish,
     roughness: Option<Image>,
-    color: Image,
-    dormant: bool,
+    content: Option<Image>,
+    panel_diffuse_reflectance: f32,
     emission: LinearRgba,
 }
 
 pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
     let seed = device_seed(seed, kind);
-    let pixels = device_pixels(seed, kind);
     let p = device_parameters(seed, kind);
-    let roughness = p.finish.prepare(seed, false, &pixels);
-    let mut screen = mip_image(pixels, 256, MapType::Color);
-    screen.sampler = ImageSampler::linear();
+    let content = (!p.dormant).then(|| {
+        let mut image = mip_image(active_pixels(seed, kind, &p), 256, MapType::Color);
+        image.sampler = ImageSampler::linear();
+        image
+    });
+    let roughness = p.finish.prepare(seed, None);
     PreparedScreen {
         finish: p.finish,
         roughness,
-        color: screen,
-        dormant: p.dormant,
+        content,
+        panel_diffuse_reflectance: p.panel_diffuse_reflectance,
         emission: super::super::photometry::display_emission(
             if p.dormant { 0. } else { p.luminance },
             p.white_kelvin,
@@ -210,10 +221,10 @@ pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
 impl PreparedScreen {
     pub(super) fn apply(self, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
         self.finish.apply_prepared(self.roughness, mat, images);
-        let texture = images.add(self.color);
-        mat.base_color = Color::WHITE;
-        mat.base_color_texture = Some(texture.clone());
-        mat.emissive_texture = if self.dormant { None } else { Some(texture) };
+        let r = self.panel_diffuse_reflectance;
+        mat.base_color = Color::linear_rgb(r, r, r);
+        mat.base_color_texture = None;
+        mat.emissive_texture = self.content.map(|image| images.add(image));
         mat.emissive = self.emission;
         mat.emissive_exposure_weight = 1.;
         mat.metallic = 0.;
@@ -273,26 +284,6 @@ pub(super) fn palette(p: &ScreenProgram) -> Palette {
             if p.dark { 0.65 } else { 0.41 },
         ),
     }
-}
-fn dormant_canvas(seed: u64) -> Canvas {
-    // An unlit panel retains a dark, low-frequency coating tint. It is still
-    // dormant (no emissive map); don't invent active content just to be unique.
-    let mut rng = stream(seed, 0x434f4154494e47);
-    let tint: [f32; 3] = std::array::from_fn(|_| rng.random_range(2.0..7.));
-    let angle: f32 = rng.random_range(-std::f32::consts::PI..std::f32::consts::PI);
-    let center = rng.random_range(-0.35..0.35);
-    let width = rng.random_range(0.25..0.85);
-    let strength = rng.random_range(1.0..7.);
-    let (sn, cs) = angle.sin_cos();
-    let mut c = Canvas::new([4, 5, 7]);
-    for y in 0..N {
-        for x in 0..N {
-            let d = ((x as f32 / 256. - 0.5) * cs + (y as f32 / 256. - 0.5) * sn - center) / width;
-            let sheen = strength * (1. - d * d).max(0.).powi(2);
-            c.rect(x, y, 1, 1, tint.map(|t| (t + sheen) as u8));
-        }
-    }
-    c
 }
 fn text_rows(
     c: &mut Canvas,
@@ -475,9 +466,6 @@ pub(super) fn map(c: &mut Canvas, seed: u64, p: &ScreenProgram, bounds: [i32; 4]
 }
 fn single_pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
-    if p.dormant {
-        return dormant_canvas(seed).0;
-    }
     let colors = palette(&p);
     let mut rng = stream(seed, 862);
     let mut c = Canvas::new(colors.bg);
@@ -736,9 +724,6 @@ fn single_pixels(seed: u64) -> Vec<u8> {
 }
 fn single_mobile_pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
-    if p.dormant {
-        return dormant_canvas(seed).0;
-    }
     let colors = palette(&p);
     let mut rng = stream(seed, 863);
     let mut c = Canvas::new(colors.bg);
@@ -881,6 +866,7 @@ mod tests {
             let p = parameters(seed);
             states.insert(p.dormant);
             let mut material = StandardMaterial::default();
+            let previous_images = images.len();
             apply(seed, false, &mut material, &mut images);
             assert_eq!(
                 material.emissive,
@@ -893,10 +879,23 @@ mod tests {
             assert_eq!(material.emissive_texture.is_none(), p.dormant);
             assert_eq!(material.metallic, 0.);
             assert!((0.06..0.4).contains(&material.perceptual_roughness));
-            let image = images
-                .get(material.base_color_texture.as_ref().unwrap())
-                .unwrap();
-            assert_eq!(image.texture_descriptor.mip_level_count, 9);
+            assert!(material.base_color_texture.is_none());
+            assert_eq!(
+                material.base_color.to_linear().red,
+                p.panel_diffuse_reflectance
+            );
+            assert!((0.003..=0.025).contains(&p.panel_diffuse_reflectance));
+            assert_eq!(
+                images.len() - previous_images,
+                usize::from(!p.dormant) + usize::from(p.finish.smudges != 0)
+            );
+            if let Some(image) = material
+                .emissive_texture
+                .as_ref()
+                .and_then(|h| images.get(h))
+            {
+                assert_eq!(image.texture_descriptor.mip_level_count, 9);
+            }
         }
         assert_eq!(states.len(), 2);
     }
@@ -945,10 +944,17 @@ mod tests {
                         television_pixels(seed)
                     }
                 };
-                let image = images
-                    .get(mat.base_color_texture.as_ref().unwrap())
-                    .unwrap();
-                assert_eq!(&image.data.as_ref().unwrap()[..256 * 256 * 4], &expected);
+                assert!(mat.base_color_texture.is_none());
+                if p.dormant {
+                    assert!(expected
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|p| p == &[0, 0, 0, 255]));
+                } else {
+                    let image = images.get(mat.emissive_texture.as_ref().unwrap()).unwrap();
+                    assert_eq!(&image.data.as_ref().unwrap()[..256 * 256 * 4], &expected);
+                }
                 assert_eq!(
                     mat.emissive,
                     super::super::super::photometry::display_emission(

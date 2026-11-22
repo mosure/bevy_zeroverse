@@ -1,17 +1,22 @@
 //! Bounded ceiling installations shared by construction, placement and cameras.
 //! Recipes describe real occupied volumes; meshes are batched by existing PBR roles.
 mod construction;
+mod field;
+pub(crate) use field::build as build_room_grid;
+pub use field::{AirPattern, AirTerminal, CeilingGrid, RecessedLight};
 pub mod framing;
 mod legacy;
 mod profile;
 mod sampling;
 mod suspension;
+mod tile;
 pub(crate) use sampling::highest_floor;
 #[cfg(test)]
 mod tests;
 use super::*;
 pub use profile::{CeilingDetail, CeilingShape, TrussWeb};
 use serde::{Deserialize, Serialize};
+pub use tile::{CeilingTile, TileEdge, TileFacing};
 
 const MIN_HEADROOM_M: f32 = 2.35;
 
@@ -78,6 +83,9 @@ impl CeilingModule {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CeilingInstallation {
+    /// A fitted, room-wide ceiling at the finished height, including its service bays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_grid: Option<CeilingGrid>,
     pub exposed_slab: bool,
     pub modules: Vec<CeilingModule>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -109,6 +117,13 @@ impl CeilingInstallation {
         &self,
         scene: &IndoorManifest,
     ) -> Result<Option<String>, String> {
+        if let Some(grid) = &self.room_grid {
+            if self.exposed_slab || self.framing.is_some() || !self.modules.is_empty() {
+                return Err("room ceiling has incompatible installations".into());
+            }
+            grid.validate(scene)?;
+            return Ok(None);
+        }
         if self.modules.len() > 96 {
             return Err("unbounded ceiling installation".into());
         }

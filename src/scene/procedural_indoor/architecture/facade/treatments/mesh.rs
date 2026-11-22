@@ -3,6 +3,8 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 #[path = "roller.rs"]
 mod roller;
 pub(super) use roller::feed_plane;
+#[path = "curtain.rs"]
+mod curtain;
 #[path = "sliding.rs"]
 mod sliding;
 
@@ -57,7 +59,15 @@ impl Builder<'_> {
     }
     fn header(&mut self, kind: Shade) {
         let y = self.hi.y - 0.026;
-        if kind == Shade::Curtain {
+        let curtain_track = kind == Shade::Curtain && self.p.curtain_heading.is_some();
+        if curtain_track {
+            self.block(
+                Surface::Metal,
+                Vec3::new(self.center(), y, drapery::TRACK_Z),
+                Vec3::new(self.width(), drapery::TRACK_HEIGHT, 0.028),
+                0.002,
+            );
+        } else if kind == Shade::Curtain {
             self.tube(
                 Surface::Metal,
                 &[Vec3::new(self.lo.x, y, 0.13), Vec3::new(self.hi.x, y, 0.13)],
@@ -89,11 +99,26 @@ impl Builder<'_> {
                 0.003,
             );
         }
-        for x in [self.lo.x + 0.01, self.hi.x - 0.01] {
+        let bays = if curtain_track {
+            (self.width() / 1.45).ceil().max(1.) as usize
+        } else {
+            1
+        };
+        for i in 0..=bays {
+            let x = if i == bays {
+                self.hi.x - 0.01
+            } else {
+                self.lo.x + 0.01 + (self.width() - 0.02) * (i as f32 / bays as f32)
+            };
+            let depth = if curtain_track {
+                drapery::TRACK_Z
+            } else {
+                0.13
+            };
             self.block(
                 Surface::Metal,
-                Vec3::new(x, y, 0.075),
-                Vec3::new(0.016, 0.042, 0.13),
+                Vec3::new(x, y, if curtain_track { depth * 0.5 } else { 0.075 }),
+                Vec3::new(0.016, 0.042, depth),
                 0.002,
             );
         }
@@ -386,7 +411,7 @@ impl Builder<'_> {
             );
         }
     }
-    fn curtain(&mut self) {
+    fn legacy_curtain(&mut self) {
         let ranges = match self.p.stack {
             Stack::Pair => vec![
                 (self.lo.x, self.lo.x + self.width() * self.p.split, true),
@@ -462,24 +487,24 @@ impl Builder<'_> {
     }
 }
 
+pub(super) struct Draw {
+    pub coverage: f32,
+    pub fixed_angle: Option<f32>,
+    pub moving: bool,
+}
 pub(super) fn build(
     a: &mut Assembly,
     tf: Transform,
     f: &Facade,
     o: &WindowOpening,
     p: &ShadeProgram,
+    draw: Draw,
 ) {
-    build_with_angle(a, tf, f, o, p, None, false);
-}
-pub(super) fn build_with_angle(
-    a: &mut Assembly,
-    tf: Transform,
-    f: &Facade,
-    o: &WindowOpening,
-    p: &ShadeProgram,
-    fixed_angle: Option<f32>,
-    moving: bool,
-) {
+    let Draw {
+        coverage,
+        fixed_angle,
+        moving,
+    } = draw;
     let label = format!(
         "{}#finish{}",
         if f.shade == Shade::Curtain {
@@ -508,7 +533,7 @@ pub(super) fn build_with_angle(
         p,
         label,
         cloth_label,
-        coverage: f.shade_coverage.clamp(0., 1.),
+        coverage,
         tilt: f.shade_tilt.clamp(-1.2, 1.2),
         fixed_angle,
     };
@@ -527,7 +552,10 @@ pub(super) fn build_with_angle(
     match f.shade {
         Shade::Venetian => b.venetian(),
         Shade::Vertical => b.vertical(),
-        Shade::Curtain => b.curtain(),
+        Shade::Curtain => match p.curtain_heading {
+            Some(heading) => b.drapery(heading, o, moving),
+            None => b.legacy_curtain(),
+        },
         Shade::Roller if p.textile.is_some() => b.roller(moving),
         Shade::PanelTrack => {
             if let Some(track) = p.track {

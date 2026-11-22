@@ -25,6 +25,8 @@ use socket::Socket;
 enum Message {
     Hello {
         protocol: u32,
+        #[serde(default)]
+        rgb_artifact_eligibility: bool,
         session: wire::SessionId,
         policy: String,
         device_uuid: [u8; 16],
@@ -39,6 +41,9 @@ enum Message {
     Capture {
         request: wire::RequestId,
         lookahead: Vec<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rgb_artifact_eligible_cameras_by_timestep:
+            Option<bevy_zeroverse_capture::request::CameraRows>,
     },
     Ready {
         lease: wire::LeaseId,
@@ -99,7 +104,22 @@ impl Inbox {
         self.wake.notify_all();
     }
 }
+fn validate_worker_request(
+    request: &CaptureRequest,
+    scene: &BevyZeroverseConfig,
+    supports_eligibility: bool,
+) -> Result<()> {
+    ensure!(
+        supports_eligibility || request.rgb_artifact_eligible_cameras_by_timestep.is_none(),
+        "CUDA worker does not support RGB artifact eligibility"
+    );
+    request
+        .validate(scene.num_cameras, scene.playback_steps as usize)
+        .map_err(anyhow::Error::msg)
+}
+
 struct Lane {
+    rgb_artifact_eligibility: bool,
     socket: Mutex<Socket>,
     inbox: Arc<Inbox>,
     last_sequence: Option<usize>,
@@ -171,9 +191,10 @@ impl CudaCaptureReceiver {
             .set_read_timeout(Some(runtime.initialization_timeout))?;
         socket.0.set_write_timeout(Some(runtime.capture_timeout))?;
         let (message, fds) = socket.receive()?;
-        let (session, uuid, allocation) = match message {
+        let (session, uuid, allocation, rgb_artifact_eligibility) = match message {
             Message::Hello {
                 protocol,
+                rgb_artifact_eligibility,
                 session,
                 policy,
                 device_uuid,
@@ -199,7 +220,7 @@ impl CudaCaptureReceiver {
                             ),
                     "CUDA handshake policy/version/lane mismatch"
                 );
-                (session, device_uuid, allocation)
+                (session, device_uuid, allocation, rgb_artifact_eligibility)
             }
             _ => anyhow::bail!("missing CUDA producer handshake"),
         };
@@ -295,6 +316,16 @@ impl CudaCaptureReceiver {
                                     && p.request.seed == lease.request.seed),
                                 "unknown CUDA request"
                             );
+                            let request = &pending.as_ref().unwrap().request;
+                            let rgb = bevy_zeroverse::render::sensor::captures_rgb(spec.scene());
+                            if rgb_artifact_eligibility && (rgb || request.rgb_artifact_eligible_cameras_by_timestep.is_some()) {
+                                let manifest = metadata.indoor.as_ref().context("missing CUDA room manifest")?;
+                                let expected = bevy_zeroverse_capture::request::RgbArtifactReceipt::for_capture(
+                                    request.rgb_artifact_eligible_cameras_by_timestep.as_deref(), spec.scene().num_cameras, spec.scene().playback_steps as usize,
+                                    |i| rgb && manifest.appearance.as_ref().is_some_and(|a| a.sensor.profile(request.seed,i).is_some()));
+                                let receipt = metadata.indoor_render_metadata.as_ref().and_then(|m|m.get("rgb_artifacts"));
+                                ensure!(receipt == Some(&serde_json::to_value(expected)?), "CUDA worker RGB artifact receipt differs from admitted request");
+                            }
                         }
                         ensure!(
                             metadata.indoor.as_ref().map(|m| m.seed) == Some(lease.request.seed)
@@ -363,6 +394,7 @@ impl CudaCaptureReceiver {
         self.lanes.insert(
             lane_id,
             Lane {
+                rgb_artifact_eligibility,
                 socket: Mutex::new(writer),
                 inbox,
                 last_sequence: None,
@@ -424,16 +456,21 @@ impl CudaCaptureReceiver {
             requests.len() <= 5 && requests.windows(2).all(|w| w[0].sequence < w[1].sequence),
             "invalid bounded preparation plan"
         );
-        self.lanes.get_mut(&lane).context("unknown CUDA lane")?.plan = requests.to_vec();
+        let lane = self.lanes.get_mut(&lane).context("unknown CUDA lane")?;
+        for request in requests {
+            validate_worker_request(request, self.spec.scene(), lane.rgb_artifact_eligibility)?;
+        }
+        lane.plan = requests.to_vec();
         Ok(())
     }
     /// Nonblocking admission. False means a hold, no credit, or a leased lane.
     pub fn try_admit(&mut self, lane: u32, request: CaptureRequest) -> Result<bool> {
-        if self.outstanding.len() == self.capacity || self.outstanding.contains(&lane) {
-            return Ok(false);
-        }
         let lane_id = lane;
         let lane = self.lanes.get_mut(&lane).context("unknown CUDA lane")?;
+        validate_worker_request(&request, self.spec.scene(), lane.rgb_artifact_eligibility)?;
+        if self.outstanding.len() == self.capacity || self.outstanding.contains(&lane_id) {
+            return Ok(false);
+        }
         ensure!(
             lane.last_sequence.is_none_or(|s| request.sequence > s),
             "duplicate/stale CUDA request"
@@ -445,14 +482,14 @@ impl CudaCaptureReceiver {
         if lane.inbox.pending.lock().unwrap().is_some() {
             return Ok(false);
         }
-        let Some(permit) = self.control.try_acquire(request)? else {
+        let Some(permit) = self.control.try_acquire(request.clone())? else {
             return Ok(false);
         };
         let mut pending = lane.inbox.pending.lock().unwrap();
         let lookahead = lane
             .plan
             .iter()
-            .position(|r| *r == request)
+            .position(|r| r.sequence == request.sequence && r.seed == request.seed)
             .map(|i| lane.plan[i + 1..].iter().map(|r| r.seed).collect())
             .unwrap_or_default();
         let message = Message::Capture {
@@ -461,6 +498,9 @@ impl CudaCaptureReceiver {
                 seed: request.seed,
             },
             lookahead,
+            rgb_artifact_eligible_cameras_by_timestep: request
+                .rgb_artifact_eligible_cameras_by_timestep
+                .clone(),
         };
         let sent = lane.socket.lock().unwrap().send(&message, &[]);
         if let Err(error) = sent {
@@ -469,8 +509,8 @@ impl CudaCaptureReceiver {
             permit.failed(error.to_string(), Duration::ZERO);
             return Err(error);
         }
-        *pending = Some(Pending { request, permit });
         lane.last_sequence = Some(request.sequence);
+        *pending = Some(Pending { request, permit });
         self.outstanding.insert(lane_id);
         lane.inbox.wake.notify_one();
         Ok(true)
@@ -581,13 +621,10 @@ mod tests {
         let waiting = inbox.clone();
         let (sent, received) = mpsc::channel();
         let worker = thread::spawn(move || sent.send(waiting.wait()).unwrap());
-        let request = CaptureRequest {
-            sequence: 4,
-            seed: 9,
-        };
+        let request = CaptureRequest::new(4, 9);
         *inbox.pending.lock().unwrap() = Some(Pending {
+            permit: control.try_acquire(request.clone()).unwrap().unwrap(),
             request,
-            permit: control.try_acquire(request).unwrap().unwrap(),
         });
         inbox.wake.notify_one();
         assert!(received.recv_timeout(Duration::from_secs(1)).unwrap());
@@ -667,5 +704,39 @@ mod rejection_wire_tests {
             })
             .unwrap();
         assert_eq!(next.generation, lease.generation + 1);
+    }
+}
+
+#[cfg(test)]
+mod rgb_eligibility_tests {
+    use super::*;
+    #[test]
+    fn legacy_handshake_cannot_authorize_masked_requests() {
+        let uuid = [0_u8; 16];
+        let legacy = serde_json::json!({"Hello":{
+            "protocol":wire::PROTOCOL_VERSION,"session":{"lane":0,"incarnation":uuid,"nonce":uuid},
+            "policy":"example","device_uuid":uuid,"allocation":{"bytes":32,"allocation_bytes":64,"dedicated":true},
+            "generator":1,"core_version":"test","adapter_version":"test","provenance":{},"adapter":{}
+        }});
+        let Message::Hello {
+            rgb_artifact_eligibility,
+            ..
+        } = serde_json::from_value(legacy).unwrap()
+        else {
+            unreachable!()
+        };
+        assert!(!rgb_artifact_eligibility);
+        let scene = BevyZeroverseConfig {
+            num_cameras: 2,
+            playback_steps: 2,
+            ..default()
+        };
+        let mut request = CaptureRequest::new(3, 6);
+        validate_worker_request(&request, &scene, false).unwrap();
+        request.rgb_artifact_eligible_cameras_by_timestep = Some(vec![vec![], vec![1]]);
+        assert!(validate_worker_request(&request, &scene, false).is_err());
+        validate_worker_request(&request, &scene, true).unwrap();
+        request.rgb_artifact_eligible_cameras_by_timestep = Some(vec![vec![1, 1], vec![]]);
+        assert!(validate_worker_request(&request, &scene, true).is_err());
     }
 }

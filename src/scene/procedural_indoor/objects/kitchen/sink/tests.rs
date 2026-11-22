@@ -79,6 +79,19 @@ fn washing_stations_fit_actual_cutouts_support_props_and_vary_independently() {
             ));
             let mut a = Assembly::default();
             basin::build(&mut a, basin, q.worktop_m, q.basin_finish);
+            for sign in [
+                Vec2::ONE,
+                Vec2::new(-1., 1.),
+                Vec2::NEG_ONE,
+                Vec2::new(1., -1.),
+            ] {
+                let corner = basin.center + sign * (basin.size * 0.5 - Vec2::splat(0.001));
+                let rim_height = super::super::tests::top_at(&a, corner);
+                assert!(
+                    (rim_height - q.worktop_m - 0.006).abs() < 0.0002,
+                    "open rim corner in seed {seed}"
+                );
+            }
             for v in [Vec2::ZERO, Vec2::new(0.35, 0.25), Vec2::new(-0.3, 0.15)] {
                 let hit = super::super::tests::top_at(&a, basin.center + basin.floor_half() * v);
                 assert!(

@@ -21,7 +21,7 @@ pub(super) fn construct(a: &mut Assembly, o: &IndoorObject) {
         | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | TissueBox | Bowl | DeskLamp
         | DeskFan | Speaker | Kettle | Printer | CoffeeMaker | Projector | DryingRack
         | SoapDispenser | Sponge | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel
-        | Dishware | CuttingBoard | FruitBowl | Bread | Vase
+        | Dishware | Flatware | CuttingBoard | FruitBowl | Bread | Vase
             if o.support.is_some() =>
         {
             MotionKind::Prop

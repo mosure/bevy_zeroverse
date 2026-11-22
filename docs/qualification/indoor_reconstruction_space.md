@@ -65,18 +65,18 @@ Three matched 48-room sweeps per build used three 512 × 512 views, full native 
 ### Reproduce the audit
 
 ```sh
-cargo run --locked --features human_motion --bin indoor_validate -- \
+cargo run --locked --features human_motion --example indoor_validate -- \
   --seed 31000 --audit-seeds 128 --audit-geometry --cameras 3 \
   --width 256 --height 256 --renders 6 --labels --co-visibility \
   --no-raw --output out/indoor-space-audit
 
-cargo run --locked --features human_motion --bin indoor_validate -- \
+cargo run --locked --features human_motion --example indoor_validate -- \
   --seed 31004 --audit-seeds 3 --renders 3 --cameras 4 \
   --indoor-camera "$(cat src/scene/procedural_indoor/cameras/ceiling/tests/training_camera_settings.json)" \
   --width 256 --height 256 --labels --co-visibility --no-raw \
   --output out/indoor-space-rig-audit
 
-cargo run --locked --features human_motion --bin indoor_prepare_bench -- \
+cargo run --locked --features human_motion --example indoor_prepare_bench -- \
   --seed 31000 --rooms 48 --warmup-rooms 4 --concurrent 2 \
   --preparation-threads 4 --output out/indoor-space-preparation.json
 ```

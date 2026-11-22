@@ -61,10 +61,11 @@ struct GpuTriangle {
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct GpuMaterial {
-    albedo: [f32; 4],
-    emission: [f32; 4],
-    uv_scale: [f32; 4],
-    texture: [u32; 4],
+    albedo_offset_u: [f32; 4],
+    emission_offset_v: [f32; 4],
+    uv_columns: [f32; 4],
+    base_map: [u32; 2],
+    emission_map: [u32; 2],
 }
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -176,9 +177,16 @@ pub(in crate::scene::procedural_indoor) fn fits_portable_bindings(scene: &BakeSc
     let texels = scene
         .materials
         .iter()
-        .filter_map(|m| m.texture.as_ref())
-        .map(|(_, pixels)| pixels.len() as u64)
-        .sum::<u64>();
+        .map(|m| {
+            let base = m.base_map.as_ref().map_or(0, |map| map.pixels.len());
+            let separate = match &m.emission_map {
+                EmissionMap::Separate(map) => map.pixels.len(),
+                _ => 0,
+            };
+            (base + separate) as u64
+        })
+        .sum::<u64>()
+        + scene.sky_field.0.len() as u64;
     let limit = wgpu::Limits::default().max_storage_buffer_binding_size;
     fits_records::<GpuTriangle>(scene.triangles.len() as u64, limit)
         && fits_records::<TransportNode>(scene.gpu_transport().nodes.len() as u64, limit)
@@ -230,23 +238,37 @@ pub fn prepare(
         })
         .collect();
     let nodes = Arc::clone(&transport.nodes);
-    let mut texels = Vec::new();
+    // Sky samples lead the existing radiance buffer. Diffuse material offsets
+    // below naturally follow them; isotropic rooms need no extra records.
+    let mut texels: Vec<_> = scene
+        .sky_field
+        .0
+        .iter()
+        .map(|v| v.extend(1.).to_array())
+        .collect();
     let materials = scene
         .materials
         .iter()
         .map(|m| {
-            let offset = texels.len() as u32;
-            let size = if let Some((n, pixels)) = &m.texture {
-                texels.extend(pixels.iter().map(|p| p.extend(1.0).to_array()));
-                *n
-            } else {
-                0
+            let mut append = |map: &TransportMap| {
+                let offset = texels.len() as u32;
+                texels.extend(map.pixels.iter().map(|p| p.extend(1.).to_array()));
+                [offset, (map.size << 5) | map.address.gpu_flags()]
+            };
+            let base_map = m.base_map.as_ref().map_or([0; 2], &mut append);
+            let emission_map = match &m.emission_map {
+                EmissionMap::Uniform => [0; 2],
+                EmissionMap::SharedWithBase => base_map,
+                EmissionMap::Separate(map) => append(map),
             };
             GpuMaterial {
-                albedo: m.albedo.extend(0.0).to_array(),
-                emission: m.emission.extend(0.0).to_array(),
-                uv_scale: [m.uv_scale.x, m.uv_scale.y, 0.0, 0.0],
-                texture: [offset, size, u32::from(m.textured_emission), 0],
+                // Pack the affine translation alongside the two RGB values to keep
+                // the 64-byte transport record and existing storage bindings.
+                albedo_offset_u: m.albedo.extend(m.uv_transform.translation.x).to_array(),
+                emission_offset_v: m.emission.extend(m.uv_transform.translation.y).to_array(),
+                uv_columns: m.uv_transform.matrix2.to_cols_array(),
+                base_map,
+                emission_map,
             }
         })
         .collect();
@@ -286,7 +308,14 @@ pub fn prepare(
             ],
             sun_direction: scene.sun_direction.extend(0.0).to_array(),
             sun: scene.sun.extend(0.0).to_array(),
-            sky: scene.sky.extend(0.0).to_array(),
+            sky: scene
+                .sky
+                .extend(if scene.sky_field.0.is_empty() {
+                    0.
+                } else {
+                    super::super::sky::SIZE as f32
+                })
+                .to_array(),
             rotation: scene.world_rotation.to_array(),
         },
         triangles,

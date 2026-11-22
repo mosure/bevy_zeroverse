@@ -3,6 +3,41 @@ use super::super::items::{self, composition};
 use super::*;
 use std::f32::consts::{FRAC_PI_2, PI};
 
+mod dining;
+#[cfg(test)]
+mod dining_tests;
+
+struct SurfaceBudget {
+    kinds: Vec<ObjectKind>,
+    area: f32,
+    limit: f32,
+    count_limit: usize,
+    drinks: usize,
+    drink_limit: usize,
+}
+
+fn is_drink(kind: ObjectKind) -> bool {
+    matches!(
+        kind,
+        ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan
+    )
+}
+
+impl SurfaceBudget {
+    fn full(&self) -> bool {
+        self.kinds.len() >= self.count_limit || self.area >= self.limit
+    }
+    fn record(&mut self, kind: ObjectKind, size: Vec3) {
+        self.kinds.push(kind);
+        self.area += size.x * size.z;
+        self.drinks += usize::from(is_drink(kind));
+    }
+
+    fn permits(&self, kind: ObjectKind) -> bool {
+        !is_drink(kind) || self.drinks < self.drink_limit
+    }
+}
+
 impl IndoorManifest {
     pub(super) fn scatter_clutter(&mut self) {
         let surfaces: Vec<_> = self
@@ -37,19 +72,27 @@ impl IndoorManifest {
         if composition.target_items == 0 {
             return;
         }
-        let mut area = 0.;
-        let mut present: Vec<_> = self
+        let mut budget = SurfaceBudget {
+            kinds: Vec::new(),
+            area: 0.,
+            limit: composition.target_coverage * support.size.x * support.size.z,
+            count_limit: composition.target_items,
+            drinks: 0,
+            drink_limit: usize::MAX,
+        };
+        for o in self
             .objects
             .iter()
             .filter(|o| o.support == Some(support.id) && o.kind != ObjectKind::Cable)
-            .map(|o| {
-                area += o.size.x * o.size.z;
-                o.kind
-            })
-            .collect();
-        let limit = composition.target_coverage * support.size.x * support.size.z;
+        {
+            budget.record(o.kind, o.size);
+        }
+        let dining = self.is_dining_table(support);
+        if dining {
+            self.dress_meal(support, &composition, &mut budget);
+        }
         for _ in 0..composition.max_attempts {
-            if present.len() >= composition.target_items || area >= limit {
+            if budget.full() {
                 break;
             }
             let cluster = composition.cluster(&mut rng);
@@ -59,15 +102,6 @@ impl IndoorManifest {
             task.task_weights.iter_mut().for_each(|w| *w *= 0.35);
             task.task_weights[cluster.task] += 0.65;
             let (mut kind, mut size) = task.item(support, &mut rng);
-            let dining = matches!(
-                self.layout,
-                IndoorLayout::Kitchen
-                    | IndoorLayout::Kitchenette
-                    | IndoorLayout::Cafe
-                    | IndoorLayout::Cafeteria
-                    | IndoorLayout::Breakroom
-            ) && support.kind == ObjectKind::Table
-                && !support.neighbor;
             if dining
                 && !matches!(
                     kind,
@@ -100,7 +134,7 @@ impl IndoorManifest {
                     | ObjectKind::DeskOrganizer
                     | ObjectKind::DocumentTray
             );
-            if singleton && present.contains(&kind) {
+            if !budget.permits(kind) || (singleton && budget.kinds.contains(&kind)) {
                 continue;
             }
             let Some((offset, yaw)) =
@@ -113,8 +147,7 @@ impl IndoorManifest {
             // would square the clutter control and disproportionately empty tops.
             self.supported_prop(support, kind, offset, size, yaw, &mut rng);
             if self.objects.len() > count {
-                present.push(kind);
-                area += size.x * size.z;
+                budget.record(kind, size);
             }
         }
     }

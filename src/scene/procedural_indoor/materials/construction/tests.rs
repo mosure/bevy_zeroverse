@@ -213,3 +213,38 @@ fn authored_construction_preserves_detail_and_seeded_weave_support() {
 fn construction_map_qualification() {
     super::super::qualification::construction_study();
 }
+
+#[test]
+fn soil_processes_resolve_repeatable_earth_pigments_and_retain_a_gritty_tail() {
+    let mut lightest_grits = Vec::new();
+    for seed in 0..64 {
+        let template = program::sample(seed)
+            .into_iter()
+            .find(|r| r.surface == Surface::Soil)
+            .unwrap();
+        for family in 0..4 {
+            let mut r = template.clone();
+            let process = pure(family, 1., 0.50);
+            apply(&mut r, process.clone(), 0).unwrap();
+            let m = r.mineral.as_ref().unwrap();
+            let [dark, light] = m.aggregate_color;
+            for color in [dark, light] {
+                assert!(color[0] >= color[1] && color[1] >= color[2]);
+            }
+            assert!((0..3).all(|i| dark[i] < light[i]));
+            assert_eq!(m.polish, 0.);
+            assert!(m.aggregate_exposure < 0.50 && r.roughness >= 0.70);
+            if family == 0 {
+                assert!(light[0] < 0.39 && m.aggregate_exposure < 0.10);
+            }
+            if family == 1 {
+                lightest_grits.push(light[0]);
+            }
+            let expected = r.clone();
+            apply(&mut r, process, 0).unwrap();
+            assert_eq!(r.mineral, expected.mineral);
+        }
+    }
+    assert!(lightest_grits.iter().any(|&v| v > 0.65));
+    assert!(lightest_grits.iter().any(|&v| v < 0.50));
+}

@@ -238,7 +238,7 @@ pub(super) fn doors(
     width: f32,
     bottom: f32,
     height: f32,
-    front: f32,
+    front: Vec2,
     p: &KitchenProgram,
     label: &str,
 ) {
@@ -266,19 +266,23 @@ pub(super) fn doors(
                 } else {
                     0.
                 };
-            Transform::from_xyz(x, bottom + height * 0.5, front + 0.014 + i as f32 * 0.035)
+            Transform::from_xyz(
+                front.x + x,
+                bottom + height * 0.5,
+                front.y + 0.014 + i as f32 * 0.035,
+            )
         } else if lift {
             let q = Quat::from_rotation_x(-p.opening_radians);
             Transform::from_translation(
-                Vec3::new(0., bottom + height - 0.022, front + 0.014)
+                Vec3::new(front.x, bottom + height - 0.022, front.y + 0.014)
                     + q * Vec3::NEG_Y * (height - 0.045) * 0.5,
             )
             .with_rotation(q)
         } else {
             let hinge = Vec3::new(
-                side * (width * 0.5 - 0.022),
+                front.x + side * (width * 0.5 - 0.022),
                 bottom + height * 0.5,
-                front + 0.014,
+                front.y + 0.014,
             );
             let q = Quat::from_rotation_y(side * p.opening_radians);
             Transform::from_translation(hinge + q * Vec3::new(-side * leaf * 0.5, 0., 0.))
@@ -355,7 +359,7 @@ pub(super) fn doors(
                 )
             } else if lift {
                 (
-                    Vec3::new(0., bottom + height - 0.022, front + 0.014),
+                    Vec3::new(front.x, bottom + height - 0.022, front.y + 0.014),
                     Vec3::X,
                     -delta,
                     Vec3::ZERO,
@@ -363,9 +367,9 @@ pub(super) fn doors(
             } else {
                 (
                     Vec3::new(
-                        side * (width * 0.5 - 0.022),
+                        front.x + side * (width * 0.5 - 0.022),
                         bottom + height * 0.5,
-                        front + 0.014,
+                        front.y + 0.014,
                     ),
                     Vec3::Y,
                     side * delta,
@@ -455,17 +459,27 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             p.finish,
             "cabinet",
         );
-        a.box_part(
+        worktop::solid(
+            a,
+            o,
             p.top,
-            "counter",
             Vec3::new(0., h - 0.017, z),
             Vec3::new(o.size.x, 0.034, d + 0.012),
             0.004,
+            h,
         );
         let front = z + d * 0.5;
         if p.counter_doors {
             shelves(a, o, p, Vec3::new(w, h - toe - 0.04, d), toe, z);
-            doors(a, w, toe, h - toe - 0.045, front, p, "cabinet");
+            doors(
+                a,
+                w,
+                toe,
+                h - toe - 0.045,
+                Vec2::new(0., front),
+                p,
+                "cabinet",
+            );
             return;
         }
         let rows = p.shelves;
@@ -511,14 +525,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         // A fitted dresser: supported base run, backsplash, and mounted upper cabinet.
         let top = h * 0.425;
         shell(a, Vec3::new(w, top - toe, d), toe, z, p.finish, "cabinet");
-        a.box_part(
+        worktop::solid(
+            a,
+            o,
             p.top,
-            "counter",
             Vec3::new(0., top + 0.016, z),
             Vec3::new(w, 0.032, d),
             0.003,
+            top + 0.032,
         );
-        doors(a, w, toe, top - toe - 0.02, z + d * 0.5, p, "cabinet");
+        doors(
+            a,
+            w,
+            toe,
+            top - toe - 0.02,
+            Vec2::new(0., z + d * 0.5),
+            p,
+            "cabinet",
+        );
         let upper = h * p.upper_bottom_fraction;
         let ud = d * p.upper_depth_fraction;
         let uz = z - d * 0.5 + ud * 0.5;
@@ -548,25 +572,27 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             upper,
             uz,
         );
-        doors(
-            &mut upper_assembly,
-            uw,
-            upper,
-            h - upper,
-            uz + ud * 0.5,
-            p,
-            "cabinet",
-        );
         for ((surface, label), mut g) in upper_assembly.parts {
             for v in &mut g.positions {
                 v[0] += shift;
             }
             a.part(surface, &label).append(g);
         }
+        // Build the leaves at their installed offset on the parent: the rigid
+        // hinge, handle and swept bounds must all share the actual hinge frame.
+        doors(
+            a,
+            uw,
+            upper,
+            h - upper,
+            Vec2::new(shift, uz + ud * 0.5),
+            p,
+            "cabinet",
+        );
     } else {
         shell(a, Vec3::new(w, h - toe, d), toe, z, p.finish, "cabinet");
         shelves(a, o, p, Vec3::new(w, h - toe, d), toe, z);
-        doors(a, w, toe, h - toe, z + d * 0.5, p, "cabinet");
+        doors(a, w, toe, h - toe, Vec2::new(0., z + d * 0.5), p, "cabinet");
     }
 }
 fn shelves(

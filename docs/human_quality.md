@@ -232,17 +232,17 @@ local and unpublished.
 cargo test --lib --features human_motion
 cargo clippy --workspace --all-targets --features human_motion -- -D warnings
 cargo check --target wasm32-unknown-unknown --no-default-features \
-  --features web,human_motion --bin viewer
+  --features web,human_motion --bin bevy_zeroverse
 cargo run --release --example review_humans --features human_motion -- \
   out/human_review/standing --standing
 cargo run --release --example review_humans --features human_motion -- \
   out/human_review/seated --seed 16
-cargo run --release --bin indoor_validate -- \
+cargo run --release --example indoor_validate -- \
   --seed 0 --audit-seeds 256 --audit-geometry --cameras 3 \
   --width 512 --height 512 --renders 16 --human-density 0.7 \
   --labels --co-visibility --no-raw --asset-root "$PWD" \
   --output out/human_review/rooms
-cargo run --release --bin motion_validate --features human_motion -- \
+cargo run --release --example motion_validate --features human_motion -- \
   --seed 0 --seeds 256 --render-seeds 4 --flow \
   --tokenizer out/human_quality/tokenizer.json \
   --policy '{"fraction":0.8,"max_actors":2,"frames":120,"batch_size":2,"max_attempts":2}' \

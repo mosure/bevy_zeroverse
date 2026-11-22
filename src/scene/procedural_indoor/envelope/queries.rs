@@ -335,11 +335,7 @@ impl EnvelopeProgram {
                 let height = self
                     .ceiling_height(size, a)
                     .min(self.ceiling_height(size, b));
-                super::super::architecture::facade::ExteriorProgram {
-                    exposure_probability: 1.,
-                    facades: vec![f.clone()],
-                }
-                .validate(Vec3::new(span, height, span))?;
+                f.validate_span(span, height)?;
             }
         }
         if wall_edges.len() + 1 != self.footprint.len() {

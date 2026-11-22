@@ -89,5 +89,5 @@ ZEROVERSE_MOTION_SEED_OUTPUT=out/motion_seed_validation \
 
 cargo clippy -p bevy_zeroverse --all-targets --features human_motion --locked -- -D warnings
 cargo check -p bevy_zeroverse --target wasm32-unknown-unknown \
-  --no-default-features --features web,human_motion --bin viewer --locked
+  --no-default-features --features web,human_motion --bin bevy_zeroverse --locked
 ```

@@ -32,7 +32,7 @@ use bevy::{
         occlusion_culling::OcclusionCulling,
         renderer::{RenderGraph, RenderGraphSystems},
         sync_world::RenderEntity,
-        view::{ExtractedView, ViewTarget},
+        view::{ExtractedView, Tonemapping, ViewTarget},
         Extract, ExtractSchedule, Render, RenderApp, RenderSystems,
     },
 };
@@ -56,6 +56,7 @@ struct CameraToken {
     ssaa: Option<SsaaToken>,
     size: UVec2,
     exposure: u32,
+    tone_curve: Tonemapping,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -320,7 +321,7 @@ fn prepare(
                 Option<&crate::render::ssaa::SsaaCamera>,
                 Option<&crate::camera::lens::LensCamera>,
             ),
-            &Exposure,
+            (&Exposure, &Tonemapping),
             Has<Hdr>,
             Option<&bevy::light::cluster::Clusters>,
             Option<&bevy::light::cluster::ClusterConfig>,
@@ -378,7 +379,7 @@ fn prepare(
         graph,
         copier,
         (ssaa, lens),
-        exposure,
+        (exposure, curve),
         hdr,
         clusters,
         cluster_config,
@@ -468,6 +469,7 @@ fn prepare(
             ssaa,
             size,
             exposure: exposure.exposure().to_bits(),
+            tone_curve: *curve,
         });
     }
     tokens.sort_by_key(|camera| camera.index);
@@ -536,7 +538,7 @@ fn begin_render(
 
 fn confirm_rendered(
     mut extracted: ResMut<ExtractedSettling>,
-    cameras: Query<(&ExtractedCamera, &ExtractedView, &ViewTarget)>,
+    cameras: Query<(&ExtractedCamera, &ExtractedView, &ViewTarget, &Tonemapping)>,
 ) {
     if !extracted.ready_before_render {
         return;
@@ -548,7 +550,7 @@ fn confirm_rendered(
         return;
     }
     for (entity, expected) in extracted.cameras.iter().zip(&token.cameras) {
-        let Ok((camera, view, _)) = cameras.get(*entity) else {
+        let Ok((camera, view, _, curve)) = cameras.get(*entity) else {
             return;
         };
         let Some(NormalizedRenderTarget::Image(target)) = camera.target.as_ref() else {
@@ -561,6 +563,7 @@ fn confirm_rendered(
             || camera.physical_viewport_size != Some(expected.size)
             || camera.viewport.is_some()
             || camera.exposure.to_bits() != expected.exposure
+            || *curve != expected.tone_curve
             || !camera.hdr
             || bits(view.world_from_view.to_matrix()) != expected.world_from_view
             || bits(view.clip_from_view) != expected.clip_from_view
@@ -686,6 +689,7 @@ mod tests {
                 ssaa: None,
                 size: UVec2::splat(512),
                 exposure: Exposure::INDOOR.exposure().to_bits(),
+                tone_curve: Tonemapping::TonyMcMapface,
             }],
         }
     }

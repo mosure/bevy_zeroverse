@@ -122,12 +122,12 @@ comparison or photographic-realism claim in this qualification.
 ```sh
 cargo test --lib --features human_motion
 cargo clippy --workspace --all-targets --features human_motion -- -D warnings
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 128 --render-seed-list 0,1,2,13,24,36,44,54,80,82,96 \
   --output out/motion_final
-cargo run --features human_motion --bin motion_validate -- \
+cargo run --features human_motion --example motion_validate -- \
   --seeds 0 --render-seed-list 0,1 --static-only --output out/motion_static_final
-cargo build --target wasm32-unknown-unknown --bin viewer \
+cargo build --target wasm32-unknown-unknown --bin bevy_zeroverse \
   --no-default-features --features web,human_motion
 # Generate the JS wrapper using the Cargo.lock-matching wasm-bindgen CLI,
 # serve the viewer and assets, and optionally expose a pinned local model mirror.

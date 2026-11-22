@@ -345,7 +345,7 @@ fn rejected_cafe_cases_fit_narrow_bays_without_shrinking_products_or_aisles() {
 fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() {
     use crate::scene::procedural_indoor::{
         architecture::ceiling::CeilingSystem,
-        validation::{validate_geometry, validate_layout},
+        validation::{validate_geometry, validate_layout_for_generator},
     };
     // Retain the original generator-70 architecture independently of later
     // ceiling samplers. Only furnishings and their receipts were removed from
@@ -353,8 +353,6 @@ fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() 
     let mut scene: IndoorManifest =
         serde_json::from_str(include_str!("fixtures/elevator_truss_65437985.json")).unwrap();
     assert_eq!(scene.generator_version, 70);
-    // Rebuild furnishings with today's grammar over the fixed old architecture.
-    scene.generator_version = GENERATOR_VERSION;
     let ceiling = scene.ceiling_installation.clone().unwrap();
     for system in [CeilingSystem::Truss, CeilingSystem::RectangularDuct] {
         assert!(ceiling.modules.iter().any(|m| m.system == system));
@@ -362,7 +360,7 @@ fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() 
     assert!(scene.objects.is_empty());
     scene.furnish_public_programs();
     scene.validate_public_programs().unwrap();
-    validate_layout(&scene).unwrap();
+    validate_layout_for_generator(&scene, 70).unwrap();
     validate_geometry(&scene).unwrap();
     assert_eq!(scene.ceiling_installation.as_ref().unwrap(), &ceiling);
     let elevators: Vec<_> = scene
@@ -384,14 +382,15 @@ fn archived_truss_and_duct_landing_recovers_without_removing_ceiling_geometry() 
 
 #[test]
 fn archived_landing_moves_aisle_instead_of_removing_roof_structure() {
-    use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
+    use crate::scene::procedural_indoor::validation::{
+        validate_geometry, validate_layout_for_generator,
+    };
     let mut scene: IndoorManifest =
         serde_json::from_str(include_str!("fixtures/elevator_circulation_69608412.json")).unwrap();
-    scene.generator_version = GENERATOR_VERSION;
     let envelope = scene.envelope.clone();
     let ceiling = scene.ceiling_installation.clone();
     scene.furnish_public_programs();
-    validate_layout(&scene).unwrap();
+    validate_layout_for_generator(&scene, 112).unwrap();
     validate_geometry(&scene).unwrap();
     assert_eq!(scene.envelope, envelope);
     assert_eq!(scene.ceiling_installation, ceiling);

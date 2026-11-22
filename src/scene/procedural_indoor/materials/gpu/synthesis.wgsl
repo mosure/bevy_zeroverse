@@ -197,27 +197,33 @@ fn rug(uv: vec2<f32>) -> Texel {
 }
 fn carpet(uv: vec2<f32>) -> Texel {
     if r.carpet_meta.w != 0u { return rug(uv); }
+    var cut = StockCut(vec2(0u), 0.);
+    var yarn = uv;
+    if r.floor_meta.x != 0u {
+        cut = carpet_floor_cut(uv);
+        yarn = carpet_yarn_uv(uv, cut.id);
+    }
     let counts = vec2<f32>(r.carpet_meta.yz);
-    let xy = fract(uv * counts);
+    let xy = fract(yarn * counts);
     let width = max(counts.x, counts.y) / f32(r.header.y);
     var mask = 0.;
-    if r.carpet_dye.x != 0u { mask = carpet_dye_mask(uv); }
+    if r.carpet_dye.x != 0u { mask = carpet_dye_mask(yarn); }
     else {
-    let line = r.carpet.w + (noise(uv,17u,11u,271u)-0.5)*r.carpet0.w;
-    mask = noise(uv, 7u, 9u, 241u);
+    let line = r.carpet.w + (noise(yarn,17u,11u,271u)-0.5)*r.carpet0.w;
+    mask = noise(yarn, 7u, 9u, 241u);
     switch r.carpet_meta.x {
         case 1u: { mask = smooth_curve((line - abs(xy.x - 0.5)) / width + 0.5); }
         case 2u: { mask = smooth_curve((line*0.4 - min(abs(xy.x-0.5), abs(xy.y-0.5))) / width + 0.5); }
         case 3u: { mask = smooth_curve((line*0.7 - abs(abs(xy.x-0.5) + abs(xy.y-0.5) - 0.55)) / width + 0.5); }
-        case 4u: { let cell = vec2<u32>(floor(uv * counts)); mask = hash(cell.x, cell.y, 251u); }
+        case 4u: { let cell = vec2<u32>(floor(yarn * counts)); mask = hash(cell.x, cell.y, 251u); }
         default: {}
     }
     }
     let grain0 = select(vec4(173u,191u,11u,83u), r.carpet_grain0, r.carpet_dye.x != 0u);
     let grain1 = select(vec2(43u,47u), r.carpet_grain1.xy, r.carpet_dye.x != 0u);
-    let nap = noise(uv, grain0.x, grain0.y, 257u) - 0.5;
-    let slub = noise(uv, grain0.z, grain0.w, 263u) - 0.5;
-    let fleck = noise(uv, grain1.x, grain1.y, 269u) - 0.5;
+    let nap = noise(yarn, grain0.x, grain0.y, 257u) - 0.5;
+    let slub = noise(yarn, grain0.z, grain0.w, 263u) - 0.5;
+    let fleck = noise(yarn, grain1.x, grain1.y, 269u) - 0.5;
     let dye = clamp(mask * r.carpet.x, 0., 1.);
     let tone = r.carpet.y * (slub * 0.6 + fleck * 0.4) + nap * 0.035;
     let base = r.carpet0.xyz * (1.-dye) + r.carpet1.xyz * dye;
@@ -226,20 +232,8 @@ fn carpet(uv: vec2<f32>) -> Texel {
         r.metric.z*(nap*0.65 + fleck*r.carpet.z*0.35),
         clamp(r.metric.w + nap*0.055 + fleck*0.025, 0.80, 1.), 0.97+(nap+0.5)*0.03);
     if r.floor_meta.x != 0u {
-        let grid = vec2<f32>(r.floor_meta.zw);
-        let u = unit(uv.x) * grid.x;
-        var x = u32(floor(u)) % r.floor_meta.z;
-        var stagger = 0.;
-        if r.floor_meta.y != 0u { stagger = hash(x, 7u, 211u); }
-        let v = unit(uv.y) * grid.y + stagger;
-        var y = u32(floor(v)) % r.floor_meta.w;
-        let local = fract(vec2(u,v));
-        let metric = r.metric.xx / grid;
-        var distance = min(min(local.x,1.-local.x)*metric.x,min(local.y,1.-local.y)*metric.y);
-        if any(r.floor_cut.xy != vec2(0.)) {
-            let cut = stock_floor_cut(uv);
-            x = cut.id.x; y = cut.id.y; distance = cut.distance;
-        }
+        let x = cut.id.x;
+        let y = cut.id.y;
         let m = select(vec2(3u,3u), r.floor_stock.xy, r.floor_stock.z != 0u);
         let gain = 1. + (hash(x,y,223u)-0.5)*r.floor0.x + (noise(uv,m.x,m.y,227u)-0.5)*r.floor0.w;
         let warm = (hash(x,y,229u)-0.5)*r.floor0.y;
@@ -249,7 +243,7 @@ fn carpet(uv: vec2<f32>) -> Texel {
         t.color += (color-t.color)*r.floor1.y;
         t.roughness = clamp(t.roughness + (hash(x,y,239u)-0.5)*r.floor0.z,0.12,1.);
         let seam_width = r.floor1.z + r.metric.x / f32(r.header.y);
-        let seam = clamp(1.-distance/seam_width,0.,1.)*r.floor1.z/seam_width*r.floor1.y;
+        let seam = clamp(1.-cut.distance/seam_width,0.,1.)*r.floor1.z/seam_width*r.floor1.y;
         t.color *= 1.-seam*0.12;
         t.height -= seam*0.00035*r.floor1.w;
     }

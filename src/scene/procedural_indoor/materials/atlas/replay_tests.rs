@@ -548,6 +548,7 @@ fn material_recipe_cpu_profile() {
             let handles = human::maps(
                 scene.material_seed(),
                 StandardMaterial::default(),
+                true,
                 &mut images,
                 &mut materials,
             );

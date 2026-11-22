@@ -9,6 +9,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 mod exposure;
+pub use super::sky::SkyDistribution;
 pub use exposure::IndoorExposureMeter;
 
 fn log_sample(rng: &mut impl Rng, lo: f32, hi: f32) -> f32 {
@@ -34,8 +35,11 @@ pub fn room_size(seed: u64) -> Vec3 {
 pub struct Photometry {
     /// Direct normal solar illuminance; independent from electric work-plane target.
     pub sun_lux: f32,
-    /// Isotropic upper-hemisphere radiance, shared with native GI and Cycles.
+    /// Cosine-weighted mean upper-hemisphere radiance in linear RGB.
     pub sky_radiance: Vec3,
+    /// Archived rooms without this field have a uniform upper hemisphere.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sky_distribution: Option<SkyDistribution>,
     pub environment_intensity: f32,
     pub ev100: f32,
     /// Recorded before any explicit appearance intervention. Absent in older manifests.
@@ -51,7 +55,7 @@ pub struct Photometry {
 }
 
 impl Photometry {
-    /// For this generator's isotropic upper hemisphere, E_horizontal = pi * L.
+    /// Diffuse horizontal illuminance is pi times the cosine-weighted mean luminance.
     pub fn diffuse_sky_lux(&self) -> f32 {
         std::f32::consts::PI * self.sky_radiance.dot(Vec3::new(0.2126, 0.7152, 0.0722))
     }
@@ -133,6 +137,7 @@ impl SceneDomain {
         let photometry = Photometry {
             sun_lux,
             sky_radiance,
+            sky_distribution: Some(SkyDistribution::sample(seed, transmission)),
             ev100: meter.ev100(),
             meter: Some(meter),
             environment_intensity: (0.07 * target_lux + 0.09 * sky).clamp(0.25, 160.0),
@@ -200,6 +205,7 @@ impl SceneDomain {
         }
         if !p.sky_radiance.is_finite()
             || p.sky_radiance.min_element() < 0.0
+            || p.sky_distribution.is_some_and(|s| !s.valid())
             || !p.fixture_gradient.is_finite()
             || p.fixture_gradient.abs().max_element() > 0.8
         {

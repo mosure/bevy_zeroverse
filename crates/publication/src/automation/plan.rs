@@ -103,14 +103,10 @@ pub fn plan(root: &Path) -> Result<Value> {
     for name in ["publication.toml", "tex/arxiv.sty", "tex/references.bib"] {
         inputs.insert(name.into(), io::hash(&root.join(name))?);
     }
-    for name in [
-        "www/index.html",
-        "assets/burn_human/fullbody_default.meta.json",
-        "assets/burn_human/fullbody_default.safetensors",
-    ] {
-        if root.join(name).is_file() {
-            inputs.insert(name.into(), io::hash(&root.join(name))?);
-        }
+    // The bundled AnnyBody reference is included in the generator identity.
+    let entry = "www/index.html";
+    if root.join(entry).is_file() {
+        inputs.insert(entry.into(), io::hash(&root.join(entry))?);
     }
     for dir in ["www/project/static", "tex/generated"] {
         inputs.extend(io::files_where(root, &root.join(dir), &|name| {

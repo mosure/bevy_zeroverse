@@ -34,6 +34,7 @@ pub struct GpuCaptureSession {
     outstanding: Vec<CaptureRequest>,
     last_sequence: Option<usize>,
     capacity: usize,
+    rig: (usize, usize),
     worker: Option<thread::JoinHandle<()>>,
 }
 
@@ -91,6 +92,10 @@ impl GpuCaptureBuilder {
 impl GpuCaptureSession {
     fn build(builder: GpuCaptureBuilder) -> Result<Self> {
         builder.runtime.validate(&builder.spec)?;
+        let rig = (
+            builder.spec.scene().num_cameras,
+            builder.spec.scene().playback_steps as usize,
+        );
         let capacity = builder.runtime.queue_capacity;
         let timeout = builder.runtime.initialization_timeout;
         let control = builder.control.unwrap_or_else(|| {
@@ -132,12 +137,12 @@ impl GpuCaptureSession {
                         let seeds = queue
                             .planned
                             .iter()
-                            .position(|r| *r == request)
+                            .position(|r| r.sequence == request.sequence && r.seed == request.seed)
                             .map(|i| queue.planned[i + 1..].iter().map(|r| r.seed).collect())
                             .unwrap_or_else(|| queue.queued.iter().map(|r| r.seed).collect());
                         (request, seeds)
                     };
-                    let result = match worker_control.acquire(request) {
+                    let result = match worker_control.acquire(request.clone()) {
                         Ok(Some(mut permit)) => {
                             renderer
                                 .app
@@ -147,7 +152,10 @@ impl GpuCaptureSession {
                             let start = Instant::now();
                             // reset changes only the requested sequence cursor. The
                             // configuration-keyed lookahead retains matching jobs.
-                            match renderer.capture(request.seed, true) {
+                            match renderer.capture(
+                                request.seed,
+                                request.rgb_artifact_eligible_cameras_by_timestep.clone(),
+                            ) {
                                 Ok(sample) => {
                                     permit.captured(start.elapsed(), None);
                                     permit.delivered();
@@ -207,6 +215,7 @@ impl GpuCaptureSession {
             outstanding: Vec::new(),
             last_sequence: None,
             capacity,
+            rig,
             worker: Some(worker),
         })
     }
@@ -230,11 +239,19 @@ impl GpuCaptureSession {
             requests.windows(2).all(|w| w[0].sequence < w[1].sequence),
             "request sequences must increase"
         );
+        for request in requests {
+            request
+                .validate(self.rig.0, self.rig.1)
+                .map_err(anyhow::Error::msg)?;
+        }
         self.queue.0.lock().unwrap().planned = requests.to_vec();
         Ok(())
     }
     /// False means bounded backpressure; no request/credit was consumed.
     pub fn try_submit(&mut self, request: CaptureRequest) -> Result<bool> {
+        request
+            .validate(self.rig.0, self.rig.1)
+            .map_err(anyhow::Error::msg)?;
         ensure!(!self.control.snapshot().cancelled, "GPU session cancelled");
         ensure!(
             self.last_sequence
@@ -246,9 +263,9 @@ impl GpuCaptureSession {
         }
         let mut queue = self.queue.0.lock().unwrap();
         ensure!(!queue.stopped, "GPU session stopped");
-        queue.queued.push_back(request);
-        self.outstanding.push(request);
         self.last_sequence = Some(request.sequence);
+        queue.queued.push_back(request.clone());
+        self.outstanding.push(request);
         self.queue.1.notify_one();
         Ok(true)
     }
@@ -405,16 +422,13 @@ impl GpuLiveDataset {
     }
     fn request(&mut self, seed: u64) -> Result<()> {
         ensure!(self.pending.is_none(), "GPU request already pending");
-        let request = CaptureRequest {
-            sequence: self.sequence,
-            seed,
-        };
+        let request = CaptureRequest::new(self.sequence, seed);
         let future: Vec<_> = (0..4)
             .filter_map(|i| {
-                Some(CaptureRequest {
-                    sequence: self.sequence.checked_add(i)?,
-                    seed: seed.checked_add(i as u64)?,
-                })
+                Some(CaptureRequest::new(
+                    self.sequence.checked_add(i)?,
+                    seed.checked_add(i as u64)?,
+                ))
             })
             .collect();
         self.session.plan_requests(&future)?;
@@ -482,10 +496,7 @@ mod tests {
 
     // Only channels and a device identifier: never initialize a GPU or renderer.
     fn pending_stream() -> (GpuLiveDataset, mpsc::Sender<GpuCompletion>) {
-        let request = CaptureRequest {
-            sequence: 0,
-            seed: 42,
-        };
+        let request = CaptureRequest::new(0, 42);
         let (sender, completions) = mpsc::channel();
         let session = GpuCaptureSession {
             device: Device::default(),
@@ -495,6 +506,7 @@ mod tests {
             outstanding: vec![request],
             last_sequence: Some(0),
             capacity: 2,
+            rig: (1, 1),
             worker: None,
         };
         (
@@ -519,10 +531,7 @@ mod tests {
         assert_eq!(stream.session.outstanding.len(), 1);
         sender
             .send(GpuCompletion {
-                request: CaptureRequest {
-                    sequence: 0,
-                    seed: 42,
-                },
+                request: CaptureRequest::new(0, 42),
                 result: Err(CaptureError::Rejected {
                     rejection: SceneRejection {
                         seed: 42,

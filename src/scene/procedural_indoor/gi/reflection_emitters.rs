@@ -29,6 +29,28 @@ impl ReflectionEmitters {
                 append_face_triangles(&mut triangles, &geometry, i, None);
             }
         }
+        for o in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == super::super::layout::ObjectKind::DeskLamp)
+        {
+            if !super::super::photometry::stationary_source(scene, o) {
+                continue;
+            }
+            let power = super::super::photometry::lamp(scene, o);
+            if power.lumens == 0. {
+                continue;
+            }
+            let (aperture, area) = objects::accessories::lamps::reflection_aperture(o);
+            let c = super::super::photometry::lamp_emission(scene, power, area);
+            append_face_triangles(
+                &mut triangles,
+                &aperture,
+                emission.len(),
+                Some(o.transform()),
+            );
+            emission.push(Vec3::new(c.red, c.green, c.blue));
+        }
         objects::equipment::signals::strings::reflection_apertures(scene, |geometry, tf, c| {
             append_face_triangles(&mut triangles, geometry, emission.len(), Some(tf));
             emission.push(Vec3::new(c.red, c.green, c.blue));

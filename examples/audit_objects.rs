@@ -33,6 +33,10 @@ fn main() -> anyhow::Result<()> {
         let mut failures = Vec::new();
         for seed in 0..args.samples as u64 {
             let mut o = audit::fixture(kind, seed);
+            if kind == ObjectKind::TrashCan && seed % 4 >= 2 {
+                use objects::containers::bins::{RECYCLING, WASTE_STATION};
+                o.variant = WASTE_STATION | if seed % 4 == 3 { RECYCLING } else { 0 };
+            }
             // Construction variety is measured independently of metric scale.
             if kind.is_program_item() {
                 o.size = objects::public::dimensions(kind, 0);

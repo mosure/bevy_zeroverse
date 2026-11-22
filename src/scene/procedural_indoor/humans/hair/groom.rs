@@ -10,7 +10,7 @@ pub(super) struct Groom {
     pub(super) length: f32,
     pub(super) part: f32,
     pub(super) curl: f32,
-    style: u8,
+    style: HairStyle,
     pub(super) volume: f32,
     pub(super) program: HairProgram,
     hairline: f32,
@@ -24,7 +24,7 @@ impl Groom {
             length: h.appearance.as_ref().map_or(0.015, |a| a.hair_length),
             part: h.appearance.as_ref().map_or(0.2, |a| a.hair_part),
             curl: h.appearance.as_ref().map_or(0.0, |a| a.hair_curl / 0.06),
-            style: h.hairstyle,
+            style: HairStyle::from_id(h.hairstyle).expect("validated groom"),
             volume: h.appearance.as_ref().map_or(1.0, |a| a.hair_volume),
             program: h
                 .appearance
@@ -52,18 +52,22 @@ impl Groom {
                     - 0.05 * front * (1.0 - side).powi(4))
             + irregular
             + self.hairline * (0.35 + front * 0.65)
-            + if self.style == HairStyle::Pixie as u8 {
+            + if self.style == HairStyle::Pixie {
                 front * 0.013 - side * 0.014
             } else {
                 0.
-            };
+            }
+            + self.cut_contour(local);
         let field = p.y - line;
-        let edge_width = if self.style == HairStyle::Afro as u8 {
-            0.04
-        } else {
-            0.014
-        };
-        let taper = (field / edge_width).clamp(0.0, 1.0);
+        // This chart is regular at the crown and periodic across the nape.
+        let uv = Vec2::new(
+            (local.z + local.x * self.program.sweep * 0.08) * self.size.z * 0.5,
+            (local.x - self.part * 0.4).atan2(local.y + 0.05) * self.size.x * 0.5,
+        );
+        if self.style.coiled() {
+            return super::coils::sample(self, self.style, p, local, field, uv);
+        }
+        let taper = (field / 0.014).clamp(0.0, 1.0);
         let taper = taper * taper * (3.0 - 2.0 * taper);
         // Comb from a displaced crown/part. Metric meridians supply fibre UVs
         // rather than stretching a planar stripe across the entire skull.
@@ -75,7 +79,7 @@ impl Groom {
             + self.program.crown_whorl * (-theta * theta / 0.35).exp()
             + self.curl * 0.08 * (theta * 8.0 + (longitude * 3.0).sin()).sin();
         let crown = local.y.clamp(0.0, 1.0);
-        let style = HairStyle::from_id(self.style).expect("validated groom");
+        let style = self.style;
         let clipped = match style {
             HairStyle::Buzz => 0.09,
             HairStyle::Pixie => 0.40,
@@ -108,51 +112,56 @@ impl Groom {
         ]) as f32
             * 0.5
             + 0.5;
-        let curl_mass = self.length
-            * self.volume
-            * self.curl
-            * clipped
-            * if self.style == 4 { 0.45 } else { 0.08 };
+        let curl_mass = self.length * self.volume * self.curl * clipped * 0.08;
         let clumps =
             (flow * 19.0 + theta.sin() * self.curl * 5.0 + self.noise(local, 3.7) * 1.3).cos();
-        let wave = (flow * 11.0 + theta * 7.0).sin() * (theta * 9.0).sin();
         let relief =
-            (0.00010 + self.curl * 0.00045) * clipped * clumps * (theta / 0.24).clamp(0.0, 1.0)
-                + if self.style == 4 {
-                    self.curl * 0.00065 * wave
-                } else {
-                    0.0
-                };
+            (0.00010 + self.curl * 0.00045) * clipped * clumps * (theta / 0.24).clamp(0.0, 1.0);
+        let combed = if matches!(
+            style,
+            HairStyle::SidePart | HairStyle::Swept | HairStyle::Pixie
+        ) {
+            // Scissor-cut locks rise from the part in broad sections. Keep the
+            // sides close to the ear and let the longer sections carry the crest.
+            let breadth = (0.5 + 0.5 * clumps).powi(2);
+            self.length.min(0.085)
+                * (0.035 + 0.038 * self.program.layers)
+                * breadth
+                * (0.24 + 0.76 * crown)
+                * (0.5 + 0.5 * cluster)
+                * (theta / 0.34).clamp(0., 1.)
+        } else {
+            0.
+        };
         let part_distance =
             (local.x - self.part * 0.65 - self.program.part_curve * local.z * 0.16).abs();
-        let part = if self.style == 1 || self.style == 3 {
+        let part = if matches!(style, HairStyle::SidePart | HairStyle::Swept) {
             (-part_distance * part_distance / 0.0018).exp() * crown * bulk * 0.55
         } else {
             0.0
         };
-        let afro = if style == HairStyle::Afro {
-            // Dense, rounded volume with multiscale curl relief. Sparse ring
-            // attachments looked disconnected from the mass at the silhouette.
-            (0.05 + 0.04 * self.volume) * (0.45 + crown * 0.55)
-                + (cluster - 0.5) * 0.004
-                + self.noise(local, 21.) * 0.0015
-                + self.noise(local, 57.) * 0.0006
-        } else {
-            0.
-        };
         let height =
-            0.0012 + taper * (bulk + afro + curl_mass * cluster + relief - part).max(0.0005);
-        (
-            height,
-            field,
-            // Combing from a part runs across the cranial arc. This chart has
-            // a regular tangent frame at the crown; longitude UVs have a pole
-            // there and caused a bright anisotropic zigzag through the hair.
-            Vec2::new(
-                (local.z + local.x * self.program.sweep * 0.08) * self.size.z * 0.5,
-                (local.x - self.part * 0.4).atan2(local.y + 0.05) * self.size.x * 0.5,
-            ),
-        )
+            0.0012 + taper * (bulk + curl_mass * cluster + relief + combed - part).max(0.0005);
+        (height, field, uv)
+    }
+
+    fn cut_contour(&self, local: Vec3) -> f32 {
+        if !matches!(
+            self.style,
+            HairStyle::TightCurls | HairStyle::SidePart | HairStyle::Swept | HairStyle::Pixie
+        ) {
+            return 0.;
+        }
+        let lobe = |x: f32| (1. - x * x).max(0.).powi(2);
+        let side = local.x.abs().min(1.).powi(2);
+        // Cut back over the ear, retain a tapered sideburn just in front and a
+        // longer centre at the nape. These are scalp coordinates on the fitted head.
+        let ear = lobe((local.z - 0.08) / 0.40) * side;
+        let sideburn = lobe((local.z + 0.34) / 0.28) * side;
+        let nape = local.z.clamp(0., 1.).powi(2) * lobe(local.x / 0.92);
+        (0.009 + 0.010 * self.program.layers) * ear
+            - (0.005 + 0.012 * self.program.spread / 1.4) * sideburn
+            - (0.011 + 0.020 * self.program.layers) * nape
     }
     pub(super) fn noise(&self, p: Vec3, frequency: f64) -> f32 {
         self.clusters.get([

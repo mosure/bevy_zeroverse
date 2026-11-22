@@ -2,11 +2,13 @@
 
 The optional Cycles bridge exports the **actual generated meshes, PBR maps,
 transforms, lights and sampled cameras**. It uses no downloaded room meshes,
-reference photographs or generative image postprocessing. Native annotations
-remain aligned to the generated geometry, including the first glass surface.
+reference photographs or generative image postprocessing. The geometry check
+follows the capture's glass policy. With `--annotation-glass surface` it
+intersects the pane. With `through` it follows the calibrated ray to geometry
+behind the pane. Both policies render glass in RGB.
 
 ```sh
-target/debug/indoor_validate --audit-seeds 1024 --renders 12 --stratified \
+target/debug/examples/indoor_validate --audit-seeds 1024 --renders 12 --stratified \
   --cameras 2 --width 640 --height 480 --labels --linear-rgb \
   --export-reference --output out/physical_native
 
@@ -60,6 +62,39 @@ pixel area. Image dimensions need not be multiples of 32. This also preserves
 whole-image radiance means in block comparisons without dropping edge content.
 For native transport ablations, `indoor_validate --gi-bounces 6 --gi-rays 512`
 records the additional transport budget explicitly in its selection manifest.
+The bounce budget counts diffuse surfaces. At the last surface the CPU and
+GPU bakers still evaluate direct skylight using the reflected cosine sample.
+An unobstructed upward ray receives the exterior sky radiance multiplied by
+the path reflectance. A wall or roof blocks it. This preserves daylight on a
+single diffuse floor even with a one-bounce budget.
+
+Ceiling circuits size each zone from the sampled row and column pitches, the
+fixture optics and the mounting height above a 0.75 m workplane. The sampler
+uses tighter spacing for downlights and permits wider spacing for broad
+fixtures in tall rooms. These are procedural priors. Actual luminaire data
+uses fixture-specific spacing criteria. [Example troffer photometry](https://www.cooperlighting.com/api/assets/v1/file/CLS/content/73857a94f1414caea6a0ad410084a2d6/Metalux-24FRLED-2-X-4-specification-sheet.pdf)
+
+The metrics export counts installed, powered and unpowered ceiling fixtures
+separately. Switched-off fittings keep their meshes, reflections and lamp
+annotations. Only powered fittings submit direct lights to Bevy and to the
+diffuse-light baker. Each powered fixture retains shadows when the selected
+quality mode enables them.
+
+Laptop, monitor, television, phone and equipment displays emit their seeded
+RGB image from the viewing face. The generator samples the panel's linear
+diffuse reflectance separately, using 0.003–0.025 as a procedural prior.
+Clearcoat, roughness and smudges control reflections in the cover. A powered-off
+screen retains those reflections and skips the content texture. Display metrology
+treats reflected ambient luminance and emitted luminance as separate
+contributions. [AAPM Report 270](https://www.aapm.org/pubs/reports/RPT_270.pdf)
+
+The irradiance and reflection bakers evaluate emission independently of base
+color and metalness. Their reduced maps cover the full width and height of
+rectangular images and preserve the visible material's UV transform and each
+image's address modes. Rotating fabric or shifting a plank pattern therefore
+also moves the color sampled for reflected light. Active displays use an
+existing linear-light-filtered mip for the 32 × 32 transport lookup. If the
+same image supplies both channels, the bakers store and sample it once.
 
 An existing Cycles render can be reused across native engine revisions with
 `--reference-source <original-native-directory>/reference`. Original file hashes
@@ -76,9 +111,10 @@ instead of rendering all camera times against the final human pose. Native
 multi-time RGB/annotation capture remains supported and tested.
 
 The calibration checks emission, a Lambertian receiver under a measured sun,
-the upper-hemisphere sky, glass transmission to the camera, and sunlight through
-an 8 mm solid glass pane onto a diffuse receiver. The last control needs many
-samples and includes the analytic interreflection between the pane and floor.
+upper-hemisphere skylight, glass transmission to the camera, and absorption
+through tinted glass. A sixth control measures sunlight through an 8 mm glass
+pane onto a diffuse receiver. This control needs many samples and includes
+the analytic interreflection between the pane and floor.
 It reports sampling uncertainty separately and rejects relative bias
 over 2.5% or a relative mean standard error over 2%.
 
@@ -92,11 +128,14 @@ enabled. See the [Cycles caustics limitations](https://docs.blender.org/manual/e
 ## Model differences
 
 Cycles integrates actual emissive luminaire surfaces, full diffuse/specular and
-refraction paths, and the external hemispherical sky. Native rendering uses
+refraction paths, and the external hemispherical sky. Its world shader reads
+the room's exported sky texture in the same orientation as the native
+reflection probes and cameras. The finite sky mesh participates in the
+geometry check. Native rendering uses
 spot/point proxies, finite-bounce diffuse probes, a preconvolved indoor reflection
 cubemap, shadow maps and optional screen-space effects. The solar disk is finite
-in Cycles. Principled and Bevy PBR lobes also differ. Glass volume absorption is
-currently recorded by the exporter but not mapped into Cycles.
+in Cycles. Principled and Bevy PBR lobes also differ. The bridge maps the
+exported RGB attenuation and reference distance to volume absorption in Cycles.
 
 These differences belong in the error report. A geometric match, a visually
 appealing preview, a low-noise render, or an irradiance-probe comparison alone

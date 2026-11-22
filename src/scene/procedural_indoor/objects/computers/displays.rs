@@ -1,6 +1,8 @@
 //! Screen geometry and physical enclosures share the reserved optical envelope.
 use super::*;
 pub mod mounts;
+mod panel;
+pub(crate) use panel::screen_cover;
 
 #[derive(Debug, serde::Serialize)]
 pub struct DisplayProgram {
@@ -59,111 +61,6 @@ pub fn display_parameters(o: &IndoorObject) -> DisplayProgram {
         } else {
             rng.random_range(-0.055..0.23)
         },
-    }
-}
-
-/// Closed horizontally curved panel with analytic surface normals. The screen
-/// itself uses a separate millimetre layer and continuous image coordinates.
-fn panel(
-    geometry: &mut Geometry,
-    width: f32,
-    height: f32,
-    thickness: f32,
-    radius: f32,
-    transform: Transform,
-) {
-    let columns = if radius > 0. { 24 } else { 1 };
-    let profile = |x: f32| {
-        if radius > 0. {
-            let z = radius - (radius * radius - x * x).max(0.).sqrt();
-            let normal = Vec3::new(-x / radius, 0., 1. - z / radius).normalize();
-            (z, normal)
-        } else {
-            (0., Vec3::Z)
-        }
-    };
-    let mut quad = |points: [Vec3; 4], normals: [Vec3; 4], uvs: [Vec2; 4]| {
-        let start = geometry.positions.len() as u32;
-        for ((point, normal), uv) in points.into_iter().zip(normals).zip(uvs) {
-            geometry
-                .positions
-                .push(transform.transform_point(point).to_array());
-            geometry
-                .normals
-                .push((transform.rotation * normal).to_array());
-            geometry.uvs.push(uv.to_array());
-        }
-        geometry
-            .indices
-            .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
-    };
-    let y = height * 0.5;
-    let t = thickness * 0.5;
-    for i in 0..columns {
-        let x0 = -width * 0.5 + width * i as f32 / columns as f32;
-        let x1 = -width * 0.5 + width * (i + 1) as f32 / columns as f32;
-        let (z0, n0) = profile(x0);
-        let (z1, n1) = profile(x1);
-        let uv = [
-            Vec2::new(x0 + width * 0.5, height),
-            Vec2::new(x1 + width * 0.5, height),
-            Vec2::new(x1 + width * 0.5, 0.),
-            Vec2::new(x0 + width * 0.5, 0.),
-        ];
-        quad(
-            [
-                Vec3::new(x0, -y, z0 + t),
-                Vec3::new(x1, -y, z1 + t),
-                Vec3::new(x1, y, z1 + t),
-                Vec3::new(x0, y, z0 + t),
-            ],
-            [n0, n1, n1, n0],
-            uv,
-        );
-        quad(
-            [
-                Vec3::new(x1, -y, z1 - t),
-                Vec3::new(x0, -y, z0 - t),
-                Vec3::new(x0, y, z0 - t),
-                Vec3::new(x1, y, z1 - t),
-            ],
-            [-n1, -n0, -n0, -n1],
-            uv,
-        );
-        quad(
-            [
-                Vec3::new(x0, y, z0 + t),
-                Vec3::new(x1, y, z1 + t),
-                Vec3::new(x1, y, z1 - t),
-                Vec3::new(x0, y, z0 - t),
-            ],
-            [Vec3::Y; 4],
-            uv,
-        );
-        quad(
-            [
-                Vec3::new(x0, -y, z0 - t),
-                Vec3::new(x1, -y, z1 - t),
-                Vec3::new(x1, -y, z1 + t),
-                Vec3::new(x0, -y, z0 + t),
-            ],
-            [Vec3::NEG_Y; 4],
-            uv,
-        );
-    }
-    for side in [-1., 1.] {
-        let x = width * 0.5 * side;
-        let (z, _) = profile(x);
-        let mut points = [
-            Vec3::new(x, -y, z - t),
-            Vec3::new(x, -y, z + t),
-            Vec3::new(x, y, z + t),
-            Vec3::new(x, y, z - t),
-        ];
-        if side > 0. {
-            points.reverse();
-        }
-        quad(points, [Vec3::X * side; 4], [Vec2::ZERO; 4]);
     }
 }
 
@@ -258,7 +155,7 @@ pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
     ] {
         let tf = tf.with_translation(tf.transform_point(Vec3::Z * z));
         if radius > 0. {
-            panel(a.part(casing, label), span.x, span.y, depth, radius, tf);
+            panel::build(a.part(casing, label), None, span.extend(depth), radius, tf);
         } else {
             a.part(casing, label).cuboid(
                 Vec3::new(span.x, span.y, depth),
@@ -268,23 +165,25 @@ pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     let bezel = d.bezel_m;
-    panel(
-        a.part(
-            if wall {
-                Surface::Television
-            } else {
-                Surface::Screen
-            },
-            label,
+    screen_cover(
+        a,
+        casing,
+        if wall {
+            Surface::Television
+        } else {
+            Surface::Screen
+        },
+        label,
+        Vec3::new(
+            width - bezel * 2.,
+            height - bezel * 2. - height * p.chin_fraction,
+            0.0016,
         ),
-        width - bezel * 2.,
-        height - bezel * 2. - height * p.chin_fraction,
-        0.001,
         radius,
         tf.with_translation(tf.transform_point(Vec3::new(
             0.,
             height * p.chin_fraction * 0.5,
-            thickness * 0.5 + 0.0008,
+            thickness * 0.5 + 0.0005,
         ))),
     );
     if !wall {

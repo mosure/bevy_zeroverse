@@ -11,6 +11,20 @@ Scene Studio uses the same validated policies as native generation and the brows
 | View & playback | Editor/grid/schematic, annotations, overlays, timeline |
 | Capture & tools | Image dimensions and timesteps, O-voxel, complete policy import, qualification evidence |
 
+**F1** hides every Studio control and expands the selected editor, grid or schematic view to the window edges. Press it again to restore the same panel and scroll position. A shared browser link can open directly in this mode with `view.viewport_only=true`.
+
+**F11** toggles fullscreen independently of F1. The same setting is in **View & playback → Viewport & annotation**. Start the native viewer with `--fullscreen` or open the browser with `?fullscreen=true`. A browser needs a click or keypress to enter fullscreen from a link.
+
+The same group offers **RGB tone mapping** and **HDR RGB output**. Automatic uses Tony McMapface for SDR and Bevy’s linear curve for HDR. You can also pick any of Bevy’s ten curves. **Linear** retains grading and exposure, while **None** bypasses the tone-mapping stage. Changes apply immediately to the editor and capture grid, including fisheye views. Numeric annotations keep their own rendering path.
+
+Use `--hdr --tonemapping auto` or `?hdr=true&tonemapping=agx`. The Studio reports the negotiated output in the footer. HDR requires a compatible monitor, OS display mode and adapter. On an SDR display the automatic preview retains the SDR curve. Windowless HDR capture is independent of the monitor and retains highlights above 1.0 in floating-point RGB. JPEG previews use the SDR range.
+
+`zeroverse_gen --output ./captures --scene-type procedural-indoor --samples 1 --hdr` exports floating-point, display-linear RGB with the automatic curve. Its `--tonemapping` option accepts the same names as the viewer. The optional archive `--rgb-sensor` applies sRGB-domain augmentations and exports SDR. Use the scene's `indoor_appearance.sensor` policy for sensor artifacts on HDR captures.
+
+**Next scene interval** is the minimum time each room stays on screen. Studio prepares one successor during playback. A rejected seed or a room that spends 60 seconds in preparation, uploads and material baking is skipped. A ready room can wait for any configured display interval. The console records the attempted seed and the phase of a timeout. The browser URL follows the displayed room. Setting the interval to zero cancels the pending automatic transition.
+
+The standalone native `--kiosk` viewer also monitors presentation independently of the window thread. If a visible, active kiosk goes 60 seconds without a rendered window frame, it reopens with the current settings and advances past the last attempted seed. Three expired room deadlines without a successful transition also trigger recovery. After three unsuccessful restarts the process exits with a diagnostic. Closing the window exits normally.
+
 Controls are declared in `src/app/editor/fields/`, separate from retained Feathers widgets, distribution previews, validated editor state, and URL encoding. Updating a continuous control preserves its widget identity, focus and scroll position. Human motion controls do not initialize models until an enabled policy is applied.
 
 ## Navigating groups
@@ -36,7 +50,7 @@ cargo run --example review_studio -- out/studio_review --groups
 `indoor_clutter` accepts a typed `items::distribution::ClutterSettings` policy as an object in configuration files or JSON in the native CLI. For example:
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural_indoor \
+cargo run --bin bevy_zeroverse -- --scene-type procedural_indoor \
   --indoor-clutter '{"probability":0.6,"minimum":0.05,"maximum":0.85,"bias":-0.3,"spread":0.8}'
 ```
 

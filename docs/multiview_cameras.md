@@ -234,6 +234,34 @@ These coarse surface cells are placement diagnostics, not a measured mesh-area
 coverage or a reconstruction-performance guarantee. Temporal routes can remain
 related; gaze variation does not imply independent path topology.
 
+### Pose diversity for reconstruction
+
+Room-camera peers can keep a shared landmark at different positions in their
+images. `target_variation` scales the horizontal and vertical framing offsets
+with subject distance and the anchor lens. This also works for distant walls
+and furniture. An independently chosen visible surface can supply a different
+look target. Zero variation retains the tight shared-target proposals.
+
+`trajectory_variation` controls how far a peer path can turn within the
+available metric baseline. A short move can cross or oppose another camera's
+travel within the same visible volume. A long walkthrough has less freedom to
+turn while keeping synchronized overlap. Both kinds of proposal undergo the
+usual swept clearance, spacing and multi-time visibility checks.
+
+The indoor validation export includes three angle distributions in
+`metrics.json`. `camera_pair_start_axis_angle_degrees` measures the rendered
+optical axes for every unordered pair. `camera_pair_net_travel_angle_degrees`
+measures the angle between endpoint displacements for pairs where both cameras
+travel more than 1 cm from start to end. `room_peer_reference_target_angle_degrees`
+measures the angle from each room peer's starting optical axis to the room
+anchor's look target when the anchor uses a look-at pose.
+
+Camera zero has a deliberate role in the reference graph and preferentially
+frames an eligible person when one is present. Camera IDs therefore carry
+information about how the rig was built. A training client can rotate context
+and target assignments across logical IDs and use the captured directed
+co-visibility graph to determine how much support each target actually has.
+
 Expand **Advanced multi-view constraints** to edit individual fields. Editing any
 one switches to **Custom** mode; moving the baseline slider replaces all seven
 advanced values. Settings apply on **Regenerate [R]**, preserving slider behavior.
@@ -367,7 +395,7 @@ python scripts/indoor_camera_group_report.py out/multiview --output out/camera_r
 Capture actual depth/calibration and evaluate all-camera co-visibility:
 
 ```sh
-cargo run --bin indoor_validate -- \
+cargo run --example indoor_validate -- \
   --seed 24000 --audit-seeds 128 --renders 128 --cameras 4 \
   --width 320 --height 240 --human-density .25 --playback-steps 3 --labels \
   --indoor-camera '{"baseline":0.5}' --output out/multiview
@@ -396,7 +424,9 @@ to zero and accept values in `[0, 0.2]`. The sampled offset is recorded per came
 and stays fixed along its trajectory. This changes the actual pinhole projection,
 frustum, placement visibility, schematic and exported K. It does not crop or
 shift an already-rendered image. Portrait and landscape capture use the same
-pixel-center convention. Lens distortion and rolling shutter remain unsupported.
+pixel-center convention. The pinhole family uses rectilinear projection. The
+fisheye family exports its calibrated angular distortion coefficients. Both
+families capture a common instant across the sensor.
 
 For example, `{"principal_point_jitter":[0.12,0.12],"multiview":{"graph":"connected","target_variation":0.8}}`
 requests both extensions. Old centered-pinhole configurations retain their
@@ -571,7 +601,7 @@ and live FFI do not apply this export-only stage.
 Run the formal Rust qualification sweep, without publishing or using Python:
 
 ```sh
-cargo build --locked --bin indoor_validate --no-default-features --features multi_threaded
+cargo build --locked --example indoor_validate --no-default-features --features multi_threaded
 cargo run --locked -p bevy_zeroverse_publication -- qualify --output out/qualification
 cargo run --locked -p bevy_zeroverse_publication -- verify-qualification --output out/qualification
 ```

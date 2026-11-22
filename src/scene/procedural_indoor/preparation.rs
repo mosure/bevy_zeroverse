@@ -10,6 +10,7 @@ pub use pipeline::{prepare_indoor, prepare_indoor_typed};
 pub use timings::{PreparationTimings, PreparationWall, TransportTimings};
 pub(crate) mod pipeline;
 pub(crate) mod residency;
+pub(super) mod studio_upload;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod wait;
 #[cfg(not(target_arch = "wasm32"))]
@@ -130,7 +131,7 @@ impl StagedAssets<Mesh> {
             let mut ready = Vec::with_capacity(jobs.len());
             for (handle, geometry) in jobs {
                 cooperate().await;
-                ready.push((handle, geometry.into_mesh()));
+                ready.push((handle, pipeline::browser::realize(geometry).await));
             }
             ready
         };
@@ -378,7 +379,8 @@ impl PreparedIndoor {
             let materials_seconds = started.elapsed().as_secs_f64();
             let started = bevy::platform::time::Instant::now();
             let transport =
-                gi::GeometryTransport::build(&manifest, &moving_humans, &geometry, false);
+                gi::GeometryTransport::build_interactive(&manifest, &moving_humans, &geometry)
+                    .await;
             (
                 material_set,
                 transport,
@@ -577,6 +579,7 @@ impl PreparedIndoor {
             }
             let root = root.id();
             for part in group.parts {
+                let sky = part.label == SemanticLabel::Sky;
                 let backlit = part.surface.is_some_and(|surface| {
                     super::materials::window_textile::receives_transmitted_shadows(
                         surface,
@@ -592,6 +595,9 @@ impl PreparedIndoor {
                     ChildOf(root),
                 ));
                 annotation_order += 1;
+                if sky {
+                    child.insert(super::architecture::background::SKY_TAG);
+                }
                 if let Some(bounds) = part.bounds {
                     child.insert(Aabb::from_min_max(bounds.0, bounds.1));
                 }

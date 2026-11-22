@@ -124,6 +124,7 @@ fn cached_human_fields_replay_every_atlas_mip_and_pbr_template() {
         let after = maps(
             seed,
             cloth_template(seed),
+            true,
             &mut after_images,
             &mut after_materials,
         );
@@ -156,12 +157,28 @@ fn cached_human_fields_replay_every_atlas_mip_and_pbr_template() {
 }
 
 #[test]
+fn coiled_only_selection_allocates_just_the_skin_atlas_from_the_general_maps() {
+    let (mut images, mut materials) = (Assets::default(), Assets::default());
+    let [cloth, skin, unused] = maps(7, cloth_template(7), false, &mut images, &mut materials);
+    assert_eq!(unused, cloth);
+    assert_ne!(skin, cloth);
+    assert_eq!(images.len(), 3);
+    assert_eq!(materials.len(), 2);
+}
+
+#[test]
 #[ignore = "counterbalanced CPU microbenchmark; run explicitly with --ignored --nocapture"]
 fn cached_human_fields_cpu_benchmark() {
     use std::{hint::black_box, time::Instant};
     // Warm transfer tables and the allocator before recurring-room timing.
     let (mut images, mut materials) = (Assets::default(), Assets::default());
-    black_box(maps(0, cloth_template(0), &mut images, &mut materials));
+    black_box(maps(
+        0,
+        cloth_template(0),
+        true,
+        &mut images,
+        &mut materials,
+    ));
     black_box(reference_maps(
         0,
         cloth_template(0),
@@ -189,6 +206,7 @@ fn cached_human_fields_cpu_benchmark() {
             black_box(maps(
                 black_box(seed),
                 cloth_template(seed),
+                true,
                 &mut images,
                 &mut materials,
             ));

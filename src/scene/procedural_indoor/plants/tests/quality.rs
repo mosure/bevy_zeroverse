@@ -197,6 +197,48 @@ fn cascading_foliage_does_not_pass_through_pot_or_floor() {
 }
 
 #[test]
+fn cane_rosettes_have_spiral_nodes_and_age_graded_curved_ribbons() {
+    let mut width_ratios = Vec::new();
+    for seed in 0..32 {
+        let o = fixture(5, seed);
+        let a = build_object(&o);
+        let (mut count, mut arching, mut young) = (0, 0, 0);
+        let mut heights = std::collections::BTreeSet::new();
+        let mut widths = 0.;
+        for ((surface, _), g) in &a.parts {
+            if !is_foliage(*surface) {
+                continue;
+            }
+            for leaf in g.positions.as_chunks::<23>().0 {
+                let p = leaf.map(Vec3::from_array);
+                let chord = p[22] - p[0];
+                widths += p[12].distance(p[10]) / chord.length();
+                heights.insert((p[0].y * 1000.).round() as i32);
+                if p[11].y > p[0].y + 0.025 && p[11].y > p[22].y + 0.025 {
+                    arching += 1;
+                }
+                if chord.y > 0.15 * chord.length() {
+                    young += 1;
+                }
+                count += 1;
+            }
+        }
+        assert!(heights.len() > count / 2, "stacked leaf bases {seed}");
+        assert!(
+            arching > count / 3 && young > count / 7,
+            "{seed}: {arching} arches / {young} upright / {count}"
+        );
+        width_ratios.push(widths / count as f32);
+        assert!(audit::check(&o, &a).unwrap().triangles < 20_000);
+    }
+    width_ratios.sort_by(f32::total_cmp);
+    assert!(
+        width_ratios[28] > width_ratios[3] * 1.7,
+        "width distributions {width_ratios:?}"
+    );
+}
+
+#[test]
 fn broad_crowns_fill_horizontal_space_without_exceeding_geometry_budget() {
     for variant in [0, 6, 12, 13, 15, 16] {
         let mut coverage_sum = 0.;

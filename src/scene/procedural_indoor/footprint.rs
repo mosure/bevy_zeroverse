@@ -11,10 +11,14 @@ pub(crate) struct Footprint {
 
 impl Footprint {
     pub fn object(object: &IndoorObject) -> Self {
-        let (s, c) = object.yaw.sin_cos();
+        Self::oriented(object.position.xz(), object.size.xz(), object.yaw)
+    }
+
+    pub(crate) fn oriented(center: Vec2, size: Vec2, yaw: f32) -> Self {
+        let (s, c) = yaw.sin_cos();
         Self {
-            center: object.position.xz(),
-            half: object.size.xz() * 0.5,
+            center,
+            half: size * 0.5,
             axes: [Vec2::new(c, -s), Vec2::new(s, c)],
         }
     }

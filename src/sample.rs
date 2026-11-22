@@ -167,6 +167,9 @@ pub struct Sample {
 #[derive(Debug, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct SamplerState {
+    /// Canonical, request-scoped eligibility indexed by captured timestep and logical camera.
+    pub rgb_artifact_eligible_cameras_by_timestep:
+        Option<bevy_zeroverse_capture::request::CameraRows>,
     pub enabled: bool,
     pub regenerate_scene: bool,
     pub frames: u32,
@@ -535,11 +538,45 @@ impl SamplerState {
     const WARMUP_FRAME_DELAY: u32 = 3;
     const MAX_OVOXEL_WAIT_SECONDS: u64 = 120;
 
+    pub fn for_request(
+        config: &BevyZeroverseConfig,
+        mut rows: Option<bevy_zeroverse_capture::request::CameraRows>,
+    ) -> Result<Self, String> {
+        if rows.is_some() && config.scene_type != crate::scene::ZeroverseSceneType::ProceduralIndoor
+        {
+            return Err("RGB artifact eligibility requires a procedural indoor room".into());
+        }
+        bevy_zeroverse_capture::request::validate_eligibility(
+            rows.as_deref(),
+            config.num_cameras,
+            config.playback_steps as usize,
+        )?;
+        if let Some(rows) = &mut rows {
+            for row in rows {
+                row.sort_unstable();
+            }
+        }
+        Ok(Self {
+            rgb_artifact_eligible_cameras_by_timestep: rows,
+            ..Self::from_config(config)
+        })
+    }
+
+    pub(crate) fn rgb_artifact_eligible(&self, camera: Option<usize>) -> bool {
+        self.rgb_artifact_eligible_cameras_by_timestep
+            .as_ref()
+            .is_none_or(|rows| {
+                rows.get(self.step as usize)
+                    .is_some_and(|row| camera.is_some_and(|c| row.binary_search(&c).is_ok()))
+            })
+    }
+
     /// Construct a complete timestep schedule for a concrete dataset configuration.
     pub fn from_config(config: &BevyZeroverseConfig) -> Self {
         Self {
             enabled: true,
             regenerate_scene: true,
+            rgb_artifact_eligible_cameras_by_timestep: None,
             frames: Self::FRAME_DELAY,
             render_modes: if config.render_modes.is_empty() {
                 vec![config.render_mode.clone()]
@@ -929,11 +966,26 @@ pub fn sample_stream(
                     .map(|o| o.id as i64)
                     .or_else(|| human.map(|h| h.id as i64))
             };
-            ordered_obbs.sort_by_key(|(entity, _, object, human)| {
-                (
-                    instance_id(*object, *human).unwrap_or(i64::MAX),
-                    entity.to_bits(),
-                )
+            ordered_obbs.sort_unstable_by(|a, b| {
+                instance_id(a.2, a.3)
+                    .unwrap_or(i64::MAX)
+                    .cmp(&instance_id(b.2, b.3).unwrap_or(i64::MAX))
+                    .then_with(|| {
+                        if args.scene_type != crate::scene::ZeroverseSceneType::ProceduralIndoor {
+                            return a.0.to_bits().cmp(&b.0.to_bits());
+                        }
+                        // Unnumbered architectural OBBs have no persistent ECS entity across regenerations.
+                        let key = |obb: &ObjectObb| {
+                            (
+                                obb.center.to_array().map(f32::to_bits),
+                                obb.scale.to_array().map(f32::to_bits),
+                                obb.rotation.to_array().map(f32::to_bits),
+                            )
+                        };
+                        a.1.class_name
+                            .cmp(&b.1.class_name)
+                            .then_with(|| key(a.1).cmp(&key(b.1)))
+                    })
             });
             for (_, obb, object, human) in ordered_obbs {
                 buffered_sample.object_obbs.push(ObjectObbSample {
@@ -1009,7 +1061,7 @@ pub fn sample_stream(
                 let view_idx = i + camera_count * state.step as usize;
                 let view = &mut buffered_sample.views[view_idx];
                 view.time = playback.progress;
-                view.trajectory_progress = Some(playback.mode.map_progress(playback.progress));
+                view.trajectory_progress = Some(playback.trajectory_progress());
                 view.time_seconds = indoor
                     .as_ref()
                     .and_then(|scene| scene.camera_settings.duration_seconds)
@@ -1316,7 +1368,7 @@ pub fn sample_stream(
             args.ssaa_factor,
         )
     };
-    let sample: Sample = Sample {
+    let mut sample: Sample = Sample {
         annotation_glass: args.annotation_glass,
         co_visibility_metadata: buffered_sample.co_visibility_metadata.take(),
         indoor: if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
@@ -1324,7 +1376,9 @@ pub fn sample_stream(
         } else {
             None
         },
-        color_encoding: if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor {
+        color_encoding: if args.tonemapping.preserves_hdr(args.hdr) {
+            crate::render::color::ColorEncoding::LinearHdr
+        } else if args.scene_type == crate::scene::ZeroverseSceneType::ProceduralIndoor || args.tonemapping != Default::default() {
             crate::render::color::ColorEncoding::TonemappedLinear
         } else {
             crate::render::color::ColorEncoding::Legacy
@@ -1334,7 +1388,7 @@ pub fn sample_stream(
             "ssaa": {"configured_factor": args.ssaa_factor, "linear_factor": ssaa_factor, "rgb_filter": "linear_light_box_after_tonemapping", "annotation_filter": "final_pixel_center"},
             "rgb_gizmos": (crate::render::sensor::captures_rgb(&args) && args.rgb_gizmos.enabled()).then_some(args.rgb_gizmos),
             "camera_sensor": indoor.as_ref().filter(|_| crate::render::sensor::captures_rgb(&args))
-                .and_then(|s| crate::render::sensor::metadata(s, &views, camera_count)),
+                .and_then(|s| crate::render::sensor::metadata(s, &views, camera_count, args.tonemapping.preserves_hdr(args.hdr))),
             "schema_version": 1,
             "build_provenance": crate::provenance::capture_provenance(),
             "world_from_scene": capture.identity.as_ref().and_then(|identity|identity.world_from_scene),
@@ -1390,6 +1444,32 @@ pub fn sample_stream(
         ovoxel,
     };
 
+    if let Some(metadata) = sample.indoor_render_metadata.as_mut() {
+        let rows = state.rgb_artifact_eligible_cameras_by_timestep.as_deref();
+        if let Some(rows) = rows {
+            metadata["rgb_artifact_eligibility_sha256"] = bevy_zeroverse_capture::provenance::sha(
+                &serde_json::to_vec(rows).expect("logical camera indices serialize"),
+            )
+            .into();
+        }
+        if rows.is_some() || crate::render::sensor::captures_rgb(&args) {
+            let profiles = &metadata["camera_sensor"]["cameras"];
+            let receipt = bevy_zeroverse_capture::request::RgbArtifactReceipt::for_capture(
+                rows,
+                camera_count,
+                args.playback_steps as usize,
+                |i| profiles.get(i).is_some_and(|profile| !profile.is_null()),
+            );
+            metadata["rgb_artifacts"] = serde_json::json!(receipt);
+        }
+    }
+    if let Some(metadata) = sample
+        .indoor_render_metadata
+        .as_mut()
+        .filter(|_| args.hdr || args.tonemapping != Default::default())
+    {
+        metadata["rgb_output"] = serde_json::json!({"tonemapping":args.tonemapping, "hdr_requested":args.hdr, "encoding":sample.color_encoding});
+    }
     let telemetry = channels::CaptureTelemetry {
         seed: sample.indoor.as_ref().map(|s| s.seed),
         preparation: capture_status.preparation.as_deref().cloned(),

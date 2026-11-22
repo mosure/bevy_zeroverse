@@ -15,8 +15,17 @@ pub fn validate_layout(scene: &IndoorManifest) -> Result<(), String> {
 pub(crate) fn validate_prepared_layout(
     scene: &IndoorManifest,
 ) -> Result<(), crate::sample::failure::CaptureError> {
+    validate_layout_for_generator(scene, GENERATOR_VERSION)
+}
+
+// Historical regression rooms retain their recorded version because it selects
+// their fixture layout. Live capture always requires the current generator.
+pub(super) fn validate_layout_for_generator(
+    scene: &IndoorManifest,
+    expected_version: u32,
+) -> Result<(), crate::sample::failure::CaptureError> {
     // Integrity failures remain fatal even when a required anchor is also absent.
-    let placement_rejection = validate_layout_integrity(scene)?;
+    let placement_rejection = validate_layout_integrity(scene, expected_version)?;
     scene.validate_public_programs_typed()?;
     if scene
         .program
@@ -54,13 +63,16 @@ pub(crate) fn validate_prepared_layout(
     Ok(())
 }
 
-fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, String> {
+fn validate_layout_integrity(
+    scene: &IndoorManifest,
+    expected_version: u32,
+) -> Result<Option<String>, String> {
     // Defer the narrow placement rejection until all integrity checks pass.
     // Corrupt transforms, relationships and camera metadata remain fatal.
     let mut placement_rejection = None;
     // Validate base scalars before dependent programs divide by room dimensions
     // or inspect objects. Malformed archived manifests must fail without panic.
-    if scene.generator_version != GENERATOR_VERSION
+    if scene.generator_version != expected_version
         || !scene.room_size.is_finite()
         || scene.room_size.min_element() <= 0.0
         || !scene.world_yaw.is_finite()
@@ -79,6 +91,13 @@ fn validate_layout_integrity(scene: &IndoorManifest) -> Result<Option<String>, S
     }
     if let Some(bay) = scene.adjoining {
         bay.validate(scene.room_size.x)?;
+    }
+    if let Some(windows) = scene
+        .adjoining_elevation
+        .as_ref()
+        .and_then(|p| p.windows.as_ref())
+    {
+        windows.validate(scene)?;
     }
     scene.camera_settings.validate()?;
     scene.validate_doors()?;

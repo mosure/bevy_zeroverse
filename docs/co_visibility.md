@@ -20,7 +20,7 @@ For the viewer, select **Rendering and annotations → Render → CoVisibility**
 a camera legend. A direct launch is:
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor --indoor-seed 44 \
+cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor --indoor-seed 44 \
   --num-cameras 4 --camera-grid --render-mode co-visibility
 ```
 
@@ -168,7 +168,7 @@ cargo test --test co_visibility_render -- --ignored --nocapture
 cargo test -p bevy_zeroverse_burn --test co_visibility_roundtrip
 # With the built FFI extension and Python dependencies available:
 PYTHONPATH=crates/ffi/python python -m unittest crates/ffi/python/test_co_visibility.py
-cargo run --bin indoor_bench -- --scenes 16 --warmup-scenes 4 \
+cargo run --example indoor_bench -- --scenes 16 --warmup-scenes 4 \
   --seed 44 --cameras 4 --width 320 --height 240 --human-density 0 \
   --fixed-scene --no-gi --gpu-timings --co-visibility --output out/covis_bench
 ```

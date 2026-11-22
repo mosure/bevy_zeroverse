@@ -261,3 +261,75 @@ fn original_lathe(geometry: &mut Geometry, profile: &[(f32, f32)], segments: u32
         }
     }
 }
+
+#[test]
+fn rolled_and_faceted_stock_has_continuous_metric_charts_including_horizontal_lips() {
+    let profile = [
+        (0., 0.),
+        (0.40, 0.),
+        (0.20, 0.20),
+        (0.22, 0.5),
+        (0.18, 0.5),
+        (0.16, 0.26),
+        (0., 0.26),
+    ];
+    for (outline, columns) in [
+        (RevolvedOutline::round(36, 0.036, 7), 37),
+        (RevolvedOutline::polygon(6), 12),
+    ] {
+        let mut g = Geometry::default();
+        outline.sweep(
+            &mut g,
+            &profile,
+            ProfileJoints::Creased,
+            Transform::IDENTITY,
+        );
+        let ring = |i| &g.uvs[i * columns..(i + 1) * columns];
+        assert_eq!(ring(3), ring(4));
+        for band in [0, 3, 5] {
+            for i in 2 * columns * band..2 * columns * (band + 1) {
+                let p = g.positions[i];
+                assert_eq!(g.uvs[i], [p[0], p[2]]);
+            }
+        }
+        for i in 0..columns {
+            assert!((ring(3)[i][1] - ring(2)[i][1] - 0.2_f32.hypot(0.2)).abs() < 1e-6);
+        }
+        for t in g.indices.as_chunks::<3>().0 {
+            let [a, b, c] = t.map(|i| Vec2::from_array(g.uvs[i as usize]));
+            assert!(
+                (b - a).perp_dot(c - a).abs() > 1e-9,
+                "collapsed material chart"
+            );
+        }
+    }
+}
+
+#[test]
+fn wrap_length_tracks_rounded_rectangular_stock_and_stays_continuous_through_tapers() {
+    let rings = [
+        (0., Vec2::new(0.55, 0.13)),
+        (0.2, Vec2::new(0.38, 0.12)),
+        (0.5, Vec2::new(0.42, 0.10)),
+        (0.5, Vec2::new(0.38, 0.075)),
+    ];
+    let mut g = Geometry::default();
+    g.housing(&rings, 5., Transform::IDENTITY);
+    let n = 32;
+    for sector in 0..n {
+        let i = sector * 4;
+        let position = |j: usize| Vec3::from_array(g.positions[j]);
+        assert!(
+            (g.uvs[i + 3][0] - g.uvs[i][0] - position(i + 3).distance(position(i))).abs() < 1e-6
+        );
+        assert!(
+            (g.uvs[i + 1][1] - g.uvs[i][1] - position(i + 1).distance(position(i))).abs() < 1e-6
+        );
+        assert_eq!(g.uvs[i + 1], g.uvs[4 * n + i]);
+        assert_eq!(g.uvs[i + 2], g.uvs[4 * n + i + 3]);
+        let cap = 8 * n + i;
+        for (offset, uv) in g.uvs[cap..cap + 4].iter().enumerate() {
+            assert_eq!(*uv, position(cap + offset).xz().to_array());
+        }
+    }
+}

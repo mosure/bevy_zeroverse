@@ -70,6 +70,7 @@ fn moving_mounts_cannot_bridge_even_a_thin_support_gap() {
     e.mezzanine = None;
     let m = member(FrameSection::Solid);
     s.ceiling_installation = Some(CeilingInstallation {
+        room_grid: None,
         exposed_slab: true,
         modules: vec![],
         framing: Some(CeilingFraming {

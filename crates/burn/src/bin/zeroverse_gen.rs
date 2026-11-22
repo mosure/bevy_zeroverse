@@ -14,6 +14,7 @@ use std::{
 use anyhow::{Context as ContextExt, Result};
 use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
 
+use bevy_zeroverse::render::color::RgbTonemapping;
 use bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout;
 use bevy_zeroverse::{render::RenderMode, scene::ZeroverseSceneType};
 use bevy_zeroverse_burn::{
@@ -57,6 +58,11 @@ enum OutputModeArg {
     about = "Generate Zeroverse samples and write either safetensor chunks or folder-per-sample outputs."
 )]
 struct Cli {
+    /// JSON array of per-room capture requests, indexed by global sample number.
+    #[arg(long)]
+    capture_requests: Option<PathBuf>,
+    #[arg(skip)]
+    requests: Option<std::sync::Arc<[bevy_zeroverse_capture::request::CaptureRequest]>>,
     /// Export top-down JSON/SVG/PNG sidecars for each captured timestep.
     #[arg(long)]
     schematic: bool,
@@ -153,6 +159,12 @@ struct Cli {
     indoor_clutter: Option<String>,
     #[command(flatten)]
     rgb_gizmos: bevy_zeroverse::camera::gizmo::RgbGizmos,
+    /// Request HDR RGB. Automatic tone mapping preserves exposed, linear highlights.
+    #[arg(long)]
+    hdr: bool,
+    /// Bevy RGB tone curve. Automatic uses Tony McMapface for SDR and Linear for HDR.
+    #[arg(long, value_enum, default_value = "auto")]
+    tonemapping: RgbTonemapping,
     /// Optional post-tonemapping RGB corruption ranges as JSON; annotations stay unchanged.
     #[arg(long)]
     rgb_sensor: Option<String>,
@@ -189,7 +201,7 @@ struct Cli {
     #[arg(long, default_value_t = CompressionArg::Lz4, value_enum)]
     compression: CompressionArg,
 
-    /// RGB storage: indoor defaults to lossless sRGB float32, legacy scenes to JPEG quality75
+    /// RGB storage. Indoor and unbounded RGB default to float32, other scenes to JPEG.
     #[arg(long, value_enum)]
     color_codec: Option<ColorCodec>,
 
@@ -299,12 +311,15 @@ fn main() -> Result<()> {
     let matches = Cli::command().get_matches();
     let mut cli = Cli::from_arg_matches(&matches)?;
     motion_worker_default(&mut cli, &matches);
-    cli.color_codec
-        .get_or_insert(if cli.scene_type == ZeroverseSceneType::ProceduralIndoor {
+    cli.color_codec.get_or_insert(
+        if cli.scene_type == ZeroverseSceneType::ProceduralIndoor
+            || cli.tonemapping.preserves_hdr(cli.hdr)
+        {
             ColorCodec::Raw
         } else {
             ColorCodec::Jpeg
-        });
+        },
+    );
     anyhow::ensure!(
         cli.workers > 0 && cli.chunk_size > 0,
         "workers and chunk-size must be positive"
@@ -528,7 +543,15 @@ fn main() -> Result<()> {
                     .arg("--worker-job-id")
                     .arg(job.job_id.to_string());
 
+                if let Some(path) = &cli.capture_requests {
+                    cmd.arg("--capture-requests").arg(path);
+                }
                 append_rgb_gizmo_args(&mut cmd, &cli.rgb_gizmos);
+                cmd.arg("--tonemapping")
+                    .arg(cli.tonemapping.to_possible_value().unwrap().get_name());
+                if cli.hdr {
+                    cmd.arg("--hdr");
+                }
                 if let Some(camera) = &cli.indoor_camera {
                     cmd.arg("--indoor-camera").arg(camera);
                 }
@@ -641,6 +664,7 @@ fn main() -> Result<()> {
         chunk_size: cli.chunk_size,
         samples: cli.samples,
         sample_offset: base_sample_offset,
+        capture_requests: cli.requests.clone(),
         chunk_offset: base_chunk_offset,
         playback_step: cli.playback_step,
         playback_steps: cli.playback_steps,
@@ -671,6 +695,8 @@ fn main() -> Result<()> {
         indoor_gi_rays: cli.indoor_gi_rays,
         indoor_quality: cli.indoor_quality,
         annotation_glass: cli.annotation_glass,
+        hdr: cli.hdr,
+        tonemapping: cli.tonemapping,
         rotation_augmentation: cli.rotation_augmentation,
         cameras: cli.cameras,
         enable_ui,
@@ -752,9 +778,17 @@ fn export_dataset_metrics(cli: &Cli, sample_offset: usize) -> Result<()> {
         let count = sample_offset
             .checked_add(cli.samples)
             .context("dataset sample count overflow")?;
-        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_with_clutter(
-            cli.seed.context("indoor dataset seed missing")?,
-            count,
+        let base = cli.seed.context("indoor dataset seed missing")?;
+        anyhow::ensure!(
+            cli.requests.as_ref().is_none_or(|r| r.len() >= count),
+            "incomplete capture request list for metrics"
+        );
+        bevy_zeroverse::scene::procedural_indoor::metrics::export_metrics_for_seeds(
+            (0..count).map(|i| {
+                cli.requests
+                    .as_ref()
+                    .map_or_else(|| base.wrapping_add(i as u64), |r| r[i].seed)
+            }),
             cli.cameras,
             cli.indoor_density,
             cli.indoor_layout,
@@ -842,6 +876,39 @@ fn append_rgb_gizmo_args(
 }
 
 fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
+    let mut request_digest = None;
+    if let Some(path) = &cli.capture_requests {
+        anyhow::ensure!(
+            cli.scene_type == ZeroverseSceneType::ProceduralIndoor,
+            "capture requests require procedural indoor"
+        );
+        let mut requests: Vec<bevy_zeroverse_capture::request::CaptureRequest> =
+            serde_json::from_reader(
+                std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?,
+            )?;
+        for request in &mut requests {
+            request
+                .validate(cli.cameras, cli.playback_steps as usize)
+                .map_err(anyhow::Error::msg)?;
+            if let Some(rows) = &mut request.rgb_artifact_eligible_cameras_by_timestep {
+                for row in rows {
+                    row.sort_unstable();
+                }
+            }
+        }
+        let digest = bevy_zeroverse_capture::provenance::sha(&serde_json::to_vec(&requests)?);
+        if cli.child_worker {
+            let contract: serde_json::Value = serde_json::from_reader(std::fs::File::open(
+                cli.output.join("generation_config.json"),
+            )?)?;
+            anyhow::ensure!(
+                contract["capture_requests_sha256"].as_str() == Some(&digest),
+                "capture requests changed after job admission"
+            );
+        }
+        request_digest = Some(digest);
+        cli.requests = Some(requests.into());
+    }
     anyhow::ensure!(
         !cli.schematic || cli.scene_type == ZeroverseSceneType::ProceduralIndoor,
         "--schematic requires --scene-type procedural-indoor"
@@ -859,9 +926,14 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
     }
     bevy_zeroverse_burn::generator::validate_gen_config(&GenConfig {
         export_schematic: cli.schematic,
+        samples: cli.samples,
+        sample_offset: cli.sample_offset,
+        capture_requests: cli.requests.clone(),
         schematic_camera_gizmo_scale: cli.schematic_camera_gizmo_scale,
         rgb_gizmos: cli.rgb_gizmos,
         workers: if cli.per_process { 1 } else { cli.workers },
+        hdr: cli.hdr,
+        tonemapping: cli.tonemapping,
         chunk_size: cli.chunk_size,
         width: cli.width,
         height: cli.height,
@@ -917,7 +989,12 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
             }
         }
     }
-    let base_seed = *cli.seed.get_or_insert_with(rand::random);
+    let base_seed = *cli.seed.get_or_insert_with(|| {
+        cli.requests
+            .as_ref()
+            .and_then(|rs| rs.first())
+            .map_or_else(rand::random, |r| r.seed)
+    });
     let mut gi_settings = bevy_zeroverse::scene::procedural_indoor::gi::IndoorGiSettings::default();
     gi_settings.bake.rays_per_probe = cli.indoor_gi_rays;
     let mut spec = serde_json::json!({
@@ -968,8 +1045,21 @@ fn prepare_generation_metadata(cli: &mut Cli) -> Result<()> {
         "ovoxel_resolution": cli.ov_resolution,
         "ovoxel_max_output_voxels": cli.ov_max_output_voxels,
     });
+    if let Some(digest) = request_digest {
+        spec["capture_requests_sha256"] = digest.into();
+        spec["seed_rule"] = "capture_requests[global_sample_index].seed".into();
+    }
     if cli.render_modes.contains(&RenderMode::Color) && cli.rgb_gizmos.enabled() {
         spec["rgb_gizmos"] = serde_json::to_value(cli.rgb_gizmos)?;
+    }
+    if cli.render_modes.contains(&RenderMode::Color)
+        && (cli.hdr || cli.tonemapping != RgbTonemapping::Auto)
+    {
+        spec["hdr"] = cli.hdr.into();
+        spec["tonemapping"] = serde_json::to_value(cli.tonemapping)?;
+        if cli.tonemapping.preserves_hdr(cli.hdr) && cli.color_codec == Some(ColorCodec::Raw) {
+            spec["color"] = "unbounded display-linear RGB in float32 storage".into();
+        }
     }
     // Preserve resumability of existing default-size exports. This option has
     // no effect when sidecars are disabled; non-default exported sizes are locked.
@@ -1097,6 +1187,52 @@ mod process_limit_tests {
     }
 
     #[test]
+    fn capture_request_provenance_survives_reordering_and_rejects_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("requests.json");
+        let mut cli = indoor(&[
+            "--color-codec",
+            "raw",
+            "--cameras",
+            "3",
+            "--playback-steps",
+            "2",
+            "--ov-mode",
+            "disabled",
+        ]);
+        cli.samples = 1;
+        cli.output = dir.path().join("output");
+        cli.capture_requests = Some(file.clone());
+        let write = |sequence: usize, rows: serde_json::Value| {
+            let requests = serde_json::json!([{
+                "sequence": sequence, "seed": 70, "rgb_artifact_eligible_cameras_by_timestep": rows
+            }]);
+            std::fs::write(&file, serde_json::to_vec(&requests).unwrap()).unwrap();
+        };
+        write(0, serde_json::json!([[2, 0], [1]]));
+        prepare_generation_metadata(&mut cli).unwrap();
+        cli.resume = true;
+        write(0, serde_json::json!([[0, 2], [1]]));
+        prepare_generation_metadata(&mut cli).unwrap();
+        write(0, serde_json::json!([[0], [1]]));
+        assert!(prepare_generation_metadata(&mut cli).is_err());
+        cli.child_worker = true;
+        assert!(prepare_generation_metadata(&mut cli).is_err());
+        write(0, serde_json::json!([[2, 0], [1]]));
+        prepare_generation_metadata(&mut cli).unwrap();
+        cli.child_worker = false;
+        for (sequence, rows) in [
+            (1, serde_json::json!([[2, 0], [1]])),
+            (0, serde_json::json!([[0], [3]])),
+            (0, serde_json::json!([[0, 0], [1]])),
+            (0, serde_json::json!([null, [1]])),
+        ] {
+            write(sequence, rows);
+            assert!(prepare_generation_metadata(&mut cli).is_err());
+        }
+    }
+
+    #[test]
     fn rgb_gizmos_are_part_of_the_archive_resume_contract() {
         let dir = tempfile::tempdir().unwrap();
         let mut cli = indoor(&["--rgb-object-obbs", "--color-codec", "raw"]);
@@ -1110,6 +1246,33 @@ mod process_limit_tests {
         cli.resume = true;
         prepare_generation_metadata(&mut cli).unwrap();
         cli.rgb_gizmos.object_obbs = false;
+        assert!(prepare_generation_metadata(&mut cli).is_err());
+    }
+
+    #[test]
+    fn hdr_capture_and_resume_share_the_configured_rgb_curve() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cli = indoor(&["--hdr", "--tonemapping", "linear", "--color-codec", "raw"]);
+        let scene = GenConfig {
+            hdr: cli.hdr,
+            tonemapping: cli.tonemapping,
+            ..Default::default()
+        }
+        .scene_config();
+        assert_eq!(scene.tonemapping, RgbTonemapping::Linear);
+        assert!(scene.hdr);
+        cli.output = dir.path().to_owned();
+        prepare_generation_metadata(&mut cli).unwrap();
+        let receipt: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(dir.path().join("generation_config.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(receipt["tonemapping"], "linear");
+        assert_eq!(receipt["hdr"], true);
+        assert!(receipt["color"].as_str().unwrap().contains("unbounded"));
+        cli.resume = true;
+        prepare_generation_metadata(&mut cli).unwrap();
+        cli.tonemapping = RgbTonemapping::AgX;
         assert!(prepare_generation_metadata(&mut cli).is_err());
     }
 

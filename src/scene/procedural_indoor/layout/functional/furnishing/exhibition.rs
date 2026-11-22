@@ -74,13 +74,11 @@ impl IndoorManifest {
                     }
                 }
                 ObjectKind::Desk => ObjectKind::Notebook,
-                ObjectKind::Table => {
-                    if r.random_bool(0.5) {
-                        ObjectKind::Dishware
-                    } else {
-                        ObjectKind::CoffeeCup
-                    }
-                }
+                // Dining is dressed once, from the admitted seats and this
+                // table's clutter budget. Lecture tables can hold study materials.
+                ObjectKind::Table if self.is_dining_table(&support) => continue,
+                ObjectKind::Table if r.random_bool(0.5) => ObjectKind::Notebook,
+                ObjectKind::Table => ObjectKind::CoffeeCup,
                 _ => continue,
             };
             if support.kind == ObjectKind::ExhibitPlinth {
@@ -115,13 +113,7 @@ impl IndoorManifest {
                 }
                 continue;
             }
-            let size = match kind {
-                ObjectKind::Notebook => {
-                    super::super::super::super::items::sizing::loose(kind, &mut r).unwrap()
-                }
-                ObjectKind::Dishware => Vec3::new(0.26, 0.11, 0.26) * r.random_range(0.80..1.15),
-                _ => super::super::super::super::items::sizing::loose(kind, &mut r).unwrap(),
-            };
+            let size = super::super::super::super::items::sizing::loose(kind, &mut r).unwrap();
             let yaw: f32 = r.random_range(-0.45..0.45);
             // Offset against the rotated item's envelope, not against its center
             // alone. Small stands may correctly admit almost-centered exhibits.

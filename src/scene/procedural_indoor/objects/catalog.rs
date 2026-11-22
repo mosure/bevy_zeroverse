@@ -173,4 +173,5 @@ object_catalog! {
     FireDetector => ("fire_detector", Signals, false, false),
     FirePullStation => ("fire_pull_station", Signals, false, false),
     BaseboardHeater => ("appliance", Services, false, false),
+    Flatware => ("kitchen_utensil", Kitchen, false, false),
 }

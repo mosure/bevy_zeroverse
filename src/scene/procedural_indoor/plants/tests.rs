@@ -63,9 +63,25 @@ fn all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopie
                 }
                 triangles += g.indices.len() / 3;
             }
+            // Potting fragments alone used to exceed the whole-plant minimum.
+            // Enforce visible canopy detail independently of the planter mesh.
+            let foliage: usize = a
+                .parts
+                .iter()
+                .filter(|((s, _), _)| {
+                    matches!(
+                        s,
+                        Surface::Leaf
+                            | Surface::LeafLight
+                            | Surface::LeafVariegated
+                            | Surface::Succulent
+                    )
+                })
+                .map(|(_, g)| g.indices.len() / 3)
+                .sum();
             assert!(
-                (1000..20000).contains(&triangles),
-                "species {variant}: {triangles} triangles"
+                foliage >= 128 && triangles < 20_000,
+                "species {variant}, seed {seed}: {foliage} canopy triangles, {triangles} total"
             );
             topology_counts.insert(triangles);
         }

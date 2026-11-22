@@ -76,6 +76,11 @@ pub fn parse(
             return Err(format!("duplicate viewer setting: {key}"));
         }
     }
+    let defaults = match old.remove("kiosk").as_deref() {
+        Some("" | "true") => super::presentation::kiosk_defaults(defaults, |_| true),
+        Some("false") | None => defaults,
+        Some(_) => return Err("kiosk must be true or false".into()),
+    };
     let mut disabled: Vec<String> = old
         .iter()
         .filter(|(_, v)| v.trim() == "null")
@@ -184,9 +189,17 @@ fn set(value: &mut Value, keys: &[&str], path: &str, replacement: Value) -> Resu
 /// arrays/objects need two-character markers, never an encoded JSON document.
 pub fn encode(config: &BevyZeroverseConfig, view: &super::view_state::ViewState) -> String {
     let mut current = expand(config);
-    let mut defaults = expand(&super::web_viewer_defaults());
+    let base = super::web_viewer_defaults();
+    let base = if config.kiosk {
+        super::presentation::kiosk_defaults(base, |_| true)
+    } else {
+        base
+    };
+    let mut defaults = expand(&base);
+    // Keep the preset in the URL and encode only edits relative to it.
+    defaults["kiosk"] = json!(false);
     current["viewer_state"] = json!(view);
-    defaults["viewer_state"] = json!(super::view_state::ViewState::default());
+    defaults["viewer_state"] = json!(super::presentation::default_view(config.kiosk));
     let mut pairs = Vec::new();
     for (key, value) in current.as_object().unwrap() {
         flatten(value, &defaults[key], key, &mut pairs);
@@ -363,6 +376,12 @@ fn legacy(
                 .transpose()
                 .map_err(|e| e.to_string())?
                 .unwrap_or(parsed),
+            "playback_mode" => crate::camera::PlaybackMode::from_str(&value, true)
+                .ok()
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
+                .unwrap_or(parsed),
             _ if field.is_string() => serde_json::Value::String(value),
             _ => parsed,
         };
@@ -373,6 +392,33 @@ fn legacy(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interval_links_accept_cli_and_saved_playback_modes() {
+        for &mode in crate::camera::PlaybackMode::value_variants() {
+            let possible = mode.to_possible_value().unwrap();
+            let cli = possible.get_name();
+            let saved = serde_json::to_value(mode).unwrap();
+            assert_eq!(
+                BevyZeroverseConfig::try_parse_from(["viewer", "--playback-mode", cli])
+                    .unwrap()
+                    .playback_mode,
+                mode
+            );
+            for name in [cli, saved.as_str().unwrap()] {
+                let config = parse(
+                    crate::app::web_viewer_defaults(),
+                    [
+                        ("regenerate_ms".into(), "2500".into()),
+                        ("playback_mode".into(), name.into()),
+                    ],
+                )
+                .unwrap();
+                assert_eq!(config.regenerate_ms, 2500);
+                assert_eq!(config.playback_mode, mode);
+            }
+        }
+    }
     #[test]
     fn camera_gizmo_scales_validate_share_sparsely_and_restore_defaults() {
         let base = web_viewer_defaults();

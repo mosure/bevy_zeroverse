@@ -203,6 +203,14 @@ pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
                 r.random_range(0.12..0.19),
             )
         }
+        Flatware => {
+            let length = r.random_range(0.14_f32..0.218);
+            Vec3::new(
+                length * r.random_range(0.15..0.23),
+                r.random_range(0.008..0.017),
+                length,
+            )
+        }
         KitchenTowel => {
             let w = r.random_range(0.16..0.34);
             Vec3::new(

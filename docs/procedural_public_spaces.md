@@ -7,9 +7,9 @@ functions. These programs use the existing `ProceduralIndoor` scene and capture
 pipeline. Cornell, object, primitive and semantic-room scenes remain available.
 
 ```sh
-cargo run --bin viewer -- --scene-type procedural-indoor \
+cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor \
   --indoor-layout lecture-hall --indoor-seed 10000
-cargo run --bin indoor_validate -- --layout gallery --seed 20000 \
+cargo run --example indoor_validate -- --layout gallery --seed 20000 \
   --audit-seeds 1024 --audit-geometry --renders 64 --cameras 3 \
   --width 512 --height 512 --labels --co-visibility --no-raw \
   --output out/gallery_qualification

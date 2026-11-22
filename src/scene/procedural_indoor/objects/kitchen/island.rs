@@ -113,24 +113,28 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, finish: &KitchenProgram)
         finish.finish,
         "cabinet",
     );
-    a.box_part(
+    worktop::solid(
+        a,
+        o,
         finish.top,
-        "counter",
         Vec3::new(0., o.size.y - p.slab_thickness * 0.5, 0.),
         Vec3::new(o.size.x, p.slab_thickness, o.size.z),
         0.004,
+        o.size.y,
     );
     if p.waterfall_ends {
         // Vertical worktop returns terminate against the underside of the
         // slab. Their inside faces remain outside the cabinet side panels.
         let thickness = (p.end_overhang * 0.78).min(p.slab_thickness);
         for side in [-1., 1.] {
-            a.box_part(
+            worktop::solid(
+                a,
+                o,
                 finish.top,
-                "counter",
                 Vec3::new(side * (o.size.x - thickness) * 0.5, top * 0.5, 0.),
                 Vec3::new(thickness, top, o.size.z),
                 0.002,
+                o.size.y,
             );
         }
     }

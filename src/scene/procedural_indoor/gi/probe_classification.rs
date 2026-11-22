@@ -24,6 +24,7 @@ fn fixture() -> BakeScene {
         sun_direction: Vec3::Y,
         sun: Vec3::ZERO,
         sky: Vec3::ONE,
+        sky_field: default(),
         bounds_min: Vec3::splat(-4.0),
         bounds_max: Vec3::splat(4.0),
         preparation_ms: 0.0,

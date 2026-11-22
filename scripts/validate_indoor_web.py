@@ -2,8 +2,8 @@
 """Exercise an already-served Wasm viewer and retain screenshots + WebGPU evidence.
 
 Requires: pip install playwright pillow
-Build viewer.wasm with --target wasm32-unknown-unknown --no-default-features
---features web, use the Cargo.lock-matching wasm-bindgen CLI to create www/out,
+Build bevy_zeroverse.wasm with --target wasm32-unknown-unknown --no-default-features
+--features web, use the Cargo.lock-matching wasm-bindgen CLI with --out-name viewer to create www/out,
 then serve www over localhost or HTTPS. Native Chromium/Chrome needs a display
 unless --headless is specified. This tests browser viewing, not dataset readback.
 """

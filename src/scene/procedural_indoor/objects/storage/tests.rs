@@ -1,5 +1,4 @@
 use super::*;
-use crate::scene::procedural_indoor::placement::{rotated_half, Footprint};
 use std::collections::BTreeSet;
 mod qualification;
 
@@ -77,17 +76,20 @@ fn open_cabinet_contents_fit_and_rest_on_actual_shelves() {
                 let ceiling = bay.levels[level + 1] - p.panel_m * 0.5;
                 let rear = -p.body_depth_m * 0.5 + p.panel_m;
                 let front = p.body_depth_m * 0.5 - 0.045;
-                let mut occupied = Vec::new();
-                for mut c in bookcase::contents::placements(&inside, &shelves, index, level) {
+                let mut children = bookcase::contents::placements(&inside, &shelves, index, level);
+                for c in &mut children {
                     c.position.z -= 0.0225;
-                    let q = Footprint {
-                        center: c.position.xz(),
-                        half: rotated_half(c.size.xz(), c.yaw),
-                        yaw: c.yaw,
-                    };
-                    assert!(q.inside(Vec2::new(bay.left, rear), Vec2::new(bay.right, front), 0.));
-                    assert!(!occupied.iter().any(|&a| q.overlaps(a, 0.)));
-                    occupied.push(q);
+                }
+                bookcase::tests::check_separation(
+                    &children,
+                    &shelves.bays[index],
+                    base,
+                    ceiling,
+                    rear,
+                    front,
+                    shelves.open_frame,
+                );
+                for c in children {
                     let mut mesh = Assembly::default();
                     bookcase::contents::build(&mut mesh, &inside, &c);
                     let (lo, hi) = mesh.bounds();

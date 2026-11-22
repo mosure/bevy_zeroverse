@@ -1,6 +1,8 @@
 //! Shared, seeded human microstructure; actor tint and UVs vary independently.
 use super::*;
 use crate::scene::procedural_indoor::preparation::AssetStore;
+mod coiled;
+pub(super) use coiled::material as coiled_hair;
 
 /// One neutral loop-knit atlas shared by the room's jersey/knit garments.
 pub(super) fn knit(
@@ -45,6 +47,7 @@ pub(super) fn knit_recipe(seed: u64) -> program::MaterialRecipe {
 pub(super) fn maps(
     seed: u64,
     mut cloth: StandardMaterial,
+    straight_hair: bool,
     images: &mut impl AssetStore<Image>,
     materials: &mut impl AssetStore<StandardMaterial>,
 ) -> [Handle<StandardMaterial>; 3] {
@@ -71,7 +74,7 @@ pub(super) fn maps(
     cloth.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(2.));
     let cloth = materials.add(cloth);
     [0, 1, 2].map(|kind| {
-        if kind == 0 {
+        if kind == 0 || (kind == 2 && !straight_hair) {
             return cloth.clone();
         }
         // Finite differences previously re-evaluated this same field five or

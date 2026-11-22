@@ -160,9 +160,13 @@ impl Recipe {
                     p.floor_stock = [stock.mottle_cells[0], stock.mottle_cells[1], 1, 0];
                     p.floor_cut[..2].copy_from_slice(&stock.cut_jitter);
                 }
+                if let Some(tiles) = f.carpet_tiles {
+                    p.floor_stock[3] = tiles.direction.gpu_code();
+                    p.floor_cut[2] = tiles.registration;
+                }
                 use super::super::flooring::FloorLayout;
                 p.floor_meta = [
-                    1,
+                    u32::from(f.tile_definition != 0. || f.piece_roughness != 0.),
                     u32::from(f.layout == FloorLayout::BrokenBond),
                     f.cells[0],
                     f.cells[1],
