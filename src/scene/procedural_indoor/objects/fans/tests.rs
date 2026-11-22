@@ -106,8 +106,10 @@ fn adjacent_fan_clearance_and_identity_survive_population_changes() {
 #[test]
 fn reported_fan_headroom_survives_later_rug_placement() {
     use crate::scene::procedural_indoor::layout::equipment::fan_clear;
+    use crate::scene::procedural_indoor::layout::floor::area::RugSupport;
+    let mut unoccupied_fans = None;
     for people in [0., 0.5, 1.] {
-        let scene =
+        let mut scene =
             IndoorManifest::generate_with_humans(65_158_972, IndoorLayout::Mixed, 0.65, 0, people)
                 .unwrap();
         validation::validate_layout(&scene).unwrap();
@@ -115,13 +117,14 @@ fn reported_fan_headroom_survives_later_rug_placement() {
             .objects
             .iter()
             .filter(|o| o.kind == ObjectKind::CeilingFan)
+            .cloned()
             .collect();
-        assert_eq!(
-            fans.len(),
-            2,
-            "reserve headroom rather than removing the fans"
+        assert!(
+            !fans.is_empty(),
+            "the reported room must exercise fan placement"
         );
-        for fan in fans {
+        assert_eq!(&fans, unoccupied_fans.get_or_insert_with(|| fans.clone()));
+        for fan in &fans {
             assert!(fan_clear(&scene, fan));
             audit::check(fan, &build_object(fan)).unwrap();
             // Check the maximum possible rug rise across the full sweep,
@@ -135,6 +138,25 @@ fn reported_fan_headroom_survives_later_rug_placement() {
                 .fold(0., f32::max);
             assert!(lo.y >= floor + 2.1);
         }
+        // A rug entirely inside the rotor footprint must affect admission even
+        // when none of the footprint's four corners touches it.
+        let fan = &fans[0];
+        let (lo, hi) = fan.obstacle_bounds().next().unwrap();
+        let center = (lo.xz() + hi.xz()) * 0.5;
+        let min = center - Vec2::splat(0.10);
+        let max = center + Vec2::splat(0.10);
+        let threshold = lo.y - 2.1;
+        scene.rug_supports.push(RugSupport {
+            object: usize::MAX,
+            outline: vec![min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)],
+            min,
+            max,
+            bottom: threshold - 0.004,
+            top: threshold - 0.001,
+        });
+        assert!(fan_clear(&scene, fan));
+        scene.rug_supports.last_mut().unwrap().top = threshold + 0.001;
+        assert!(!fan_clear(&scene, fan));
     }
     for seed in [65_158_970, 65_158_971, 65_158_973, 65_158_974] {
         let scene =

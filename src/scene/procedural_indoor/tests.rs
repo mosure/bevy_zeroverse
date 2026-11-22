@@ -146,6 +146,18 @@ fn procedural_texture_uploads_have_complete_mips_and_correct_color_spaces() {
         roughness.texture_descriptor.format,
         TextureFormat::Rgba8Unorm
     );
+    // Visible sky and CPU transport sample the same single-resolution radiance field.
+    let sky = materials
+        .get(&generated.for_part(super::materials::Surface::Light, "sky#exterior"))
+        .unwrap()
+        .emissive_texture
+        .as_ref()
+        .unwrap()
+        .id();
+    let sky_descriptor = &images.get(sky).unwrap().texture_descriptor;
+    assert_eq!(sky_descriptor.format, TextureFormat::Rgba8UnormSrgb);
+    assert_eq!(sky_descriptor.size.width, super::sky::SIZE as u32);
+    assert_eq!(sky_descriptor.size.height, super::sky::SIZE as u32);
     for (id, image) in images.iter() {
         let size = image.width();
         let descriptor = &image.texture_descriptor;
@@ -156,7 +168,11 @@ fn procedural_texture_uploads_have_complete_mips_and_correct_color_spaces() {
                 .any(|probe| probe.map.diffuse_map.id() == id);
         assert_eq!(
             descriptor.mip_level_count,
-            if diffuse_cube { 1 } else { size.ilog2() + 1 }
+            if diffuse_cube || id == sky {
+                1
+            } else {
+                size.ilog2() + 1
+            }
         );
         let pixels: u32 = (0..descriptor.mip_level_count)
             .map(|level| (size >> level).pow(2))
