@@ -2,6 +2,7 @@
 use super::*;
 use crate::scene::procedural_indoor::preparation::AssetStore;
 mod coiled;
+pub(super) mod eyes;
 pub(super) use coiled::material as coiled_hair;
 
 /// One neutral loop-knit atlas shared by the room's jersey/knit garments.

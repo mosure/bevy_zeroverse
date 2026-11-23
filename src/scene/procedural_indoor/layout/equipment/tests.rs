@@ -192,6 +192,41 @@ fn archived_wire_reversal_is_rejected_before_geometry_construction() {
 }
 
 #[test]
+fn shared_desk_sockets_belong_to_one_operator_even_with_the_same_support() {
+    let (mut scene, _) = connected_scene();
+    let desk = scene.objects[0].clone();
+    let fixture = |id, kind, operator, support| {
+        let mut o = object(id, kind, Vec3::ZERO, Vec3::ONE);
+        o.interaction_target = operator;
+        o.support = support;
+        o
+    };
+    scene.objects = vec![
+        desk,
+        fixture(1, ObjectKind::Chair, Some(0), None),
+        fixture(2, ObjectKind::Chair, Some(0), None),
+        fixture(3, ObjectKind::Monitor, Some(1), Some(0)),
+        fixture(4, ObjectKind::Monitor, Some(2), Some(0)),
+        fixture(5, ObjectKind::PcTower, Some(3), None),
+        fixture(6, ObjectKind::Keyboard, Some(3), Some(0)),
+        fixture(7, ObjectKind::Mouse, Some(4), Some(0)),
+        fixture(8, ObjectKind::Monitor, Some(1), Some(0)),
+        fixture(9, ObjectKind::Laptop, Some(1), Some(0)),
+    ];
+    let same = |a, b| {
+        workstation_wires::hosts_match(&scene, Some(0), &scene.objects[a], &scene.objects[b])
+    };
+    assert!(same(6, 3) && same(6, 5) && same(7, 4) && same(8, 5) && same(9, 3));
+    assert!(!same(6, 4) && !same(7, 5) && !same(4, 5) && !same(9, 4));
+    assert_eq!(
+        ports::data_ports(&scene.objects[9], &scene.objects[3]).unwrap()[0].0,
+        equipment::power_port(&scene.objects[9], true).unwrap()
+    );
+    let video = |i: usize| ports::data_ports(&scene.objects[i], &scene.objects[5]).unwrap()[1].0;
+    assert!(video(3).distance(video(8)) > 0.01);
+}
+
+#[test]
 fn equipment_systems_have_repeatable_nonzero_presence() {
     let mut powered_monitors = 0;
     let mut counts = std::collections::BTreeMap::new();
@@ -202,7 +237,13 @@ fn equipment_systems_have_repeatable_nonzero_presence() {
             if o.kind == ObjectKind::Cable {
                 assert!(cable_route_clear(&scene, o), "seed {seed} cable {}", o.id);
                 powered_monitors += usize::from(
-                    scene.objects[o.interaction_target.unwrap()].kind == ObjectKind::Monitor,
+                    scene.objects[o.interaction_target.unwrap()].kind == ObjectKind::Monitor
+                        && matches!(
+                            scene.objects[o.cable_target.unwrap()].kind,
+                            ObjectKind::PowerStrip
+                                | ObjectKind::FloorOutlet
+                                | ObjectKind::WallOutlet
+                        ),
                 );
             }
             if o.kind == ObjectKind::CeilingPendant {
@@ -326,6 +367,7 @@ fn projector_optics_reach_physical_wall_screens_without_camera_clearance() {
     scene.envelope = Some(EnvelopeProgram {
         wall_thickness_m: None,
         soffits: vec![],
+        step_installation: None,
         tier_guard: None,
         footprint: vec![
             Vec2::new(-4., -4.),

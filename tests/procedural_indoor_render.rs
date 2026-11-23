@@ -147,6 +147,74 @@ impl PersistentAssets {
 // isolated even when the ignored GPU tests are launched with default threading.
 static RENDER_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[test]
+#[ignore = "renders the maximum-baseline publication regression on native Vulkan"]
+fn maximum_baseline_kitchenette_has_finite_geometry_at_both_instants() {
+    let _guard = RENDER_TEST_LOCK.lock().unwrap();
+    let root = env!("CARGO_MANIFEST_DIR");
+    std::env::set_var("BEVY_ASSET_ROOT", root);
+    setup_globals(Some(root.to_owned()));
+    let modes = vec![
+        RenderMode::Color,
+        RenderMode::Depth,
+        RenderMode::Normal,
+        RenderMode::Position,
+        RenderMode::Semantic,
+        RenderMode::CoVisibility,
+    ];
+    let config = BevyZeroverseConfig {
+        scene_type: ZeroverseSceneType::ProceduralIndoor,
+        indoor_seed: Some(1),
+        indoor_camera: Some(r#"{"baseline":1.0}"#.into()),
+        indoor_human_density: 0.25,
+        headless: true,
+        editor: false,
+        gizmos: false,
+        image_copiers: true,
+        initialize_scene: false,
+        num_cameras: 4,
+        width: 320.,
+        height: 200.,
+        playback_steps: 2,
+        playback_mode: PlaybackMode::Still,
+        depth_format: DepthFormat::Linear,
+        render_modes: modes.clone(),
+        ..default()
+    };
+    let mut app = create_app(None, Some(config), false);
+    app.finish();
+    app.cleanup();
+    app.update();
+    app.world_mut().write_message(RegenerateSceneEvent);
+    let sample = capture_with_state(
+        &mut app,
+        SamplerState {
+            enabled: true,
+            regenerate_scene: false,
+            frames: 1,
+            warmup_frames: 3,
+            render_modes: modes,
+            timesteps: vec![1.0],
+            ..default()
+        },
+        true,
+    );
+    assert_eq!(sample.indoor.as_ref().unwrap().seed, 1);
+    assert_eq!(sample.views.len(), 8);
+    for view in &sample.views {
+        assert_eq!(view.co_visibility.len(), 320 * 200 * 16);
+        let alignment = validate_annotations_with_precision(
+            view,
+            sample.aabb,
+            320,
+            200,
+            sample.annotation_precision,
+        )
+        .unwrap();
+        assert!(alignment.reprojection_p99_pixels < 0.002);
+    }
+}
+
 fn capture(app: &mut App, modes: Vec<RenderMode>) -> Sample {
     capture_with_state(
         app,

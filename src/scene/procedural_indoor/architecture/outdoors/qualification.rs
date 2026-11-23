@@ -166,7 +166,7 @@ fn parapets_and_grounded_plants_have_continuous_support() {
         }
         assert_eq!(winding + events.last().unwrap().1, 0);
         let mut plants = Assembly::default();
-        garden(&mut plants, &scene, &p);
+        garden(&mut plants, &p, &garden_plants(&scene, &p));
         let root = plants
             .parts
             .iter()

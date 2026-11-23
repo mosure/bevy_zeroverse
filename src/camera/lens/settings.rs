@@ -21,6 +21,19 @@ use bevy::{
 pub(crate) struct LensPhotometry;
 
 pub(super) fn install(app: &mut App) {
+    #[cfg(feature = "viewer")]
+    if app
+        .world()
+        .get_resource::<crate::app::BevyZeroverseConfig>()
+        .is_none_or(|config| !config.headless)
+    {
+        app.add_systems(
+            PostUpdate,
+            inherit::<bevy::anti_alias::smaa::Smaa>
+                .in_set(LensPhotometry)
+                .before(bevy::camera::CameraUpdateSystems),
+        );
+    }
     app.add_systems(
         PostUpdate,
         (
@@ -76,12 +89,14 @@ mod tests {
     #[test]
     fn faces_inherit_settings_changes_and_removals_without_rewriting_each_frame() {
         let mut app = App::new();
+        use bevy::anti_alias::smaa::{Smaa, SmaaPreset};
         app.add_systems(
             Update,
             (
                 inherit::<Exposure>,
                 inherit::<AmbientLight>,
                 inherit::<RenderLayers>,
+                inherit::<Smaa>,
             ),
         );
         let owner = app
@@ -94,10 +109,14 @@ mod tests {
                     ..default()
                 },
                 RenderLayers::layer(3),
+                Smaa {
+                    preset: SmaaPreset::Ultra,
+                },
             ))
             .id();
         let face = app.world_mut().spawn(LensFace { owner }).id();
         app.update();
+        assert!(app.world().get::<Smaa>(face).unwrap().preset == SmaaPreset::Ultra);
         assert_eq!(app.world().get::<Exposure>(face).unwrap().ev100, 7.);
         assert_eq!(
             app.world().get::<AmbientLight>(face).unwrap().brightness,
@@ -127,10 +146,11 @@ mod tests {
             .insert(Exposure { ev100: 9. });
         app.world_mut()
             .entity_mut(owner)
-            .remove::<(AmbientLight, RenderLayers)>();
+            .remove::<(AmbientLight, RenderLayers, Smaa)>();
         app.update();
         assert_eq!(app.world().get::<Exposure>(face).unwrap().ev100, 9.);
         assert!(app.world().get::<AmbientLight>(face).is_none());
         assert!(app.world().get::<RenderLayers>(face).is_none());
+        assert!(app.world().get::<Smaa>(face).is_none());
     }
 }

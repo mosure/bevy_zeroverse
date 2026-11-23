@@ -3,6 +3,7 @@ use super::*;
 mod clearance;
 mod conference;
 mod outline;
+mod rows;
 mod structure;
 mod supports;
 #[cfg(test)]
@@ -13,11 +14,23 @@ mod workstation;
 pub(crate) use clearance::Clearance;
 use structure::{PartSink, StructureSink};
 pub(crate) use timber::StockProgram as TimberProgram;
+pub(crate) use workstation::is_raised_desk;
 pub use workstation::{DeskFrame, ModestyPanel};
 /// Shared lecture/dining rows need usable work surface across their full bank.
 /// Keep broad catalogue shapes for freestanding tables and desks.
-pub(crate) const SHARED_ROW_VARIANT: u32 = 30;
+const ORIGINAL_SHARED_ROW_VARIANT: u32 = 30;
 pub(crate) const BOARDROOM_VARIANT: u32 = 31;
+pub(crate) const SHARED_ROW_VARIANT: u32 = 32;
+
+/// Installed row furniture carries its manufacturer's stock identity in the
+/// archived finish seed. Individual timber cuts and sheet offsets use the object seed.
+pub(crate) fn product_seed(o: &IndoorObject) -> u64 {
+    if o.variant == SHARED_ROW_VARIANT {
+        o.finish_seed.unwrap_or(o.seed)
+    } else {
+        o.seed
+    }
+}
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TableProgram {
     pub top_thickness: f32,
@@ -64,9 +77,10 @@ pub struct TableProgram {
     pub workstation: Option<DeskFrame>,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
-    let mut rng = stream(o.seed, 172);
-    let mut shape = stream(o.seed, 6420);
-    let mut conference = stream(o.seed, 6421);
+    let product = product_seed(o);
+    let mut rng = stream(product, 172);
+    let mut shape = stream(product, 6420);
+    let mut conference = stream(product, 6421);
     let exponent = if o.kind == ObjectKind::Desk {
         rng.random_range(5.0..24.0)
     } else if rng.random_bool(0.4) {
@@ -160,13 +174,16 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         program.support = 10;
         program.frame_surface = desk.metal;
     }
-    if o.variant == SHARED_ROW_VARIANT {
-        let mut row = stream(o.seed, 0x524f57544f50);
+    if matches!(o.variant, ORIGINAL_SHARED_ROW_VARIANT | SHARED_ROW_VARIANT) {
+        let mut row = stream(product, 0x524f57544f50);
         program.outline_exponent = row.random_range(6.0..24.0);
         program.taper = row.random_range(-0.06..0.06);
         program.capsule_blend = row.random_range(0.0..0.22);
         program.polygon_blend = 0.;
         program.boat_blend = row.random_range(0.0..0.12);
+        if o.variant == SHARED_ROW_VARIANT {
+            rows::specify(&mut program, o.kind, &mut row);
+        }
     } else if o.variant == BOARDROOM_VARIANT {
         conference::boardroom_finish(o, &mut program);
     }
@@ -177,6 +194,16 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
 pub fn support_bay_count(o: &IndoorObject) -> usize {
     conference::bay_count(o, &parameters(o))
 }
+pub(crate) use conference::bay_count;
+pub(crate) fn row_stock_dimensions(
+    o: &IndoorObject,
+    p: &TableProgram,
+    stations: usize,
+) -> (f32, usize) {
+    let length = o.size.xz().max_element();
+    let pitch = (length - 2. * rows::overhang(length, p)) / (stations - 1) as f32;
+    (pitch, 1 + rows::joints(o, p).count())
+}
 pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
     outline::sample(o.size.xz() * 0.5, &parameters(o))
 }
@@ -184,7 +211,7 @@ pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
 pub fn supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
     supports_outline(&outline(o), lo, hi, margin)
 }
-fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
+pub(crate) fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
     [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
         .iter()
         .all(|p| {
@@ -200,7 +227,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
-    if o.variant == BOARDROOM_VARIANT {
+    if o.variant == SHARED_ROW_VARIANT {
+        rows::top(a, o, &p, &outline);
+    } else if o.variant == BOARDROOM_VARIANT {
         conference::joined_top(a, o, &p, &outline);
     } else {
         let tf = Transform::from_xyz(0., s.y - p.top_thickness * 0.5, 0.);

@@ -173,12 +173,28 @@ impl IndoorManifest {
                 .map(|side| (side.transform(self.room_size), side.span(self.room_size)))
                 .collect()
         };
+        // A TV in a presentation/art group is still an installed display.
+        // Both passes share demand, regardless of their shuffled execution order.
+        let tv_budget = self.display_demand();
+        let mut installed_tvs = self
+            .objects
+            .iter()
+            .filter(|o| !o.neighbor && o.kind == ObjectKind::Display)
+            .count();
         for ordinal in 0..groups {
             let mut rng = sampling::Domain::WallGroups.proposal(self.seed, ordinal);
             let family = program.choose(&mut rng);
             for _ in 0..20 {
                 let (tf, span) = walls[rng.random_range(0..walls.len())];
                 let panels = program.panels(family, span, &mut rng);
+                let has_tv = panels
+                    .iter()
+                    .any(|&(kind, _, _)| kind == ObjectKind::Display);
+                if has_tv && installed_tvs >= tv_budget {
+                    // Skip this optional media group. Substituting another item
+                    // would make artwork/board counts reveal the room's TV count.
+                    break;
+                }
                 if panels.is_empty() {
                     continue;
                 }
@@ -260,6 +276,7 @@ impl IndoorManifest {
                 if !group.is_empty() {
                     occupied.extend(group.iter().map(IndoorObject::bounds));
                     self.objects.extend(group);
+                    installed_tvs += usize::from(has_tv);
                     break;
                 }
             }

@@ -112,6 +112,7 @@ fn the_skirting_is_one_closed_run_at_both_kinds_of_corner() {
             trim.joint_m,
             trim.base.as_ref().unwrap(),
             None,
+            0,
         );
         let mesh = a.parts.values().next().unwrap();
         let nearest = mesh

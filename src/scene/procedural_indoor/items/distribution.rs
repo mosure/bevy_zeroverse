@@ -94,6 +94,7 @@ impl IndoorManifest {
             || matches!(
                 kind,
                 ObjectKind::Monitor
+                    | ObjectKind::PcTower
                     | ObjectKind::Keyboard
                     | ObjectKind::Mouse
                     | ObjectKind::Cable

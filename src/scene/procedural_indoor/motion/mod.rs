@@ -141,7 +141,7 @@ pub struct IndoorMotionReport {
 impl IndoorMotionReport {
     pub fn new(policy: IndoorMotionConfig) -> Self {
         Self {
-            version: 3,
+            version: 4,
             policy,
             mechanisms: vec![],
         }
@@ -161,6 +161,13 @@ impl IndoorMotionReport {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LinkedSlide {
+    pub joint: usize,
+    pub translation_m: Vec3,
+    pub requested_translation_m: Vec3,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MechanismReport {
     pub object_id: Option<usize>,
     /// Objects carried rigidly by this mechanism, retaining their own instance IDs.
@@ -170,6 +177,10 @@ pub struct MechanismReport {
     #[serde(default)]
     pub semantic_labels: Vec<String>,
     pub joint: usize,
+    /// Additional leaves of one telescoping transmission. They share its
+    /// timeline, admission and swept reservation, with their own travel.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub linked_slides: Vec<LinkedSlide>,
     pub kind: MotionKind,
     pub interval: [f32; 2],
     pub rejection: Option<String>,
@@ -315,6 +326,19 @@ impl MechanismReport {
     /// Scene-local rigid delta relative to the captured rest geometry. Coverings
     /// deform vertices instead; their exact positions are in render annotations.
     pub fn rigid_transform_at(&self, progress: f32) -> Option<Transform> {
+        self.rigid_delta(self.translation_m, progress)
+    }
+
+    /// Delta for the reported joint or a linked sliding leaf, in scene coordinates.
+    pub fn rigid_transform_for_joint_at(&self, joint: usize, progress: f32) -> Option<Transform> {
+        if joint == self.joint {
+            return self.rigid_transform_at(progress);
+        }
+        let leaf = self.linked_slides.iter().find(|s| s.joint == joint)?;
+        self.rigid_delta(leaf.translation_m, progress)
+    }
+
+    fn rigid_delta(&self, translation: Vec3, progress: f32) -> Option<Transform> {
         if self.rejection.is_some() || self.kind == MotionKind::Covering {
             return None;
         }
@@ -327,7 +351,7 @@ impl MechanismReport {
         };
         let q = Quat::from_axis_angle(self.axis, self.angle_radians * t);
         Some(
-            Transform::from_translation(self.pivot - q * self.pivot + self.translation_m * t)
+            Transform::from_translation(self.pivot - q * self.pivot + translation * t)
                 .with_rotation(q),
         )
     }

@@ -2,8 +2,25 @@ use super::*;
 mod catenary;
 pub(crate) use catenary::hanging_curve;
 
+pub(crate) const USB_LEAD: u32 = 16;
+pub(crate) const DISPLAY_LEAD: u32 = 17;
+
+pub(crate) fn data_variant(source: ObjectKind, target: ObjectKind) -> Option<u32> {
+    use ObjectKind::*;
+    match (source, target) {
+        (Keyboard | Mouse, Monitor | PcTower) => Some(USB_LEAD),
+        (Monitor, PcTower) | (Laptop, Monitor) => Some(DISPLAY_LEAD),
+        _ => None,
+    }
+}
+
 pub(crate) fn radius(o: &IndoorObject) -> f32 {
-    stream(o.seed, 5750).random_range(0.0018..0.0033)
+    let range = match o.variant {
+        USB_LEAD => 0.00135..0.00225,
+        DISPLAY_LEAD => 0.0022..0.00345,
+        _ => 0.0018..0.0033,
+    };
+    stream(o.seed, 5750).random_range(range)
 }
 
 /// Connector strain relief is wider than the flexible jacket. The exact same
@@ -15,14 +32,54 @@ pub(crate) fn bound_radius(o: &IndoorObject) -> f32 {
 /// Realized, sampled routes are bounded even when they contain curved bends.
 pub(crate) const MAX_PATH_POINTS: usize = 128;
 
+/// Store a world-space cable proposal in its own bounded local frame.
+pub(crate) fn archive_world_path(o: &mut IndoorObject, path: &[Vec3], max_span: f32) -> bool {
+    let jacket = radius(o);
+    let preferred_radius = if matches!(o.variant, USB_LEAD | DISPLAY_LEAD) {
+        stream(o.seed, 0x4c45414442454e44).random_range(0.034..0.105)
+    } else {
+        jacket * 5.
+    };
+    let Some(curve) = round_path(path, jacket, preferred_radius) else {
+        return false;
+    };
+    let mut samples = Vec::with_capacity(curve.len());
+    let (mut lo, mut hi) = (curve[0], curve[0]);
+    samples.push(curve[0]);
+    for segment in curve.windows(2) {
+        let steps = (segment[0].distance(segment[1]) / max_span).ceil().max(1.) as usize;
+        if steps > MAX_PATH_POINTS - samples.len() {
+            return false;
+        }
+        samples.extend((1..=steps).map(|i| segment[0].lerp(segment[1], i as f32 / steps as f32)));
+        lo = lo.min(segment[1]);
+        hi = hi.max(segment[1]);
+    }
+    let radius = bound_radius(o);
+    lo -= radius;
+    hi += radius;
+    o.yaw = 0.;
+    o.position = Vec3::new((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5);
+    o.size = hi - lo;
+    for p in &mut samples {
+        *p -= o.position;
+    }
+    o.cable_path = Some(samples);
+    true
+}
+
 /// C1 circular fillets with a realistic five-jacket-radius bend. The realized
 /// samples are archived before bounds and collision tests; no hidden renderer
 /// deformation can move the wire outside its qualified route.
 pub(crate) fn fillet_path(points: &[Vec3], jacket: f32) -> Option<Vec<Vec3>> {
+    round_path(points, jacket, jacket * 5.)
+}
+
+fn round_path(points: &[Vec3], jacket: f32, preferred_radius: f32) -> Option<Vec<Vec3>> {
     if !(2..=64).contains(&points.len()) || points.iter().any(|p| !p.is_finite()) {
         return None;
     }
-    let bend_radius = jacket * 5.;
+    let minimum_radius = jacket * 5.;
     let mut output = Vec::with_capacity(points.len() * 6);
     output.push(points[0]);
     for i in 1..points.len() - 1 {
@@ -45,7 +102,18 @@ pub(crate) fn fillet_path(points: &[Vec3], jacket: f32) -> Option<Vec<Vec3>> {
         if cos_half < 0.01 {
             return None;
         }
-        let cut = bend_radius * ((1. - cosine) * 0.5).sqrt() / cos_half;
+        let tangent = ((1. - cosine) * 0.5).sqrt() / cos_half;
+        let mut available = before_length.min(after_length) * 0.45;
+        if i == 1 {
+            available = available.min(before_length - 0.012);
+        }
+        if i == points.len() - 2 {
+            available = available.min(after_length - 0.012);
+        }
+        let bend_radius = preferred_radius
+            .min(available * 0.99 / tangent)
+            .max(minimum_radius);
+        let cut = bend_radius * tangent;
         if cut > before_length.min(after_length) * 0.45
             || i == 1 && before_length - cut < 0.012
             || i == points.len() - 2 && after_length - cut < 0.012
@@ -182,6 +250,30 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn slack_data_leads_round_loose_bends_and_preserve_both_plug_departures() {
+        let corner = Vec3::new(0.35, 0., 0.14);
+        let path = [
+            Vec3::ZERO,
+            Vec3::Z * 0.036,
+            Vec3::Z * 0.14,
+            corner,
+            corner + Vec3::Z * 0.30,
+            corner + Vec3::Z * 0.336,
+        ];
+        let tight = fillet_path(&path, 0.002).unwrap();
+        let slack = round_path(&path, 0.002, 0.075).unwrap();
+        let nearest = |curve: &[Vec3]| {
+            curve
+                .iter()
+                .map(|p| p.distance(corner))
+                .fold(f32::INFINITY, f32::min)
+        };
+        assert!(nearest(&slack) > nearest(&tight) * 4.);
+        assert!(path_points_qualified(&slack, 0.002));
+        assert_eq!(&slack[..2], &path[..2]);
+        assert_eq!(&slack[slack.len() - 2..], &path[path.len() - 2..]);
+    }
 
     fn wire(points: Vec<Vec3>, seed: u64) -> IndoorObject {
         IndoorObject {

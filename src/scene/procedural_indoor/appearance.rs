@@ -95,7 +95,8 @@ impl IndoorManifest {
             recipe.contrast *= settings.material_detail;
         }
         if let Some(seed) = settings.lighting_seed {
-            let lighting = SceneDomain::sample(seed);
+            let lighting =
+                SceneDomain::sample_with_illuminants(seed, domain.photometry.illuminant_model);
             domain.photometry = lighting.photometry;
             domain.target_lux = lighting.target_lux;
             domain.fixture_kelvin = lighting.fixture_kelvin;

@@ -174,4 +174,5 @@ object_catalog! {
     FirePullStation => ("fire_pull_station", Signals, false, false),
     BaseboardHeater => ("appliance", Services, false, false),
     Flatware => ("kitchen_utensil", Kitchen, false, false),
+    PcTower => ("pc_tower", Desktop, false, false),
 }

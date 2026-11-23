@@ -464,6 +464,7 @@ pub fn bevy_zeroverse_ffi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<OvoxelMode>()?;
     m.add_class::<RenderMode>()?;
     m.add_class::<bevy_zeroverse::render::color::RgbTonemapping>()?;
+    m.add_class::<bevy_zeroverse::render::anti_alias::PreviewAa>()?;
     m.add_class::<bevy_zeroverse::render::glass::AnnotationGlass>()?;
     m.add_class::<bevy_zeroverse::render::depth::DepthFormat>()?;
     m.add_class::<ZeroverseSceneType>()?;

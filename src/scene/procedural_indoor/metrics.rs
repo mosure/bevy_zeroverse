@@ -438,6 +438,10 @@ fn export_inner(
         numeric.push("ceiling_lights_per_scene", fixtures.len() as f64)?;
         if let Some(program) = &scene.program {
             if let Some(d) = &program.domain {
+                if let Some(kelvin) = d.photometry.diffuse_sky_kelvin {
+                    numeric.push("diffuse_sky_kelvin", f64::from(kelvin))?;
+                }
+                numeric.push("direct_sun_kelvin", f64::from(d.photometry.sun_kelvin))?;
                 if let Some(sky) = d.photometry.sky_distribution {
                     numeric.push("sky_beam_transmission", f64::from(sky.beam_transmission))?;
                     numeric.push("sky_haze", f64::from(sky.haze))?;
@@ -457,6 +461,17 @@ fn export_inner(
                         ("exposure_meter_bias_ev", meter.bias_ev),
                     ] {
                         numeric.push(key, value as f64)?;
+                    }
+                }
+                if let Some(wiring) = &d.photometry.ceiling_circuits {
+                    let mut mounts = vec![0; wiring.circuits.len()];
+                    for &bank in &wiring.mount_circuits {
+                        mounts[bank] += 1;
+                    }
+                    numeric.push("ceiling_circuits_per_scene", mounts.len() as f64)?;
+                    for (circuit, count) in wiring.circuits.iter().zip(mounts) {
+                        numeric.push("fixtures_per_ceiling_circuit", count as f64)?;
+                        numeric.push("ceiling_circuit_dimmer", f64::from(circuit.dimmer))?;
                     }
                 }
                 for (key, value) in [
@@ -1162,7 +1177,9 @@ fn export_inner(
             if object.kind.has_table_outline() {
                 let p = super::objects::tables::parameters(object);
                 if p.top_surface == super::materials::Surface::Wood {
-                    let wood = super::objects::tables::TimberProgram::sample(object.seed);
+                    let wood = super::objects::tables::TimberProgram::sample(
+                        super::objects::tables::product_seed(object),
+                    );
                     *report
                         .categories
                         .entry("table_timber_stock".into())
@@ -1173,13 +1190,21 @@ fn export_inner(
                         numeric.push("table_timber_nominal_strip_width_m", f64::from(pitch))?;
                     }
                 }
-                let bays = super::objects::tables::support_bay_count(object);
+                let bays = super::objects::tables::bay_count(object, &p);
+                if object.variant == super::objects::tables::SHARED_ROW_VARIANT {
+                    let (pitch, leaves) =
+                        super::objects::tables::row_stock_dimensions(object, &p, bays);
+                    numeric.push("shared_row_station_spacing_m", f64::from(pitch))?;
+                    numeric.push("shared_row_worktop_leaves", leaves as f64)?;
+                }
                 *report
                     .categories
                     .entry("table_support".into())
                     .or_default()
                     .entry(if p.workstation.is_some() {
                         "workstation_columns".to_owned()
+                    } else if object.variant == super::objects::tables::SHARED_ROW_VARIANT {
+                        format!("shared_row_bay_{}", p.bay_style)
                     } else if bays > 0 {
                         format!("conference_bay_{}", p.bay_style)
                     } else {

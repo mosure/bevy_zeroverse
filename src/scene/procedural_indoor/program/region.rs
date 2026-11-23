@@ -48,6 +48,11 @@ impl IndoorManifest {
     /// least two semantic classes; preserve the area fallback for sparse scenes.
     pub(crate) fn select_primary_room(&mut self) {
         let Some(program) = &self.program else { return };
+        use super::super::layout::{IndoorLayout, ObjectKind};
+        let office = matches!(
+            self.layout,
+            IndoorLayout::OpenOffice | IndoorLayout::Coworking
+        );
         let selected = program
             .zones
             .iter()
@@ -55,6 +60,7 @@ impl IndoorManifest {
             .map(|(index, zone)| {
                 let mut classes = std::collections::BTreeSet::new();
                 let mut objects = 0;
+                let mut office_activity = false;
                 for object in &self.objects {
                     let p = object.position.xz();
                     if !object.neighbor
@@ -66,6 +72,17 @@ impl IndoorManifest {
                     {
                         objects += 1;
                         classes.insert(object.kind.class_name());
+                        // A suite can have a larger utility bay with bins, plants
+                        // and cabinets. A work, meeting or lounge area makes a
+                        // better reconstruction domain, even with few seats.
+                        office_activity |= office
+                            && matches!(
+                                object.kind,
+                                ObjectKind::Desk
+                                    | ObjectKind::Table
+                                    | ObjectKind::CoffeeTable
+                                    | ObjectKind::Sofa
+                            );
                     }
                 }
                 let furnished = objects >= 3 && classes.len() >= 2;
@@ -73,7 +90,7 @@ impl IndoorManifest {
                     || (zone.max - zone.min).element_product() as f64,
                     |e| clipped_area(&e.footprint, zone.min, zone.max),
                 );
-                (index, furnished, area)
+                (index, (office_activity, furnished), area)
             })
             .max_by(|a, b| a.1.cmp(&b.1).then_with(|| a.2.total_cmp(&b.2)))
             .map(|v| v.0);
@@ -248,6 +265,49 @@ mod tests {
         scene.select_primary_room();
         assert_eq!(scene.program.as_ref().unwrap().primary_zone, Some(1));
         assert_eq!(scene.primary_room_bounds(), furnished);
+    }
+
+    #[test]
+    fn coworking_utility_bay_cannot_displace_the_work_area() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Coworking, 1., 0, 0.)
+                .unwrap();
+        let program = scene.program.as_ref().unwrap();
+        let mut zones: Vec<_> = program.zones.iter().enumerate().collect();
+        zones.sort_by(|(_, a), (_, b)| {
+            let floor = &scene.envelope.as_ref().unwrap().footprint;
+            clipped_area(floor, a.min, a.max).total_cmp(&clipped_area(floor, b.min, b.max))
+        });
+        let (small_index, work) = zones[0];
+        let (_, utility) = zones[zones.len() - 1];
+        let big = (utility.min + utility.max) * 0.5;
+        let small = (work.min + work.max) * 0.5;
+        let prototype = scene.objects[0].clone();
+        scene.objects = [
+            (ObjectKind::Plant, big),
+            (ObjectKind::TrashCan, big),
+            (ObjectKind::DrawerUnit, big),
+            (ObjectKind::Desk, small),
+            (ObjectKind::Chair, small),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, (kind, p))| {
+            let mut o = prototype.clone();
+            o.id = i;
+            o.kind = kind;
+            o.solid = true;
+            o.neighbor = false;
+            o.support = None;
+            o.position = Vec3::new(p.x + (i % 3) as f32 * 0.55, 0., p.y);
+            o
+        })
+        .collect();
+        scene.select_primary_room();
+        assert_eq!(
+            scene.program.as_ref().unwrap().primary_zone,
+            Some(small_index)
+        );
     }
 
     #[test]

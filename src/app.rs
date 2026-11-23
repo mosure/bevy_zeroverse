@@ -424,6 +424,12 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     pub tonemapping: crate::render::color::RgbTonemapping,
 
+    /// Anti-aliasing for interactive RGB views. Dataset captures use their own SSAA policy.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value_t = crate::render::anti_alias::PreviewAa::Auto)]
+    #[pyo3(get, set)]
+    pub preview_aa: crate::render::anti_alias::PreviewAa,
+
     /// Request extended dynamic range for RGB captures and the Studio display.
     #[serde(default)]
     #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
@@ -746,6 +752,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value = "auto")]
     pub tonemapping: crate::render::color::RgbTonemapping,
 
+    /// Anti-aliasing for interactive RGB views. Dataset captures use their own SSAA policy.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value_t = crate::render::anti_alias::PreviewAa::Auto)]
+    pub preview_aa: crate::render::anti_alias::PreviewAa,
+
     /// Request extended dynamic range for RGB captures and the Studio display.
     #[serde(default)]
     #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
@@ -921,6 +932,7 @@ impl Default for BevyZeroverseConfig {
             yaw_speed: 0.0,
             render_mode: Default::default(),
             tonemapping: Default::default(),
+            preview_aa: Default::default(),
             hdr: false,
             fullscreen: false,
             render_modes: vec![],

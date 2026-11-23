@@ -8,12 +8,14 @@ mod tests;
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     let plan = program::parameters(o, p);
     let top = plan.worktop_m;
+    let underside = top - worktop::RUN_THICKNESS;
     let s = o.size;
     let (d, z) = body(o, p);
+    let toe = 0.11;
     cabinet::open_shell(
         a,
-        Vec3::new(s.x - 0.02, top - 0.11, d),
-        0.11,
+        Vec3::new(s.x - 0.02, underside - toe, d),
+        toe,
         z,
         p.finish,
         "cabinet",
@@ -21,15 +23,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     a.box_part(
         Surface::Rubber,
         "cabinet",
-        Vec3::new(0., 0.055, z - 0.015),
-        Vec3::new(s.x - 0.09, 0.11, d - 0.05),
+        Vec3::new(0., toe * 0.5, z - 0.015),
+        Vec3::new(s.x - 0.09, toe, d - 0.05),
         0.004,
     );
+    let door_bottom = 0.12;
     cabinet::doors(
         a,
         s.x - 0.035,
-        0.12,
-        top - 0.15,
+        door_bottom,
+        underside - door_bottom,
         Vec2::new(0., z + d * 0.5 - 0.012),
         p,
         "cabinet",

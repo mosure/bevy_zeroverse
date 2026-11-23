@@ -8,7 +8,7 @@ pub mod assemblies;
 pub(crate) mod botany;
 mod clutter;
 mod decor;
-pub use decor::{electrical_parameters, ElectricalProgram};
+pub use decor::{electrical_parameters, ElectricalProgram, TelevisionMount};
 pub(crate) mod equipment;
 pub(crate) mod floor;
 pub mod functional;
@@ -796,6 +796,24 @@ impl IndoorManifest {
         }) {
             return false;
         }
+        // Keep the floor-level landing usable, including the portion on the platform.
+        if object.solid
+            && !object.neighbor
+            && lo.y < 1.0
+            && self
+                .envelope
+                .as_ref()
+                .and_then(|e| e.step_installation.as_ref())
+                .and_then(|s| s.passage)
+                .is_some_and(|passage| {
+                    footprint.overlaps(
+                        Footprint::oriented(passage.center(), passage.size(), 0.),
+                        0.,
+                    )
+                })
+        {
+            return false;
+        }
         // A clear 1.3 m door approach is reserved across every grammar.
         if self.entry_approach_overlaps(lo, hi) {
             return false;
@@ -833,6 +851,7 @@ impl IndoorManifest {
             .objects
             .iter()
             .filter(|o| matches!(o.kind, ObjectKind::Desk | ObjectKind::Table))
+            .filter(|o| !super::objects::tables::is_raised_desk(o))
             .cloned()
             .collect();
         let walls = self.columns();
@@ -889,6 +908,7 @@ impl IndoorManifest {
         if self.layout.is_public() {
             return;
         }
+        let office = surfaces::OfficeFitout::sample(self);
         let surfaces: Vec<_> = self
             .objects
             .iter()
@@ -961,7 +981,7 @@ impl IndoorManifest {
                 }
                 continue;
             }
-            self.decorate_workspace(&surface);
+            self.decorate_workspace(&surface, office);
         }
     }
 
@@ -1016,7 +1036,11 @@ impl IndoorManifest {
             if let Some(chair) = self
                 .objects
                 .iter()
-                .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(support.id))
+                .filter(|o| {
+                    o.kind == ObjectKind::Chair
+                        && o.interaction_target == Some(support.id)
+                        && obj.interaction_target.is_none_or(|id| o.id == id)
+                })
                 .min_by(|a, b| {
                     a.position
                         .distance_squared(pos)

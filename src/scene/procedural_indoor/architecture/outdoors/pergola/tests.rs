@@ -75,7 +75,8 @@ fn roofs_land_on_beams_and_posts_and_plants_fit_at_all_installation_angles() {
             }
         }
         let mut planting = Assembly::default();
-        super::super::garden(&mut planting, &scene, &p);
+        let installed = super::super::garden_plants(&scene, &p);
+        super::super::garden(&mut planting, &p, &installed);
         for pnt in planting.parts.values().flat_map(|g| &g.positions) {
             let v = inverse.transform_point3(Vec3::from_array(*pnt));
             assert!(

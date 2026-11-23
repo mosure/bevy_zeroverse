@@ -71,30 +71,7 @@ fn pull_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     if o.position.xz().distance(door.center.xz()) > 2.2 || !(0.95..1.4).contains(&o.position.y) {
         return false;
     }
-    if scene.wall_attachment_clear(o) {
-        return true;
-    }
-    if (o.position.z - (door.center.z - o.size.z * 0.5 - 0.001)).abs() > 0.001
-        || (o.transform().rotation * Vec3::Z).dot(Vec3::NEG_Z) < 0.99999
-    {
-        return false;
-    }
-    let x = -o.position.x;
-    if x.abs() + o.size.x * 0.5 >= scene.room_size.x * 0.5 - 0.08
-        || (o.position.x - door.center.x).abs() - o.size.x * 0.5 <= door.width * 0.5 + 0.09
-    {
-        return false;
-    }
-    let f = architecture::interior_glazing::shared_facade(
-        scene,
-        architecture::interior_glazing::partition_height(scene),
-    );
-    !f.openings.iter().any(|w| {
-        x + o.size.x * 0.5 > w.min.x - 0.065
-            && x - o.size.x * 0.5 < w.max.x + 0.065
-            && o.position.y + o.size.y > w.min.y - 0.065
-            && o.position.y < w.max.y + 0.065
-    })
+    scene.entry_wall_attachment_clear(o) || scene.wall_attachment_clear(o)
 }
 
 impl IndoorManifest {

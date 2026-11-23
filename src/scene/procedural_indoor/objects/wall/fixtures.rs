@@ -66,21 +66,35 @@ fn disk(a: &mut Assembly, surface: Surface, label: &str, p: Vec3, r: f32, depth:
         Transform::from_translation(p).with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
     );
 }
+
+fn control_setting(seed: u64, gang: usize) -> f32 {
+    stream(seed, 0x5357_4954_4348_0000 + gang as u64).random_range(-1_f32..1.)
+}
+
 pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = case_size(o, &p);
     let label = o.kind.class_name();
+    // A toggle needs room for its lever. Keep the same wall contact but
+    // transfer depth from the faceplate to the projecting actuator.
+    let toggle = o.kind == ObjectKind::LightSwitch && p.style == 1;
+    let rear = -0.35 * s.z;
+    let front = if toggle { -0.04 } else { 0.35 } * s.z;
     a.box_part(
         p.finish,
         label,
-        Vec3::Y * s.y * 0.5,
-        s * Vec3::new(1., 1., 0.7),
+        Vec3::new(0., s.y * 0.5, (rear + front) * 0.5),
+        s.with_z(front - rear),
         p.edge_radius,
     );
     let pitch = s.x / p.gangs as f32;
     for gang in 0..p.gangs {
         let x = (gang as f32 - (p.gangs - 1) as f32 * 0.5) * pitch;
-        let face = s.z * 0.48;
+        let face = if toggle {
+            front + (0.07 * s.z).min(0.0012)
+        } else {
+            s.z * 0.48
+        };
         if o.kind == ObjectKind::LightSwitch {
             // The recess and controls are *in front* of the plate, not hidden
             // inside it. Separation remains positive at every rocker angle.
@@ -89,7 +103,7 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
             a.box_part(
                 Surface::Ink,
                 label,
-                Vec3::new(x, s.y * 0.5, s.z * 0.36),
+                Vec3::new(x, s.y * 0.5, front + s.z * 0.01),
                 Vec3::new(w + 0.002, h + 0.002, 0.0003),
                 0.0001,
             );
@@ -104,7 +118,8 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     );
                 }
                 1 => {
-                    // Narrow toggle on a separate escutcheon.
+                    // The insulating lever projects from a pivot seated in
+                    // the escutcheon. Each gang has its own up/down state.
                     a.box_part(
                         Surface::Plastic,
                         label,
@@ -112,11 +127,17 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
                         Vec3::new(w, h, 0.002),
                         0.001,
                     );
-                    a.part(Surface::Paper, label).cuboid(
-                        Vec3::new(0.008, s.y * 0.23, 0.003),
-                        0.001,
-                        Transform::from_xyz(x, s.y * 0.5, face + 0.001)
-                            .with_rotation(Quat::from_rotation_x(p.rocker_angle * 2.)),
+                    let setting = control_setting(o.seed, gang);
+                    let angle = setting.signum() * (0.38 + setting.abs() * 0.27);
+                    let rotation = Quat::from_rotation_x(angle);
+                    let root = Vec3::new(x, s.y * 0.5, face + (0.02 * s.z).min(0.0004));
+                    let half = (s.z * 0.095).min(0.0018);
+                    let length = (0.49 * s.z - root.z - half * angle.sin().abs()) / angle.cos();
+                    a.part(Surface::Plastic, label).cuboid(
+                        Vec3::new((w * 0.24).clamp(0.005, 0.010), 2. * half, length),
+                        0.0007,
+                        Transform::from_translation(root + rotation * Vec3::Z * (length * 0.5))
+                            .with_rotation(rotation),
                     );
                 }
                 2 => {
@@ -167,9 +188,13 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
                         0.,
                     );
                     a.box_part(
-                        Surface::Paper,
+                        Surface::Plastic,
                         label,
-                        Vec3::new(x, s.y * (0.5 + p.rocker_angle * 2.), face + 0.002),
+                        Vec3::new(
+                            x,
+                            s.y * 0.5 + h * 0.275 * control_setting(o.seed, gang),
+                            face + 0.002,
+                        ),
                         Vec3::new(w * 0.62, h * 0.20, 0.002),
                         0.0005,
                     );
@@ -287,14 +312,14 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 a,
                 Surface::Metal,
                 label,
-                Vec3::new(0., y, s.z * 0.37),
+                Vec3::new(0., y, front + s.z * 0.02),
                 0.0019,
                 0.0006,
             );
             a.box_part(
                 Surface::Ink,
                 label,
-                Vec3::new(0., y, s.z * 0.37 + 0.0005),
+                Vec3::new(0., y, front + s.z * 0.02 + 0.0005),
                 Vec3::new(0.0024, 0.0004, 0.0003),
                 0.,
             );

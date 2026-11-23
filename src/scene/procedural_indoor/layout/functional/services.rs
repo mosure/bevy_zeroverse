@@ -78,7 +78,16 @@ impl IndoorManifest {
                     continue;
                 }
                 p.services.push(ServiceConnection {
-                    kind: ServiceKind::Power,
+                    kind: if super::super::super::objects::equipment::wires::data_variant(
+                        self.objects[source].kind,
+                        self.objects[target].kind,
+                    )
+                    .is_some()
+                    {
+                        ServiceKind::Data
+                    } else {
+                        ServiceKind::Power
+                    },
                     source,
                     target,
                     source_point: cable.transform().transform_point(path[0]),

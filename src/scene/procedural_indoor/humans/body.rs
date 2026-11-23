@@ -667,6 +667,17 @@ fn build_impl(
         .static_data
         .face_texture_coordinate_indices
         .data;
+    let eye_bones = [index("eye.L"), index("eye.R")];
+    let eye_charts = h.eye_optics().map(|optics| {
+        super::eyes::EyeCharts::new(
+            optics,
+            h.seed,
+            h.pose,
+            eye_bones,
+            eye_bones.map(|i| heads[i]),
+            scale,
+        )
+    });
     for (face_index, (q, texture_indices)) in faces
         .as_chunks::<4>()
         .0
@@ -674,7 +685,7 @@ fn build_impl(
         .zip(uv_faces.as_chunks::<4>().0)
         .enumerate()
     {
-        let corners: [_; 4] = std::array::from_fn(|k| {
+        let mut corners: [_; 4] = std::array::from_fn(|k| {
             let i = q[k] as usize;
             let t = texture_indices[k] as usize;
             super::garments::GarmentVertex {
@@ -686,6 +697,12 @@ fn build_impl(
                 skin_field: cut.skin_field(vertices[i], &labels[dominant[i]]),
             }
         });
+        if let Some(chart) = eye_charts
+            .as_ref()
+            .and_then(|c| c.for_bone(dominant[q[0] as usize]))
+        {
+            chart.map_face(&mut corners);
+        }
         for tri in [[0, 1, 2], [0, 2, 3]] {
             let triangle = tri.map(|i| corners[i]);
             if super::anatomy::lip_face(face_index) {
@@ -748,11 +765,12 @@ fn build_impl(
     // Eye and eyewear details attach to Anny's facial rig, following head turns.
     let face_rotation = head_rotation;
     let mut eyes = Vec::new();
-    for name in ["eye.L", "eye.R"] {
-        let i = index(name);
+    for i in eye_bones {
         let eye = transforms[i].transform_point3(heads[i]) - Vec3::Y * floor;
         eyes.push(eye);
-        super::face::iris(h.seed, eye, face_rotation, scale, &mut mesh);
+        if eye_charts.is_none() {
+            super::face::iris(h.seed, eye, face_rotation, scale, &mut mesh);
+        }
     }
     super::face::append(h, &posed, faces, &eyes, face_rotation, scale, &mut mesh);
     if h.outfit.buttoned() {
@@ -942,7 +960,7 @@ mod tests {
                 .max_by(|&a, &b| weights.data[base + a].total_cmp(&weights.data[base + b]))
                 .unwrap();
             let name = &labels[bone_ids.data[base + k] as usize];
-            !["lowerleg", "foot", "toe"]
+            !["lowerleg", "foot", "toe", "eye."]
                 .iter()
                 .any(|prefix| name.starts_with(prefix))
         };
@@ -974,10 +992,8 @@ mod tests {
                 .flat_map(|(_, g)| &g.positions)
                 .map(|p| p.map(f32::to_bits))
                 .collect();
-            // Only feet are replaced by constructed shoe shells; the body and
-            // its face-corner UV atlas remain Anny, including split cloth cuts.
-            // Iris and pupil now partition original eye triangles, so include
-            // Iris/Detail when checking retention of the anatomical atlas.
+            // Shoes replace the feet and eyeballs have their own optical chart.
+            // Retain the source seams everywhere else, including split cloth cuts.
             assert!(vertices.len() >= original_vertices.len() * 9 / 10);
             assert!(vertices.len() < original_vertices.len() * 2);
             let uvs: HashSet<_> = mesh

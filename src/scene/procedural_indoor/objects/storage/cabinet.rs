@@ -6,25 +6,28 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let t = p.panel_m;
     let l = o.kind.class_name();
+    let mut cuts = TimberCuts::new(o.seed, 0);
     let rear = -p.body_depth_m * 0.5 + t;
     let front = p.body_depth_m * 0.5;
     let inside_front = front - if p.front == 4 { 0.075 } else { 0.045 };
     let top_bottom = s.y - t;
-    a.box_part(
-        p.frame,
-        l,
+    a.board(
+        &mut cuts,
+        (p.frame, l),
         Vec3::new(0., top_bottom * 0.5, rear - t * 0.5),
         Vec3::new(s.x, top_bottom, t),
         0.002,
+        GrainAxis::Y,
     );
     // One full top preserves the declared support for items placed on cabinets.
     // Uprights end below it, avoiding overlapping coplanar top faces.
-    a.box_part(
-        p.shelves,
-        l,
+    a.board(
+        &mut cuts,
+        (p.shelves, l),
         Vec3::new(0., s.y - t * 0.5, 0.),
         Vec3::new(s.x, t, s.z),
         0.002,
+        GrainAxis::X,
     );
     for (index, x) in std::iter::once(-s.x * 0.5 + t * 0.5)
         .chain(p.bays.iter().map(|b| b.right + t * 0.5))
@@ -36,22 +39,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         } else {
             front
         };
-        a.box_part(
-            p.frame,
-            l,
+        a.board(
+            &mut cuts,
+            (p.frame, l),
             Vec3::new(x, top_bottom * 0.5, (rear + end) * 0.5),
             Vec3::new(t, top_bottom, end - rear),
             0.002,
+            GrainAxis::Y,
         );
     }
     for bay in &p.bays {
         for &y in &bay.levels[..bay.levels.len() - 1] {
-            a.box_part(
-                p.shelves,
-                l,
+            a.board(
+                &mut cuts,
+                (p.shelves, l),
                 Vec3::new((bay.left + bay.right) * 0.5, y, (rear + inside_front) * 0.5),
                 Vec3::new(bay.right - bay.left, t, inside_front - rear),
                 0.002,
+                GrainAxis::X,
             );
         }
     }

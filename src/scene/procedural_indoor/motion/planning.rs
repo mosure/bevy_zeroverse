@@ -665,6 +665,22 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                 .into_iter()
                 .collect(),
             joint: index,
+            linked_slides: if j.coupled
+                && j.kind == MotionKind::Door
+                && j.angle.abs() <= 1e-6
+                && j.translation.length_squared() > 1e-8
+            {
+                ids[1..]
+                    .iter()
+                    .map(|&id| LinkedSlide {
+                        joint: id,
+                        translation_m: tf.rotation * a.joints[id].effective_translation(),
+                        requested_translation_m: tf.rotation * a.joints[id].translation,
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            },
             kind: j.kind,
             interval: if j.kind == MotionKind::Fan {
                 [0., 1.]

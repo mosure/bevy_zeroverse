@@ -1,7 +1,9 @@
 fn main() {
     use bevy_zeroverse_capture::provenance::{source_digest, source_inputs};
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let inputs = source_inputs(root).expect("hash generator build inputs");
+    // Cargo can reuse the compiled build script between checkouts.
+    // Hash the package being built by this invocation.
+    let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let inputs = source_inputs(&root).expect("hash generator build inputs");
     for path in inputs.keys() {
         println!("cargo:rerun-if-changed={path}");
     }

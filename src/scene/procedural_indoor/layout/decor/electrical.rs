@@ -101,22 +101,29 @@ impl IndoorManifest {
             obj.position += tf.rotation * Vec3::Z * wall::mount_offset(&obj).unwrap();
             // One electrical convention per scene; finishes/gang counts can vary.
             obj.variant = electrical.standard;
-            let (lo, hi) = obj.bounds();
-            if !self.attachment_clear(tf, span, &obj)
-                || occupied.iter().copied().any(|(a, b)| {
-                    // Either installation can arrive first. Match the
-                    // service/fan reservation instead of admitting a late
-                    // socket that invalidates an earlier speaker/alarm.
-                    let gap = Vec3::splat(equipment::services::INSTALLATION_GAP);
-                    lo.cmplt(b + gap).all() && hi.cmpgt(a - gap).all()
-                })
+            // One circuit may be operated on entry. Other zone controls and
+            // service sockets keep independent unconstrained wall proposals.
+            if let Some(entry) = (i == 0)
+                .then(|| self.fit_entry_switch(&obj, height - floor, &occupied))
+                .flatten()
+            {
+                obj = entry;
+            } else if !self.attachment_clear(tf, span, &obj)
+                || !installation_clear(obj.bounds(), &occupied)
             {
                 continue;
             }
-            occupied.push((lo, hi));
+            occupied.push(obj.bounds());
             self.objects.push(obj);
         }
     }
+}
+
+pub(super) fn installation_clear((lo, hi): (Vec3, Vec3), occupied: &[(Vec3, Vec3)]) -> bool {
+    let gap = Vec3::splat(equipment::services::INSTALLATION_GAP);
+    occupied
+        .iter()
+        .all(|&(a, b)| !(lo.cmplt(b + gap).all() && hi.cmpgt(a - gap).all()))
 }
 
 struct WorktopAnchor {

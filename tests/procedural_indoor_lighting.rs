@@ -1,6 +1,8 @@
 //! Controlled renderer ablations. Run explicitly with a native graphics device.
 #[path = "support/directional_sky.rs"]
 mod directional_sky;
+#[path = "support/frosted_glass.rs"]
+mod frosted_glass;
 
 use bevy::prelude::*;
 use bevy_zeroverse::{
@@ -14,15 +16,13 @@ use bevy_zeroverse::{
 use std::time::{Duration, Instant};
 
 fn capture(app: &mut App) -> Sample {
-    app.insert_resource(SamplerState {
-        enabled: true,
+    let sampler = SamplerState {
         regenerate_scene: false,
-        render_modes: vec![RenderMode::Color],
         frames: 12,
         warmup_frames: 24,
-        timesteps: Vec::new(),
-        ..default()
-    });
+        ..SamplerState::from_config(app.world().resource::<BevyZeroverseConfig>())
+    };
+    app.insert_resource(sampler);
     let start = Instant::now();
     loop {
         app.update();

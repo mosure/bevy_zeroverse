@@ -21,6 +21,7 @@ pub(super) fn fixture() -> (IndoorManifest, EnvelopeProgram) {
             Vec2::new(-9., 9.),
         ],
         soffits: vec![],
+        step_installation: None,
         tier_guard: None,
         ceiling_drop: Vec2::ZERO,
         floor_patches: vec![],

@@ -307,8 +307,8 @@ pub fn glazing_at(a: &mut Assembly, tf: Transform, f: &Facade) {
                 );
             }
         }
-        for (min, max) in f.pane_rectangles(o) {
-            super::pane::build(a, tf, f, o, min, max);
+        for pane in f.installations_at(o, &columns, &levels) {
+            super::pane::build(a, tf, f, o, pane);
         }
 
         if o.min.y > 0.25 && f.sill_projection > 0. {

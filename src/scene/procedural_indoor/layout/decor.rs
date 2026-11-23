@@ -1,8 +1,11 @@
 //! Wall displays and supported clutter use free-space rejection, not fixed anchors.
 use super::super::architecture::facade::{self, FacadeSide};
 use super::*;
+mod displays;
+pub use displays::TelevisionMount;
 mod electrical;
 pub use electrical::{electrical_parameters, ElectricalProgram};
+mod entry;
 
 pub(super) fn drink(rng: &mut ChaCha8Rng) -> (ObjectKind, Vec3) {
     let kind = [
@@ -79,6 +82,15 @@ impl IndoorManifest {
 
     /// Same mounted-wall contract for generation and archived-manifest audits.
     pub(crate) fn wall_attachment_clear(&self, obj: &IndoorObject) -> bool {
+        if obj.kind == ObjectKind::Display {
+            self.television_mount(obj).is_some()
+        } else {
+            (obj.kind == ObjectKind::LightSwitch && self.entry_wall_attachment_clear(obj))
+                || self.perimeter_attachment_clear(obj)
+        }
+    }
+
+    fn perimeter_attachment_clear(&self, obj: &IndoorObject) -> bool {
         let Some(offset) = super::super::objects::wall::mount_offset(obj) else {
             return false;
         };
@@ -102,8 +114,7 @@ impl IndoorManifest {
         }
     }
 
-    /// Preserve each category's former proposal-count marginal, but remove the
-    /// shared categorical draw that made extra pictures imply fewer displays.
+    /// Independent category streams keep decor counts from predicting one another.
     pub(super) fn wall_decoration_count(&self, kind: ObjectKind) -> usize {
         let public = self.layout.is_public()
             && !matches!(
@@ -116,10 +127,7 @@ impl IndoorManifest {
                 sampling::Domain::WallArt,
                 if public && !dining { 0.6 } else { 0.2 },
             ),
-            ObjectKind::Display => (
-                sampling::Domain::Displays,
-                if public && dining { 0.6 } else { 0.2 },
-            ),
+            ObjectKind::Display => return self.display_demand(),
             ObjectKind::Whiteboard => (
                 sampling::Domain::Whiteboards,
                 if public { 0.0 } else { 0.4 },
@@ -137,7 +145,6 @@ impl IndoorManifest {
     pub(super) fn wall_decoration_kind(&mut self, kind: ObjectKind) {
         let domain = match kind {
             ObjectKind::WallArt => sampling::Domain::WallArt,
-            ObjectKind::Display => sampling::Domain::Displays,
             ObjectKind::Whiteboard => sampling::Domain::Whiteboards,
             ObjectKind::Clock => sampling::Domain::Clocks,
             _ => unreachable!("not standalone wall decor"),

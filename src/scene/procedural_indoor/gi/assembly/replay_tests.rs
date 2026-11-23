@@ -132,7 +132,11 @@ fn original_from_geometry(
                     | HumanSurface::Shirt
                     | HumanSurface::Seam
             );
-            let mut material = if person.outfit.knitted()
+            let mapped_eye = surface == HumanSurface::Eye && person.eye_optics().is_some();
+            let mut material = if mapped_eye {
+                let eye = humans::person_material(person, surface, set, materials);
+                DiffuseMaterial::from_standard(&eye, images, &set.gpu_bakes)
+            } else if person.outfit.knitted()
                 && matches!(surface, HumanSurface::Top | HumanSurface::Seam)
             {
                 knit.as_ref().expect("static knit proxy exists").clone()
@@ -153,7 +157,9 @@ fn original_from_geometry(
                 material.uv_transform =
                     humans::person_material(person, surface, set, materials).uv_transform;
             }
-            material.albedo = linear(person.material_color(surface));
+            if !mapped_eye {
+                material.albedo = linear(person.material_color(surface));
+            }
             let index = result.materials.len();
             result.materials.push(material);
             original_add_geometry(&mut result, geometry, person.transform(), index);
@@ -772,6 +778,7 @@ fn rest_pose_irradiance_does_not_leave_a_light_behind_after_the_lamp_moves() {
         carried_object_ids: vec![],
         semantic_labels: vec!["lamp".into()],
         joint: 0,
+        linked_slides: vec![],
         kind: MotionKind::Prop,
         interval: [0., 1.],
         rejection: None,

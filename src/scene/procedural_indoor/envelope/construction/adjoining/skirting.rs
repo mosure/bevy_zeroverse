@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::geometry::stock::TimberCuts;
 use crate::scene::procedural_indoor::layout::AdjoiningWindows;
 use architecture::trim::TrimSection;
 
@@ -8,6 +9,7 @@ pub(super) fn build(
     joint: f32,
     section: &TrimSection,
     windows: Option<&AdjoiningWindows>,
+    seed: u64,
 ) {
     let g = a.part(
         section.surface,
@@ -15,12 +17,6 @@ pub(super) fn build(
     );
     let n = outline.len();
     let inward = |edge: usize| (outline[(edge + 1) % n] - outline[edge]).normalize().perp();
-    // A unit offset along this bisector lies one metre from both wall planes,
-    // including at a re-entrant corner. Adjacent pieces share this cross section.
-    let miter = |i| {
-        let (left, right) = (inward((i + n - 1) % n), inward(i));
-        (left + right) / (1. + left.dot(right))
-    };
     let stock: Vec<_> = section
         .knots()
         .into_iter()
@@ -32,6 +28,11 @@ pub(super) fn build(
         let length = a.distance(b);
         let along = (b - a) / length;
         let normal = inward(edge);
+        let length_axis = Vec3::new(along.x, 0., along.y);
+        let timber_origin = section
+            .surface
+            .is_cut_timber()
+            .then(|| TimberCuts::new(seed, 0x4144_4a00 + edge as u64).origin());
         let first = edge == 1;
         let last = end == 0;
         // Stop against the actual back face of the shared structural wall.
@@ -65,8 +66,16 @@ pub(super) fn build(
         let mut cursor = start;
         for (hi, next) in cuts {
             if hi > cursor {
-                let left = if cursor == 0. { miter(edge) } else { normal };
-                let right = if hi == length { miter(end) } else { normal };
+                let left = if cursor == 0. {
+                    polygon::inset_direction(outline, edge)
+                } else {
+                    normal
+                };
+                let right = if hi == length {
+                    polygon::inset_direction(outline, end)
+                } else {
+                    normal
+                };
                 let at = |x: f32, offset: Vec2, p: Vec2| {
                     let base = if x == length { b } else { a + along * x };
                     let pos = base + offset * p.y;
@@ -76,17 +85,26 @@ pub(super) fn build(
                 let high = |p| at(hi, right, p);
                 let bottom = Vec2::new(joint, back);
                 let top = Vec2::new(joint + section.height_m, back);
-                let face = |g: &mut Geometry, p: Vec2, q: Vec2| {
+                let face = |g: &mut Geometry, p: Vec2, q: Vec2, start: f32| {
                     let side = normal * (q.x - p.x);
-                    g.metric_quad(
+                    let outward = Vec3::new(side.x, p.y - q.y, side.y);
+                    let origin = timber_origin.map(|o| {
+                        let across = outward.normalize().cross(length_axis);
+                        o + Vec2::X * (start - low(p).dot(across))
+                    });
+                    g.stock_quad(
                         [low(p), high(p), high(q), low(q)],
-                        Vec3::new(side.x, p.y - q.y, side.y),
+                        outward,
+                        length_axis,
+                        origin,
                     );
                 };
-                face(g, bottom, stock[0]);
+                face(g, bottom, stock[0], -bottom.distance(stock[0]));
+                let mut distance = 0.;
                 for s in stock.windows(2) {
-                    face(g, s[0], s[1]);
-                    face(g, Vec2::new(s[1].x, back), Vec2::new(s[0].x, back));
+                    face(g, s[0], s[1], distance);
+                    distance += s[0].distance(s[1]);
+                    face(g, Vec2::new(s[1].x, back), Vec2::new(s[0].x, back), -s[1].x);
                     for (cap, x, offset, direction) in [
                         (cursor > 0., cursor, left, -along),
                         (hi < length, hi, right, along),
@@ -104,7 +122,7 @@ pub(super) fn build(
                         }
                     }
                 }
-                face(g, *stock.last().unwrap(), top);
+                face(g, *stock.last().unwrap(), top, distance);
             }
             cursor = cursor.max(next);
         }

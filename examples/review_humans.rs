@@ -3,6 +3,7 @@
 //! Add --standing after the output directory to review the same wardrobes upright.
 //! --fit-review stages short, muscular bodies across all six garment cuts.
 //! --beard-review forces fitted stubble on eight varied adult faces.
+//! --portraits-only --people 4 captures just the four face views.
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -50,8 +51,13 @@ fn main() {
     let mut scene =
         IndoorManifest::generate_with_humans(13, IndoorLayout::Mixed, 0.35, 0, 1.0).unwrap();
     scene.humans.clear();
-    const PEOPLE: usize = 8;
-    for seed in 0..PEOPLE as u64 {
+    let portraits_only = args.iter().any(|p| p == "--portraits-only");
+    let people: usize = args
+        .windows(2)
+        .find(|p| p[0] == "--people")
+        .map_or(8, |p| p[1].parse().expect("--people integer"));
+    assert!((1..=8).contains(&people), "--people must be in 1..=8");
+    for seed in 0..people as u64 {
         let mut source = IndoorManifest::generate_with_humans(
             first_seed
                 + if body_review || fit_review || args.iter().any(|a| a == "--same-person") {
@@ -152,7 +158,7 @@ fn main() {
             gizmos: false,
             keybinds: false,
             image_copiers: true,
-            num_cameras: PEOPLE * 4,
+            num_cameras: if portraits_only { people } else { people * 4 },
             width: 640.0,
             height: 640.0,
             render_modes: vec![RenderMode::Color, RenderMode::Semantic],
@@ -223,7 +229,11 @@ fn main() {
                 let hair_target = h.position + (hair_lo + hair_hi) * 0.5;
                 let hair_distance =
                     (hair_hi - hair_lo).length() * 0.5 / 16_f32.to_radians().sin() * 1.12;
-                for full_body in [false, true] {
+                for &full_body in if portraits_only {
+                    &[false][..]
+                } else {
+                    &[false, true][..]
+                } {
                     let target = if full_body {
                         h.position
                             + if body_review || fit_review {
@@ -255,7 +265,7 @@ fn main() {
                     };
                     commands.spawn((
                         bevy_zeroverse::camera::CaptureCameraIndex(
-                            index + if full_body { PEOPLE } else { 0 },
+                            index + if full_body { people } else { 0 },
                         ),
                         ZeroverseCamera {
                             perspective_sampler: PerspectiveSampler::exact(32.0),
@@ -273,6 +283,9 @@ fn main() {
                         set.environment.clone(),
                         ChildOf(root),
                     ));
+                }
+                if portraits_only {
+                    continue;
                 }
                 let (lo, hi) = dressed
                     .parts
@@ -296,7 +309,7 @@ fn main() {
                 let distance = radius / 21_f32.to_radians().sin() * 1.12;
                 let from = target + Vec3::new(0.25, 0.22, -1.).normalize() * distance;
                 commands.spawn((
-                    bevy_zeroverse::camera::CaptureCameraIndex(PEOPLE * 2 + index),
+                    bevy_zeroverse::camera::CaptureCameraIndex(people * 2 + index),
                     ZeroverseCamera {
                         perspective_sampler: PerspectiveSampler::exact(42.0),
                         trajectory: TrajectorySampler::Static {
@@ -316,7 +329,7 @@ fn main() {
                 {
                     let target = hair_target;
                     commands.spawn((
-                        bevy_zeroverse::camera::CaptureCameraIndex(PEOPLE * 3 + index),
+                        bevy_zeroverse::camera::CaptureCameraIndex(people * 3 + index),
                         ZeroverseCamera {
                             perspective_sampler: PerspectiveSampler::exact(32.0),
                             trajectory: TrajectorySampler::Static {
@@ -365,7 +378,7 @@ fn main() {
             .unwrap()
             .try_recv()
         {
-            assert_eq!(sample.object_obbs.len(), PEOPLE);
+            assert_eq!(sample.object_obbs.len(), people);
             for (i, view) in sample.views.iter().enumerate() {
                 let values: &[f32] = bytemuck::cast_slice(&view.color);
                 let rgb: Vec<u8> = values
@@ -383,19 +396,19 @@ fn main() {
                     .unwrap()
                     .save(output.join(format!(
                         "{}_{index}.png",
-                        if i < PEOPLE {
+                        if i < people {
                             "portrait"
-                        } else if i < PEOPLE * 2 {
+                        } else if i < people * 2 {
                             "body"
-                        } else if i < PEOPLE * 3 {
+                        } else if i < people * 3 {
                             "footwear"
                         } else {
                             "rear"
                         },
-                        index = if i < PEOPLE * 3 {
-                            i % PEOPLE
+                        index = if i < people * 3 {
+                            i % people
                         } else {
-                            i - PEOPLE * 3
+                            i - people * 3
                         }
                     )))
                     .unwrap();

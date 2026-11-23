@@ -19,19 +19,16 @@ fn frost_weighted_level(uv: vec2<f32>, level: i32, pane_z: f32) -> vec4<f32> {
     return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
 }
 
-fn frost_weighted_sample(uv: vec2<f32>, pixel: vec2<f32>, lod: f32, pane_z: f32) -> vec4<f32> {
+fn frost_weighted_sample(pixel: vec2<f32>, full_size: vec2<f32>, lod: f32, pane_z: f32) -> TransmissionTap {
     var sum = vec4<f32>(0.0);
     let high = i32(ceil(lod));
     let first_weight = 1.0 - (f32(high) - lod);
     for (var level = high; level > 0; level -= 1) {
         let weight = select(1.0 - sum.a, first_weight, level == high);
-        sum += weight * frost_weighted_level(uv, level, pane_z);
-        if sum.a >= 0.99999 {return sum;}
+        sum += weight * frost_weighted_level(pixel / full_size, level, pane_z);
+        if sum.a >= 0.99999 {return TransmissionTap(sum, 0.0);}
     }
-@if(DEPTH_PREPASS && !WEBGL2) {
-    if prepass_utils::prepass_depth(vec4<f32>(pixel,0.0,0.0),0u)>pane_z {return sum;}
-}
-    let fine = textureSampleLevel(view_bindings::view_transmission_texture,
-        view_bindings::view_transmission_sampler, uv, 0.0);
-    return sum + (1.0 - sum.a) * vec4<f32>(fine.rgb * fine.a, fine.a);
+    let fine = transmission_base(pixel, full_size, pane_z);
+    let missing = 1.0 - sum.a;
+    return TransmissionTap(sum + missing * fine.color, missing * fine.missing);
 }

@@ -10,6 +10,7 @@ use super::facade::{solid_rectangles, WindowOpening};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+pub(crate) mod perimeter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TrimProfile {
@@ -37,7 +38,12 @@ pub struct TrimProgram {
     pub crown: Option<TrimSection>,
     /// Real shadow/reveal joint at the floor/roof, rather than a coincident face.
     pub joint_m: f32,
+    /// Square termination on older perimeter installations.
     pub corner_reveal_m: f32,
+    /// Physical clearance between the two mitre faces. Absent in archived
+    /// installations where every wall terminated independently.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub miter_joint_m: Option<f32>,
 }
 
 impl TrimProgram {
@@ -103,6 +109,7 @@ impl TrimProgram {
             crown: crown_present.then_some(crown),
             joint_m,
             corner_reveal_m,
+            miter_joint_m: Some(r.random_range(0.0006..0.0024)),
         }
     }
 
@@ -113,6 +120,9 @@ impl TrimProgram {
     pub fn validate(&self) -> Result<(), String> {
         if !(0.002..=0.015).contains(&self.joint_m)
             || !(0.04..=0.09).contains(&self.corner_reveal_m)
+            || self
+                .miter_joint_m
+                .is_some_and(|v| !(0.0004..=0.003).contains(&v))
             || self.base.iter().chain(&self.crown).any(|s| {
                 !(0.025..=0.42).contains(&s.height_m)
                     || !(0.005..=0.07).contains(&s.depth_m)

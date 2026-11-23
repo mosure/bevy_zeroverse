@@ -16,6 +16,12 @@ macro_rules! surfaces {
     };
 }
 
+impl Surface {
+    pub(crate) fn is_cut_timber(self) -> bool {
+        matches!(self, Self::Wood | Self::WoodEdge)
+    }
+}
+
 surfaces! {
     Paint => true,
     Accent => true,

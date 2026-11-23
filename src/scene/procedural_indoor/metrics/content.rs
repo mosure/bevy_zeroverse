@@ -42,6 +42,28 @@ pub(super) fn record_scene(
     }
     let installation = super::super::layout::electrical_parameters(scene);
     category(categories, "electrical_standard", installation.standard);
+    if let Some(door) = &scene.entry_door {
+        let half = (door.transform().rotation * bevy::prelude::Vec3::X).xz() * (0.5 * door.width);
+        let jambs = [door.center.xz() - half, door.center.xz() + half];
+        let nearest = scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::LightSwitch && !o.neighbor)
+            .flat_map(|o| jambs.map(|j| j.distance(o.position.xz())))
+            .min_by(f32::total_cmp);
+        category(
+            categories,
+            "entry_light_switch",
+            match nearest {
+                Some(d) if d <= 1.5 => "within_1_5m_of_jamb",
+                Some(_) => "elsewhere",
+                None => "absent",
+            },
+        );
+        if let Some(d) = nearest {
+            numeric.push("nearest_light_switch_to_entry_jamb_m", f64::from(d))?;
+        }
+    }
     for (key, value) in [
         (
             "electrical_outlet_height_prior_m",
@@ -211,6 +233,20 @@ pub(super) fn record_scene(
     }
     for group in &groups.accepted {
         let p = scene.objects[group.surface].position;
+        use super::super::layout::assemblies::AssemblyRole;
+        if scene.objects[group.surface].kind == ObjectKind::Desk
+            && group.role != AssemblyRole::Meeting
+        {
+            category(
+                categories,
+                "desk_operator_positions",
+                match group.role {
+                    AssemblyRole::StandingWorkstation => "standing",
+                    _ if group.seats.len() == 2 => "opposing_pair",
+                    _ => "seated",
+                },
+            );
+        }
         let region = if scene.in_primary_room(p, 0.) {
             "primary"
         } else {
@@ -218,7 +254,10 @@ pub(super) fn record_scene(
         };
         for (name, n) in [
             ("requested_capacity", group.requested_capacity),
-            ("accepted_capacity", group.seats.len()),
+            (
+                "accepted_capacity",
+                group.seats.len() + usize::from(group.role == AssemblyRole::StandingWorkstation),
+            ),
             ("attempts", group.attempts),
         ] {
             numeric.push(
@@ -969,12 +1008,12 @@ pub(super) fn record_object(
         numeric.push("display_aspect", (d.width_m / d.height_m) as f64)?;
         numeric.push("display_width_m", d.width_m as f64)?;
         numeric.push("display_height_m", d.height_m as f64)?;
+        numeric.push("display_tilt_radians", d.tilt_radians as f64)?;
         numeric.push("display_bezel_m", d.bezel_m as f64)?;
         numeric.push("display_rear_width_fraction", p.back_fraction.x as f64)?;
         numeric.push("display_rear_height_fraction", p.back_fraction.y as f64)?;
         if o.kind == ObjectKind::Monitor {
             numeric.push("display_curvature_radius_m", d.curvature_radius_m as f64)?;
-            numeric.push("display_tilt_radians", d.tilt_radians as f64)?;
             category(categories, "display_stand", p.stand);
             category(categories, "display_riser", p.mount.riser_style);
             category(
@@ -1051,11 +1090,47 @@ pub(super) fn record_object(
             "screen_free"
         };
         category(categories, "accepted_workspace_arrangement", arrangement);
+        numeric.push("workspace_top_height_m", o.size.y as f64)?;
         numeric.push("workspace_monitor_count", monitors as f64)?;
         numeric.push("workspace_laptop_count", laptops as f64)?;
     }
+    if o.kind == ObjectKind::PcTower {
+        category(
+            categories,
+            "pc_case_placement",
+            if o.support.is_some() {
+                "desktop"
+            } else {
+                "floor"
+            },
+        );
+    }
     if o.kind == ObjectKind::Cable {
         let path = o.cable_path.as_ref().ok_or("cable missing route")?;
+        if let Some((source, target)) = o
+            .interaction_target
+            .and_then(|id| scene.objects.get(id))
+            .zip(o.cable_target.and_then(|id| scene.objects.get(id)))
+        {
+            category(
+                categories,
+                "cable_devices",
+                format!(
+                    "{} to {}",
+                    source.kind.class_name(),
+                    target.kind.class_name()
+                ),
+            );
+        }
+        category(
+            categories,
+            "cable_function",
+            match o.variant {
+                equipment::wires::USB_LEAD => "usb",
+                equipment::wires::DISPLAY_LEAD => "display",
+                _ => "power",
+            },
+        );
         numeric.push(
             "cable_length_m",
             path.windows(2).map(|w| w[0].distance(w[1]) as f64).sum(),
@@ -1153,6 +1228,29 @@ pub(super) fn record_object(
         let p = materials::screens::parameters_for(finish_seed(scene, o), kind);
         if o.kind == ObjectKind::Display {
             category(categories, "tv_content", p.layout);
+            use super::super::layout::TelevisionMount;
+            if let Some(mount) = scene.television_mount(o) {
+                category(
+                    categories,
+                    "tv_mount",
+                    match mount {
+                        TelevisionMount::PerimeterWall => "perimeter_wall",
+                        TelevisionMount::Partition(_) => "partition",
+                        TelevisionMount::Pillar(_) => "pillar",
+                    },
+                );
+            }
+            category(
+                categories,
+                "tv_in_primary_room",
+                scene
+                    .primary_region()
+                    .contains_projection(o.position.xz(), 0.),
+            );
+            numeric.push(
+                "tv_lower_edge_above_floor_m",
+                (o.position.y - scene.floor_height(o.position.xz())) as f64,
+            )?;
         }
         numeric.push("screen_time_minutes", p.minutes as f64)?;
         numeric.push(

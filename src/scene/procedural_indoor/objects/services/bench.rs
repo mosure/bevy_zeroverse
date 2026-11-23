@@ -69,6 +69,7 @@ pub fn parameters(o: &IndoorObject) -> BenchProgram {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = o.size;
+    let mut cuts = TimberCuts::new(o.seed, 0);
     let label = o.kind.class_name();
     let underside = p.seat_height - p.seat_thickness;
     let span = p.span * s.xz();
@@ -84,73 +85,81 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     );
                     let top = Vec3::new(x, underside, z * span.y);
                     // Flat foot caps at y=0; inclined members stop inside those caps.
-                    a.box_part(
-                        p.frame,
-                        label,
+                    a.board(
+                        &mut cuts,
+                        (p.frame, label),
                         bottom + Vec3::Y * 0.008,
                         Vec3::new(p.rail, 0.016, p.rail),
                         0.002,
+                        GrainAxis::Y,
                     );
                     a.part(p.frame, label)
                         .rod(bottom + Vec3::Y * 0.008, top, p.rail * 0.40);
                 }
             }
             1 => {
-                a.box_part(
-                    p.frame,
-                    label,
+                a.board(
+                    &mut cuts,
+                    (p.frame, label),
                     Vec3::new(x, p.rail * 0.5, 0.),
                     Vec3::new(p.rail, p.rail, span.y * 2. + p.rail),
                     0.003,
+                    GrainAxis::Z,
                 );
                 for z in [-1., 1.] {
-                    a.box_part(
-                        p.frame,
-                        label,
+                    a.board(
+                        &mut cuts,
+                        (p.frame, label),
                         Vec3::new(x, (underside + p.rail) * 0.5, z * span.y),
                         Vec3::new(p.rail, underside - p.rail, p.rail),
                         0.003,
+                        GrainAxis::Y,
                     );
                 }
             }
             2 => {
-                a.box_part(
-                    p.frame,
-                    label,
+                a.board(
+                    &mut cuts,
+                    (p.frame, label),
                     Vec3::new(x, p.rail * 0.4, 0.),
                     Vec3::new(s.x * 0.12, p.rail * 0.8, s.z * 0.79),
                     p.rail * 0.15,
+                    GrainAxis::Z,
                 );
-                a.box_part(
-                    p.frame,
-                    label,
+                a.board(
+                    &mut cuts,
+                    (p.frame, label),
                     Vec3::new(x, (underside + p.rail * 0.8) * 0.5, 0.),
                     Vec3::new(s.x * 0.055, underside - p.rail * 0.8, s.z * 0.24),
                     0.006,
+                    GrainAxis::Y,
                 );
             }
-            _ => a.box_part(
-                p.frame,
-                label,
+            _ => a.board(
+                &mut cuts,
+                (p.frame, label),
                 Vec3::new(x, underside * 0.5, 0.),
                 Vec3::new(p.rail * 1.3, underside, s.z * 0.70),
                 0.004,
+                GrainAxis::Y,
             ),
         }
-        a.box_part(
-            p.frame,
-            label,
+        a.board(
+            &mut cuts,
+            (p.frame, label),
             Vec3::new(x, underside - p.rail * 0.5, 0.),
             Vec3::new(p.rail, p.rail, s.z * 0.84),
             0.003,
+            GrainAxis::Z,
         );
     }
-    a.box_part(
-        p.frame,
-        label,
+    a.board(
+        &mut cuts,
+        (p.frame, label),
         Vec3::Y * (underside - p.rail * 0.5),
         Vec3::new(span.x * 2., p.rail, p.rail),
         0.003,
+        GrainAxis::X,
     );
     for i in 0..p.divisions {
         let across_depth = p.slats && p.longitudinal;
@@ -169,7 +178,18 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             if across_depth { offset } else { 0. },
         );
         if p.slats {
-            a.box_part(p.seat, label, pos, size, p.seat_thickness.min(width) * 0.12);
+            a.board(
+                &mut cuts,
+                (p.seat, label),
+                pos,
+                size,
+                p.seat_thickness.min(width) * 0.12,
+                if across_depth {
+                    GrainAxis::X
+                } else {
+                    GrainAxis::Z
+                },
+            );
         } else {
             a.part(p.seat, label).cushion(
                 size,
@@ -200,10 +220,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 0.012,
             );
         }
-        a.part(p.seat, label).cuboid(
+        cuts.cuboid(
+            a.part(p.seat, label),
+            p.seat,
             Vec3::new(s.x * 0.92, height, thickness),
             thickness * 0.20,
             tf,
+            GrainAxis::X,
         );
     }
     if p.arms {
@@ -216,12 +239,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     0.010,
                 );
             }
-            a.box_part(
-                p.frame,
-                label,
+            a.board(
+                &mut cuts,
+                (p.frame, label),
                 Vec3::new(side * s.x * 0.46, y, 0.),
                 Vec3::new(s.x.min(1.) * 0.045, 0.025, s.z * 0.73),
                 0.008,
+                GrainAxis::Z,
             );
         }
     }

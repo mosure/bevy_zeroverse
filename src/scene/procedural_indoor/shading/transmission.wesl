@@ -18,6 +18,8 @@ fn fetch_transmissive_background(offset_position: vec2<f32>, frag_coord: vec3<f3
 
     // FROST_MIP_FILTER
     var result = vec4<f32>(0.0);
+    var missing = 0.0;
+    var on_screen = 0.0;
     // Opposite pairs have an exactly zero first moment. A fixed low-discrepancy
     // disk stratifies the original Ultra kernel's empirical radial distribution,
     // including both checkerboard radii, without modulating adjacent pixels.
@@ -36,24 +38,11 @@ fn fetch_transmissive_background(offset_position: vec2<f32>, frag_coord: vec3<f3
             if any(pixel < origin) || any(pixel >= origin + view_bindings::view.viewport.zw) {
                 continue;
             }
-@if(DEPTH_PREPASS && !WEBGL2) {
-            if prepass_utils::prepass_depth(vec4<f32>(pixel, 0.0, 0.0), 0u) > frag_coord.z {
-                continue;
-            }
-}
-            let sample = textureSampleLevel(view_bindings::view_transmission_texture,
-                view_bindings::view_transmission_sampler, uv, 0.0);
-            // Linear radiance, including bright sources. No brightness-dependent
-            // clipping or normalize(black): both bias the optical reference.
-            result += vec4(sample.rgb * sample.a, sample.a);
+            let tap = transmission_base(pixel, full_size, frag_coord.z);
+            result += tap.color;
+            missing += tap.missing;
+            on_screen += 1.0;
         }
     }
-    // Return unassociated colour plus coverage. The caller mixes with the
-    // environment using this alpha; dividing RGB by taps as well would apply
-    // coverage twice and create a dark halo beside foreground frames/objects.
-    result = vec4(result.rgb / max(result.a, 0.000001), result.a / f32(taps));
-@if(TONEMAP_IN_SHADER)
-    result = approximate_inverse_tone_mapping(result, view_bindings::view.color_grading);
-
-    return result;
+    return resolve_transmission(result, missing, on_screen, f32(taps), frag_coord);
 }

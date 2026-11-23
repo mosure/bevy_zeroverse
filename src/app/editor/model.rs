@@ -154,6 +154,7 @@ pub fn live(path: &str) -> bool {
             path,
             "/render_mode"
                 | "/tonemapping"
+                | "/preview_aa"
                 | "/hdr"
                 | "/fullscreen"
                 | "/depth_format"

@@ -2,14 +2,16 @@
 //! choosing a complete room from a small preset bank. Stored in each manifest.
 use super::{
     layout::{stream, IndoorManifest, LightingMood},
-    materials::kelvin_rgb,
+    photometry::IlluminantModel,
 };
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+mod circuits;
 mod exposure;
 pub use super::sky::SkyDistribution;
+pub use circuits::{CeilingCircuit, CeilingCircuits};
 pub use exposure::IndoorExposureMeter;
 
 fn log_sample(rng: &mut impl Rng, lo: f32, hi: f32) -> f32 {
@@ -37,6 +39,12 @@ pub struct Photometry {
     pub sun_lux: f32,
     /// Cosine-weighted mean upper-hemisphere radiance in linear RGB.
     pub sky_radiance: Vec3,
+    /// White-point model for electric fixtures, direct sun and diffuse daylight.
+    #[serde(default, skip_serializing_if = "IlluminantModel::is_legacy")]
+    pub illuminant_model: IlluminantModel,
+    /// Weather-dependent CCT of the diffuse sky before directional modulation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diffuse_sky_kelvin: Option<f32>,
     /// Archived rooms without this field have a uniform upper hemisphere.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sky_distribution: Option<SkyDistribution>,
@@ -45,6 +53,10 @@ pub struct Photometry {
     /// Recorded before any explicit appearance intervention. Absent in older manifests.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<IndoorExposureMeter>,
+    /// Installed switch groups and their sampled output. Earlier archives use
+    /// the original per-fixture switching and color sequence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ceiling_circuits: Option<CeilingCircuits>,
     pub active_fraction: f32,
     pub circuit_contrast: f32,
     pub sun_kelvin: f32,
@@ -89,6 +101,10 @@ pub struct SceneDomain {
 
 impl SceneDomain {
     pub fn sample(seed: u64) -> Self {
+        Self::sample_with_illuminants(seed, IlluminantModel::Cie1931)
+    }
+
+    pub(super) fn sample_with_illuminants(seed: u64, illuminant_model: IlluminantModel) -> Self {
         // Domain separation prevents adding props from changing exposure or sun.
         let mut light = stream(seed, 212);
         // Mix continuous priors: common occupied/daylit conditions retain most
@@ -118,9 +134,7 @@ impl SceneDomain {
         let diffuse_lux = diffuse_lux / (1. + diffuse_lux / 20_000.);
         let sky = diffuse_lux / std::f32::consts::PI;
         let kelvin = 6500. + (sky_kelvin - 6500.) * (0.35 + 0.65 * transmission);
-        let rgb = kelvin_rgb(kelvin);
-        let linear = Color::srgb(rgb.x, rgb.y, rgb.z).to_linear();
-        let chroma = Vec3::new(linear.red, linear.green, linear.blue);
+        let chroma = illuminant_model.diffuse_sky_linear(kelvin);
         let sky_radiance = chroma * (sky / chroma.dot(Vec3::new(0.2126, 0.7152, 0.0722)));
         // Partial adaptation preserves real brightness differences. Independent
         // exposure offsets cover under/overexposure without normalizing each image.
@@ -137,9 +151,12 @@ impl SceneDomain {
         let photometry = Photometry {
             sun_lux,
             sky_radiance,
+            illuminant_model,
+            diffuse_sky_kelvin: (!illuminant_model.is_legacy()).then_some(kelvin),
             sky_distribution: Some(SkyDistribution::sample(seed, transmission)),
             ev100: meter.ev100(),
             meter: Some(meter),
+            ceiling_circuits: None,
             environment_intensity: (0.07 * target_lux + 0.09 * sky).clamp(0.25, 160.0),
             active_fraction: 1. - 0.65 * (1. - circuit_draw).powi(2),
             circuit_contrast: light.random_range(0.0..0.85),
@@ -203,8 +220,13 @@ impl SceneDomain {
         if p.meter.is_some_and(|m| !m.valid()) {
             return Err("invalid indoor exposure estimate".into());
         }
+        if p.ceiling_circuits.as_ref().is_some_and(|c| !c.valid()) {
+            return Err("invalid ceiling circuit wiring or output".into());
+        }
         if !p.sky_radiance.is_finite()
             || p.sky_radiance.min_element() < 0.0
+            || p.diffuse_sky_kelvin
+                .is_some_and(|k| !(4000.0..=25_000.).contains(&k))
             || p.sky_distribution.is_some_and(|s| !s.valid())
             || !p.fixture_gradient.is_finite()
             || p.fixture_gradient.abs().max_element() > 0.8
@@ -216,6 +238,11 @@ impl SceneDomain {
 }
 
 impl IndoorManifest {
+    pub(crate) fn illuminant_model(&self) -> IlluminantModel {
+        self.domain()
+            .map_or_else(IlluminantModel::default, |d| d.photometry.illuminant_model)
+    }
+
     pub(crate) fn minimum_main_objects(&self) -> usize {
         self.domain()
             .map_or(6, |d| 3 + (d.clutter * self.density * 5.0) as usize)
@@ -348,8 +375,10 @@ mod tests {
         .unwrap();
         scene.target_lux = 5.0;
         let positions = super::super::architecture::fixture_positions(&scene);
-        let count = super::super::architecture::primary_fixture_count(&scene, &positions);
-        let index = super::super::architecture::energized_fixture(&scene, count);
+        let index = super::super::architecture::powered_ceiling_fixtures(&scene, &positions)
+            .next()
+            .unwrap()
+            .0;
         let dim = super::super::architecture::fixture_photometry(&scene, index).1;
         scene.target_lux = 50.0;
         let bright = super::super::architecture::fixture_photometry(&scene, index).1;

@@ -30,8 +30,16 @@ pub fn display_parameters(o: &IndoorObject) -> DisplayProgram {
     // Honour a portrait or broad-panel proposal; the previous independent
     // landscape-only aspect silently shrank every portrait display.
     let envelope_aspect = o.size.x / (o.size.y * if wall { 1. } else { 1. - lift_fraction });
+    let stand_fit = rng.random_range(0.90..1.12);
     DisplayProgram {
-        aspect: (envelope_aspect * rng.random_range(0.90..1.12)).clamp(0.45, 3.6),
+        // An installed TV's enclosure is the panel format itself. Only desktop
+        // reservations also cover an independently dimensioned foot and stand.
+        aspect: (if wall {
+            envelope_aspect
+        } else {
+            envelope_aspect * stand_fit
+        })
+        .clamp(0.45, 3.6),
         bezel_m: rng.random_range(0.003..0.032),
         panel_m: rng.random_range(0.009..0.060),
         stand: rng.random_range(0..6),
@@ -57,7 +65,11 @@ pub fn display_parameters(o: &IndoorObject) -> DisplayProgram {
             0.
         },
         tilt_radians: if wall {
-            0.
+            if o.position.y > 1.55 {
+                detail.random_range(0.025..0.14)
+            } else {
+                0.
+            }
         } else {
             rng.random_range(-0.055..0.23)
         },
@@ -79,6 +91,19 @@ pub struct DisplayGeometry {
 
 pub fn display_geometry(o: &IndoorObject) -> DisplayGeometry {
     geometry_parameters(o, &display_parameters(o))
+}
+
+/// Half-width of the occupied mount and a safe height below the tilted panel.
+/// Rear electronics, all foot styles and both riser endpoints fit inside it.
+pub(crate) fn low_mount_clearance(o: &IndoorObject) -> (f32, f32) {
+    let p = display_parameters(o);
+    let d = geometry_parameters(o, &p);
+    let foot = d.width_m * p.stand_width * 0.5;
+    let riser = d.width_m * p.mount_offset.abs() + p.mount.riser_radius * 1.5;
+    (
+        foot.max(riser).max(0.037),
+        (o.size.y * p.lift_fraction * 0.5).min(0.035),
+    )
 }
 
 pub(super) fn geometry_parameters(o: &IndoorObject, p: &DisplayProgram) -> DisplayGeometry {
@@ -133,10 +158,8 @@ pub(crate) fn monitor_power_port_local(o: &IndoorObject) -> (Vec3, Vec3) {
 pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
     let p = display_parameters(o);
     let d = geometry_parameters(o, &p);
-    let s = o.size;
     let label = o.kind.class_name();
     let wall = o.kind == ObjectKind::Display;
-    let bottom = if wall { 0. } else { s.y * p.lift_fraction };
     let width = d.width_m;
     let height = d.height_m;
     let thickness = d.panel_m;
@@ -206,6 +229,26 @@ pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(0.027, 0.020, (rear + 0.048).abs() + 0.002),
             0.002,
         );
+        for device in [ObjectKind::Monitor, ObjectKind::Keyboard, ObjectKind::Mouse] {
+            let jack =
+                crate::scene::procedural_indoor::objects::desktop::ports::monitor_local(o, device)
+                    .unwrap();
+            a.box_part(
+                Surface::Rubber,
+                label,
+                jack - normal * 0.0009,
+                Vec3::new(
+                    if device == ObjectKind::Monitor {
+                        0.015
+                    } else {
+                        0.012
+                    },
+                    0.005,
+                    0.001,
+                ),
+                0.0005,
+            );
+        }
         // The socket is one millimetre ahead of the archived connector's tip;
         // first-segment contact is the only allowed housing intersection.
         a.box_part(
@@ -216,22 +259,7 @@ pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
             0.0008,
         );
     } else {
-        // A real bracket bridges the panel to the reserved rear mounting face.
-        let rear = -thickness * 0.5;
-        let depth = rear + s.z * 0.5;
-        if depth > 0.001 {
-            a.box_part(
-                Surface::Metal,
-                label,
-                Vec3::new(0., bottom + height * 0.5, rear - depth * 0.5),
-                Vec3::new(
-                    width * p.mount.wall_span.x,
-                    height * p.mount.wall_span.y,
-                    depth,
-                ),
-                0.002,
-            );
-        }
+        mounts::wall_bracket(a, o, &p, &d);
     }
 }
 
@@ -242,6 +270,68 @@ mod tests {
         layout::{IndoorLayout, IndoorManifest},
         validation::validate_geometry,
     };
+
+    #[test]
+    fn low_cable_clearance_contains_every_constructed_triangle_below_the_screen() {
+        let mut styles = std::collections::BTreeSet::new();
+        for seed in 0..64 {
+            let mut o = audit::fixture(ObjectKind::Monitor, seed);
+            let mut r = stream(seed, 33);
+            o.size = Vec3::new(
+                r.random_range(0.27..0.80),
+                r.random_range(0.28..0.58),
+                r.random_range(0.15..0.25),
+            );
+            let (width, cutoff) = low_mount_clearance(&o);
+            styles.insert(display_parameters(&o).stand);
+            assert!(width < o.size.x * 0.5 && cutoff > 0.008);
+            let mesh = build_object(&o);
+            for g in mesh.parts.values() {
+                for tri in g.indices.as_chunks::<3>().0 {
+                    let [a, b, c] =
+                        [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
+                    for (p, q) in [(a, b), (b, c), (c, a)] {
+                        if p.y <= cutoff {
+                            assert!(p.x.abs() <= width + 1e-5, "seed {seed} {p:?}");
+                        }
+                        if (p.y < cutoff) != (q.y < cutoff) {
+                            let x = p.lerp(q, (cutoff - p.y) / (q.y - p.y)).x;
+                            assert!(
+                                x.abs() <= width + 1e-5,
+                                "seed {seed}, sliced triangle at {x}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(styles.len(), 6);
+    }
+
+    #[test]
+    fn high_shallow_portrait_and_landscape_brackets_end_at_the_reserved_mounting_plane() {
+        let mut tv =
+            crate::scene::procedural_indoor::objects::audit::fixture(ObjectKind::Display, 0);
+        tv.position.y = 2.07;
+        for seed in 0..96 {
+            tv.seed = seed;
+            for size in [
+                Vec3::new(0.7067, 1.09592, 0.08506),
+                Vec3::new(0.55, 1.27, 0.037),
+                Vec3::new(2.25, 1.26, 0.092),
+            ] {
+                tv.size = size;
+                let d = display_geometry(&tv);
+                assert!((d.width_m / d.height_m - (size.x / size.y).clamp(0.45, 3.6)).abs() < 1e-5);
+                let (lo, hi) = build_object(&tv).bounds();
+                assert!(
+                    (lo.z + size.z * 0.5).abs() < 1e-5,
+                    "rear fixing {seed}: {lo:?}, {size:?}"
+                );
+                assert!(hi.z <= size.z * 0.5 + 0.003 && lo.y >= -0.003 && hi.y <= size.y + 0.003);
+            }
+        }
+    }
 
     #[test]
     fn curved_portrait_and_broad_displays_keep_closed_normals_and_reserved_bounds() {

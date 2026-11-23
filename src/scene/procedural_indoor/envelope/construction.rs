@@ -2,6 +2,7 @@ use super::*;
 mod adjoining;
 mod ceiling_mesh;
 mod column_finish;
+mod floors;
 mod lining_mesh;
 #[cfg(test)]
 mod normal_tests;
@@ -125,100 +126,6 @@ fn solid(
                 Vec3::new(a.x, bottom(a), a.y),
             ],
             Vec3::new(b.y - a.y, 0., a.x - b.x),
-        );
-    }
-}
-
-fn floors(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
-    let mut xs = vec![-size.x * 0.5, size.x * 0.5];
-    let mut zs = vec![-size.z * 0.5, size.z * 0.5];
-    for f in &e.floor_patches {
-        xs.extend([f.min.x, f.max.x]);
-        zs.extend([f.min.y, f.max.y]);
-    }
-    for v in [&mut xs, &mut zs] {
-        v.sort_by(f32::total_cmp);
-        v.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
-    }
-    let g = a.part(Surface::Floor, "floor");
-    let triangles = polygon::triangles(&e.footprint);
-    for x in xs.windows(2) {
-        for z in zs.windows(2) {
-            let lo = Vec2::new(x[0], z[0]);
-            let hi = Vec2::new(x[1], z[1]);
-            let y = e.floor_height((lo + hi) * 0.5);
-            for t in &triangles {
-                let p = polygon::clip_box(t, lo, hi);
-                face(
-                    g,
-                    &p.iter().map(|p| Vec3::new(p.x, y, p.y)).collect::<Vec<_>>(),
-                    Vec3::Y,
-                );
-            }
-        }
-    }
-    let bottom = e.minimum_floor() - 0.20;
-    for t in &triangles {
-        triangle(g, t.map(|p| Vec3::new(p.x, bottom, p.y)), Vec3::NEG_Y);
-    }
-    for (p, q) in polygon::edges(&e.footprint) {
-        quad(
-            g,
-            [
-                Vec3::new(p.x, 0., p.y),
-                Vec3::new(q.x, 0., q.y),
-                Vec3::new(q.x, bottom, q.y),
-                Vec3::new(p.x, bottom, p.y),
-            ],
-            Vec3::new(q.y - p.y, 0., p.x - q.x),
-        );
-    }
-    // Only actual height discontinuities acquire risers; adjacent tiles do not
-    // create duplicate internal faces or hidden O-voxel geometry.
-    for axis in 0..2 {
-        let (along, cross) = if axis == 0 { (&xs, &zs) } else { (&zs, &xs) };
-        for &edge in along.iter().skip(1).take(along.len().saturating_sub(2)) {
-            for c in cross.windows(2) {
-                let p = if axis == 0 {
-                    Vec2::new(edge, (c[0] + c[1]) * 0.5)
-                } else {
-                    Vec2::new((c[0] + c[1]) * 0.5, edge)
-                };
-                let n = if axis == 0 { Vec2::X } else { Vec2::Y };
-                let left = e.floor_height(p - n * 0.0001);
-                let right = e.floor_height(p + n * 0.0001);
-                if (left - right).abs() < 1e-5 {
-                    continue;
-                }
-                let (u, v) = if axis == 0 {
-                    (Vec2::new(edge, c[0]), Vec2::new(edge, c[1]))
-                } else {
-                    (Vec2::new(c[0], edge), Vec2::new(c[1], edge))
-                };
-                let normal = Vec3::new(n.x, 0., n.y) * (left - right).signum();
-                quad(
-                    g,
-                    [
-                        Vec3::new(u.x, left, u.y),
-                        Vec3::new(v.x, left, v.y),
-                        Vec3::new(v.x, right, v.y),
-                        Vec3::new(u.x, right, u.y),
-                    ],
-                    normal,
-                );
-            }
-        }
-    }
-    for p in polygon::outside(
-        &e.footprint,
-        -size.xz() * 0.5 - Vec2::splat(0.25),
-        size.xz() * 0.5 + Vec2::splat(0.25),
-    ) {
-        slab(
-            a.part(Surface::Concrete, "floor#exterior"),
-            &p,
-            |_| -0.10,
-            0.16,
         );
     }
 }
@@ -349,6 +256,12 @@ pub(super) fn wall(
                 section,
                 cutouts.as_deref().unwrap_or(holes),
             );
+            if trim.miter_joint_m.is_some() {
+                architecture::trim::perimeter::build(
+                    a, scene, edge, trim, section, &cutouts, false,
+                );
+                return;
+            }
             architecture::trim::build(
                 a,
                 tf,
@@ -379,8 +292,7 @@ pub(super) fn wall(
     }
 }
 
-/// Roof-following perimeter moulding. Front and rear faces are separated from
-/// the wall and roof; corner ends have a real reveal, avoiding duplicate caps.
+/// Roof-following perimeter moulding, including its cuts at glazed openings.
 fn cornice(
     a: &mut Assembly,
     scene: &IndoorManifest,
@@ -391,6 +303,10 @@ fn cornice(
     let e = scene.envelope.as_ref().unwrap();
     if let Some(trim) = architecture::trim::TrimProgram::for_scene(scene) {
         if let Some(section) = &trim.crown {
+            if trim.miter_joint_m.is_some() {
+                architecture::trim::perimeter::build(a, scene, edge, trim, section, holes, true);
+                return;
+            }
             let tf = e.wall_transform(edge);
             let span = trim_span(e, edge, section.depth_m, trim.corner_reveal_m);
             let at = |x| {
@@ -468,7 +384,7 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         motion_policy: scene.indoor_motion.as_ref().map(|m| m.policy.clone()),
         ..default()
     };
-    floors(&mut a, e, size);
+    floors::build(&mut a, e, size);
     yield_if_due().await;
     let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {
@@ -602,20 +518,8 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
 /// discs between the collar and shaft; the roof joint follows the actual plane.
 fn column(a: &mut Assembly, p: &Pillar, e: &EnvelopeProgram, size: Vec3) {
     let shape = p.profile.as_ref().unwrap();
-    let scale = 2_f32.powf(0.5 - 1. / shape.roundness);
     let section: Vec<_> = (0..p.sides)
-        .map(|i| {
-            let t = i as f32 * std::f32::consts::TAU / p.sides as f32;
-            let f = |v: f32| {
-                if v.abs() < 1e-6 {
-                    0.
-                } else {
-                    v.signum() * v.abs().powf(2. / shape.roundness)
-                }
-            };
-            let v = Vec2::new(f(t.cos()), f(t.sin()) * shape.aspect) / scale;
-            Vec2::from_angle(shape.rotation).rotate(v)
-        })
+        .map(|i| shape.section_vertex(i, p.sides))
         .collect();
     let h = shape.collar_height;
     if let Some(stock) = shape.construction {
@@ -754,6 +658,10 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
         architecture::trim::TrimProgram::for_scene(scene),
         Surface::Paint,
     );
+    if architecture::trim::TrimProgram::for_scene(scene).is_some_and(|p| p.miter_joint_m.is_some())
+    {
+        cornice(a, scene, edge, &openings);
+    }
     let mut glass = Assembly::default();
     architecture::facade::glazing_at(&mut glass, e.wall_transform(edge), &f);
     for ((surface, label), g) in glass.parts {

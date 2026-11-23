@@ -3,6 +3,7 @@ use super::*;
 use crate::scene::procedural_indoor::materials::glass::SheetGauge;
 
 pub(super) struct Joinery {
+    pub(super) track: Option<sliding::Track>,
     vision_width: f32,
     vision_height: f32,
     vision_head: f32,
@@ -27,13 +28,17 @@ pub(super) struct Joinery {
 }
 
 impl Joinery {
-    pub(super) fn sample(p: &DoorProgram) -> Self {
+    pub(super) fn stock_seed(p: &DoorProgram) -> u64 {
         // These are immutable, continuously sampled stock dimensions already
         // present in archived manifests. Changing pose or mount cannot resample a leaf.
-        let stock = ((p.thickness.to_bits() as u64) << 32) | u64::from(p.stile.to_bits());
-        let mut r = stream(stock, 0x444f_4f52_4c45_4146);
+        ((p.thickness.to_bits() as u64) << 32) | u64::from(p.stile.to_bits())
+    }
+
+    pub(super) fn sample(p: &DoorProgram) -> Self {
+        let mut r = stream(Self::stock_seed(p), 0x444f_4f52_4c45_4146);
         let narrow = r.random::<f32>();
         Self {
+            track: sliding::Track::for_program(p),
             vision_width: 0.16 + 0.84 * narrow * narrow,
             vision_height: r.random_range(0.22..0.73),
             vision_head: r.random_range(0.015..0.19),

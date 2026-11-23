@@ -53,10 +53,10 @@ impl StockProgram {
         let along = Vec2::new(-across.y, across.x);
         let mut rng = stream(o.seed, 0x5449_4d42_4348_4152 ^ leaf as u64);
         let start = g.positions.len();
-        g.profile_slab_with_top(
+        g.slab_with_profile(
             outline,
             p.top_thickness,
-            p.edge_bevel,
+            top::slab_profile(o, p, outline),
             tf,
             |g, outline, inset, y, tf| {
                 let phase = Vec2::new(rng.random_range(0.0..2.7), rng.random_range(0.0..3.9));

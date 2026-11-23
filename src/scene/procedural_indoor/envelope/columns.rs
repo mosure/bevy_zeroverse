@@ -7,6 +7,59 @@ use crate::scene::procedural_indoor::{
 };
 use rand::Rng;
 
+impl ColumnProfile {
+    /// Unit vertex shared by the rendered shaft and fixtures attached to its skin.
+    pub(super) fn section_vertex(&self, i: u32, sides: u32) -> Vec2 {
+        let t = i as f32 * std::f32::consts::TAU / sides as f32;
+        let power = |v: f32| {
+            if v.abs() < 1e-6 {
+                0.
+            } else {
+                v.signum() * v.abs().powf(2. / self.roundness)
+            }
+        };
+        let point = Vec2::new(power(t.cos()), power(t.sin()) * self.aspect);
+        Vec2::from_angle(self.rotation).rotate(point / 2_f32.powf(0.5 - 1. / self.roundness))
+    }
+}
+
+impl Pillar {
+    pub(crate) fn obstacle_bounds(&self, envelope: &EnvelopeProgram, size: Vec3) -> (Vec3, Vec3) {
+        let r = self.radius + 0.025;
+        let top = envelope.ceiling_height(size, self.center)
+            + (envelope.ceiling_drop / size.xz()).abs().element_sum() * r;
+        (
+            Vec3::new(self.center.x - r, 0., self.center.y - r),
+            Vec3::new(self.center.x + r, top, self.center.y + r),
+        )
+    }
+
+    /// A principal axis of the real superellipse has a known surface normal.
+    /// Interpolate its tapered vertex to the cut roof exactly as construction does.
+    pub(crate) fn mounting_face(
+        &self,
+        envelope: &EnvelopeProgram,
+        size: Vec3,
+        side: u32,
+        height: f32,
+    ) -> Option<(Vec2, Vec2)> {
+        let shape = self.profile.as_ref()?;
+        if self.sides < 4 || !self.sides.is_multiple_of(4) || side >= 4 {
+            return None;
+        }
+        let v = shape.section_vertex(side * (self.sides / 4), self.sides);
+        let top = envelope.ceiling_height(size, self.center + v * (self.radius * shape.taper));
+        if height <= shape.collar_height || height >= top {
+            return None;
+        }
+        let t = (height - shape.collar_height) / (top - shape.collar_height);
+        Some((
+            self.center + v * (self.radius * (1. + t * (shape.taper - 1.))),
+            v.normalize(),
+        ))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColumnStock {
     CastConcrete,

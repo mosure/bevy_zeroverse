@@ -60,7 +60,7 @@ fn correlation(pairs: &[[f64; 2]]) -> f64 {
 }
 
 #[test]
-fn decor_count_marginals_are_preserved_without_a_shared_category_budget() {
+fn room_specific_tv_demand_is_independent_of_other_decor_counts() {
     let mut scene =
         IndoorManifest::generate_with_humans(17, IndoorLayout::Conference, 0.65, 0, 0.).unwrap();
     let kinds = [
@@ -75,10 +75,20 @@ fn decor_count_marginals_are_preserved_without_a_shared_category_budget() {
             kinds.map(|k| scene.wall_decoration_count(k) as f64)
         })
         .collect();
-    for (i, mean) in [1.4, 1.4, 2.8, 1.4].into_iter().enumerate() {
+    for (i, mean) in [Some(1.4), None, Some(2.8), Some(1.4)]
+        .into_iter()
+        .enumerate()
+    {
         let measured = samples.iter().map(|v| v[i]).sum::<f64>() / samples.len() as f64;
         println!("proposal count {i}: mean={measured:.6}");
-        assert!((measured - mean).abs() < 0.12, "{i}: {measured}");
+        if let Some(mean) = mean {
+            assert!((measured - mean).abs() < 0.12, "{i}: {measured}");
+        } else {
+            assert!(
+                (0.84..1.45).contains(&measured),
+                "conference TV demand {measured}"
+            );
+        }
         for j in 0..i {
             let pairs: Vec<_> = samples.iter().map(|p| [p[i], p[j]]).collect();
             println!("proposal counts {i}/{j}: r={:.6}", correlation(&pairs));

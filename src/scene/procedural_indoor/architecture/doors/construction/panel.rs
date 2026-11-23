@@ -224,6 +224,10 @@ pub(super) fn build(
             let (sin, cos) = j.slope.sin_cos();
             let height = (pitch * 0.83).min((leaf.size.z * 0.94 - j.gauge * cos) / sin);
             let rotation = Quat::from_rotation_x(j.slope);
+            let mut cuts = p
+                .finish
+                .is_cut_timber()
+                .then(|| TimberCuts::new(Joinery::stock_seed(p), 1 + index as u64));
             for i in 0..count {
                 let center = Vec3::new(hole.center().x, hole.min.y + (i as f32 + 0.5) * pitch, 0.);
                 blade(
@@ -232,6 +236,7 @@ pub(super) fn build(
                     hole.width(),
                     height,
                     j.gauge,
+                    cuts.as_mut().map_or(Vec2::ZERO, TimberCuts::origin),
                 );
             }
         }
@@ -241,7 +246,7 @@ pub(super) fn build(
 
 /// Exposed, bevelled leading and trailing edges. Both ends meet the stiles,
 /// which close them; internal blade end caps would never be visible.
-fn blade(g: &mut Geometry, tf: Transform, width: f32, height: f32, gauge: f32) {
+fn blade(g: &mut Geometry, tf: Transform, width: f32, height: f32, gauge: f32, origin: Vec2) {
     let y = height * 0.5;
     let z = gauge * 0.5;
     let b = z * 0.57;
@@ -274,7 +279,7 @@ fn blade(g: &mut Geometry, tf: Transform, width: f32, height: f32, gauge: f32) {
             g.positions
                 .push(tf.transform_point(Vec3::new(x, yz.x, yz.y)).to_array());
             g.normals.push(n);
-            g.uvs.push([u, -x]);
+            g.uvs.push((origin + Vec2::new(u, -x)).to_array());
         }
         g.indices
             .extend([base, base + 1, base + 2, base, base + 2, base + 3]);

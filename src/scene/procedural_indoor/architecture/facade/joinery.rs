@@ -6,6 +6,10 @@ pub struct WindowJoinery {
     /// Absent in old manifests, preserving their 18 cm shell and original detail.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reveal: Option<super::reveal::RevealProgram>,
+    /// Hardware and operating-light selection for this installation. Older
+    /// manifests used one tilt and one handle on every pane of an operable bay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sash_stock: Option<SashStock>,
     pub identity: u64,
     pub mullion_fraction: f32,
     pub mullion_depth_fraction: f32,
@@ -27,6 +31,7 @@ impl WindowJoinery {
         let mut r = stream(seed, 3161);
         Self {
             reveal: None,
+            sash_stock: Some(SashStock::sample(seed)),
             identity: seed,
             mullion_fraction: r.random_range(0.38..0.98),
             mullion_depth_fraction: r.random_range(0.60..0.98),
@@ -53,6 +58,9 @@ impl WindowJoinery {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(stock) = &self.sash_stock {
+            stock.validate()?;
+        }
         if !(0.3..=1.).contains(&self.mullion_fraction)
             || !(0.5..=1.).contains(&self.mullion_depth_fraction)
             || !(0.0..=0.7).contains(&self.column_spread)
@@ -126,11 +134,18 @@ impl Facade {
     /// Clear pane rectangles actually sent to the sash builder, in wall metres.
     pub fn pane_rectangles(&self, o: &WindowOpening) -> Vec<(Vec2, Vec2)> {
         let (columns, levels) = self.divisions(o);
+        self.rectangles_at(&columns, &levels).collect()
+    }
+
+    pub(super) fn rectangles_at<'a>(
+        &self,
+        columns: &'a [f32],
+        levels: &'a [f32],
+    ) -> impl Iterator<Item = (Vec2, Vec2)> + 'a {
         let bar = self.frame_width * self.joinery.as_ref().map_or(0.66, |j| j.mullion_fraction);
-        let mut result = Vec::new();
-        for (col, x) in columns.windows(2).enumerate() {
-            for (row, y) in levels.windows(2).enumerate() {
-                result.push((
+        columns.windows(2).enumerate().flat_map(move |(col, x)| {
+            levels.windows(2).enumerate().map(move |(row, y)| {
+                (
                     Vec2::new(
                         x[0] + if col == 0 { 0. } else { bar * 0.5 },
                         y[0] + if row == 0 { 0. } else { bar * 0.5 },
@@ -147,10 +162,9 @@ impl Facade {
                             bar * 0.5
                         },
                     ),
-                ));
-            }
-        }
-        result
+                )
+            })
+        })
     }
 
     /// Applied sill boards occupy some solid wall below their opening. Trim

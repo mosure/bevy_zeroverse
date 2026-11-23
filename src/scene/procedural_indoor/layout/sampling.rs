@@ -86,7 +86,7 @@ impl IndoorManifest {
             match pass {
                 WallPass::Groups => self.compose_wall_groups(),
                 WallPass::Art => self.wall_decoration_kind(ObjectKind::WallArt),
-                WallPass::Displays => self.wall_decoration_kind(ObjectKind::Display),
+                WallPass::Displays => self.furnish_displays(),
                 WallPass::Whiteboards => self.wall_decoration_kind(ObjectKind::Whiteboard),
                 WallPass::Clocks => self.wall_decoration_kind(ObjectKind::Clock),
                 WallPass::Electrical => self.wall_hardware(),

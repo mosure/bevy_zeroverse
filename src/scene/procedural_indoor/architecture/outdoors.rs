@@ -5,6 +5,7 @@ use super::*;
 mod buildings;
 mod frontage_layout;
 mod frontages;
+mod ground;
 mod midground;
 mod pergola;
 mod program;
@@ -109,6 +110,7 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
             ("exterior_building_distance_m", p.center.length()),
         ]);
     }
+    ground::measure(scene, &windows, &d, &parcels, &mut out);
     streets::measure(scene, &parcels, &terraces, &entrances, &mut out);
     out
 }
@@ -299,17 +301,18 @@ fn box_at(
             .with_rotation(rotation),
     );
 }
-fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
+fn garden_plants(scene: &IndoorManifest, p: &Parcel) -> Vec<IndoorObject> {
     let Some(template) = scene.objects.first() else {
-        return;
+        return Vec::new();
     };
     let mut rng = stream(p.seed, 2);
-    let count = if p.kind == 3 {
+    let count: i32 = if p.kind == 3 {
         2
     } else {
         rng.random_range(1..=4)
     };
     let pergola_plant_height = (p.kind == 3).then(|| pergola::Program::sample(p).headroom() - 0.12);
+    let mut plants = Vec::with_capacity(count as usize);
     for i in 0..count {
         let mut plant: IndoorObject = template.clone();
         plant.kind = ObjectKind::Plant;
@@ -351,9 +354,16 @@ fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
             } else {
                 rng.random_range(-std::f32::consts::PI..std::f32::consts::PI)
             };
+        plants.push(plant);
+    }
+    plants
+}
+
+fn garden(a: &mut Assembly, p: &Parcel, vegetation: &[IndoorObject]) {
+    for plant in vegetation {
         let tf = plant.transform();
         let mut parts = Assembly::default();
-        plants::build(&mut parts, &plant);
+        plants::build(&mut parts, plant);
         let rooted = if p.kind != 3 {
             parts.parts.retain(|(s, _), _| {
                 matches!(
@@ -384,62 +394,14 @@ fn garden(a: &mut Assembly, scene: &IndoorManifest, p: &Parcel) {
     }
 }
 pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
-    let half = scene.room_size.xz() * 0.5;
-    let (left, right, back, front) = (
-        -half.x - 0.5,
-        half.x + 0.5,
-        -half.y - 0.5,
-        half.y + scene.adjoining_space().max_depth() + 0.5,
-    );
-    let mut ground_rng = stream(scene.seed, 6389);
-    let ground_surface = if ground_rng.random_bool(0.45) {
-        Surface::Soil
-    } else {
-        Surface::Concrete
-    };
-    let ground_label =
-        super::super::materials::exterior::label(ground_surface, "floor", scene.seed);
-    let recess_ground = scene
-        .adjoining_space()
-        .recess(scene.room_size)
-        .map(|(mut lo, mut hi)| {
-            if lo.x < -half.x + 0.01 {
-                lo.x = left;
-            } else {
-                hi.x = right;
-            }
-            hi.y = front;
-            (lo, hi)
-        });
-    for (lo, hi) in [
-        (
-            Vec2::new(left - 18., back - 18.),
-            Vec2::new(left, front + 18.),
-        ),
-        (
-            Vec2::new(right, back - 18.),
-            Vec2::new(right + 18., front + 18.),
-        ),
-        (Vec2::new(left, back - 18.), Vec2::new(right, back)),
-        (Vec2::new(left, front), Vec2::new(right, front + 18.)),
-    ]
-    .into_iter()
-    .chain(recess_ground)
-    {
-        a.box_part(
-            ground_surface,
-            &ground_label,
-            Vec3::new((lo.x + hi.x) * 0.5, -0.17, (lo.y + hi.y) * 0.5),
-            Vec3::new(hi.x - lo.x, 0.20, hi.y - lo.y),
-            0.,
-        );
-    }
+    let district = District::sample(scene.seed);
     let ExteriorPlan {
         windows,
         sites,
         rows,
         ..
-    } = ExteriorPlan::new(scene, &District::sample(scene.seed));
+    } = ExteriorPlan::new(scene, &district);
+    ground::grade(a, scene, &windows, &district);
     let sides = frontages::viewed_sides(&sites, &windows);
     for row in &rows {
         buildings::terrace::build(a, row);
@@ -457,20 +419,25 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             }
             continue;
         }
-        box_at(
-            a,
-            p,
-            if p.kind == 1 {
-                Surface::Soil
-            } else {
-                Surface::Concrete
-            },
-            "floor",
-            Vec3::new(0., -0.025, 0.),
-            Vec3::new(p.size.x, 0.11, p.size.y),
-            0.012,
-        );
-        garden(a, scene, p);
+        let mut vegetation = garden_plants(scene, p);
+        if scene.generator_version >= ground::FIRST_VERSION && matches!(p.kind, 2 | 3) {
+            ground::patio(a, p, &mut vegetation);
+        } else {
+            box_at(
+                a,
+                p,
+                if p.kind == 1 {
+                    Surface::Soil
+                } else {
+                    Surface::Concrete
+                },
+                "floor",
+                Vec3::new(0., -0.025, 0.),
+                Vec3::new(p.size.x, 0.11, p.size.y),
+                0.012,
+            );
+        }
+        garden(a, p, &vegetation);
         if p.kind == 2 {
             // Courtyard bench, backrest and two legs, kept inside its parcel.
             for z in [-0.22, 0., 0.22] {

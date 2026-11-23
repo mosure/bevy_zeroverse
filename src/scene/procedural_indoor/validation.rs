@@ -119,6 +119,18 @@ fn validate_layout_integrity(
     if let Some(ceiling) = &scene.ceiling_installation {
         placement_rejection = ceiling.validate_integrity(scene)?;
     }
+    if scene
+        .domain()
+        .and_then(|d| d.photometry.ceiling_circuits.as_ref())
+        .is_some_and(|w| {
+            w.mount_circuits.len() != super::architecture::fixture_positions(scene).len()
+        })
+    {
+        return Err(format!(
+            "seed {}: ceiling circuit wiring does not cover the installed mounts",
+            scene.seed
+        ));
+    }
     super::humans::validate(scene)?;
     let fail = |message: &str| Err(format!("seed {}: {message}", scene.seed));
     for rug in &scene.rug_supports {
@@ -195,6 +207,17 @@ fn validate_layout_integrity(
                         | super::layout::ObjectKind::Table
                         | super::layout::ObjectKind::CoffeeTable
                 )
+            } else if object.kind == super::layout::ObjectKind::PcTower {
+                other.kind == super::layout::ObjectKind::Monitor
+                    && other.support.is_some()
+                    && (object.support == other.support
+                        || object.support.is_none()
+                            && object.position.xz().distance(other.position.xz()) < 2.3)
+            } else if matches!(
+                object.kind,
+                super::layout::ObjectKind::Keyboard | super::layout::ObjectKind::Mouse
+            ) {
+                other.kind == super::layout::ObjectKind::Monitor && other.support == object.support
             } else if object.kind == super::layout::ObjectKind::TrashCan {
                 use super::objects::containers::bins::{RECYCLING, WASTE_STATION};
                 other.kind == super::layout::ObjectKind::TrashCan
@@ -244,7 +267,7 @@ fn validate_layout_integrity(
             && !scene.wall_attachment_clear(object)
         {
             return fail(
-                "wall fixture is unmounted or lacks solid backing beside exterior aperture",
+                "wall fixture is unmounted or lacks solid backing at its installed position",
             );
         }
         if object.solid && !object.neighbor {

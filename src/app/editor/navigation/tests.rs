@@ -85,8 +85,10 @@ fn control_catalog_has_unique_groups_and_task_specific_ownership() {
         ),
         (Page::People, "/indoor_motion/fan_turns/1", "people.fans"),
         (Page::View, "/annotation_glass", "view.geometry"),
+        (Page::View, "/preview_aa", "view.rgb"),
         (Page::View, "/orbit_smoothness", "view.navigation"),
         (Page::Advanced, "/width", "advanced.capture"),
+        (Page::Advanced, "/ssaa_factor", "advanced.capture"),
         (Page::Advanced, "@config", "advanced.config"),
     ] {
         state.view.page = page;

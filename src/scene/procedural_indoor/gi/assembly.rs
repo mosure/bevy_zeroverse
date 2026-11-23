@@ -336,6 +336,16 @@ impl GeometryTransport {
                     .unwrap_or(surface as usize),
                 MaterialKey::Human(person_index, surface) => {
                     let person = &scene.humans[person_index];
+                    let index = self.scene.materials.len();
+                    if surface == HumanSurface::Eye && person.eye_optics().is_some() {
+                        let eye = humans::person_material(person, surface, set, materials);
+                        self.scene.materials.push(DiffuseMaterial::from_standard(
+                            &eye,
+                            images,
+                            &set.gpu_bakes,
+                        ));
+                        return index;
+                    }
                     let cloth = matches!(
                         surface,
                         HumanSurface::Top
@@ -366,7 +376,6 @@ impl GeometryTransport {
                         material.uv_transform *= appearance.weave_uv_transform();
                     }
                     material.albedo = linear(person.material_color(surface));
-                    let index = self.scene.materials.len();
                     self.scene.materials.push(material);
                     index
                 }

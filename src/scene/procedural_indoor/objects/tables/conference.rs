@@ -30,26 +30,35 @@ pub(super) fn boardroom_finish(o: &IndoorObject, p: &mut TableProgram) {
 pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, outline: &[Vec2]) {
     let mut r = stream(o.seed, 0x5441_424c_454c_4546);
     let span = o.size.xz().max_element();
+    let leaves = (span / r.random_range(1.55..2.65)).round().max(2.) as usize;
+    let half_gap = r.random_range(0.0007..0.0016);
+    let half = span * 0.5;
+    let pitch = span / leaves as f32;
+    let joints = (1..leaves).map(|i| -half + pitch * (i as f32 + r.random_range(-0.13..0.13)));
+    cut_leaves(a, o, p, outline, half_gap, joints);
+}
+
+pub(super) fn cut_leaves(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &TableProgram,
+    outline: &[Vec2],
+    half_gap: f32,
+    joints: impl Iterator<Item = f32>,
+) {
+    let half = o.size.xz().max_element() * 0.5;
     let axis = if o.size.x > o.size.z {
         Vec2::X
     } else {
         Vec2::Y
     };
-    let leaves = (span / r.random_range(1.55..2.65)).round().max(2.) as usize;
-    let half_gap = r.random_range(0.0007..0.0016);
-    let half = span * 0.5;
-    let pitch = span / leaves as f32;
     let mut start = -half;
     let stock = top::TopStock::sample(o, p);
-    for i in 1..=leaves {
-        let end = if i == leaves {
-            half
-        } else {
-            -half + pitch * (i as f32 + r.random_range(-0.13..0.13))
-        };
+    for (i, joint) in joints.map(Some).chain(std::iter::once(None)).enumerate() {
         let mut leaf = polygon::clip(outline, axis, start);
-        if i < leaves {
+        if let Some(end) = joint {
             leaf = polygon::clip(&leaf, -axis, -(end - half_gap));
+            start = end + half_gap;
         }
         // profile_slab uses a centre fan and metric UVs. Each convex leaf
         // needs its own interior origin, including the two curved end panels.
@@ -58,13 +67,15 @@ pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, o
             *point -= center;
         }
         let tf = Transform::from_xyz(center.x, o.size.y - p.top_thickness * 0.5, center.y);
-        stock.build(a, o, p, &leaf, tf, i - 1);
-        start = end + half_gap;
+        stock.build(a, o, p, &leaf, tf, i);
     }
 }
 
-pub(super) fn bay_count(o: &IndoorObject, p: &TableProgram) -> usize {
+pub(crate) fn bay_count(o: &IndoorObject, p: &TableProgram) -> usize {
     let size = o.size.xz();
+    if o.variant == SHARED_ROW_VARIANT {
+        return rows::stations(size.max_element(), p);
+    }
     if o.kind != ObjectKind::Table
         || size.max_element() <= 3.0
         || size.max_element() / size.min_element() < 1.35
@@ -95,10 +106,16 @@ pub(super) fn build(
     let label = o.kind.class_name();
     let frame = p.frame_surface;
     let stem_radius = (p.leg_radius * 1.4).clamp(0.028, 0.052);
+    let glide_radius = stem_radius + 0.009;
     let beam_y = underside - p.beam_depth * 0.5;
     let mut centers = Vec::with_capacity(count);
+    let overhang = if o.variant == SHARED_ROW_VARIANT {
+        rows::overhang(length, p)
+    } else {
+        p.end_overhang
+    };
     for i in 0..count {
-        let offset = (i as f32 / (count - 1) as f32 - 0.5) * (length - 2. * p.end_overhang);
+        let offset = station_offset(i, count, length, overhang);
         // Both mount and crossbar must fit tapered/rounded polygon ends.
         let center = supports::fit_center(axis * offset, outline, 0.12);
         let mut half_span = width * p.bay_width * 0.5;
@@ -117,7 +134,12 @@ pub(super) fn build(
         );
         let height = underside - p.beam_depth;
         let foot_y = 0.026;
-        let foot_span = (half_span + p.bay_rake).min(width * 0.40);
+        let mut foot_span = (half_span + p.bay_rake).min(width * 0.40);
+        if o.variant == SHARED_ROW_VARIANT {
+            // Keep the entire glide, including its rim, under a narrow lecture desk.
+            foot_span = foot_span.min((width * 0.5 - glide_radius - 0.002).max(0.));
+        }
+        let mut glide_height = 0.020_f32;
         match p.bay_style {
             0 | 1 => {
                 // T-foot or splayed twin-column base; both leave a central knee bay.
@@ -148,9 +170,19 @@ pub(super) fn build(
                 } else {
                     half_span
                 };
+                let mut ankle = stem_radius + 0.008;
+                if o.variant == SHARED_ROW_VARIANT {
+                    // The bottom of a raked tube is below its centre by r * sin(tilt).
+                    // Bound the tilt at the highest possible ankle, then seat this cut
+                    // inside the glide with at least 6 mm between the tube and floor.
+                    let run = (foot_span - mount).abs();
+                    let rise = (height - ankle).max(0.001);
+                    ankle = 0.006 + stem_radius * run / rise.hypot(run);
+                    glide_height = glide_height.max(ankle + 0.003);
+                }
                 for sign in [-1., 1.] {
                     a.part(frame, label).rod(
-                        center + across * foot_span * sign + Vec3::Y * (stem_radius + 0.008),
+                        center + across * foot_span * sign + Vec3::Y * ankle,
                         center + across * mount * sign + Vec3::Y * height,
                         stem_radius,
                     );
@@ -166,7 +198,10 @@ pub(super) fn build(
                 );
             }
             _ => {
-                let r = half_span.min(width * 0.22).min(0.38);
+                let mut r = half_span.min(width * 0.22).min(0.38);
+                if o.variant == SHARED_ROW_VARIANT {
+                    r = r.min(overhang);
+                }
                 a.part(frame, label).lathe(
                     &[
                         (0., 0.),
@@ -184,14 +219,18 @@ pub(super) fn build(
         if p.bay_style < 5 {
             let pad_span = if p.bay_style == 4 {
                 half_span * 0.58
+            } else if o.variant == SHARED_ROW_VARIANT && matches!(p.bay_style, 2 | 3) {
+                foot_span
             } else {
                 foot_span * 0.95
             };
             for sign in [-1., 1.] {
                 a.part(Surface::Rubber, label).cylinder(
-                    stem_radius + 0.009,
-                    0.020,
-                    Transform::from_translation(center + across * pad_span * sign + Vec3::Y * 0.01),
+                    glide_radius,
+                    glide_height,
+                    Transform::from_translation(
+                        center + across * pad_span * sign + Vec3::Y * (glide_height * 0.5),
+                    ),
                 );
             }
         }
@@ -207,4 +246,8 @@ pub(super) fn build(
                 .with_rotation(Quat::from_rotation_arc(Vec3::Z, delta.normalize())),
         );
     }
+}
+
+pub(super) fn station_offset(index: usize, count: usize, length: f32, overhang: f32) -> f32 {
+    (index as f32 / (count - 1) as f32 - 0.5) * (length - 2. * overhang)
 }

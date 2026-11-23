@@ -5,6 +5,7 @@ mod fields;
 pub mod model;
 mod navigation;
 pub mod schematic;
+mod search;
 mod share;
 pub(super) mod shell;
 #[cfg(test)]
@@ -35,6 +36,8 @@ pub enum Action {
     Section(String),
     /// Open a Studio group and bring its header into view.
     JumpToSection(String),
+    Search(String),
+    FindSetting(Page, String, String),
     /// Toggle all groups on the current page without recreating controls.
     ExpandSections,
     Play,
@@ -68,7 +71,13 @@ impl Plugin for EditorPlugin {
                 )
                     .chain(),
             )
-            .add_systems(PostUpdate, shell::viewport.after(EditorCameraSetup))
+            .add_systems(
+                PostUpdate,
+                shell::viewport
+                    .after(EditorCameraSetup)
+                    .before(crate::render::anti_alias::ConfigurePreviewAa),
+            )
+            .add_systems(PostUpdate, widgets::show_active_aa)
             .add_systems(
                 PostUpdate,
                 navigation::scroll_to_group.after(bevy::ui::UiSystems::Layout),
@@ -612,6 +621,16 @@ pub(super) fn update(world: &mut World) {
                             state.invalid_text.insert(path.clone(), input.clone());
                             state.input_errors.insert(path, e.to_string());
                         }
+                    }
+                }
+                Action::Search(query) => search::update(world, &state, query),
+                Action::FindSetting(page, section, path) => {
+                    state.view.page = page;
+                    if navigation::open(&mut state, &section) {
+                        search::clear(world);
+                        world.init_resource::<navigation::Navigation>();
+                        world.resource_mut::<navigation::Navigation>().jump = Some(path);
+                        rebuild = true;
                     }
                 }
                 Action::Page(page) => {

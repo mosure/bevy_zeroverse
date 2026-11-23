@@ -88,6 +88,14 @@ impl Plugin for ZeroverseCameraPlugin {
             },
         );
 
+        #[cfg(feature = "viewer")]
+        if app
+            .world()
+            .get_resource::<BevyZeroverseConfig>()
+            .is_none_or(|config| !config.headless)
+        {
+            crate::render::anti_alias::install(app);
+        }
         gizmo::capture::install(app);
         app.add_plugins(lens::FisheyeCameraPlugin);
         app.init_resource::<DefaultZeroverseCamera>();
