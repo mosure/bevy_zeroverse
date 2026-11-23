@@ -109,7 +109,9 @@ fn ocular_pigment_follows_room_light_and_is_independent_of_camera_exposure_bias(
     let daylight = render(&scene);
     let pupil_pixels = |map: &[u8]| {
         map[..(SIZE * SIZE * 4) as usize]
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .filter(|p| p[0] <= 12 && p[1] <= 10 && p[2] <= 9)
             .count()
     };

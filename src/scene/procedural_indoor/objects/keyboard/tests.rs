@@ -115,7 +115,13 @@ fn installed_caps_keep_their_print_and_are_supported_over_the_sampled_size_range
             let stock = super::super::super::materials::input_housing::Housing::for_object(&o);
             let deck = &a.parts[&(stock.surface, stock.case_label(&o))];
             let mut alphas = std::collections::BTreeSet::new();
-            for (verts, uvs) in cap.positions.chunks_exact(33).zip(cap.uvs.chunks_exact(33)) {
+            for (verts, uvs) in cap
+                .positions
+                .as_chunks::<33>()
+                .0
+                .iter()
+                .zip(cap.uvs.as_chunks::<33>().0)
+            {
                 let code =
                     |uv: [f32; 2]| (uv[0] * 16.).floor() as u8 + 16 * (uv[1] * 16.).floor() as u8;
                 let glyph = code(uvs[24]);

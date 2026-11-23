@@ -246,7 +246,7 @@ fn rounded_stock_wraps_one_metric_texture_and_shades_continuously_at_curve_knots
                 }
                 let mut smooth = 0;
                 let mut creases = 0;
-                for (i, quad) in g.uvs.chunks_exact(4).enumerate() {
+                for (i, quad) in g.uvs.as_chunks::<4>().0.iter().enumerate() {
                     let (longitudinal, transverse, sign) = if surface.is_cut_timber() {
                         (1, 0, -1.)
                     } else {

@@ -54,12 +54,21 @@ fn fragment(input: VertexOutput) -> GroundTruthOutput {
     // Skinny triangles can amplify subpixel setup error in independently
     // interpolated XYZ/depth varyings. Reconstruct the actual raster sample
     // from its pixel center and reverse-Z depth, using the same projection.
+    // A subpixel primitive can also yield a non-finite fragment Z on llvmpipe.
+    // Check the IEEE exponent before unprojecting, so these fragments cannot
+    // write a depth buffer entry that occludes the valid surface behind them.
+    if (bitcast<u32>(input.clip_position.z) & 0x7f800000u) == 0x7f800000u {
+        discard;
+    }
     let pixel = (input.clip_position.xy - camera.viewport.xy) / camera.viewport.zw;
     let ndc = vec4<f32>(pixel * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), input.clip_position.z, 1.0);
     let homogeneous_view = camera.view_from_clip * ndc;
+    if !(homogeneous_view.w > 0.0) {
+        discard;
+    }
     let view_position = homogeneous_view.xyz / homogeneous_view.w;
     let linear_depth = -view_position.z;
-    if linear_depth < camera.limits.x || linear_depth > camera.limits.y {
+    if !(linear_depth >= camera.limits.x && linear_depth <= camera.limits.y) {
         discard;
     }
     let world_position = camera.world_from_view * vec4<f32>(view_position, 1.0);

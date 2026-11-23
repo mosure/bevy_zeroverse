@@ -65,7 +65,7 @@ fn fitted_aisles_preserve_the_mesh_support_and_floor_class() {
             if label != "floor" {
                 continue;
             }
-            for t in g.indices.chunks_exact(3) {
+            for t in g.indices.as_chunks::<3>().0 {
                 let v = [0, 1, 2].map(|i| Vec3::from_array(g.positions[t[i] as usize]));
                 if v.iter().any(|v| (v.y - y).abs() > 1e-5) {
                     continue;

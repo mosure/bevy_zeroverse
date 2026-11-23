@@ -152,7 +152,7 @@ mod tests {
             .iter()
             .filter(|((surface, _), _)| *surface == Surface::Rubber)
             .any(|(_, g)| {
-                g.indices.chunks_exact(3).any(|tri| {
+                g.indices.as_chunks::<3>().0.iter().any(|tri| {
                     let [a, b, c] =
                         [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
                     if [a, b, c].iter().any(|p| (p.z - center.z).abs() > 0.00055)

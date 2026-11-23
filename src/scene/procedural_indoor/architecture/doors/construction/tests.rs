@@ -48,7 +48,9 @@ fn wood_louvres_sample_individual_cuts_that_stay_fixed_when_the_door_opens() {
     let start = wood.uvs.len() - count * 32; // eight longitudinal faces per blade
     let unique_origins = |g: &crate::scene::procedural_indoor::geometry::Geometry| {
         g.uvs[start..]
-            .chunks_exact(32)
+            .as_chunks::<32>()
+            .0
+            .iter()
             .map(|blade| blade[0].map(f32::to_bits))
             .collect::<std::collections::BTreeSet<_>>()
             .len()

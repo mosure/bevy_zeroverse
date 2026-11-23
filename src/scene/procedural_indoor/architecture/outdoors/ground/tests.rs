@@ -147,7 +147,7 @@ fn every_rotated_courtyard_root_terminates_in_soil_and_bench_feet_on_paving() {
             let foot = p.center + (rotation * Vec3::new(x * p.size.x, 0., 0.32 * p.size.y)).xz();
             let (height, s) = hits(&a, foot)[0];
             assert!(matches!(s, Surface::Concrete | Surface::Terracotta));
-            assert!(height >= PATIO - 0.015 && height <= PATIO + 1e-5);
+            assert!((PATIO - 0.015..=PATIO + 1e-5).contains(&height));
         }
     }
 }

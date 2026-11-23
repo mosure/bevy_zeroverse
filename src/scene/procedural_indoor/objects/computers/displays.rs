@@ -287,7 +287,7 @@ mod tests {
             assert!(width < o.size.x * 0.5 && cutoff > 0.008);
             let mesh = build_object(&o);
             for g in mesh.parts.values() {
-                for tri in g.indices.chunks_exact(3) {
+                for tri in g.indices.as_chunks::<3>().0 {
                     let [a, b, c] =
                         [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
                     for (p, q) in [(a, b), (b, c), (c, a)] {

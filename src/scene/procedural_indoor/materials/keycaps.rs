@@ -249,7 +249,7 @@ mod tests {
                 }
                 assert!(strokes > 4, "empty legend {code}");
             }
-            assert!(b.chunks_exact(4).all(|c| c[3] == 255));
+            assert!(b.as_chunks::<4>().0.iter().all(|c| c[3] == 255));
             assert!(b[b.len() - 4].abs_diff(blank) < 12);
         }
     }

@@ -57,11 +57,12 @@ pub(super) fn unpack_ground_truth(
             crate::render::ground_truth::semantic_label(id as u32)
                 .map(|label| label.color().to_linear().to_f32_array())
         });
-    for (wd, ns) in world_depth
+    for (pixel_index, (wd, ns)) in world_depth
         .as_chunks_mut::<16>()
         .0
         .iter_mut()
         .zip(normal_semantic.as_chunks_mut::<16>().0.iter_mut())
+        .enumerate()
     {
         let read = |pixel: &[u8]| {
             std::array::from_fn::<f32, 4, _>(|i| {
@@ -71,6 +72,10 @@ pub(super) fn unpack_ground_truth(
         let w = read(wd);
         let n = read(ns);
         if w.iter().chain(n.iter()).any(|v| !v.is_finite()) {
+            error!(
+                "Invalid annotation pixel {pixel_index} at time {}, calibration {:?}, world/depth {w:?}, normal/class {n:?}",
+                view.time, view.calibration
+            );
             return Err("non-finite float32 ground truth".into());
         }
         let hit = w[3] > 0.0;
