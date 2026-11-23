@@ -189,6 +189,56 @@ fn shaped_columns_match_the_collision_radius_and_sloping_roof() {
 }
 
 #[test]
+fn bracket_anchors_meet_rendered_tapered_column_skin_including_recessed_joints() {
+    let mut scene =
+        IndoorManifest::generate_with_humans(202, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    for seed in 0..8 {
+        let e = scene.envelope.as_mut().unwrap();
+        e.ceiling_drop = Vec2::new(0.7, -0.5);
+        e.pillars = vec![Pillar {
+            center: Vec2::ZERO,
+            radius: 0.29,
+            sides: 32,
+            profile: Some(ColumnProfile::sample(seed, 0)),
+        }];
+        let assembly = construction::build(&scene);
+        let e = scene.envelope.as_ref().unwrap();
+        let p = &e.pillars[0];
+        for y in [1.36, 1.97, 2.48] {
+            for side in 0..4 {
+                let (face, normal) = p.mounting_face(e, scene.room_size, side, y).unwrap();
+                let n = Vec3::new(normal.x, 0., normal.y);
+                // Offset sideways from the shared polygon vertex to hit a face interior.
+                let origin = Vec3::new(face.x, y, face.y) + n * 0.02 + n.cross(Vec3::Y) * 0.0005;
+                let hit = assembly
+                    .parts
+                    .iter()
+                    .filter(|((_, label), _)| label == "other_structure")
+                    .flat_map(|(_, g)| {
+                        g.indices
+                            .as_chunks::<3>()
+                            .0
+                            .iter()
+                            .filter_map(move |indices| {
+                                ray_triangle(
+                                    origin,
+                                    -n,
+                                    indices.map(|i| Vec3::from_array(g.positions[i as usize])),
+                                )
+                            })
+                    })
+                    .min_by(f32::total_cmp)
+                    .unwrap();
+                assert!(
+                    (0.0195..0.026).contains(&hit),
+                    "stock {seed}, face {side}, height {y}: {hit}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
     use crate::scene::procedural_indoor::{
         geometry::Geometry, materials::Surface, objects::Assembly,
@@ -211,6 +261,7 @@ fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
         let envelope = EnvelopeProgram {
             wall_thickness_m: None,
             soffits: vec![],
+            step_installation: None,
             tier_guard: None,
             ceiling_drop: Vec2::new(0.819709, 0.47927946) * scale,
             footprint: vec![],

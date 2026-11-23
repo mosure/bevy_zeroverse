@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::geometry::stock::{GrainAxis, TimberCuts};
 mod drum;
 mod hardware;
 mod joinery;
@@ -58,46 +59,43 @@ fn build_leaf(
     let fit = Fit::new(d, leaf, index, j);
     panel::build(a, &d.program, leaf, &fit, j, index, labels);
     hardware::build(a, &d.program, leaf, index, &fit, j, &labels.hardware);
+    if let Some(track) = &j.track {
+        track.build_hangers(a, d, leaf, &labels.hardware);
+    }
 }
 pub(super) fn build(d: &DoorInstallation, a: &mut Assembly, frame: bool) {
     let p = &d.program;
     let tf = d.transform();
     let frame_label = format!("door_frame#portal{}#finish{}", d.id, p.finish_variant);
     if frame {
-        for side in [-1., 1.] {
-            box_at(
-                a,
+        let mut cuts = TimberCuts::new(Joinery::stock_seed(p), 0);
+        let jamb = Vec3::new(FRAME_WIDTH_M, d.height - 0.018, d.wall_depth + 0.02);
+        let head = Vec3::new(d.width + FRAME_WIDTH_M, FRAME_WIDTH_M, d.wall_depth + 0.02);
+        let g = a.part(p.frame_finish, &frame_label);
+        for (center, size, axis) in [
+            (
+                Vec3::new(-d.width * 0.5, jamb.y * 0.5, 0.),
+                jamb,
+                GrainAxis::Y,
+            ),
+            (
+                Vec3::new(d.width * 0.5, jamb.y * 0.5, 0.),
+                jamb,
+                GrainAxis::Y,
+            ),
+            (Vec3::Y * d.height, head, GrainAxis::X),
+        ] {
+            cuts.cuboid(
+                g,
                 p.frame_finish,
-                &frame_label,
-                tf,
-                Vec3::new(side * d.width * 0.5, (d.height - 0.018) * 0.5, 0.),
-                Vec3::new(0.035, d.height - 0.018, d.wall_depth + 0.02),
+                size,
+                0.0015_f32.min(size.min_element() * 0.15),
+                Transform::from_translation(tf.transform_point(center)).with_rotation(tf.rotation),
+                axis,
             );
         }
-        box_at(
-            a,
-            p.frame_finish,
-            &frame_label,
-            tf,
-            Vec3::Y * d.height,
-            Vec3::new(d.width + 0.035, 0.035, d.wall_depth + 0.02),
-        );
     }
-    if matches!(
-        p.mechanism,
-        DoorMechanism::Sliding | DoorMechanism::Telescoping
-    ) {
-        let hw_label = format!("door_hardware#portal{}", d.id);
-        let z = p.swing_side * (d.wall_depth * 0.5 + 0.06);
-        box_at(
-            a,
-            p.hardware_finish,
-            &hw_label,
-            tf,
-            Vec3::new(p.handedness * d.width * 0.5, d.height - 0.065, z),
-            Vec3::new(d.width * 2. + 0.084, 0.055, 0.06),
-        );
-    }
+    let stock = Joinery::sample(p);
     if p.mechanism == DoorMechanism::Revolving {
         drum::build(a, d, &frame_label);
     }
@@ -105,13 +103,15 @@ pub(super) fn build(d: &DoorInstallation, a: &mut Assembly, frame: bool) {
     let seed = (d.id as u64).wrapping_mul(1777)
         ^ d.center.x.to_bits() as u64
         ^ ((d.center.z.to_bits() as u64) << 32);
-    let stock = Joinery::sample(p);
     let labels = Labels {
         leaf: format!("door#portal{}#finish{}", d.id, p.finish_variant),
         seal: format!("door#portal{}", d.id),
         glass: format!("door#portal{}#finish{}", d.id, stock.glass.slot()),
         hardware: format!("door_hardware#portal{}#finish{}", d.id, p.finish_variant),
     };
+    if let Some(track) = &stock.track {
+        track.build_fixed(a, d, &labels.hardware);
+    }
     if !a.motion_selected(MotionKind::Door, seed) {
         for (index, leaf) in d.leaves().into_iter().enumerate() {
             build_leaf(a, d, leaf, index, &stock, &labels);
@@ -121,8 +121,7 @@ pub(super) fn build(d: &DoorInstallation, a: &mut Assembly, frame: bool) {
     let mut end = d.clone();
     end.program.opening = motion::endpoint(seed, p.opening, 1.);
     end.program.rotor_phase += if seed.is_multiple_of(2) { 1.3 } else { -1.3 };
-    for (index, leaf) in d.leaves().into_iter().enumerate() {
-        let target = end.leaves()[index];
+    for (index, (leaf, target)) in d.leaves().into_iter().zip(end.leaves()).enumerate() {
         let q = target.transform.rotation * leaf.transform.rotation.inverse();
         let (axis, angle) = q.to_axis_angle();
         // Recover the analytic hinge from the leaf centre, preserving the exact
@@ -139,7 +138,10 @@ pub(super) fn build(d: &DoorInstallation, a: &mut Assembly, frame: bool) {
         build_leaf(&mut part, d, leaf, index, &stock, &labels);
         let mut joint = motion::rigid(MotionKind::Door, seed, pivot, axis, angle, translation);
         joint.frame = leaf.transform;
-        joint.coupled = p.mechanism == DoorMechanism::Revolving;
+        joint.coupled = matches!(
+            p.mechanism,
+            DoorMechanism::Revolving | DoorMechanism::Telescoping
+        );
         joint.attachment = Some(format!("portal{}", d.id));
         a.articulated(part, joint);
     }

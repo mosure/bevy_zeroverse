@@ -18,6 +18,17 @@ impl Geometry {
         top: impl FnOnce(&mut Self, &[Vec2], f32, f32, &Transform),
     ) {
         let profile = Self::slab_profile(outline, height, bevel);
+        self.slab_with_profile(outline, height, profile, tf, top);
+    }
+
+    pub(crate) fn slab_with_profile(
+        &mut self,
+        outline: &[Vec2],
+        height: f32,
+        profile: (f32, f32),
+        tf: Transform,
+        top: impl FnOnce(&mut Self, &[Vec2], f32, f32, &Transform),
+    ) {
         self.slab_cap(outline, profile.1, Vec2::ZERO, -height * 0.5, &tf, |v| v);
         top(self, outline, profile.1, height * 0.5, &tf);
         self.slab_edge(outline, height, profile, &tf);

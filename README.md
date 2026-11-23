@@ -173,6 +173,19 @@ lenses with horizon roll limited to ±10°. Explicit launch settings override th
 F1 restores the controls and F11 toggles fullscreen. On the web, click once to allow
 fullscreen. HDR uses the available display mode. [Open kiosk mode](https://mosure.github.io/bevy_zeroverse/?kiosk)
 
+**Studio anti-aliasing.** In **View & playback → RGB display & anti-aliasing**,
+choose Automatic, Off, FXAA, SMAA High or Ultra, TAA, or 2×/4×/8× MSAA. Type
+“anti-aliasing” into **Find setting** on any tab to jump there. The setting
+applies live and can also be shared as `?preview_aa=taa` or set with
+`--preview-aa msaa-4`. Automatic uses TAA on full-viewport pinhole editor and kiosk views. An editor
+viewport inset by the control panel uses SMAA Ultra to preserve its framing. Fisheye views use SMAA High for temporal requests so their component
+views share a consistent spatial filter. Ordinary grids retain their scene
+default. MSAA steps down to a supported sample count, then to SMAA High if
+needed. Native screen-space ambient occlusion requires a single-sample view.
+
+Dataset capture keeps its existing indoor RGB FXAA and geometry-aware SSAA.
+**Capture & tools → Capture & export** controls the capture supersampling factor.
+
 From a checkout, `cargo run -- --help` shows the same CLI and
 `cargo install --path . --locked` installs the working tree. The repository
 pins `nightly-2026-08-31` (MSRV 1.97.1). Optional motion and SigLIP2 inference

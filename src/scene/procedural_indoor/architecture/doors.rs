@@ -1,6 +1,7 @@
 //! One metric door program drives rendering, clearance, annotations and audits.
 //! Programs describe rest states; optional room motion supplies kinematic joints.
 mod construction;
+mod sliding;
 #[cfg(test)]
 mod tests;
 use super::{Assembly, IndoorManifest, Surface};
@@ -11,8 +12,13 @@ use serde::{Deserialize, Serialize};
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 pub(crate) const ENTRY_APPROACH_DEPTH_M: f32 = 1.35;
+/// Width of the square stock centered on each entry jamb and head.
+pub(crate) const FRAME_WIDTH_M: f32 = 0.035;
 /// Distance from the revolving axis to the inner end of each wing.
 const ROTOR_HEEL_RADIUS_M: f32 = 0.052;
+const LEAF_WIDTH_ALLOWANCE: f32 = 0.044;
+const LEAF_HEIGHT_ALLOWANCE: f32 = 0.035;
+const FLOOR_GAP: f32 = 0.012;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DoorMechanism {
@@ -183,8 +189,16 @@ impl DoorInstallation {
     }
     pub(crate) fn leaves(&self) -> Vec<Leaf> {
         let p = &self.program;
-        let width = self.width - 0.044;
-        let height = self.height - 0.035;
+        let width = self.width - LEAF_WIDTH_ALLOWANCE;
+        let height = if matches!(
+            p.mechanism,
+            DoorMechanism::Sliding | DoorMechanism::Telescoping
+        ) {
+            // The head of an overlay leaf laps the frame. An inset leaf fits below it.
+            self.height
+        } else {
+            self.height - LEAF_HEIGHT_ALLOWANCE
+        };
         let mut leaves = Vec::with_capacity(4);
         let mut leaf = |center: Vec3, rotation: Quat, w: f32| {
             let tf = self.transform();
@@ -215,7 +229,7 @@ impl DoorInstallation {
                     // Pivot on the opening face; the heel cannot enter the wall.
                     let hinge = Vec3::new(
                         side * width * 0.5,
-                        height * 0.5 + 0.012,
+                        height * 0.5 + FLOOR_GAP,
                         p.swing_side * (self.wall_depth * 0.5 + p.thickness * 0.5 + 0.008),
                     );
                     leaf(
@@ -226,32 +240,15 @@ impl DoorInstallation {
                 }
             }
             DoorMechanism::Sliding | DoorMechanism::Telescoping => {
-                let count = if p.mechanism == DoorMechanism::Sliding {
-                    1
-                } else {
-                    2
-                };
-                let w = width / count as f32;
-                for i in 0..count {
-                    let x = -width * 0.5 + w * (i as f32 + 0.5);
-                    let travel = if count == 1 || (p.handedness > 0.) == (i == 0) {
-                        width
-                    } else {
-                        w
-                    };
-                    let z = p.swing_side
-                        * (self.wall_depth * 0.5
-                            + 0.018
-                            + p.thickness * (i as f32 + 0.5)
-                            + i as f32 * 0.014);
+                for lane in sliding::lanes(self) {
                     leaf(
                         Vec3::new(
-                            x + p.handedness * travel * p.opening,
-                            height * 0.5 + 0.012,
-                            z,
+                            lane.x_at(p.opening),
+                            height * 0.5 + FLOOR_GAP,
+                            p.swing_side * lane.depth,
                         ),
                         Quat::IDENTITY,
-                        w - 0.004,
+                        lane.leaf_width,
                     );
                 }
             }
@@ -261,7 +258,7 @@ impl DoorInstallation {
                     let rotation = Quat::from_rotation_y(p.rotor_phase + i as f32 * FRAC_PI_2);
                     leaf(
                         rotation * Vec3::X * ((r + ROTOR_HEEL_RADIUS_M) * 0.5)
-                            + Vec3::Y * (height * 0.5 + 0.012),
+                            + Vec3::Y * (height * 0.5 + FLOOR_GAP),
                         rotation,
                         r - ROTOR_HEEL_RADIUS_M,
                     );
@@ -289,7 +286,9 @@ impl DoorInstallation {
                 );
             }
         }
-        if self.program.mechanism == DoorMechanism::Revolving {
+        if let Some(track) = sliding::Track::for_program(&self.program) {
+            result.push(track.overhead_bounds(self));
+        } else if self.program.mechanism == DoorMechanism::Revolving {
             // No dynamic door-opening controller: reserve the rotor drum for
             // walking/camera paths, rather than send a person through a blade.
             let tf = self.transform();
@@ -312,17 +311,19 @@ impl DoorInstallation {
         } else {
             self.width.min(1.7) + 0.25
         };
-        let side = if matches!(
+        let span = if matches!(
             self.program.mechanism,
             DoorMechanism::Sliding | DoorMechanism::Telescoping
         ) {
-            self.width
+            sliding::parking_span(self)
         } else {
-            0.15
+            let half = self.width * 0.5 + 0.15;
+            Vec2::new(-half, half)
         };
+        let tf = self.transform();
         Leaf {
-            transform: self.transform(),
-            size: Vec3::new(self.width + 2. * side, 0., 2. * depth),
+            transform: tf.with_translation(tf.transform_point(Vec3::X * ((span.x + span.y) * 0.5))),
+            size: Vec3::new(span.y - span.x, 0., 2. * depth),
         }
         .bounds(0.)
     }

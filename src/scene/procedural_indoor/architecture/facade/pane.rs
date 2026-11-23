@@ -1,14 +1,21 @@
 //! One hinged sash owns its pane, seals, frame and handle. Static open states
 //! leave a real gap; the renderer and every annotation see the same geometry.
 use super::*;
+mod hardware;
 
 use crate::scene::procedural_indoor::materials::glazing::GlazingProgram;
 
-fn edge_widths(f: &Facade, opening: &WindowOpening, span: Vec2) -> (f32, f32) {
-    let sash = if opening.operable {
+fn edge_widths(f: &Facade, hinge: SashHinge, span: Vec2) -> (f32, f32) {
+    let sash = if hinge != SashHinge::Fixed {
         f.joinery
             .as_ref()
-            .map_or(0.021, |j| j.sash_width_m)
+            .map_or(0.021, |j| {
+                if j.sash_stock.is_some() {
+                    super::sash::fitted_rail_width(j, span)
+                } else {
+                    j.sash_width_m
+                }
+            })
             .min(span.min_element() * 0.09)
     } else {
         f.joinery.as_ref().map_or(0.004, |j| j.seal_width_m * 2.)
@@ -53,13 +60,15 @@ pub(super) fn visible_pane_area_with(
     o: &WindowOpening,
     covered: impl Fn(Vec2, Vec2) -> f32,
 ) -> f32 {
-    f.pane_rectangles(o)
+    let fitted = f.joinery.as_ref().is_some_and(|j| j.sash_stock.is_some());
+    f.pane_installations(o)
         .into_iter()
-        .map(|(lo, hi)| {
+        .map(|pane| {
+            let (lo, hi) = pane.bounds(fitted);
             let Some(program) = &o.glazing else {
                 return ((hi - lo).element_product() - covered(lo, hi)).max(0.);
             };
-            let (sash, bead) = edge_widths(f, o, hi - lo);
+            let (sash, bead) = edge_widths(f, pane.hinge, hi - lo);
             let clear = (hi - lo - 2. * (sash + bead)).max(Vec2::ZERO);
             let inner_lo = lo + Vec2::splat(sash + bead);
             let inner_hi = hi - Vec2::splat(sash + bead);
@@ -76,7 +85,10 @@ pub(super) fn visible_pane_area_with(
                 }
                 blocked += ((clear.x - 0.001).max(0.) * strips - overlap).max(0.);
             }
-            (clear.element_product() - blocked).max(0.)
+            // An installed treatment keeps fitted leaves shut. An open,
+            // unshaded leaf presents less glazed area along the wall normal.
+            let projection = if fitted { pane.swing_radians.cos() } else { 1. };
+            (clear.element_product() - blocked).max(0.) * projection
         })
         .sum()
 }
@@ -86,9 +98,10 @@ pub(super) fn build(
     tf: Transform,
     f: &Facade,
     opening: &WindowOpening,
-    min: Vec2,
-    max: Vec2,
+    pane: PaneInstallation,
 ) {
+    let stock = f.joinery.as_ref().and_then(|j| j.sash_stock.as_ref());
+    let (min, max) = pane.bounds(stock.is_some());
     let Some(program) = &opening.glazing else {
         let c = (min + max) * 0.5;
         a.part(Surface::Glass, "window").cuboid(
@@ -99,20 +112,35 @@ pub(super) fn build(
         );
         return;
     };
-    let (sash, bead) = edge_widths(f, opening, max - min);
+    let (sash, bead) = edge_widths(f, pane.hinge, max - min);
     let sash_depth = f.joinery.as_ref().map_or(0.026, |j| j.sash_depth_m);
     let frame_label = f.frame_label();
     let lo = min + Vec2::splat(sash);
     let hi = max - Vec2::splat(sash);
     let height = max.y - min.y;
-    let angle = if opening.operable && f.allows_open_sash() {
-        program.opening * (0.14 / height).min(0.20).asin()
+    let face = 0.006 + sash_depth * 0.5;
+    let rail_back = 0.006 - sash_depth * 0.5;
+    let back = rail_back.min(-program.thickness_m);
+    // Keep the original order of float operations when replaying archived glass.
+    let (hinge, origin) = if stock.is_none() || pane.hinge == SashHinge::Fixed {
+        (
+            Transform::from_xyz(0., min.y, -f.recess)
+                .with_rotation(Quat::from_rotation_x(pane.swing_radians)),
+            Vec3::Y * min.y,
+        )
     } else {
-        0.
+        (pane.pose(f, face, back), Vec3::ZERO)
     };
-    let hinge =
-        Transform::from_xyz(0., min.y, -f.recess).with_rotation(Quat::from_rotation_x(angle));
-    let local = |p: Vec3| hinge.transform_point(p - Vec3::Y * min.y);
+    let local = |p: Vec3| hinge.transform_point(p - origin);
+    if stock.is_some() && pane.hinge != SashHinge::Fixed {
+        let seat = if pane.hinge == SashHinge::TopAwning {
+            face + 0.0015
+        } else {
+            back - 0.0015
+        };
+        hardware::seals(a, tf, &pane, min, max, seat - f.recess);
+        hardware::hinges(a, tf, f.recess, hinge, &pane, [back, rail_back, face]);
+    }
     let rotation = tf.rotation * hinge.rotation;
     let mut block = |surface, label: &str, p: Vec3, size: Vec3, bevel| {
         a.part(surface, label).cuboid(
@@ -160,7 +188,9 @@ pub(super) fn build(
             0.,
         );
     }
-    if opening.operable {
+    if let (Some(stock), Some(handle)) = (stock, pane.handle) {
+        hardware::handle(stock, &pane, handle, sash, face, &mut block);
+    } else if pane.handle.is_some() {
         block(
             Surface::Chrome,
             "window",

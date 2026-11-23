@@ -19,15 +19,21 @@ fn source_bound(alpha: f32, first: bool) -> f32 {
     return alpha;
 }
 
+fn load_radiance(pixel: vec2<u32>, first: bool) -> vec4<f32> {
+    let value = textureLoad(source, pixel, 0);
+    if first {return checked_radiance(value);}
+    return value;
+}
+
 fn reduce(pixel: vec2<u32>, first: bool) -> vec4<f32> {
     let src = textureDimensions(source, 0);
     let dst = max(src / 2u, vec2<u32>(1u));
     if all(src == dst * 2u) {
         let p = pixel * 2u;
-        let a = textureLoad(source, p, 0);
-        let b = textureLoad(source, p + vec2<u32>(1,0), 0);
-        let c = textureLoad(source, p + vec2<u32>(0,1), 0);
-        let d = textureLoad(source, p + vec2<u32>(1,1), 0);
+        let a = load_radiance(p, first);
+        let b = load_radiance(p + vec2<u32>(1,0), first);
+        let c = load_radiance(p + vec2<u32>(0,1), first);
+        let d = load_radiance(p + vec2<u32>(1,1), first);
         let z = bound(bound(source_bound(a.a,first),source_bound(b.a,first)),
                       bound(source_bound(c.a,first),source_bound(d.a,first)));
         return vec4<f32>((a.rgb+b.rgb+c.rgb+d.rgb)*0.25,z);
@@ -43,7 +49,7 @@ fn reduce(pixel: vec2<u32>, first: bool) -> vec4<f32> {
         for (var x = start.x; x < stop.x; x++) {
             let p = vec2<u32>(x, y);
             let overlap = min(upper, (p + 1u) * dst) - max(lower, p * dst);
-            let sample = textureLoad(source, p, 0);
+            let sample = load_radiance(p, first);
             rgb += sample.rgb * (f32(overlap.x) / f32(src.x)) * (f32(overlap.y) / f32(src.y));
             nearest = bound(nearest, source_bound(sample.a, first));
         }

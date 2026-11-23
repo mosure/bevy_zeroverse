@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::envelope::steps::{StepAxis, StepEdge, StepInstallation};
 pub fn size_room(seed: u64, activity: IndoorLayout, size: &mut Vec3) {
     if !activity.is_public() {
         return;
@@ -29,6 +30,7 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
     // depressions cannot bisect a service run, audience row or elevator threshold.
     if let Some(e) = scene.envelope.as_mut() {
         e.floor_patches.clear();
+        e.step_installation = None;
         e.mezzanine = None;
         if matches!(
             scene.layout,
@@ -70,6 +72,7 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
     let half_aisle = p.aisle_metres * 0.5;
     let center = (lo.x + hi.x) * 0.5;
     let e = scene.envelope.as_mut().unwrap();
+    let mut steps = StepInstallation::sample(scene.seed, scene.floor_style, StepAxis::Z);
     for (row, &[front, back]) in rows.iter().enumerate().skip(1) {
         // The shared plan reuses each boundary exactly, avoiding one-ULP cracks.
         let height = row as f32 * p.tier_rise_metres;
@@ -86,6 +89,10 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
             (front, front + 0.32, height - p.tier_rise_metres * 0.5),
             (front + 0.32, back, height),
         ] {
+            steps.walk_edges.push(StepEdge {
+                coordinate_m: z0,
+                span_m: Vec2::new(center - half_aisle, center + half_aisle),
+            });
             e.floor_patches.push(FloorPatch {
                 min: Vec2::new(center - half_aisle, z0),
                 max: Vec2::new(center + half_aisle, z1),
@@ -94,9 +101,15 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
         }
     }
     // Raised teaching platform with a full-width single step, clear of side access.
+    let stage_half = (hi.x - lo.x) * 0.38;
+    steps.walk_edges.push(StepEdge {
+        coordinate_m: lo.y + 2.1,
+        span_m: Vec2::new(center - stage_half, center + stage_half),
+    });
+    e.step_installation = Some(steps);
     e.floor_patches.push(FloorPatch {
-        min: Vec2::new(center - (hi.x - lo.x) * 0.38, lo.y),
-        max: Vec2::new(center + (hi.x - lo.x) * 0.38, lo.y + 2.1),
+        min: Vec2::new(center - stage_half, lo.y),
+        max: Vec2::new(center + stage_half, lo.y + 2.1),
         height: 0.14,
     });
 }

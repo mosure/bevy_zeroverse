@@ -10,6 +10,7 @@ pub struct IndoorMaterials {
     pub(super) handles: Vec<Handle<StandardMaterial>>,
     pub cloth: Handle<StandardMaterial>,
     pub skin: Handle<StandardMaterial>,
+    pub(crate) eyes: std::collections::BTreeMap<usize, Handle<Image>>,
     pub hair: Handle<StandardMaterial>,
     pub coiled_hair: Handle<StandardMaterial>,
     pub knit: Handle<StandardMaterial>,
@@ -48,6 +49,8 @@ impl MaterialSelection {
             if slat_finish::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
                 || bin_film::supports(surface, slot)
+                || input_housing::supports(surface, slot)
+                || keycaps::supports(surface, slot)
                 || cooktop::supports(surface, slot)
                 || worktop_finish::supports(surface, slot)
             {
@@ -430,7 +433,7 @@ impl IndoorMaterials {
                     }
                 }
                 Surface::Light => {
-                    let c = kelvin_rgb(scene.light_kelvin);
+                    let c = scene.illuminant_model().untinted_srgb(scene.light_kelvin);
                     let c = source_color(scene, c).to_linear();
                     let luminance = super::super::architecture::fixture_lumens(scene)
                         / (std::f32::consts::PI
@@ -505,6 +508,8 @@ impl IndoorMaterials {
             materials,
             selection.map(|s| &s.finishes),
         ));
+        input_housing::install(scene, materials, selection, &mut variants);
+        keycaps::install(scene, images, materials, selection, &mut variants);
         cooktop::install(scene, images, materials, selection, &mut variants);
         worktop_finish::install(scene, images, materials, selection, &mut variants);
         variants.extend(exterior::build(
@@ -602,6 +607,7 @@ impl IndoorMaterials {
             environment,
             cloth,
             skin,
+            eyes: human::eyes::install(scene, images),
             hair,
             coiled_hair,
             knit,
@@ -697,6 +703,8 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || signals::supports(surface, slot)
         || glass::display::supports(surface, slot)
         || glass::door::supports(surface, slot)
+        || input_housing::supports(surface, slot)
+        || keycaps::supports(surface, slot)
         || cooktop::supports(surface, slot)
         || worktop_finish::supports(surface, slot)
         || supplies::supports(surface, slot)

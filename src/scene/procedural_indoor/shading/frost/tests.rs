@@ -100,7 +100,7 @@ fn gpu_area_mips_preserve_hdr_edges_coverage_and_nearest_depth() {
             .into();
         let input_view = input.create_view(&default());
         let depth_view = depth.create_view(&default());
-        let values: Vec<[f32; 4]> = (0..width * height)
+        let mut values: Vec<[f32; 4]> = (0..width * height)
             .map(|i| {
                 [
                     0.375,
@@ -110,6 +110,11 @@ fn gpu_area_mips_preserve_hdr_edges_coverage_and_nearest_depth() {
                 ]
             })
             .collect();
+        // A poisoned HDR texel must invalidate its ancestors for refinement
+        // without leaking nonfinite radiance into any neighbor or mip level.
+        values[2][0] = f32::NAN;
+        values[4][1] = f32::INFINITY;
+        values[6][2] = f32::NEG_INFINITY;
         let data: Vec<u8> = values
             .iter()
             .flatten()
@@ -156,6 +161,10 @@ fn gpu_area_mips_preserve_hdr_edges_coverage_and_nearest_depth() {
             );
             let mut expected = values.clone();
             for (p, &z) in expected.iter_mut().zip(&depths) {
+                if p.iter().any(|v| !v.is_finite()) {
+                    *p = [0., 0., 0., -1.];
+                    continue;
+                }
                 p[3] = if p[3] < 1. {
                     -1.
                 } else if with_depth {

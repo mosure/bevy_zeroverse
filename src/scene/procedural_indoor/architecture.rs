@@ -15,7 +15,7 @@ mod shared_openings;
 pub mod trim;
 use super::{
     layout::{stream, IndoorManifest, LightingMood, ObjectKind, NEIGHBOR_DEPTH},
-    materials::{kelvin_rgb, Surface},
+    materials::Surface,
     objects::Assembly,
 };
 use crate::scene::procedural_indoor::photometry::source_color;
@@ -589,7 +589,8 @@ pub(crate) fn fixture_photometry_at(
     positions: &[Vec3],
 ) -> (Vec3, f32) {
     let mut rng = stream(super::photometry::lighting_seed(scene), 164 + index as u64);
-    let mut kelvin = scene.light_kelvin + rng.random_range(-1000.0..1000.0);
+    let lamp_offset = rng.random_range(-1000.0..1000.0);
+    let mut kelvin = scene.light_kelvin + lamp_offset;
     let primary = primary_fixture_count(scene, positions);
     let base = if index >= primary && scene.adjoining.is_some() && scene.envelope.is_some() {
         let area = scene.adjoining_space().area(scene.room_size.x);
@@ -607,8 +608,27 @@ pub(crate) fn fixture_photometry_at(
             position.z / scene.room_size.z,
         ) * 2.0;
         flux *= (1.0 + d.photometry.fixture_gradient.dot(uv)).clamp(0.25, 1.75);
+        if let Some(circuit) = d
+            .photometry
+            .ceiling_circuits
+            .as_ref()
+            .and_then(|c| c.for_mount(index))
+        {
+            // An installation shares a lamp batch; a small replacement-lamp tail
+            // can be visibly warmer or cooler than the other heads on its switch.
+            let spread = if rng.random_bool(0.075) { 0.92 } else { 0.12 };
+            kelvin = scene.light_kelvin
+                + circuit.batch_kelvin_offset
+                + spread * lamp_offset
+                + 0.45 * d.photometry.temperature_gradient * uv.x;
+            let tint = circuit.batch_tint + rng.random_range(-0.008..0.008);
+            return (
+                d.photometry.illuminant_model.lamp_srgb(kelvin, tint),
+                flux * circuit.dimmer,
+            );
+        }
         kelvin += d.photometry.temperature_gradient * uv.x;
-        // One core fixture stays energized, independent of zone enumeration.
+        // Archived installations retain their per-mount switch and tint sequence.
         if index != energized_fixture(scene, primary)
             && !rng.random_bool(d.photometry.active_fraction as f64)
         {
@@ -618,7 +638,9 @@ pub(crate) fn fixture_photometry_at(
         }
     }
     (
-        super::photometry::tinted_white(kelvin, rng.random_range(-0.045..0.045)),
+        scene
+            .illuminant_model()
+            .lamp_srgb(kelvin, rng.random_range(-0.045..0.045)),
         flux,
     )
 }
@@ -691,7 +713,10 @@ pub(crate) fn sun_direction(scene: &IndoorManifest) -> Vec3 {
 
 pub(crate) fn sun_color(scene: &IndoorManifest) -> Color {
     if let Some(d) = scene.domain() {
-        let rgb = kelvin_rgb(d.photometry.sun_kelvin);
+        let rgb = d
+            .photometry
+            .illuminant_model
+            .untinted_srgb(d.photometry.sun_kelvin);
         return source_color(scene, rgb);
     }
     if scene.lighting == LightingMood::Evening {

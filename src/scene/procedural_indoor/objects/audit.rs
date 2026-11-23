@@ -93,6 +93,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         }
         FloorOutlet => [0.18, 0.13, 0.16],
         BaseboardHeater => services::heater::dimensions(seed).to_array(),
+        PcTower => [0.17, 0.37, 0.31],
     };
     let mut o = IndoorObject {
         id: 0,
@@ -234,6 +235,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Clock => serde_json::json!(clocks::parameters(o)),
         WallOutlet | LightSwitch => serde_json::json!(wall::parameters(o)),
         Keyboard | Mouse => serde_json::json!(desktop::parameters(o)),
+        PcTower => serde_json::json!(desktop::tower::parameters(o)),
         Books | Notebook => serde_json::json!(literature::parameters(o)),
         FloorLamp => serde_json::json!(standing_lamp::parameters(o)),
         Printer | StorageBox | CoatRack => serde_json::json!(utilities::parameters(o)),
@@ -319,6 +321,13 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "size_variation",
             "binding",
             "strap",
+        ],
+        PcTower => &[
+            "feet_m",
+            "fascia_depth_m",
+            "intake_fraction",
+            "vertical_louvers",
+            "louver_pitch_m",
         ],
         Keyboard => &[
             "keyboard_split",

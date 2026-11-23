@@ -14,6 +14,7 @@ mod tests;
 pub enum AssemblyRole {
     Workstation,
     Meeting,
+    StandingWorkstation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -52,7 +53,13 @@ impl IndoorManifest {
             if !surface.kind.is_surface()
                 || surface.neighbor
                 || group.attempts == 0
-                || group.seats.is_empty()
+                || if group.role == AssemblyRole::StandingWorkstation {
+                    !super::super::objects::tables::is_raised_desk(surface)
+                        || !group.seats.is_empty()
+                        || group.requested_capacity != 1
+                } else {
+                    group.seats.is_empty()
+                }
                 || (group.role == AssemblyRole::Meeting && group.seats.len() < 2)
             {
                 return Err("incomplete functional assembly".into());

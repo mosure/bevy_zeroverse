@@ -66,7 +66,7 @@ fn service_finishes_change_without_altering_shape_or_motion() {
             other.finish_seed = Some(seed ^ 0x46534f424a454354);
             let a = build_object(&o);
             let b = build_object(&other);
-            let vertices = |a: &Assembly, metric_uvs: bool| {
+            let vertices = |a: &Assembly| {
                 let mut v: Vec<_> = a
                     .parts
                     .values()
@@ -76,11 +76,6 @@ fn service_finishes_change_without_altering_shape_or_motion() {
                             (
                                 g.positions[i].map(f32::to_bits),
                                 g.normals[i].map(f32::to_bits),
-                                if metric_uvs {
-                                    g.uvs[i].map(f32::to_bits)
-                                } else {
-                                    [0; 2]
-                                },
                             )
                         })
                     })
@@ -89,20 +84,57 @@ fn service_finishes_change_without_altering_shape_or_motion() {
                 v
             };
             assert!(
-                vertices(&a, false) == vertices(&b, false),
+                vertices(&a) == vertices(&b),
                 "finish changed {kind:?}/{seed} geometry"
             );
-            // Substrate-specific UV phase is part of material assignment. The
-            // constructor's metric coordinates must remain shape-independent.
-            let raw = |o: &IndoorObject| {
-                let mut a = Assembly::default();
-                super::build(&mut a, o);
-                a
+
+            // A timber substitution may rotate and translate the chart on
+            // that member. Preserve metric scale and every other member's UVs.
+            let raw_charts = |o: &IndoorObject| {
+                let mut assembly = Assembly::default();
+                super::build(&mut assembly, o);
+                let mut charts: Vec<_> = assembly
+                    .parts
+                    .iter()
+                    .flat_map(|((surface, _), g)| {
+                        g.indices.as_chunks::<3>().0.iter().map(|tri| {
+                            let ids = tri.map(|i| i as usize);
+                            (
+                                ids.map(|i| {
+                                    (
+                                        g.positions[i].map(f32::to_bits),
+                                        g.normals[i].map(f32::to_bits),
+                                    )
+                                }),
+                                *surface,
+                                ids.map(|i| Vec2::from(g.uvs[i])),
+                            )
+                        })
+                    })
+                    .collect();
+                charts.sort_by_key(|chart| chart.0);
+                charts
             };
-            assert!(
-                vertices(&raw(&o), true) == vertices(&raw(&other), true),
-                "finish changed {kind:?}/{seed} metric UVs"
-            );
+            let before = raw_charts(&o);
+            let after = raw_charts(&other);
+            assert_eq!(before.len(), after.len());
+            for ((face, s, uv), (other_face, t, other_uv)) in before.iter().zip(&after) {
+                assert_eq!(face, other_face);
+                if kind == Bench && s.is_cut_timber() != t.is_cut_timber() {
+                    for (i, j) in [(0, 1), (1, 2), (2, 0)] {
+                        assert!(
+                            (uv[i].distance(uv[j]) - other_uv[i].distance(other_uv[j])).abs()
+                                < 2e-6,
+                            "finish rescaled a {kind:?}/{seed} triangle"
+                        );
+                    }
+                } else {
+                    assert_eq!(
+                        uv, other_uv,
+                        "finish shifted an unrelated {kind:?}/{seed} chart"
+                    );
+                }
+            }
             changed += usize::from(
                 a.parts.keys().collect::<Vec<_>>() != b.parts.keys().collect::<Vec<_>>(),
             );

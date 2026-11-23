@@ -1,5 +1,7 @@
 //! Laptops are hinged assemblies with keyboards, bezels, ports and rubber feet.
+use super::super::materials::input_housing::Housing;
 use super::*;
+mod palmrest;
 
 pub const LAPTOP_FAMILIES: u32 = 4;
 
@@ -19,7 +21,7 @@ pub struct LaptopProgram {
 }
 pub fn parameters(o: &IndoorObject) -> LaptopProgram {
     let mut rng = stream(o.seed, 71);
-    LaptopProgram {
+    let mut program = LaptopProgram {
         hinge_radians: rng.random_range(1.48..2.28),
         aspect_ratio: rng.random_range(1.35..1.9),
         chassis_m: rng.random_range(0.008..0.023),
@@ -31,7 +33,13 @@ pub fn parameters(o: &IndoorObject) -> LaptopProgram {
         keyboard_columns: rng.random_range(11..17),
         port_count: rng.random_range(1..5),
         speaker_grilles: rng.random_bool(0.6),
-    }
+    };
+    program.keyboard_columns = super::keyboard::columns(
+        o.size.x * program.keyboard_fraction,
+        program.keyboard_columns as usize,
+        false,
+    ) as u32;
+    program
 }
 pub fn lid_angle(o: &IndoorObject) -> f32 {
     parameters(o).hinge_radians
@@ -39,16 +47,12 @@ pub fn lid_angle(o: &IndoorObject) -> f32 {
 
 pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
     let label = o.kind.class_name();
-    let family = o.variant % LAPTOP_FAMILIES;
     let program = parameters(o);
     let width = o.size.x;
     let chassis = program.chassis_m;
-    let metal = if family == 1 || family == 3 {
-        Surface::Plastic
-    } else {
-        Surface::Metal
-    };
-    let angle = lid_angle(o);
+    let stock = Housing::for_object(o);
+    let metal = stock.surface;
+    let angle = program.hinge_radians;
     // Envelope includes the backward lid sweep; base stays fully on its support.
     let tilt = angle - FRAC_PI_2;
     let screen_height = (width / program.aspect_ratio)
@@ -58,13 +62,7 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
     let base_depth = (o.size.z - rear_sweep - 0.014).max(0.10);
     let hinge_z = -o.size.z * 0.5 + rear_sweep + 0.008;
     let base_z = hinge_z + base_depth * 0.5;
-    a.box_part(
-        metal,
-        label,
-        Vec3::new(0.0, chassis * 0.5 + 0.003, base_z),
-        Vec3::new(width, chassis, base_depth),
-        program.corner_m,
-    );
+    palmrest::build(a, o, &program, &stock, base_depth, base_z);
     let hinge = Vec3::new(0.0, chassis + 0.004, hinge_z);
     let lid = Transform::from_translation(hinge).with_rotation(Quat::from_rotation_x(-tilt));
     let bezel = program.bezel_m;
@@ -75,7 +73,7 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
             .is_some_and(|p| p.prop_rotation_degrees > 0.);
     let mut leaf = Assembly::default();
     let dest = if moving { &mut leaf } else { &mut *a };
-    dest.part(metal, label).cuboid(
+    dest.part(metal, &stock.case_label(o)).cuboid(
         Vec3::new(width, screen_height, program.lid_m),
         program.corner_m.min(program.lid_m * 0.35),
         lid.with_translation(lid.transform_point(Vec3::Y * screen_height * 0.5)),
@@ -145,50 +143,7 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
             );
         }
     }
-    let columns = program.keyboard_columns;
-    for row in 0..5 {
-        for col in 0..columns {
-            // The bottom row has modifiers and a broad space bar, not a fifth
-            // identical row of letter keys.
-            if row == 4 && (3..columns - 3).contains(&col) {
-                continue;
-            }
-            a.box_part(
-                Surface::Ink,
-                label,
-                Vec3::new(
-                    (col as f32 - (columns - 1) as f32 * 0.5) * width * program.keyboard_fraction
-                        / columns as f32,
-                    chassis + 0.004,
-                    hinge_z + base_depth * (0.17 + row as f32 * 0.095),
-                ),
-                Vec3::new(
-                    width * program.keyboard_fraction * 0.86 / columns as f32,
-                    0.0018,
-                    base_depth * 0.075,
-                ),
-                0.0006,
-            );
-        }
-    }
-    a.box_part(
-        Surface::Ink,
-        label,
-        Vec3::new(0., chassis + 0.004, hinge_z + base_depth * 0.55),
-        Vec3::new(
-            width * program.keyboard_fraction * (columns - 6) as f32 / columns as f32 * 0.97,
-            0.0018,
-            base_depth * 0.075,
-        ),
-        0.0006,
-    );
-    a.box_part(
-        Surface::Plastic,
-        label,
-        Vec3::new(0.0, chassis + 0.0032, hinge_z + base_depth * 0.79),
-        Vec3::new(width * program.trackpad_fraction, 0.001, base_depth * 0.23),
-        0.0,
-    );
+    super::keyboard::laptop(a, o, &program, hinge_z, base_depth);
     if program.speaker_grilles {
         for side in [-1., 1.] {
             for row in 0..18 {
@@ -210,5 +165,6 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
 
 pub mod displays;
 pub(super) use displays::display;
+pub(crate) use displays::low_mount_clearance;
 pub(crate) use displays::monitor_power_port_local;
 pub use displays::{display_geometry, display_parameters, DisplayGeometry, DisplayProgram};

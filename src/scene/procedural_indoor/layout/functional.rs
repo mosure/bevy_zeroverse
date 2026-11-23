@@ -56,6 +56,7 @@ pub enum ServiceKind {
     Drain,
     Ventilation,
     Display,
+    Data,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ServiceConnection {

@@ -29,6 +29,8 @@ pub mod glass;
 pub mod glazing;
 pub mod gpu;
 mod human;
+pub(crate) mod input_housing;
+pub(crate) mod keycaps;
 mod kitchen;
 pub mod layers;
 pub mod leather;
@@ -80,8 +82,9 @@ use mipmaps::*;
 pub use surface::Surface;
 use synthesis::*;
 
+/// Encoded palette used by older indoor lighting manifests and decorative media.
+/// For room illumination use the manifest's `photometry.illuminant_model`.
 pub fn kelvin_rgb(k: f32) -> Vec3 {
-    // Smooth warm tungsten through cool sky RGB prior; not a spectral model.
     if k < 4500.0 {
         Vec3::new(1.0, 0.46, 0.18).lerp(
             Vec3::new(1.0, 0.90, 0.78),

@@ -119,11 +119,12 @@ pub enum SemanticLabel {
     StringLights,
     FireDetector,
     FirePullStation,
+    PcTower,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 10;
+    pub const TAXONOMY_VERSION: u32 = 11;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -227,6 +228,7 @@ impl SemanticLabel {
         Self::StringLights,
         Self::FireDetector,
         Self::FirePullStation,
+        Self::PcTower,
     ];
 
     pub fn color(&self) -> Color {
@@ -234,6 +236,7 @@ impl SemanticLabel {
         match self {
             SemanticLabel::CeilingFan => Color::srgb_u8(92, 164, 211),
             SemanticLabel::ExitSign => Color::srgb_u8(48, 218, 173),
+            SemanticLabel::PcTower => Color::srgb_u8(56, 96, 154),
             SemanticLabel::FireAlarm => Color::srgb_u8(241, 67, 82),
             SemanticLabel::StringLights => Color::srgb_u8(240, 205, 88),
             SemanticLabel::FireDetector => Color::srgb_u8(179, 219, 237),
@@ -341,6 +344,7 @@ impl SemanticLabel {
         match name {
             "ceiling_fan" => Some(SemanticLabel::CeilingFan),
             "exit_sign" => Some(SemanticLabel::ExitSign),
+            "pc_tower" => Some(SemanticLabel::PcTower),
             "fire_alarm" => Some(SemanticLabel::FireAlarm),
             "string_lights" => Some(SemanticLabel::StringLights),
             "fire_detector" => Some(SemanticLabel::FireDetector),
@@ -477,6 +481,7 @@ impl SemanticLabel {
             SemanticLabel::CabinetHardware => "cabinet_hardware",
             SemanticLabel::CeilingFan => "ceiling_fan",
             SemanticLabel::ExitSign => "exit_sign",
+            SemanticLabel::PcTower => "pc_tower",
             SemanticLabel::FireAlarm => "fire_alarm",
             SemanticLabel::StringLights => "string_lights",
             SemanticLabel::FireDetector => "fire_detector",

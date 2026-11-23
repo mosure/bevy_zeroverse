@@ -77,8 +77,8 @@ impl Mezzanine {
                 rail_height: r.random_range(1.03..1.22),
                 construction: None,
             };
-            if !e.feature_clear(scene, lo, hi, 0.30)
-                || !e.feature_clear(scene, stair_min, stair_max, 0.25)
+            if !e.ground_feature_clear(scene, lo, hi, 0.30)
+                || !e.ground_feature_clear(scene, stair_min, stair_max, 0.25)
                 || e.minimum_ceiling_height(scene.room_size, lo, hi) < height + 2.3
                 || e.minimum_ceiling_height(scene.room_size, stair_min, stair_max) < height + 2.25
                 || e.floor_patches

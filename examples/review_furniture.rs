@@ -12,7 +12,7 @@ use bevy_zeroverse::{
     sample::SamplerState,
     scene::{
         procedural_indoor::{
-            layout::{IndoorLayout, IndoorManifest, ObjectKind},
+            layout::{IndoorLayout, IndoorManifest, IndoorObject, ObjectKind},
             materials::IndoorMaterials,
             objects,
         },
@@ -49,68 +49,19 @@ fn main() {
     let conference = mode.as_deref() == Some("conference");
     let services = mode.as_deref() == Some("services");
     let bags = mode.as_deref() == Some("bags");
+    let keyboards = mode.as_deref() == Some("keyboards");
     let mut scene =
         IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.0).unwrap();
     let mut table = scene.objects[0].clone();
     table.kind = ObjectKind::Table;
-    let mut chair = table.clone();
-    chair.kind = ObjectKind::Chair;
-    let mut objects = Vec::new();
-    for index in 0..12 {
-        let mut o = if index < 6 {
-            table.clone()
+    table.variant = 0;
+    let mut objects =
+        if tabletop || seating || plants || fixtures || conference || services || bags || keyboards
+        {
+            Vec::new()
         } else {
-            chair.clone()
+            table_and_chair_examples(&table)
         };
-        o.id = index;
-        o.position = Vec3::new(index as f32 * 4.5, 0.0, 0.0);
-        o.yaw = 0.0;
-        o.neighbor = false;
-        o.interaction_target = None;
-        if index < 6 {
-            if index == 5 {
-                o.kind = ObjectKind::Desk;
-            }
-            o.size = if index == 0 {
-                Vec3::new(1.2, 0.74, 1.2)
-            } else {
-                Vec3::new(1.35, 0.74, 2.0)
-            };
-            o.seed = (0..2000)
-                .find(|&seed| {
-                    o.seed = seed;
-                    let p = objects::tables::parameters(&o);
-                    match index {
-                        0 => p.outline_exponent == 2.0 && p.support == 2,
-                        1 => p.outline_exponent == 2.0 && p.support == 0,
-                        2 => p.taper.abs() > 0.25 && p.support == 1,
-                        3 => p.outline_exponent > 8.0 && p.support == 3,
-                        4 => p.support == 4,
-                        _ => p.support == 5,
-                    }
-                })
-                .unwrap();
-        } else {
-            o.variant = (index - 6) as u32;
-            o.size = Vec3::new(
-                0.68,
-                if matches!(o.variant, 0 | 1 | 5) {
-                    1.4
-                } else {
-                    1.03
-                },
-                0.68,
-            );
-            o.seed = (0..1000)
-                .find(|&seed| {
-                    o.seed = seed;
-                    let p = objects::chairs::parameters(&o);
-                    !matches!(o.variant, 0 | 1 | 5) || (p.headrest && p.back_construction == 2)
-                })
-                .unwrap();
-        }
-        objects.push(o);
-    }
     if tabletop {
         objects = tabletop::objects(&table);
     }
@@ -161,6 +112,28 @@ fn main() {
         objects = bags::objects();
         scene.objects = objects.clone();
     }
+    if keyboards {
+        objects = [
+            (ObjectKind::Keyboard, 0, 0.31),
+            (ObjectKind::Keyboard, 2, 0.45),
+            (ObjectKind::Keyboard, 7, 0.41),
+            (ObjectKind::Laptop, 0, 0.29),
+            (ObjectKind::Laptop, 2, 0.37),
+            (ObjectKind::Laptop, 7, 0.40),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(id, (kind, seed, width))| {
+            let mut o = objects::audit::fixture(kind, seed);
+            o.id = id;
+            o.finish_seed = Some(seed);
+            o.size.x = width;
+            o.position = Vec3::X * id as f32 * 4.5;
+            o
+        })
+        .collect();
+        scene.objects.clone_from(&objects);
+    }
     let kinds: Vec<_> = objects.iter().map(|o| o.kind).collect();
     let object_count = objects.len();
     std::fs::write(
@@ -200,7 +173,20 @@ fn main() {
               mut meshes: ResMut<Assets<Mesh>>,
               mut images: ResMut<Assets<Image>>,
               mut materials: ResMut<Assets<StandardMaterial>>| {
-            let set = IndoorMaterials::build(&scene, &mut *images, &mut *materials);
+            let set = if keyboards {
+                let parts: Vec<_> = objects
+                    .iter()
+                    .flat_map(|o| objects::build_object(o).parts.into_keys())
+                    .collect();
+                IndoorMaterials::build_for_parts(
+                    &scene,
+                    &mut *images,
+                    &mut *materials,
+                    parts.iter().map(|(s, l)| (*s, l.as_str())),
+                )
+            } else {
+                IndoorMaterials::build(&scene, &mut *images, &mut *materials)
+            };
             let root = commands
                 .spawn((
                     ZeroverseSceneRoot,
@@ -213,7 +199,9 @@ fn main() {
                 objects::spawn_object(o, root, &mut commands, &mut meshes, &set);
                 let target = o.position + Vec3::Y * o.size.y * 0.48;
                 let from = target
-                    + if seating && matches!(o.kind, ObjectKind::Sofa | ObjectKind::Chair) {
+                    + if keyboards {
+                        Vec3::new(0.18, 1.06, 1.12) * o.size.x
+                    } else if seating && matches!(o.kind, ObjectKind::Sofa | ObjectKind::Chair) {
                         let scale = o.size.max_element();
                         Vec3::new(scale * 0.95, scale * 0.52, -scale * 1.90)
                     } else if conference {
@@ -381,4 +369,66 @@ fn main() {
             break;
         }
     }
+}
+
+fn table_and_chair_examples(table: &IndoorObject) -> Vec<IndoorObject> {
+    let mut chair = table.clone();
+    chair.kind = ObjectKind::Chair;
+    let mut objects = Vec::new();
+    for index in 0..12 {
+        let mut o = if index < 6 {
+            table.clone()
+        } else {
+            chair.clone()
+        };
+        o.id = index;
+        o.position = Vec3::new(index as f32 * 4.5, 0.0, 0.0);
+        o.yaw = 0.0;
+        o.neighbor = false;
+        o.interaction_target = None;
+        if index < 6 {
+            if index == 5 {
+                o.kind = ObjectKind::Desk;
+            }
+            o.size = if index == 0 {
+                Vec3::new(1.2, 0.74, 1.2)
+            } else {
+                Vec3::new(1.35, 0.74, 2.0)
+            };
+            o.seed = (0..2000)
+                .find(|&seed| {
+                    o.seed = seed;
+                    let p = objects::tables::parameters(&o);
+                    match index {
+                        0 => p.outline_exponent == 2.0 && p.support == 2,
+                        1 => p.outline_exponent == 2.0 && p.support == 0,
+                        2 => p.taper.abs() > 0.25 && p.support == 1,
+                        3 => p.outline_exponent > 8.0 && p.support == 3,
+                        4 => p.support == 4,
+                        _ => p.workstation.is_some(),
+                    }
+                })
+                .unwrap();
+        } else {
+            o.variant = (index - 6) as u32;
+            o.size = Vec3::new(
+                0.68,
+                if matches!(o.variant, 0 | 1 | 5) {
+                    1.4
+                } else {
+                    1.03
+                },
+                0.68,
+            );
+            o.seed = (0..1000)
+                .find(|&seed| {
+                    o.seed = seed;
+                    let p = objects::chairs::parameters(&o);
+                    !matches!(o.variant, 0 | 1 | 5) || (p.headrest && p.back_construction == 2)
+                })
+                .unwrap();
+        }
+        objects.push(o);
+    }
+    objects
 }

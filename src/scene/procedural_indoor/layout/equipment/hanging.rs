@@ -9,14 +9,13 @@ impl IndoorManifest {
                 .iter()
                 .filter(|o| {
                     !o.neighbor
-                        && o.support.is_some()
+                        && (o.support.is_some() || o.kind == ObjectKind::PcTower)
                         && matches!(
                             o.kind,
                             ObjectKind::PowerStrip
+                                | ObjectKind::PcTower
                                 | ObjectKind::Monitor
                                 | ObjectKind::Projector
-                                | ObjectKind::CoffeeMaker
-                                | ObjectKind::DrinkDispenser
                         )
                         && !self.objects.iter().any(|c| {
                             c.kind == ObjectKind::Cable && c.interaction_target == Some(o.id)
@@ -33,7 +32,12 @@ impl IndoorManifest {
             ) else {
                 continue;
             };
-            let parent = self.objects[source.support.unwrap()].clone();
+            let Some(parent) = workstation_wires::host(self, &source)
+                .and_then(|id| self.objects.get(id))
+                .cloned()
+            else {
+                continue;
+            };
             let mut targets: Vec<_> = self
                 .objects
                 .iter()
@@ -89,15 +93,19 @@ impl IndoorManifest {
                         2 => Vec2::new(half.x + gap, local.z.clamp(-half.y + 0.04, half.y - 0.04)),
                         _ => Vec2::new(local.x.clamp(-half.x + 0.04, half.x - 0.04), half.y + gap),
                     };
-                    let edge = parent.transform().transform_point(Vec3::new(
-                        exit.x,
-                        if source.kind == ObjectKind::PowerStrip {
-                            parent.size.y + radius + 0.003
-                        } else {
-                            local.y.max(parent.size.y + radius + 0.003)
-                        },
-                        exit.y,
-                    ));
+                    let edge = if source.support.is_none() {
+                        a
+                    } else {
+                        parent.transform().transform_point(Vec3::new(
+                            exit.x,
+                            if source.kind == ObjectKind::PowerStrip {
+                                parent.size.y + radius + 0.003
+                            } else {
+                                local.y.max(parent.size.y + radius + 0.003)
+                            },
+                            exit.y,
+                        ))
+                    };
                     let floor = (0..=8)
                         .map(|i| self.floor_height(edge.lerp(b, i as f32 / 8.).xz()))
                         // A raised step must not create an imaginary support
@@ -111,33 +119,14 @@ impl IndoorManifest {
                     else {
                         continue;
                     };
-                    let mut path = vec![start, a];
+                    let mut path = vec![start];
+                    if source.support.is_some() {
+                        path.push(a);
+                    }
                     path.extend(hanging);
                     path.push(end);
-                    let Some(path) = wires::fillet_path(&path, wires::radius(&o)) else {
-                        continue;
-                    };
-                    // Long straight segments need intermediate samples too;
-                    // filleting only inserts samples at curved bends.
-                    let mut sampled = vec![path[0]];
-                    for pair in path.windows(2) {
-                        let steps = (pair[0].distance(pair[1]) / 0.30).ceil().max(1.) as usize;
-                        sampled.extend(
-                            (1..=steps).map(|i| pair[0].lerp(pair[1], i as f32 / steps as f32)),
-                        );
-                    }
-                    let lo = sampled
-                        .iter()
-                        .fold(Vec3::splat(f32::INFINITY), |a, &b| a.min(b))
-                        - Vec3::splat(radius);
-                    let hi = sampled
-                        .iter()
-                        .fold(Vec3::splat(f32::NEG_INFINITY), |a, &b| a.max(b))
-                        + Vec3::splat(radius);
-                    o.position = Vec3::new((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5);
-                    o.size = hi - lo;
-                    o.cable_path = Some(sampled.into_iter().map(|p| p - o.position).collect());
-                    if cable_route_clear(self, &o) {
+                    if wires::archive_world_path(&mut o, &path, 0.30) && cable_route_clear(self, &o)
+                    {
                         self.objects.push(o);
                         installed = true;
                         break;

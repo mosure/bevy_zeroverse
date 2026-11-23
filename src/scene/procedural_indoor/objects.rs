@@ -13,6 +13,7 @@ pub mod equipment;
 pub mod fans;
 pub mod floor;
 pub mod hospitality;
+mod keyboard;
 pub mod kitchen;
 pub mod literature;
 pub mod luminaires;
@@ -27,7 +28,10 @@ pub mod utilities;
 pub mod vessels;
 pub mod wall;
 use super::{
-    geometry::Geometry,
+    geometry::{
+        stock::{GrainAxis, TimberCuts},
+        Geometry,
+    },
     layout::{stream, IndoorObject},
     materials::{IndoorMaterials, Surface},
 };
@@ -72,6 +76,24 @@ impl Assembly {
     pub fn box_part(&mut self, surface: Surface, label: &str, pos: Vec3, size: Vec3, bevel: f32) {
         self.part(surface, label)
             .cuboid(size, bevel, Transform::from_translation(pos));
+    }
+    fn board(
+        &mut self,
+        cuts: &mut TimberCuts,
+        part: (Surface, &str),
+        pos: Vec3,
+        size: Vec3,
+        bevel: f32,
+        grain: GrainAxis,
+    ) {
+        cuts.cuboid(
+            self.part(part.0, part.1),
+            part.0,
+            size,
+            bevel,
+            Transform::from_translation(pos),
+            grain,
+        );
     }
     pub fn bounds(&self) -> (Vec3, Vec3) {
         let mut lo = Vec3::splat(f32::INFINITY);
@@ -187,9 +209,8 @@ pub(crate) fn build_object_with_motion(
         if super::materials::rugs::key(label).is_some_and(|(_, binding)| !binding) {
             // Whole-rug coordinates are already normalized and outline-aligned.
             continue;
-        } else if *surface == Surface::PrintedPaper && label.split('#').any(|tag| tag == "uv_local")
-        {
-            // Independently rotated pages carry their own normalized content
+        } else if label.split('#').any(|tag| tag == "uv_local") {
+            // Printed pages and manufactured keycaps carry their own normalized content
             // frame. Projecting the parent's X/Z coordinates would shear it.
             continue;
         } else if matches!(surface, Surface::PhoneScreen | Surface::PrintedPaper) {

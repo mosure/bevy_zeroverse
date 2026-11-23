@@ -92,6 +92,9 @@ fn default_volume() -> f32 {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FaceProgram {
+    /// Absent in saved faces that use Anny's original UVs and polygonal irises.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub optics: Option<super::eyes::EyeOptics>,
     pub iris: [f32; 3],
     pub brow_width: f32,
     pub brow_thickness: f32,
@@ -104,6 +107,7 @@ pub struct FaceProgram {
 impl Default for FaceProgram {
     fn default() -> Self {
         Self {
+            optics: None,
             iris: [0.18, 0.12, 0.07],
             brow_width: 0.041,
             brow_thickness: 0.0045,
@@ -118,12 +122,7 @@ impl Default for FaceProgram {
 impl FaceProgram {
     pub fn sample(seed: u64) -> Self {
         let mut rng = stream(seed, 0x464143454445544c);
-        let iris = Color::hsl(
-            rng.random_range(20.0..230.0),
-            rng.random_range(0.15..0.55),
-            rng.random_range(0.12..0.38),
-        )
-        .to_srgba();
+        let iris = super::eyes::pigment(rng.random(), rng.random(), rng.random());
         let frame = Color::hsl(
             rng.random_range(0.0..360.0),
             rng.random_range(0.0..0.45),
@@ -131,7 +130,8 @@ impl FaceProgram {
         )
         .to_srgba();
         Self {
-            iris: [iris.red, iris.green, iris.blue],
+            optics: Some(super::eyes::EyeOptics::sample(seed)),
+            iris,
             brow_width: rng.random_range(0.034..0.050),
             brow_thickness: rng.random_range(0.0026..0.0065),
             brow_arch: rng.random_range(0.0015..0.007),
@@ -250,6 +250,7 @@ impl Appearance {
             HumanSurface::Top => self.top,
             HumanSurface::Seam => self.top.map(|v| v * 0.86),
             HumanSurface::Shirt => [0.87, 0.88, 0.86],
+            HumanSurface::Eye if self.face.optics.is_some() => [1.; 3],
             HumanSurface::Iris => self.face.iris,
             HumanSurface::Trousers => self.trousers,
             HumanSurface::Hair | HumanSurface::Brow => self

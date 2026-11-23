@@ -451,9 +451,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         0.004,
     );
     if o.kind == ObjectKind::KitchenCounter {
+        let slab = worktop::RUN_THICKNESS;
         shell(
             a,
-            Vec3::new(w, h - toe - 0.035, d),
+            Vec3::new(w, h - slab - toe, d),
             toe,
             z,
             p.finish,
@@ -463,8 +464,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             a,
             o,
             p.top,
-            Vec3::new(0., h - 0.017, z),
-            Vec3::new(o.size.x, 0.034, d + 0.012),
+            Vec3::new(0., h - slab * 0.5, z),
+            Vec3::new(o.size.x, slab, d + 0.012),
             0.004,
             h,
         );
@@ -523,22 +524,31 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
     }
     if o.kind == ObjectKind::KitchenCupboard {
         // A fitted dresser: supported base run, backsplash, and mounted upper cabinet.
-        let top = h * 0.425;
-        shell(a, Vec3::new(w, top - toe, d), toe, z, p.finish, "cabinet");
+        let case_top = h * 0.425;
+        let slab = worktop::CUPBOARD_THICKNESS;
+        let work_surface = case_top + slab;
+        shell(
+            a,
+            Vec3::new(w, case_top - toe, d),
+            toe,
+            z,
+            p.finish,
+            "cabinet",
+        );
         worktop::solid(
             a,
             o,
             p.top,
-            Vec3::new(0., top + 0.016, z),
-            Vec3::new(w, 0.032, d),
+            Vec3::new(0., case_top + slab * 0.5, z),
+            Vec3::new(w, slab, d),
             0.003,
-            top + 0.032,
+            work_surface,
         );
         doors(
             a,
             w,
             toe,
-            top - toe - 0.02,
+            case_top - toe - 0.02,
             Vec2::new(0., z + d * 0.5),
             p,
             "cabinet",
@@ -549,8 +559,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         a.box_part(
             Surface::Ceramic,
             "cabinet",
-            Vec3::new(0., (upper + top) * 0.5, z - d * 0.5 + 0.012),
-            Vec3::new(w, upper - top, 0.024),
+            Vec3::new(0., (upper + work_surface) * 0.5, z - d * 0.5 + 0.012),
+            Vec3::new(w, upper - work_surface, 0.024),
             0.002,
         );
         let uw = w * p.upper_width_fraction;

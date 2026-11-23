@@ -318,34 +318,98 @@ impl IndoorManifest {
     ) -> bool {
         self.assembly_diagnostics.proposed_workstations += 1;
         let before = self.objects.len();
-        if self.add(kind, position, size, yaw, rng).is_none() {
+        let office = kind == ObjectKind::Desk
+            && matches!(
+                self.layout,
+                IndoorLayout::OpenOffice | IndoorLayout::Coworking
+            )
+            && size.x >= 0.90
+            && size.z >= 0.50;
+        // A separate stream keeps the floor plan's composition independent of its desk products.
+        let cell = u64::from(position.x.to_bits()) << 32 | u64::from(position.z.to_bits());
+        let mut installation = stream(self.seed ^ cell, 0x42454e4348444553);
+        let raised = office && installation.random_bool(0.24);
+        let bench = office
+            && !raised
+            && size.x >= 0.96
+            && installation.random_bool(if self.layout == IndoorLayout::Coworking {
+                0.54
+            } else {
+                0.32
+            });
+        let mut installed = size;
+        if raised {
+            installed.y = installation.random_range(0.94..1.19);
+        } else if bench {
+            installed.x = installed.x.max(installation.random_range(1.44..1.94));
+            installed.z = installation.random_range(1.17..1.52);
+        }
+        let mut desk = self.add(kind, position, installed, yaw, rng);
+        if desk.is_none() && bench {
+            let compact = Vec3::new(installation.random_range(1.24..1.42), size.y, 1.17);
+            desk = self
+                .add(kind, position, compact, yaw, rng)
+                .or_else(|| self.add(kind, position, size, yaw, rng));
+        }
+        let Some(desk) = desk else {
             self.assembly_diagnostics.rejected_surfaces += 1;
             return false;
-        }
+        };
+        let depth = self.objects[desk].size.z;
         let rotation = Quat::from_rotation_y(yaw);
         let sideways = rng.random_range(-0.10..0.10);
-        let mut spacing = stream(self.objects[before].seed, 0x5345_4154_4741_5053);
+        let mut spacing = stream(self.objects[desk].seed, 0x5345_4154_4741_5053);
         let initial_gap = spacing.random_range(0.48..0.62);
         let step = spacing.random_range(0.11..0.17);
         for gap in [initial_gap, initial_gap + step, initial_gap + step * 2.] {
             self.chair(
-                position + rotation * Vec3::new(sideways, 0.0, size.z * 0.5 + gap),
+                position + rotation * Vec3::new(sideways, 0., depth * 0.5 + gap),
                 yaw,
                 rng,
             );
-            if self.objects.len() > before + 1 {
-                self.objects[before + 1].interaction_target = Some(before);
-                self.assembly_diagnostics
-                    .accepted
-                    .push(assemblies::FunctionalAssembly {
-                        role: assemblies::AssemblyRole::Workstation,
-                        surface: before,
-                        seats: vec![before + 1],
-                        requested_capacity: 1,
-                        attempts: 1,
-                    });
-                return true;
+            if self.objects.len() == before + 1 {
+                continue;
             }
+            let mut seats = Vec::new();
+            let mut capacity = 1;
+            if raised {
+                // The temporary chair proved that an operator can approach this desk.
+                self.objects.pop();
+            } else {
+                self.objects[before + 1].interaction_target = Some(desk);
+                seats.push(before + 1);
+                if bench && depth >= 1.17 {
+                    capacity = 2;
+                    let offset = installation.random_range(-0.20..0.20);
+                    for (side, setback) in [(offset, gap), (-offset, 0.39)] {
+                        self.chair_in_family_at_surface(
+                            position + rotation * Vec3::new(side, 0., -depth * 0.5 - setback),
+                            yaw + std::f32::consts::PI,
+                            None,
+                            Some(desk),
+                            rng,
+                        );
+                        if self.objects.len() == before + 3 {
+                            seats.push(before + 2);
+                            break;
+                        }
+                    }
+                }
+            }
+            self.assembly_diagnostics
+                .accepted
+                .push(assemblies::FunctionalAssembly {
+                    role: if raised {
+                        assemblies::AssemblyRole::StandingWorkstation
+                    } else {
+                        assemblies::AssemblyRole::Workstation
+                    },
+                    surface: desk,
+                    seats,
+                    requested_capacity: capacity,
+                    attempts: 1,
+                });
+            return true;
         }
         self.assembly_diagnostics.rejected_seating += 1;
         self.objects.truncate(before);

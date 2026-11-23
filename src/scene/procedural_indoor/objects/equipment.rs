@@ -135,6 +135,9 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
         }
         ObjectKind::DrinkDispenser if !low_voltage => super::public::dispenser::power_port(o)?,
         ObjectKind::CoffeeMaker if !low_voltage => Vec3::new(0., s.y * 0.10, -s.z * 0.5 - 0.001),
+        ObjectKind::PcTower if !low_voltage => {
+            super::desktop::ports::tower_local(o, super::desktop::ports::TowerJack::Mains)
+        }
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).0,
         ObjectKind::Projector => projector::parameters(o).power_port(),
         ObjectKind::WallOutlet if !low_voltage => super::wall::outlet_port_local(o),
@@ -158,7 +161,7 @@ pub(crate) fn power_port_normal(o: &IndoorObject, low_voltage: bool) -> Option<V
             Vec3::NEG_Z
         }
         ObjectKind::Projector => projector::parameters(o).port_normal(),
-        ObjectKind::CoffeeMaker => Vec3::NEG_Z,
+        ObjectKind::CoffeeMaker | ObjectKind::PcTower => Vec3::NEG_Z,
         ObjectKind::WallOutlet if !low_voltage => Vec3::Z,
         ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => Vec3::Y,
         ObjectKind::PowerStrip if low_voltage => Vec3::Z,

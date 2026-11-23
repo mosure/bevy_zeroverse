@@ -86,6 +86,9 @@ pub fn button(
 }
 pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorState) {
     let row = column(world, parent, 5.);
+    world
+        .entity_mut(row)
+        .insert(super::search::FieldRow(field.path.clone()));
     world.get_mut::<Node>(row).unwrap().padding.bottom = px(5.);
     let value = super::value(state, &field.path);
     let label = field.label.clone();
@@ -188,8 +191,34 @@ pub fn control(world: &mut World, parent: Entity, field: Field, state: &EditorSt
             }).expect("text input").insert((Binding(field.clone()),editable));
         }
     }
+    if field.path == "/preview_aa" {
+        let status = text(world, row, "", 12., super::ACCENT);
+        world.entity_mut(status).insert(ActiveAaLabel);
+    }
     if !field.help.is_empty() {
         text(world, row, &field.help, 11.5, super::MUTED);
+    }
+}
+
+#[derive(Component)]
+pub(super) struct ActiveAaLabel;
+
+/// Show adapter fallbacks and mixed pinhole/fisheye grids beside the selector.
+pub(super) fn show_active_aa(
+    labels: Query<&mut Text, With<ActiveAaLabel>>,
+    cameras: Query<&crate::render::anti_alias::ManagedPreviewAa>,
+) {
+    for mut label in labels {
+        let mut filters = cameras.iter().map(|camera| camera.label());
+        let active = filters.next().unwrap_or("Scene default");
+        let caption = if filters.any(|filter| filter != active) {
+            "TAA and SMAA High"
+        } else {
+            active
+        };
+        if label.0.strip_prefix("Active · ") != Some(caption) {
+            label.0 = format!("Active · {caption}");
+        }
     }
 }
 pub fn synchronize(world: &mut World, state: &EditorState) {
@@ -270,7 +299,7 @@ fn input_text(value: &serde_json::Value, json: bool) -> String {
     }
 }
 
-fn editable(initial: String, json: bool) -> EditableText {
+pub(super) fn editable(initial: String, json: bool) -> EditableText {
     let mut text = EditableText::new(initial);
     text.visible_width = Some(40.);
     text.visible_lines = Some(if json { 6. } else { 1. });

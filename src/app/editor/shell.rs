@@ -203,7 +203,7 @@ pub(super) fn build(world: &mut World, state: &EditorState) {
                 page == state.view.page,
             );
         }
-        widgets::text(world, panel, state.view.page.intro(), 11.5, MUTED);
+        search::bar(world, panel, state);
         let groups = navigation::groups(state);
         navigation::toolbar(world, panel, &groups);
         error = widgets::text(world, panel, "", 12., Color::srgb(1., 0.58, 0.4));

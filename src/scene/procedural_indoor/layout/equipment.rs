@@ -4,6 +4,8 @@ mod fans;
 mod hanging;
 mod pendants;
 mod power_strips;
+mod workstation_wires;
+use super::super::objects::desktop::ports;
 pub(crate) mod services;
 use super::super::architecture::facade::FacadeSide;
 use super::super::objects::equipment::{self, wires};
@@ -196,7 +198,10 @@ impl IndoorManifest {
                     && o.support.is_some()
                     && matches!(
                         o.kind,
-                        ObjectKind::Laptop | ObjectKind::Monitor | ObjectKind::Projector
+                        ObjectKind::Laptop
+                            | ObjectKind::Monitor
+                            | ObjectKind::Projector
+                            | ObjectKind::PcTower
                     )
             })
             .cloned()
@@ -313,6 +318,7 @@ impl IndoorManifest {
             }
         }
         self.connect_wall_power();
+        self.connect_workstation_data();
     }
 }
 
@@ -467,52 +473,30 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
         let is_source = cable.interaction_target == Some(prop.id);
         let is_target = cable.cable_target == Some(prop.id);
         if is_source || is_target {
-            let Some(source) = cable
-                .interaction_target
-                .and_then(|id| scene.objects.get(id))
-            else {
+            let (Some(source), Some(target)) = (
+                cable
+                    .interaction_target
+                    .and_then(|id| scene.objects.get(id)),
+                cable.cable_target.and_then(|id| scene.objects.get(id)),
+            ) else {
                 return false;
             };
-            if (!matches!(prop.kind, ObjectKind::WallOutlet | ObjectKind::FloorOutlet)
-                && prop.support != cable.support)
-                || prop.neighbor
-                || if is_source {
-                    prop.kind != source.kind
-                        || !matches!(
-                            prop.kind,
-                            ObjectKind::Laptop
-                                | ObjectKind::Monitor
-                                | ObjectKind::Projector
-                                | ObjectKind::PowerStrip
-                        )
-                } else {
-                    !matches!(
-                        prop.kind,
-                        ObjectKind::PowerStrip | ObjectKind::WallOutlet | ObjectKind::FloorOutlet
-                    )
-                }
-            {
+            let (source, target) = if is_source {
+                (prop, target)
+            } else {
+                (source, prop)
+            };
+            if !workstation_wires::hosts_match(scene, cable.support, source, target) {
                 return false;
             }
-            let low_voltage = source.kind == ObjectKind::Laptop;
-            let Some(port) = (if is_source {
-                equipment::source_power_port(prop)
-            } else {
-                equipment::power_port(prop, low_voltage)
-            }) else {
+            let Some(ports) = ports::connection(source, target) else {
                 return false;
             };
+            let (port, normal) = ports[usize::from(is_target)];
             let (end, next) = if is_source {
                 (points[0], points[1])
             } else {
                 (points[points.len() - 1], points[points.len() - 2])
-            };
-            let Some(normal) = (if is_source {
-                equipment::source_power_normal(prop)
-            } else {
-                equipment::power_port_normal(prop, low_voltage)
-            }) else {
-                return false;
             };
             let end = tf.transform_point(end);
             let next = tf.transform_point(next);
@@ -540,6 +524,8 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
 /// broad phase encloses the transformed local padding as well as the housing;
 /// expanding an unpadded world AABB by just `radius` underbounds rotated corners.
 fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec3) -> bool + '_ {
+    let monitor_mount = (prop.kind == ObjectKind::Monitor)
+        .then(|| super::super::objects::computers::low_mount_clearance(prop));
     let transform = prop.transform().compute_affine();
     let inverse = transform.inverse();
     let padding = Vec3::splat(radius);
@@ -562,6 +548,16 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
         }
         let start = inverse.transform_point3(start);
         let end = inverse.transform_point3(end);
+        if let Some((half_width, clear_height)) = monitor_mount {
+            if start.y.max(end.y) + radius < clear_height {
+                return segment_hits_box(
+                    start,
+                    end,
+                    lo.with_x(-half_width - radius),
+                    hi.with_x(half_width + radius),
+                );
+            }
+        }
         if prop.kind == ObjectKind::FloorOutlet {
             super::super::objects::floor::cable_hits(prop, start, end, radius)
         } else {
@@ -603,47 +599,27 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     ) else {
         return false;
     };
-    let hanging = matches!(
-        target.kind,
-        ObjectKind::WallOutlet | ObjectKind::FloorOutlet
-    );
+    let hanging = workstation_wires::leaves_top(source, target);
+    let data_variant =
+        matches!(o.variant, wires::USB_LEAD | wires::DISPLAY_LEAD).then_some(o.variant);
     if !parent.kind.is_surface()
+        || parent.neighbor
         || source.id >= o.id
         || target.id >= o.id
-        || source.support != Some(parent.id)
-        || (!hanging && target.support != Some(parent.id))
-        || (hanging && (target.support.is_some() || source.kind == ObjectKind::Laptop))
-        || (!hanging && source.kind == ObjectKind::PowerStrip)
-        || source.neighbor
-        || target.neighbor
-        || parent.neighbor
-        || !matches!(
-            target.kind,
-            ObjectKind::PowerStrip | ObjectKind::WallOutlet | ObjectKind::FloorOutlet
-        )
-        || !matches!(
-            source.kind,
-            ObjectKind::Laptop
-                | ObjectKind::Monitor
-                | ObjectKind::Projector
-                | ObjectKind::PowerStrip
-        )
+        || data_variant != wires::data_variant(source.kind, target.kind)
+        || !workstation_wires::hosts_match(scene, Some(parent.id), source, target)
     {
         return false;
     }
+    let Some([(source_port, source_normal), (target_port, target_normal)]) =
+        ports::connection(source, target)
+    else {
+        return false;
+    };
     let world: Vec<_> = points
         .iter()
         .map(|&p| o.transform().transform_point(p))
         .collect();
-    let low = source.kind == ObjectKind::Laptop;
-    let (Some(source_port), Some(target_port), Some(source_normal), Some(target_normal)) = (
-        equipment::source_power_port(source),
-        equipment::power_port(target, low),
-        equipment::source_power_normal(source),
-        equipment::power_port_normal(target, low),
-    ) else {
-        return false;
-    };
     if world[0].distance(source_port) > 0.001 || world.last().unwrap().distance(target_port) > 0.001
     {
         return false;
@@ -673,10 +649,19 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
     let inv = parent.transform().compute_affine().inverse();
     // Prepare each rigid peer once for the complete sampled route, keeping the
     // exact rotated broad phase inexpensive for long curved wires.
+    let desk_outline = (!hanging && parent.kind.has_table_outline())
+        .then(|| super::super::objects::tables::outline(parent));
+    let (route_lo, route_hi) = o.bounds();
+    // Rigid peers can have a rotated, radius-padded local clearance box.
+    let peer_margin = radius * std::f32::consts::SQRT_2;
     let peers: Vec<_> = scene
         .objects
         .iter()
         .filter(|other| (hanging || other.id != parent.id) && other.id != o.id)
+        .filter(|other| {
+            let (a, b) = other.bounds();
+            route_lo.cmple(b + peer_margin).all() && route_hi.cmpge(a - peer_margin).all()
+        })
         .map(|other| {
             (
                 other,
@@ -712,13 +697,14 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
             if !hanging
                 && (q.y < parent.size.y + wires::radius(o) - 0.0003
                     || q.xz().abs().cmpgt(half - Vec2::splat(radius + 0.002)).any()
-                    || parent.kind.has_table_outline()
-                        && !super::super::objects::tables::supports(
-                            parent,
+                    || desk_outline.as_ref().is_some_and(|outline| {
+                        !super::super::objects::tables::supports_outline(
+                            outline,
                             q.xz() - Vec2::splat(radius),
                             q.xz() + Vec2::splat(radius),
                             0.001,
-                        ))
+                        )
+                    }))
             {
                 return false;
             }

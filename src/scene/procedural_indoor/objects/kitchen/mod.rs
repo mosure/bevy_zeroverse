@@ -447,7 +447,7 @@ pub fn align_worktop(o: &mut IndoorObject, height: f32) {
         ObjectKind::KitchenCounter | ObjectKind::Dishwasher => o.size.y = height,
         ObjectKind::KitchenSink => o.size.y = height / 0.69,
         ObjectKind::Range => o.size.y = height / 0.94,
-        ObjectKind::KitchenCupboard => o.size.y = (height - 0.032) / 0.425,
+        ObjectKind::KitchenCupboard => o.size.y = (height - worktop::CUPBOARD_THICKNESS) / 0.425,
         ObjectKind::Oven if o.size.y < 1.3 => o.size.y = height,
         _ => return,
     }

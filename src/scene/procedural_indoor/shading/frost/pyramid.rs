@@ -20,7 +20,14 @@ impl Filters {
     pub fn new(device: &gpu::Device) -> Self {
         let shader = device.create_shader_module(gpu::ShaderModuleDescriptor {
             label: Some("Indoor frost reduction"),
-            source: gpu::ShaderSource::Wgsl(include_str!("reduce.wgsl").into()),
+            source: gpu::ShaderSource::Wgsl(
+                concat!(
+                    include_str!("radiance.wgsl"),
+                    "\n",
+                    include_str!("reduce.wgsl")
+                )
+                .into(),
+            ),
         });
         let create = |entry_point| {
             device.create_render_pipeline(&gpu::RenderPipelineDescriptor {

@@ -84,47 +84,52 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let t = p.panel_m;
     let l = o.kind.class_name();
+    let mut cuts = TimberCuts::new(o.seed, 0);
     let rear = -s.z * 0.5 + if p.closed_back { t } else { 0. };
     let front = s.z * 0.5;
     let z = (rear + front) * 0.5;
     if p.closed_back {
-        a.box_part(
-            p.frame,
-            l,
+        a.board(
+            &mut cuts,
+            (p.frame, l),
             Vec3::new(0., s.y * 0.5, -s.z * 0.5 + t * 0.5),
             Vec3::new(s.x, s.y, t),
             0.002,
+            GrainAxis::Y,
         );
     }
     for x in std::iter::once(-s.x * 0.5 + t * 0.5).chain(p.bays.iter().map(|b| b.right + t * 0.5)) {
         if p.open_frame {
             for z in [rear + t * 0.5, front - t * 0.5] {
-                a.box_part(
-                    p.frame,
-                    l,
+                a.board(
+                    &mut cuts,
+                    (p.frame, l),
                     Vec3::new(x, s.y * 0.5, z),
                     Vec3::new(t, s.y, t),
                     0.002,
+                    GrainAxis::Y,
                 );
             }
         } else {
-            a.box_part(
-                p.frame,
-                l,
+            a.board(
+                &mut cuts,
+                (p.frame, l),
                 Vec3::new(x, s.y * 0.5, z),
                 Vec3::new(t, s.y, front - rear),
                 0.002,
+                GrainAxis::Y,
             );
         }
     }
     for (index, b) in p.bays.iter().enumerate() {
         for &y in &b.levels {
-            a.box_part(
-                p.shelves,
-                l,
+            a.board(
+                &mut cuts,
+                (p.shelves, l),
                 Vec3::new((b.left + b.right) * 0.5, y, z),
                 Vec3::new(b.right - b.left, t, front - rear),
                 0.002,
+                GrainAxis::X,
             );
         }
         for level in 0..b.levels.len() - 1 {

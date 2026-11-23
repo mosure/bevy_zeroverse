@@ -12,6 +12,7 @@ use pyo3::prelude::*;
 use crate::primitive::process_primitives;
 
 mod annotation_material;
+pub mod anti_alias;
 #[cfg(any(
     target_arch = "wasm32",
     all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")

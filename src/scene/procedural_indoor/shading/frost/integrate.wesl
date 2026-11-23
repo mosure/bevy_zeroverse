@@ -1,6 +1,8 @@
 // Each stratum filters the background over its share of the scattering cone.
 fn filtered_frost(offset_position: vec2<f32>, frag_coord: vec3<f32>, full_size: vec2<f32>, radius_px: f32, taps: i32) -> vec4<f32> {
     var result = vec4<f32>(0.0);
+    var missing = 0.0;
+    var on_screen = 0.0;
     // Opposite pairs have an exactly zero first moment. A fixed low-discrepancy
     // disk stratifies the original Ultra kernel's empirical radial distribution,
     // including both checkerboard radii, without modulating adjacent pixels.
@@ -28,15 +30,11 @@ fn filtered_frost(offset_position: vec2<f32>, frag_coord: vec3<f32>, full_size: 
                 coverage = (span.x/diameter) * (span.y/diameter);
                 pixel = 0.5*(lo+hi);
             } else if any(pixel < origin) || any(pixel >= end) {continue;}
-            result += coverage * frost_weighted_sample(pixel/full_size, pixel, lod, frag_coord.z);
+            let tap = frost_weighted_sample(pixel, full_size, lod, frag_coord.z);
+            result += coverage * tap.color;
+            missing += coverage * tap.missing;
+            on_screen += coverage;
         }
     }
-    // Return unassociated colour plus coverage. The caller mixes with the
-    // environment using this alpha; dividing RGB by taps as well would apply
-    // coverage twice and create a dark halo beside foreground frames/objects.
-    result = vec4(result.rgb / max(result.a, 0.000001), result.a / f32(taps));
-@if(TONEMAP_IN_SHADER)
-    result = approximate_inverse_tone_mapping(result, view_bindings::view.color_grading);
-
-    return result;
+    return resolve_transmission(result, missing, on_screen, f32(taps), frag_coord);
 }

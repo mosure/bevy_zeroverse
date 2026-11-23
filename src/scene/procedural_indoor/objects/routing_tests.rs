@@ -82,7 +82,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Sofa => seating::build(a, o),
         ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(a, o),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(a, o),
-        ObjectKind::Keyboard | ObjectKind::Mouse => desktop::build(a, o),
+        ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => desktop::build(a, o),
         ObjectKind::WaterBottle
         | ObjectKind::Mug
         | ObjectKind::CoffeeCup

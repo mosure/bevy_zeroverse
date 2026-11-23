@@ -6,6 +6,8 @@ mod legacy;
 mod pane;
 pub(crate) use pane::visible_pane_area;
 pub mod reveal;
+mod sash;
+pub use sash::{PaneInstallation, SashHinge, SashStock};
 #[cfg(test)]
 mod tests;
 pub mod treatments;
@@ -74,6 +76,8 @@ pub struct WindowOpening {
     /// Additional crossbars, normalized to the clear frame height.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub transoms: Vec<f32>,
+    /// Whether this bay can receive operating sashes. Resolve the actual
+    /// leaves and their hardware with `Facade::pane_installations`.
     pub operable: bool,
 }
 impl WindowOpening {

@@ -105,12 +105,13 @@ impl Partition {
     pub fn obstacles(&self, height: f32) -> Vec<(Vec3, Vec3)> {
         self.spans()
             .into_iter()
-            .map(|(lo, hi)| {
-                let p = self.position((lo + hi) * 0.5, height * 0.5);
-                let half = self.size(hi - lo, height, self.thickness + 0.045) * 0.5;
-                (p - half, p + half)
-            })
+            .map(|(lo, hi)| self.span_obstacle(lo, hi, height))
             .collect()
+    }
+    pub(crate) fn span_obstacle(&self, lo: f32, hi: f32, height: f32) -> (Vec3, Vec3) {
+        let p = self.position((lo + hi) * 0.5, height * 0.5);
+        let half = self.size(hi - lo, height, self.thickness + 0.045) * 0.5;
+        (p - half, p + half)
     }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

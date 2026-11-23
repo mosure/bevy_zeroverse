@@ -318,14 +318,21 @@ pub(super) fn scroll_to_group(world: &mut World) {
     else {
         return;
     };
-    let Some(header) = world
-        .query::<&GroupUi>()
-        .iter(world)
-        .find(|g| g.section.id == canonical(&key))
-        .map(|g| g.header)
-    else {
-        return;
+    let field = key.starts_with(['/', '@']);
+    let target = if field {
+        world
+            .query::<(Entity, &super::search::FieldRow)>()
+            .iter(world)
+            .find(|(_, row)| row.0 == key)
+            .map(|(entity, _)| entity)
+    } else {
+        world
+            .query::<&GroupUi>()
+            .iter(world)
+            .find(|g| g.section.id == canonical(&key))
+            .map(|g| g.header)
     };
+    let Some(header) = target else { return };
     let Some(scroll) = ancestors(world, header).find(|e| world.get::<ScrollArea>(*e).is_some())
     else {
         return;
@@ -352,8 +359,17 @@ pub(super) fn scroll_to_group(world: &mut World) {
     if let Some(mut position) = world.get_mut::<ScrollPosition>(scroll) {
         position.0.y = (position.0.y + target_top - scroll_top).clamp(0., max_scroll);
     }
+    let focus_target = if field {
+        world
+            .query_filtered::<Entity, Or<(With<widgets::Binding>, With<bevy::ui_widgets::MenuButton>)>>()
+            .iter(world)
+            .find(|&entity| ancestors(world, entity).any(|ancestor| ancestor == header))
+            .unwrap_or(header)
+    } else {
+        header
+    };
     if let Some(mut focus) = world.get_resource_mut::<bevy::input_focus::InputFocus>() {
-        focus.set(header, bevy::input_focus::FocusCause::Navigated);
+        focus.set(focus_target, bevy::input_focus::FocusCause::Navigated);
     }
 }
 

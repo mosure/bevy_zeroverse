@@ -6,6 +6,7 @@ mod ceiling;
 mod furnishing;
 mod motion;
 mod pages;
+mod view;
 
 #[derive(Clone)]
 pub enum Kind {
@@ -75,28 +76,32 @@ fn section(id: &'static str, title: &'static str, help: &'static str) -> Item {
     Item::Section(Section { id, title, help })
 }
 pub fn items(state: &EditorState) -> Vec<Item> {
+    items_for(state, state.view.page)
+}
+
+pub(super) fn items_for(state: &EditorState, page: Page) -> Vec<Item> {
     let d = &state.draft;
     let indoor = d["scene_type"] == "ProceduralIndoor";
-    let mut v = pages::base(state.view.page);
+    let mut v = pages::base(page);
     let rgb = d["render_mode"] == "Color"
         || (d["render_mode"] == "CoVisibility" && d["camera_grid"] != true);
     if !rgb {
-        v.retain(|item| !matches!(item, Item::Field(f) if matches!(f.path.as_str(), "/tonemapping" | "/hdr")));
+        remove_sections(&mut v, &["view.rgb"]);
     }
-    cameras::append(state, &mut v);
-    motion::append(state, &mut v);
-    if indoor && state.view.page == Page::Scene {
+    cameras::append(state, page, &mut v);
+    motion::append(state, page, &mut v);
+    if indoor && page == Page::Scene {
         furnishing::append(&mut v);
     }
-    if state.view.page == Page::View && state.view.camera.is_none() && d["room_schematic"] != true {
+    if page == Page::View && state.view.camera.is_none() && d["room_schematic"] != true {
         append_to_section(
             &mut v,
-            "view.preview",
+            "view.navigation",
             Item::Note("Select Editor camera to initialize it and adjust its lens.".into()),
         );
     }
     if !indoor {
-        match state.view.page {
+        match page {
             Page::Scene => {
                 v.retain(|item| !matches!(item, Item::Field(f) if f.path.starts_with("/indoor_")));
             }
@@ -120,10 +125,11 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             _ => {}
         }
     }
-    if state.view.page == Page::View && d["room_schematic"] == true {
+    if page == Page::View && d["room_schematic"] == true {
         remove_sections(
             &mut v,
             &[
+                "view.rgb",
                 "view.flow",
                 "view.overlays",
                 "view.capture_overlays",
@@ -134,8 +140,6 @@ pub fn items(state: &EditorState) -> Vec<Item> {
         v.retain(|item| match item {
             Item::Field(f) => ![
                 "/render_mode",
-                "/hdr",
-                "/tonemapping",
                 "@editor_fov",
                 "/gizmos",
                 "/draw_obb_gizmo",
@@ -150,12 +154,11 @@ pub fn items(state: &EditorState) -> Vec<Item> {
         append_to_section(&mut v, "view.preview", Item::Note("All capture cameras and human joints are shown. Furnishings use oriented bounds; ceilings and neighboring rooms are omitted. Camera predictions match the C-index color and use dashed lines; other predictions use magenta.".into()));
         append_to_section(&mut v, "view.preview", num("/schematic_camera_gizmo_scale", "Camera glyph size · schematic", 0.1, 4., 0.05, "1× is the default. Scales capture and prediction glyphs immediately; room dimensions, paths and calibration stay unchanged."));
     }
-    if indoor && state.view.page == Page::Cameras && !d["indoor_camera"]["ceiling_mount"].is_null()
-    {
+    if indoor && page == Page::Cameras && !d["indoor_camera"]["ceiling_mount"].is_null() {
         ceiling::append(&mut v);
     }
 
-    if matches!(state.view.page, Page::Scene | Page::Advanced)
+    if matches!(page, Page::Scene | Page::Advanced)
         && matches!(
             d["scene_type"].as_str(),
             Some("Object" | "Room" | "SemanticRoom")
@@ -169,7 +172,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             ),
             Item::Action("Geometry controls", super::Action::Debug),
         ]);
-        if state.view.page == Page::Scene && d["scene_type"] == "SemanticRoom" {
+        if page == Page::Scene && d["scene_type"] == "SemanticRoom" {
             v.push(toggle(
                 "/cuboid_only",
                 "Architecture only",
@@ -177,7 +180,7 @@ pub fn items(state: &EditorState) -> Vec<Item> {
             ));
         }
     }
-    if state.view.page == Page::View && d["room_schematic"] != true {
+    if page == Page::View && d["room_schematic"] != true {
         v.extend([
             section(
                 "view.co-visibility",

@@ -7,6 +7,9 @@ use super::{
 use bevy::prelude::*;
 use rand::Rng;
 
+mod illuminants;
+pub use illuminants::IlluminantModel;
+
 #[cfg(test)]
 mod tests;
 
@@ -49,6 +52,7 @@ pub fn lighting_seed(scene: &IndoorManifest) -> u64 {
         .unwrap_or(scene.seed)
 }
 
+/// The encoded RGB palette used by displays, decorative bulbs and older rooms.
 pub fn tinted_white(kelvin: f32, tint: f32) -> Vec3 {
     let c = kelvin_rgb(kelvin.clamp(1800., 10000.))
         * Vec3::new(1. - tint * 0.45, 1. + tint, 1. - tint * 0.45);
@@ -174,7 +178,7 @@ pub fn lamp(scene: &IndoorManifest, object: &IndoorObject) -> SourcePower {
         tint,
         dimmer,
         lumens: rated * dimmer * scale,
-        color: tinted_white(kelvin, tint),
+        color: scene.illuminant_model().lamp_srgb(kelvin, tint),
     }
 }
 

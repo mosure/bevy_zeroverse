@@ -1,8 +1,8 @@
 //! Population, model-driven human behavior, and mechanical motion stay separate.
 use super::*;
 
-pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
-    if state.view.page != Page::People || state.draft["scene_type"] != "ProceduralIndoor" {
+pub(super) fn append(state: &EditorState, page: Page, v: &mut Vec<Item>) {
+    if page != Page::People || state.draft["scene_type"] != "ProceduralIndoor" {
         return;
     }
     human(state, v);

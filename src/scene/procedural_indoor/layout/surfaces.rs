@@ -1,6 +1,8 @@
 //! Seeded work-area transforms and mixed clustered/uniform surface proposals.
 //! All proposals still pass the same true-outline and peer-overlap checks.
 use super::*;
+mod workstations;
+pub(super) use workstations::OfficeFitout;
 
 /// Preserve a user's comfortable viewing cone without imposing exact optical
 /// convergence on their seat. Reuse the same adjustment when seating settles.
@@ -140,102 +142,113 @@ impl IndoorManifest {
     /// Functional work areas vary within every room activity, rather than
     /// restricting desktop displays to one named office profile. Proposals
     /// reference the actual chair and all use the unchanged support/peer gate.
-    pub(super) fn decorate_workspace(&mut self, support: &IndoorObject) {
+    pub(super) fn decorate_workspace(
+        &mut self,
+        support: &IndoorObject,
+        office: Option<OfficeFitout>,
+    ) {
         let p = workspace_parameters(support);
         let mut rng = stream(support.seed, 908);
-        let screen = rng.random_bool(p.screen_affinity as f64);
-        let monitor = screen
-            && support.kind == ObjectKind::Desk
-            && support.size.y >= 0.65
-            && rng.random_bool(p.monitor_affinity as f64);
-        let twin = monitor
-            && support.size.x >= 1.18
-            && support.size.z >= 0.62
-            && rng.random_bool(p.companion_affinity as f64);
-        let docked = monitor && !twin && rng.random_bool(p.docking_affinity as f64);
-        let rear = -support.size.z * p.rear_fraction;
-        let centre = p.asymmetry_fraction * support.size.x;
-        if monitor {
-            let count = if twin { 2 } else { 1 };
-            let span = (support.size.x * p.display_span_fraction).min(1.12);
-            let width = if twin {
-                ((span - p.monitor_gap_m) * 0.5).clamp(0.34, 0.53)
-            } else {
-                rng.random_range(0.39_f32..0.83).min(support.size.x * 0.58)
-            };
-            for i in 0..count {
-                let side = if twin { i as f32 * 2. - 1. } else { 0. };
-                let width = p.monitor_width(width, &mut rng);
-                let x = centre + side * (width * 0.5 + p.monitor_gap_m * 0.5)
-                    - if docked {
-                        p.docking_side * support.size.x * 0.12
-                    } else {
-                        0.
-                    };
-                // Portrait and broad displays reserve their true dimensions,
-                // including stand and tilt; there is no post-placement scale.
-                let portrait = rng.random_bool(0.17);
-                let width = if portrait { width.min(0.36) } else { width };
-                let height = if portrait {
-                    rng.random_range(0.44..0.60)
+        if let Some(fitout) =
+            office.filter(|_| support.kind == ObjectKind::Desk && !support.neighbor)
+        {
+            self.fit_office_stations(support, &p, fitout);
+        } else {
+            let screen = rng.random_bool(p.screen_affinity as f64);
+            let monitor = screen
+                && support.kind == ObjectKind::Desk
+                && support.size.y >= 0.65
+                && rng.random_bool(p.monitor_affinity as f64);
+            let twin = monitor
+                && support.size.x >= 1.18
+                && support.size.z >= 0.62
+                && rng.random_bool(p.companion_affinity as f64);
+            let docked = monitor && !twin && rng.random_bool(p.docking_affinity as f64);
+            let rear = -support.size.z * p.rear_fraction;
+            let centre = p.asymmetry_fraction * support.size.x;
+            if monitor {
+                let count = if twin { 2 } else { 1 };
+                let span = (support.size.x * p.display_span_fraction).min(1.12);
+                let width = if twin {
+                    ((span - p.monitor_gap_m) * 0.5).clamp(0.34, 0.53)
                 } else {
-                    rng.random_range(0.33..0.49)
+                    rng.random_range(0.39_f32..0.83).min(support.size.x * 0.58)
+                };
+                for i in 0..count {
+                    let side = if twin { i as f32 * 2. - 1. } else { 0. };
+                    let width = p.monitor_width(width, &mut rng);
+                    let x = centre + side * (width * 0.5 + p.monitor_gap_m * 0.5)
+                        - if docked {
+                            p.docking_side * support.size.x * 0.12
+                        } else {
+                            0.
+                        };
+                    // Portrait and broad displays reserve their true dimensions,
+                    // including stand and tilt; there is no post-placement scale.
+                    let portrait = rng.random_bool(0.17);
+                    let width = if portrait { width.min(0.36) } else { width };
+                    let height = if portrait {
+                        rng.random_range(0.44..0.60)
+                    } else {
+                        rng.random_range(0.33..0.49)
+                    };
+                    self.supported_prop(
+                        support,
+                        ObjectKind::Monitor,
+                        Vec3::new(
+                            x,
+                            0.,
+                            rear + rng.random_range(
+                                -p.monitor_depth_scatter_m..=p.monitor_depth_scatter_m,
+                            ),
+                        ),
+                        Vec3::new(width, height, rng.random_range(0.19..0.28)),
+                        p.workstation_heading + side * rng.random_range(0.08..0.25),
+                        &mut rng,
+                    );
+                }
+            }
+            if screen && (!monitor || docked) {
+                let x = if docked {
+                    p.docking_side * support.size.x * rng.random_range(0.24..0.32)
+                } else {
+                    centre
                 };
                 self.supported_prop(
                     support,
-                    ObjectKind::Monitor,
+                    ObjectKind::Laptop,
+                    Vec3::new(x, 0., support.size.z * p.laptop_depth_fraction),
                     Vec3::new(
-                        x,
-                        0.,
-                        rear + rng
-                            .random_range(-p.monitor_depth_scatter_m..=p.monitor_depth_scatter_m),
+                        rng.random_range(0.27..0.40),
+                        rng.random_range(0.23..0.32),
+                        rng.random_range(0.30..0.39),
                     ),
-                    Vec3::new(width, height, rng.random_range(0.19..0.28)),
-                    p.workstation_heading + side * rng.random_range(0.08..0.25),
+                    p.workstation_heading + rng.random_range(-0.16..0.16),
                     &mut rng,
                 );
             }
-        }
-        if screen && (!monitor || docked) {
-            let x = if docked {
-                p.docking_side * support.size.x * rng.random_range(0.24..0.32)
-            } else {
-                centre
-            };
-            self.supported_prop(
-                support,
-                ObjectKind::Laptop,
-                Vec3::new(x, 0., support.size.z * p.laptop_depth_fraction),
-                Vec3::new(
-                    rng.random_range(0.27..0.40),
-                    rng.random_range(0.23..0.32),
-                    rng.random_range(0.30..0.39),
-                ),
-                p.workstation_heading + rng.random_range(-0.16..0.16),
-                &mut rng,
-            );
-        }
-        if self
-            .objects
-            .iter()
-            .any(|o| o.support == Some(support.id) && o.kind == ObjectKind::Monitor)
-        {
-            self.place_prop(
-                support,
-                ObjectKind::Keyboard,
-                Vec3::ZERO,
-                super::super::items::sizing::loose(ObjectKind::Keyboard, &mut rng).unwrap(),
-                0.,
-                &mut rng,
-            );
-            self.place_prop(
-                support,
-                ObjectKind::Mouse,
-                Vec3::ZERO,
-                super::super::items::sizing::loose(ObjectKind::Mouse, &mut rng).unwrap(),
-                0.,
-                &mut rng,
-            );
+            if self
+                .objects
+                .iter()
+                .any(|o| o.support == Some(support.id) && o.kind == ObjectKind::Monitor)
+            {
+                self.place_prop(
+                    support,
+                    ObjectKind::Keyboard,
+                    Vec3::ZERO,
+                    super::super::items::sizing::loose(ObjectKind::Keyboard, &mut rng).unwrap(),
+                    0.,
+                    &mut rng,
+                );
+                self.place_prop(
+                    support,
+                    ObjectKind::Mouse,
+                    Vec3::ZERO,
+                    super::super::items::sizing::loose(ObjectKind::Mouse, &mut rng).unwrap(),
+                    0.,
+                    &mut rng,
+                );
+            }
         }
         // A personal device is a workstation companion, not only a rare draw
         // from the general accessory catalog. It uses the same support gate.
@@ -581,7 +594,8 @@ mod tests {
                     .as_mut()
                     .unwrap()
                     .clutter = clutter;
-                scene.decorate_workspace(&support);
+                let fitout = OfficeFitout::sample(&scene);
+                scene.decorate_workspace(&support, fitout);
                 let screens: Vec<_> = scene
                     .objects
                     .iter()

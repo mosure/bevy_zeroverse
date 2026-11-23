@@ -180,6 +180,7 @@ fn laminate_edges_partition_the_original_slab_and_keep_faceted_sheets_in_registe
         top::TopStock::Sheet {
             label: label.clone(),
             timber_lip,
+            cut_origin: Vec2::ZERO,
         }
         .build(&mut a, &o, &p, &outline, tf, 0);
         let mut present: Vec<_> = a.parts.values().flat_map(triangles).collect();

@@ -1,5 +1,6 @@
 //! CPU population audit. Retains failures, raw wall placements and content keys
 //! so conditional shortcut probes can be repeated without rendering a dataset.
+use bevy::math::Vec3Swizzles;
 use bevy_zeroverse::scene::procedural_indoor::{
     cameras::CameraSettings,
     layout::{IndoorLayout, IndoorManifest, ObjectKind},
@@ -165,9 +166,15 @@ fn main() -> anyhow::Result<()> {
                 } else {
                     None
                 };
-                objects.push(json!({"kind":o.kind,"id":o.id,"seed":o.seed,
+                let mount = scene.television_mount(o);
+                let primary = scene
+                    .primary_region()
+                    .contains_projection(o.position.xz(), 0.);
+                objects.push(
+                    json!({"primary":primary,"display_mount":mount,"kind":o.kind,"id":o.id,"seed":o.seed,
                     "variant":o.variant,"size":o.size,"position":o.position,
-                    "yaw":o.yaw,"content":content}));
+                    "yaw":o.yaw,"content":content}),
+                );
             }
             rows.push(json!({"seed":seed,"profile":profile,"layout":scene.layout,
                 "density":density,"room_size":scene.room_size,"floor_plan":scene.floor_plan,

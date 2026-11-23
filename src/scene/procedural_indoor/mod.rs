@@ -49,7 +49,7 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::pbr::{ScreenSpaceAmbientOcclusion, ScreenSpaceAmbientOcclusionQualityLevel};
 use bevy::{
-    anti_alias::fxaa::{Fxaa, Sensitivity},
+    anti_alias::fxaa::Fxaa,
     camera::Exposure,
     light::{AmbientLight, DirectionalLightShadowMap},
     post_process::bloom::Bloom,
@@ -149,8 +149,11 @@ impl Plugin for ProceduralIndoorPlugin {
             (lighting::finish, lighting::finish_gpu).after(regenerate),
         );
         app.add_systems(
-            Update,
-            configure_cameras.after(crate::camera::update_render_pipeline),
+            PostUpdate,
+            configure_cameras
+                .after(crate::render::anti_alias::ConfigurePreviewAa)
+                .before(crate::camera::lens::LensPhotometry)
+                .before(bevy::camera::CameraUpdateSystems),
         );
         app.add_systems(
             PostUpdate,
@@ -718,21 +721,31 @@ fn configure_cameras(
     args: Res<BevyZeroverseConfig>,
     mode: Res<RenderMode>,
     environment: Option<Res<IndoorEnvironment>>,
-    cameras: Query<(Entity, Option<&IndoorCameraConfigured>), With<Camera3d>>,
+    cameras: Query<
+        (
+            Entity,
+            Option<&IndoorCameraConfigured>,
+            Ref<Msaa>,
+            Has<crate::render::anti_alias::ManagedPreviewAa>,
+        ),
+        With<Camera3d>,
+    >,
 ) {
     if args.scene_type != ZeroverseSceneType::ProceduralIndoor {
-        for (entity, configured) in &cameras {
+        for (entity, configured, _, managed_aa) in &cameras {
             if configured.is_some() {
                 let mut e = commands.entity(entity);
                 e.remove::<(
                     IndoorCameraConfigured,
                     EnvironmentMapLight,
                     AmbientLight,
-                    Fxaa,
                     Bloom,
                 )>();
                 #[cfg(not(target_arch = "wasm32"))]
                 e.remove::<ScreenSpaceAmbientOcclusion>();
+                if !managed_aa {
+                    e.remove::<Fxaa>();
+                }
                 e.insert(Exposure::INDOOR);
                 e.insert(bevy::pbr::ScreenSpaceTransmission::default());
             }
@@ -742,8 +755,12 @@ fn configure_cameras(
     let Some(environment) = environment else {
         return;
     };
-    for (entity, configured) in &cameras {
-        if configured.is_some() && !environment.is_changed() && !mode.is_changed() {
+    for (entity, configured, msaa, managed_aa) in &cameras {
+        if configured.is_some()
+            && !environment.is_changed()
+            && !mode.is_changed()
+            && !msaa.is_changed()
+        {
             continue;
         }
         let mut e = commands.entity(entity);
@@ -776,7 +793,7 @@ fn configure_cameras(
         // Effects are RGB-only; annotation buffers retain the renderer's HDR precision.
         if *mode == RenderMode::Color {
             #[cfg(not(target_arch = "wasm32"))]
-            if args.indoor_quality.ssao() {
+            if args.indoor_quality.ssao() && *msaa == Msaa::Off {
                 e.insert(ScreenSpaceAmbientOcclusion {
                     quality_level: ScreenSpaceAmbientOcclusionQualityLevel::High,
                     constant_object_thickness: 0.12,
@@ -785,11 +802,9 @@ fn configure_cameras(
             } else {
                 e.remove::<ScreenSpaceAmbientOcclusion>();
             }
-            e.insert(Fxaa {
-                enabled: true,
-                edge_threshold: Sensitivity::High,
-                edge_threshold_min: Sensitivity::High,
-            });
+            if !managed_aa {
+                e.insert(crate::render::anti_alias::indoor_fxaa());
+            }
             if args.indoor_quality.bloom() {
                 e.insert(Bloom {
                     intensity: 0.035,
@@ -801,7 +816,10 @@ fn configure_cameras(
         } else {
             #[cfg(not(target_arch = "wasm32"))]
             e.remove::<ScreenSpaceAmbientOcclusion>();
-            e.remove::<(Bloom, Fxaa)>();
+            e.remove::<Bloom>();
+            if !managed_aa {
+                e.remove::<Fxaa>();
+            }
         }
     }
 }

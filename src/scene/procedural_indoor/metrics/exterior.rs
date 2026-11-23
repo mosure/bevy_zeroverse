@@ -1,14 +1,15 @@
 //! Exterior counts describe built apertures, excluding the neighboring room.
 use super::{CoverageReport, IndoorManifest};
 use crate::scene::procedural_indoor::{
-    architecture::facade::Shade, metrics_sort::NumericCollector,
+    architecture::facade::{SashHinge, Shade},
+    metrics_sort::NumericCollector,
 };
 use std::io::{self, Write};
 
 pub(super) fn header(writer: &mut impl Write) -> io::Result<()> {
     writeln!(
         writer,
-        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height,crossbar_count,transom_fractions,facade_shade_coverage"
+        "seed,side,opening,left_m,bottom_m,right_m,top_m,width_m,height_m,head_clearance_m,columns,transom,operable,frame,frame_width_m,frame_depth_m,recess_m,shade,shade_coverage,full_height,crossbar_count,transom_fractions,facade_shade_coverage,fixed_panes,operating_panes,open_panes,hinges"
     )
 }
 
@@ -179,6 +180,20 @@ pub(super) fn record(
         let mut min_draw = 1_f32;
         let mut max_draw = 0_f32;
         for (i, o) in f.openings.iter().enumerate() {
+            let panes = f.pane_installations(o);
+            let fixed = panes.iter().filter(|p| p.hinge == SashHinge::Fixed).count();
+            let open = panes.iter().filter(|p| p.swing_radians > 0.).count();
+            let operating = panes.len() - fixed;
+            for pane in &panes {
+                category("exterior_pane_hinge", format!("{:?}", pane.hinge));
+                if let Some(handle) = pane.handle {
+                    numeric.push("exterior_sash_handle_height_m", handle.y as f64)?;
+                    numeric.push(
+                        "exterior_sash_swing_degrees",
+                        pane.swing_radians.to_degrees() as f64,
+                    )?;
+                }
+            }
             let draw = f.shade_coverage_at(o);
             if f.shade != Shade::None {
                 min_draw = min_draw.min(draw);
@@ -192,11 +207,7 @@ pub(super) fn record(
                 numeric.push("exterior_sash_requested_opening", glazing.opening as f64)?;
                 numeric.push(
                     "exterior_sash_realized_opening",
-                    if f.allows_open_sash() {
-                        glazing.opening as f64
-                    } else {
-                        0.
-                    },
+                    panes.iter().map(|p| p.opening_fraction).fold(0., f32::max) as f64,
                 )?;
             }
             let size = o.max - o.min;
@@ -211,13 +222,15 @@ pub(super) fn record(
                 ("exterior_head_clearance_m", height - o.max.y),
                 ("exterior_columns", o.columns as f32),
                 ("exterior_crossbars", o.rows().len() as f32),
-                ("exterior_panes", f.pane_rectangles(o).len() as f32),
+                ("exterior_panes", panes.len() as f32),
+                ("exterior_operating_panes", operating as f32),
+                ("exterior_open_panes", open as f32),
             ] {
                 numeric.push(key, value as f64)?;
             }
             writeln!(
                 writer,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:?},{},{},{},{:?},{},{},{},{},{},{fixed},{operating},{open},{}",
                 scene.seed,
                 side,
                 i,
@@ -244,7 +257,8 @@ pub(super) fn record(
                     .map(f32::to_string)
                     .collect::<Vec<_>>()
                     .join(";"),
-                f.shade_coverage
+                f.shade_coverage,
+                panes.iter().map(|p| format!("{:?}",p.hinge)).collect::<Vec<_>>().join(";")
             )?;
         }
         if f.shade != Shade::None && f.openings.len() > 1 {

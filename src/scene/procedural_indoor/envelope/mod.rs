@@ -9,6 +9,7 @@ pub mod mezzanine;
 pub mod polygon;
 mod queries;
 mod sampling;
+pub mod steps;
 pub use mezzanine::Mezzanine;
 #[cfg(test)]
 mod tests;
@@ -106,6 +107,9 @@ pub struct EnvelopeProgram {
     pub footprint: Vec<Vec2>,
     /// Signed total height change across the room in X and Z; stored in metres.
     pub ceiling_drop: Vec2,
+    /// Installed edge profiles of room steps. Absent on archived floors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step_installation: Option<steps::StepInstallation>,
     /// Disjoint flat support surfaces, including each tread of level changes.
     pub floor_patches: Vec<FloorPatch>,
     pub pillars: Vec<Pillar>,

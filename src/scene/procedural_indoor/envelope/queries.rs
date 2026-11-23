@@ -50,13 +50,7 @@ impl EnvelopeProgram {
         for p in &self.pillars {
             // Include the projecting base collar and the high edge of a cap
             // cut by the roof plane, not just the nominal shaft dimensions.
-            let radius = p.radius + 0.025;
-            let top = self.ceiling_height(size, p.center)
-                + (self.ceiling_drop / size.xz()).abs().element_sum() * radius;
-            boxes.push((
-                Vec3::new(p.center.x - radius, 0., p.center.y - radius),
-                Vec3::new(p.center.x + radius, top, p.center.y + radius),
-            ));
+            boxes.push(p.obstacle_bounds(self, size));
         }
         if let Some(m) = &self.mezzanine {
             boxes.push((
@@ -222,10 +216,13 @@ impl EnvelopeProgram {
                 let t = (a - origin.xz()).perp_dot(d) / denominator;
                 let p = origin + ray * t;
                 let u = (p.xz() - a).dot(d) / d.length_squared();
-                let other =
-                    self.floor_height((a + b) * 0.5 + Vec2::new(d.y, -d.x).normalize() * 0.001);
-                if (0.0..=1.0).contains(&u)
-                    && p.y >= patch.height.min(other)
+                if !(0.0..=1.0).contains(&u) || t <= 1e-5 {
+                    continue;
+                }
+                // Adjacent support can change partway along this same edge
+                // (e.g. a lecture aisle next to a wider seating tier).
+                let other = self.floor_height(a + d * u + Vec2::new(d.y, -d.x).normalize() * 0.001);
+                if p.y >= patch.height.min(other)
                     && p.y <= patch.height.max(other)
                     && (patch.height - other).abs() > 1e-5
                 {
@@ -359,6 +356,13 @@ impl EnvelopeProgram {
             {
                 return Err("invalid floor level patch".into());
             }
+        }
+        if self
+            .step_installation
+            .as_ref()
+            .is_some_and(|s| !s.valid(self))
+        {
+            return Err("invalid fitted stair or approach".into());
         }
         for p in &self.pillars {
             if let Some(profile) = &p.profile {

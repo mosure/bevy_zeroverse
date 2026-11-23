@@ -3,6 +3,7 @@ mod anatomy;
 pub mod appearance;
 pub(crate) mod body;
 pub mod contact;
+pub mod eyes;
 mod face;
 #[cfg(test)]
 mod floor_clearance_tests;
@@ -157,6 +158,9 @@ impl IndoorHuman {
             hair::HairStyle::from_id(self.hairstyle),
             Some(hair::HairStyle::TightCurls | hair::HairStyle::Afro)
         )
+    }
+    pub(crate) fn eye_optics(&self) -> Option<eyes::EyeOptics> {
+        self.appearance.as_ref()?.face.optics
     }
     pub fn transform(&self) -> Transform {
         Transform::from_translation(self.position).with_rotation(Quat::from_rotation_y(self.yaw))
@@ -332,6 +336,18 @@ pub(crate) fn person_material(
     indoor_materials: &IndoorMaterials,
     materials: &impl super::preparation::AssetStore<StandardMaterial>,
 ) -> StandardMaterial {
+    if surface == HumanSurface::Eye {
+        if let (Some(optics), Some(image)) =
+            (person.eye_optics(), indoor_materials.eyes.get(&person.id))
+        {
+            return StandardMaterial {
+                base_color_texture: Some(image.clone()),
+                perceptual_roughness: optics.tear_roughness.clamp(0.10, 0.28),
+                reflectance: 0.39,
+                ..default()
+            };
+        }
+    }
     let cloth = matches!(
         surface,
         HumanSurface::Top | HumanSurface::Trousers | HumanSurface::Shirt | HumanSurface::Seam
@@ -495,8 +511,9 @@ pub fn spawn_people(
             if geometry.indices.is_empty() {
                 continue;
             }
+            let eye_id = (surface == HumanSurface::Eye).then_some(person.id);
             let handle = bank
-                .entry((surface, person.material_key(surface)))
+                .entry((surface, person.material_key(surface), eye_id))
                 .or_insert_with(|| {
                     let material = person_material(person, surface, indoor_materials, materials);
                     materials.add(material)

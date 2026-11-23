@@ -7,6 +7,7 @@ mod primitives;
 mod revolution;
 pub(crate) use revolution::{ProfileJoints, RevolvedOutline};
 mod slab;
+pub(crate) mod stock;
 mod sweep;
 mod upholstery;
 use bevy::{
@@ -28,19 +29,33 @@ pub struct Geometry {
 impl Geometry {
     /// A planar quad with outward winding and continuous world-metric UVs.
     pub(crate) fn metric_quad(&mut self, points: [Vec3; 4], outside: Vec3) {
+        self.planar_quad(points, outside, |p, normal| {
+            let u = (p[1] - p[0]).normalize();
+            let v = normal.cross(u);
+            p.map(|point| [point.dot(u), point.dot(v)])
+        });
+    }
+
+    fn planar_quad(
+        &mut self,
+        points: [Vec3; 4],
+        outside: Vec3,
+        chart: impl FnOnce([Vec3; 4], Vec3) -> [[f32; 2]; 4],
+    ) {
         let mut p = points;
         if (p[1] - p[0]).cross(p[2] - p[0]).dot(outside) < 0. {
             p.reverse();
         }
         let normal = (p[1] - p[0]).cross(p[2] - p[0]).normalize();
-        let u = (p[1] - p[0]).normalize();
-        let v = normal.cross(u);
+        self.vertex_quad(p, [normal; 4], chart(p, normal));
+    }
+
+    /// Append an outward-wound quadrilateral with explicit shading and texture coordinates.
+    pub(crate) fn vertex_quad(&mut self, p: [Vec3; 4], normals: [Vec3; 4], uv: [[f32; 2]; 4]) {
         let base = self.positions.len() as u32;
-        for point in p {
-            self.positions.push(point.to_array());
-            self.normals.push(normal.to_array());
-            self.uvs.push([point.dot(u), point.dot(v)]);
-        }
+        self.positions.extend(p.map(|point| point.to_array()));
+        self.normals.extend(normals.map(|normal| normal.to_array()));
+        self.uvs.extend(uv);
         self.indices
             .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
     }
@@ -65,6 +80,16 @@ impl Geometry {
 
     /// Rounded edges catch highlights without requiring a high-poly imported mesh.
     pub fn cuboid(&mut self, size: Vec3, bevel: f32, tf: Transform) {
+        self.mapped_cuboid(size, bevel, tf, |_, _, _, du, dv, _| {
+            move |x, y| Vec2::new(x + du, dv - y)
+        });
+    }
+
+    fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
+    where
+        F: Fn(Vec3, Vec3, Vec3, f32, f32, f32) -> Chart,
+        Chart: Fn(f32, f32) -> Vec2,
+    {
         let half = size * 0.5;
         let radius = bevel.max(0.0).min(size.min_element() * 0.45);
         let core = half - Vec3::splat(radius);
@@ -79,6 +104,7 @@ impl Geometry {
             let du = half.dot(u.abs());
             let dv = half.dot(v.abs());
             let dn = half.dot(n.abs());
+            let chart = face(n, u, v, du, dv, dn);
             let a = if radius > 0.0 {
                 [-du, -du + radius, du - radius, du]
             } else {
@@ -108,7 +134,7 @@ impl Geometry {
                     } else {
                         p
                     };
-                    self.vertex(p, normal, Vec2::new(x + du, dv - y), &tf);
+                    self.vertex(p, normal, chart(x, y), &tf);
                 }
             }
             let nx = a.len() as u32;

@@ -1,8 +1,8 @@
 //! Detailed controls kept with their owning policy.
 use super::*;
-pub(super) fn append(state: &EditorState, v: &mut Vec<Item>) {
+pub(super) fn append(state: &EditorState, page: Page, v: &mut Vec<Item>) {
     let d = &state.draft;
-    if state.view.page == Page::Cameras {
+    if page == Page::Cameras {
         let mut advanced = Vec::new();
         if !d["indoor_camera"]["multiview"].is_null() {
             v.push(

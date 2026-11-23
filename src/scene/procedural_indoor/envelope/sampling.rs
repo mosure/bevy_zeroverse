@@ -83,6 +83,7 @@ impl EnvelopeProgram {
             wall_thickness_m: Some(wall_thickness),
             footprint: ceilings::articulate(scene.seed, footprint, size, boardroom),
             soffits: vec![],
+            step_installation: None,
             tier_guard: Some(guardrail::GuardProgram::sample(
                 scene.seed.wrapping_add(4133),
             )),
@@ -141,19 +142,9 @@ impl EnvelopeProgram {
                 let steps = r.random_range(1..=3);
                 let rise = r.random_range(0.12..0.17) * if r.random_bool(0.5) { 1. } else { -1. };
                 let tread = r.random_range(0.28..0.36);
-                result.floor_patches.push(FloorPatch {
-                    min: lo,
-                    max: hi - Vec2::Y * (steps as f32 * tread),
-                    height: rise * steps as f32,
-                });
-                for i in 0..steps {
-                    result.floor_patches.push(FloorPatch {
-                        min: Vec2::new(lo.x, hi.y - (i + 1) as f32 * tread),
-                        max: Vec2::new(hi.x, hi.y - i as f32 * tread),
-                        height: rise * i as f32,
-                    });
+                if steps::short_flight(scene, &mut result, lo, hi, steps, rise, tread) {
+                    break;
                 }
-                break;
             }
         }
         result.mezzanine = Mezzanine::sample(scene, &result);
@@ -173,7 +164,7 @@ impl EnvelopeProgram {
                         .abs()
                         .cmplt(p.reserved_half() + pad)
                         .all()
-                }) || !result.feature_clear(scene, center - pad, center + pad, 0.4)
+                }) || !result.ground_feature_clear(scene, center - pad, center + pad, 0.4)
                     || result
                         .floor_patches
                         .iter()
@@ -246,6 +237,28 @@ impl EnvelopeProgram {
         }
         lining::install(&mut result, scene);
         result
+    }
+
+    /// Fixed columns, decks and their stairs cannot block a short flight's landings.
+    /// Public programs replace the preliminary floor before furnishing. Overhead
+    /// soffits use their actual vertical headroom check instead.
+    pub(super) fn ground_feature_clear(
+        &self,
+        scene: &IndoorManifest,
+        lo: Vec2,
+        hi: Vec2,
+        margin: f32,
+    ) -> bool {
+        (scene.layout.is_public()
+            || self
+                .step_installation
+                .as_ref()
+                .and_then(|s| s.passage)
+                .is_none_or(|p| {
+                    !lo.cmplt(p.max + Vec2::splat(margin)).all()
+                        || !hi.cmpgt(p.min - Vec2::splat(margin)).all()
+                }))
+            && self.feature_clear(scene, lo, hi, margin)
     }
 
     pub(super) fn feature_clear(

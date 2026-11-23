@@ -23,6 +23,41 @@ use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
+#[path = "review_room_context/sashes.rs"]
+mod sashes;
+#[path = "review_room_context/timber.rs"]
+mod timber;
+#[path = "review_room_context/trim.rs"]
+mod trim;
+#[path = "review_room_context/workstations.rs"]
+mod workstations;
+
+/// Frame the two jambs and the entrance with the same optics and viewpoints
+/// across builds, independently of whether the wall carries a switch.
+fn entry_views(scene: &IndoorManifest) -> Result<[(Vec3, Vec3); 3]> {
+    let door = scene
+        .entry_door
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("missing entry door"))?;
+    let frame = door.transform();
+    let mut inspection = scene.clone();
+    inspection.camera_settings.primary_room = false;
+    let mut views = [(Vec3::ZERO, Vec3::ZERO); 3];
+    for (i, side) in [-1., 1., 0.].into_iter().enumerate() {
+        let x = side * (door.width * 0.5 + 0.38);
+        let target = frame.transform_point(Vec3::new(x, 1.16, -0.035));
+        let distance = if side == 0. { 2.75 } else { 1.65 };
+        views[i] = [0., -0.45, 0.45, -0.9, 0.9]
+            .into_iter()
+            .find_map(|shift| {
+                let eye = frame.transform_point(Vec3::new(x + shift, 1.45, -distance));
+                (inspection.camera_clear(eye) && inspection.camera_view_clear(eye, target))
+                    .then_some((eye, target))
+            })
+            .ok_or_else(|| anyhow::anyhow!("occluded entrance view {i} for seed {}", scene.seed))?;
+    }
+    Ok(views)
+}
 
 fn eye(scene: &IndoorManifest, target: Vec3, height: f32) -> Vec3 {
     for radius in [1.8, 2.4, 3.1, 4.] {
@@ -267,6 +302,12 @@ fn main() -> Result<()> {
     let signals = std::env::args().any(|a| a == "--signals");
     let clutter = std::env::args().any(|a| a == "--clutter");
     let services = signals || std::env::args().any(|a| a == "--services");
+    let workstations = std::env::args().any(|a| a == "--workstations");
+    let trim = std::env::args().any(|a| a == "--trim");
+    let timber = std::env::args().any(|a| a == "--timber");
+    let sash_hardware = std::env::args().any(|a| a == "--sash-hardware");
+    let sashes = sash_hardware || std::env::args().any(|a| a == "--sashes");
+    let entry = std::env::args().any(|a| a == "--entry");
     // Keep mesh emission, exposure and precomputed GI identical in a paired
     // capture of the practical bulbs' direct contribution.
     let without_string_direct = std::env::args().any(|a| a == "--without-string-direct");
@@ -291,7 +332,13 @@ fn main() -> Result<()> {
             } else {
                 default()
             },
-            indoor_layout: if conference {
+            indoor_layout: if workstations {
+                if std::env::args().any(|a| a == "--open-office") {
+                    bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::OpenOffice
+                } else {
+                    bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Coworking
+                }
+            } else if conference {
                 bevy_zeroverse::scene::procedural_indoor::layout::IndoorLayout::Conference
             } else {
                 default()
@@ -306,12 +353,18 @@ fn main() -> Result<()> {
             width: 640.,
             height: 640.,
             playback_steps: 1,
-            indoor_density: if signals || clutter {
+            indoor_density: if workstations || timber || sashes {
+                0.65
+            } else if signals || clutter {
                 0.7
             } else {
                 BevyZeroverseConfig::default().indoor_density
             },
-            indoor_human_density: if signals || clutter { 0.25 } else { 0. },
+            indoor_human_density: if signals || clutter || workstations {
+                0.25
+            } else {
+                0.
+            },
             annotation_glass: AnnotationGlass::Through,
             render_modes: modes.clone(),
             ..default()
@@ -371,7 +424,19 @@ fn main() -> Result<()> {
                 "seed {seed} has no direct string lights for the control"
             );
         }
-        let views = targets(&scene, lighting, conference, services);
+        let views = if entry {
+            entry_views(&scene)?
+        } else if trim {
+            trim::targets(&scene)?
+        } else if timber {
+            timber::targets(&scene)?
+        } else if sashes {
+            sashes::targets(&scene, sash_hardware)?
+        } else if workstations {
+            workstations::targets(&scene)
+        } else {
+            targets(&scene, lighting, conference, services)
+        };
         for (index, mut c, projection) in app
             .world_mut()
             .query::<(
@@ -382,7 +447,17 @@ fn main() -> Result<()> {
             .iter_mut(app.world_mut())
         {
             let (p, target) = views[index.0];
-            let fov = if services {
+            let fov = if entry {
+                [37., 37., 65.][index.0]
+            } else if trim {
+                [27., 32., 44.][index.0]
+            } else if timber {
+                [32., 40., 56.][index.0]
+            } else if sashes {
+                [34., 42., 72.][index.0]
+            } else if workstations {
+                [47., 33., 45.][index.0]
+            } else if services {
                 68.
             } else if conference {
                 78_f32
@@ -469,10 +544,13 @@ fn main() -> Result<()> {
                 &v.depth,
             )?;
         }
+        let captured_views: Vec<_> = sample.views.iter().map(|v| serde_json::json!({
+            "world_from_view": v.world_from_view, "calibration": v.calibration, "far_m": v.far,
+        })).collect();
         std::fs::write(
             output.join(format!("seed_{seed}.json")),
             serde_json::to_vec_pretty(
-                &serde_json::json!({"scene":scene,"detail_camera_poses":views,"annotation_glass":"through","image_size":[640,640],"provenance":bevy_zeroverse::provenance::capture_provenance(),"lighting_details":lighting,"conference_details":conference,"services_details":services,"portable_quality":portable,"direct_string_control":without_string_direct,"protocol":"Full production room and lighting; diagnostic detail views replace population cameras. Not distribution qualification."}),
+                &serde_json::json!({"scene":scene,"detail_camera_poses":views,"captured_views":captured_views,"annotation_glass":"through","image_size":[640,640],"provenance":bevy_zeroverse::provenance::capture_provenance(),"lighting_details":lighting,"conference_details":conference,"services_details":services,"workstation_details":workstations,"trim_details":trim,"timber_details":timber,"sash_details":sashes,"sash_hardware_details":sash_hardware,"entrance_details":entry,"portable_quality":portable,"direct_string_control":without_string_direct,"protocol":"Full production room and lighting; diagnostic detail views replace population cameras. Not distribution qualification."}),
             )?,
         )?;
     }

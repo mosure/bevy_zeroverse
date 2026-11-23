@@ -1,5 +1,125 @@
 //! Shape diversity is measured from actual meshes, not unused parameter ranges.
 use super::*;
+
+#[test]
+fn installed_shelves_and_bench_slats_follow_their_cut_direction() {
+    use super::super::{services::bench, storage};
+    let mut observed = [0; 4];
+    for seed in 0..32 {
+        for kind in [ObjectKind::Bookcase, ObjectKind::Cabinet, ObjectKind::Bench] {
+            let mut o = fixture(kind, seed);
+            o.finish_seed = None; // sample real finishes instead of the fixed audit swatch
+                                  // Pick an exposed board with a known elevation, independent of mesh order.
+            let (height, along, group) = match kind {
+                ObjectKind::Bookcase => {
+                    if storage::bookcase::parameters(&o).shelves != Surface::Wood {
+                        continue;
+                    }
+                    (o.size.y, Vec3::X, 0)
+                }
+                ObjectKind::Cabinet => {
+                    if storage::parameters(&o).shelves != Surface::Wood {
+                        continue;
+                    }
+                    (o.size.y, Vec3::X, 1)
+                }
+                _ => {
+                    let p = bench::parameters(&o);
+                    if !p.slats {
+                        continue;
+                    }
+                    (
+                        p.seat_height,
+                        if p.longitudinal { Vec3::X } else { Vec3::Z },
+                        if p.longitudinal { 2 } else { 3 },
+                    )
+                }
+            };
+            let assembly = build_object(&o);
+            let mut faces = 0;
+            for ((s, _), g) in &assembly.parts {
+                if *s != Surface::Wood {
+                    continue;
+                }
+                for t in g.indices.as_chunks::<3>().0 {
+                    let [a, b, c] = t.map(|i| Vec3::from(g.positions[i as usize]));
+                    if [a, b, c].iter().any(|p| (p.y - height).abs() > 1e-5)
+                        || (b - a).cross(c - a).y < 0.004
+                    {
+                        continue;
+                    }
+                    let [ua, ub, uc] = t.map(|i| g.uvs[i as usize][0]);
+                    let fibre = ((c - a) * (ub - ua) - (b - a) * (uc - ua)).normalize();
+                    assert!(fibre.dot(along).abs() > 0.9999, "{kind:?} {seed}");
+                    faces += 1;
+                }
+            }
+            assert!(faces >= 2);
+            observed[group] += 1;
+        }
+    }
+    assert!(observed.iter().all(|&n| n > 0), "{observed:?}");
+}
+
+#[test]
+fn toggle_levers_project_within_the_plate_envelope_and_dimmers_travel_the_slot() {
+    let mut toggle_states = [0; 2];
+    let mut split = false;
+    let mut slider_extremes = [false; 2];
+    for seed in 0..160 {
+        let mut o = fixture(ObjectKind::LightSwitch, seed);
+        o.size.x = 0.225; // exercise multi-gang products
+        let p = super::super::wall::parameters(&o);
+        if !matches!(p.style, 1 | 4) {
+            continue;
+        }
+        let a = build_object(&o);
+        check(&o, &a).unwrap();
+        assert!(a.parts.keys().all(|(s, _)| *s != Surface::Paper));
+        let case = o.size * Vec3::new(p.case_fraction.x, p.case_fraction.y, 1.);
+        let pitch = case.x / p.gangs as f32;
+        let threshold = if p.style == 1 {
+            case.z * 0.44
+        } else {
+            case.z * 0.48 + 0.0028
+        };
+        let mut direction = None;
+        for gang in 0..p.gangs {
+            let x = (gang as f32 - (p.gangs - 1) as f32 * 0.5) * pitch;
+            let mut y_min = f32::INFINITY;
+            let mut y_max = f32::NEG_INFINITY;
+            for v in a
+                .parts
+                .iter()
+                .filter(|((s, _), _)| *s == Surface::Plastic)
+                .flat_map(|(_, g)| &g.positions)
+                .filter(|v| (v[0] - x).abs() < pitch * 0.48 && v[2] > threshold)
+            {
+                y_min = y_min.min(v[1]);
+                y_max = y_max.max(v[1]);
+                if p.style == 1 {
+                    assert!(v[2] <= case.z * 0.5);
+                }
+            }
+            assert!(y_min <= y_max, "no visible actuator tip");
+            let travel = (y_min + y_max - case.y) * 0.5;
+            if p.style == 1 {
+                assert!(travel.abs() > 0.0015, "toggle remains flat");
+                let side = usize::from(travel > 0.);
+                toggle_states[side] += 1;
+                split |= direction.replace(side).is_some_and(|prev| prev != side);
+            } else {
+                let fraction = travel / (case.y * p.control_fraction.y);
+                assert!(fraction.abs() <= 0.276, "slider extends past its track");
+                if fraction.abs() > 0.18 {
+                    slider_extremes[usize::from(travel > 0.)] = true;
+                }
+            }
+        }
+    }
+    assert!(toggle_states.iter().all(|&n| n > 8) && split);
+    assert_eq!(slider_extremes, [true; 2]);
+}
 #[test]
 fn paired_switch_buttons_have_disjoint_front_faces() {
     let mut checked = 0;

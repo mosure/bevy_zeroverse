@@ -215,10 +215,12 @@ mod tests {
                     edges.values().all(|v| *v == (2, 0)),
                     "closed oriented surface"
                 );
-                assert!(g.positions.iter().all(|p| Vec3::from_array(*p)
-                    .abs()
-                    .cmple(size * 0.5 + Vec3::splat(1e-6))
-                    .all()));
+                assert!(g.positions.iter().all(|p| {
+                    Vec3::from_array(*p)
+                        .abs()
+                        .cmple(size * 0.5 + Vec3::splat(1e-6))
+                        .all()
+                }));
                 let mesh = g.into_mesh();
                 let Some(VertexAttributeValues::Float32x4(t)) =
                     mesh.attribute(Mesh::ATTRIBUTE_TANGENT)

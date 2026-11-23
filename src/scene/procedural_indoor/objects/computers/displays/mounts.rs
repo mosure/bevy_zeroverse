@@ -27,6 +27,62 @@ pub fn parameters(o: &IndoorObject) -> MountProgram {
     }
 }
 
+/// The fixing shoe stays narrow enough for a column. The crossbar and two
+/// vertical rails spread that load across the rear electronics enclosure.
+pub(super) fn wall_bracket(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &DisplayProgram,
+    d: &DisplayGeometry,
+) {
+    let label = o.kind.class_name();
+    let back = -o.size.z * 0.5;
+    let gap = (o.size.z - d.panel_m) * 0.5;
+    let rail = (gap * 0.18).min(0.009);
+    let span = (d.width_m * p.mount.wall_span.x).min(0.64);
+    let height = (d.height_m * p.mount.wall_span.y).min(0.46);
+    let tf = d.panel_transform;
+    let rear_z = -d.panel_m * 0.5;
+    let crossbar = tf.transform_point(Vec3::new(0., 0., rear_z - rail * 1.46));
+    let plate = Vec3::new(0., crossbar.y, back + rail * 0.5);
+    // Include both the siting anchor on the shaft and the panel's actual hinge height.
+    let anchor_y = o.size.y * 0.5;
+    let shoe_height = height + (anchor_y - crossbar.y).abs();
+    a.box_part(
+        Surface::Metal,
+        label,
+        plate.with_y((anchor_y + crossbar.y) * 0.5),
+        Vec3::new((span * 0.5).min(0.072), shoe_height, rail),
+        rail * 0.14,
+    );
+    for x in [-0.5, 0.5] {
+        let local = Vec3::new(x * span, 0., rear_z - rail * 0.48);
+        a.part(Surface::Metal, label).cuboid(
+            Vec3::new(span.min(height) * 0.10, height, rail),
+            rail * 0.12,
+            tf.with_translation(tf.transform_point(local)),
+        );
+    }
+    a.part(Surface::Metal, label).cuboid(
+        Vec3::new(span * 1.04, height * 0.27, rail),
+        rail * 0.14,
+        tf.with_translation(crossbar),
+    );
+    // Flat cut ends keep the shoe flush even when a portrait panel occupies
+    // less than the reserved height. A rotated strut can pierce the wall.
+    a.box_part(
+        Surface::Metal,
+        label,
+        (plate + crossbar) * 0.5,
+        Vec3::new(
+            (span * 0.23).min(0.045),
+            (height * 0.21).min(0.052),
+            crossbar.z - plate.z,
+        ),
+        rail * 0.14,
+    );
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &DisplayProgram, d: &DisplayGeometry) {
     let m = &p.mount;
     let label = o.kind.class_name();

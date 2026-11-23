@@ -242,6 +242,73 @@ fn coupled_rotor_leaves_are_admitted_atomically() {
 }
 
 #[test]
+fn an_obstruction_in_one_telescoping_track_stops_both_leaves() {
+    use crate::scene::procedural_indoor::architecture::doors::{
+        DoorInstallation, DoorMechanism, DoorPanel, DoorProgram,
+    };
+    let (mut scene, mut geometry) = empty();
+    let mut program = DoorProgram::sample(11, DoorMechanism::Telescoping);
+    program.handedness = 1.;
+    program.swing_side = 1.;
+    program.opening = 0.;
+    program.panel = DoorPanel::Flush;
+    let door = DoorInstallation {
+        id: 7,
+        center: Vec3::ZERO,
+        yaw: 0.,
+        width: 1.4,
+        height: 2.25,
+        wall_depth: 0.16,
+        program,
+    };
+    geometry.architecture.motion_policy = Some(IndoorMotionConfig {
+        door_fraction: 1.,
+        ..default()
+    });
+    door.build(&mut geometry.architecture, true);
+    scene.indoor_motion.as_mut().unwrap().policy.max_mechanisms = 1;
+    prepare(&mut scene, &mut geometry);
+    assert_eq!(geometry.architecture.joints.len(), 2);
+    assert!(geometry.architecture.joints.iter().all(|j| j.accepted));
+    let records = &scene.indoor_motion.as_ref().unwrap().mechanisms;
+    assert_eq!(records.len(), 1);
+    let record = &records[0];
+    assert_eq!(record.linked_slides.len(), 1);
+    assert_ne!(record.translation_m, record.linked_slides[0].translation_m);
+    assert!(!record.swept_bounds.is_empty());
+    for (i, joint) in geometry.architecture.joints.iter().enumerate() {
+        for t in [0., 0.5, 1.] {
+            assert_eq!(
+                record.rigid_transform_for_joint_at(i, t).unwrap(),
+                joint.transform(joint.amount(t))
+            );
+        }
+    }
+    let mut archived = serde_json::to_value(record).unwrap();
+    archived.as_object_mut().unwrap().remove("linked_slides");
+    let legacy: MechanismReport = serde_json::from_value(archived).unwrap();
+    assert!(legacy.linked_slides.is_empty());
+    assert_eq!(
+        legacy.rigid_transform_at(0.5),
+        record.rigid_transform_at(0.5)
+    );
+    assert!(legacy.rigid_transform_for_joint_at(1, 0.5).is_none());
+
+    let leaf = door.leaves()[0];
+    let edge = leaf.transform.translation.x + leaf.size.x * 0.5;
+    geometry.architecture.append_assembly(block(
+        Vec3::new(edge + 0.005, 0.4, leaf.transform.translation.z),
+        Vec3::new(0.006, 0.06, 0.010),
+    ));
+    prepare(&mut scene, &mut geometry);
+    assert!(geometry.architecture.joints.iter().all(|j| !j.accepted));
+    let reports = &scene.indoor_motion.as_ref().unwrap().mechanisms;
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0].rejection.is_some());
+    assert!((0..2).all(|i| reports[0].rigid_transform_for_joint_at(i, 1.).is_none()));
+}
+
+#[test]
 fn ceiling_camera_mount_body_blocks_fan_even_when_lens_is_below_rotor() {
     use super::super::super::{cameras::ceiling::CeilingCameraMount, layout::IndoorCamera};
     let (mut scene, mut geometry) = empty();

@@ -21,6 +21,43 @@ fn labels(j: &Joinery) -> Labels {
     }
 }
 
+#[test]
+fn wood_louvres_sample_individual_cuts_that_stay_fixed_when_the_door_opens() {
+    let make = |finish, opening| {
+        let mut d = door(91, DoorMechanism::Hinged);
+        d.program.panel = DoorPanel::Louvered;
+        d.program.finish = finish;
+        d.program.opening = opening;
+        let j = Joinery::sample(&d.program);
+        let leaf = d.leaves()[0];
+        let fit = Fit::new(&d, leaf, 0, &j);
+        let count = (fit.opening.unwrap().height() / j.pitch).round() as usize;
+        let mut a = Assembly::default();
+        let labels = labels(&j);
+        panel::build(&mut a, &d.program, leaf, &fit, &j, 0, &labels);
+        (a.parts.remove(&(finish, labels.leaf)).unwrap(), count)
+    };
+    let (wood, count) = make(Surface::Wood, 0.);
+    let (paint, _) = make(Surface::Paint, 0.);
+    let (moving, _) = make(Surface::Wood, 0.72);
+    assert_eq!(wood.indices, paint.indices);
+    assert_eq!(wood.positions, paint.positions);
+    assert_eq!(wood.normals, paint.normals);
+    assert_ne!(wood.positions, moving.positions);
+    assert_eq!(wood.uvs, moving.uvs);
+    let start = wood.uvs.len() - count * 32; // eight longitudinal faces per blade
+    let unique_origins = |g: &crate::scene::procedural_indoor::geometry::Geometry| {
+        g.uvs[start..]
+            .chunks_exact(32)
+            .map(|blade| blade[0].map(f32::to_bits))
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+    };
+    assert!(count > 2);
+    assert_eq!(unique_origins(&wood), count);
+    assert_eq!(unique_origins(&paint), 1);
+}
+
 // Independent orthographic first-hit oracle, including surfaces on the other
 // side of through-holes. The caller chooses whether glass participates.
 fn hit(

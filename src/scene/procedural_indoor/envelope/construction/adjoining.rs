@@ -55,7 +55,7 @@ pub(super) fn perimeter(
         .and_then(|_| TrimProgram::for_scene(scene))
     {
         if let Some(section) = &trim.base {
-            skirting::build(a, outline, trim.joint_m, section, windows);
+            skirting::build(a, outline, trim.joint_m, section, windows, scene.seed);
         }
     }
 }

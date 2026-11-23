@@ -1287,6 +1287,7 @@ fn display_controls_are_live_and_do_not_require_regeneration() {
     for (path, value) in [
         ("/hdr", json!(true)),
         ("/tonemapping", json!("agx")),
+        ("/preview_aa", json!("msaa-4")),
         ("/fullscreen", json!(true)),
     ] {
         assert!(fields::items(&state)
@@ -1299,6 +1300,16 @@ fn display_controls_are_live_and_do_not_require_regeneration() {
     let active = app.world().resource::<BevyZeroverseConfig>();
     assert!(active.hdr && active.fullscreen);
     assert_eq!(
+        active.preview_aa,
+        crate::render::anti_alias::PreviewAa::Msaa4
+    );
+    let query = share::query(active, &state.view);
+    assert!(query.contains("preview_aa=msaa-4"));
+    let restored =
+        super::super::config_with_query(super::super::web_viewer_defaults(), decode_query(&query))
+            .unwrap();
+    assert_eq!(restored.preview_aa, active.preview_aa);
+    assert_eq!(
         active.tonemapping,
         crate::render::color::RgbTonemapping::AgX
     );
@@ -1310,7 +1321,42 @@ fn display_controls_are_live_and_do_not_require_regeneration() {
             .iter()
             .any(|i| matches!(i,fields::Item::Field(f) if f.path=="/fullscreen")));
         assert!(!items.iter().any(
-            |i| matches!(i,fields::Item::Field(f) if f.path=="/hdr" || f.path=="/tonemapping")
+            |i| matches!(i,fields::Item::Field(f) if ["/hdr","/tonemapping","/preview_aa"].contains(&f.path.as_str()))
         ));
+    }
+}
+
+#[test]
+fn preview_aa_defaults_and_explicit_launch_settings_roundtrip() {
+    use crate::render::anti_alias::PreviewAa;
+    use bevy_args::{Parser, ValueEnum};
+    let default = super::super::web_viewer_defaults();
+    assert_eq!(default.preview_aa, PreviewAa::Auto);
+    assert!(!share::query(&default, &model::ViewState::default()).contains("preview_aa"));
+    let mut legacy = serde_json::to_value(&default).unwrap();
+    legacy.as_object_mut().unwrap().remove("preview_aa");
+    assert_eq!(
+        serde_json::from_value::<BevyZeroverseConfig>(legacy)
+            .unwrap()
+            .preview_aa,
+        PreviewAa::Auto
+    );
+    for &mode in PreviewAa::value_variants() {
+        let token = serde_json::to_value(mode).unwrap();
+        let cli = BevyZeroverseConfig::try_parse_from([
+            "bevy_zeroverse",
+            "--kiosk",
+            "--preview-aa",
+            token.as_str().unwrap(),
+        ])
+        .unwrap();
+        assert_eq!(cli.preview_aa, mode);
+        let parsed = super::super::config_with_query(
+            default.clone(),
+            [("preview_aa".into(), token.as_str().unwrap().into())],
+        )
+        .unwrap();
+        assert_eq!(parsed.preview_aa, mode);
+        assert_eq!(parsed.ssaa_factor, default.ssaa_factor);
     }
 }

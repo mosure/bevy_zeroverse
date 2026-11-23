@@ -69,7 +69,15 @@ fn install(
             panic!("Expected Bevy 0.20 WESL PBR libraries");
         };
         let updated = if i == 0 {
-            directional_sky(&clearcoat_prepass(&anisotropy_prepass(source)))
+            let source = clearcoat_prepass(&anisotropy_prepass(source));
+            // Refractive glass is absent from Bevy's opaque prepass. SSAO at
+            // this pixel describes the wall or furniture behind the pane.
+            let ssao = "@if(SCREEN_SPACE_AMBIENT_OCCLUSION) {";
+            assert_eq!(source.matches(ssao).count(), 1, "requalify glass SSAO");
+            directional_sky(&source.replace(
+                ssao,
+                "@if(SCREEN_SPACE_AMBIENT_OCCLUSION && !STANDARD_MATERIAL_SPECULAR_TRANSMISSION) {",
+            ))
         } else {
             match *filter {
                 GlassFilter::Default => transmission_filter(source, false),
@@ -200,18 +208,20 @@ fn transmission_filter(source: &str, reference: bool) -> String {
         .find(marker)
         .expect("Bevy transmission changed: requalify glass quadrature");
     let end = block_end(source, start);
-    // Offset UV is in full-target coordinates. Bevy's clear fast path uses the
-    // viewport size for the depth lookup, which addresses the wrong pixels in
-    // views that occupy only part of a render target.
-    let prefix = source[..start].replace(
-        "offset_position * view_bindings::view.viewport.zw",
-        "offset_position * vec2<f32>(textureDimensions(view_bindings::view_transmission_texture))",
+    let clear = source[..start]
+        .find("fn fetch_transmissive_background_non_rough(")
+        .expect("Bevy transmission changed: requalify clear glass");
+    let mut code = source[..clear].replace(
+        "tonemapping::approximate_inverse_tone_mapping",
+        "tonemapping::tone_mapping",
     );
+    code.push_str(include_str!("shading/frost/radiance.wgsl"));
+    code.push_str(include_str!("shading/frost/footprint.wesl"));
+    code.push_str(&source[block_end(source, clear)..start]);
     // Views with the stock single-level background keep the point integrator.
     // The dense oracle also uses that path regardless of the runtime camera.
     let mut point = include_str!("shading/transmission.wesl")
         .replace("FROST_RADIAL_CDF", &frost::kernel::radial_cdf());
-    let mut code = prefix;
     if !reference {
         code.push_str(&frost::kernel::shader());
         code.push_str(include_str!("shading/frost/sample.wesl"));

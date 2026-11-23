@@ -32,6 +32,27 @@ pub fn edges(p: &[Vec2]) -> impl Iterator<Item = (Vec2, Vec2)> + '_ {
         .take(p.len())
 }
 
+/// Offset from a CCW vertex which is one metre inside both incident wall
+/// planes. The tangent component changes sign at a re-entrant corner.
+pub(crate) fn inset_direction(outline: &[Vec2], vertex: usize) -> Vec2 {
+    let n = outline.len();
+    let previous = (outline[vertex] - outline[(vertex + n - 1) % n])
+        .normalize()
+        .perp();
+    let next = (outline[(vertex + 1) % n] - outline[vertex])
+        .normalize()
+        .perp();
+    let denominator = 1. + previous.dot(next);
+    if denominator > 1e-5 {
+        (previous + next) / denominator
+    } else {
+        // Close to a cusp use the squared bisector length to avoid cancellation
+        // in 1 + dot. Exactly reversing edges do not admit mitred stock.
+        let sum = previous.as_dvec2() + next.as_dvec2();
+        (2. * sum / sum.length_squared().max(f64::MIN_POSITIVE)).as_vec2()
+    }
+}
+
 /// X follows a counterclockwise wall, Y is up and +Z faces the occupied space.
 pub(crate) fn wall_frame(a: Vec2, b: Vec2) -> Transform {
     let d = b - a;

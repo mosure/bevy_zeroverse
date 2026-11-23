@@ -2,6 +2,9 @@
 use super::*;
 use crate::scene::procedural_indoor::materials::worktop_finish;
 
+pub(super) const RUN_THICKNESS: f32 = 0.034;
+pub(super) const CUPBOARD_THICKNESS: f32 = 0.032;
+
 fn origin(o: &IndoorObject) -> Vec2 {
     (Quat::from_rotation_y(-o.yaw) * o.position).xz()
 }
@@ -61,7 +64,7 @@ pub(super) fn pierced(
     let inner = corners(aperture);
     let pos = origin(o);
     let at = |p: Vec2, h| Vec3::new(p.x, h, p.y);
-    let bottom = top - 0.034;
+    let bottom = top - RUN_THICKNESS;
     let mut quad = |points, normal| {
         let start = g.positions.len();
         g.metric_quad(points, normal);
@@ -101,7 +104,100 @@ pub(super) fn pierced(
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::{audit, build_object, part_label};
     use super::*;
+
+    fn check_case_joints(kind: ObjectKind, island: bool) {
+        const EPS: f32 = 1e-5;
+        for seed in 0..32 {
+            let mut o = audit::fixture(kind, seed);
+            o.size = dimensions(kind, seed);
+            if island {
+                configure_island(&mut o);
+            }
+            for height in [0.86, 0.90, 0.94] {
+                align_worktop(&mut o, height);
+                let mesh = build_object(&o);
+                let slab = mesh
+                    .parts
+                    .iter()
+                    .find(|((_, key), _)| part_label(key) == "counter")
+                    .unwrap()
+                    .1;
+                let (mut lo, mut hi) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+                let mut underside = f32::NEG_INFINITY;
+                for (&v, n) in slab.positions.iter().zip(&slab.normals) {
+                    let v = Vec3::from(v);
+                    lo = lo.min(v);
+                    hi = hi.max(v);
+                    // Waterfall returns extend to the floor. Use the slab's own lower face.
+                    if n[1] < -0.99999 {
+                        underside = underside.max(v.y);
+                    }
+                }
+                assert!((hi.y - height).abs() < EPS && (0.02..0.07).contains(&(hi.y - underside)));
+                let mut supported_ends = [false; 2];
+                let mut backsplash_seated = false;
+                for ((_, label), g) in &mesh.parts {
+                    if part_label(label) != "cabinet" {
+                        continue;
+                    }
+                    for (&v, n) in g.positions.iter().zip(&g.normals) {
+                        if (v[1] - underside).abs() < EPS
+                            && v[0].abs() > o.size.x * 0.35
+                            && n[1] > 0.99
+                        {
+                            supported_ends[usize::from(v[0] > 0.)] = true;
+                        }
+                        if (v[1] - hi.y).abs() < EPS && v[2] < lo.z + 0.025 && n[1] < -0.99 {
+                            backsplash_seated = true;
+                        }
+                    }
+                    for tri in g.indices.as_chunks::<3>().0 {
+                        let [a, b, c] = tri.map(|i| Vec3::from(g.positions[i as usize]));
+                        let min = a.min(b).min(c);
+                        let max = a.max(b).max(c);
+                        if max.x < lo.x || min.x > hi.x || max.z < lo.z || min.z > hi.z {
+                            continue;
+                        }
+                        assert!(
+                            max.y <= underside + EPS
+                                || (kind == ObjectKind::KitchenCupboard && min.y >= hi.y - EPS),
+                            "{kind:?} seed {seed}: cabinet face {min:?}..{max:?} crosses slab {underside}..{}",
+                            hi.y
+                        );
+                    }
+                }
+                assert_eq!(
+                    supported_ends, [true; 2],
+                    "{kind:?} seed {seed}: unsupported slab"
+                );
+                if kind == ObjectKind::KitchenCupboard {
+                    assert!(
+                        backsplash_seated,
+                        "seed {seed}: backsplash must rest on the slab"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sink_case_joints_support_the_pierced_slab() {
+        check_case_joints(ObjectKind::KitchenSink, false);
+    }
+
+    #[test]
+    fn cupboard_case_joints_keep_the_backsplash_above_the_slab() {
+        check_case_joints(ObjectKind::KitchenCupboard, false);
+    }
+
+    #[test]
+    fn counter_case_joints_support_solid_slabs_and_island_returns() {
+        check_case_joints(ObjectKind::KitchenCounter, false);
+        check_case_joints(ObjectKind::KitchenCounter, true);
+    }
+
     #[test]
     fn sink_surround_is_manifold_and_chart_matches_installed_neighbor() {
         use std::collections::BTreeMap;

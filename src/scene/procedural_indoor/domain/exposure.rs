@@ -19,8 +19,12 @@ pub struct IndoorExposureMeter {
 }
 
 impl IndoorExposureMeter {
+    pub(crate) fn incident_lux(self) -> f32 {
+        self.electric_lux + self.direct_daylight_lux + self.diffuse_daylight_lux
+    }
+
     pub(super) fn ev100(self) -> f32 {
-        let illuminance = self.electric_lux + self.direct_daylight_lux + self.diffuse_daylight_lux;
+        let illuminance = self.incident_lux();
         // Partial adaptation retains deliberate low-light/highlight cases across
         // rooms. All views share exposure; RGB responses never feed back into it.
         (6.25 + 0.62 * (illuminance.max(0.1) / 400.).log2() + self.bias_ev).clamp(2., 12.)
@@ -116,27 +120,60 @@ impl IndoorManifest {
         };
         let floor = polygon::area(&envelope.footprint);
         let positions = architecture::fixture_positions(self);
-        let flux: f32 = (0..architecture::primary_fixture_count(self, &positions))
-            .map(|i| architecture::fixture_photometry_at(self, i, &positions).1)
-            .sum();
-        meter.electric_lux = flux * 0.70 / architecture::fixture_floor_area(self);
+        let install = self.generator_version >= 166 && photometry.ceiling_circuits.is_none();
+        let mut windows = Vec::new();
+        let diffuse_lux = photometry.diffuse_sky_lux();
         let sun = architecture::sun_direction(self);
         let mut apertures = borrowed::apertures(self, sun);
+        let borrowed_lux =
+            (0.28 * diffuse_lux * apertures.x + 0.38 * photometry.sun_lux * apertures.y) / floor;
         for wall in &envelope.walls {
             if let Some(facade) = &wall.facade {
-                let outward = envelope.wall_transform(wall.edge).rotation * Vec3::NEG_Z;
-                apertures += transmitted_apertures(facade, outward.dot(sun).clamp(0., 1.));
+                let frame = envelope.wall_transform(wall.edge);
+                let incidence = (frame.rotation * Vec3::NEG_Z).dot(sun).clamp(0., 1.);
+                if install {
+                    let mut wall_area = Vec2::ZERO;
+                    for o in &facade.openings {
+                        let clear = transmitted_opening(facade, o, incidence);
+                        wall_area += clear;
+                        windows.push(circuits::DaylightOpening {
+                            a: frame.transform_point(Vec3::X * o.min.x).xz(),
+                            b: frame.transform_point(Vec3::X * o.max.x).xz(),
+                            reach_m: (o.max.y - 0.75).max(0.25) * 1.6,
+                            admitted_lux: (0.28 * diffuse_lux * clear.x
+                                + 0.38 * photometry.sun_lux * clear.y)
+                                / floor,
+                        });
+                    }
+                    apertures += wall_area;
+                } else {
+                    apertures += transmitted_apertures(facade, incidence);
+                }
             }
         }
         // A vertical opening receives half an isotropic sky hemisphere. These
         // utilization factors estimate distribution from the pane into the room.
-        meter.diffuse_daylight_lux =
-            photometry.diffuse_sky_lux() * (0.5 * 0.56) * apertures.x / floor;
+        meter.diffuse_daylight_lux = diffuse_lux * (0.5 * 0.56) * apertures.x / floor;
         meter.direct_daylight_lux = photometry.sun_lux * 0.38 * apertures.y / floor;
         let kelvin = solar_kelvin(
             self.sun_elevation,
             super::super::photometry::lighting_seed(self),
         );
+        if install {
+            let circuits = CeilingCircuits::sample(self, &positions, &windows, borrowed_lux);
+            self.program
+                .as_mut()
+                .unwrap()
+                .domain
+                .as_mut()
+                .unwrap()
+                .photometry
+                .ceiling_circuits = Some(circuits);
+        }
+        let flux: f32 = (0..architecture::primary_fixture_count(self, &positions))
+            .map(|i| architecture::fixture_photometry_at(self, i, &positions).1)
+            .sum();
+        meter.electric_lux = flux * 0.70 / architecture::fixture_floor_area(self);
         let photometry = &mut self
             .program
             .as_mut()
