@@ -157,7 +157,7 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                     && registered_finish(c.surface, slot)
             })
             .collect();
-        rows.push(json!({"registered_special_slots":registered_special_slots,"name":c.name,"surface":c.surface,"floor_style":c.floor,
+        rows.push(json!({"assignment_slots":variants::count(c.surface),"registered_special_slots":registered_special_slots,"name":c.name,"surface":c.surface,"floor_style":c.floor,
             "structure_count":if c.name == "Rug" { rugs::COUNT } else { variants::structure_count(c.surface) },"finish_slots":if c.name == "Rug" { rugs::COUNT } else if variants::supports(c.surface){variants::count(c.surface)}else{1},
             "samples":records}));
     }
@@ -229,6 +229,8 @@ mod tests {
                 .iter()
                 .find(|c| c["name"] == cat.name)
                 .unwrap();
+            let width = variants::count(cat.surface);
+            assert_eq!(category["assignment_slots"], width);
             let slots: Vec<usize> =
                 serde_json::from_value(category["registered_special_slots"].clone()).unwrap();
             assert!(slots.windows(2).all(|s| s[0] < s[1]));
@@ -236,6 +238,9 @@ mod tests {
                 assert!(registered_finish(cat.surface, *slot));
             }
             for object in audit["usage"].as_object().unwrap().values() {
+                if let Some(row) = object.get(&cat.name) {
+                    assert_eq!(row["slots"].as_array().unwrap().len(), width);
+                }
                 if let Some(histogram) = object[&cat.name]["special_slots"].as_object() {
                     for id in histogram.keys() {
                         assert!(slots.contains(&id.parse().unwrap()));

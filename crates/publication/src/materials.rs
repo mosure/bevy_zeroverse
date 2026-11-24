@@ -59,26 +59,38 @@ fn legacy_special_finish(surface: &str, slot: usize) -> bool {
 }
 
 struct FinishBindings {
-    capacity: usize,
+    histogram_width: usize,
     special: Option<Vec<usize>>,
 }
 
 impl FinishBindings {
     fn read(category: &Value, schema: u64) -> Result<Self> {
         let capacity = finish_capacity(category)?;
+        let histogram_width = if schema >= 3 {
+            category["assignment_slots"]
+                .as_u64()
+                .filter(|n| (capacity as u64..=4096).contains(n))
+                .context("invalid assignment histogram width")? as usize
+        } else {
+            capacity
+        };
         let special = if schema >= 3 {
             let slots: Vec<usize> =
                 serde_json::from_value(category["registered_special_slots"].clone())
                     .context("missing or invalid per-surface finish registry")?;
             ensure!(
-                slots.iter().all(|&n| n >= capacity) && slots.windows(2).all(|s| s[0] < s[1]),
+                slots.iter().all(|&n| n >= histogram_width)
+                    && slots.windows(2).all(|s| s[0] < s[1]),
                 "overlapping, duplicate or unordered special finish IDs"
             );
             Some(slots)
         } else {
             None
         };
-        Ok(Self { capacity, special })
+        Ok(Self {
+            histogram_width,
+            special,
+        })
     }
 }
 
@@ -434,19 +446,16 @@ fn verify_usage(usage: &Value, categories: &[Value], schema: u64) -> Result<()> 
             ))
         })
         .collect::<Result<BTreeMap<_, _>>>()?;
-    // Base roles and rugs use the generic palette's histogram storage. Content
-    // roles declare their larger, independently sampled document pools.
-    let generic_capacity = capacities
-        .iter()
-        .filter(|(name, _)| {
-            !matches!(
-                **name,
-                "Screen" | "PhoneScreen" | "Television" | "Whiteboard" | "Art" | "Rug"
-            )
-        })
-        .map(|(_, bindings)| bindings.capacity)
-        .max()
-        .context("missing generic finish palette")?;
+    // Earlier atlases padded base material rows to the generic stock palette.
+    // Current atlases also record independent print and display pool widths.
+    let legacy_width = if schema < 3 {
+        capacities
+            .get("Wood")
+            .context("missing generic finish palette")?
+            .histogram_width
+    } else {
+        0
+    };
     let mut parts = 0;
     for (kind, category) in usage["usage"]
         .as_object()
@@ -460,7 +469,8 @@ fn verify_usage(usage: &Value, categories: &[Value], schema: u64) -> Result<()> 
             let bindings = capacities
                 .get(surface.as_str())
                 .context("unregistered assignment surface")?;
-            let total = histogram_parts(row, bindings.capacity.max(generic_capacity))?
+            let total = histogram_parts(row, bindings.histogram_width.max(legacy_width))
+                .with_context(|| format!("assignment histogram for {kind}/{surface}"))?
                 + special_parts(surface, row, bindings.special.as_deref())?
                 + row["base_parts"].as_u64().unwrap_or(0);
             ensure!(row["parts"] == total, "part/slot count mismatch");
@@ -542,12 +552,12 @@ mod tests {
     #[test]
     fn current_atlas_checks_finish_ids_against_the_producers_surface_registry() {
         let ceramic = FinishBindings::read(
-            &json!({"finish_slots":12,"registered_special_slots":[100,109,110]}),
+            &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":[100,109,110]}),
             3,
         )
         .unwrap();
         let mouse = FinishBindings::read(
-            &json!({"finish_slots":12,"registered_special_slots":[801,803]}),
+            &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":[801,803]}),
             3,
         )
         .unwrap();
@@ -579,12 +589,32 @@ mod tests {
             json!([110, 109]),
         ] {
             assert!(FinishBindings::read(
-                &json!({"finish_slots":12,"registered_special_slots":slots}),
+                &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":slots}),
                 3
             )
             .is_err());
         }
     }
+    #[test]
+    fn assignment_width_is_independent_of_material_probe_slots() {
+        for (probes, assignments) in [(1, 12), (4, 12), (12, 12), (24, 24), (120, 120)] {
+            let role = json!({"finish_slots":probes,"assignment_slots":assignments,"registered_special_slots":[]});
+            let bindings = FinishBindings::read(&role, 3).unwrap();
+            assert_eq!(bindings.histogram_width, assignments);
+            let row = json!({"slots":vec![1; assignments]});
+            assert_eq!(
+                histogram_parts(&row, bindings.histogram_width).unwrap(),
+                assignments as u64
+            );
+        }
+        for bad in [
+            json!({"finish_slots":24, "assignment_slots":12, "registered_special_slots":[]}),
+            json!({"finish_slots":1, "assignment_slots":12, "registered_special_slots":[5]}),
+        ] {
+            assert!(FinishBindings::read(&bad, 3).is_err());
+        }
+    }
+
     #[test]
     fn specialized_food_binding_receipts_are_typed_and_counted() {
         assert_eq!(legacy_parts("Paper", &json!({})).unwrap(), 0);
