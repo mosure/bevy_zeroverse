@@ -37,10 +37,11 @@ jobs:
           - nightly-2026-08-31
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    # macos-latest also compiles the Burn motion feature graph after the default suite.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 180 || 120 }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup ${{ matrix.rust-toolchain }} rust toolchain with caching
       uses: brndnmtthws/rust-action@v1
