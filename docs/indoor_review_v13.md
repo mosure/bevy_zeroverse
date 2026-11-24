@@ -10,14 +10,14 @@ continuous furniture, clothing, glazing and lighting parameters. This is a local
 validation of those changes, not evidence of photographic realism or 10M-sample
 learning utility.
 
-The [measurements](evidence/indoor_v13/summary.json),
-[parameter distributions](evidence/indoor_v13/rooms/metrics.json),
-[capture distributions](evidence/indoor_v13/rooms/capture_distribution.json) and
-[placement heatmaps](evidence/indoor_v13/rooms/placement_heatmaps.svg) retain the
-audit. [Source and artifact hashes](evidence/indoor_v13/provenance.json) identify
+The [measurements](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/summary.json),
+[parameter distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/rooms/metrics.json),
+[capture distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/rooms/capture_distribution.json) and
+[placement heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/rooms/placement_heatmaps.svg) retain the
+audit. [Source and artifact hashes](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/provenance.json) identify
 the final local snapshot; no release or remote CI run was performed.
 
-![Four sampled rooms, two cameras each](evidence/indoor_v13/rooms/contact.png)
+![Four sampled rooms, two cameras each](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/rooms/contact.png)
 
 ## Capture contract
 
@@ -42,7 +42,7 @@ an exact static transform, without target jitter, roll or interpolation drift.
 An editor camera is not created when there is no window; this also fixes a GPU
 culling panic exposed by the windowless capture regression.
 
-The [GPU regression](evidence/indoor_v13/logs/capture_coherence.log) holds assets,
+The [GPU regression](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/logs/capture_coherence.log) holds assets,
 pending motion and a stale motion report independently, asserting that neither
 camera rendering nor copy requests start early. It then exercises float32
 geometry, the legacy float16 path, regeneration, camera metadata, capture-time
@@ -52,7 +52,7 @@ quantization limits. The float32 path is used for the room audit below.
 
 ## Real native and browser motion
 
-The real [CLI run](evidence/indoor_v13/motion_cli/validation.json) generated two
+The real [CLI run](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/motion_cli/validation.json) generated two
 rooms with two cameras, three timesteps (`0`, `0.5`, `1`) and seven channels:
 RGB, depth, normal, position, semantic, optical flow and motion vectors. Both
 rooms waited for matching completed motion reports. Four people received motion;
@@ -62,7 +62,7 @@ exports contained 3,162 and 3,208 occupied cells. The process loaded the motion
 models once across both rooms. A separate Cornell cube CLI smoke test passed
 with RGB/depth/normal.
 
-The final Wasm build passed an actual [Chrome WebGPU run](evidence/indoor_v13/web/report.json)
+The final Wasm build passed an actual [Chrome WebGPU run](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/web/report.json)
 on Linux/NVIDIA. A static control loaded no ARDY/Llama models and produced
 identical images. With the same fixed camera policy, the motion case accepted
 two clips and changed 14,514 pixels by more than 4/255 between screenshots.
@@ -73,9 +73,9 @@ case, including regeneration, took 90.9 seconds; these are whole-test durations,
 not frame-time or inference benchmarks. The console retains an unrelated favicon
 404 and the upstream four-influence skinning warning.
 
-[First moving frame](evidence/indoor_v13/web/motion_0.png) ·
-[Second moving frame](evidence/indoor_v13/web/motion_1.png) ·
-[Regenerated room](evidence/indoor_v13/web/regenerated.png)
+[First moving frame](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/web/motion_0.png) ·
+[Second moving frame](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/web/motion_1.png) ·
+[Regenerated room](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/web/regenerated.png)
 
 The browser test uses a local mirror of the official model artifacts. It does
 not qualify CDN/CORS deployment, every browser/adapter, or browser dataset
@@ -95,13 +95,13 @@ final-build run both completed.
 | Materials | Shared seeded cloth warp/weft and twill programs, per-person UV variation, ceramic texture maps, and per-tile stone-vein phase/orientation. Human material generation is separated into `materials/human.rs`. |
 | Lighting | Spatial fixture intensity and color-temperature gradients augment the existing solar, sky, exposure, circuit and fixture programs. Intensity remains bounded and temperature is clamped to 1,800–9,000 K. |
 
-![Furniture review](evidence/indoor_v13/furniture/contact.png)
+![Furniture review](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/furniture/contact.png)
 
-![Clothing review](evidence/indoor_v13/people/body_contact.png)
+![Clothing review](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/people/body_contact.png)
 
-[Portraits](evidence/indoor_v13/people/portrait_contact.png) ·
-[Bun from behind](evidence/indoor_v13/people/rear_6.png) ·
-[Ponytail from behind](evidence/indoor_v13/people/rear_7.png)
+[Portraits](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/people/portrait_contact.png) ·
+[Bun from behind](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/people/rear_6.png) ·
+[Ponytail from behind](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/people/rear_7.png)
 
 The human review captures eight actors from the front and the two new styles
 from behind. Hands retain skin materials and the new hair geometry attaches to
@@ -117,7 +117,7 @@ glass slabs cull backfaces to avoid a second overlapping refraction contribution
 Indoor transmission uses 32 taps natively and 16 in Wasm. Glass remains excluded
 from generic procedural surface textures.
 
-The [paired diagnostic](evidence/indoor_v13/glass/glass_comparison.png) uses two
+The [paired diagnostic](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/glass/glass_comparison.png) uses two
 views of seed 44 on identical **v12 geometry**, before the diversity changes.
 Semantic masks matched. Across 24,919 eroded glass pixels, mean RGB change was
 0.00138. Spatial Laplacian RMS increased from 0.05669 to 0.06207 as edges became
@@ -168,7 +168,7 @@ tests. Strict workspace/all-target Clippy passed with `human_motion` and
 `embedding_audit`; default viewer checking, Wasm motion building, formatting and
 diff whitespace checks passed. The only compiler notice was upstream Burn
 0.21 future incompatibility. Logs are retained under
-[`evidence/indoor_v13/logs`](evidence/indoor_v13/logs).
+[`evidence/indoor_v13/logs`](https://github.com/mosure/bevy_zeroverse/tree/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/indoor_v13/logs).
 
 ```sh
 cargo test --lib --features human_motion

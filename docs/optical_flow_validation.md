@@ -42,8 +42,8 @@ deformation; it is not a semantic action-quality score. RGB, depth, normal,
 semantic and human-pose checks also pass. One model pair is reused across the
 three rooms. Indirect lighting is disabled in this diagnostic room sweep.
 
-[RGB source frame](evidence/optical_flow/walking_rgb.png) and
-[forward-flow preview](evidence/optical_flow/walking_flow.png) show one walking
+[RGB source frame](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/optical_flow/walking_rgb.png) and
+[forward-flow preview](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/optical_flow/walking_flow.png) show one walking
 capture. Preview hue encodes direction; saturation uses a fixed 40-pixel scale;
 hidden endpoints are dimmed. These PNGs visualize the separate float32 data.
 

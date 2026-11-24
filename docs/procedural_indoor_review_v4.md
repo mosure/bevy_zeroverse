@@ -35,56 +35,56 @@ per-plant triangle budget rather than hiding it with a texture billboard.
 
 ## Validation evidence
 
-The [4,096-seed audit](procedural_indoor/distribution_generator4.json) found zero
+The [4,096-seed audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distribution_generator4.json) found zero
 invalid layouts and covered all 432 layout/lighting/floor/furniture/architecture
 strata. Architectural counts were 1,068 Classic, 1,036 Contemporary, 1,027
 Industrial and 965 Timber. The six plant forms occurred 1,802–1,907 times each.
 Main-room chairs ranged from 3 to 16 at density 0.65. This is sampled validity,
 not proof over every possible seed or density.
 
-The [exact metrics](procedural_indoor/metrics_generator4.json),
-[distribution plots](procedural_indoor/distributions_generator4.svg) and
-[placement heatmaps](procedural_indoor/placement_heatmaps_generator4.svg) include
+The [exact metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_generator4.json),
+[distribution plots](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distributions_generator4.svg) and
+[placement heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/placement_heatmaps_generator4.svg) include
 zero-count object cases, camera intrinsics and paths. The audit includes 16,384
 cameras; field of view spans approximately 48–74 degrees and camera height
 0.78–2.25 m. Heatmaps count object centers and camera paths, not image visibility.
 
 Twelve scenes were selected by categorical coverage before rendering, with four
-cameras each at 960×720. All [48 captured views](procedural_indoor/render_summary_generator4.json)
+cameras each at 960×720. All [48 captured views](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_generator4.json)
 passed annotation checks: maximum per-view p99 reprojection discrepancy was
 0.00269 pixels and depth/position disagreement was 2.87 micrometres. Camera
 metadata matched the requested poses exactly. These are alignment checks, not
 independent physical-realism measurements. All four architectural families appear
 three times in the cohort. No view was removed for appearance.
 
-![Every captured view, including awkward composition and occlusion](procedural_indoor/contact_generator4.jpg)
+![Every captured view, including awkward composition and occlusion](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_generator4.jpg)
 
 Close-ups exposed the initial sparse foliage and informed the final revision.
-The [plant crops](procedural_indoor/plant_details_generator4.jpg) include
-occlusion and retain their [crop provenance](procedural_indoor/plant_crop_provenance_generator4.json).
+The [plant crops](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/plant_details_generator4.jpg) include
+occlusion and retain their [crop provenance](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/plant_crop_provenance_generator4.json).
 The split-leaf form lacked a useful close-up in the cohort, so seed 2955 was
 selected separately using projected plant size from the audit, then rendered
-with four cameras. This [targeted view](procedural_indoor/tropical_generator4.jpg)
+with four cameras. This [targeted view](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/tropical_generator4.jpg)
 is a morphology check, not a population-quality statistic. Plants remain
 recognizably procedural at close range.
 
-The [CLI/Python round trip](procedural_indoor/dataset_qualification_generator4.json)
+The [CLI/Python round trip](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dataset_qualification_generator4.json)
 passed raw RGB, label, camera and manifest equality across worker counts,
 process replacement, folder/chunk outputs and resume. Three trajectory times
-were captured per camera. The [browser report](procedural_indoor/web_qualification_generator4.json)
+were captured per camera. The [browser report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_qualification_generator4.json)
 passed eight native-Chromium WebGPU cases: two seeds, Auto/Portable and RGB/depth,
 each with regeneration. Auto and Portable screenshots are retained below.
 Native annotation tests do not establish browser dataset capture support.
 
-![WebGPU Auto](procedural_indoor/web_generator4_auto.jpg)
-![WebGPU Portable](procedural_indoor/web_generator4_portable.jpg)
+![WebGPU Auto](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_generator4_auto.jpg)
+![WebGPU Portable](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_generator4_portable.jpg)
 
-The [qualification record](procedural_indoor/qualification_generator4.json)
+The [qualification record](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/qualification_generator4.json)
 records binary hashes, 79 passing workspace library tests, 40 Python reporting
 tests and strict all-target workspace Clippy. Plant tests cover six forms across
 12 seeds, finite unit normals, nondegenerate triangles, floor contact, placement
 bounds and fewer than 20,000 triangles per plant. The
-[September 26 registry check](procedural_indoor/dependency_releases_generator4.json)
+[September 26 registry check](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dependency_releases_generator4.json)
 confirms the requested Bevy/Burn/human crates are the latest stable releases.
 
 ## Limits and release boundary

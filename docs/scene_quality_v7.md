@@ -111,7 +111,7 @@ geometry and legacy scene switching. Recreating apps in one test process still
 logs Bevy's already-installed global logger notice; the Linux adapter enumerator
 also logged EGL teardown notices. Neither affected Vulkan captures. These are
 distinct from compiler warnings and browser inspector errors.
-An additional [eight-second standalone headless run](procedural_indoor/headless_program7.json)
+An additional [eight-second standalone headless run](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/headless_program7.json)
 verified the continuous runner with the default editor flag and an Anny-populated
 scene. It completed without window, screenshot-target or shadow-LOD warnings.
 The profiler only requests a window screenshot in windowed mode.
@@ -120,9 +120,9 @@ The final cohort in `out/quality7` contains **512 audited scenes, 1,024 camera
 trajectories and 36 native views at 960×720**. Six category-balanced seeds
 (0, 11, 138, 485, 255, 401), two cameras and three trajectory steps were rendered
 without image-quality filtering. No layout or camera validation failures occurred.
-The [distribution](procedural_indoor/distribution_program7.json),
-[metrics](procedural_indoor/metrics_program7.json) and
-[capture summary](procedural_indoor/render_summary_program7.json) retain counts,
+The [distribution](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distribution_program7.json),
+[metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_program7.json) and
+[capture summary](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_program7.json) retain counts,
 joint distributions and heatmaps, including zero-count scenes. CSVs and figures
 are in `out/quality7`.
 
@@ -145,9 +145,9 @@ scores or evidence of ten-million-scene statistical coverage. In particular,
 annotations describe the first geometric surface: transparent glass can label a
 pixel as window while a person remains visible in RGB behind it.
 
-![All 36 final engine views](procedural_indoor/contact_generator7.jpg)
+![All 36 final engine views](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_generator7.jpg)
 
-The [GI ablation](procedural_indoor/gi_program7.json) also passed. GPU probe values
+The [GI ablation](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_program7.json) also passed. GPU probe values
 had 22.9% relative MAE against the CPU high-sample oracle at this bounded sampling
 budget. Turning off only the baked irradiance volume changed mean linear luminance
 by 0.0129 and 0.0172 in the two fixed views; capture waited for CPU GI completion.
@@ -157,14 +157,14 @@ to Cycles. There is no new matched Cycles qualification for generator 7.
 The final debug Wasm artifact passed **eight Chromium WebGPU cases**: Auto and
 Portable × Color, Depth, Normal and Semantic, each with the editor, Anny people
 and R regeneration from seed 115 to 116. No renderer/GPU errors or inspector/picking
-warnings occurred. The [browser report](procedural_indoor/web_program7.json)
+warnings occurred. The [browser report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_program7.json)
 includes the artifact hash. A separate interaction check selected Indoor through
 the actual Object inspector dropdown, then pressed R; screenshots and logs are in
 `out/quality7_ui`; it exercises the same inspector implementation as the final artifact. Browser
 dataset readback, browser voxel export and other browser/GPU combinations are not
 qualified by this viewer test.
 
-The [30-second native profile](procedural_indoor/viewer_profile_program7.json)
+The [30-second native profile](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/viewer_profile_program7.json)
 used an RTX PRO 6000 Blackwell, 800×600, full human density and regeneration every
 four seconds. First submission was 1.47 s, first scene event 3.24 s; frame-gap
 p95 was 19.0 ms, with 101.3 ms maximum after five seconds. Main-schedule work

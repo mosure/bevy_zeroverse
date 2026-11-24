@@ -12,7 +12,7 @@ The [whitepaper](https://mosure.github.io/bevy_zeroverse/project/static/papers/b
 includes current RGB/plan/section figures and population distributions; earlier
 camera-baseline and motion studies are retained separately as reference evidence.
 
-![Sampled footprint programs, with glazing and level changes](evidence/architecture_covisibility/footprints.png)
+![Sampled footprint programs, with glazing and level changes](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/footprints.png)
 
 These are twelve examples selected by architectural feature coverage from the
 512-room audit, independent of rendered appearance. Cyan marks exterior apertures;
@@ -79,7 +79,7 @@ and excluding seeds, materials and aperture detail. This measures uniqueness
 within this sample; it does not establish the effective size of a 10M-image
 training distribution.
 
-![Architectural feature and parameter distributions](evidence/architecture_covisibility/distributions.png)
+![Architectural feature and parameter distributions](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/distributions.png)
 
 The **first 32 rooms were rendered without filtering**, with four cameras at
 both trajectory endpoints: **256 views**, each in RGB, depth, normal, semantic
@@ -88,7 +88,7 @@ Auto quality, shadows, SSAO and diffuse GI at 1,024 rays per probe. Geometry
 annotations used the native float32 path. The first-view contact sheet below
 includes every captured room, including dark scenes.
 
-![Every consecutively rendered room, first camera](evidence/architecture_covisibility/consecutive_rooms.jpg)
+![Every consecutively rendered room, first camera](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/consecutive_rooms.jpg)
 
 All 256 views passed annotation alignment. The largest per-view depth/position
 p99 discrepancy was **2.87 µm**; the largest reprojection p99 was **0.00264 px**.
@@ -109,8 +109,8 @@ Scene construction through capture/export took 1.44–4.49 s per room, median
 modes. This is a bounded run on one adapter, not a sustained-throughput or memory
 stability qualification.
 
-[Four-view examples](evidence/architecture_covisibility/multiview.jpg) and
-[matched RGB/depth/normal/semantic panels](evidence/architecture_covisibility/annotations.jpg)
+[Four-view examples](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/multiview.jpg) and
+[matched RGB/depth/normal/semantic panels](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/annotations.jpg)
 include both first-observed mezzanines. Example selection is based on structural
 coverage; it does not change the statistics above.
 
@@ -134,7 +134,7 @@ qualifications ignored. Strict Clippy with human motion and the Wasm viewer
 compilation both passed. The native voxel regression matched **28,571 occupied
 cells and their semantic labels exactly between CPU and GPU**, retaining the
 depressed floor and mezzanine while excluding the courtyard and exterior context.
-[Validation commands, source hashes and logs](evidence/architecture_v22/validation.json)
+[Validation commands, source hashes and logs](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_v22/validation.json)
 record the scope of each check for this local working tree.
 
 ```sh
@@ -157,10 +157,10 @@ cargo test --test procedural_indoor_render --no-default-features \
   -- --ignored --nocapture
 ```
 
-The Python report requires Pillow and matplotlib. Its [summary](evidence/architecture_covisibility/summary.json)
+The Python report requires Pillow and matplotlib. Its [summary](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/summary.json)
 records the capture engine, annotation precision, configuration and input hashes.
-[metrics.json](evidence/architecture_covisibility/metrics.json) holds all numeric and
-categorical distributions. [architecture.jsonl.gz](evidence/architecture_covisibility/architecture.jsonl.gz)
+[metrics.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/metrics.json) holds all numeric and
+categorical distributions. [architecture.jsonl.gz](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_covisibility/architecture.jsonl.gz)
 holds the 512 footprint/roof/floor/structure/aperture programs. Full captures and
 per-instance camera/object CSVs are local in `out/architecture_covisibility`.
 

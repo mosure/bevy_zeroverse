@@ -2,7 +2,7 @@
 
 The current sampler is measured with bevy_zeroverse 0.39.0, generator 37,
 source `760448699a3a7edb6ef25b2cd8623614dcd2bf53d3871ed9225a28e9c8ec8130`.
-The formal Rust publication pipeline consumes the [portable report](evidence/camera_counts/study.json),
+The formal Rust publication pipeline consumes the [portable report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_counts/study.json),
 checks its identity and receipt, and generates the project-page and paper figures.
 
 ## Sampling contract

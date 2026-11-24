@@ -59,9 +59,9 @@ The CSV also exports actual resolution-dependent fx/fy, principal point, near/fa
 pose endpoints, target, pitch and yaw. Fixed centered principal points and near/far
 are reported as constant distributions, not artificial diversity.
 
-![Count, camera and trajectory distributions](procedural_indoor/distributions.svg)
+![Count, camera and trajectory distributions](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distributions.svg)
 
-![Object placement and camera occupancy](procedural_indoor/placement_heatmaps.svg)
+![Object placement and camera occupancy](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/placement_heatmaps.svg)
 
 Heatmaps use main-room-normalized object centers and 33 samples per camera path.
 Neighbor coordinates are normalized separately. They describe placement, not
@@ -79,11 +79,11 @@ and position at 320×240. All buffers, semantic palette values, camera calibrati
 and geometric alignment checks passed. All 108 first-view images were visually
 reviewed in the complete contact sheets:
 
-- [Conference: all 27 combinations](procedural_indoor/contact_conference.png)
-- [Lounge: all 27 combinations](procedural_indoor/contact_lounge.png)
-- [Office: all 27 combinations](procedural_indoor/contact_openoffice.png)
-- [Training: all 27 combinations](procedural_indoor/contact_training.png)
-- [Measured darkest and brightest views](procedural_indoor/contact_exposure_extremes.png)
+- [Conference: all 27 combinations](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_conference.png)
+- [Lounge: all 27 combinations](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_lounge.png)
+- [Office: all 27 combinations](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_openoffice.png)
+- [Training: all 27 combinations](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_training.png)
+- [Measured darkest and brightest views](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_exposure_extremes.png)
 
 A separate pass captured **72 views** from eight scenes at **801×601**, with three
 cameras, three trajectory steps, whole-room rotation and an empty asset directory.
@@ -122,7 +122,7 @@ Fixed-scene ablations at 640×480 show that local shadow maps affect approximate
 direct lights affects 59.5–59.8%, with mean absolute differences of 0.0251–0.0275.
 The earlier configuration was dominated by ambient fill; correcting the spotlight
 cone normalization and rebalancing illumination made direct light meaningful.
-The [ablation data](procedural_indoor/lighting_ablation.json) records every condition.
+The [ablation data](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/lighting_ablation.json) records every condition.
 
 Turning off all shadows while leaving the sun active produces major light leakage
 through solid walls. Portable therefore disables direct sun as well as shadow maps.
@@ -132,7 +132,7 @@ these pixel-difference tests.
 
 ## Dataset and browser qualification
 
-[Dataset qualification](procedural_indoor/dataset_qualification.json) records actual
+[Dataset qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dataset_qualification.json) records actual
 GPU CLI/Python tests, not just serializer fixtures: one versus two export workers,
 partial-chunk resume, rejected incompatible resume/overwrite, shuffled/repeated
 Python indices, two spawned DataLoader workers, three time samples and two cameras
@@ -171,6 +171,6 @@ photographic quality across arbitrary indoor space. The largest remaining work i
 4. Long-running isolated memory/throughput qualification and a scene-disjoint,
    matched real-data benchmark measuring downstream ML benefit.
 
-The [machine-readable qualification](procedural_indoor/qualification.json) identifies
+The [machine-readable qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/qualification.json) identifies
 the current evidence and sources. Earlier version-1 numbers are historical, not
 current validation of the version-2 generator.

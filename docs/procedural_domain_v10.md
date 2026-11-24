@@ -10,9 +10,9 @@ The changes are local. Existing scene modes, static AnnyBody people and opt-in
 motion generation remain available.
 
 The final qualification contains **12,048 CPU-audited rooms and 144 rendered
-rooms / 576 views**. Open the [capture dashboard](evidence/domain10/consecutive/capture_dashboard.svg),
-[placement/trajectory heatmaps](evidence/domain10/consecutive/capture_placement.svg),
-[embedding spacing plot](evidence/domain10/embeddings/spacing.svg), or
+rooms / 576 views**. Open the [capture dashboard](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/consecutive/capture_dashboard.svg),
+[placement/trajectory heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/consecutive/capture_placement.svg),
+[embedding spacing plot](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/embeddings/spacing.svg), or
 [evidence index](evidence/domain10/README.md) for contact sheets, CSVs and provenance.
 
 ## Final captured cohorts
@@ -132,8 +132,8 @@ measurement of native GI error or a spectrally accurate ground truth.
 The diagnostic uses the same new geometry/material implementation but precedes
 the final anatomical camera-visibility refinement. Its exported camera poses are
 pinned in the reference hashes. It is one dense scene, not a population estimate.
-See [comparison measurements](evidence/domain10/cycles/comparison.json) and
-[shared-exposure previews](evidence/domain10/cycles/view_00_native_cycles.png).
+See [comparison measurements](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/cycles/comparison.json) and
+[shared-exposure previews](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/cycles/view_00_native_cycles.png).
 
 ## SigLIP2 protocol
 
@@ -202,7 +202,7 @@ anatomical-point/height search refinements. Final evidence comes only from the
 fully rerun `out/domain10_verified` and `out/domain10_verified_stress` cohorts,
 with no skipped seeds. Their immutable measurements and source/binary hashes,
 plus the separately scoped Cycles and embedding controls, are retained in
-[provenance](evidence/domain10/provenance.json).
+[provenance](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain10/provenance.json).
 
 Generator/capture identities are **10 / capture-v14**; metric schema remains 6.
 The same seed changes across generator versions. Photographic realism, sufficient

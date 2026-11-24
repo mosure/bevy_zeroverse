@@ -42,7 +42,7 @@ existing readiness barrier. Unsupported history effects retain conservative
 settling. None of these changes implements GPU texture baking.
 
 See the [current capture qualification](generation_cpu_efficiency.md) and
-[qualification receipt](evidence/cpu_efficiency/receipt.json) for matched capture
+[qualification receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/cpu_efficiency/receipt.json) for matched capture
 measurements, exact map/render replay, tests, source identities and rejected
 experiments. Browser execution and GPU texture baking remain unqualified.
 

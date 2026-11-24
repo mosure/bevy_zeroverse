@@ -97,10 +97,10 @@ It does not claim that system's asset coverage, quality or evaluation results.
 The native cohort uses seeds 0..2047, default density 0.65 and human density 0.25.
 Twelve strata-selected scenes were captured at 800x600, two cameras and three
 trajectory times each. Selection preceded rendering; poor-looking images were
-not removed. See the [72-view contact sheet](procedural_indoor/contact_generator6.jpg),
-[render summary](procedural_indoor/render_summary_program6.json),
-[distribution audit](procedural_indoor/distribution_program6.json) and
-[complete metrics](procedural_indoor/metrics_program6.json).
+not removed. See the [72-view contact sheet](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_generator6.jpg),
+[render summary](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_program6.json),
+[distribution audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distribution_program6.json) and
+[complete metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_program6.json).
 
 | Check | Result |
 | --- | --- |
@@ -119,7 +119,7 @@ not removed. See the [72-view contact sheet](procedural_indoor/contact_generator
 
 The browser harness waits for the requested seed's generation event before measuring
 post-regeneration frames. Frame submissions alone are insufficient when the previous
-scene remains visible during preparation. The [browser report](procedural_indoor/web_program6.json)
+scene remains visible during preparation. The [browser report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_program6.json)
 records the actual Wasm hash, adapter, errors and fallback warnings.
 
 On the RTX PRO 6000 Blackwell / Vulkan 610.43.02, a 30-second interactive stress
@@ -134,7 +134,7 @@ The interval waits for pending lighting; it does not cancel unfinished bakes.
 | Frame-gap p95 | 17.4 ms | 16.8 ms |
 | Frame-gap p99 | 22.8 ms | 21.1 ms |
 
-These are CPU intervals from [the viewer profile](procedural_indoor/viewer_profile_program6.json),
+These are CPU intervals from [the viewer profile](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/viewer_profile_program6.json),
 not GPU timestamp measurements. First submission does not prove loaded pixels, and
 the furnished-scene event now precedes final indirect lighting. Dense-room lighting
 can take several seconds; headless capture retains the faster full GPU dispatch.
@@ -159,9 +159,9 @@ passed, and all six independent repeats passed the existing coarse convergence g
 | 115 / 0 | 20.33% | 4.60% |
 | 115 / 1 | 12.57% | 3.46% |
 
-Reports: [evening](procedural_indoor/cycles_program6_seed0.json),
-[daylight](procedural_indoor/cycles_program6_seed6.json),
-[overcast](procedural_indoor/cycles_program6_seed115.json).
+Reports: [evening](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/cycles_program6_seed0.json),
+[daylight](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/cycles_program6_seed6.json),
+[overcast](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/cycles_program6_seed115.json).
 The comparator now includes partial edge blocks, weighted by their actual pixel area;
 it previously omitted the 32-pixel measurement for these image dimensions. Thresholds
 were unchanged. Whole-image mean agreement and the convergence gate use all pixels.

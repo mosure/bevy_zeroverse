@@ -126,8 +126,8 @@ The shell loop above uses POSIX `sh` word splitting. Python analysis requires
 NumPy and matplotlib. The builder verifies completed run identities, consecutive
 seed sets, engine version, image sizes, camera policy and matched non-camera
 manifests. It retains input hashes and per-view/pair/time CSVs under
-[`docs/evidence/baseline_v21/`](evidence/baseline_v21/). The canonical
-[`report.json`](evidence/baseline_v21/report.json) links each parameter level to its
+[`docs/evidence/baseline_v21/`](https://github.com/mosure/bevy_zeroverse/tree/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/baseline_v21). The canonical
+[`report.json`](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/baseline_v21/report.json) links each parameter level to its
 full co-visibility report by SHA256; the `default/` report contains all 512 rooms.
 
 Then follow [the gallery recipe](project_page.md) and rebuild project media and

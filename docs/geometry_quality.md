@@ -4,12 +4,12 @@ The indoor generator samples continuous construction programs for room envelopes
 structural columns, seating, table tops/supports and potted plants. Dimensions,
 curvature, taper and assembly details vary within manufacturing and placement
 constraints. The captures and metrics below are bound to the
-[qualification receipt](evidence/geometry_quality/receipt.json).
+[qualification receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/receipt.json).
 This is a source-bound geometry snapshot. The subsequent
 [human clothing and motion qualification](human_quality.md) has its own current
 source identity, denser human audit and render evidence.
 
-![Shaped upholstery, suspension backs, bent frames and stools](evidence/geometry_quality/seating.jpg)
+![Shaped upholstery, suspension backs, bent frames and stools](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/seating.jpg)
 
 ## Construction
 
@@ -25,7 +25,7 @@ contour. Cantilever chairs and loop table frames use continuous bends instead of
 intersecting capped rods. Closed sweeps correct accumulated frame twist and weld
 both wrap seams exactly. Backless stools remain present.
 
-![Continuously blended table outlines and dimensioned supports](evidence/geometry_quality/tables.jpg)
+![Continuously blended table outlines and dimensioned supports](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/tables.jpg)
 
 Table tops blend convex superelliptic and capsule outlines. A projective taper
 preserves convexity. Prop placement tests the actual top, and mounting plates fit
@@ -33,7 +33,7 @@ inside its narrow end. Legs vary in taper and section aspect; pedestal bases hav
 a shaped edge and contact the floor. Top and underside finishes follow their
 construction material. Wood retains metric grain along the long axis.
 
-![Potted botanical geometry](evidence/geometry_quality/plants.jpg)
+![Potted botanical geometry](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/plants.jpg)
 
 Planters sample belly, neck, wall thickness, lip and physical fluting. They have
 inner walls and separate saucers. Soil and surface stones fit the actual hollow
@@ -80,8 +80,8 @@ The new leg/bend/lattice distributions count only constructions that use those
 controls. Preset counts and scalar variance do not establish perceptual diversity
 or learning utility for ten million samples. Full histograms, primary/neighbor
 object counts and placement heatmaps are in
-[metrics.json](evidence/geometry_quality/metrics.json); the
-[object CSV](evidence/geometry_quality/objects.csv) retains transforms and sizes.
+[metrics.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/metrics.json); the
+[object CSV](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/objects.csv) retains transforms and sizes.
 
 ## Native renders and annotations
 
@@ -91,10 +91,10 @@ and baked diffuse GI. No dark or sparse samples were removed. The following
 sheets show camera zero for every room; the isolated object galleries above are
 illustrative construction coverage rather than distribution samples.
 
-![Rooms 0–15](evidence/geometry_quality/rooms_0.jpg)
-![Rooms 16–31](evidence/geometry_quality/rooms_1.jpg)
-![Rooms 32–47](evidence/geometry_quality/rooms_2.jpg)
-![Rooms 48–63](evidence/geometry_quality/rooms_3.jpg)
+![Rooms 0–15](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/rooms_0.jpg)
+![Rooms 16–31](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/rooms_1.jpg)
+![Rooms 32–47](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/rooms_2.jpg)
+![Rooms 48–63](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/rooms_3.jpg)
 
 RGB, depth, normals, position, semantics and co-visibility passed aligned capture
 checks for all 192 views. Native geometric planes used direct float32 targets.
@@ -104,7 +104,7 @@ Each view contained 6–15 semantic classes. Median directed peer visibility was
 58.5%; median visibility shared with at least one peer was 77.9%. Placement proxy
 estimates and measured pixel overlap remain separate.
 
-![Three views of room 20 with aligned geometry annotations](evidence/geometry_quality/annotations_20.jpg)
+![Three views of room 20 with aligned geometry annotations](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/geometry_quality/annotations_20.jpg)
 
 The co-visibility previews have corresponding exact 16-bit membership masks and
 separate validity PNGs in the evidence folder. Color alone is not the numeric

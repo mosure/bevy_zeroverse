@@ -4,4 +4,4 @@ The receipt binds final frozen source, complete successful check records, the fu
 
 Registry WGPU tests exercised that local archive with a separately hashed external fullbody model fixture and verified qualification-only asset symlinks. The assets are not copied into or packaged with the archive. These tests do not prove upload, exact-commit CI, deployed Pages, or a subsequently published registry archive. Those state-dependent records remain under `out/release_031`. Raw capture files, binaries and package archives are omitted. Test harness counts can include child-process repeats.
 
-[The CPU throughput receipt](../cpu_efficiency/receipt.json) remains a separately identified pre-release 0.30.0 measurement. Its timings are not measurements of the final camera-fix source or registry packages.
+[The CPU throughput receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/cpu_efficiency/receipt.json) remains a separately identified pre-release 0.30.0 measurement. Its timings are not measurements of the final camera-fix source or registry packages.

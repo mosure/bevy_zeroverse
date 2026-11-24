@@ -12,7 +12,7 @@ This revision adds native float32 geometry annotations, static multi-bounce diff
 GI, asset-free articulated people, asynchronous capture and bounded export overlap.
 It is a validated procedural dataset engine upgrade. The evidence does not establish
 photographic realism, a state-of-the-art renderer, or downstream real-data ML benefit.
-The [machine-readable qualification](procedural_indoor/qualification_v3.json)
+The [machine-readable qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/qualification_v3.json)
 links the individual accuracy, distribution, runtime and export artifacts.
 
 ## Geometry, occupancy and scene diversity
@@ -25,7 +25,7 @@ Four room families, three lighting families and independent finish/furniture cho
 provide 108 categorical audit cells. Seeded continuous variation covers dimensions,
 furnishing density, placement, materials, camera intrinsics and paths.
 
-The [CPU geometry qualification](procedural_indoor/geometry_qualification_v3.json)
+The [CPU geometry qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/geometry_qualification_v3.json)
 checked 40,000 layouts across four furnishing densities and 160,000 camera paths
 without an invalid layout. A separate 4,096-scene full-occupancy sweep checked
 42,496 people, 16,384 paths and 474 million actual human mesh vertices. It covered
@@ -39,7 +39,7 @@ diversity; they do not establish realistic skin, hair, clothing or facial appear
 The topology grammar and asset families also remain much narrower than real offices.
 These finite tests are not a proof for every possible seed or configuration.
 
-The [native render sweep](procedural_indoor/render_summary_v3.json) selected the
+The [native render sweep](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_v3.json) selected the
 first observed seed in each of all 108 cells from a 10,000-seed audit, without
 image-quality filtering. All 648 views passed at 320×240: two cameras per scene,
 each at trajectory start, midpoint and endpoint. Captured poses exactly matched
@@ -49,20 +49,20 @@ People were visible in 87.8% of these views; that is pixel visibility rather
 than a scene-level person count. The largest fraction of clipped pixels in a view
 was 0.90%; mean linear luminance ranged from 0.0429 to 0.3246.
 
-[Count/intrinsic distributions](procedural_indoor/distributions_v3.svg),
-[placement heatmaps](procedural_indoor/placement_heatmaps_v3.svg) and
-[raw metric histograms](procedural_indoor/metrics_v3.json) retain population-level
+[Count/intrinsic distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distributions_v3.svg),
+[placement heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/placement_heatmaps_v3.svg) and
+[raw metric histograms](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_v3.json) retain population-level
 evidence, including zero-count scenes. Complete first-view contact sheets show
-[conference](procedural_indoor/contact_conference_v3.png),
-[office](procedural_indoor/contact_openoffice_v3.png),
-[training](procedural_indoor/contact_training_v3.png) and
-[lounge](procedural_indoor/contact_lounge_v3.png) scenes.
-The [exposure extremes](procedural_indoor/contact_exposure_extremes_v3.png) are also
+[conference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_conference_v3.png),
+[office](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_openoffice_v3.png),
+[training](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_training_v3.png) and
+[lounge](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_lounge_v3.png) scenes.
+The [exposure extremes](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_exposure_extremes_v3.png) are also
 included. Visual inspection shows repeated furniture families, recognizable
 procedural people and dark ceiling regions; passing signal gates does not remove
 these realism limitations.
 
-An additional [odd-size, rotated-camera qualification](procedural_indoor/highres_summary_v3.json)
+An additional [odd-size, rotated-camera qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/highres_summary_v3.json)
 passed eight scenes and 72 views at 801×601 with three cameras, three trajectory
 samples and human density 0.6. Its worst per-view 99th-percentile depth/position
 disagreement was also 3.34 micrometres, and reprojection disagreement 0.00272 pixels.
@@ -105,7 +105,7 @@ An independent depth attachment selects the first geometric surface. CPU export
 preserves float32; it does not recover precision from a float16 color target.
 RGB remains the normal HDR raster render. Glazing is opaque for geometric labels.
 
-The [independent ray/triangle test](procedural_indoor/ground_truth_precision_v3.json)
+The [independent ray/triangle test](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/ground_truth_precision_v3.json)
 checked 518 reference intersections at odd resolution, with translation,
 nonuniform scaling, curved normals, hidden geometry and despawn controls. Maximum
 world-position error was 66.1 micrometres, depth error 57.7 micrometres and
@@ -117,7 +117,7 @@ Sampling controls explicit normalized trajectory time, freezes automatic scene
 motion, snapshots metadata at request time and restores interactive playback.
 Scene identity, camera pose and projection changes during readback fail closed.
 This prevents metadata from silently describing a later interactive frame.
-The [capture coherence regression](procedural_indoor/capture_coherence_v3.json)
+The [capture coherence regression](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/capture_coherence_v3.json)
 exercises interactive sine playback, scene yaw, three explicit trajectory steps,
 native and legacy modes, failure recovery and regeneration. Unsupported mixed
 native flow/motion-vector requests fail explicitly rather than emit partial samples.
@@ -133,7 +133,7 @@ packet IDs synchronize the whole requested view set. Native indoor annotations s
 one geometry pass per camera rather than cycling four independent label renders.
 Geometry uploads are cached only for the current scene and evicted after regeneration.
 Generated headless cameras stop redundant RGB rendering after their copies are
-submitted. The [native headless polling window](procedural_indoor/capture_poll_window_v3.json)
+submitted. The [native headless polling window](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/capture_poll_window_v3.json)
 checks readiness with nonblocking device polls and one-millisecond sleeps, returning
 to the normal application schedule on completion or a ten-millisecond deadline.
 It applies only after every current copy is encoded and some packet remains pending.
@@ -143,7 +143,7 @@ rendering. `CapturePollBackoff` can disable pacing for matched controls. The dea
 bounds intentional polling/sleep scheduling; OS scheduling or servicing a callback
 can extend wall-clock time.
 
-In the historical [single-sleep 128-scene polling control](procedural_indoor/polling_comparison_v3.json),
+In the historical [single-sleep 128-scene polling control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/polling_comparison_v3.json),
 the one-millisecond backoff reduced whole-command CPU time from 147.51 to 107.98
 seconds (26.8%), mean measured-scene updates from 202.95 to 121.21 (40.3%), and
 peak RSS from 3,720.8 to 3,441.4 MiB (7.5%). Completed throughput was 5.884 versus
@@ -152,16 +152,16 @@ peak RSS from 3,720.8 to 3,441.4 MiB (7.5%). Completed throughput was 5.884 vers
 performs several readiness polls before another ECS update. These historical numbers
 are retained separately from the final measurements below.
 
-The final [bounded-window comparison](procedural_indoor/poll_window_comparison_v3.json)
+The final [bounded-window comparison](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/poll_window_comparison_v3.json)
 used 128 identical seeds, 16 warmup scenes, cache cleanup enabled in both runs and
 GPU timestamp instrumentation disabled. CPU time fell from 144.32 to 66.60 seconds
 (53.9%), mean measured-scene updates from 192.13 to 26.53 (86.2%), and peak RSS from
 3,275.3 to 2,824.0 MiB (13.8%). Throughput was 5.983 versus 6.002 completed views/s
 (+0.32%). This is one matched pair, not a statistical equivalence result. The
-[memory and timing curves](procedural_indoor/poll_window_comparison_v3.svg) retain
+[memory and timing curves](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/poll_window_comparison_v3.svg) retain
 the transient allocation behavior rather than treating a short run as a plateau.
 
-The [renderer residency regression](procedural_indoor/render_residency_v3.json)
+The [renderer residency regression](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_residency_v3.json)
 identified seven retained Bevy view/mesh key maps. Cleanup keeps currently extracted
 view keys and live main-world Mesh3d entities, including hidden meshes, while retaining
 compiled pipelines. Inactive views can re-specialize when activated. Across 64
@@ -206,12 +206,12 @@ captures used two cameras and three time samples with all five planes. Stable
 human/OBB IDs, ragged person counts, class remapping, annotation precision and actual
 GI settings survive filesystem/chunk/FFI/Python export. The canonical CLI exports
 layout, object, person, camera and placement-distribution metrics.
-See the [final-source Auto256 dataset qualification](procedural_indoor/dataset_qualification_v3_final.json)
-and the [higher-ray-budget qualification](procedural_indoor/dataset_qualification_v3_auto_1024.json).
+See the [final-source Auto256 dataset qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dataset_qualification_v3_final.json)
+and the [higher-ray-budget qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dataset_qualification_v3_auto_1024.json).
 
 The [WebGPU qualification](procedural_indoor_web.md) tested 20 real-browser
 mode/profile/seed cases plus regeneration, a camera grid and explicit native-only
-dataset-readback rejection. A [final-source browser regression](procedural_indoor/web_residency_v3.json)
+dataset-readback rejection. A [final-source browser regression](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_residency_v3.json)
 repeated Auto/Portable RGB startup and regeneration after the residency changes.
 Wasm supports the procedural viewer with deliberate
 capability reductions: environment-light fallback in place of the native GI volume,

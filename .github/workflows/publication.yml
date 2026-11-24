@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check the source checkout for generated artifacts
+        run: bash scripts/check_source_checkout.sh
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-08-31

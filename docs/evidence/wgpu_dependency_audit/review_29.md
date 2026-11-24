@@ -81,7 +81,7 @@ owned `burn_siglip2` dependency becomes a registry requirement for 0.1.1.
 
 This was archive construction and dependency resolution with `--no-verify`, not a
 new compilation/runtime qualification of the complete published generator. The
-package [inspection record](package.json) records
+package [inspection record](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/wgpu_dependency_audit/package.json) records
 the archive hash and exact dependency sources. Nothing was uploaded.
 
 Release requirements remain explicit: publish the owned SigLIP crate before its

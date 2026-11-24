@@ -55,10 +55,10 @@ Both packed chunks and `meta.safetensors` preserve aligned sparse tensors.
 
 ## Artifacts and reproduction
 
-- [64³ CPU/GPU report](validation.json), [128³ CPU/GPU report](validation128.json)
-- [Filesystem report](validation_fs.json)
-- [64³, rejection and filesystem commands](capture_runs_v3.json), [128³ commands](capture_runs_128.json)
-- [RGB, full-plan selection and voxel cutaways](primary_room_review.png)
+- [64³ CPU/GPU report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/validation.json), [128³ CPU/GPU report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/validation128.json)
+- [Filesystem report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/validation_fs.json)
+- [64³, rejection and filesystem commands](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/capture_runs_v3.json), [128³ commands](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/capture_runs_128.json)
+- [RGB, full-plan selection and voxel cutaways](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/ovoxel/primary_room_review.png)
 - `provenance.json`: hashes of relevant sources and retained check logs.
 
 Raw outputs remain in `out/ovoxel_review/`. Re-run the commands with fresh output

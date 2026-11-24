@@ -8,8 +8,8 @@ lifetimes accepted.** The current source targets Bevy 0.19.1 and retains indoor
 generator version 3. A GPU-binding retention bug is fixed. The final 1,000-scene
 run still shows allocator growth, so an unlimited in-process memory plateau is
 not accepted. Photographic state of the art is not demonstrated. The
-[qualification record](procedural_indoor/qualification_bevy019.json) and
-[source/binary identities](procedural_indoor/source_identity_bevy019.json)
+[qualification record](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/qualification_bevy019.json) and
+[source/binary identities](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/source_identity_bevy019.json)
 identify the evidence and its boundaries.
 
 The [Bevy 0.17 review](procedural_indoor_review_v3.md) and its images, 108-cell
@@ -20,7 +20,7 @@ separately identifies renderer and dependency changes.
 
 ## Migration and reproducibility
 
-The [dependency record](procedural_indoor/dependency_releases_v3.json) identifies
+The [dependency record](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dependency_releases_v3.json) identifies
 Bevy 0.19.1, Burn 0.21.0, `burn_human` 0.4.0 and `bevy_burn_human` 0.4.0, including
 registry checksums and the dependency-lock hash. The migrated runtime artifacts
 record wgpu 29.0.4. `CAPTURE_ENGINE_IDENTITY` is
@@ -38,7 +38,7 @@ still passes through the renderer's HDR color pipeline. Float32 ground truth doe
 not imply that every RGB or illumination intermediate uses float32.
 
 Native captures with image copiers now use CPU light clustering. A
-[matched clustering control](procedural_indoor/clustering_control_bevy019.json)
+[matched clustering control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/clustering_control_bevy019.json)
 found three differing RGB channels out of 76,636 in an unchanged scene with GPU
 clustering, before cache cleanup was enabled; maximum difference was 0.000732422.
 CPU clustering passed the tested exact replay controls. GPU shading, shadows,
@@ -46,7 +46,7 @@ GI and asynchronous readback remain active. Browser viewing retains its renderer
 clustering path. This is measured replay behavior on the tested adapter, not a
 cross-driver guarantee of identical floating-point output.
 
-The [migrated residency control](procedural_indoor/render_residency_bevy019.json)
+The [migrated residency control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_residency_bevy019.json)
 checks the view/light/prepass key maps and GPU bin-unpacking binding cache
 in Bevy 0.19. The old
 specialization-tick maps were removed upstream and are no longer patched here.
@@ -58,15 +58,15 @@ exit. The bin-unpacking cache retained at most 32 live view/phase entries and
 evicted 2,076 obsolete entries. Cache counts alone do not bound allocator or
 driver memory; sustained measurements are checked separately.
 
-The refreshed [native sweep](procedural_indoor/render_summary_bevy019.json) covers
+The refreshed [native sweep](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_bevy019.json) covers
 all 108 layout/lighting/floor/furniture cells selected without image filtering
 from 10,000 seeded layouts: 648 views, two cameras and three trajectory times.
 Worst per-view p99 depth/position disagreement is 3.34 micrometres, and
-reprojection disagreement is 0.00276 pixels. Current [conference](procedural_indoor/contact_conference_bevy019.png)
-and [office](procedural_indoor/contact_openoffice_bevy019.png) contact sheets,
-[count/intrinsic distributions](procedural_indoor/distributions_bevy019.svg),
-[placement heatmaps](procedural_indoor/placement_heatmaps_bevy019.svg) and
-[raw metrics](procedural_indoor/metrics_bevy019.json) retain the full population.
+reprojection disagreement is 0.00276 pixels. Current [conference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_conference_bevy019.png)
+and [office](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_openoffice_bevy019.png) contact sheets,
+[count/intrinsic distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distributions_bevy019.svg),
+[placement heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/placement_heatmaps_bevy019.svg) and
+[raw metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_bevy019.json) retain the full population.
 Visual review shows improved ceiling bounce and recognizable furnishing/material
 separation, alongside repeated furniture families and visibly stylized people.
 These measurements do not establish photographic realism.
@@ -75,18 +75,18 @@ These measurements do not establish photographic realism.
 
 | Check | Current evidence and boundary |
 | --- | --- |
-| Native float32 ground truth | [Independent f64 ray/triangle reference](procedural_indoor/ground_truth_precision_bevy019.json): 518 checked intersections; maximum world/depth errors 66.1/57.7 micrometres and reprojection error 0.00218 pixels. Empty geometry clears all annotations and releases geometry residency. The [fixed-policy shutdown control](procedural_indoor/teardown_control_bevy019.json) completed 40/40 oracle checks with clean process exits. |
-| Motion and metadata coherence | [Migrated regression log](procedural_indoor/capture_coherence_bevy019.log) covers explicit trajectory sampling, native and legacy modes, failure recovery and scene identity. Final rebuilt-source rerun passed with a clean process exit. |
-| GPU diffuse GI | [256-ray GPU versus 4,096-ray CPU control](procedural_indoor/gi_gpu_reference_bevy019.json): relative mean absolute error 17.01%, three diffuse bounces. This compares selected probe/lobe values, not rendered-image realism. |
-| GI contributes to RGB | [Fixed-camera GI ablation](procedural_indoor/gi_render_ablation_bevy019.json): disabling the irradiance volume changes mean per-pixel linear luminance by 0.02736 and 0.02458 in two seed-6 views. These migration results supersede the old renderer's ablation values for the current path. |
-| Legacy rendering | [Migrated legacy regression log](procedural_indoor/render_legacy_bevy019.log) retains Cornell/simple-room and annotation checks. It does not qualify optional GPU voxelization parity. |
-| WebGPU viewer | [Migrated browser suite](procedural_indoor/web_qualification_bevy019.json): 20/20 cases and 20/20 regenerations passed across seeds 0/6, Auto/Portable, RGB and four displayed annotations. The [two-camera grid and regeneration](procedural_indoor/web_grid_bevy019.json) also passed. Headed Chrome 153 used NVIDIA hardware WebGPU/Vulkan with a 48-sampled-texture limit. [Wasm compile log](procedural_indoor/wasm_build_bevy019.log) is separate compile evidence. |
-| CLI, FFI and Python | [Final Bevy 0.19 dataset qualification](procedural_indoor/dataset_qualification_bevy019.json) passes raw five-plane interchange, cap-1 worker replacement versus cap-0 exact RGB/labels, one/two workers, partial resume, index invariance and two spawned Python DataLoader workers. Prior `dataset_qualification_v3*` results belong to Bevy 0.17. |
-| Operational process memory | [Auto256 process-memory qualification](procedural_indoor/process_memory_bevy019.json) passes 128 scenes / 384 views across eight cap-16 child lifetimes; all exits and GPU releases observed. |
-| Continuous generation | [Final 1,000-scene report](procedural_indoor/generation_performance_bevy019.json): 3,000 complete views, 3.83 measured views/s, 4.04 GiB peak RSS and at most 344 live GPU bind groups. Residual allocator growth remains. |
+| Native float32 ground truth | [Independent f64 ray/triangle reference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/ground_truth_precision_bevy019.json): 518 checked intersections; maximum world/depth errors 66.1/57.7 micrometres and reprojection error 0.00218 pixels. Empty geometry clears all annotations and releases geometry residency. The [fixed-policy shutdown control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/teardown_control_bevy019.json) completed 40/40 oracle checks with clean process exits. |
+| Motion and metadata coherence | [Migrated regression log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/capture_coherence_bevy019.log) covers explicit trajectory sampling, native and legacy modes, failure recovery and scene identity. Final rebuilt-source rerun passed with a clean process exit. |
+| GPU diffuse GI | [256-ray GPU versus 4,096-ray CPU control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_gpu_reference_bevy019.json): relative mean absolute error 17.01%, three diffuse bounces. This compares selected probe/lobe values, not rendered-image realism. |
+| GI contributes to RGB | [Fixed-camera GI ablation](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_render_ablation_bevy019.json): disabling the irradiance volume changes mean per-pixel linear luminance by 0.02736 and 0.02458 in two seed-6 views. These migration results supersede the old renderer's ablation values for the current path. |
+| Legacy rendering | [Migrated legacy regression log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_legacy_bevy019.log) retains Cornell/simple-room and annotation checks. It does not qualify optional GPU voxelization parity. |
+| WebGPU viewer | [Migrated browser suite](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_qualification_bevy019.json): 20/20 cases and 20/20 regenerations passed across seeds 0/6, Auto/Portable, RGB and four displayed annotations. The [two-camera grid and regeneration](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_grid_bevy019.json) also passed. Headed Chrome 153 used NVIDIA hardware WebGPU/Vulkan with a 48-sampled-texture limit. [Wasm compile log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/wasm_build_bevy019.log) is separate compile evidence. |
+| CLI, FFI and Python | [Final Bevy 0.19 dataset qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/dataset_qualification_bevy019.json) passes raw five-plane interchange, cap-1 worker replacement versus cap-0 exact RGB/labels, one/two workers, partial resume, index invariance and two spawned Python DataLoader workers. Prior `dataset_qualification_v3*` results belong to Bevy 0.17. |
+| Operational process memory | [Auto256 process-memory qualification](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/process_memory_bevy019.json) passes 128 scenes / 384 views across eight cap-16 child lifetimes; all exits and GPU releases observed. |
+| Continuous generation | [Final 1,000-scene report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/generation_performance_bevy019.json): 3,000 complete views, 3.83 measured views/s, 4.04 GiB peak RSS and at most 344 live GPU bind groups. Residual allocator growth remains. |
 
 Rendering assertions and a written result file do not override an abnormal process
-exit. A [native debugger backtrace](procedural_indoor/teardown_stack_bevy019.log)
+exit. A [native debugger backtrace](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/teardown_stack_bevy019.log)
 places the teardown failure at `vkDestroyDevice`
 on an Async Compute Task thread while dropping a pipeline/shader after the test
 completed. Disabling the pipelined render thread alone still failed in two of 20
@@ -104,7 +104,7 @@ separately below.
 The sustained Bevy 0.19 investigation found a concrete GPU resource leak:
 `BinUnpackingBindGroups` inserts bindings for each retained view/phase, but does
 not remove retired camera/shadow views. Its separate buffer cache already prunes
-dead views. The [1,000-scene reference](procedural_indoor/generation_performance_bevy019_before_bind_cleanup.json)
+dead views. The [1,000-scene reference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/generation_performance_bevy019_before_bind_cleanup.json)
 finished with 112,313 live GPU bind groups, up from 256. Final-quarter live
 glibc heap plus mmap allocations grew by 1.10 MB per scene despite stable
 buffer/texture handle counts and bounded readback staging. Host compilation
@@ -169,7 +169,7 @@ are performed by the separate dataset regression.
 The final run exited successfully and validated 128 samples / 384 stored views
 across eight completed worker lifetimes. Observed process-tree RSS peaked at
 2.42 GiB, GPU memory at 1.28 GiB, and parent RSS at 43.4 MiB. Every worker's
-exit and disappearance from NVML was observed. The [machine-readable report](procedural_indoor/process_memory_bevy019.json)
+exit and disappearance from NVML was observed. The [machine-readable report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/process_memory_bevy019.json)
 retains individual lifetimes, peak measurements, release times and artifact
 hashes. Polling at 100 ms observes peaks rather than establishing continuous
 maxima. These measurements qualify cap 16 at 161×119, three cameras and Auto256;
@@ -182,7 +182,7 @@ allowing submission to follow the existing asynchronous render/readback path.
 A debugger captured remaining stalls inside CPU memory copies used by Vulkan
 buffer and texture uploads. On this workstation, glibc's default REP MOVSB copy
 path performed poorly against the driver's write-combined upload allocation.
-The [matched 64-scene control](procedural_indoor/upload_comparison_bevy019.json)
+The [matched 64-scene control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/upload_comparison_bevy019.json)
 compares the same queued-upload binary and seeds, discarding 16 warmup scenes:
 system copies achieved 0.870 views/s and streaming copies 3.534 views/s, a
 4.06-fold improvement. Median scene time fell from 3.344 to 0.861 seconds; p95
@@ -198,7 +198,7 @@ direct benchmark explicitly sets it before startup, so its recorded command is
 reproducible. GPU utilization remains workload-dependent; this optimization does
 not establish continuous GPU saturation.
 
-[Before/after comparison](procedural_indoor/upload_equivalence_bevy019.json)
+[Before/after comparison](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/upload_equivalence_bevy019.json)
 checked all five stored planes, cameras, intrinsics, trajectory times and manifests
 exactly across five samples / 30 views, including the final GPU-binding cleanup.
 Every value matched. Final native
@@ -210,7 +210,7 @@ equivalence checks rather than an unreported second broad sweep.
 
 ## Sustained generation after binding cleanup
 
-The [final measured run](procedural_indoor/generation_performance_bevy019.json)
+The [final measured run](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/generation_performance_bevy019.json)
 completed 1,000 scenes / 3,000 actual five-plane views with a clean exit. After
 64 warmup scenes, 2,808 measured views achieved 3.833 views/s. Median/p95 scene
 time was 0.764/0.954 seconds. This includes scene preparation and capture at
@@ -233,14 +233,14 @@ The mechanism of the remaining growth is unisolated. Finite CLI worker recycling
 therefore remains the operational bound; direct CLI/Python generation has no
 accepted unlimited-lifetime memory guarantee.
 
-The [comparison record](procedural_indoor/binding_memory_comparison_bevy019.json),
-[complete timing/memory curves](procedural_indoor/generation_performance_bevy019.svg),
-and compressed [before](procedural_indoor/scenes_bevy019_before_binding_cleanup.jsonl.gz)/[after](procedural_indoor/scenes_bevy019_after_binding_cleanup.jsonl.gz)
+The [comparison record](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/binding_memory_comparison_bevy019.json),
+[complete timing/memory curves](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/generation_performance_bevy019.svg),
+and compressed [before](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/scenes_bevy019_before_binding_cleanup.jsonl.gz)/[after](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/scenes_bevy019_after_binding_cleanup.jsonl.gz)
 per-scene traces retain these distinctions. Both runs use the same seeds and
 settings. Compilation overlapped the later reference scenes; its timing must
 not be used as an isolated causal speedup measurement.
 
-![GPU binding retention and remaining allocator growth](procedural_indoor/binding_memory_comparison_bevy019.png)
+![GPU binding retention and remaining allocator growth](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/binding_memory_comparison_bevy019.png)
 
 ## Distribution exports and remaining limits
 
@@ -259,7 +259,7 @@ Indoor architecture and furniture remain composed procedural assemblies, with
 neighboring rooms and exterior views through glazing. Camera paths, occupancy,
 materials and lights vary across seeds. The historical large geometry audit is
 documented in the [generator-v3 review](procedural_indoor_review_v3.md); the broad
-[108-cell native sweep](procedural_indoor/render_summary_bevy019.json) now passes all 648 views on Bevy 0.19, with three trajectory samples per camera. The old 801×601 sweep remains historical.
+[108-cell native sweep](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_bevy019.json) now passes all 648 views on Bevy 0.19, with three trajectory samples per camera. The old 801×601 sweep remains historical.
 Repeated room/furniture families, visibly procedural people, simplified plant
 foliage and static poses remain substantial realism limits.
 

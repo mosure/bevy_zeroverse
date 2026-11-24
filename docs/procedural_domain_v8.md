@@ -150,12 +150,12 @@ photographic realism.
 
 Retained evidence:
 
-- [All 48 rendered views](procedural_indoor/contact_generator8.jpg)
-- [Population audit](procedural_indoor/distribution_program8.json)
-- [Counts, camera/material distributions and joint histograms](procedural_indoor/metrics_program8.json)
-- [Placement and camera-path heatmaps](procedural_indoor/placement_program8.svg)
-- [Native render and annotation metrics](procedural_indoor/render_summary_program8.json)
-- [Browser cases and tested artifact](procedural_indoor/web_program8.json)
+- [All 48 rendered views](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_generator8.jpg)
+- [Population audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/distribution_program8.json)
+- [Counts, camera/material distributions and joint histograms](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/metrics_program8.json)
+- [Placement and camera-path heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/placement_program8.svg)
+- [Native render and annotation metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/render_summary_program8.json)
+- [Browser cases and tested artifact](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/web_program8.json)
 
 Raw per-instance/per-camera CSVs and individual rendered images remain in
 `out/domain8_population_final` and `out/domain8_final` (ignored local outputs).

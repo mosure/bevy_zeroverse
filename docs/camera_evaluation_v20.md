@@ -11,7 +11,7 @@ all-camera pairs**. Furnishing density is 0.65 and static human density 0.25.
 Native lights and shadows are enabled; baked GI is disabled for this geometry
 audit. Four 128-room process chunks preserve their individual capture identities.
 
-The [camera report](evidence/camera_v20/summary.json) compares the same 2,048
+The [camera report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/summary.json) compares the same 2,048
 layouts under generators 19 and 20. Object, people and architecture CSV hashes
 match. Near-collinear starting groups (horizontal minor/major standard-deviation
 ratio below 0.25) drop from **626 to zero**. Median starting spread increases from
@@ -20,9 +20,9 @@ checks, primary-room constraints and the proxy overlap policy. The independent
 NumPy report recomputes the exported group metrics from sampled paths. Legacy
 exports contain endpoints only; this limitation remains in the comparison.
 
-![Matched camera path example](evidence/camera_v20/camera_paths.png)
+![Matched camera path example](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/camera_paths.png)
 
-The [co-visibility report](evidence/camera_v20/covisibility_report.json) evaluates
+The [co-visibility report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/covisibility_report.json) evaluates
 all ordered camera pairs at each captured time. It reconstructs a per-source-pixel
 membership mask using actual depth and calibration, excluding the source camera.
 Projection must be inside the other frustum, and depth must agree with the nearest
@@ -55,7 +55,7 @@ connected when edges require 10% bidirectional overlap; 74 become disconnected
 at 35%. The mean of each room's worst reference pair is **40.12%**, which must not
 be confused with the mean over all pairs. Every tail remains in the reports.
 
-![Co-visibility cardinality and per-room worst overlap](evidence/camera_v20/covisibility.png)
+![Co-visibility cardinality and per-room worst overlap](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/covisibility.png)
 
 The same captures have no view with at most two visible semantic classes.
 All **357 rooms containing primary-room people** contain person pixels in at
@@ -65,11 +65,11 @@ comparison. The largest per-view p99 depth/position disagreement is 0.00000406 m
 the largest p99 reprojection error is 0.002741 pixels. These checks establish
 calibration/annotation consistency, not photographic realism.
 
-The [full population export](evidence/camera_v20/metrics.json),
-[group CSV](evidence/camera_v20/camera_groups.csv),
-[per-view co-visibility](evidence/camera_v20/covisibility_views.csv),
-[directed pairs](evidence/camera_v20/covisibility_pairs.csv), and
-[synchronized sets](evidence/camera_v20/covisibility_times.csv) retain denominators,
+The [full population export](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/metrics.json),
+[group CSV](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/camera_groups.csv),
+[per-view co-visibility](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/covisibility_views.csv),
+[directed pairs](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/covisibility_pairs.csv), and
+[synchronized sets](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_v20/covisibility_times.csv) retain denominators,
 units, individual seeds and measurements. JSON retains completion/run identities,
 source hashes, script hashes, configurations and the weakest sets.
 

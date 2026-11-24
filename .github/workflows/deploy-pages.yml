@@ -10,8 +10,8 @@ on:
 permissions:
   contents: read
 
-# A newer revision supersedes old rendering jobs. Deployment also checks main
-# immediately before pushing, so an old release can never roll the site back.
+# A newer revision supersedes old rendering jobs. Check main again immediately
+# before promoting the verified artifact to production.
 concurrency:
   group: current-project-publication
   cancel-in-progress: ${{ github.event_name != 'release' }}
@@ -95,6 +95,7 @@ jobs:
           if [[ "$RELEASE_TAG" == v* ]]; then ARGS+=(--release-version "$RELEASE_TAG"); fi
           cargo run --locked -p bevy_zeroverse_publication -- sync "${ARGS[@]}"
           cargo run --locked -p bevy_zeroverse_publication -- verify-current "${ARGS[@]}"
+          git diff --exit-code
       - name: Upload the exact verified publication
         uses: actions/upload-artifact@v4
         with:
@@ -148,11 +149,11 @@ jobs:
             www/out
             www/assets
 
-  deploy:
+  package-site:
     needs: [publication, viewer]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      receipt: ${{ steps.receipt.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -170,12 +171,42 @@ jobs:
           toolchain: nightly-2026-08-31
       - uses: Swatinem/rust-cache@v2
       - name: Independently verify all publication bytes without a renderer
-        run: cargo run --locked -p bevy_zeroverse_publication -- verify-current
-      - name: Reject superseded deployments
         run: |
-          git fetch origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
-      - uses: JamesIves/github-pages-deploy-action@v4
+          git diff --exit-code
+          cargo run --locked -p bevy_zeroverse_publication -- verify-current
+      - name: Record the source and fingerprints of the public entry points
+        id: receipt
+        run: |
+          digest=$(bash scripts/pages_release.sh record www "$GITHUB_SHA")
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+      - name: Package the verified website for Pages
+        uses: actions/upload-pages-artifact@v5
         with:
-          folder: www
-          branch: www
+          path: www
+
+  deploy:
+    needs: package-site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject superseded deployments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          test "$GITHUB_SHA" = "$current"
+      - name: Deploy the verified artifact
+        id: deployment
+        uses: actions/deploy-pages@v5
+      - name: Verify the live viewer, gallery and papers
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+          RECEIPT: ${{ needs.package-site.outputs.receipt }}
+        run: bash scripts/pages_release.sh verify "$SITE_URL" "$RECEIPT"
