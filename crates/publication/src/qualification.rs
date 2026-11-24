@@ -146,6 +146,32 @@ mod count_contract_tests {
         assert_ne!(geometry_hash(&a).unwrap(), geometry_hash(&b).unwrap());
     }
     #[test]
+    fn vision_panel_finish_changes_preserve_the_geometry_of_a_matched_room() {
+        let installed = json!({"program":{"finishes":{"interior_glazing":{"vision_panels":{
+            "end_modules":[[1.0, 1.0], [1.0, 1.2]],
+            "glass":{"installation":7, "frost_roughness":0.3, "thickness_m":0.01, "opening":0.0}
+        }}}}});
+        let mut restyled = installed.clone();
+        let panel = &mut restyled["program"]["finishes"]["interior_glazing"]["vision_panels"];
+        panel["glass"]["installation"] = json!(55);
+        panel["glass"]["frost_roughness"] = json!(0.25);
+        let original = geometry_hash(&installed).unwrap();
+        assert_eq!(geometry_hash(&restyled).unwrap(), original);
+        for (field, value) in [
+            ("glass/thickness_m", json!(0.02)),
+            ("glass/opening", json!(0.5)),
+            ("end_modules/1/1", json!(0.8)),
+        ] {
+            let mut refitted = restyled.clone();
+            *refitted
+                .pointer_mut(&format!(
+                    "/program/finishes/interior_glazing/vision_panels/{field}"
+                ))
+                .unwrap() = value;
+            assert_ne!(geometry_hash(&refitted).unwrap(), original, "{field}");
+        }
+    }
+    #[test]
     fn count_controls_preserve_legacy_serialization_and_validate_single_view() {
         let value = json!({"schema_version":1,"seed":0,"rooms_per_case":2,"cases":[{"name":"reference","image_size":[256,160],"camera":{},"appearance":{}}]});
         let mut recipe: Recipe = serde_json::from_value(value.clone()).unwrap();
@@ -446,7 +472,8 @@ pub fn run(root: &Path, validator: &Path, output: &Path, recipe_path: Option<&Pa
                     family_geometry
                         .get(family)
                         .is_none_or(|previous| previous == &geometry_hash),
-                    "geometry changed within a matched family"
+                    "geometry changed within matched family {family} for seed {seed} in {}",
+                    case.name
                 );
                 family_geometry.insert(family.to_owned(), geometry_hash.clone());
                 let views = capture["views"]
@@ -641,6 +668,15 @@ fn geometry_hash(manifest: &Value) -> Result<String> {
                 domain.remove(key);
             }
         }
+    }
+    // A material intervention resamples the substrate and frosting of the same
+    // fitted vision panels. Keep the pane thickness, openings and bay sizes in the hash.
+    if let Some(glass) = geometry
+        .pointer_mut("/program/finishes/interior_glazing/vision_panels/glass")
+        .and_then(Value::as_object_mut)
+    {
+        glass.remove("installation");
+        glass.remove("frost_roughness");
     }
     Ok(bevy_zeroverse_capture::provenance::sha(
         &serde_json::to_vec(&geometry)?,
