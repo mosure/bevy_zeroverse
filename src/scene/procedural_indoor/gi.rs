@@ -618,7 +618,11 @@ impl BakeScene {
     ) -> Self {
         let geometry = super::preparation::SceneGeometry {
             architecture: architecture::architecture(scene),
-            objects: scene.objects.iter().map(objects::build_object).collect(),
+            objects: scene
+                .objects
+                .iter()
+                .map(|o| objects::build_object_at_version(o, None, scene.generator_version))
+                .collect(),
             humans: scene
                 .humans
                 .iter()

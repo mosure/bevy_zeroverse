@@ -63,20 +63,15 @@ pub(super) fn build(a: &mut Assembly, p: &TeachingSeat) {
         }
         // Outside the seat sweep until the stay is behind the back, where its
         // two ends are captured by the upright and the moulded back insert.
-        let root = if p.tablet.is_some() {
-            post.with_y(beam_y)
+        let (root, bend_z, end) = if p.tablet.is_some() {
+            let (plate, size, end) = p.back.stay_plate(side);
+            a.part(s, "chair").cuboid(size, 0.003, plate);
+            (post.with_y(beam_y), end.z + 0.004, end)
         } else {
-            post
+            (post, p.back.z + 0.012, p.back.mount(side))
         };
-        a.part(s, "chair").tube(
-            &[
-                root,
-                Vec3::new(side * x, 0.491, p.back.z + 0.012),
-                p.back.mount(side),
-            ],
-            0.012,
-            10,
-        );
+        a.part(s, "chair")
+            .tube(&[root, Vec3::new(side * x, 0.491, bend_z), end], 0.012, 10);
     }
     a.part(s, "chair")
         .rod(Vec3::new(-x, beam_y, z), Vec3::new(x, beam_y, z), 0.014);
@@ -89,21 +84,13 @@ pub(super) fn build(a: &mut Assembly, p: &TeachingSeat) {
             Vec3::new(x, beam_y, front),
             0.014,
         );
-        let attach =
-            t.center + Vec3::new(side * t.half.x * 0.41, -t.thickness * 0.5, t.half.y * 0.62);
-        let bend = Vec3::new(side * x, 0.49, t.center.z + t.half.y * 0.72);
-        let bracket = attach - Vec3::Y * 0.007;
+        let (plate, size) = t.mounting_plate();
+        let bend = Vec3::new(side * x, 0.49, plate.translation.z + 0.025);
         a.part(s, "chair").tube(
-            &[Vec3::new(side * x, beam_y, front), bend, bracket],
+            &[Vec3::new(side * x, beam_y, front), bend, plate.translation],
             0.013,
             10,
         );
-        a.box_part(
-            s,
-            "chair",
-            bracket,
-            Vec3::new(t.half.x * 0.73, 0.016, t.half.y * 0.40),
-            0.003,
-        );
+        a.part(s, "chair").cuboid(size, 0.003, plate);
     }
 }

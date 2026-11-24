@@ -81,6 +81,8 @@ impl HairStyle {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HairProgram {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalp_cut: Option<super::ScalpCut>,
     /// Curved part and crown whorl guide scalp combing; neither adds flyaways.
     pub part_curve: f32,
     pub crown_whorl: f32,
@@ -99,6 +101,7 @@ pub struct HairProgram {
 impl Default for HairProgram {
     fn default() -> Self {
         Self {
+            scalp_cut: None,
             part_curve: 0.15,
             crown_whorl: 0.25,
             drop_m: 0.32,
@@ -119,6 +122,7 @@ impl HairProgram {
         let mut rng = stream(seed, 0x4841495243555453);
         let mut guides = stream(seed, 0x4841495247554944);
         Self {
+            scalp_cut: Some(super::ScalpCut::sample(seed)),
             part_curve: guides.random_range(-0.65..0.65),
             crown_whorl: guides.random_range(-0.8..0.8),
             drop_m: rng.random_range(0.16..0.56),
@@ -138,6 +142,9 @@ impl HairProgram {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self.scalp_cut.is_some_and(|cut| !cut.valid()) {
+            return Err("invalid fitted scalp cut".into());
+        }
         for (v, lo, hi) in [
             (self.part_curve, -1., 1.),
             (self.crown_whorl, -1., 1.),

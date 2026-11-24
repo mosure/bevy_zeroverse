@@ -6,6 +6,7 @@
 mod composition;
 mod fields;
 mod finish;
+mod frame;
 mod poster;
 use super::{
     raster::{Canvas, N},
@@ -15,67 +16,8 @@ use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 pub use composition::ArtComposition;
 pub use fields::FieldProgram;
 pub use finish::ArtFinish;
+pub use frame::{frame_parameters, FrameProgram, Moulding, MouldingShape};
 use rand::Rng;
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct FrameProgram {
-    /// 0: stretched canvas; 1/4: timber; 2: black; 3/5: metal frames.
-    pub style: u32,
-    pub border_width: f32,
-    pub mat_width: f32,
-    pub shadow_gap: f32,
-    pub picture_inset: f32,
-    pub stepped: bool,
-    pub outer_fraction: f32,
-    pub recess_fraction: f32,
-    pub mat_scale: Vec2,
-    pub picture_bias: Vec2,
-}
-pub fn frame_parameters(o: &super::super::layout::IndoorObject) -> FrameProgram {
-    let mut rng = stream(o.seed, 3094);
-    let style = o.variant % 6;
-    let mut section = stream(o.seed, 3095);
-    FrameProgram {
-        style,
-        mat_scale: Vec2::new(
-            section.random_range(0.65..1.35),
-            section.random_range(0.65..1.50),
-        ),
-        picture_bias: Vec2::new(
-            section.random_range(-0.55..0.55),
-            section.random_range(-0.35..0.65),
-        ),
-        stepped: style != 0 && section.random_bool(0.56),
-        outer_fraction: section.random_range(0.30..0.70),
-        recess_fraction: section.random_range(0.18..0.62),
-        border_width: if style == 0 {
-            0.
-        } else if style == 5 {
-            rng.random_range(0.006..0.013_f32)
-                .min(o.size.x.min(o.size.y) * 0.06)
-        } else {
-            rng.random_range(0.008..0.04_f32)
-                .min(o.size.x.min(o.size.y) * 0.095)
-        },
-        mat_width: if style == 0 || style == 4 || rng.random_bool(0.36) {
-            0.
-        } else {
-            rng.random_range(0.010..0.13_f32)
-                .min(o.size.x.min(o.size.y) * 0.18)
-        },
-        shadow_gap: if style == 4 {
-            rng.random_range(0.008..0.023_f32)
-                .min(o.size.x.min(o.size.y) * 0.06)
-        } else {
-            0.
-        },
-        picture_inset: if style == 0 {
-            0.001
-        } else {
-            rng.random_range(0.003..0.008_f32).min(o.size.z * 0.20)
-        },
-    }
-}
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ArtProgram {
@@ -450,38 +392,34 @@ mod tests {
                     .find(|((s, _), _)| *s == Surface::Art)
                     .unwrap()
                     .1;
-                assert_eq!(art.positions.len(), 4);
-                assert_eq!(art.indices.len(), 6);
-                assert_eq!(art.uvs, [[0., 1.], [1., 1.], [1., 0.], [0., 0.]]);
-                assert!(art.normals.iter().all(|n| *n == [0., 0., 1.]));
-                let picture_z = art.positions[0][2];
-                let backing_surface = if p.style == 4 {
-                    Surface::Plastic
-                } else {
-                    Surface::Paper
-                };
-                let backing = assembly
-                    .parts
-                    .iter()
-                    .find(|((s, _), _)| *s == backing_surface)
-                    .unwrap()
-                    .1;
-                assert!(backing
+                let front: Vec<_> = art
                     .positions
                     .iter()
-                    .all(|point| point[2] < picture_z - 0.0001));
+                    .zip(&art.normals)
+                    .zip(&art.uvs)
+                    .filter(|((_, n), _)| **n == [0., 0., 1.])
+                    .map(|((p, _), uv)| (*p, *uv))
+                    .collect();
+                assert_eq!(front.len(), 4);
+                let points = front.iter().map(|v| v.0).collect::<Vec<_>>();
+                assert_eq!(
+                    front.iter().map(|v| v.1).collect::<Vec<_>>(),
+                    [[0., 1.], [1., 1.], [1., 0.], [0., 0.]]
+                );
+                assert_eq!(art.indices.len(), if p.image_wrap { 30 } else { 6 });
+                assert!((points[0][2] - (size.z * 0.5 - p.picture_inset)).abs() < 1e-6);
                 let image_width =
                     size.x - 2. * (p.border_width + p.mat_width * p.mat_scale.x + p.shadow_gap);
-                assert!((art.positions[1][0] - art.positions[0][0] - image_width).abs() < 0.00001);
+                assert!((points[1][0] - points[0][0] - image_width).abs() < 0.00001);
                 let center = Vec2::new(
-                    (art.positions[0][0] + art.positions[2][0]) * 0.5,
-                    (art.positions[0][1] + art.positions[2][1]) * 0.5,
+                    (points[0][0] + points[2][0]) * 0.5,
+                    (points[0][1] + points[2][1]) * 0.5,
                 );
                 let expected =
                     Vec2::new(0., size.y * 0.5) + p.mat_scale * p.mat_width * p.picture_bias;
                 assert!(center.distance(expected) < 0.00001);
                 // Asymmetry must never put the image beneath the frame rails.
-                for point in &art.positions {
+                for point in &points {
                     assert!(point[0].abs() <= size.x * 0.5 - p.border_width + 0.00001);
                     assert!(
                         point[1] >= p.border_width - 0.00001

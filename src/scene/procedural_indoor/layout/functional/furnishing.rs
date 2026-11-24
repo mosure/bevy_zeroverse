@@ -2,6 +2,7 @@ use super::*;
 mod dining;
 mod exhibition;
 mod lecture;
+mod lockers;
 mod queue;
 mod recovery;
 mod table_rows;

@@ -165,6 +165,16 @@ impl Canvas {
         }
     }
     pub(super) fn digit(&mut self, digit: u32, x: i32, y: i32, scale: i32, color: [u8; 3]) {
+        self.digit_scaled(digit, x, y, [scale, scale], color);
+    }
+    pub(super) fn digit_scaled(
+        &mut self,
+        digit: u32,
+        x: i32,
+        y: i32,
+        [sx, sy]: [i32; 2],
+        color: [u8; 3],
+    ) {
         for (index, (dx, dy, w, h)) in [
             (1, 0, 3, 1),
             (4, 1, 1, 3),
@@ -178,7 +188,7 @@ impl Canvas {
         .enumerate()
         {
             if super::screens::SEGMENTS[digit as usize] & (1 << index) != 0 {
-                self.rect(x + dx * scale, y + dy * scale, w * scale, h * scale, color);
+                self.rect(x + dx * sx, y + dy * sy, w * sx, h * sy, color);
             }
         }
     }

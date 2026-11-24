@@ -411,6 +411,7 @@ fn saucers_and_clock_relief_fit_narrow_and_shallow_reservations() {
                 interaction_target: None,
                 cable_path: None,
                 cable_target: None,
+                cable_target_socket: None,
             };
             if kind == ObjectKind::Mug {
                 saucers += usize::from(

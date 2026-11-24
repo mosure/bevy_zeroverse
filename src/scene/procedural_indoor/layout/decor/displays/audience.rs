@@ -78,6 +78,20 @@ impl Audience {
     ) -> Option<f32> {
         let front = o.transform().rotation * Vec3::Z;
         let screen = o.position + Vec3::Y * (o.size.y * 0.5) + front * (o.size.z * 0.5 + 0.01);
+        self.score_at(scene, o, space, host, screen)
+    }
+
+    pub(super) fn score_at(
+        &self,
+        scene: &IndoorManifest,
+        o: &IndoorObject,
+        space: &MountSpace,
+        host: Option<Bounds>,
+        screen: Vec3,
+    ) -> Option<f32> {
+        let front = o.transform().rotation * Vec3::Z;
+        let projection = o.kind == ObjectKind::ProjectionScreen;
+        let mut visible = 0;
         let mut score = 0.;
         for &(seat, eye) in &self.eyes {
             let ray = eye - screen;
@@ -94,7 +108,9 @@ impl Audience {
                     .normalize_or_zero()
                     .dot((board - eye.xz()).normalize_or_zero())
             });
-            if orientation < -0.25 {
+            // A primary projection should be visible while facing the teaching
+            // area. TVs can also serve as side repeaters or peripheral signage.
+            if orientation < if projection { 0.34 } else { -0.25 } {
                 continue;
             }
             if scene
@@ -112,8 +128,14 @@ impl Audience {
                 continue;
             }
             let range_fit = (o.size.x * 3.8 / distance).min(distance / (o.size.x * 3.8));
+            visible += 1;
             score += 0.6 + facing + 0.5 * range_fit + 0.4 * orientation;
         }
-        (score > 0.).then(|| score / self.eyes.len() as f32)
+        let required = if projection {
+            self.eyes.len().div_ceil(2).max(1)
+        } else {
+            1
+        };
+        (visible >= required).then(|| score / self.eyes.len() as f32)
     }
 }

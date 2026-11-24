@@ -114,7 +114,14 @@ fn responsive_devices_and_boards_have_continuous_layout_and_type_ranges() {
         ] {
             let p = screens::parameters_for(seed, kind);
             counts.insert(p.composition.regions.len());
-            margins.insert((p.composition.regions[0].bounds[0] * 1000.) as u32);
+            if let Some(region) = p.composition.regions.first() {
+                margins.insert((region.bounds[0] * 1000.) as u32);
+            } else {
+                assert!(
+                    matches!(kind, screens::DisplayKind::Phone)
+                        && (p.dormant || p.ambient_clock.is_some())
+                );
+            }
             assert_eq!(
                 serde_json::to_value(&p).unwrap(),
                 serde_json::to_value(screens::parameters_for(seed, kind)).unwrap()
@@ -172,9 +179,13 @@ fn upper_seed_bits_change_content_not_only_substrate_noise() {
         assert_ne!(art::illustration(seed), art::illustration(seed + (1 << 32)));
         assert_ne!(boards::pixels(seed), boards::pixels(seed + (1 << 32)));
         assert_ne!(screens::pixels(seed), screens::pixels(seed + (1 << 32)));
-        assert_ne!(
-            screens::mobile_pixels(seed),
-            screens::mobile_pixels(seed + (1 << 32))
-        );
+        let high = seed + (1 << 32);
+        // Two sleeping OLEDs deliberately emit the same black pixels.
+        if [seed, high]
+            .iter()
+            .any(|&s| !screens::parameters_for(s, screens::DisplayKind::Phone).dormant)
+        {
+            assert_ne!(screens::mobile_pixels(seed), screens::mobile_pixels(high));
+        }
     }
 }

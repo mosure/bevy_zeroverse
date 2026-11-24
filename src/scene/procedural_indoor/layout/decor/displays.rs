@@ -5,6 +5,7 @@ mod audience;
 use crate::scene::procedural_indoor::envelope::polygon;
 use audience::Audience;
 mod partitions;
+mod projection;
 use partitions::PartitionFace;
 #[cfg(test)]
 mod tests;
@@ -28,6 +29,17 @@ struct MountSpace {
 }
 
 impl MountSpace {
+    fn sample(scene: &IndoorManifest) -> Self {
+        Self {
+            structure: scene.camera_obstacles(),
+            objects: scene
+                .objects
+                .iter()
+                .flat_map(|o| o.obstacle_bounds().map(move |bounds| (o.id, bounds)))
+                .collect(),
+        }
+    }
+
     fn clear(&self, o: &IndoorObject, host: Option<Bounds>) -> bool {
         let (lo, hi) = o.bounds();
         let intersects = |(a, b): Bounds| {
@@ -232,14 +244,7 @@ impl IndoorManifest {
         if audience.eyes.is_empty() {
             return;
         }
-        let mut space = MountSpace {
-            structure: self.camera_obstacles(),
-            objects: self
-                .objects
-                .iter()
-                .flat_map(|o| o.obstacle_bounds().map(move |bounds| (o.id, bounds)))
-                .collect(),
-        };
+        let mut space = MountSpace::sample(self);
         let region = self.primary_region();
         let existing: Vec<_> = self
             .objects

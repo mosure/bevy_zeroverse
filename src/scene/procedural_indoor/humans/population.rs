@@ -184,6 +184,19 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
             Some(chair_id),
             chair.neighbor,
         );
+        if matches!(chair.variant, 6 | 7)
+            && scene.generator_version >= super::super::objects::chairs::stool::FIT_VERSION
+        {
+            let program = person
+                .pose_program
+                .as_mut()
+                .expect("sampled person has a pose program");
+            program.stool_support =
+                Some(super::super::objects::chairs::stool::parameters(chair).support(chair));
+            person.joints =
+                program.solve(person.stature, person.build, person.shoulder_width, true);
+            update_bounds(&mut person);
+        }
         contextual_gaze(scene, &mut person, &mut rng);
         let fitted = (0..if working_surface && pose != HumanPoseKind::SeatedListening {
             WORKTOP_POSE_ATTEMPTS

@@ -33,6 +33,13 @@ pub(crate) struct MaterialSelection {
 }
 
 impl MaterialSelection {
+    pub(in super::super) fn select_finish(&mut self, surface: Surface, slot: usize) {
+        self.finishes.insert((surface, slot));
+        if let Some(stock) = garment_stock::parent(surface, slot) {
+            self.finishes.insert((surface, stock));
+        }
+    }
+
     pub(super) fn omits_parent_maps(&self, scene: &IndoorManifest, surface: Surface) -> bool {
         if scene.program.is_none()
             || !self.surfaces.contains(&surface)
@@ -45,9 +52,23 @@ impl MaterialSelection {
             if s != surface {
                 continue;
             }
-            // Smooth factory-coated stock owns its complete optical response.
-            if slat_finish::supports(surface, slot)
+            // The entry for the shared undyed stock determines its required maps.
+            if garment_stock::parent(surface, slot).is_some() {
+                continue;
+            }
+            // These stock programs supply their own complete optical response.
+            if coated_stock::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
+                || speaker::supports(surface, slot)
+                || cork::supports(surface, slot)
+                || potting::supports(surface, slot)
+                || sprinkler::supports(surface, slot)
+                || printer_lcd::supports(surface, slot)
+                || clock_face::supports(surface, slot)
+                || projection_cloth::supports(surface, slot)
+                || tissue_stock::supports(surface, slot)
+                || masonry::supports(surface, slot)
+                || package_print::supports(surface, slot)
                 || bin_film::supports(surface, slot)
                 || input_housing::supports(surface, slot)
                 || keycaps::supports(surface, slot)
@@ -96,7 +117,7 @@ impl IndoorMaterials {
             if let Some(slot) =
                 finish_slot(surface, label).filter(|&slot| registered_finish(surface, slot))
             {
-                selection.finishes.insert((surface, slot));
+                selection.select_finish(surface, slot);
             } else {
                 selection.direct_surfaces.insert(surface);
             }
@@ -385,8 +406,10 @@ impl IndoorMaterials {
                 Surface::PhoneScreen if selection.is_none_or(|s| s.surfaces.contains(&surface)) => {
                     screens::apply(scene.material_seed(), true, &mut mat, images);
                 }
+                // Each selected print variant supplies its own complete color chart.
+                // Its cloned PBR template still retains the stock normal and roughness maps.
                 Surface::PrintedPaper
-                    if selection.is_none_or(|s| s.surfaces.contains(&surface)) =>
+                    if selection.is_none_or(|s| s.direct_surfaces.contains(&surface)) =>
                 {
                     paper::apply(scene.material_seed(), &mut mat, images);
                 }
@@ -501,6 +524,8 @@ impl IndoorMaterials {
             cooperative,
         )
         .await;
+        garment_stock::install(scene, materials, selection, &mut variants);
+        drinkware::install(scene, &handles, materials, selection, &mut variants);
         variants.extend(kitchen::build(
             scene,
             &handles,
@@ -508,6 +533,7 @@ impl IndoorMaterials {
             materials,
             selection.map(|s| &s.finishes),
         ));
+        handset::install(scene, materials, selection, &mut variants);
         input_housing::install(scene, materials, selection, &mut variants);
         keycaps::install(scene, images, materials, selection, &mut variants);
         cooktop::install(scene, images, materials, selection, &mut variants);
@@ -519,10 +545,20 @@ impl IndoorMaterials {
             selection.map(|s| &s.finishes),
         ));
         variants.extend(signals::build(scene, materials, selection));
+        sprinkler::install(scene, materials, selection, &mut variants);
         glass::display::install(scene, quality, materials, selection, &mut variants);
         glass::door::install(scene, quality, materials, selection, &mut variants);
         variants.extend(supplies::build(scene, &handles, materials, selection));
-        slat_finish::install(scene, materials, selection, &mut variants);
+        coated_stock::install(scene, materials, selection, &mut variants);
+        package_print::install(scene, images, materials, selection, &mut variants);
+        cork::install(scene, images, materials, selection, &mut variants);
+        potting::install(scene, images, materials, selection, &mut variants);
+        printer_lcd::install(scene, images, materials, selection, &mut variants);
+        clock_face::install(scene, images, materials, selection, &mut variants);
+        projection_cloth::install(scene, images, materials, selection, &mut variants);
+        tissue_stock::install(scene, images, materials, selection, &mut variants);
+        masonry::install(scene, images, materials, selection, &mut variants);
+        speaker::install(scene, images, materials, selection, &mut variants);
         acoustic_tile::install(scene, images, materials, selection, &mut variants);
         bin_film::install(scene, materials, selection, &mut variants);
         window_textile::install(scene, &handles, materials, selection, &mut variants);
@@ -699,18 +735,31 @@ impl IndoorMaterials {
 /// by consumed-map selection and transport; callers need not duplicate limits.
 pub fn registered_finish(surface: Surface, slot: usize) -> bool {
     (variants::supports(surface) && slot < variants::count(surface))
+        || garment_stock::parent(surface, slot).is_some()
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
+        || sprinkler::supports(surface, slot)
         || glass::display::supports(surface, slot)
         || glass::door::supports(surface, slot)
+        || handset::supports(surface, slot)
         || input_housing::supports(surface, slot)
         || keycaps::supports(surface, slot)
         || cooktop::supports(surface, slot)
         || worktop_finish::supports(surface, slot)
         || supplies::supports(surface, slot)
         || window_textile::supports(surface, slot)
-        || slat_finish::supports(surface, slot)
+        || drinkware::supports(surface, slot)
+        || coated_stock::supports(surface, slot)
         || acoustic_tile::supports(surface, slot)
+        || speaker::supports(surface, slot)
+        || cork::supports(surface, slot)
+        || printer_lcd::supports(surface, slot)
+        || clock_face::supports(surface, slot)
+        || projection_cloth::supports(surface, slot)
+        || tissue_stock::supports(surface, slot)
+        || potting::supports(surface, slot)
+        || masonry::supports(surface, slot)
+        || package_print::supports(surface, slot)
         || bin_film::supports(surface, slot)
         || matches!(
             (surface, slot),

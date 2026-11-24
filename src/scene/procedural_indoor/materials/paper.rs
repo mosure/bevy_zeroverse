@@ -3,6 +3,9 @@ use super::{raster::Canvas, *};
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
+mod spread;
+pub(crate) use spread::slot as spread_slot;
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaperProgram {
     /// Plain, ruled, squared, dotted, agenda, sketched notes.
@@ -58,10 +61,16 @@ pub fn parameters(seed: u64) -> PaperProgram {
 }
 pub(crate) fn pixels(seed: u64) -> Vec<u8> {
     let p = parameters(seed);
-    let mut r = stream(seed, 0x5041504552575249);
     let mut c = Canvas::new(p.paper);
+    draw_page(&mut c, &p, seed, 0, 256);
+    c.0
+}
+
+fn draw_page(c: &mut Canvas, p: &PaperProgram, seed: u64, x0: i32, width: i32) {
+    let mut r = stream(seed, 0x5041504552575249);
     let [left, top, right, bottom] = p.margin;
-    let right = 256 - right;
+    let left = x0 + left * width / 256;
+    let right = x0 + width - right * width / 256;
     let bottom = 256 - bottom;
     let rule = std::array::from_fn(|i| {
         (p.paper[i] as f32 * (1. - p.ruling_strength) + p.ink[i] as f32 * p.ruling_strength).round()
@@ -85,7 +94,7 @@ pub(crate) fn pixels(seed: u64) -> Vec<u8> {
     }
     if p.margin_line && matches!(p.layout, 1 | 2) {
         c.rect(
-            (left - 7).max(2),
+            (left - (7 * width / 256)).max(x0 + 2),
             top / 2,
             1,
             bottom - top / 2,
@@ -149,10 +158,15 @@ pub(crate) fn pixels(seed: u64) -> Vec<u8> {
             }
         }
     });
-    c.0
 }
-pub(super) fn prepare(seed: u64) -> Image {
-    let mut texture = mip_image(pixels(seed), 256, MapType::Color);
+
+pub(super) fn prepare_slot(seed: u64, slot: usize) -> Image {
+    let rgba = if slot < variants::COUNT {
+        pixels(seed)
+    } else {
+        spread::pixels(seed)
+    };
+    let mut texture = mip_image(rgba, 256, MapType::Color);
     texture.sampler = ImageSampler::linear();
     texture
 }
@@ -169,7 +183,7 @@ pub(super) fn apply_prepared(
     mat.metallic = 0.;
 }
 pub(super) fn apply(seed: u64, mat: &mut StandardMaterial, images: &mut impl AssetStore<Image>) {
-    apply_prepared(seed, prepare(seed), mat, images);
+    apply_prepared(seed, prepare_slot(seed, 0), mat, images);
 }
 
 #[cfg(test)]

@@ -493,7 +493,7 @@ fn architecture_program_replays_and_validates_consecutive_seeds() {
     );
 }
 
-pub(super) fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
+pub(crate) fn ray_triangle(origin: Vec3, ray: Vec3, p: [Vec3; 3]) -> Option<f32> {
     // Independent double-precision oracle for clipped/thin triangles. In f32,
     // subtracting large world coordinates dominated submillimetre distances.
     let origin = origin.as_dvec3();

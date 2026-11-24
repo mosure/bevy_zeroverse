@@ -30,7 +30,7 @@ pub(crate) fn tower_local(o: &IndoorObject, jack: TowerJack) -> Vec3 {
     Vec3::new(o.size.x * x, o.size.y * y, -o.size.z * 0.5 - 0.001)
 }
 
-fn input_local(o: &IndoorObject, p: &InputProgram) -> Vec3 {
+pub(super) fn input_local(o: &IndoorObject, p: &InputProgram) -> Vec3 {
     let x = if o.kind == ObjectKind::Mouse {
         0.
     } else if p.keyboard_split {
@@ -112,15 +112,19 @@ pub(crate) fn data_ports(source: &IndoorObject, target: &IndoorObject) -> Option
     };
     Some([rear(source, s), rear(target, t)])
 }
-pub(crate) fn connection(source: &IndoorObject, target: &IndoorObject) -> Option<[Port; 2]> {
+pub(crate) fn connection(
+    source: &IndoorObject,
+    target: &IndoorObject,
+    socket: Option<u8>,
+) -> Option<[Port; 2]> {
     if let Some(ports) = data_ports(source, target) {
-        return Some(ports);
+        return socket.is_none().then_some(ports);
     }
     use ObjectKind::*;
     if !(matches!(target.kind, PowerStrip | FloorOutlet | WallOutlet)
         && matches!(
             source.kind,
-            Laptop | Projector | Monitor | PcTower | PowerStrip
+            Laptop | Projector | Monitor | PcTower | PowerStrip | Printer
         ))
         || source.kind == PowerStrip && target.kind == PowerStrip
         || source.kind == Laptop && target.kind != PowerStrip
@@ -134,7 +138,7 @@ pub(crate) fn connection(source: &IndoorObject, target: &IndoorObject) -> Option
             equipment::source_power_normal(source)?,
         ),
         (
-            equipment::power_port(target, low)?,
+            equipment::receptacles::target_port(target, low, socket)?,
             equipment::power_port_normal(target, low)?,
         ),
     ])

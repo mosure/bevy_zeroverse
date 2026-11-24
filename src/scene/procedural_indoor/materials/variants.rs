@@ -24,6 +24,9 @@ pub fn is_content(surface: Surface) -> bool {
 pub fn count(surface: Surface) -> usize {
     if is_content(surface) {
         CONTENT_COUNT
+    } else if surface == Surface::PrintedPaper {
+        // Single-page pads and facing-page charts have distinct resolutions per leaf.
+        2 * COUNT
     } else {
         COUNT
     }
@@ -79,7 +82,12 @@ pub fn slot(seed: u64) -> usize {
 pub fn object_slot(surface: Surface, object_seed: u64, finish_seed: Option<u64>) -> usize {
     let finish = finish_seed.unwrap_or(object_seed);
     if is_content(surface) || surface == Surface::PrintedPaper {
-        stream(object_seed, 0x434f4e54454e54 + surface as u64).random_range(0..count(surface))
+        let slots = if surface == Surface::PrintedPaper {
+            COUNT
+        } else {
+            CONTENT_COUNT
+        };
+        stream(object_seed, 0x434f4e54454e54 + surface as u64).random_range(0..slots)
     } else {
         // A collection can share timber and upholstery colors without forcing
         // the same atlas index (and index % structure_count) across substrates.

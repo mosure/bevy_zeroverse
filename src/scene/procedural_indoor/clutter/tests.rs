@@ -119,7 +119,10 @@ fn clock_hands_share_fractional_time_and_screens_do_not_repeat_one_dashboard() {
     );
     assert!(times.len() > 55);
     assert!(images.len() > 50);
-    assert!(mobile_images.len() > 50);
+    assert!(
+        (24..50).contains(&mobile_images.len()),
+        "awake handset cohort: {active:?}"
+    );
     assert_eq!([images.len(), mobile_images.len()], active);
     assert_eq!(screens::pixels(10), screens::pixels(10));
 }

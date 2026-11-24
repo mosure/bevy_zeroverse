@@ -7,8 +7,7 @@ pub(super) enum TopStock {
     Timber(TimberProgram),
     Sheet {
         label: Cow<'static, str>,
-        timber_lip: bool,
-        cut_origin: Vec2,
+        cut: SheetCut,
     },
 }
 
@@ -29,21 +28,13 @@ pub(super) fn slab_profile(o: &IndoorObject, p: &TableProgram, outline: &[Vec2])
 }
 
 impl TopStock {
-    pub(super) fn sample(o: &IndoorObject, p: &TableProgram) -> Self {
+    pub(super) fn sample(o: &IndoorObject, p: &TableProgram, version: u32) -> Self {
         if p.top_surface == Surface::Wood {
             Self::Timber(TimberProgram::sample(product_seed(o)))
         } else {
             Self::Sheet {
                 label: worktop_finish::table_label(o, p.top_surface),
-                timber_lip: p.top_surface == Surface::Plastic
-                    && stream(o.finish_seed.unwrap_or(o.seed), 0x4544_4745_4c49_5053)
-                        .random_bool(0.36),
-                cut_origin: if o.variant == SHARED_ROW_VARIANT {
-                    let mut r = stream(o.seed, u64::from_le_bytes(*b"SheetCut"));
-                    Vec2::new(r.random_range(0.0..2.4), r.random_range(0.0..2.4))
-                } else {
-                    Vec2::ZERO
-                },
+                cut: SheetCut::for_version(o, p.top_surface, version),
             }
         }
     }
@@ -66,36 +57,62 @@ impl TopStock {
                 tf,
                 leaf,
             ),
-            Self::Sheet {
-                label,
-                timber_lip,
-                cut_origin,
-            } => {
+            Self::Sheet { label, cut } => {
+                let cut = cut.for_leaf(o.seed, leaf);
                 let slab = a.part(p.top_surface, label);
                 let profile = slab_profile(o, p, outline);
-                // A modular top is cut in local leaf coordinates. Keep the print
-                // in table coordinates so every leaf does not repeat its centre.
-                for y in [-0.5, 0.5] {
+                let rotation = Mat2::from_angle(cut.heading_rad);
+                for (sign, origin) in [(-0.5, cut.back_origin_m), (0.5, cut.face_origin_m)] {
                     slab.slab_cap(
                         outline,
                         profile.1,
                         Vec2::ZERO,
-                        y * p.top_thickness,
+                        sign * p.top_thickness,
                         &tf,
-                        |v| v + tf.translation.xz() + *cut_origin,
+                        |v| rotation * (v + tf.translation.xz()) + origin,
                     );
                 }
-                if *timber_lip {
-                    let edge = a.part(Surface::Wood, o.kind.class_name());
-                    let start = edge.uvs.len();
-                    edge.slab_edge(outline, p.top_thickness, profile, &tf);
-                    for uv in &mut edge.uvs[start..] {
-                        let [along, height] = *uv;
-                        *uv = [height, -along];
-                    }
+                let edge = if cut.edge == SheetEdge::TimberLip {
+                    a.part(Surface::Wood, o.kind.class_name())
                 } else {
-                    slab.slab_edge(outline, p.top_thickness, profile, &tf);
+                    slab
+                };
+                cut.edge_uvs(edge, outline, p.top_thickness, profile, &tf, rotation);
+            }
+        }
+    }
+
+    /// Separate substrate below the worktop. Its underside is visible from low cameras.
+    pub(super) fn backing(
+        &self,
+        a: &mut Assembly,
+        o: &IndoorObject,
+        outline: &[Vec2],
+        underside: f32,
+        surface: Surface,
+        version: u32,
+    ) {
+        let tf = Transform::from_xyz(0., underside - 0.006, 0.);
+        match self {
+            Self::Timber(_) => a
+                .part(Surface::WoodEdge, o.kind.class_name())
+                .profile_slab(outline, 0.012, 0.003, tf),
+            Self::Sheet { label, cut } => {
+                let part = a.part(surface, label);
+                if version < REGISTERED_SHEET_VERSION {
+                    part.profile_slab(outline, 0.012, 0.003, tf);
+                    return;
                 }
+                let profile = Geometry::slab_profile(outline, 0.012, 0.003);
+                let rotation = Mat2::from_angle(cut.heading_rad);
+                for y in [-0.006, 0.006] {
+                    part.slab_cap(outline, profile.1, Vec2::ZERO, y, &tf, |p| {
+                        rotation * p + cut.back_origin_m
+                    });
+                }
+                part.slab_edge_with_uv(outline, 0.012, profile, &tf, |_, along, rings| {
+                    rings.map(|(y, _)| Vec2::new(along, y) + cut.band_origin_m)
+                });
             }
         }
     }

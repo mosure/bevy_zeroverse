@@ -1,6 +1,7 @@
 //! A draining tray with real slots. Plate poses fit between the wire uprights;
 //! the same program is used by loose racks, sinks and dishwasher baskets.
 use super::*;
+use crate::scene::procedural_indoor::geometry::RevolvedOutline;
 use rand::seq::SliceRandom;
 
 #[derive(Clone, Debug, Serialize)]
@@ -62,22 +63,24 @@ pub fn parameters(size: Vec3, maximum_plates: u32, seed: u64) -> RackProgram {
         );
         // Even tessellation puts the supporting radial extremum at a vertex.
         dish.segments = 32;
-        let points = profile_points(&dish);
+        let outline = dish.outline();
+        let section = dish.profile();
         for _ in 0..12 {
             let yaw = r.random_range(-0.09..0.09);
             let lean = r.random_range(-0.13..0.13);
             let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_z(FRAC_PI_2 + lean);
-            let (lo, hi) = rotated_bounds(&points, rotation);
+            let (lo, hi) = rotated_bounds(&outline, &section, rotation);
             let left = rail_x[slot] + wire + 0.001 - lo.x;
             let right = rail_x[slot + 1] - wire - 0.001 - hi.x;
             if left >= right || hi.z - lo.z > size.z * 0.73 {
                 continue;
             }
-            let z_limit = size.z * 0.37 - lo.z.abs().max(hi.z.abs());
+            let z_min = -size.z * 0.37 - lo.z;
+            let z_max = size.z * 0.37 - hi.z;
             let position = Vec3::new(
                 r.random_range(left..right),
                 tray - lo.y,
-                r.random_range(-1.0..1.0) * z_limit,
+                r.random_range(z_min..z_max),
             );
             if position.y + hi.y > size.y {
                 continue;
@@ -112,33 +115,31 @@ pub fn parameters(size: Vec3, maximum_plates: u32, seed: u64) -> RackProgram {
         },
     }
 }
-/// Bounds of the emitted polygonal profile, not a proxy disk. Used for slot
-/// admission and exact tray contact (also for oval plates).
-fn profile_points(p: &dishware::DishProgram) -> Vec<Vec3> {
-    let angles: Vec<_> = (0..p.segments)
-        .map(|i| {
-            let t = TAU * i as f32 / p.segments as f32;
-            Vec2::new(t.cos() * p.aspect.x, t.sin() * p.aspect.y)
-        })
-        .collect();
-    p.profile()
-        .into_iter()
-        .flat_map(|(radius, y)| {
-            angles
-                .iter()
-                .map(move |v| Vec3::new(radius * v.x, y, radius * v.y))
-        })
-        .collect()
-}
-fn rotated_bounds(points: &[Vec3], rotation: Quat) -> (Vec3, Vec3) {
-    let mut lo = Vec3::splat(f32::INFINITY);
-    let mut hi = Vec3::splat(f32::NEG_INFINITY);
-    for &v in points {
-        let v = rotation * v;
-        lo = lo.min(v);
-        hi = hi.max(v);
-    }
-    (lo, hi)
+/// A ring's projected support is its radius times the outline's support
+/// plus its axial offset. This yields the exact mesh bounds in O(sides + rings)
+/// per axis and pose, including a tilted rectangular or oval plate.
+fn rotated_bounds(
+    outline: &RevolvedOutline,
+    section: &[(f32, f32)],
+    rotation: Quat,
+) -> (Vec3, Vec3) {
+    let inv = rotation.inverse();
+    let limits = [Vec3::X, Vec3::Y, Vec3::Z].map(|axis| {
+        let axis = inv * axis;
+        let (min, max) = outline.projected_range(axis.xz());
+        section
+            .iter()
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), &(r, y)| {
+                (
+                    (r * min + y * axis.y).min(lo),
+                    (r * max + y * axis.y).max(hi),
+                )
+            })
+    });
+    (
+        Vec3::from_array(limits.map(|v| v.0)),
+        Vec3::from_array(limits.map(|v| v.1)),
+    )
 }
 pub(crate) fn build(a: &mut Assembly, tf: Transform, p: &RackProgram, seed: u64) {
     build_with_label(a, tf, p, seed, "dishware");

@@ -90,7 +90,14 @@ impl Fit {
         } else {
             p.handedness
         };
-        let stile = p.stile.min(half.x * 0.36);
+        // Retain enough solid timber for the shoes and the frame's stop on
+        // the closed, non-swing face. A narrow lite cannot occupy a fixing.
+        let stile = p
+            .swing_hanging
+            .map_or(p.stile, |h| {
+                p.stile.max(2. * (h.stop_projection_m + j.rose + 0.009))
+            })
+            .min(half.x * 0.36);
         let heel_stile = if p.mechanism == DoorMechanism::Revolving {
             // At the hub two push bars meet at right angles. Place the inner
             // fixing far enough out that even the shoe clears the next wing.
@@ -105,7 +112,7 @@ impl Fit {
         let setback = if framed {
             stile * 0.5
         } else {
-            p.stile.clamp(0.05, 0.075)
+            p.stile.clamp(0.05, 0.075).max(stile * 0.5)
         };
         let mount = Vec2::new(-side * (half.x - setback), p.handle_height - half.y - 0.012);
         let pocket_size = Vec2::new(j.pocket.x.min(setback * 1.48), j.pocket.y);
@@ -115,6 +122,9 @@ impl Fit {
             let field = Rect::from_corners(Vec2::new(-half.x + heel_stile, -extent.y), extent);
             if p.panel != DoorPanel::VisionLite {
                 return field;
+            }
+            if let Some(vision) = p.vision_light {
+                return vision.fit(field, -half.y, side);
             }
             let size = field.size() * Vec2::new(j.vision_width, j.vision_height);
             let free = field.size() - size;

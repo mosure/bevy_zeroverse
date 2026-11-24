@@ -1,9 +1,19 @@
 //! Unequal acoustic, glazed and slatted panels with dimensioned stable supports.
 use super::*;
+mod hardware;
+mod plan;
+mod stock;
+#[cfg(test)]
+mod tests;
+
+pub use plan::{Arrangement, Plan};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DividerProgram {
     pub weights: Vec<f32>,
+    pub plan: Plan,
+    /// Thickness of the finished insert inside the retaining channel.
+    pub insert_thickness_m: f32,
     pub bottom: f32,
     pub top: f32,
     pub panel_depth: f32,
@@ -22,8 +32,15 @@ pub fn parameters(o: &IndoorObject) -> DividerProgram {
     let mut r = stream(o.seed, 0x4449564944455250);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4449_5649_4649_4e49);
     let n = r.random_range(1..=3);
+    let weights = (0..n)
+        .map(|_| r.random_range(0.60..1.45))
+        .collect::<Vec<_>>();
+    let plan = Plan::sample(o, &weights);
+    let mut insert = stream(o.seed, u64::from_le_bytes(*b"DivSheet"));
     DividerProgram {
-        weights: (0..n).map(|_| r.random_range(0.60..1.45)).collect(),
+        weights,
+        plan,
+        insert_thickness_m: insert.random_range(0.007..0.012),
         bottom: o.size.y * r.random_range(0.07..0.31),
         top: o.size.y * r.random_range(0.89..1.0),
         panel_depth: r.random_range(0.018_f32..0.048).min(o.size.z * 0.24),
@@ -44,126 +61,126 @@ pub fn parameters(o: &IndoorObject) -> DividerProgram {
         lower_fraction: r.random_range(0.24..0.61),
     }
 }
+
+impl DividerProgram {
+    fn frame_depth(&self) -> f32 {
+        self.panel_depth + 0.008
+    }
+
+    fn slat_field(&self, opening: f32) -> SlatField {
+        let count = (opening / self.slat_pitch).round().clamp(2., 24.) as usize;
+        let pitch = opening / count as f32;
+        let depth = self.panel_depth * 0.55;
+        let (sin, cos) = self.slat_angle.sin_cos();
+        // Preserve a real aperture even when a narrow louvre is turned edge-on.
+        let width = (pitch * self.slat_fraction).min((0.91 * pitch - depth * sin.abs()) / cos);
+        SlatField {
+            count,
+            pitch,
+            width,
+            depth,
+        }
+    }
+}
+
+struct SlatField {
+    count: usize,
+    pitch: f32,
+    width: f32,
+    depth: f32,
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
-    let s = o.size;
-    let l = o.kind.class_name();
-    let foot_h = 0.024_f32.min(s.y * 0.04);
-    for side in [-1., 1.] {
-        let x = side * s.x * p.stand_span;
-        if p.base == 0 {
-            a.box_part(
-                p.frame,
-                l,
-                Vec3::new(x, foot_h * 0.5, 0.),
-                Vec3::new(s.x.min(0.6) * 0.12, foot_h, s.z * 0.98),
-                foot_h * 0.2,
-            );
-        } else if p.base == 1 {
-            let r = s.z * 0.43;
-            let rx = (r * 0.68).min(s.x * (0.5 - p.stand_span) - 0.002);
-            a.part(p.frame, l).housing(
-                &[
-                    (0., Vec2::new(rx, r)),
-                    (foot_h, Vec2::new(rx * 0.86, r * 0.88)),
-                ],
-                2.4,
-                Transform::from_xyz(x, 0., 0.),
-            );
-        } else {
-            for z in [-1., 1.] {
-                a.part(p.frame, l).rod(
-                    Vec3::new(x, foot_h * 0.5, z * (s.z * 0.5 - foot_h)),
-                    Vec3::new(x, p.bottom * 0.7, 0.),
-                    foot_h * 0.40,
-                );
-                a.box_part(
-                    Surface::Rubber,
-                    l,
-                    Vec3::new(x, foot_h * 0.25, z * (s.z * 0.5 - foot_h)),
-                    Vec3::new(foot_h, foot_h * 0.5, foot_h),
-                    foot_h * 0.10,
-                );
-            }
+    let label = o.kind.class_name();
+    let mut cuts = TimberCuts::new(o.seed, u64::from_le_bytes(*b"DivStock"));
+    hardware::feet(a, o, &p);
+    for i in 0..p.weights.len() {
+        let bay = p.plan.bay(i, p.frame_depth());
+        build_bay(a, label, &p, &bay, &mut cuts);
+        if i > 0 {
+            hardware::hinges(a, label, &p, i);
         }
-        a.part(p.frame, l).rod(
-            Vec3::new(x, foot_h, 0.),
-            Vec3::new(x, p.top - p.border, 0.),
-            p.border * 0.48,
+    }
+}
+
+fn build_bay(
+    a: &mut Assembly,
+    label: &str,
+    p: &DividerProgram,
+    bay: &plan::Bay,
+    cuts: &mut TimberCuts,
+) {
+    let frame = a.part(p.frame, label);
+    let opening = bay.width - 2. * p.border;
+    let lo = p.bottom + p.border;
+    let hi = p.top - p.border;
+    let depth = p.frame_depth();
+    for side in [-1., 1.] {
+        let local = Transform::from_xyz(
+            side * (bay.width - p.border) * 0.5,
+            (p.bottom + p.top) * 0.5,
+            0.,
+        );
+        stock::member(
+            frame,
+            Vec3::new(p.border, p.top - p.bottom, depth),
+            bay.frame * local,
+            cuts.origin(),
         );
     }
-    let width = s.x * 0.97;
-    let total: f32 = p.weights.iter().sum();
-    let mut left = -width * 0.5;
-    for w in &p.weights {
-        let w = width * w / total;
-        let x = left + w * 0.5;
-        let inner_w = w - p.border * 2.;
-        let height = p.top - p.bottom;
-        for sign in [-1., 1.] {
-            a.box_part(
-                p.frame,
-                l,
-                Vec3::new(
-                    x + sign * (w - p.border) * 0.5,
-                    (p.top + p.bottom) * 0.5,
-                    0.,
-                ),
-                Vec3::new(p.border, height, p.panel_depth + 0.008),
-                0.002,
-            );
-            a.box_part(
-                p.frame,
-                l,
-                Vec3::new(
-                    x,
-                    if sign < 0. {
-                        p.bottom + p.border * 0.5
-                    } else {
-                        p.top - p.border * 0.5
-                    },
-                    0.,
-                ),
-                Vec3::new(w - p.border * 2., p.border, p.panel_depth + 0.008),
-                0.002,
+    let rail = |g: &mut Geometry, y, h, cuts: &mut TimberCuts| {
+        let tf = Transform::from_xyz(0., y, 0.).with_rotation(Quat::from_rotation_z(-FRAC_PI_2));
+        stock::member(
+            g,
+            Vec3::new(h, opening, depth * 0.94),
+            bay.frame * tf,
+            cuts.origin(),
+        );
+    };
+    rail(frame, p.bottom + p.border * 0.5, p.border, cuts);
+    rail(frame, p.top - p.border * 0.5, p.border, cuts);
+    let insert_top = if p.slats {
+        let mid = lo + (hi - lo) * p.lower_fraction;
+        let h = p.border * 0.9;
+        rail(frame, mid, h, cuts);
+        let slats = p.slat_field(opening);
+        let base = mid + h * 0.5;
+        for j in 0..slats.count {
+            let x = -0.5 * opening + (j as f32 + 0.5) * slats.pitch;
+            let tf = Transform::from_xyz(x, (base + hi) * 0.5, 0.)
+                .with_rotation(Quat::from_rotation_y(p.slat_angle));
+            stock::member(
+                frame,
+                Vec3::new(slats.width, hi - base, slats.depth),
+                bay.frame * tf,
+                cuts.origin(),
             );
         }
-        let lo = p.bottom + p.border;
-        let hi = p.top - p.border;
-        if p.slats {
-            let lower = (hi - lo) * p.lower_fraction;
-            a.box_part(
-                p.panel,
-                l,
-                Vec3::new(x, lo + lower * 0.5, 0.),
-                Vec3::new(inner_w, lower, p.panel_depth),
-                0.002,
-            );
-            let n = (inner_w / p.slat_pitch).round().clamp(2., 24.) as usize;
-            let pitch = inner_w / n as f32;
-            let slat_w = pitch * p.slat_fraction;
-            let slat_d = p.panel_depth * 0.55;
-            for i in 0..n {
-                a.part(p.frame, l).cuboid(
-                    Vec3::new(slat_w, hi - lo - lower, slat_d),
-                    0.001,
-                    Transform::from_xyz(
-                        x - inner_w * 0.5 + pitch * (i as f32 + 0.5),
-                        (hi + lo + lower) * 0.5,
-                        0.,
-                    )
-                    .with_rotation(Quat::from_rotation_y(p.slat_angle)),
-                );
-            }
-        } else {
-            a.box_part(
-                p.panel,
-                l,
-                Vec3::new(x, (hi + lo) * 0.5, 0.),
-                Vec3::new(inner_w, hi - lo, p.panel_depth),
-                0.002,
-            );
-        }
-        left += w;
+        mid - h * 0.5
+    } else {
+        hi
+    };
+    // The sheet seats inside a continuous channel. The gasket fills just the
+    // perimeter, preserving a real aperture in both glass and slatted screens.
+    let bead = 0.0035_f32.min(p.border * 0.18);
+    let h = insert_top - lo;
+    let yc = (lo + insert_top) * 0.5;
+    let seal = a.part(Surface::Rubber, label);
+    for side in [-1., 1.] {
+        let tf = bay.frame * Transform::from_xyz(side * (opening - bead) * 0.5, yc, 0.);
+        seal.cuboid(Vec3::new(bead, h, p.insert_thickness_m + 0.003), 0., tf);
+        let tf = bay.frame * Transform::from_xyz(0., yc + side * (h - bead) * 0.5, 0.);
+        seal.cuboid(
+            Vec3::new(opening - 2. * bead, bead, p.insert_thickness_m + 0.003),
+            0.,
+            tf,
+        );
     }
+    stock::member(
+        a.part(p.panel, label),
+        Vec3::new(opening - 2. * bead, h - 2. * bead, p.insert_thickness_m),
+        bay.frame * Transform::from_xyz(0., yc, 0.),
+        cuts.origin(),
+    );
 }

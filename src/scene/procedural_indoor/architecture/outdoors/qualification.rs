@@ -83,7 +83,7 @@ fn building_programs_are_bounded_replayable_and_structurally_varied() {
             kind: 0,
             seed,
         };
-        let b = Building::sample(&p, 30.);
+        let b = Building::sample(&p, 30., bevy_zeroverse_capture::GENERATOR_VERSION);
         let mut a = Assembly::default();
         let viewed = (seed % 5 != 0).then_some((seed % 4) as usize);
         buildings::build(&mut a, &p, &b, viewed);
@@ -102,7 +102,12 @@ fn building_programs_are_bounded_replayable_and_structurally_varied() {
             );
         }
         let mut replay = Assembly::default();
-        buildings::build(&mut replay, &p, &Building::sample(&p, 30.), viewed);
+        buildings::build(
+            &mut replay,
+            &p,
+            &Building::sample(&p, 30., bevy_zeroverse_capture::GENERATOR_VERSION),
+            viewed,
+        );
         assert_eq!(fingerprint(&a), fingerprint(&replay));
         hashes.insert(fingerprint(&a));
         roofs.insert(b.roof);
@@ -116,6 +121,84 @@ fn building_programs_are_bounded_replayable_and_structurally_varied() {
 }
 
 #[test]
+fn pergola_planters_replay_the_same_versioned_geometry_as_indoor_plants() {
+    let p = Parcel {
+        center: Vec2::ZERO,
+        size: Vec2::splat(3.),
+        yaw: 0.,
+        kind: 3,
+        seed: 9,
+    };
+    let mut plant = (0..100)
+        .map(|seed| {
+            crate::scene::procedural_indoor::objects::audit::fixture(ObjectKind::Plant, seed)
+        })
+        .find(|o| plants::soil::Medium::sample(o) != plants::soil::Medium::Loam)
+        .unwrap();
+    plant.variant = 3;
+    plant.position = Vec3::ZERO;
+    plant.yaw = 0.;
+    for version in [
+        206,
+        207,
+        plants::soil::INTRODUCED - 1,
+        plants::soil::INTRODUCED,
+    ] {
+        let mut outside = Assembly::default();
+        let mut inside = Assembly::default();
+        garden(&mut outside, &p, std::slice::from_ref(&plant), version);
+        plants::build_at_version(&mut inside, &plant, version);
+        assert_eq!(inside.parts.len(), outside.parts.len());
+        assert_eq!(
+            outside.parts.keys().any(|(_, s)| s.contains("#finish")),
+            version >= plants::soil::INTRODUCED
+        );
+        let mut rooted = Assembly::default();
+        plants::build_in_ground(&mut rooted, &plant, version);
+        assert!(rooted.parts.keys().all(|(s, _)| matches!(
+            s,
+            Surface::Bark
+                | Surface::Leaf
+                | Surface::LeafLight
+                | Surface::LeafVariegated
+                | Surface::Succulent
+        )));
+        for (key @ (surface, label), original) in &inside.parts {
+            let tag = if label == "other_prop" {
+                "plant"
+            } else {
+                label
+            };
+            let actual = &outside.parts[&(*surface, tag.to_owned())];
+            assert_eq!(original.positions, actual.positions);
+            assert_eq!(original.normals, actual.normals);
+            assert_eq!(original.uvs, actual.uvs);
+            assert_eq!(original.indices, actual.indices);
+            if let Some(g) = rooted.parts.get(key) {
+                assert_eq!(
+                    (&g.positions, &g.normals, &g.uvs, &g.indices),
+                    (
+                        &original.positions,
+                        &original.normals,
+                        &original.uvs,
+                        &original.indices
+                    )
+                );
+            } else {
+                assert!(!matches!(
+                    surface,
+                    Surface::Bark
+                        | Surface::Leaf
+                        | Surface::LeafLight
+                        | Surface::LeafVariegated
+                        | Surface::Succulent
+                ));
+            }
+        }
+    }
+}
+
+#[test]
 fn parapets_and_grounded_plants_have_continuous_support() {
     let scene = IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     for seed in 0..32 {
@@ -126,7 +209,7 @@ fn parapets_and_grounded_plants_have_continuous_support() {
             kind: 1,
             seed,
         };
-        let mut b = Building::sample(&p, 30.);
+        let mut b = Building::sample(&p, 30., bevy_zeroverse_capture::GENERATOR_VERSION);
         b.roof = 0;
         b.split = 1.;
         b.terrace_level = b.levels;
@@ -166,7 +249,12 @@ fn parapets_and_grounded_plants_have_continuous_support() {
         }
         assert_eq!(winding + events.last().unwrap().1, 0);
         let mut plants = Assembly::default();
-        garden(&mut plants, &p, &garden_plants(&scene, &p));
+        garden(
+            &mut plants,
+            &p,
+            &garden_plants(&scene, &p),
+            scene.generator_version,
+        );
         let root = plants
             .parts
             .iter()
@@ -201,7 +289,7 @@ fn exterior_population_qualification() {
             ExteriorPlan::new(&scene, &District::sample(seed));
         let mut programs = Vec::new();
         for p in sites.iter().filter(|p| p.kind == 0) {
-            programs.push(json!({"parcel":p,"program":Building::sample(p,super::super::background::radius(&scene))}));
+            programs.push(json!({"parcel":p,"program":Building::sample(p,super::super::background::radius(&scene),scene.generator_version)}));
         }
         let image = preview::orthographic(
             &a,
@@ -224,7 +312,7 @@ fn exterior_population_qualification() {
             kind: 0,
             seed,
         };
-        let b = Building::sample(&p, 30.);
+        let b = Building::sample(&p, 30., bevy_zeroverse_capture::GENERATOR_VERSION);
         let mut sample = Assembly::default();
         buildings::build(&mut sample, &p, &b, Some(0));
         let height = b.levels as f32 * b.pitch + b.roof_rise;

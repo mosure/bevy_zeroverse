@@ -1,7 +1,10 @@
 //! Handset construction, independent of screen content and finish identity.
 //! Dimensions describe the admitted object; details are fitted before meshing.
+mod optics;
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
+use crate::scene::procedural_indoor::materials::handset;
+pub use optics::{FrontCamera, FrontMount, RearFlash};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PhoneProgram {
@@ -24,7 +27,13 @@ pub struct PhoneProgram {
     pub island_height: f32,
     pub lens_count: usize,
     pub lens_centers: [Vec2; 4],
+    /// Maximum rear collar radius, also used by the flash clearance check.
     pub lens_radius: f32,
+    pub lens_radii: [f32; 4],
+    pub front_camera: Option<FrontCamera>,
+    pub rear_flash: Option<RearFlash>,
+    pub optical_fraction: f32,
+    pub glazed_island: bool,
     pub button_z: f32,
     pub button_length: f32,
     pub buttons: usize,
@@ -106,7 +115,15 @@ pub fn parameters(o: &IndoorObject) -> PhoneProgram {
             ) * cell
                 * 0.80
     });
-    PhoneProgram {
+    // Cell size is a packing limit. A single camera in a broad decorative
+    // island need not have an equally broad optical barrel.
+    let (lens_radius, lens_radii) = if prior.phone_face_up {
+        (lens_radius, [0.; 4])
+    } else {
+        optics::rear_radii(o.seed, lens_count, lens_radius)
+    };
+    let mut optics = stream(o.seed, u64::from_le_bytes(*b"RearLens"));
+    let mut p = PhoneProgram {
         span,
         body_height,
         roundness: prior.phone_roundness,
@@ -142,11 +159,22 @@ pub fn parameters(o: &IndoorObject) -> PhoneProgram {
         lens_count,
         lens_centers,
         lens_radius,
+        lens_radii,
+        front_camera: None,
+        rear_flash: None,
+        optical_fraction: optics.random_range(0.61..0.85),
+        glazed_island: !prior.phone_face_up && optics.random_bool(0.51),
         button_z: span.y * r.random_range(-0.24..0.06),
         button_length: span.y * r.random_range(0.045..0.095),
         buttons: r.random_range(1..=3),
         button_side: if r.random_bool(0.5) { -1. } else { 1. },
+    };
+    if p.face_up {
+        p.front_camera = Some(FrontCamera::sample(o.seed, &p));
+    } else {
+        p.rear_flash = optics::rear_flash(o.seed, &p);
     }
+    p
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
@@ -154,16 +182,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let l = o.kind.class_name();
     let h = p.body_height;
     let half = p.span * 0.5;
-    a.part(p.shell, l).housing(
-        &[
-            (0., half * 0.98),
-            (h * 0.16, half),
-            (h * 0.88, half),
-            (h, half * 0.98),
-        ],
-        p.roundness,
-        Transform::IDENTITY,
-    );
+    let body = [
+        (0., half * 0.98),
+        (h * 0.16, half),
+        (h * 0.88, half),
+        (h, half * 0.98),
+    ];
+    if let Some(front) = p.front_camera {
+        let mut bezel = Geometry::default();
+        a.part(p.shell, l)
+            .housing_with_top(&mut bezel, &body, p.roundness, Transform::IDENTITY);
+        if front.mount == FrontMount::Bezel {
+            front.inlay(&mut bezel, a.part(Surface::Ink, handset::LENS));
+        }
+        a.part(Surface::Ink, handset::COVER).append(bezel);
+    } else {
+        a.part(p.shell, l)
+            .housing(&body, p.roundness, Transform::IDENTITY);
+    }
     // Visible cover and body intersect internally; there is no floating glass
     // plane or overlapping exposed top face. UVs are resolved by build_object.
     let face_top = h + p.face_height;
@@ -174,10 +210,17 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     };
     let cover = [(h - p.face_height * 0.2, extent), (face_top, extent)];
     let cover_tf = Transform::from_xyz(0., 0., z);
-    if p.face_up {
+    if let Some(front) = p.front_camera {
         let mut pixels = Geometry::default();
-        a.part(p.shell, l)
-            .housing_with_top(&mut pixels, &cover, p.roundness, cover_tf);
+        a.part(Surface::Ink, handset::COVER).housing_with_top(
+            &mut pixels,
+            &cover,
+            p.roundness,
+            cover_tf,
+        );
+        if front.mount != FrontMount::Bezel {
+            front.inlay(&mut pixels, a.part(Surface::Ink, handset::LENS));
+        }
         a.part(surface, l).append(pixels);
     } else {
         a.part(surface, l).housing(&cover, p.roundness, cover_tf);
@@ -199,47 +242,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             Transform::IDENTITY,
         );
     }
-    if p.face_up {
-        // A front camera stays on its display, including short/tall bezels.
-        a.part(Surface::Ink, l).cylinder(
-            p.span.x * 0.018,
-            p.face_height * 0.3,
-            Transform::from_xyz(
-                0.,
-                face_top + p.face_height * 0.10,
-                z - p.screen_span.y * 0.44,
-            ),
-        );
-    } else {
-        let top = face_top + p.island_height;
-        a.part(p.shell, l).housing(
-            &[
-                (face_top - p.face_height * 0.2, p.island_span * 0.5),
-                (top, p.island_span * 0.48),
-            ],
-            p.island_roundness,
-            Transform::from_xyz(p.island_center.x, 0., p.island_center.y),
-        );
-        for center in &p.lens_centers[..p.lens_count] {
-            // Raised lens rim with a dark, recessed optical face.
-            let at = Transform::from_xyz(center.x, top, center.y);
-            a.part(Surface::Metal, l).lathe(
-                &[
-                    (p.lens_radius * 0.72, -p.face_height * 0.1),
-                    (p.lens_radius, -p.face_height * 0.1),
-                    (p.lens_radius, p.face_height),
-                    (p.lens_radius * 0.72, p.face_height),
-                    (p.lens_radius * 0.72, -p.face_height * 0.1),
-                ],
-                16,
-                at,
-            );
-            a.part(Surface::Ink, l).cylinder(
-                p.lens_radius * 0.75,
-                p.face_height * 0.6,
-                Transform::from_xyz(center.x, top + p.face_height * 0.25, center.y),
-            );
-        }
+    if !p.face_up {
+        optics::rear(a, &p, l);
     }
     for (side, count) in [(p.button_side, p.buttons), (-p.button_side, 1)] {
         for i in 0..count {

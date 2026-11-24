@@ -35,8 +35,11 @@ fn frit_bands(
     hi: f32,
     bead: f32,
 ) -> impl Iterator<Item = (f32, f32)> + '_ {
-    let start = (lo / program.pitch_m).ceil() * program.pitch_m;
-    std::iter::successors(Some(start), |y| Some(*y + program.pitch_m))
+    // A transom or sill can interrupt a strip that started on the preceding
+    // pitch. Anchor the phase in wall metres on both sides of that interruption.
+    let first = (lo / program.pitch_m).floor() as i32;
+    (first..)
+        .map(move |index| index as f32 * program.pitch_m)
         .take_while(move |&y| y < hi)
         .filter_map(move |y| {
             let bottom = y.max(lo + bead + 0.0005).max(program.band_m.x);
@@ -45,6 +48,21 @@ fn frit_bands(
                 .min(program.band_m.y);
             (top - bottom > 0.001).then_some((bottom, top))
         })
+}
+
+#[cfg(test)]
+#[test]
+fn ceramic_strips_continue_above_an_interrupting_transom() {
+    let mut glass = GlazingProgram::sample(17, 0, false);
+    glass.band_m = Vec2::new(0.5, 2.);
+    glass.pitch_m = 0.125;
+    glass.duty = 0.5;
+    let pieces: Vec<_> = frit_bands(&glass, 1.02, 1.18, 0.002).collect();
+    assert_eq!(pieces.len(), 2);
+    assert!((pieces[0].0 - 1.0225).abs() < 1e-5);
+    assert_eq!(pieces[0].1, 1.0625);
+    assert_eq!(pieces[1].0, 1.125);
+    assert!((pieces[1].1 - 1.1775).abs() < 1e-5);
 }
 
 /// Frontal glass area inside the actually constructed mullions, sash and

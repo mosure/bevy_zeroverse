@@ -81,3 +81,40 @@ fn compact_counter_recovery_preserves_appliances_and_stepped_floor_clearance() {
         "fixture must exercise the compact counter recovery"
     );
 }
+
+#[test]
+fn sink_mats_vary_in_pose_but_retain_a_clear_standing_position() {
+    let scene =
+        IndoorManifest::generate_with_humans(127, IndoorLayout::Kitchen, 0.65, 0, 0.).unwrap();
+    let mut sink = scene
+        .objects
+        .iter()
+        .find(|o| o.kind == ObjectKind::KitchenSink)
+        .unwrap()
+        .clone();
+    let mut extremes = [f32::INFINITY, f32::NEG_INFINITY];
+    let mut runner_count = 0;
+    for seed in 0..256 {
+        sink.seed = seed;
+        sink.yaw = seed as f32 * 0.05;
+        let sample = || scene.sink_mat(&sink, &mut stream(seed, 41));
+        let mat = sample();
+        assert_eq!(mat.position, sample().position);
+        let center = sink
+            .transform()
+            .compute_affine()
+            .inverse()
+            .transform_point3(mat.position);
+        let angle = mat.yaw - sink.yaw;
+        let (sin, cos) = angle.sin_cos();
+        let gap = center.z - 0.5 * (sink.size.z + mat.size.x * sin.abs() + mat.size.z * cos);
+        assert!((0.0349..0.1601).contains(&gap));
+        assert!(center.x.abs() <= 0.28 * mat.size.x + 1e-5);
+        assert!((0.004..0.011).contains(&mat.size.y));
+        extremes[0] = extremes[0].min(angle);
+        extremes[1] = extremes[1].max(angle);
+        runner_count += usize::from(mat.size.x > 1.4);
+    }
+    assert!(extremes[0] < -0.14 && extremes[1] > 0.14);
+    assert!((25..110).contains(&runner_count));
+}

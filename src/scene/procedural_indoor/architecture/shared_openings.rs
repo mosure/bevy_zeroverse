@@ -2,6 +2,7 @@
 //! Intervals run away from the entry jamb on each side, so a sidelight stays
 //! attached to its own door even when the entrance changes position.
 use super::*;
+use crate::scene::procedural_indoor::materials::glazing::GlazingProgram;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -10,6 +11,91 @@ pub struct SharedOpenings {
     pub jamb_intervals: [Vec2; 2],
     /// Vertical interval within the clear height above the sill and below the header.
     pub height_interval: Vec2,
+}
+
+/// Fixed vision panels along the entry wall. Heights and privacy film follow
+/// one installation across the doorway. End bays can be cut to fit each run.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VisionPanelStock {
+    pub glass: GlazingProgram,
+    /// For each side of the entry, widths at the jamb and corner in nominal bays.
+    pub end_modules: [Vec2; 2],
+}
+
+impl VisionPanelStock {
+    fn sample_glass(seed: u64) -> GlazingProgram {
+        let mut r = stream(seed, u64::from_le_bytes(*b"visnfilm"));
+        let mut glass = GlazingProgram::sample(r.random(), 0, false);
+        // Every opening in this installation has the same sill and head. A
+        // height-only finish can therefore share one material at any bay width.
+        glass.treatment = match r.random_range(0..20) {
+            0..=7 => 0,   // clear, including tinted substrates
+            8..=9 => 1,   // full frost
+            10..=14 => 2, // eye-level privacy band
+            15..=16 => 3, // graded privacy
+            17..=18 => 5, // etched stripes
+            _ => 6,       // opaque ceramic markings
+        };
+        glass
+    }
+
+    /// A material-only intervention can change substrate tint and frost
+    /// strength. The cut glass, opaque markings and mullion layout stay fitted.
+    pub(crate) fn apply_material_seed(&mut self, seed: u64) {
+        let sampled = Self::sample_glass(seed);
+        self.glass.installation = sampled.installation;
+        self.glass.frost_roughness = sampled.frost_roughness;
+    }
+
+    pub(super) fn sample(seed: u64) -> Self {
+        let glass = Self::sample_glass(seed);
+        let mut r = stream(seed, u64::from_le_bytes(*b"visnbays"));
+        let end_modules = std::array::from_fn(|_| {
+            if r.random_bool(0.30) {
+                return Vec2::ONE;
+            }
+            let end = r.random_range(0.60..1.40);
+            let other = if r.random_bool(0.55) {
+                1.
+            } else {
+                r.random_range(0.60..1.40)
+            };
+            if r.random() {
+                Vec2::new(end, other)
+            } else {
+                Vec2::new(other, end)
+            }
+        });
+        Self { glass, end_modules }
+    }
+
+    pub(super) fn validate(&self) -> Result<(), String> {
+        self.glass.validate()?;
+        if self.glass.opening != 0.
+            || self.glass.treatment == 4
+            || self
+                .end_modules
+                .iter()
+                .flat_map(|m| m.to_array())
+                .any(|v| !(0.60..=1.40).contains(&v))
+        {
+            return Err("invalid fixed vision panel stock".into());
+        }
+        Ok(())
+    }
+
+    /// Fraction along an ordered run. The first side runs from corner to jamb.
+    pub(super) fn boundary(&self, side: usize, i: usize, count: usize) -> f32 {
+        if i == 0 {
+            return 0.;
+        }
+        if i == count {
+            return 1.;
+        }
+        let ends = self.end_modules[side];
+        let first = if side == 0 { ends.y } else { ends.x };
+        (first + (i - 1) as f32) / (ends.x + ends.y + (count - 2) as f32)
+    }
 }
 
 impl SharedOpenings {

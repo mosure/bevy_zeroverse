@@ -4,6 +4,7 @@ use super::*;
 mod displays;
 pub use displays::TelevisionMount;
 mod electrical;
+pub(super) use electrical::electrical_standard;
 pub use electrical::{electrical_parameters, ElectricalProgram};
 mod entry;
 
@@ -78,6 +79,42 @@ impl IndoorManifest {
             && !(self.envelope.is_none()
                 && super::super::architecture::details::overlaps_niche(self, lo, hi))
             && !facade::overlaps_opening(self, lo, hi, 0.05)
+            && !self.locker_covers_wall_patch(tf, local.x, obj.size.x, lo.y, hi.y)
+    }
+
+    /// A wall fixture can fit in the gap behind a fitted bank yet be completely
+    /// concealed from the classroom. Protect only the occupied wall elevation.
+    fn locker_covers_wall_patch(
+        &self,
+        wall: Transform,
+        x: f32,
+        width: f32,
+        bottom: f32,
+        top: f32,
+    ) -> bool {
+        use super::super::objects::public::education;
+        if self.layout != IndoorLayout::Classroom
+            || self.generator_version < education::FITTED_VERSION
+        {
+            return false;
+        }
+        let inward = wall.rotation * Vec3::Z;
+        let across = wall.rotation * Vec3::X;
+        self.objects.iter().any(|bank| {
+            if bank.kind != ObjectKind::Locker
+                || bank.variant != education::WALL_BANK
+                || bank.neighbor
+                || bank.position.y >= top
+                || bank.position.y + bank.size.y <= bottom
+            {
+                return false;
+            }
+            let offset = bank.position - wall.translation;
+            let gap = offset.dot(inward) - bank.size.z * 0.5;
+            (0.0..0.30).contains(&gap)
+                && (x - offset.dot(across)).abs() < (width + bank.size.x) * 0.5 + 0.01
+                && (bank.transform().rotation * Vec3::Z).dot(inward) > 0.9999
+        })
     }
 
     /// Same mounted-wall contract for generation and archived-manifest audits.

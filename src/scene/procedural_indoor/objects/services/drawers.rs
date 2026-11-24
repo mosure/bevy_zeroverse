@@ -6,7 +6,7 @@ pub use program::{dimensions, parameters, DrawerBank, DrawerFront, DrawerProgram
 #[cfg(test)]
 mod tests;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let label = o.kind.class_name();
@@ -18,6 +18,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(s.x * 0.88, p.foot, s.z * 0.84),
             0.004,
         );
+    } else if p.base == 0 && version >= casters::INTRODUCED {
+        casters::CasterSet::pedestal(o, &p).build(a, label);
     } else {
         let wheel = Vec3::new(0.38, 0.38, 0.22) * p.foot;
         let extent = if p.base == 0 {

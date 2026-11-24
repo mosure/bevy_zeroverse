@@ -26,7 +26,14 @@ impl UiMaterial for GridImage {
 pub(super) fn install(app: &mut App) {
     load_internal_asset!(app, SHADER, "camera_grid.wgsl", Shader::from_wgsl);
     app.add_plugins(UiMaterialPlugin::<GridImage>::default());
-    app.add_systems(PostUpdate, (setup_camera_grid, update_images).chain());
+    app.add_systems(
+        PostUpdate,
+        (
+            setup_camera_grid,
+            update_images.after(crate::render::anti_alias::ConfigurePreviewAa),
+        )
+            .chain(),
+    );
 }
 
 #[allow(clippy::type_complexity)]
@@ -37,12 +44,21 @@ pub(super) fn update_images(
         Option<&crate::render::ground_truth::GroundTruthCamera>,
         Option<&crate::render::ssaa::SsaaCamera>,
         Option<&crate::camera::lens::LensCamera>,
+        Has<crate::render::anti_alias::ManagedPreviewAa>,
+        Has<crate::render::sensor::CameraSensorProfile>,
     )>,
     mut materials: ResMut<Assets<GridImage>>,
-    mut images: Query<(&CameraGridSource, &mut ImageNode, &MaterialNode<GridImage>)>,
+    mut images: Query<(
+        &CameraGridSource,
+        &ComputedNode,
+        &mut ImageNode,
+        &MaterialNode<GridImage>,
+    )>,
 ) {
-    for (source, mut image, material) in &mut images {
-        let Ok((RenderTarget::Image(target), gt, ssaa, lens)) = cameras.get(source.0) else {
+    for (source, tile, mut image, material) in &mut images {
+        let Ok((RenderTarget::Image(target), gt, ssaa, lens, preview, sensor)) =
+            cameras.get(source.0)
+        else {
             continue;
         };
         let handle = if let Some(ssaa) = ssaa {
@@ -57,12 +73,24 @@ pub(super) fn update_images(
             &target.handle
         };
         let filter_rgb = u32::from(*mode == RenderMode::Color);
+        // The existing area filter can resolve the high-resolution raster
+        // directly to an enlarged RGB tile. Keep the final sensor image for
+        // layout, exports, and effects applied by the sensor resolve.
+        let display = ssaa
+            .filter(|s| {
+                filter_rgb != 0
+                    && preview
+                    && !sensor
+                    && s.factor > 1
+                    && tile.size().cmpgt(s.output_size.as_vec2() + 0.5).any()
+            })
+            .map_or(handle, |s| &s.source);
         if materials
             .get(material.id())
-            .is_some_and(|m| m.image != *handle || m.filter_rgb != filter_rgb)
+            .is_some_and(|m| m.image != *display || m.filter_rgb != filter_rgb)
         {
             let mut m = materials.get_mut(material.id()).unwrap();
-            m.image = handle.clone();
+            m.image = display.clone();
             m.filter_rgb = filter_rgb;
         }
         if image.image != *handle {
@@ -188,6 +216,95 @@ fn setup_camera_grid(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn enlarged_rgb_tiles_use_raster_detail_and_preserve_sensor_and_annotation_outputs() {
+        use crate::render::{anti_alias, sensor::SensorArtifactSettings, ssaa::SsaaCamera};
+        let mut app = App::new();
+        app.init_resource::<Assets<GridImage>>()
+            .init_resource::<Assets<Image>>()
+            .insert_resource(BevyZeroverseConfig {
+                kiosk: true,
+                camera_grid: true,
+                ..default()
+            })
+            .init_resource::<RenderMode>()
+            .add_message::<SceneLoadedEvent>()
+            .add_systems(
+                PostUpdate,
+                update_images.after(anti_alias::ConfigurePreviewAa),
+            );
+        anti_alias::install(&mut app);
+        let [raster, output] = [(); 2].map(|_| {
+            app.world_mut()
+                .resource_mut::<Assets<Image>>()
+                .add(Image::default())
+        });
+        let camera = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                Msaa::Off,
+                ZeroverseCamera::default(),
+                RenderTarget::Image(raster.clone().into()),
+                SsaaCamera::new(raster.clone(), output.clone(), UVec2::splat(128), 2),
+            ))
+            .id();
+        let material = app
+            .world_mut()
+            .resource_mut::<Assets<GridImage>>()
+            .add(GridImage {
+                image: output.clone(),
+                filter_rgb: 1,
+            });
+        let tile = app
+            .world_mut()
+            .spawn((
+                CameraGridSource(camera),
+                ImageNode::default(),
+                MaterialNode(material.clone()),
+                ComputedNode {
+                    size: Vec2::splat(128.),
+                    ..default()
+                },
+            ))
+            .id();
+        let display = |app: &App| {
+            app.world()
+                .resource::<Assets<GridImage>>()
+                .get(&material)
+                .unwrap()
+                .image
+                .clone()
+        };
+        app.update();
+        assert_eq!(display(&app), output);
+        app.world_mut().get_mut::<ComputedNode>(tile).unwrap().size = Vec2::splat(192.);
+        app.update();
+        assert_eq!(display(&app), raster);
+        assert_eq!(app.world().get::<ImageNode>(tile).unwrap().image, output);
+
+        app.world_mut().entity_mut(camera).insert(
+            SensorArtifactSettings {
+                probability: 1.,
+                ..default()
+            }
+            .profile(42, 0)
+            .unwrap(),
+        );
+        app.update();
+        assert_eq!(display(&app), output);
+        app.world_mut()
+            .entity_mut(camera)
+            .remove::<crate::render::sensor::CameraSensorProfile>();
+        app.insert_resource(RenderMode::Semantic);
+        app.update();
+        assert_eq!(display(&app), output);
+        app.insert_resource(RenderMode::Color);
+        app.insert_resource(crate::sample::SamplerState::default());
+        app.update();
+        assert_eq!(display(&app), output);
+    }
 
     #[test]
     fn studio_grid_keeps_its_tile_and_last_image_while_the_successor_acquires_a_target() {

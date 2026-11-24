@@ -53,21 +53,17 @@ pub(super) fn tube_angles(sides: u32) -> Cow<'static, [LatheAngle]> {
 }
 
 pub(super) fn lathe_angles(segments: u32) -> Cow<'static, [LatheAngle]> {
-    // Standard cylinders and round luminaire housings share immutable angles.
-    // Other tessellations own one short-lived table per profile.
-    static CYLINDER: OnceLock<[LatheAngle; 21]> = OnceLock::new();
-    static ROUND_HOUSING: OnceLock<[LatheAngle; 33]> = OnceLock::new();
-    match segments {
-        20 => Cow::Borrowed(
-            CYLINDER.get_or_init(|| std::array::from_fn(|i| LatheAngle::new(i as u32, 20))),
-        ),
-        32 => Cow::Borrowed(
-            ROUND_HOUSING.get_or_init(|| std::array::from_fn(|i| LatheAngle::new(i as u32, 32))),
-        ),
-        _ => Cow::Owned(
-            (0..=segments)
-                .map(|i| LatheAngle::new(i, segments))
-                .collect(),
-        ),
+    // Glides, vessels, knobs and standard cylinders use a small family of
+    // ring counts. Cache only these bounded tables; custom high resolutions
+    // remain transient. Lathes preserve their own angular evaluation order.
+    static RINGS: [OnceLock<Box<[LatheAngle]>>; 33] = [const { OnceLock::new() }; 33];
+    let ring = || {
+        (0..=segments)
+            .map(|i| LatheAngle::new(i, segments))
+            .collect::<Vec<_>>()
+    };
+    match RINGS.get(segments as usize) {
+        Some(entry) => Cow::Borrowed(entry.get_or_init(|| ring().into_boxed_slice())),
+        None => Cow::Owned(ring()),
     }
 }

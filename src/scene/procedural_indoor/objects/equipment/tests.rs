@@ -16,6 +16,7 @@ fn object(kind: ObjectKind, size: Vec3, seed: u64) -> IndoorObject {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     }
 }
 
@@ -35,7 +36,7 @@ fn equipment_meshes_retain_metric_envelopes_and_finite_normals() {
             let mut o = object(kind, size, seed);
             o.variant = (seed % 4) as u32;
             let mut assembly = Assembly::default();
-            build(&mut assembly, &o);
+            build(&mut assembly, &o, bevy_zeroverse_capture::GENERATOR_VERSION);
             let (lo, hi) = assembly.bounds();
             assert!(
                 lo.cmpge(Vec3::new(-size.x * 0.5, 0., -size.z * 0.5) - Vec3::splat(0.001))
@@ -79,7 +80,7 @@ fn equipment_connections_and_emitters_use_geometry_coordinates() {
             let beam = fixture_beam(&o);
             assert!(beam.inner > 0. && beam.outer > beam.inner && beam.outer < FRAC_PI_2);
             let mut a = Assembly::default();
-            build(&mut a, &o);
+            build(&mut a, &o, bevy_zeroverse_capture::GENERATOR_VERSION);
             let emit = a
                 .parts
                 .iter()
@@ -99,7 +100,7 @@ fn equipment_connections_and_emitters_use_geometry_coordinates() {
         }
         let p = object(ObjectKind::Projector, Vec3::new(0.30, 0.12, 0.25), seed);
         let mut a = Assembly::default();
-        build(&mut a, &p);
+        build(&mut a, &p, bevy_zeroverse_capture::GENERATOR_VERSION);
         assert!(!a.parts.keys().any(|(s, _)| *s == Surface::Light));
         assert_eq!(
             power_port(&p, false).unwrap(),
@@ -178,7 +179,7 @@ fn cable_mesh_uses_archived_centerline_and_strain_relief_bounds() {
         let controls = o.cable_path.take().unwrap();
         o.cable_path = Some(wires::fillet_path(&controls, wires::radius(&o)).unwrap());
         let mut a = Assembly::default();
-        build(&mut a, &o);
+        build(&mut a, &o, bevy_zeroverse_capture::GENERATOR_VERSION);
         let points = o.cable_path.as_ref().unwrap();
         let r = wires::bound_radius(&o);
         let expected_lo = points

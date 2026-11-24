@@ -7,6 +7,7 @@ fn physical_size_ranges_replay_and_build_within_annotation_envelopes() {
     let mut report = serde_json::Map::new();
     for kind in [
         Mug,
+        TissueBox,
         CoffeeCup,
         WaterBottle,
         SodaCan,
@@ -53,6 +54,16 @@ fn physical_size_ranges_replay_and_build_within_annotation_envelopes() {
             assert!(o.size.is_finite() && o.size.cmpgt(Vec3::splat(0.005)).all());
             if matches!(kind, CoffeeCup | WaterBottle | SodaCan | Bowl) {
                 assert_eq!(o.size.x, o.size.z, "round cross-section must stay round");
+            }
+            if kind == TissueBox {
+                let casing = o.size;
+                objects::containers::tissue::fit_proposal(&mut o);
+                assert_eq!(o.size.xz(), casing.xz());
+                assert!(
+                    (o.size.y * objects::containers::tissue_parameters(&o).box_height - casing.y)
+                        .abs()
+                        < 1e-6
+                );
             }
             let a = objects::build_object(&o);
             audit::check(&o, &a)

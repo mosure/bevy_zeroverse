@@ -35,6 +35,7 @@ fn all_botanical_forms_have_supported_pots_valid_leaf_frames_and_bounded_canopie
                 interaction_target: None,
                 cable_path: None,
                 cable_target: None,
+                cable_target_socket: None,
             };
             let mut a = Assembly::default();
             build(&mut a, &o);
@@ -117,6 +118,7 @@ fn compact_and_wide_botanical_canopies_keep_actual_vertices_in_reserved_bounds()
                     interaction_target: None,
                     cable_path: None,
                     cable_target: None,
+                    cable_target_socket: None,
                 };
                 let mut a = Assembly::default();
                 let growth = Growth::sample(o.seed);

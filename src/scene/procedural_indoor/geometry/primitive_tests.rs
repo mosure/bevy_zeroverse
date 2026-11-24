@@ -152,17 +152,18 @@ fn lathe_caps_are_metric_and_tapered_stock_has_a_continuous_nonsingular_chart() 
 }
 
 #[test]
-fn primitive_residency_is_fixed_and_nonstandard_angles_are_not_cached() {
+fn primitive_residency_is_bounded_and_large_custom_rings_are_transient() {
     assert!(std::ptr::eq(
         primitives::unit_sphere(),
         primitives::unit_sphere()
     ));
-    for segments in [20, 32] {
+    for segments in 3..=32 {
         let angles = primitives::lathe_angles(segments);
         assert_eq!(angles.len(), segments as usize + 1);
         assert!(matches!(angles, std::borrow::Cow::Borrowed(_)));
+        assert_eq!(angles.as_ptr(), primitives::lathe_angles(segments).as_ptr());
     }
-    for segments in [3, 7, 19, 21, 97] {
+    for segments in [33, 48, 97] {
         assert!(matches!(
             primitives::lathe_angles(segments),
             std::borrow::Cow::Owned(_)

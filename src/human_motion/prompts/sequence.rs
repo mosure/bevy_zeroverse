@@ -152,7 +152,7 @@ pub(in crate::human_motion) fn walking_sequence(
             let anchor = at(&base, fraction);
             let start = (fraction * travel as f32).round() as usize + elapsed;
             let end = start + action.frames;
-            for w in action_keys(&action, &anchor, start, end, false) {
+            for w in action_keys(&action, &anchor, start, end, None) {
                 timed.insert(w.frame, w);
             }
             action.phase.start_frame = start;

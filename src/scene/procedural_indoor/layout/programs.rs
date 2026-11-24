@@ -362,9 +362,11 @@ impl IndoorManifest {
         let initial_gap = spacing.random_range(0.48..0.62);
         let step = spacing.random_range(0.11..0.17);
         for gap in [initial_gap, initial_gap + step, initial_gap + step * 2.] {
-            self.chair(
+            self.chair_in_family_at_surface(
                 position + rotation * Vec3::new(sideways, 0., depth * 0.5 + gap),
                 yaw,
+                None,
+                Some(desk),
                 rng,
             );
             if self.objects.len() == before + 1 {
@@ -376,7 +378,6 @@ impl IndoorManifest {
                 // The temporary chair proved that an operator can approach this desk.
                 self.objects.pop();
             } else {
-                self.objects[before + 1].interaction_target = Some(desk);
                 seats.push(before + 1);
                 if bench && depth >= 1.17 {
                     capacity = 2;

@@ -23,6 +23,47 @@ pub(crate) enum ProfileJoints {
 }
 
 impl RevolvedOutline {
+    /// A round-to-soft-square cross section with the supplied axial dimensions.
+    /// The gradient of its implicit curve gives the transverse shading normal.
+    pub(crate) fn superellipse(sides: u32, exponent: f32, aspect: Vec2) -> Self {
+        let mut outline = Self::round(sides, 0., 0);
+        if exponent == 2. && aspect == Vec2::ONE {
+            return outline;
+        }
+        let mut distance = 0.;
+        let mut previous = None;
+        for m in &mut outline.columns {
+            let unit = m.point;
+            if exponent != 2. {
+                let abs = unit.abs();
+                let gradient = Vec2::new(abs.x.powf(exponent - 1.), abs.y.powf(exponent - 1.));
+                m.point = unit * abs.dot(gradient).powf(-1. / exponent);
+                m.outward = unit.signum() * gradient;
+            }
+            // The outline is physical before charting it. Glaze texels keep
+            // their metric footprint across an oval face and around its rim.
+            m.point *= aspect;
+            m.outward /= aspect;
+            m.apothem = m.outward.dot(m.point);
+            if let Some(p) = previous {
+                distance += m.point.distance(p);
+            }
+            m.along = distance;
+            previous = Some(m.point);
+        }
+        outline
+    }
+
+    /// Support along an arbitrary axis, including asymmetric polygon tessellations.
+    pub(crate) fn projected_range(&self, direction: Vec2) -> (f32, f32) {
+        self.columns
+            .iter()
+            .map(|m| direction.dot(m.point))
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), d| {
+                (lo.min(d), hi.max(d))
+            })
+    }
+
     pub(crate) fn round(sides: u32, depth: f32, lobes: u32) -> Self {
         let mut columns = Vec::with_capacity(sides as usize + 1);
         let mut previous = Vec2::ZERO;
@@ -58,7 +99,11 @@ impl RevolvedOutline {
     }
 
     pub(crate) fn polygon(sides: u32) -> Self {
-        let ring = Self::round(sides, 0., 0);
+        Self::round(sides, 0., 0).faceted()
+    }
+
+    pub(crate) fn faceted(self) -> Self {
+        let ring = self;
         let mut columns = Vec::with_capacity(2 * ring.sides);
         for edge in ring.columns.windows(2) {
             let chord = edge[1].point - edge[0].point;
@@ -77,6 +122,14 @@ impl RevolvedOutline {
             sides: ring.sides,
             stride: 2,
         }
+    }
+
+    /// Unit outlines and their gradients in metric section coordinates, with
+    /// the final seam repeated for the cylindrical edge chart.
+    pub(crate) fn meridians(&self) -> impl ExactSizeIterator<Item = (Vec2, Vec2, f32)> + '_ {
+        self.columns
+            .iter()
+            .map(|m| (m.point, m.outward / m.apothem, m.along))
     }
 
     pub(crate) fn sweep(

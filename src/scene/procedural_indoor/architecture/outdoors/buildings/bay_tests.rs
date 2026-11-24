@@ -40,7 +40,7 @@ fn actual_bay_has_distinct_wall_sash_glass_and_finite_backing_at_oblique_angles(
         kind: 0,
         seed: 41,
     };
-    let mut b = Building::sample(&site, 30.);
+    let mut b = Building::sample(&site, 30., bevy_zeroverse_capture::GENERATOR_VERSION);
     b.levels = 1;
     b.bay_pitch = 4.;
     b.pitch = 3.2;

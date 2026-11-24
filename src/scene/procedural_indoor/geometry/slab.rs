@@ -39,7 +39,9 @@ impl Geometry {
             .iter()
             .map(|p| p.length())
             .fold(f32::INFINITY, f32::min);
-        let bevel = bevel.clamp(0.0001, height * 0.45);
+        // Submillimetre stamped stock can be thinner than the usual bevel
+        // floor. Its thickness always limits the rounding on each side.
+        let bevel = bevel.max(0.0001).min(height * 0.45);
         (bevel, 1.0 - bevel / radius.max(bevel * 2.0))
     }
 
@@ -47,8 +49,37 @@ impl Geometry {
         &mut self,
         outline: &[Vec2],
         height: f32,
+        profile: (f32, f32),
+        tf: &Transform,
+    ) {
+        self.slab_edge_with_uv(outline, height, profile, tf, |_, along, rings| {
+            rings.map(|(y, _)| Vec2::new(along, y))
+        });
+    }
+
+    /// Chart each perimeter vertex at the four profile rings, bottom to top.
+    /// The closing corner gets the total arc length for strips with a UV seam.
+    pub(crate) fn slab_edge_with_uv(
+        &mut self,
+        outline: &[Vec2],
+        height: f32,
+        profile: (f32, f32),
+        tf: &Transform,
+        chart: impl Fn(usize, f32, &[(f32, f32); 4]) -> [Vec2; 4],
+    ) {
+        self.slab_edge_sections(outline, height, profile, tf, chart, |_| false);
+    }
+
+    /// Selected edges supply their own pierced vertical face between the two
+    /// bevels. The surrounding rings and their original UV charts stay intact.
+    pub(crate) fn slab_edge_sections(
+        &mut self,
+        outline: &[Vec2],
+        height: f32,
         (bevel, inset): (f32, f32),
         tf: &Transform,
+        chart: impl Fn(usize, f32, &[(f32, f32); 4]) -> [Vec2; 4],
+        pierced: impl Fn(usize) -> bool,
     ) {
         let rings = [
             (-height * 0.5, inset),
@@ -57,29 +88,39 @@ impl Geometry {
             (height * 0.5, inset),
         ];
         let mut along = 0.0;
+        if outline.is_empty() {
+            return;
+        }
+        let mut a_uv = chart(0, along, &rings);
         for i in 0..outline.len() {
             let a = outline[i];
-            let b = outline[(i + 1) % outline.len()];
+            let next = (i + 1) % outline.len();
+            let b = outline[next];
             let length = a.distance(b);
-            for pair in rings.windows(2) {
+            let b_uv = chart(next, along + length, &rings);
+            for (ring, pair) in rings.windows(2).enumerate() {
+                if ring == 1 && pierced(i) {
+                    continue;
+                }
                 let p = Vec3::new(a.x * pair[0].1, pair[0].0, a.y * pair[0].1);
                 let q = Vec3::new(a.x * pair[1].1, pair[1].0, a.y * pair[1].1);
                 let r = Vec3::new(b.x * pair[1].1, pair[1].0, b.y * pair[1].1);
                 let s = Vec3::new(b.x * pair[0].1, pair[0].0, b.y * pair[0].1);
                 let n = (q - p).cross(r - p).normalize();
                 let start = self.positions.len() as u32;
-                for (p, u) in [
-                    (p, along),
-                    (q, along),
-                    (r, along + length),
-                    (s, along + length),
+                for (p, uv) in [
+                    (p, a_uv[ring]),
+                    (q, a_uv[ring + 1]),
+                    (r, b_uv[ring + 1]),
+                    (s, b_uv[ring]),
                 ] {
-                    self.vertex(p, n, Vec2::new(u, p.y), tf);
+                    self.vertex(p, n, uv, tf);
                 }
                 self.indices
                     .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
             }
             along += length;
+            a_uv = b_uv;
         }
     }
 

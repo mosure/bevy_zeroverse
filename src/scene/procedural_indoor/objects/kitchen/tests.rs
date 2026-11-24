@@ -257,7 +257,13 @@ fn sink_cutout_reaches_the_basin_in_the_actual_mesh() {
             )
         });
         for (index, basin) in plan.basins.iter().enumerate() {
-            let point = basin.center + basin.floor_half() * Vec2::new(0.35, 0.25);
+            // Probe solid floor on the side opposite the pierced waste fitting.
+            let sign = if basin.drain.x >= basin.center.x {
+                -1.
+            } else {
+                1.
+            };
+            let point = basin.center + basin.floor_half() * Vec2::new(sign * 0.45, 0.25);
             let hit = top_at(&mesh, point);
             assert!(
                 (hit - basin.floor_m).abs() < 0.001,

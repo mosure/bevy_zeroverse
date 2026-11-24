@@ -38,16 +38,21 @@ impl Sheet {
         }
     }
 
+    fn fields(&self, budget: usize) -> [PreparedPeriodic; 3] {
+        sheet_fields(
+            self.seed,
+            [([7, 11], 0), (self.emboss_cells, 1), ([29, 31], 2)],
+            budget,
+        )
+    }
+
+    #[cfg(test)]
     fn texel(&self, p: Vec2) -> (Vec3, f32, f32) {
-        let decor = periodic_noise(p.x, p.y, 7, 11, self.seed);
-        let press = periodic_noise(
-            p.x,
-            p.y,
-            self.emboss_cells[0],
-            self.emboss_cells[1],
-            self.seed ^ 1,
-        );
-        let grain = periodic_noise(p.x, p.y, 29, 31, self.seed ^ 2);
+        self.sample_fields(p, &self.fields(0))
+    }
+
+    fn sample_fields(&self, p: Vec2, fields: &[PreparedPeriodic; 3]) -> (Vec3, f32, f32) {
+        let [decor, press, grain] = fields.each_ref().map(|field| field.sample(p.x, p.y));
         let fleck = ((grain - 0.65) * 4.).clamp(0., 1.);
         let height = 0.74 * press + 0.26 * grain;
         (
@@ -58,12 +63,21 @@ impl Sheet {
     }
 
     pub(super) fn material(&self, images: &mut impl AssetStore<Image>) -> StandardMaterial {
+        self.material_with_budget(images, LATTICE_BUDGET)
+    }
+
+    pub(super) fn material_with_budget(
+        &self,
+        images: &mut impl AssetStore<Image>,
+        budget: usize,
+    ) -> StandardMaterial {
+        let fields = self.fields(budget);
         sheet_material::<64>(
             images,
             self.period,
             self.gloss * 0.18,
             self.roughness,
-            |p| self.texel(p),
+            |p| self.sample_fields(p, &fields),
         )
     }
 }

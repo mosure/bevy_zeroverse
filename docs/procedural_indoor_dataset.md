@@ -34,6 +34,148 @@ capture threads sharing one engine are rejected for indoor generation because
 they cannot preserve index ordering. The seed for global sample index `i` is
 `base_seed.wrapping_add(i)`, independent of process count or chunk size.
 
+Wall outlets, desktop power strips and floor service boxes share the room’s socket
+convention. A portable strip fits one or two rows of polarized, round-well or three-pin
+inserts to its chassis. The openings and their backings are part of the mesh,
+so RGB, depth and normals resolve the same recesses. A mains lead seats at the
+contact face and reserves clearance for its plug body. The cable records the
+destination object ID and zero-based `cable_target_socket`. Dedicated USB
+and data ports omit the index. Archives predating socket selection use the
+original first port. Metrics include insert material, width, socket count,
+round-well depth and the socket indices used by cables. A floor box exposes
+one or two sockets under a hinged hatch when in use. Unused boxes close flush
+when the surrounding wiring permits. The distribution export records housing,
+hatch dimensions and closure state for every fitted box, with lid angle and
+socket pattern recorded for open boxes.
+
+Wall switches use one to three modules per plate. Plates in a room often share
+a finish and control family. The object audit's `switch_bank.modules` records
+each paddle or lever angle, rotary setting, slider position or button latch.
+These settings describe the visible hardware. Room metrics include
+`switch_actuator`, `switch_paddle_deg`, and `switch_recess_depth_m`.
+
+Laptops fit one to six sockets into the available chassis thickness and edge
+length. USB-C, USB-A, HDMI and audio sockets have distinct apertures and
+recessed interiors. The first entry in the laptop object audit's `io.ports`
+is the charging and display-dock receptacle. Its `center_m` is in laptop
+coordinates, and either side can carry it. Power and display leads use this
+same anchor. Room metrics include `laptop_charge_side` and
+`laptop_fitted_socket_count`. Older archived laptops retain their original
+port markings and cable endpoints on replay.
+
+Workstation mice include scroll wheels, finger-operated trackballs and side-mounted thumb balls.
+An asymmetric grip follows the neighboring keyboard's operating side when available.
+Object metrics report the control family, grip, control diameter, exposed fraction and trackball finish.
+All parts share the mouse semantic label and object bounding box.
+
+Potted succulents can form a single off-centre rosette or a parent and a smaller
+offset in a wide planter. The pot opening bounds both roots, and its rim height
+sets the clearance for the lowest fleshy leaves. The plant object audit records
+leaf count, spiral direction, profile, thickness and cup. Tapered stems retain
+continuous bark texture coordinates through bends. Split-leaf plants grow young,
+intact blades alongside mature leaves with asymmetric edge clefts and enclosed
+openings. RGB, shadows and geometric annotations use the same perforated mesh.
+The object audit records realized counts in `split_leaf_habit`. Room metrics
+report blades, intact blades, clefts and openings per split-leaf plant.
+
+Planters sample loam, perlite mix, bark chips, expanded clay or mineral gravel.
+The opening and the sampled grain size determine how many coarse pieces appear
+above the fine bed. Each plant keeps a single semantic label. The object audit
+records the mix, nominal coarse diameter in metres, realized grain count and the
+fraction of the usable opening covered by the grains’ bounding ellipses in
+`potting_medium`. The room distribution includes `plant_potting_medium` and
+`plant_coarse_grains` for the plants in the room manifest. Exterior pergola
+planters use the same materials. Trees planted directly in the ground generate
+only their foliage and stems. Archived manifests predating generator 222 replay
+their original soil geometry.
+
+Wall pictures and exhibition-panel artworks share a physical mount. Front
+images use the full normalized image domain. Framed prints may have a cut mat,
+and floated canvases sit above a recessed channel. For wall pictures, the dataset
+metrics record moulding shape and relief, mat thickness and bevel, float depth,
+and whether the canvas edges carry the image.
+
+Ceiling pendants hang from a flex, a downrod, or three suspension wires.
+Their open bulb, recessed lens, or opal bowl supplies the emitting area for
+both the visible material and the lighting model. The metrics export records
+the installed optic, suspension, emitting area, canopy diameter and drop.
+Diffuser dimensions contribute to the distributions only for fixtures with a physical diffuser.
+
+Ceiling fans sample paddle, carved, swept and commercial multi-blade rotors.
+Blades on one hub share a balanced cross-section and pitch. Wood blades have
+separate grain cuts along their span. Two fans can share a stocked model while
+retaining independent rotor phases and motion. Their downrods fit the available
+headroom and their mounting pads meet the finished ceiling. The exported fan
+metrics include blade family, count, chord ratios, pitch, sweep and camber.
+
+Laminate, ceramic and cast-mineral desks and tables share the room's PBR stock.
+Each top takes a seeded cut in metres. Tables from the same order can share a
+finish and cutting direction without repeating the same fleck or vein at the
+centre. At a joint the material can continue across leaves or use a separate
+cut. Exposed slab and formed foil carry the face pattern over the bevel.
+Bonded and wood edges have their own strip, and laminate has a separate backing.
+The table audit exposes `sheet_cut`. The metrics export records edge treatment,
+cut origin in metres and heading in degrees. Manifest replay uses the archived
+generator version to select the sheet mapping.
+
+Desk cups use the same writing-tool geometry as loose tabletop pencils and pens.
+A held tool rests on the inner floor and leans on the lip. The cup and its contents
+share the holder's `stationery` label and object ID. The metrics export records
+requested and fitted counts, inclination in degrees, mechanism and cup wall
+thickness in metres. `held_writing_upper_end` distinguishes pencil points,
+ballpoints, marker caps, erasers, push buttons and plain barrel ends. Loose tools
+also record whether a barrel face or the barrel and pocket clip support them on
+the worktop.
+
+Wall loudspeakers can sit flush or tilt down on a pivoting bracket. Speakers on
+furniture rest on their cabinets. Exposed drivers, woven acoustic cloth and
+perforated steel all share the `speaker` label and the cabinet's instance ID.
+The grilles use filtered color, roughness and surface relief over an opaque
+backing. Metrics export `speaker_mount`, `speaker_face` and
+`speaker_downward_pitch_deg`.
+
+Exposed ducts carry directional, opposed-blade or crossed-return registers.
+Outlets on a duct share blade stock and finish. Their dimensions and positions
+fit the space between hangers. Metal louvers, the flange and the recessed
+backing all use the `ceiling` label. The metrics export records register pattern,
+finish, installed face dimensions in metres and station along the duct.
+
+Sprinkler heads on one exposed pipe run share a frame finish, bulb tint and
+slotted deflector. Branches can follow one side, alternate sides or change
+sides in pairs. Every part carries the `ceiling` label. The
+`ceiling_sprinkler_*` metrics count layouts and finishes per run, signed
+lateral offsets per head, and spacing in metres between consecutive heads.
+
+Ceiling detectors mount on a continuous ceiling or tile face. A shallow sleeve seats the housing
+on pitched plaster. Paired devices can share a manufactured model and are spaced according to the room area.
+Optical housings have open radial inlets backed by a recessed chamber. Heat
+probes have an open guard, and status lenses have their own material. All
+parts retain the `fire_detector` class and instance ID. Metrics include the
+face design, inlet count, angular opening fraction, diameter and chamber setback.
+
+Mugs can sit directly on a table or off-centre in a dished saucer. The cup foot
+rests on the saucer well, and liquid follows the inside of the cup, including
+faceted rims. Takeaway cups can have a paperboard or printed sleeve and a fitted
+lid with an open sip port. These parts share the cup's `drink_container` label
+and instance ID. Metrics record saucer support height and offset, lid rise and
+port offset, and the beverage and fill fraction for cups that contain a drink.
+
+Beverage cans have scored lids or physical pour openings with an attached folded
+panel. The oval score follows the available lid diameter and leaves room for
+the rivet and seam. An open can shows its interior floor or a liquid surface below the rim.
+Bottle water levels follow the moulded walls. Product labels wrap once around
+the container and share the container’s semantic class and instance ID. Metrics
+include `can_score_area_mm2`, `can_panel_fold_deg` for open cans, `can_visible_fill_fraction` when
+drink is present, `bottle_cap_flutes` and `bottle_visible_fill_height_m` for
+filled transparent bottles.
+
+Table settings, cupboards, basins and drying racks share the same plate
+geometry. Plates have a recessed underside, a foot ring, a rolled rim and
+round, oval or softly squared outlines. A stack can be centred or slightly
+staggered. Each foot rests in the well below it. Dataset metrics for loose
+and served plates include stack pitch, lateral offset, outline, foot dimensions
+and contrasting ceramic rim finishes.
+
 Sequential CLI generation enables `--indoor-prefetch=true` and
 `--indoor-prefetch-depth=3`: up to three future rooms are constructed on the CPU
 while the GPU captures the current room. Depth accepts 1–4; lower values reduce
@@ -130,12 +272,133 @@ dimensions, shade coverage and near-full-height classification. Architecture
 metrics and `architecture.jsonl` record polygon outlines, roof slopes, floor
 patches, pillars, arches and mezzanines; see the [architectural evaluation](architecture_v22.md).
 
+Single and paired swing doors record their installation in `program.swing_hanging`.
+The leaf closes against stops inside the frame. The stationary hinge pin and the
+moving leaf share the rotation axis used for motion, navigation and schematics.
+The metrics export records face setback, stop projection, hinge length and hinges
+per leaf. Older door records with this field absent replay their original geometry.
+
+For doors with vision panels, `door_vision_shape` counts the openings in individual
+leaves. Width, height, center height, corner radius and cutout area describe the
+installed opening before the bead and gasket are fitted. The optional
+`program.vision_light` records shaped glazing stock. An absent field on a vision
+panel gives the original square-cornered opening.
+
+Exposed masonry replaces the room-side wall face up to its finish line. Fired
+brick and concrete block have metric course pitches, recessed mortar, and
+separate mineral finishes. `wall_lining_stock` and `wall_lining_arrangement`
+count installed walls. The latter distinguishes stacked, alternating, and
+left- or right-advancing third-lap courses. Lining dimensions and joint widths
+and depths are in metres. Both masonry and mortar carry the wall semantic.
+
+The `rug_cut` and `rug_binding` distributions describe installed products.
+`rug_binding_width_m` measures the physical edge band. For sink mats,
+`sink_mat_toe_gap_m` measures the distance from the nearest rotated corner
+to the cabinet front. Lateral offsets and yaw are relative to the sink.
+
+Chair seat construction distinguishes crowned upholstery (0), upholstered waterfall
+edges (1), separate front bolsters (2), pressed plywood (3), carved timber (4)
+and moulded polymer (5). Formed seats report centre thickness, lateral and rear
+rise, front drop and signed width taper. A positive taper narrows the rear.
+Seats from the same table order can share a shell design, with individual
+grain cuts and occasional replacement chairs. The centre of a formed seat is
+0.47 m above the floor. For stools, `stool_seat_height_m` is the installed seat's
+centre height, and `stool_seat_to_rail_drop_m` measures the drop to the top of
+its footrest. Low tables, dining tables and counter-height worktops can have
+different stool heights. Cafés and cafeterias can mix high tables with stools
+and ordinary dining sets in one room. A seated person's pose records the stool
+support in local metres, including whether the front footrest is curved.
+
+For sled and cantilever chairs, `chair_runner_section` distinguishes tubular
+metal from laminated bent plywood. Width, thickness and nominal bend radius
+are in metres. Tight frames limit the bend at the seat to keep both bearings
+supported. A positive `chair_runner_front_rake_depth_fraction` means the
+front upright leans toward the rear as it rises to the seat. Floor glides
+fit the straight portion of each runner. These parts share the chair instance
+and semantic label in every view.
+
+Face-up phones report their camera mount (bezel, display punch or sensor pill),
+its horizontal position and width. Face-down phones report the optical cluster
+and flash location. `phone_individual_lens_radius_m` counts each installed rear
+lens once. `phone_display_state` counts visible sleeping, clock-only
+and active displays. `screen_luminance` records zero for a sleeping phone.
+Sleeping and clock-only phones are excluded from handset application-layout counts.
+
+Wall clocks share a seeded local time consistent with the room's sampled daytime
+or evening lighting. Individual quartz movements can drift up to eight seconds.
+The distribution report records `clock_time_seconds`, `clock_dial_style`, and the applicable
+`clock_minute_rail` or `clock_24_hour` setting. These are snapshot times. Analog
+hands and bezels contribute real depth. Printed indices, reflective LCD digits,
+and lit LED segments share the dial surface and its clock semantic label.
+
+Projection screens record their stock format, mounting mechanism and deployment.
+Image width and height measure exposed cloth. Both are zero when the screen is
+stowed. Full image height and stock format describe the fully deployed image.
+Placement checks sightlines from the primary viewing area independently of the
+capture cameras. Large teaching and conference rooms can have paired screens
+on a shared mounting line. Standby tabletop projectors require a fully exposed
+screen and a clear optical path to its center.
+
+Open notebooks report their fitted cover width and depth in metres, the fraction
+of pages on the left, and the ruling shared by the two facing leaves. Both
+leaves use the `paper` semantic class. Writing is part of the paper color map
+and follows the same curved surface used for depth and normals.
+
+Tabletop tissue dispensers report their casing, draw state and mouth dimensions
+in metres. Folding cartons also report the installed print. Open dispensers
+report the remaining pack height as a fraction of the casing and the exposed
+draw height in metres. The case and cut edge use the box semantic label. The
+refill and protruding sheet use the paper label and share the dispenser instance.
+
+Banquette backrests report their installed construction. Sewn backs also report
+foam thickness, tuck depth and channel or diamond repeat in metres. Their fabric
+chart follows the padded surface across the seams. Seats, backs and brackets
+share the bench semantic class and the furnishing instance.
+
+Perimeter heaters report their installed construction in `heater_construction`.
+Rooms can have a coordinated heating series or independently sourced units.
+Pressed panels record channel pitch, relief and spacing between paired banks.
+Tubular radiators record pitch and clear space between tubes. These distances
+are in metres. Casings, floor supports and supply/return fittings belong to
+the same appliance instance.
+
+Rolling carts and mobile drawer pedestals report their fitted wheel diameter,
+tread width and swivel trail in metres. The wheel and fixed-caster histograms
+count matched sets per furnishing. Solid hubs, pierced spoke wheels and twin
+casters use the same physical surfaces for RGB, depth and semantics.
+
+Classroom tablet chairs report the writing surface's side, outline, yaw in degrees,
+face and edge materials. `teaching_back_carry_opening` counts solid and pierced
+backs among these chairs. Grip width and height in metres describe the clear
+opening on the front skin. The RGB and geometry annotations use the same mesh
+for the shell, its opening and the handed writing surface.
+
+Sofas and upholstered armchairs report their installed frame type, stock,
+number of discrete floor glides, and frame section widths and depths in metres.
+A chaise depth change starts a separate frame. Cushion seams on a straight run
+can share one frame. Plinths and pedestal discs bear directly on the floor and
+contribute zero discrete glides. Recliner frames fit the stationary seat below the articulated back and footrest.
+
+Freestanding room dividers report the installed arrangement, bay count and insert
+thickness. `divider_hinge_turn_deg` records one signed turn per interior hinge,
+including zero for a straight joint. A single-bay screen contributes no hinge samples.
+
 `architecture.jsonl` also records the adjoining room's footprint and
 `adjoining_elevation`. Its optional `windows.edge` indexes that footprint,
 with aperture coordinates measured in metres from the edge midpoint along
 the wall and up from the floor. The distribution report includes adjoining
 exterior window count, rough opening area and sill height. Through-glass
 annotations can see scenery beyond both the interior partition and these windows.
+
+On the entry wall, clear glass, full frost, privacy bands, gradients, etched
+stripes and ceramic markings share a finish across installed bays. End bays
+can be cut to fit the jamb or corner. `shared_glazing_treatment` counts one
+installation or solid wall per room. `shared_glazing_bay_width_m` measures each
+rough opening and `shared_glazing_thickness_m` measures the installed glass
+once per wall. Frost changes RGB scattering. Opaque ceramic markings also
+appear in through-glass geometry annotations. A material-seed override
+resamples the glass optics and frost strength with the installed layout,
+pane thickness and marking positions held fixed.
 
 To append another 100 samples, repeat the capture settings with `--resume
 --samples 100`. The seed can be omitted on resume: the saved base seed is
@@ -182,13 +445,31 @@ defaults to `0.25`; zero disables people without changing room furnishings.
 The manifest records pose, chair support, stature/build, clothing, skin/hair
 palettes, and local joints. `human_instance_ids` align the human axis with
 manifest IDs; `human_count` excludes padded rows in a chunk. Pose positions
-are world coordinates and remain static across camera trajectory steps.
+are world coordinates. A static person's joints stay fixed as the camera
+moves. For a moving person, the joints follow the sampled motion timestep.
 The 21-joint bone names and parent indices are exported with poses.
 `object_obb_instance_ids` associate furniture and person oriented boxes with
 manifest IDs; `-1` indicates padding or an unlabelled legacy instance.
-People are asset-free articulated geometry with cloth, hair, face and hand
-details; their shading and silhouettes remain stylized compared with scanned
-humans. No facial-expression or cloth-simulation realism is claimed.
+People use the bundled AnnyBody reference. Static poses sample forearm and shin
+length relative to total reach. The same segment lengths constrain supported
+hands. Clothing fits the shaped torso, with a curved span between chest supports,
+projected button bands, and separate dye and grain for trousers and inner shirts.
+Pigmentation, lip sheen and brow shape vary independently of outfit. Shoes use
+mirrored lasts with toe rise, an instep and laced or slip-on uppers. The manifest
+records the appearance programs and the metrics export includes segment lengths,
+skin undertone, lip moisture and shoe shape. Each fitted haircut samples temple
+recession, peak and nape height. Combed cuts can expose a curved part in the
+actual scalp geometry. Clipper length and fibre density determine the visible
+scalp fraction of a buzz cut. Loose cuts vary how much of each ear they cover.
+Their locks and underlayers follow the circumference of the actor's head.
+The metrics export includes the applied part
+width in rest metres and coverage for clipped hair. Spectacles fit to both
+eye centres, the nasal bridge and the ears. Full rims, upper rims and
+drill-mounted lenses vary in silhouette, wrap, tilt and finish. The manifest
+stores the sampled eyewear program. Distribution metrics count spectacles worn
+by people in the room and report their frame dimensions, roughness and lens
+opacity. The frame and lens follow the head during playback. Garments follow
+the rig during playback without cloth simulation.
 
 The native CLI uses a rendezvous CPU writer: one batch may be encoding while
 the next is captured. There is no waiting batch queue. Maximum batch residency
@@ -244,6 +525,13 @@ odd image dimensions (161 × 119), two cameras, three trajectory steps, and all
 five RGB/geometric/semantic modalities. Temporal and co-visibility exports have
 separate [flow](optical_flow.md) and [membership](co_visibility.md) regressions.
 Pixel equality across GPU drivers or rendering backends is not promised.
+
+The architecture distributions include the base treatment of each nearby building.
+`exterior_plinth_stock` encodes continuous cladding (0), render (1), precast
+concrete (2), fired clay (3) and sheet-metal flashing (4). Installed bases
+report their top elevation and projection in metres. Unitized courses also
+report nominal unit length. These measurements describe exterior context visible
+through windows.
 
 Recorded qualifications retain their configuration, build and adapter identity.
 Re-run the commands above to qualify a deployment; archived results do not establish

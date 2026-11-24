@@ -107,6 +107,45 @@ impl Accepted {
     }
 }
 
+/// Observe the denominator as well as admitted hardware. Retracted and
+/// partly deployed screens deliberately have no optical target.
+fn observe_projectors(scene: &IndoorManifest, installed: &mut Accepted) -> usize {
+    use crate::scene::procedural_indoor::{
+        layout::equipment::rendered_projector_axis_clear, objects::presentation::projection,
+    };
+    let targets: Vec<_> = scene
+        .objects
+        .iter()
+        .filter(|o| {
+            !o.neighbor
+                && o.kind == ObjectKind::ProjectionScreen
+                && projection::parameters(o)
+                    .projection_target_local()
+                    .is_some()
+        })
+        .collect();
+    let mut count = 0;
+    for o in scene
+        .objects
+        .iter()
+        .filter(|o| !o.neighbor && o.kind == ObjectKind::Projector)
+    {
+        assert!(
+            targets
+                .iter()
+                .any(|t| rendered_projector_axis_clear(scene, o, t)),
+            "{:?}/{} projector {} lacks a clear optical target",
+            scene.layout,
+            scene.seed,
+            o.id
+        );
+        installed.add(scene, o);
+        count += 1;
+    }
+    assert!(count <= targets.len());
+    targets.len()
+}
+
 #[test]
 fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
     let mut report = BTreeMap::<String, BTreeMap<String, Accepted>>::new();
@@ -116,6 +155,8 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
     let mut multi_exhibit_showrooms = 0;
     let mut generation_ms = Vec::new();
     let mut schematic_rooms = Vec::new();
+    let mut projectors = Accepted::new();
+    let mut exposed_screens = 0;
     for profile in IndoorLayout::PROFILES {
         for seed in 0..16 {
             let density = [0.35, 0.65, 0.95][seed as usize % 3];
@@ -123,6 +164,7 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
             let scene = IndoorManifest::generate_with_humans(seed, profile, density, 3, 0.25)
                 .unwrap_or_else(|e| panic!("{profile:?}/{seed}: {e}"));
             generation_ms.push(started.elapsed().as_secs_f64() * 1000.);
+            exposed_screens += observe_projectors(&scene, &mut projectors);
             validation::validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("{profile:?}/{seed}: {e}"));
             if seed < 2 {
@@ -214,12 +256,31 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
     let total = |kind: &str, f: fn(&Accepted) -> usize| -> usize {
         report.values().filter_map(|k| k.get(kind)).map(f).sum()
     };
-    let projectors = total("Projector", |s| s.supported);
+    // Fully exposed wall screens can be rarer than the minimum number of
+    // projector examples in a short all-profile sweep. Supplement it with a
+    // fixed presentation cohort, without resampling rejected installations.
+    let all_profile_exposed = exposed_screens;
+    let all_profile_installed = projectors.count;
+    for profile in [
+        IndoorLayout::Classroom,
+        IndoorLayout::Conference,
+        IndoorLayout::LectureHall,
+        IndoorLayout::Training,
+    ] {
+        for seed in 16..48 {
+            let density = [0.35, 0.65, 0.95][seed as usize % 3];
+            let scene =
+                IndoorManifest::generate_with_humans(seed, profile, density, 3, 0.25).unwrap();
+            exposed_screens += observe_projectors(&scene, &mut projectors);
+        }
+    }
+    assert_eq!(projectors.count, projectors.supported);
     assert!(
-        projectors >= 16,
-        "projector admission collapsed: {projectors}"
+        projectors.supported >= 16 && projectors.supported * 3 >= exposed_screens,
+        "projector admission collapsed: {} installed / {exposed_screens} exposed screens",
+        projectors.supported
     );
-    assert!(total("Projector", |s| s.support_centered_2pct) * 4 < projectors);
+    assert!(projectors.support_centered_2pct * 4 < projectors.supported);
     let screens = total("Monitor", |s| s.screen_facing_targets)
         + total("Laptop", |s| s.screen_facing_targets);
     let aligned = total("Monitor", |s| s.screen_facing_aligned_2deg)
@@ -241,6 +302,12 @@ fn accepted_regularity_audit_covers_programs_and_preserves_geometry() {
         "policy": POLICY,
         "rooms": 320,
         "full_room_mesh_checks": 40,
+        "projector_admission": {
+            "all_profile_exposed": all_profile_exposed, "all_profile_installed": all_profile_installed,
+            "additional_presentation_rooms": 128, "combined_exposed": exposed_screens,
+            "combined_installed": projectors.supported,
+            "combined_within_center_2pct": projectors.support_centered_2pct,
+        },
         "seeds_per_profile": [0, 15],
         "density_cycle": [0.35, 0.65, 0.95],
         "cameras_per_room": 3,

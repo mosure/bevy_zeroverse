@@ -1326,6 +1326,42 @@ fn display_controls_are_live_and_do_not_require_regeneration() {
     }
 }
 
+#[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+#[test]
+fn preview_lighting_is_live_and_device_aware() {
+    use crate::render::lighting::{PreviewLighting, SolariPreviewStatus};
+    let mut app = App::new();
+    let config = super::super::web_viewer_defaults();
+    let mut state = EditorState::new(&config);
+    state.view.page = Page::View;
+    app.insert_resource(config);
+    assert!(fields::items(&state)
+        .iter()
+        .any(|i| matches!(i, fields::Item::Field(f) if f.path == "/preview_lighting")));
+    edit(&mut state, "/preview_lighting", json!("solari")).unwrap();
+    assert!(live_update(app.world_mut(), &mut state, "/preview_lighting").is_err());
+    assert!(!state.pending());
+    app.insert_resource(SolariPreviewStatus {
+        supported: true,
+        ..default()
+    });
+    for lighting in [
+        PreviewLighting::Solari,
+        PreviewLighting::SolariRestir,
+        PreviewLighting::Raster,
+    ] {
+        edit(&mut state, "/preview_lighting", json!(lighting)).unwrap();
+        live_update(app.world_mut(), &mut state, "/preview_lighting").unwrap();
+        assert_eq!(
+            app.world()
+                .resource::<BevyZeroverseConfig>()
+                .preview_lighting,
+            lighting
+        );
+        assert!(!state.pending());
+    }
+}
+
 #[test]
 fn preview_aa_defaults_and_explicit_launch_settings_roundtrip() {
     use crate::render::anti_alias::PreviewAa;
@@ -1359,4 +1395,45 @@ fn preview_aa_defaults_and_explicit_launch_settings_roundtrip() {
         assert_eq!(parsed.preview_aa, mode);
         assert_eq!(parsed.ssaa_factor, default.ssaa_factor);
     }
+}
+
+#[test]
+fn preview_aa_status_shows_each_grid_lens_and_its_actual_supersampling() {
+    use crate::{
+        camera::{lens::LensCamera, ZeroverseCamera},
+        render::{anti_alias, ssaa::SsaaCamera},
+        scene::SceneLoadedEvent,
+    };
+    let mut app = App::new();
+    app.insert_resource(BevyZeroverseConfig {
+        kiosk: true,
+        camera_grid: true,
+        preview_aa: anti_alias::PreviewAa::TaaFxaa,
+        ..default()
+    })
+    .init_resource::<RenderMode>()
+    .add_message::<SceneLoadedEvent>()
+    .add_systems(Last, widgets::show_active_aa);
+    anti_alias::install(&mut app);
+    let label = app
+        .world_mut()
+        .spawn((Text::default(), widgets::ActiveAaLabel))
+        .id();
+    app.world_mut().spawn((
+        Camera3d::default(),
+        ZeroverseCamera::default(),
+        Msaa::Off,
+        LensCamera::test_camera(),
+    ));
+    app.world_mut().spawn((
+        Camera3d::default(),
+        ZeroverseCamera::default(),
+        Msaa::Off,
+        SsaaCamera::new(default(), default(), UVec2::splat(128), 2),
+    ));
+    app.update();
+    assert_eq!(
+        app.world().get::<Text>(label).unwrap().0,
+        "Active · SMAA Ultra + lens resolve / TAA + FXAA + 2× SSAA"
+    );
 }

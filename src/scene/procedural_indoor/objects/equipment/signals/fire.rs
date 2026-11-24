@@ -1,5 +1,6 @@
 //! Distinct installed devices, rather than recolors of a single alarm box.
 use super::*;
+pub mod detector;
 #[cfg(test)]
 mod tests;
 
@@ -51,12 +52,14 @@ pub fn program(o: &IndoorObject) -> FireProgram {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if o.kind == ObjectKind::FireDetector {
+        detector::build(a, o);
+        return;
+    }
     let p = program(o);
     let mut fitted = o.clone();
     fitted.size *= p.body_fraction;
-    // Keep the actual mounting face fixed while varying the case within its
-    // pre-admitted envelope. Ceiling devices remain attached at the top.
-    let ceiling = o.kind == ObjectKind::FireDetector;
+    // Keep the rear mounting face anchored while fitting the wall housing.
     let rear = if o.kind == ObjectKind::FireAlarm && p.style == 3 {
         0.46
     } else {
@@ -64,17 +67,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     };
     let offset = Vec3::new(
         0.,
-        (o.size.y - fitted.size.y) * if ceiling { 1. } else { 0.5 },
-        if ceiling {
-            0.
-        } else {
-            -rear * (o.size.z - fitted.size.z)
-        },
+        (o.size.y - fitted.size.y) * 0.5,
+        -rear * (o.size.z - fitted.size.z),
     );
     let mut parts = Assembly::default();
     match o.kind {
         ObjectKind::FireAlarm => alarm(&mut parts, &fitted, &p),
-        ObjectKind::FireDetector => detector(&mut parts, &fitted, &p),
         ObjectKind::FirePullStation => pull(&mut parts, &fitted, &p),
         _ => unreachable!(),
     }
@@ -177,76 +175,6 @@ fn alarm(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
     a.part(Surface::Light, l).ellipsoid(
         Vec3::splat(s.x * 0.012),
         Transform::from_xyz(s.x * 0.34, s.y * 0.11, front),
-    );
-}
-
-fn detector(a: &mut Assembly, o: &IndoorObject, p: &FireProgram) {
-    let s = o.size;
-    let l = o.kind.class_name();
-    let body = format!("{l}#finish{}", p.finish);
-    let radius = s.x.min(s.z) * 0.49;
-    let underside = if p.style == 2 { 0.25 } else { 0.02 };
-    a.part(Surface::Plastic, &body).lathe(
-        &[
-            (0., s.y * underside),
-            (radius * p.sensor_face_fraction, s.y * underside),
-            (radius * p.crown_fraction, s.y * (underside + 0.16)),
-            (radius * 0.96, s.y * (p.skirt_height - 0.12)),
-            (radius, s.y * p.skirt_height),
-            (radius, s.y),
-            (0., s.y),
-        ],
-        24,
-        Transform::IDENTITY,
-    );
-    // Shadowed inlet band with separated louvres on the actual radial surface.
-    let inlet_height = (underside + 0.16 + p.skirt_height - 0.12) * 0.5;
-    let inlet_radius = radius * (p.crown_fraction + 0.96) * 0.5;
-    for i in 0..p.slots * 2 {
-        let angle = 2. * PI * i as f32 / (p.slots * 2) as f32;
-        let tf = Transform::from_xyz(
-            angle.sin() * inlet_radius,
-            s.y * inlet_height,
-            angle.cos() * inlet_radius,
-        )
-        .with_rotation(Quat::from_rotation_y(angle));
-        a.part(Surface::Ink, l)
-            .cuboid(Vec3::new(radius * 0.09, s.y * 0.12, radius * 0.03), 0., tf);
-    }
-    if p.style == 2 {
-        // Heat-sensing element with three protective struts beneath the dome.
-        a.part(Surface::Metal, l).cylinder(
-            radius * 0.07,
-            s.y * 0.30,
-            Transform::from_xyz(0., s.y * 0.15, 0.),
-        );
-        for i in 0..3 {
-            let angle = 2. * PI * i as f32 / 3.;
-            a.part(Surface::Metal, l).rod(
-                Vec3::new(
-                    angle.sin() * radius * 0.32,
-                    s.y * 0.28,
-                    angle.cos() * radius * 0.32,
-                ),
-                Vec3::new(
-                    angle.sin() * radius * 0.16,
-                    s.y * 0.005,
-                    angle.cos() * radius * 0.16,
-                ),
-                s.y * 0.018,
-            );
-        }
-    } else {
-        a.part(Surface::Plastic, &format!("{l}#finish{}", FINISH_BASE + 1))
-            .cylinder(
-                radius * p.sensor_face_fraction * if p.style == 1 { 0.60 } else { 0.31 },
-                s.y * 0.018,
-                Transform::from_xyz(radius * 0.11, s.y * 0.012, -radius * 0.12),
-            );
-    }
-    a.part(Surface::Light, l).ellipsoid(
-        Vec3::new(radius * 0.035, s.y * 0.015, radius * 0.035),
-        Transform::from_xyz(radius * 0.43, s.y * (underside - 0.002), radius * 0.18),
     );
 }
 

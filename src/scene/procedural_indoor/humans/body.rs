@@ -4,7 +4,7 @@ use super::rig::{segment, torso_segment};
 use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use burn_human::{AnnyBody, AnnyInput};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 #[cfg(feature = "human_motion")]
 pub(crate) use crate::procedural_human::reference::installed;
@@ -328,7 +328,12 @@ fn build_impl(
         (posed, dominant)
     };
     let (mut posed, dominant) = skin(&transforms);
-    let floor = posed.iter().map(|p| p.y).fold(f32::INFINITY, f32::min);
+    let foot_support = if motion_rest {
+        0.
+    } else {
+        h.foot_support_height()
+    };
+    let floor = posed.iter().map(|p| p.y).fold(f32::INFINITY, f32::min) - foot_support;
     if !motion_rest {
         if let Some(contact) = &h.worktop_contact {
             // Only the two small arm chains are re-solved; body morphology is
@@ -360,7 +365,13 @@ fn build_impl(
                     let error = contact.height + 0.0005 - min;
                     max_error = max_error.max(error.abs());
                     let wrist = resolved_joints[7 + arm * 4] + Vec3::Y * error;
-                    contact.arm(&mut resolved_joints, arm, wrist, h.stature / 1.75);
+                    contact.arm(
+                        &mut resolved_joints,
+                        arm,
+                        wrist,
+                        h.stature / 1.75,
+                        h.arm_lengths(),
+                    );
                 }
                 transforms = make_transforms(&resolved_joints);
                 posed = skin(&transforms).0;
@@ -474,7 +485,10 @@ fn build_impl(
         chest: rest_chest.y - 0.03,
         depth_center: (front + back) * 0.5,
         fit: super::garments::fit::TorsoFit::new(&torso_vertices, waist, rest_chest.y)
-            .with_program(&garment),
+            .with_program(
+                &garment,
+                h.appearance.as_ref().is_some_and(|a| a.layers.is_some()),
+            ),
         legs: ["L", "R"].map(|side| {
             let suffix = format!(".{side}");
             let leg: Vec<_> = vertices
@@ -740,15 +754,16 @@ fn build_impl(
         .map_or_else(Default::default, |a| a.footwear.clone());
     for side in ["L", "R"] {
         let suffix = format!(".{side}");
-        let points: Vec<_> = vertices
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &p)| {
-                (p.y <= cut.shoe_top + footwear.collar_raise + 0.018
-                    && labels[dominant[i]].ends_with(&suffix))
-                .then_some(p)
-            })
-            .collect();
+        let mut points = Vec::new();
+        let mut contact_height = f32::INFINITY;
+        for (i, &point) in vertices.iter().enumerate() {
+            if point.y <= cut.shoe_top + footwear.collar_raise + 0.018
+                && labels[dominant[i]].ends_with(&suffix)
+            {
+                points.push(point);
+                contact_height = contact_height.min(posed[i].y);
+            }
+        }
         super::footwear::append(
             &footwear,
             &points,
@@ -756,7 +771,11 @@ fn build_impl(
                 ankle: head(&format!("foot.{side}")),
                 toe: head(&format!("toe2-1.{side}")),
                 posed_from_rest: transforms[index(&format!("foot.{side}"))],
-                floor,
+                contact_height: if foot_support > 0. {
+                    foot_support
+                } else {
+                    contact_height
+                },
                 shoe_top: cut.shoe_top,
             },
             &mut mesh,
@@ -772,8 +791,29 @@ fn build_impl(
             super::face::iris(h.seed, eye, face_rotation, scale, &mut mesh);
         }
     }
-    super::face::append(h, &posed, faces, &eyes, face_rotation, scale, &mut mesh);
-    if h.outfit.buttoned() {
+    // Every build in this process uses the same installed reference. Skinning
+    // bindings and quad topology are independent of the phenotype and pose.
+    static FACIAL_TOPOLOGY: OnceLock<super::face::projection::Topology> = OnceLock::new();
+    let facial_topology = FACIAL_TOPOLOGY.get_or_init(|| {
+        let head = index("head");
+        let mut facial = vec![false; parents.len()];
+        for (i, &parent) in parents.iter().enumerate() {
+            facial[i] = i == head || (parent >= 0 && facial[parent as usize]);
+        }
+        super::face::projection::Topology::new(faces, posed.len(), |i| facial[dominant[i]])
+    });
+    super::face::append(
+        h,
+        &posed,
+        facial_topology,
+        &eyes,
+        face_rotation,
+        scale,
+        &mut mesh,
+    );
+    // Older manifests placed fasteners at source vertices. New garments share
+    // the fitted panel projection in garments::details.
+    if h.outfit.buttoned() && h.appearance.as_ref().is_none_or(|a| a.layers.is_none()) {
         for row in 0..6 {
             let y = if h.outfit == super::HumanOutfit::Polo {
                 if row > 2 {
@@ -1010,3 +1050,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod stool_contact_tests;

@@ -6,6 +6,8 @@ use crate::scene::procedural_indoor::placement::{Footprint, SurfacePattern};
 pub struct CartProgram {
     pub shelf_tops: Vec<f32>,
     pub thickness: f32,
+    /// Nominal wheel stock used to dimension the frame. The object audit
+    /// and dataset metrics report the installed radius after swivel clearance.
     pub wheel_radius: f32,
     pub post_span: Vec2,
     pub post_radius: f32,
@@ -40,8 +42,8 @@ pub fn parameters(o: &IndoorObject) -> CartProgram {
         shelf_tops,
         thickness,
         wheel_radius: radius,
-        // A swivelling wheel's projected radius exceeds its radial radius by
-        // its axle width. Sample the legal span, rather than clamping wheels.
+        // Reserve the original wheel envelope when laying out the posts.
+        // The installed caster also accounts for its trail and fork width.
         post_span: Vec2::new(
             r.random_range(0.34..(0.5 - (radius * 1.07 + 0.001) / s.x).min(0.44)),
             r.random_range(0.31..(0.5 - (radius * 1.07 + 0.001) / s.z).min(0.42)),
@@ -126,36 +128,23 @@ pub(crate) fn cargo(o: &IndoorObject, p: &CartProgram, level: usize) -> Vec<Indo
     items
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let l = o.kind.class_name();
-    let mut r = stream(o.seed, 0x4341525457484545);
-    for x in [-1., 1.] {
-        for z in [-1., 1.] {
-            let at = Vec3::new(x * s.x * p.post_span.x, 0., z * s.z * p.post_span.y);
-            let wheel = p.wheel_radius;
-            let swivel = Quat::from_rotation_y(r.random_range(-PI..PI));
-            a.part(Surface::Rubber, l).cylinder(
-                wheel,
-                wheel * 0.62,
-                Transform::from_translation(at + Vec3::Y * wheel)
-                    .with_rotation(swivel * Quat::from_rotation_z(FRAC_PI_2)),
-            );
-            for side in [-1., 1.] {
-                let offset = swivel * Vec3::X * (side * wheel * 0.39);
-                a.part(p.frame, l).rod(
-                    at + offset + Vec3::Y * wheel,
-                    at + offset + Vec3::Y * wheel * 2.5,
-                    wheel * 0.12,
-                );
-            }
+    if version >= casters::INTRODUCED {
+        let wheels = casters::CasterSet::cart(o, &p);
+        wheels.build(a, l);
+        for mount in wheels.mounts {
+            let at = Vec3::new(mount.pivot_xz_m.x, 0., mount.pivot_xz_m.y);
             a.part(p.frame, l).rod(
-                at + Vec3::Y * wheel * 2.4,
-                at + Vec3::Y * (s.y - p.thickness * 0.5),
+                at.with_y(wheels.post_bottom_m()),
+                at.with_y(s.y - p.thickness * 0.5),
                 p.post_radius,
             );
         }
+    } else {
+        legacy_wheels_and_posts(a, o, &p);
     }
     for (level, &top) in p.shelf_tops.iter().enumerate() {
         a.box_part(
@@ -200,5 +189,38 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(x, y, s.z * p.post_span.y),
             p.post_radius,
         );
+    }
+}
+
+// Archived carts retain their original geometry and batch vertex order.
+fn legacy_wheels_and_posts(a: &mut Assembly, o: &IndoorObject, p: &CartProgram) {
+    let s = o.size;
+    let l = o.kind.class_name();
+    let mut r = stream(o.seed, 0x4341525457484545);
+    for x in [-1., 1.] {
+        for z in [-1., 1.] {
+            let at = Vec3::new(x * s.x * p.post_span.x, 0., z * s.z * p.post_span.y);
+            let wheel = p.wheel_radius;
+            let swivel = Quat::from_rotation_y(r.random_range(-PI..PI));
+            a.part(Surface::Rubber, l).cylinder(
+                wheel,
+                wheel * 0.62,
+                Transform::from_translation(at + Vec3::Y * wheel)
+                    .with_rotation(swivel * Quat::from_rotation_z(FRAC_PI_2)),
+            );
+            for side in [-1., 1.] {
+                let offset = swivel * Vec3::X * (side * wheel * 0.39);
+                a.part(p.frame, l).rod(
+                    at + offset + Vec3::Y * wheel,
+                    at + offset + Vec3::Y * wheel * 2.5,
+                    wheel * 0.12,
+                );
+            }
+            a.part(p.frame, l).rod(
+                at + Vec3::Y * wheel * 2.4,
+                at + Vec3::Y * (s.y - p.thickness * 0.5),
+                p.post_radius,
+            );
+        }
     }
 }

@@ -2,6 +2,7 @@
 use super::*;
 pub mod bench;
 pub mod cart;
+pub(crate) mod casters;
 pub mod divider;
 pub mod drawers;
 pub mod heater;
@@ -50,12 +51,12 @@ pub fn parameters(o: &IndoorObject) -> ServiceProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
-        ObjectKind::DrawerUnit => return drawers::build(a, o),
-        ObjectKind::BaseboardHeater => return heater::build(a, o),
+        ObjectKind::DrawerUnit => return drawers::build(a, o, version),
+        ObjectKind::BaseboardHeater => return heater::build(a, o, version),
         ObjectKind::Bench => return bench::build(a, o),
-        ObjectKind::MobileCart => return cart::build(a, o),
+        ObjectKind::MobileCart => return cart::build(a, o, version),
         ObjectKind::RoomDivider => return divider::build(a, o),
         _ => {}
     }
@@ -70,11 +71,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 pub fn construction(o: &IndoorObject) -> String {
     match o.kind {
         ObjectKind::BaseboardHeater => {
-            let p = heater::parameters(o);
-            format!(
-                "heater/{:?}/hydronic={}/left={}",
-                p.surface, p.hydronic, p.control_left
-            )
+            let p = heater::Installation::for_object(o);
+            format!("heater/{}/stock={}", p.emitter.name(), p.finish_lot)
         }
         ObjectKind::MobileCart => {
             let p = cart::parameters(o);
@@ -118,11 +116,12 @@ pub fn construction(o: &IndoorObject) -> String {
         ObjectKind::RoomDivider => {
             let p = divider::parameters(o);
             format!(
-                "divider/{:?}/{}-panels/base={}/slats={}",
+                "divider/{:?}/{}-panels/base={}/slats={}/{:?}",
                 p.panel,
                 p.weights.len(),
                 p.base,
-                p.slats
+                p.slats,
+                p.plan.arrangement
             )
         }
         _ => unreachable!("non-service construction"),

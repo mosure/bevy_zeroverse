@@ -15,11 +15,15 @@ impl IndoorManifest {
         // more axis-aligned products through repeated shape resampling.
         let size = equipment::power_strip::dimensions(r);
         let seed = r.random();
-        // A room's socket convention may be coherent, but must not repeat in
-        // a four-seed cycle shared with arbitrary seed-modulo decisions.
-        let variant = sampling::Domain::PowerStandard
-            .rng(self.seed)
-            .random_range(0..4);
+        let variant = if self.generator_version >= 198 {
+            crate::scene::procedural_indoor::objects::wall::installed_variant(
+                super::super::decor::electrical_standard(self.seed),
+            )
+        } else {
+            sampling::Domain::PowerStandard
+                .rng(self.seed)
+                .random_range(0..4)
+        };
         let pattern = SurfacePattern::sample(r);
         let edge = r.random_bool(0.72).then(|| r.random_range(0..4));
         // Reversing a strip preserves edge alignment but changes the inlet end.
@@ -73,6 +77,35 @@ mod tests {
     use super::*;
     use crate::scene::procedural_indoor::{layout::IndoorLayout, validation};
     #[test]
+    fn indexed_strip_leads_seat_in_the_reserved_well() {
+        let scene = IndoorManifest::generate_with_humans(93419, IndoorLayout::Mixed, 0.65, 3, 0.25)
+            .unwrap();
+        let cable = scene
+            .objects
+            .iter()
+            .find(|c| {
+                c.cable_target_socket.is_some()
+                    && c.cable_target.is_some_and(|id| {
+                        scene.objects[id].kind == ObjectKind::PowerStrip
+                            && scene.objects[id].variant % 3 == 1
+                    })
+            })
+            .expect("fixture contains an occupied round-well power strip");
+        let target = &scene.objects[cable.cable_target.unwrap()];
+        let port =
+            equipment::receptacles::target_port(target, false, cable.cable_target_socket).unwrap();
+        let tip = cable
+            .transform()
+            .transform_point(*cable.cable_path.as_ref().unwrap().last().unwrap());
+        assert!(port.distance(tip) < 1e-5);
+        assert_eq!(cable.variant, wires::RECESSED_MAINS);
+        assert!(cable_route_clear(&scene, cable));
+        let mut invalid = cable.clone();
+        invalid.variant = 0;
+        assert!(!cable_route_clear(&scene, &invalid));
+    }
+
+    #[test]
     fn accepted_strips_span_support_quadrants_headings_and_metric_sizes() {
         let mut quadrants = std::collections::BTreeSet::new();
         let mut headings = std::collections::BTreeSet::new();
@@ -90,6 +123,17 @@ mod tests {
                 .iter()
                 .filter(|o| o.kind == ObjectKind::PowerStrip)
             {
+                let standard = super::super::super::decor::electrical_parameters(&s).standard;
+                assert_eq!(
+                    o.variant,
+                    crate::scene::procedural_indoor::objects::wall::installed_variant(standard)
+                );
+                for cable in s.objects.iter().filter(|c| c.cable_target == Some(o.id)) {
+                    assert_eq!(
+                        cable.variant == wires::RECESSED_MAINS,
+                        standard == 1 && cable.cable_target_socket.is_some()
+                    );
+                }
                 let support = &s.objects[o.support.unwrap()];
                 assert!(s.prop_clear(o, support, 0.011));
                 let local = support

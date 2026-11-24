@@ -131,7 +131,13 @@ fn boardroom_panel_mesh_covers_its_calibrated_support_outline() {
             let recipe = parameters(&o);
             let outline = outline(&o);
             let mut a = Assembly::default();
-            conference::joined_top(&mut a, &o, &recipe, &outline);
+            conference::joined_top(
+                &mut a,
+                &o,
+                &recipe,
+                &outline,
+                &top::TopStock::sample(&o, &recipe, REGISTERED_SHEET_VERSION),
+            );
             let mut area = 0.;
             for top in a.parts.values() {
                 assert!(top
@@ -179,8 +185,18 @@ fn laminate_edges_partition_the_original_slab_and_keep_faceted_sheets_in_registe
         let label = super::super::super::materials::worktop_finish::table_label(&o, p.top_surface);
         top::TopStock::Sheet {
             label: label.clone(),
-            timber_lip,
-            cut_origin: Vec2::ZERO,
+            cut: SheetCut {
+                face_origin_m: Vec2::ZERO,
+                back_origin_m: Vec2::ZERO,
+                band_origin_m: Vec2::ZERO,
+                heading_rad: 0.,
+                match_leaves: true,
+                edge: if timber_lip {
+                    SheetEdge::TimberLip
+                } else {
+                    SheetEdge::BondedBand
+                },
+            },
         }
         .build(&mut a, &o, &p, &outline, tf, 0);
         let mut present: Vec<_> = a.parts.values().flat_map(triangles).collect();
@@ -262,6 +278,7 @@ fn object(kind: ObjectKind, seed: u64) -> IndoorObject {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     }
 }
 #[test]

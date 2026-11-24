@@ -149,7 +149,7 @@ impl IndoorManifest {
             }
         }
         // Only powered work surfaces request service outlets; no random sockets
-        // in circulation paths. Each can feed one routed mains plug.
+        // in circulation paths. Wider boxes can accept two independently routed plugs.
         let powered: Vec<_> = self
             .objects
             .iter()
@@ -165,6 +165,10 @@ impl IndoorManifest {
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
             .collect();
+        if powered.is_empty() {
+            return;
+        }
+        let standard = super::decor::electrical_standard(self.seed);
         let mut installed = 0;
         for id in powered {
             if installed >= 4 || !rng.random_bool(0.66) {
@@ -198,7 +202,10 @@ impl IndoorManifest {
                     &mut rng,
                 );
                 o.solid = false;
-                o.variant = rng.random_range(0..3);
+                o.variant = super::super::objects::floor::service::installed_variant(
+                    rng.random_range(0..3),
+                    standard,
+                );
                 if detail_clear(self, &o) {
                     self.objects.push(o);
                     installed += 1;
@@ -262,6 +269,20 @@ mod tests {
             for cable in scene.objects.iter().filter(|o| o.kind == ObjectKind::Cable) {
                 if scene.objects[cable.cable_target.unwrap()].kind == ObjectKind::FloorOutlet {
                     wired += 1;
+                    let target = &scene.objects[cable.cable_target.unwrap()];
+                    let socket = cable.cable_target_socket.expect("fitted floor outlet");
+                    let p =
+                        super::super::super::objects::floor::service::parameters(target).unwrap();
+                    assert!(p.open && usize::from(socket) < p.socket_count);
+                    assert_eq!(
+                        scene
+                            .objects
+                            .iter()
+                            .filter(|o| o.cable_target == Some(target.id)
+                                && o.cable_target_socket == Some(socket))
+                            .count(),
+                        1
+                    );
                     assert!(equipment::cable_route_clear(&scene, cable));
                     let mut invalid = scene.clone();
                     invalid.objects[cable.cable_target.unwrap()].variant |= 8;

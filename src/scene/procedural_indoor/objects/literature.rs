@@ -1,6 +1,10 @@
 //! Bound printed objects with sampled construction, stacks and fitted covers.
 use super::*;
 mod opened;
+pub(crate) mod spread;
+
+/// Earlier manifests use variants 0..4 and retain their original mesh and ink.
+pub(crate) const SPREAD_BINDING: u32 = 1 << 8;
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BindingProgram {
     pub volumes: usize,
@@ -80,7 +84,11 @@ fn cover_outline(width: f32, depth: f32, corner: f32) -> [Vec2; 8] {
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     if p.opened {
-        opened::build(a, o, &p);
+        if o.variant & SPREAD_BINDING == 0 {
+            opened::build(a, o, &p);
+        } else {
+            spread::build(a, o, &p);
+        }
         return;
     }
     let mut s = o.size * p.envelope_fraction;

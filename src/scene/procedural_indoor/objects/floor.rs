@@ -1,7 +1,12 @@
 //! Metric floor furnishings. Rug fields share edges with their bindings (no
 //! overlaid coplanar decal); floor sockets expose the same port used by routing.
 use super::*;
+pub mod rug;
+pub mod service;
+pub(crate) use rug::outline as rug_outline;
 
+/// Parameters of archived outlet and rug meshes. Current hardware and rug cuts
+/// are available from [`service::parameters`] and [`rug::parameters`].
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FloorProgram {
     pub lid_width_fraction: f32,
@@ -19,26 +24,29 @@ pub fn parameters(o: &IndoorObject) -> FloorProgram {
         rug_exponent: r.random_range(2.0..12.),
         rug_taper: r.random_range(-0.16..0.16),
         clipped_corners: r.random_bool(0.3),
-        outlet_finish: if o.kind == ObjectKind::FloorOutlet {
-            let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x464c4f4f5246494e);
-            [
-                Surface::Metal,
-                Surface::Metal,
-                Surface::Chrome,
-                Surface::Chrome,
-                Surface::Plastic,
-            ][f.random_range(0..5)]
-        } else {
-            Surface::Metal
-        },
+        outlet_finish: finish(o),
     }
+}
+
+fn finish(o: &IndoorObject) -> Surface {
+    if o.kind != ObjectKind::FloorOutlet {
+        return Surface::Metal;
+    }
+    let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x464c4f4f5246494e);
+    [
+        Surface::Metal,
+        Surface::Metal,
+        Surface::Chrome,
+        Surface::Chrome,
+        Surface::Plastic,
+    ][f.random_range(0..5)]
 }
 
 pub(crate) fn is_open(o: &IndoorObject) -> bool {
     o.variant & 8 == 0
 }
 
-fn service_size(o: &IndoorObject) -> Vec3 {
+pub(crate) fn service_size(o: &IndoorObject) -> Vec3 {
     if (o.variant & 7).is_multiple_of(3) {
         Vec3::new(o.size.x.min(o.size.z), o.size.y, o.size.x.min(o.size.z))
     } else {
@@ -46,99 +54,27 @@ fn service_size(o: &IndoorObject) -> Vec3 {
     }
 }
 
-pub(crate) fn port_local(o: &IndoorObject) -> Vec3 {
+pub(crate) fn port_local(o: &IndoorObject) -> Option<Vec3> {
+    if !is_open(o) {
+        return None;
+    }
+    if let Some(p) = service::parameters(o) {
+        return p.port(0);
+    }
+    Some(legacy_port(o))
+}
+
+fn legacy_port(o: &IndoorObject) -> Vec3 {
     Vec3::new(0., 0.017, service_size(o).z * 0.10)
 }
 
 pub fn build(a: &mut Assembly, o: &IndoorObject) {
     if o.kind == ObjectKind::Rug {
-        rug(a, o);
+        rug::build(a, o);
+    } else if let Some(p) = service::parameters(o) {
+        service::build(a, o, &p);
     } else {
         outlet(a, o);
-    }
-}
-
-fn triangle(g: &mut Geometry, p: Vec3, q: Vec3, r: Vec3) {
-    let i = g.positions.len() as u32;
-    let n = (q - p).cross(r - p).normalize();
-    for v in [p, q, r] {
-        g.positions.push(v.to_array());
-        g.normals.push(n.to_array());
-        g.uvs.push(v.xz().to_array());
-    }
-    g.indices.extend([i, i + 1, i + 2]);
-}
-
-/// Same physical contour used by geometry, support and placement.
-pub(crate) fn rug_outline(o: &IndoorObject) -> Vec<Vec2> {
-    let program = parameters(o);
-    let exponent = program.rug_exponent;
-    (0..if program.clipped_corners { 8 } else { 64 })
-        .map(|i| {
-            let angle = TAU * (i as f32 + if program.clipped_corners { 0.5 } else { 0. })
-                / if program.clipped_corners { 8. } else { 64. };
-            let f = |v: f32| v.signum() * v.abs().powf(2. / exponent);
-            Vec2::new(
-                f(angle.cos())
-                    * o.size.x
-                    * 0.5
-                    * (1. - program.rug_taper.abs() + program.rug_taper * f(angle.sin())),
-                f(angle.sin()) * o.size.z * 0.5,
-            )
-        })
-        .collect()
-}
-
-fn rug(a: &mut Assembly, o: &IndoorObject) {
-    let mut rng = stream(o.seed, 7340);
-    // Superellipse exponent spans oval, capsule-like and softly squared forms.
-    // Rotation/aspect/edge width are independent continuous parameters.
-    let _ = rng.random_range(2.0_f32..7.0);
-    let border = rng.random_range(0.025..0.095) / o.size.x.min(o.size.z);
-    let inset = (1. - border * 2.).clamp(0.65, 0.97);
-    let outline = rug_outline(o);
-    let field = Surface::FabricAlt;
-    let slot = super::super::materials::rugs::slot(o.finish_seed.unwrap_or(o.seed));
-    let rug_label = format!("floormat#rug{slot}");
-    let edge_label = format!("floormat#rug_binding{slot}");
-    let top = |p: Vec2| Vec3::new(p.x, o.size.y, p.y);
-    let bottom = |p: Vec2| Vec3::new(p.x, 0., p.y);
-    // Keep Cartesian motif coordinates near the center and ease into the
-    // outline-aligned border. One center fan stretches patches into wedges;
-    // a bounded four-ring tessellation samples the smooth interior mapping.
-    let uv = |p: Vec2, radius: f32| {
-        let natural = p / Vec2::new(o.size.x, o.size.z);
-        let boundary = natural / natural.abs().max_element() * 0.5;
-        (Vec2::splat(0.5) + natural.lerp(boundary, radius * radius) * radius).to_array()
-    };
-    for i in 0..outline.len() {
-        let p = outline[i];
-        let q = outline[(i + 1) % outline.len()];
-        let g = a.part(field, &rug_label);
-        for ring in 0..4 {
-            let inner = ring as f32 / 4.;
-            let outer = (ring + 1) as f32 / 4.;
-            let mut add = |points: [(Vec2, f32); 3]| {
-                let start = g.uvs.len();
-                let positions = points.map(|(p, r)| top(p * r * inset));
-                triangle(g, positions[0], positions[1], positions[2]);
-                for (index, (p, r)) in points.into_iter().enumerate() {
-                    g.uvs[start + index] = uv(p, r);
-                }
-            };
-            if ring == 0 {
-                add([(p, 0.), (q, outer), (p, outer)]);
-            } else {
-                add([(p, inner), (q, inner), (q, outer)]);
-                add([(p, inner), (q, outer), (p, outer)]);
-            }
-        }
-        let g = a.part(field, &edge_label);
-        triangle(g, top(p * inset), top(q * inset), top(q));
-        triangle(g, top(p * inset), top(q), top(p));
-        triangle(g, bottom(p), top(p), top(q));
-        triangle(g, bottom(p), top(q), bottom(q));
-        triangle(g, Vec3::ZERO, bottom(p), bottom(q));
     }
 }
 
@@ -195,7 +131,7 @@ fn outlet(a: &mut Assembly, o: &IndoorObject) {
         0.003,
     );
     // A mains socket/USB service panel, inset dark openings with separated faces.
-    let port = port_local(o);
+    let port = legacy_port(o);
     for dx in [-0.014, 0.014] {
         a.box_part(
             Surface::Ink,
@@ -235,7 +171,7 @@ fn outlet(a: &mut Assembly, o: &IndoorObject) {
 
 /// Electrical routing tests the occupied parts, not the empty air under an open
 /// lid. The ordinary whole-object reserve still protects floor placement.
-pub(crate) fn cable_hits(o: &IndoorObject, start: Vec3, end: Vec3, radius: f32) -> bool {
+pub(crate) fn legacy_cable_hits(o: &IndoorObject, start: Vec3, end: Vec3, radius: f32) -> bool {
     let s = service_size(o);
     if !is_open(o) {
         return super::super::layout::segment_hits_box(
@@ -292,6 +228,7 @@ mod tests {
             for variant in [0, 1, 2, 8, 9, 10] {
                 let mut o = super::super::audit::fixture(ObjectKind::FloorOutlet, seed);
                 o.variant = variant;
+                o.size.y = if is_open(&o) { 0.13 } else { 0.006 };
                 // The geometry audit fixture intentionally fixes appearance.
                 // This test explicitly varies the independent finish input.
                 o.finish_seed = Some(seed);

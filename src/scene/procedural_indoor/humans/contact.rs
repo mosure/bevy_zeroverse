@@ -125,14 +125,24 @@ impl WorktopContact {
 
     /// Preserve both bone lengths. Choose the elbow swivel nearest gravity that
     /// stays above the support, instead of bending the elbow through the top.
-    pub(super) fn arm(&self, joints: &mut [Vec3], arm: usize, wrist: Vec3, s: f32) {
+    pub(super) fn arm(
+        &self,
+        joints: &mut [Vec3],
+        arm: usize,
+        wrist: Vec3,
+        s: f32,
+        [upper, forearm]: [f32; 2],
+    ) {
         let base = 5 + arm * 4;
         let root = joints[base];
         let direction = (wrist - root).normalize_or(Vec3::NEG_Z);
-        let distance = root.distance(wrist).clamp(0.0301 * s, 0.5499 * s);
-        let along = ((0.29 * s).powi(2) + distance.powi(2) - (0.26 * s).powi(2)) / (2. * distance);
+        let distance = root.distance(wrist).clamp(
+            (upper - forearm).abs() + 0.0001 * s,
+            upper + forearm - 0.0001 * s,
+        );
+        let along = (upper.powi(2) + distance.powi(2) - forearm.powi(2)) / (2. * distance);
         let center = root + direction * along;
-        let radius = ((0.29 * s).powi(2) - along.powi(2)).max(0.).sqrt();
+        let radius = (upper.powi(2) - along.powi(2)).max(0.).sqrt();
         let up = (Vec3::Y - direction * direction.y).normalize_or(Vec3::X);
         let lateral = direction.cross(up).normalize_or(Vec3::Z);
         let cosine =
@@ -174,7 +184,7 @@ pub(super) fn plan(h: &mut IndoorHuman, table: &IndoorObject, proposal: u64) {
             -rng.random_range(0.27..0.43) * s,
         );
         let mut joints = h.joints.clone();
-        contact.arm(&mut joints, arm, wrist, s);
+        contact.arm(&mut joints, arm, wrist, s, h.arm_lengths());
         let base = 5 + 4 * arm;
         // The whole palm must be supported. Avoid promising contact with an
         // edge that an anatomically fixed-length arm cannot reach.

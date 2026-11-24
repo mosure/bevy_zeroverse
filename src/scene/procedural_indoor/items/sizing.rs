@@ -5,6 +5,25 @@ use super::*;
 pub(crate) fn loose(kind: ObjectKind, r: &mut impl Rng) -> Option<Vec3> {
     use ObjectKind::*;
     Some(match kind {
+        Printer => Vec3::new(
+            r.random_range(0.36..0.53),
+            r.random_range(0.19..0.29),
+            r.random_range(0.30..0.40),
+        ),
+        TissueBox => {
+            // Bare casing dimensions. The installed draw adds its own height
+            // before support admission without changing these proportions.
+            let t = r.random_range(0.0_f32..1.);
+            let aspect = if t < 0.34 {
+                0.94 + 0.25 * t / 0.34
+            } else {
+                1.19 + (t - 0.34) * 1.53
+            };
+            let depth = r.random_range(0.101..0.147_f32.min(0.28 / aspect));
+            let cube = ((1.66 - aspect) / 0.66).clamp(0., 1.);
+            let height = depth * (r.random_range(0.49..0.82) + 0.23 * cube);
+            Vec3::new(depth * aspect, height, depth)
+        }
         Mug => {
             let d = r.random_range(0.065..0.115);
             Vec3::new(

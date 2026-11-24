@@ -15,6 +15,7 @@ fn aa_choices() -> Kind {
                     PreviewAa::Smaa => "SMAA · high",
                     PreviewAa::SmaaUltra => "SMAA · ultra",
                     PreviewAa::Taa => "TAA · temporal",
+                    PreviewAa::TaaFxaa => "TAA + FXAA · temporal & spatial",
                     PreviewAa::Msaa2 => "MSAA · 2×",
                     PreviewAa::Msaa4 => "MSAA · 4×",
                     PreviewAa::Msaa8 => "MSAA · 8×",
@@ -67,10 +68,17 @@ pub(super) fn controls() -> Vec<Item> {
             "RGB display & anti-aliasing",
             "Live settings for the displayed color image.",
         ),
+        #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+        choices(
+            "/preview_lighting",
+            "RGB preview lighting",
+            &[("Raster PBR", "raster"), ("Solari · experimental", "solari"), ("Solari + ReSTIR", "solari-restir")],
+            "Native indoor preview of traced opaque surfaces. Glass, skinned shadows and local lights differ from calibrated capture. Requires ray queries.",
+        ),
         field(
             "/preview_aa",
             "Preview anti-aliasing",
-            "Auto smooths the editor and kiosk. Temporal requests use SMAA on inset and fisheye views. MSAA uses supported sample counts and disables native screen-space ambient occlusion.",
+            "TAA + FXAA smooths strong edges after tone mapping. For fine patterns in the grid, search for Capture supersampling and apply 2×. Temporal modes use spatial filtering on fisheye and inset views. MSAA disables native screen-space ambient occlusion.",
             aa_choices(),
         ),
         choices(

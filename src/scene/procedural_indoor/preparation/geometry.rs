@@ -36,7 +36,7 @@ impl SceneGeometry {
             selection.surfaces.insert(*surface);
             if let Some(slot) = materials::finish_slot(*surface, label) {
                 if materials::registered_finish(*surface, slot) {
-                    selection.finishes.insert((*surface, slot));
+                    selection.select_finish(*surface, slot);
                 } else {
                     selection.direct_surfaces.insert(*surface);
                 }
@@ -90,10 +90,7 @@ impl SceneGeometry {
                 for object in &scene.objects {
                     scope.spawn(async move {
                         let start = bevy::platform::time::Instant::now();
-                        let part = Part::Object(objects::build_object_with_motion(
-                            object,
-                            scene.indoor_motion.as_ref().map(|m| &m.policy),
-                        ));
+                        let part = Part::Object(objects::build_manifest_object(scene, object));
                         (part, start.elapsed().as_secs_f64())
                     });
                 }
@@ -146,10 +143,7 @@ impl SceneGeometry {
             for object in &scene.objects {
                 cooperate().await;
                 let start = bevy::platform::time::Instant::now();
-                objects.push(objects::build_object_with_motion(
-                    object,
-                    scene.indoor_motion.as_ref().map(|m| &m.policy),
-                ));
+                objects.push(objects::build_manifest_object(scene, object));
                 timings.objects.add(start.elapsed().as_secs_f64());
             }
             let mut humans = Vec::with_capacity(scene.humans.len());

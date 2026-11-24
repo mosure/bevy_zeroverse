@@ -22,7 +22,10 @@ fn check_token_budget(texts: &BTreeSet<String>) {
             })
             .max()
             .unwrap();
-        println!("validated {} unique prompts with pinned tokenizer; max {max_tokens}/64 tokens including header", texts.len());
+        println!(
+            "validated {} unique prompts with pinned tokenizer; max {max_tokens}/64 tokens including header",
+            texts.len()
+        );
     }
     #[cfg(not(feature = "human_motion"))]
     let _ = texts;
@@ -62,7 +65,7 @@ fn grammar_spans_actions_and_gaits_with_bounded_coherent_text() {
         let sample =
             sample_action(&config.prompt_sampling, None, 159, 1.0, false, &mut rng).unwrap();
         let mut points = path(config.frames);
-        let draft = stationary(sample, &mut points, &config, false, &mut rng);
+        let draft = stationary(sample, &mut points, &config, None, &mut rng);
         assert!(fits(&draft.text));
         assert!(
             [
@@ -157,11 +160,12 @@ fn sequences_preserve_routes_and_bind_actions_to_ordered_waypoints() {
                 .filter(|w| w.frame >= a.start_frame && w.frame <= a.end_frame)
                 .collect();
             assert_eq!(keys.len(), a.repetitions * 2 + 1);
-            assert!(keys.iter().all(|w| w
-                .position
-                .with_y(0.0)
-                .distance(keys[0].position.with_y(0.0))
-                < 1e-6));
+            assert!(keys.iter().all(|w| {
+                w.position
+                    .with_y(0.0)
+                    .distance(keys[0].position.with_y(0.0))
+                    < 1e-6
+            }));
             assert!(keys
                 .iter()
                 .any(|w| (w.position.y - a.peak_pelvis_height).abs() < 1e-6));
@@ -237,6 +241,19 @@ fn weights_space_support_and_duration_filter_actions() {
         )
         .unwrap();
         assert!(a.spec.seated && a.spec.headroom == 0.0);
+        let mut seated_points = path(160);
+        let seated_height = rng.random_range(0.50..0.96);
+        let seated = stationary(
+            a,
+            &mut seated_points,
+            &config,
+            Some(seated_height),
+            &mut rng,
+        );
+        assert_eq!(seated.recipe.actions[0].peak_pelvis_height, seated_height);
+        assert!(seated_points
+            .iter()
+            .all(|w| w.constrain_height && w.position.y == seated_height));
     }
     for invalid in [
         r#"{"prompt_sampling":{"gesture":-1}}"#,

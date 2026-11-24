@@ -9,6 +9,18 @@ fn smooth(a: f32, b: f32, x: f32) -> f32 {
     t * t * (3. - 2. * t)
 }
 
+fn ear_edges(groom: &Groom, side: f32) -> (f32, f32, f32) {
+    // Two sites of the person's seeded noise field allow both ears covered or
+    // both tucked, even with the same comb direction.
+    let local = groom.noise(Vec3::new(side * 3.71, 2.26, -0.83), 1.);
+    let sweep = side * (0.22 * groom.program.sweep + 0.10 * groom.part);
+    let tuck = smooth(-0.38, 0.38, 1.35 * local + sweep);
+    let rear = 1.54 - 0.19 * tuck;
+    let temple = 1.56 + 0.22 * tuck;
+    let fringe = PI * 0.72 + 0.10 * groom.program.layers + 0.055 * side * groom.part;
+    (rear, temple, fringe)
+}
+
 pub(super) fn append(
     h: &IndoorHuman,
     groom: &Groom,
@@ -52,12 +64,13 @@ pub(super) fn append(
         support[i].lerp(support[i + 1], smooth(0., 1., f - i as f32))
     };
     let count = ((groom.size.x * 1.8 / groom.program.clump_width_m) as usize).clamp(18, 32);
-    // The ear opening separates forward locks from the rear fall. No surface
-    // bridges through a shoulder or wraps around its arm.
+    // Only build a backing inside each section, never across the ear opening.
+    let (rear_l, temple_l, fringe_l) = ear_edges(groom, -1.);
+    let (rear_r, temple_r, fringe_r) = ear_edges(groom, 1.);
     for (a_lo, a_hi, locks, front) in [
-        (-1.42_f32, 1.42_f32, count, false),
-        (-PI * 0.73, -1.70, 4, true),
-        (1.70, PI * 0.73, 4, true),
+        (-rear_l, rear_r, count, false),
+        (-fringe_l, -temple_l, 4, true),
+        (temple_r, fringe_r, 4, true),
     ] {
         let mut backing = Vec::with_capacity(locks);
         for i in 0..locks {
@@ -110,34 +123,28 @@ pub(super) fn append(
                     + curl * fade * (1. + wave.cos()) * if front { -1. } else { 1. };
                 Vec3::new(x, y, z)
             };
-            let pitch = if front {
-                groom.size.x * 0.045
-            } else {
-                groom.size.x * 1.04 / locks as f32
-            };
+            // Use the actual arc spacing on the elliptical head. A world-X
+            // ribbon collapses edge-on beside either ear in a side view.
+            let across = Vec3::new(groom.size.x * angle.cos(), 0., -groom.size.z * angle.sin());
+            let pitch = 0.5 * across.length() * (a_hi - a_lo) / locks as f32;
             let section = if style == HairStyle::Locs {
                 Vec2::splat(groom.program.clump_width_m * 0.48)
             } else {
-                Vec2::new(pitch * 0.80, 0.0045 + groom.volume * 0.0015)
+                Vec2::new(pitch * 0.66, 0.0030 + groom.volume * 0.0015)
             };
             let rings = if style == HairStyle::CurlyLong {
                 44
             } else {
                 32
             };
-            if !front && style != HairStyle::Locs {
-                backing.push(
-                    (0..=rings)
-                        .map(|row| centre(row as f32 / rings as f32))
-                        .collect(),
-                );
-            }
-            strands::tress(
+            let path: Vec<_> = (0..=rings)
+                .map(|row| centre(row as f32 / rings as f32))
+                .collect();
+            strands::loose_lock(
                 g,
-                rings,
-                10,
+                &path,
                 section,
-                centre,
+                across.normalize(),
                 |t| {
                     // Retain a dense fall. Tapering over the last fifth of the
                     // entire length left long, isolated needles at the hem.
@@ -146,6 +153,9 @@ pub(super) fn append(
                 },
                 phase * 0.01,
             );
+            if style != HairStyle::Locs {
+                backing.push(path);
+            }
             if style == HairStyle::CurlyLong && i % 6 == 0 {
                 strands::tube(
                     g,
@@ -168,5 +178,38 @@ pub(super) fn append(
         // A narrow closed inner layer fills gaps in loose hair, without widening
         // around shoulders. Locs deliberately retain individually separated locks.
         strands::backing(g, &backing);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene::procedural_indoor::humans::{sample_person, HumanPoseKind};
+
+    #[test]
+    fn loose_cuts_cover_or_reveal_both_either_or_neither_ear() {
+        let mut counts = [0; 4];
+        let mut person = sample_person(
+            21,
+            0,
+            Vec3::ZERO,
+            0.,
+            HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        person.hairstyle = HairStyle::Bob as u8;
+        for seed in 0..512 {
+            person.seed = seed;
+            // Hold the head, cut and comb direction fixed to isolate local styling.
+            let groom = Groom::new(&person, Vec3::ZERO, Vec3::new(0.16, 0.25, 0.21));
+            let [left, right] = [-1., 1.].map(|side| {
+                let (rear, temple, front) = ear_edges(&groom, side);
+                assert!(rear < temple && temple < front && front < PI);
+                temple - rear
+            });
+            counts[usize::from(left > 0.22) + 2 * usize::from(right > 0.22)] += 1;
+        }
+        assert!(counts.iter().all(|&n| n > 25), "{counts:?}");
     }
 }

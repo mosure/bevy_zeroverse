@@ -67,7 +67,37 @@ fn ceiling_fans_spawn_with_full_rotor_clearance_in_diverse_rooms() {
             if o.kind == ObjectKind::CeilingFan {
                 fans += 1;
                 assert!(super::super::super::layout::equipment::fan_clear(&scene, o));
-                audit::check(o, &build_object(o)).unwrap();
+                let assembly = build_object(o);
+                audit::check(o, &assembly).unwrap();
+                let grid =
+                    crate::scene::procedural_indoor::architecture::ceiling::CeilingGrid::for_scene(
+                        &scene,
+                    );
+                let transform = o.transform();
+                let mut contact = f32::INFINITY;
+                for vertex in assembly.parts.values().flat_map(|g| &g.positions) {
+                    let at = transform.transform_point(Vec3::from_array(*vertex));
+                    let roof = grid.map_or_else(
+                        || scene.ceiling_height(at.xz()),
+                        |g| g.mount_height(&scene, at.xz()),
+                    );
+                    assert!(
+                        at.y <= roof + 0.0002,
+                        "fan penetrates ceiling in seed {seed}"
+                    );
+                    if (vertex[1] - o.size.y).abs() < 1e-5 {
+                        contact = contact.min((roof - at.y).abs());
+                    }
+                }
+                assert!(
+                    contact < 0.0003,
+                    "fan floats {contact}m below ceiling in seed {seed}"
+                );
+                let mut loose = o.clone();
+                loose.position.y -= 0.025;
+                assert!(!super::super::super::layout::equipment::fan_clear(
+                    &scene, &loose
+                ));
             }
         }
     }
@@ -298,4 +328,118 @@ fn ceiling_fan_geometry_preview() {
     sheet
         .save("out/object_motion_review/fans-geometry.png")
         .unwrap();
+}
+
+#[test]
+fn installed_rotors_have_balanced_closed_blades_and_bounded_spin() {
+    let mut counts = std::collections::BTreeSet::new();
+    let mut families = std::collections::BTreeSet::new();
+    for seed in 0..96 {
+        let mut o = audit::fixture(ObjectKind::CeilingFan, seed);
+        o.variant = installed_variant(seed, o.size.x) & !3 | (seed as u32 & 3);
+        for (diameter, height) in [(0.85, 0.28), (1.95, 0.28), (1.95, 0.85)] {
+            o.size = Vec3::new(diameter, height, diameter);
+            let p = parameters(&o);
+            let section = p.product.as_ref().unwrap();
+            counts.insert(p.blades);
+            families.insert(p.style);
+            let a = build_object_with_motion(
+                &o,
+                Some(&IndoorMotionConfig {
+                    fan_fraction: 1.,
+                    ..default()
+                }),
+            );
+            audit::check(&o, &a).unwrap();
+            assert_eq!(a.joints.len(), 1);
+            let rotor = &a.joints[0];
+            let mut blades = Geometry::default();
+            blade::build(&mut blades, &o, &p, section);
+            let actual = &a.parts[rotor
+                .parts
+                .iter()
+                .find(|(surface, _)| *surface == p.blade_surface)
+                .unwrap()];
+            assert!(actual.positions.ends_with(&blades.positions));
+            let per = blades.positions.len() / usize::from(p.blades);
+            assert_eq!(per * usize::from(p.blades), blades.positions.len());
+            let blank = &blades.positions[..per];
+            // Either face has a metric V chart from the hub to the tip. A cut
+            // across the width changes U only.
+            let uv = &blades.uvs;
+            assert!((uv[0][1] - uv[4][1]).abs() < 1e-5);
+            assert!((uv[35][1] - uv[0][1] - (p.radius_m - p.hub_radius * 0.76)).abs() < 1e-5);
+            assert!(blades.positions.iter().all(|v| {
+                let v = Vec3::from_array(*v);
+                v.y >= 0. && v.y < p.rotor_top && v.xz().length() <= p.radius_m + 1e-6
+            }));
+            assert!(blank
+                .iter()
+                .any(|v| Vec2::new(v[0], v[2]).length() > p.radius_m - 1e-5));
+            for i in 1..p.blades {
+                let yaw = Quat::from_rotation_y(TAU * f32::from(i) / f32::from(p.blades));
+                let start = usize::from(i) * per;
+                for (a, b) in blank.iter().zip(&blades.positions[start..]) {
+                    assert!((yaw * Vec3::from_array(*a)).distance(Vec3::from_array(*b)) < 1e-5);
+                }
+                assert_ne!(blades.uvs[0], blades.uvs[start]);
+            }
+            let (mut up, mut down, mut side) = (0, 0, 0);
+            for tri in blades.indices.chunks_exact(3) {
+                let [i, j, k] = [tri[0], tri[1], tri[2]].map(|v| v as usize);
+                let [x, y, z] = [i, j, k].map(|idx| Vec3::from_array(blades.positions[idx]));
+                let cross = (y - x).cross(z - x);
+                assert!(cross.length_squared() > 1e-18);
+                let n = cross.normalize();
+                assert!([i, j, k]
+                    .into_iter()
+                    .all(|idx| n.dot(Vec3::from_array(blades.normals[idx])) > 0.35));
+                if n.y > 0.65 {
+                    up += 1
+                } else if n.y < -0.65 {
+                    down += 1
+                } else {
+                    side += 1
+                }
+            }
+            assert!(up > 0 && down > 0 && side > 0 && section.tip_pitch_radians < p.pitch_radians);
+            let reserves = local_reservations(&o);
+            for t in [0., 0.17, 0.58, 1.] {
+                let tf = rotor.transform(t);
+                for (key, g) in &a.parts {
+                    let moving = rotor.parts.contains(key);
+                    for v in &g.positions {
+                        let v = Vec3::from_array(*v);
+                        let v = if moving { tf.transform_point(v) } else { v };
+                        assert!(
+                            reserves
+                                .iter()
+                                .any(|(lo, hi)| v.cmpge(*lo - 1e-6).all()
+                                    && v.cmple(*hi + 1e-6).all())
+                        );
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(families.len(), 4);
+    assert_eq!(counts, (2..=9).collect());
+}
+
+#[test]
+fn matching_products_keep_the_same_tooling_and_independent_rotor_phase() {
+    let a = audit::fixture(ObjectKind::CeilingFan, 17);
+    let mut b = a.clone();
+    b.seed = 492;
+    b.size.y = 0.28;
+    let p = parameters(&a);
+    let mut q = parameters(&b);
+    assert_ne!(p.phase, q.phase);
+    q.phase = p.phase;
+    assert_eq!(p, q);
+    b.finish_seed = Some(37);
+    let other = parameters(&b);
+    assert_eq!(other.product, p.product);
+    assert_eq!(other.blades, p.blades);
+    assert_eq!(other.radius_m, p.radius_m);
 }

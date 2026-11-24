@@ -79,6 +79,7 @@ fn object(seed: u64) -> IndoorObject {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     }
 }
 #[test]

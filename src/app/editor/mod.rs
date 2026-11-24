@@ -74,6 +74,7 @@ impl Plugin for EditorPlugin {
             .add_systems(
                 PostUpdate,
                 shell::viewport
+                    .after(crate::render::lighting::SelectPreviewLighting)
                     .after(EditorCameraSetup)
                     .before(crate::render::anti_alias::ConfigurePreviewAa),
             )
@@ -491,6 +492,18 @@ fn apply(world: &mut World, state: &mut EditorState, next: bool) -> Result<(), S
     Ok(())
 }
 fn live_update(world: &mut World, state: &mut EditorState, path: &str) -> Result<(), String> {
+    if path == "/preview_lighting"
+        && state.draft["preview_lighting"] != "raster"
+        && !world
+            .get_resource::<crate::render::lighting::SolariPreviewStatus>()
+            .is_some_and(|s| s.supported)
+    {
+        state.set("/preview_lighting", json!("raster"))?;
+        return Err(
+            "Solari needs a native ray-query device with bindless textures. Raster PBR is active."
+                .into(),
+        );
+    }
     if path == "@viewport" {
         let mut config = world.resource_mut::<BevyZeroverseConfig>();
         config.camera_grid = state.draft["camera_grid"] == true;

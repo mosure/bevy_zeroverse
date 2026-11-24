@@ -4,6 +4,7 @@ use super::super::{
     objects::{kitchen, tables, ObjectFamily},
     preparation::AssetStore,
 };
+use super::field::PreparedPeriodic;
 use super::sheet::sheet_material;
 use super::*;
 use rand::Rng;
@@ -11,12 +12,20 @@ use std::collections::BTreeMap;
 
 mod basin;
 mod laminate;
+mod tapware;
 const FIRST: usize = 109;
 const BASIN: usize = 111;
+const TAP: usize = 114;
+pub(crate) const TAP_LABEL: &str = "faucet#finish114";
 pub(crate) const BASIN_LABEL: &str = "sink#finish111";
 
+pub(crate) fn is_sheet_slot(slot: usize) -> bool {
+    (FIRST..FIRST + 2).contains(&slot)
+}
+
 pub(super) fn supports(surface: Surface, slot: usize) -> bool {
-    sheet_surface(surface) && (FIRST..FIRST + 2).contains(&slot)
+    slot == TAP && matches!(surface, Surface::Chrome | Surface::Metal | Surface::Ink)
+        || sheet_surface(surface) && is_sheet_slot(slot)
         || slot == BASIN
             && matches!(
                 surface,
@@ -49,6 +58,17 @@ pub(crate) fn label(o: &IndoorObject, surface: Surface) -> &'static str {
     } else {
         "counter"
     }
+}
+
+// Temporary per atlas, shared by all texels and released before the next stock.
+const LATTICE_BUDGET: usize = 32 * 1024;
+
+fn sheet_fields<const N: usize>(
+    seed: u64,
+    grids: [([u32; 2], u64); N],
+    mut budget: usize,
+) -> [PreparedPeriodic; N] {
+    grids.map(|(count, salt)| PreparedPeriodic::new(count, seed ^ salt, &mut budget))
 }
 
 struct Stock {
@@ -102,15 +122,34 @@ impl Stock {
         }
     }
 
+    fn fields(&self, budget: usize) -> [PreparedPeriodic; 5] {
+        sheet_fields(
+            self.seed,
+            [
+                ([3, 3], 1),
+                ([4, 2], 2),
+                (self.grain, 3),
+                ([61, 57], 4),
+                (self.ribbon, 5),
+            ],
+            budget,
+        )
+    }
+
+    #[cfg(test)]
     fn texel(&self, p: Vec2) -> (Vec3, f32, f32) {
-        let noise = |p: Vec2, cells: [u32; 2], salt| {
-            periodic_noise(p.x, p.y, cells[0], cells[1], self.seed ^ salt)
-        };
-        let warp = Vec2::new(noise(p, [3, 3], 1), noise(p, [4, 2], 2)) - 0.5;
-        let mineral = noise(p + warp * 0.14, self.grain, 3);
-        let grit = noise(p, [61, 57], 4);
+        self.sample_fields(p, &self.fields(0))
+    }
+
+    fn sample_fields(&self, p: Vec2, fields: &[PreparedPeriodic; 5]) -> (Vec3, f32, f32) {
+        let [wx, wy, mineral_field, grit_field, band_field] = fields;
+        let warp = Vec2::new(wx.sample(p.x, p.y), wy.sample(p.x, p.y)) - 0.5;
+        let q = p + warp * 0.14;
+        let mineral = mineral_field.sample(q.x, q.y);
+        let grit = grit_field.sample(p.x, p.y);
         let chip = ((mineral * 0.79 + grit * 0.21 - 0.55) * 5.5).clamp(0., 1.) * self.chips;
-        let band = noise(p + warp * 0.24, self.ribbon, 5);
+        let q = p + warp * 0.24;
+        let band = band_field.sample(q.x, q.y);
         let vein = (1. - ((band - 0.53).abs() * 16.).min(1.)).powi(2) * self.veins;
         let pigment = self
             .matrix
@@ -125,12 +164,21 @@ impl Stock {
     }
 
     fn material(&self, images: &mut impl AssetStore<Image>) -> StandardMaterial {
+        self.material_with_budget(images, LATTICE_BUDGET)
+    }
+
+    fn material_with_budget(
+        &self,
+        images: &mut impl AssetStore<Image>,
+        budget: usize,
+    ) -> StandardMaterial {
+        let fields = self.fields(budget);
         sheet_material::<128>(
             images,
             self.period,
             self.glaze,
             self.roughness * 0.88,
-            |p| self.texel(p),
+            |p| self.sample_fields(p, &fields),
         )
     }
 }
@@ -160,10 +208,11 @@ pub(super) fn install(
                         keys.insert((program.top, FIRST + stock(o)));
                     }
                     if o.kind == ObjectKind::KitchenSink {
-                        keys.insert((
-                            kitchen::sink::program::parameters(o, &program).basin_finish,
-                            BASIN,
-                        ));
+                        let (bowl, tap) = kitchen::sink::program::finishes(o);
+                        keys.insert((bowl, BASIN));
+                        if scene.generator_version >= kitchen::sink::FITTED_PLUMBING_VERSION {
+                            keys.insert((tap, TAP));
+                        }
                     }
                 }
                 kind if kind.family() == ObjectFamily::Tables => {
@@ -177,8 +226,22 @@ pub(super) fn install(
         }
         keys
     };
+    let mut brushed = None;
     for (surface, slot) in used {
-        let material = if slot == BASIN {
+        let material = if surface == Surface::Metal && matches!(slot, BASIN | TAP) {
+            // The brushing has a common metric scale. Reuse its mip chain when
+            // the bowl and the hardware in this scene both need one.
+            let stock = brushed
+                .get_or_insert_with(|| basin::material(surface, scene.material_seed(), images))
+                .clone();
+            if slot == TAP {
+                tapware::material(scene.material_seed(), surface, stock)
+            } else {
+                stock
+            }
+        } else if slot == TAP {
+            tapware::material(scene.material_seed(), surface, StandardMaterial::default())
+        } else if slot == BASIN {
             basin::material(surface, scene.material_seed(), images)
         } else if surface == Surface::Plastic {
             laminate::Sheet::sample(scene.material_seed(), slot).material(images)
@@ -243,6 +306,57 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn cached_sheet_fields_preserve_every_byte_of_every_pbr_mip() {
+        let mut elapsed = [std::time::Duration::ZERO; 2];
+        for seed in [0, 359, u64::MAX] {
+            for surface in [Surface::Ceramic, Surface::Concrete, Surface::Plastic] {
+                for slot in FIRST..FIRST + 2 {
+                    let mut bake = |budget| {
+                        let start = std::time::Instant::now();
+                        let mut images = Assets::<Image>::default();
+                        let mat = if surface == Surface::Plastic {
+                            laminate::Sheet::sample(seed, slot)
+                                .material_with_budget(&mut images, budget)
+                        } else {
+                            Stock::sample(seed, surface, slot)
+                                .material_with_budget(&mut images, budget)
+                        };
+                        let maps = [
+                            mat.base_color_texture,
+                            mat.normal_map_texture,
+                            mat.metallic_roughness_texture,
+                        ]
+                        .map(|h| {
+                            let image = images.remove(h.unwrap().id()).unwrap();
+                            (image.texture_descriptor, image.data.unwrap())
+                        });
+                        elapsed[usize::from(budget > 0)] += start.elapsed();
+                        (mat.uv_transform, maps)
+                    };
+                    // Alternate the order of the two bakes for the timing diagnostic.
+                    let (scalar_result, cached_result) = if slot == FIRST {
+                        (bake(0), bake(LATTICE_BUDGET))
+                    } else {
+                        let cached = bake(LATTICE_BUDGET);
+                        (bake(0), cached)
+                    };
+                    let (uv, cached) = cached_result;
+                    let (expected_uv, scalar) = scalar_result;
+                    assert_eq!(uv, expected_uv);
+                    for ((d, a), (reference, b)) in cached.iter().zip(&scalar) {
+                        assert_eq!(d, reference);
+                        assert!(a == b, "{surface:?} {seed} {slot}");
+                    }
+                }
+            }
+        }
+        eprintln!(
+            "18 worktop bakes, scalar {:?}, cached {:?}",
+            elapsed[0], elapsed[1]
+        );
     }
 
     #[test]

@@ -2,6 +2,10 @@
 //! Programs describe rest states; optional room motion supplies kinematic joints.
 mod construction;
 mod sliding;
+mod swing;
+mod vision;
+pub use swing::SwingHanging;
+pub use vision::{VisionLight, VisionShape};
 #[cfg(test)]
 mod tests;
 use super::{Assembly, IndoorManifest, Surface};
@@ -70,6 +74,12 @@ pub struct DoorProgram {
     pub frame_finish: Surface,
     pub hardware_finish: Surface,
     pub finish_variant: u8,
+    /// Fitted swing frame and hinge stock. Absent on older captured programs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swing_hanging: Option<SwingHanging>,
+    /// Shaped vision glazing. An absent specification uses the original rectangular cut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision_light: Option<VisionLight>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DoorInstallation {
@@ -157,6 +167,8 @@ impl DoorProgram {
                 [r.random_range(0..3)],
             hardware_finish: [Surface::Chrome, Surface::Metal, Surface::Ink][r.random_range(0..3)],
             finish_variant: r.random_range(0..super::super::materials::variants::COUNT) as u8,
+            swing_hanging: SwingHanging::sample(seed, mechanism),
+            vision_light: VisionLight::sample(seed, panel),
         }
     }
     pub fn validate(&self) -> bool {
@@ -178,17 +190,36 @@ impl DoorProgram {
             && (0.03..=0.12).contains(&self.stile)
             && (0.85..=1.2).contains(&self.handle_height)
             && (self.finish_variant as usize) < super::super::materials::variants::COUNT
+            && self
+                .vision_light
+                .is_none_or(|v| self.panel == DoorPanel::VisionLite && v.valid())
+            && self.swing_hanging.is_none_or(|h| {
+                matches!(
+                    self.mechanism,
+                    DoorMechanism::Hinged | DoorMechanism::Paired
+                ) && h.valid()
+            })
     }
 }
 impl DoorInstallation {
     pub fn transform(&self) -> Transform {
-        Transform::from_translation(self.center).with_rotation(Quat::from_rotation_y(self.yaw))
+        let tf =
+            Transform::from_translation(self.center).with_rotation(Quat::from_rotation_y(self.yaw));
+        match self.program.swing_hanging {
+            Some(h) => tf.with_translation(tf.transform_point(Vec3::Z * h.lining_offset_m)),
+            None => tf,
+        }
     }
     pub fn build(&self, a: &mut Assembly, frame: bool) {
         construction::build(self, a, frame);
     }
     pub(crate) fn leaves(&self) -> Vec<Leaf> {
         let p = &self.program;
+        if let Some(hanging) = p.swing_hanging {
+            return (0..hanging.leaf_count(p))
+                .map(|i| hanging.fit(self, i).leaf(self))
+                .collect();
+        }
         let width = self.width - LEAF_WIDTH_ALLOWANCE;
         let height = if matches!(
             p.mechanism,
@@ -504,16 +535,27 @@ pub(crate) fn sample_entry(scene: &mut IndoorManifest) -> Result<(), String> {
         .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
         .ok_or_else(|| "rear partitions leave no valid entrance interval".to_owned())?;
     scene.door_x = r.random_range(lo..hi);
+    let wall_depth = entry_lining(&mut program);
     scene.entry_door = Some(DoorInstallation {
         id: 0,
         center: Vec3::new(scene.door_x, 0., scene.room_size.z * 0.5),
         yaw: 0.,
         width,
         height: r.random_range(2.10_f32..2.34).min(scene.room_size.y - 0.25),
-        wall_depth: 0.20,
+        wall_depth,
         program,
     });
     Ok(())
+}
+
+fn entry_lining(p: &mut DoorProgram) -> f32 {
+    if let Some(h) = &mut p.swing_hanging {
+        let depth = super::super::envelope::construction::SHARED_WALL_THICKNESS_M;
+        h.lining_offset_m = depth * 0.5;
+        depth
+    } else {
+        0.20
+    }
 }
 pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
     let Some(program) = &mut scene.program else {
@@ -529,7 +571,8 @@ pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
             p.end - p.door_center - p.door_width * 0.5,
         ];
         let mut mechanism = DoorMechanism::ALL[r.random_range(0..4)];
-        let mut door = DoorProgram::sample(scene.seed.wrapping_add(i as u64 * 3571 + 1), mechanism);
+        let stock_seed = scene.seed.wrapping_add(i as u64 * 3571 + 1);
+        let mut door = DoorProgram::sample(stock_seed, mechanism);
         if matches!(
             mechanism,
             DoorMechanism::Sliding | DoorMechanism::Telescoping
@@ -543,7 +586,10 @@ pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
         if mechanism == DoorMechanism::Paired && p.door_width < 1.30 {
             mechanism = DoorMechanism::Hinged;
         }
-        door.mechanism = mechanism;
+        if door.mechanism != mechanism {
+            door.mechanism = mechanism;
+            door.swing_hanging = SwingHanging::sample(stock_seed, mechanism);
+        }
         p.door = Some(door);
     }
 }
@@ -570,6 +616,8 @@ pub(crate) fn fit_floor_states(scene: &mut IndoorManifest) {
         .map(|mut d| {
             if d.program.mechanism == DoorMechanism::Revolving {
                 d.program.mechanism = DoorMechanism::Paired;
+                d.program.swing_hanging = SwingHanging::sample(scene.seed, DoorMechanism::Paired);
+                d.wall_depth = entry_lining(&mut d.program);
             }
             d.program.opening = 0.;
             d

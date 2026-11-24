@@ -177,7 +177,7 @@ fn carpet_and_rug_fields_close_at_wrap_and_have_real_relief() {
 fn rugs_resolve_a_distinct_program_without_changing_semantic_or_geometry_bounds() {
     use crate::scene::procedural_indoor::{
         layout::ObjectKind,
-        objects::{audit, build_object},
+        objects::{audit, build_object, floor::rug},
     };
     for seed in 0..128 {
         let o = audit::fixture(ObjectKind::Rug, seed);
@@ -189,15 +189,24 @@ fn rugs_resolve_a_distinct_program_without_changing_semantic_or_geometry_bounds(
             rugs::slot(o.finish_seed.unwrap_or(o.seed))
         );
         let field = &a.parts[&(Surface::FabricAlt, label)];
-        assert!(field.indices.len() >= 24);
         let mut shared = std::collections::BTreeMap::new();
         let mut boundary_vertices = 0;
         let mut interior_vertices = 0;
+        let p = rug::parameters(&o).unwrap();
+        let affine = p.cut == rug::Cut::Straight && p.taper == 0.;
+        let extent = field.positions.iter().fold(Vec2::ZERO, |hi, pos| {
+            hi.max(Vec2::new(pos[0], pos[2]).abs())
+        }) * 2.;
         for (position, uv) in field.positions.iter().zip(&field.uvs) {
             assert!(uv.iter().all(|v| (0.0..=1.).contains(v)));
             assert!((position[1] - o.size.y).abs() < 1e-6);
             if let Some(previous) = shared.insert(position.map(f32::to_bits), uv) {
                 assert_eq!(previous, uv, "UV seam at a shared rug vertex");
+            }
+            if affine {
+                // Linear interpolation reproduces this chart exactly at any tessellation.
+                let expected = Vec2::splat(0.5) + Vec2::new(position[0], position[2]) / extent;
+                assert!(Vec2::from_array(*uv).distance(expected) < 1e-6);
             }
             if position[0] == 0. && position[2] == 0. {
                 assert_eq!(uv, &[0.5; 2]);
@@ -207,14 +216,19 @@ fn rugs_resolve_a_distinct_program_without_changing_semantic_or_geometry_bounds(
                 interior_vertices += 1;
             }
         }
-        assert!(boundary_vertices >= 16 && interior_vertices >= 32);
-        for triangle in field.uvs.as_chunks::<3>().0 {
-            let [a, b, c] = triangle.map(Vec2::from_array);
-            assert!(
-                (b - a).perp_dot(c - a).abs() > 1e-7,
-                "collapsed rug UV triangle"
-            );
+        assert!(boundary_vertices >= 4);
+        assert!(affine || interior_vertices >= 2 * boundary_vertices);
+        let mut area = 0.;
+        for triangle in field.indices.as_chunks::<3>().0 {
+            let [a, b, c] = triangle.map(|i| Vec2::from_array(field.uvs[i as usize]));
+            let signed = (b - a).perp_dot(c - a);
+            assert!(signed < -1e-8, "collapsed or folded rug UV triangle");
+            area -= signed * 0.5;
         }
+        assert!(
+            (0.85..=1.00001).contains(&area),
+            "incomplete or overlapping dye field: {area}"
+        );
         for (_, label) in a.parts.keys() {
             assert!(label.starts_with("floormat#"));
             assert!(crate::render::semantic::SemanticLabel::from_label(

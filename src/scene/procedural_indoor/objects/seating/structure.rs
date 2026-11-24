@@ -4,7 +4,7 @@ use crate::scene::procedural_indoor::geometry::CushionProfile;
 
 /// Rounded corners retain positive bend radius even for a short leg and a long
 /// sectional rail. A four-point sweep through sharp corners can fold its mesh.
-fn u_support(
+pub(super) fn u_support(
     g: &mut Geometry,
     left: Vec3,
     right: Vec3,
@@ -34,138 +34,6 @@ fn u_support(
         }
     }
     g.tube(&path, radius, 8);
-}
-
-pub(super) fn feet(
-    a: &mut Assembly,
-    o: &IndoorObject,
-    p: &SofaProgram,
-    x: f32,
-    z: f32,
-    width: f32,
-    depth: f32,
-) {
-    let label = o.kind.class_name();
-    let material = if p.exposed_frame {
-        Surface::WoodEdge
-    } else {
-        Surface::Metal
-    };
-    let h = p.leg_height;
-    if p.base_style == 3 {
-        a.box_part(
-            material,
-            label,
-            Vec3::new(x, (h + 0.012) * 0.5, z),
-            Vec3::new(width * 0.78, h + 0.012, depth * 0.78),
-            0.015,
-        );
-        return;
-    }
-    if p.base_style == 4 && o.kind == ObjectKind::Chair {
-        let radius = (width * 0.42).min(depth * 0.38);
-        a.part(material, label).lathe(
-            &[
-                (0., 0.),
-                (radius, 0.),
-                (radius, 0.025),
-                (0.035, 0.055),
-                (0.035, h + 0.025),
-                (0., h + 0.025),
-            ],
-            32,
-            Transform::from_xyz(x, 0., z),
-        );
-        return;
-    }
-    if p.base_style == 4 {
-        for end in [-1., 1.] {
-            let zz = z + end * (depth * 0.5 - 0.08);
-            u_support(
-                a.part(material, label),
-                Vec3::new(x - width * 0.36, 0., zz),
-                Vec3::new(x + width * 0.36, 0., zz),
-                [0.017, h + 0.015],
-                false,
-                0.012,
-            );
-            for side in [-1., 1.] {
-                a.box_part(
-                    Surface::Rubber,
-                    label,
-                    Vec3::new(x + side * width * 0.36, 0.006, zz),
-                    Vec3::new(0.04, 0.012, 0.04),
-                    0.004,
-                );
-            }
-        }
-        return;
-    }
-    for side in [-1., 1.] {
-        let xx = x + side * width * 0.36;
-        let reach = depth * 0.5 - 0.08;
-        if p.base_style == 2 {
-            u_support(
-                a.part(material, label),
-                Vec3::new(xx, 0., z - reach),
-                Vec3::new(xx, 0., z + reach),
-                [0.017, h + 0.015],
-                false,
-                0.012,
-            );
-        }
-        for end in [-1., 1.] {
-            let foot = Vec3::new(xx, 0.010, z + end * reach);
-            let top = Vec3::new(
-                x + side * width * 0.32,
-                h + 0.018,
-                z + end * (reach - 0.025),
-            );
-            match p.base_style {
-                0 => a.part(material, label).housing(
-                    &[
-                        (0., Vec2::splat(0.013)),
-                        (foot.distance(top), Vec2::splat(0.026)),
-                    ],
-                    3.,
-                    Transform::from_translation(foot)
-                        .with_rotation(Quat::from_rotation_arc(Vec3::Y, (top - foot).normalize())),
-                ),
-                1 => {
-                    // A finite-radius return, not an acute V swept through its
-                    // own tube cross-section.
-                    let bend = foot.with_y(0.030);
-                    for end in [-1., 1.] {
-                        a.part(Surface::Metal, label).rod(
-                            top + Vec3::Z * end * 0.035,
-                            bend + Vec3::Z * end * 0.018,
-                            0.007,
-                        );
-                    }
-                    let path: Vec<_> = (0..=10)
-                        .map(|i| {
-                            let t = PI * i as f32 / 10.;
-                            bend + Vec3::new(0., -t.sin() * 0.018, t.cos() * 0.018)
-                        })
-                        .collect();
-                    a.part(Surface::Metal, label).tube(&path, 0.007, 8);
-                }
-                5 => a.box_part(
-                    material,
-                    label,
-                    (foot + top) * 0.5,
-                    Vec3::new(0.065, h + 0.008, 0.065),
-                    0.008,
-                ),
-                _ => {}
-            }
-            a.part(Surface::Rubber, label).cylinder(
-                0.020,
-                0.012,
-                Transform::from_translation(foot.with_y(0.006)),
-            );
-        }
-    }
 }
 
 pub(super) fn arms(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, base_depth: f32) {

@@ -6,12 +6,21 @@ mod audience;
 mod back;
 mod base;
 mod casters;
+mod fit;
+mod formed;
+mod runners;
 pub mod stool;
+mod tension;
+pub use tension::{TensionBack, TensionInfill, WebbingDirection};
 #[cfg(test)]
 mod tests;
 mod upper;
 pub use audience::is_folded;
 pub(crate) use audience::TeachingSeat;
+pub(crate) use fit::view_supports;
+pub use formed::{FormedSeat, SeatStock};
+pub(crate) use runners::INTRODUCED as RUNNER_VERSION;
+pub use runners::{RunnerSection, RunnerStock};
 
 /// Nominal floor footprint in metres. Seats ordered for one table share
 /// product proportions. An independently selected replacement can differ.
@@ -81,8 +90,11 @@ pub struct ChairProgram {
     /// 0 straight spokes, 1 arched spokes, 2 cast blades, 3 disc,
     /// 4 tapered legs, 5 sled, 6 cantilever, 7 trestle.
     pub base_style: u8,
-    /// 0 crowned cushion, 1 waterfall lip, 2 replaceable front bolster.
+    /// 0 crowned cushion, 1 upholstered waterfall, 2 replaceable bolster,
+    /// 3 pressed plywood, 4 carved timber, 5 moulded polymer.
     pub seat_style: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub formed_seat: Option<FormedSeat>,
     /// 0 shaped shell, 1 oval pad, 2 split pad.
     pub headrest_style: u8,
     pub spoke_arch_m: f32,
@@ -95,7 +107,7 @@ pub struct ChairProgram {
     pub mesh_roundness: f32,
 }
 pub fn parameters(o: &IndoorObject) -> ChairProgram {
-    let mut rng = stream(o.seed, 73);
+    let (fit, mut rng) = fit::Fit::sample(o);
     let mut detail = stream(o.seed, 6430);
     let seat_surface = match o.variant % FAMILIES {
         3 => {
@@ -121,8 +133,7 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
         }
         _ => [Surface::Fabric, Surface::FabricAlt, Surface::Leather][detail.random_range(0..3)],
     };
-    let sampled_back = rng.random_range(0..4);
-    let back_construction = match (o.variant % FAMILIES, sampled_back) {
+    let back_construction = match (o.variant % FAMILIES, fit.initial_back) {
         // Keep structural/material combinations plausible. Wooden spindles are
         // a dining construction; executive backs have padded supporting shells.
         (3, _) if detail.random_bool(0.45) => 5,
@@ -135,23 +146,21 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
     };
     let mut p = ChairProgram {
         back_construction,
-        armrests: rng.random_bool(0.62),
-        curvature: rng.random_range(0.018..0.095),
-        taper: rng.random_range(-0.06..0.20),
-        shell_thickness: rng.random_range(0.018..0.045),
-        recline: rng.random_range(-0.04..0.10),
-        arm_height: rng.random_range(0.61..0.70),
-        spindle_pitch: rng.random_range(0.045..0.09),
-        headrest: o.size.y > 1.12
-            && matches!(o.variant % FAMILIES, 0 | 1 | 5 | 9)
-            && rng.random_bool(0.62),
-        lumbar: rng.random_range(0.012..0.050),
-        shoulder_flare: rng.random_range(-0.12..0.10),
-        seat_roundness: rng.random_range(2.5..7.0),
-        seat_width_fraction: rng.random_range(0.63..0.80),
-        seat_depth_fraction: rng.random_range(0.54..0.79),
-        back_width_fraction: rng.random_range(0.68..1.08),
-        arm_pad_length: rng.random_range(0.16..0.33),
+        armrests: fit.armrests,
+        curvature: fit.curvature,
+        taper: fit.taper,
+        shell_thickness: fit.shell_thickness,
+        recline: fit.recline,
+        arm_height: fit.arm_height,
+        spindle_pitch: fit.spindle_pitch,
+        headrest: fit.headrest,
+        lumbar: fit.lumbar,
+        shoulder_flare: fit.shoulder_flare,
+        seat_roundness: fit.seat_roundness,
+        seat_width_fraction: fit.seat_width_fraction,
+        seat_depth_fraction: fit.seat_depth_fraction,
+        back_width_fraction: fit.back_width_fraction,
+        arm_pad_length: fit.arm_pad_length,
         base_radius_fraction: rng.random_range(0.34..0.43),
         leg_splay: rng.random_range(0.04..0.16),
         spoke_count: if rng.random_bool(0.85) { 5 } else { 4 },
@@ -195,6 +204,7 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
             }),
         base_style: 0,
         seat_style: 0,
+        formed_seat: None,
         headrest_style: 0,
         spoke_arch_m: 0.,
         waterfall_drop_m: 0.,
@@ -255,6 +265,10 @@ pub fn parameters(o: &IndoorObject) -> ChairProgram {
     p.arm_pad_width_m = p
         .arm_pad_width_m
         .min((o.size.x * (1. - p.seat_width_fraction) - 0.080).max(0.024));
+    if let Some(shell) = FormedSeat::sample(o, seat_surface, &mut proportions) {
+        p.seat_style = shell.stock.style_id();
+        p.formed_seat = Some(shell);
+    }
     p
 }
 
@@ -283,14 +297,14 @@ pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
         Vec3::new(-half.x, 0., -half.z),
         Vec3::new(half.x, o.size.y, half.z),
     );
+    if matches!(o.variant, 6 | 7) {
+        return stool::clearance_boxes(o);
+    }
     if o.variant % FAMILIES == 8 {
         return vec![full];
     }
     let mut boxes = vec![(full.0, full.1.with_y(0.50))];
-    if is_backless(o) {
-        return boxes;
-    }
-    let p = parameters(o);
+    let (p, _) = fit::Fit::sample(o);
     let family = o.variant % FAMILIES;
     let mut rng = stream(o.seed, 70);
     let _width = rng.random_range(0.43..0.52_f32);
@@ -309,13 +323,9 @@ pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
         - p.curvature
         - (o.size.y - bottom) * (0.13 + p.recline.sin()).max(0.))
     .min(0.11);
-    let front = if family == 7 {
-        -0.02
-    } else {
-        depth - p.recline.sin().abs() * o.size.y - 0.09
-    };
+    let front = depth - p.recline.sin().abs() * o.size.y - 0.09;
     boxes.push((Vec3::new(-half.x, 0.48, front), full.1));
-    if p.armrests && family != 7 {
+    if p.armrests {
         boxes.push((
             Vec3::new(-half.x, 0.42, -p.arm_pad_length * 0.5 - 0.013),
             Vec3::new(half.x, p.arm_height + 0.014, 0.18),
@@ -324,13 +334,13 @@ pub(crate) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
     boxes
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.variant >= 10 {
         audience::build(a, o);
         return;
     }
     if matches!(o.variant % FAMILIES, 6 | 7) {
-        stool::build(a, o);
+        stool::build(a, o, version);
         return;
     }
     if o.variant % FAMILIES == 8 {
@@ -354,14 +364,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         rng.random_range(0.044..0.075)
     };
     let frame = program.frame_surface;
-    a.box_part(
-        Surface::Plastic,
-        label,
-        Vec3::new(0.0, seat - padding - 0.012, 0.0),
-        Vec3::new(width * 0.93, 0.022, depth * 0.93),
-        0.009,
-    );
-    upper::seat(a, &program, width, depth, padding);
+    let pan_bottom = seat - padding - 0.023;
+    if let Some(shell) = &program.formed_seat {
+        shell.build(a, &program, width, depth);
+    } else {
+        a.box_part(
+            Surface::Plastic,
+            label,
+            Vec3::new(0.0, seat - padding - 0.012, 0.0),
+            Vec3::new(width * 0.93, 0.022, depth * 0.93),
+            0.009,
+        );
+        upper::seat(a, &program, width, depth, padding);
+    }
     let back_bottom = if family == 5 {
         0.53
     } else {
@@ -391,57 +406,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let back = Transform::from_xyz(0.0, back_bottom, back_depth)
         .with_rotation(Quat::from_rotation_x(recline));
     let cover = program.back_surface;
-    if program.back_construction == 0 {
-        // Curved tensioned strands attach to a continuous perimeter frame.
-        // No alpha-tested sheet: every opening is present in depth/semantics.
-        let point = |x: f32, v: f32| {
-            back.transform_point(Vec3::new(
-                x * back_width * 0.5,
-                v * back_height,
-                program.curvature * (1.0 - x * x) + v * back_height * 0.13
-                    - program.lumbar * (PI * v).sin(),
-            ))
-        };
-        let shape = |v: f32| {
-            if v.abs() < 1e-6 {
-                0.
-            } else {
-                v.signum() * v.abs().powf(2. / program.mesh_roundness)
-            }
-        };
-        let rim: Vec<_> = (0..=64)
-            .map(|i| {
-                let t = TAU * (i % 64) as f32 / 64.;
-                point(shape(t.cos()), 0.5 + shape(t.sin()) * 0.5)
-            })
-            .collect();
-        a.part(Surface::Plastic, label).tube(&rim, 0.012, 8);
-        let rows = (back_height / program.mesh_pitch_m).round().clamp(5., 18.) as usize;
-        let cols = (back_width / program.mesh_pitch_m).round().clamp(5., 14.) as usize;
-        for row in 1..rows {
-            let path: Vec<_> = (0..=10)
-                .map(|i| {
-                    let v = row as f32 / rows as f32;
-                    let width = (1. - (v * 2. - 1.).abs().powf(program.mesh_roundness))
-                        .max(0.)
-                        .powf(1. / program.mesh_roundness);
-                    point((-1.0 + i as f32 * 0.2) * width, v)
-                })
-                .collect();
-            a.part(cover, label).tube(&path, 0.0023, 5);
-        }
-        for col in 1..cols {
-            let path: Vec<_> = (0..=8)
-                .map(|i| {
-                    let x = -1.0 + 2.0 * col as f32 / cols as f32;
-                    let height = (1. - x.abs().powf(program.mesh_roundness))
-                        .max(0.)
-                        .powf(1. / program.mesh_roundness);
-                    point(x, 0.5 + (i as f32 / 8.0 - 0.5) * height)
-                })
-                .collect();
-            a.part(cover, label).tube(&path, 0.0023, 5);
-        }
+    let back_sockets = if let Some(stock) = program.tension_back(o, version) {
+        tension::build(a, &program, Vec2::new(back_width, back_height), back, stock)
     } else if program.back_construction == 1 {
         // Bentwood crest and individual spindles, with open space between them.
         let count = (back_width / program.spindle_pitch).round().max(3.0) as usize;
@@ -458,10 +424,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             0.015,
             back.with_translation(back.transform_point(Vec3::Y * (back_height - 0.02))),
         );
+        if program.formed_seat.is_some() {
+            let foot = |x| back.transform_point(Vec3::X * x);
+            a.part(frame, label)
+                .rod(foot(-back_width * 0.5), foot(back_width * 0.5), 0.014);
+        }
+        [-1., 1.].map(|side| back.transform_point(Vec3::X * (side * back_width / 3.)))
     } else if program.back_construction >= 6 {
-        back::constructed(a, &program, back_width, back_height, back);
+        back::constructed(a, &program, back_width, back_height, back)
     } else if matches!(program.back_construction, 3..=5) {
-        back::segmented(a, &program, back_width, back_height, back);
+        back::segmented(a, &program, back_width, back_height, back)
     } else {
         back::shell(
             a.part(cover, label),
@@ -478,29 +450,42 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             ],
             back,
         );
-    }
+        // At the bottom rim the lumbar, shoulder and waist terms vanish.
+        // Two thirds of the half-width lands on an authored mesh column.
+        [-1., 1.].map(|side| {
+            back.transform_point(Vec3::new(
+                side * back_width / 3.,
+                0.003,
+                program.curvature * (5. / 9.) + program.shell_thickness * 0.5,
+            ))
+        })
+    };
 
     if program.headrest {
         upper::headrest(a, &program, width, back_height, back);
     }
-    for side in [-1.0, 1.0] {
-        a.part(frame, label).rod(
-            Vec3::new(side * width * 0.38, seat - 0.04, 0.17),
-            back.transform_point(Vec3::new(side * back_width * 0.38, 0.045, 0.015)),
-            0.012,
-        );
+    if program.formed_seat.is_some() {
+        formed::back_stays(a.part(frame, label), width, depth, back_sockets);
+    } else {
+        for side in [-1.0, 1.0] {
+            a.part(frame, label).rod(
+                Vec3::new(side * width * 0.38, seat - 0.04, 0.17),
+                back.transform_point(Vec3::new(side * back_width * 0.38, 0.045, 0.015)),
+                0.012,
+            );
+        }
     }
     use super::super::motion::{construction as motion, MotionKind};
     let moving = matches!(family, 0 | 1 | 5 | 9) && a.motion_selected(MotionKind::Chair, o.seed);
     if program.base_style < 4 {
-        base::tilt_control(a, width, depth, seat - padding - 0.023);
+        base::tilt_control(a, width, depth, pan_bottom);
     }
     let mut upper = if moving {
         std::mem::take(&mut a.parts)
     } else {
         default()
     };
-    base::build(a, o, &program, width, depth);
+    base::build(a, o, &program, width, depth, pan_bottom, version);
     let base = if moving {
         std::mem::replace(&mut a.parts, std::mem::take(&mut upper))
     } else {

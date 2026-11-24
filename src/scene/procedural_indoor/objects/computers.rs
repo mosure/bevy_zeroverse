@@ -1,6 +1,7 @@
 //! Laptops are hinged assemblies with keyboards, bezels, ports and rubber feet.
 use super::super::materials::input_housing::Housing;
 use super::*;
+pub mod io;
 mod palmrest;
 
 pub const LAPTOP_FAMILIES: u32 = 4;
@@ -16,6 +17,7 @@ pub struct LaptopProgram {
     pub lid_m: f32,
     pub corner_m: f32,
     pub keyboard_columns: u32,
+    /// Requested sockets across a fitted chassis, or marks per side on archived models.
     pub port_count: u32,
     pub speaker_grilles: bool,
 }
@@ -34,6 +36,9 @@ pub fn parameters(o: &IndoorObject) -> LaptopProgram {
         port_count: rng.random_range(1..5),
         speaker_grilles: rng.random_bool(0.6),
     };
+    if o.variant & io::FITTED_IO != 0 {
+        program.port_count += rng.random_range(0..3);
+    }
     program.keyboard_columns = super::keyboard::columns(
         o.size.x * program.keyboard_fraction,
         program.keyboard_columns as usize,
@@ -41,8 +46,40 @@ pub fn parameters(o: &IndoorObject) -> LaptopProgram {
     ) as u32;
     program
 }
+impl LaptopProgram {
+    /// Fitted device sockets, including the primary charge/dock receptacle.
+    pub fn io_bank(&self, o: &IndoorObject) -> Option<io::Bank> {
+        if o.kind != ObjectKind::Laptop || o.variant & io::FITTED_IO == 0 {
+            return None;
+        }
+        io::Bank::fit(o, self, Deck::fit(o, self))
+    }
+}
+
 pub fn lid_angle(o: &IndoorObject) -> f32 {
     parameters(o).hinge_radians
+}
+
+#[derive(Clone, Copy)]
+struct Deck {
+    height: f32,
+    depth: f32,
+    rear: f32,
+}
+
+impl Deck {
+    fn fit(o: &IndoorObject, p: &LaptopProgram) -> Self {
+        let tilt = p.hinge_radians - FRAC_PI_2;
+        let height = (o.size.x / p.aspect_ratio)
+            .min((o.size.y - p.chassis_m - 0.008) / tilt.cos())
+            .min((o.size.z - 0.114) / tilt.sin().max(0.001));
+        let sweep = tilt.sin().max(0.) * height;
+        Self {
+            height,
+            depth: (o.size.z - sweep - 0.014).max(0.10),
+            rear: -o.size.z * 0.5 + sweep + 0.008,
+        }
+    }
 }
 
 pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
@@ -55,14 +92,13 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
     let angle = program.hinge_radians;
     // Envelope includes the backward lid sweep; base stays fully on its support.
     let tilt = angle - FRAC_PI_2;
-    let screen_height = (width / program.aspect_ratio)
-        .min((o.size.y - chassis - 0.008) / tilt.cos())
-        .min((o.size.z - 0.114) / tilt.sin().max(0.001));
-    let rear_sweep = tilt.sin().max(0.0) * screen_height;
-    let base_depth = (o.size.z - rear_sweep - 0.014).max(0.10);
-    let hinge_z = -o.size.z * 0.5 + rear_sweep + 0.008;
+    let deck = Deck::fit(o, &program);
+    let screen_height = deck.height;
+    let base_depth = deck.depth;
+    let hinge_z = deck.rear;
     let base_z = hinge_z + base_depth * 0.5;
-    palmrest::build(a, o, &program, &stock, base_depth, base_z);
+    let bank = io::Bank::fit(o, &program, deck);
+    palmrest::build(a, o, &program, &stock, base_depth, base_z, bank.as_ref());
     let hinge = Vec3::new(0.0, chassis + 0.004, hinge_z);
     let lid = Transform::from_translation(hinge).with_rotation(Quat::from_rotation_x(-tilt));
     let bezel = program.bezel_m;
@@ -129,18 +165,20 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
                 Transform::from_xyz(side * width * 0.40, 0.0015, hinge_z + base_depth * end),
             );
         }
-        for port in 0..program.port_count {
-            a.box_part(
-                Surface::Ink,
-                label,
-                Vec3::new(
-                    side * (width * 0.5 + 0.0001),
-                    chassis * 0.55 + 0.003,
-                    hinge_z + base_depth * (0.17 + port as f32 * 0.13),
-                ),
-                Vec3::new(0.001, 0.003, 0.011),
-                0.0,
-            );
+        if bank.is_none() {
+            for port in 0..program.port_count {
+                a.box_part(
+                    Surface::Ink,
+                    label,
+                    Vec3::new(
+                        side * (width * 0.5 + 0.0001),
+                        chassis * 0.55 + 0.003,
+                        hinge_z + base_depth * (0.17 + port as f32 * 0.13),
+                    ),
+                    Vec3::new(0.001, 0.003, 0.011),
+                    0.0,
+                );
+            }
         }
     }
     super::keyboard::laptop(a, o, &program, hinge_z, base_depth);

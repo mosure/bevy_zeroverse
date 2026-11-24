@@ -77,10 +77,11 @@ impl IndoorManifest {
                 {
                     return Err(fail("exhibit plinth has no supported exhibit"));
                 }
-                if lo.x < p.min.x - 0.001
-                    || lo.z < p.min.y - 0.001
-                    || hi.x > p.max.x + 0.001
-                    || hi.z > p.max.y + 0.001
+                let (min, max) = p.member_region(self, o);
+                if lo.x < min.x - 0.001
+                    || lo.z < min.y - 0.001
+                    || hi.x > max.x + 0.001
+                    || hi.z > max.y + 0.001
                 {
                     return Err(fail("assembly crosses its functional region"));
                 }

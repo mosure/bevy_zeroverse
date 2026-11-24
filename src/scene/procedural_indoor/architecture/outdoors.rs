@@ -8,6 +8,7 @@ mod frontages;
 mod ground;
 mod midground;
 mod pergola;
+mod plinth;
 mod program;
 #[cfg(test)]
 mod qualification;
@@ -79,7 +80,10 @@ pub(crate) fn measurements(scene: &IndoorManifest) -> Vec<(&'static str, f32)> {
     }
     let mut entrances = Vec::new();
     for (i, p) in parcels.iter().enumerate().filter(|(_, p)| p.kind == 0) {
-        let b = Building::sample(p, super::background::radius(scene));
+        let b = Building::sample(p, super::background::radius(scene), scene.generator_version);
+        if let Some(base) = &b.plinth {
+            base.measure(&b, p.size, &mut out);
+        }
         if let Some(entry) = buildings::main_entrance(p, &b) {
             entrances.push((i, entry));
         }
@@ -359,12 +363,21 @@ fn garden_plants(scene: &IndoorManifest, p: &Parcel) -> Vec<IndoorObject> {
     plants
 }
 
-fn garden(a: &mut Assembly, p: &Parcel, vegetation: &[IndoorObject]) {
+/// Potted exterior vegetation for callers building a palette without a list of mesh parts.
+pub(crate) fn pergola_plants(scene: &IndoorManifest) -> impl Iterator<Item = IndoorObject> + '_ {
+    ExteriorPlan::new(scene, &District::sample(scene.seed))
+        .sites
+        .into_iter()
+        .filter(|p| p.kind == 3)
+        .flat_map(move |p| garden_plants(scene, &p))
+}
+
+fn garden(a: &mut Assembly, p: &Parcel, vegetation: &[IndoorObject], version: u32) {
     for plant in vegetation {
         let tf = plant.transform();
         let mut parts = Assembly::default();
-        plants::build(&mut parts, plant);
         let rooted = if p.kind != 3 {
+            plants::build_in_ground(&mut parts, plant, version);
             parts.parts.retain(|(s, _), _| {
                 matches!(
                     s,
@@ -378,9 +391,10 @@ fn garden(a: &mut Assembly, p: &Parcel, vegetation: &[IndoorObject]) {
                 .flat_map(|(_, g)| g.positions.iter().map(|v| v[1]))
                 .fold(f32::INFINITY, f32::min)
         } else {
+            plants::build_at_version(&mut parts, plant, version);
             0.
         };
-        for ((surface, _label), mut g) in parts.parts {
+        for ((surface, label), mut g) in parts.parts {
             for v in &mut g.positions {
                 *v = tf
                     .transform_point(Vec3::from_array(*v) - Vec3::Y * rooted)
@@ -389,7 +403,17 @@ fn garden(a: &mut Assembly, p: &Parcel, vegetation: &[IndoorObject]) {
             for n in &mut g.normals {
                 *n = (tf.rotation * Vec3::from_array(*n)).to_array();
             }
-            a.part(surface, "plant").append(g);
+            // All parts share the plant class. Keep the finish selected by the
+            // planter when this parcel is merged into the exterior architecture.
+            a.part(
+                surface,
+                if label.starts_with("plant#") {
+                    &label
+                } else {
+                    "plant"
+                },
+            )
+            .append(g);
         }
     }
 }
@@ -412,7 +436,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
             if let Some(entry) = buildings::build(
                 a,
                 p,
-                &Building::sample(p, super::background::radius(scene)),
+                &Building::sample(p, super::background::radius(scene), scene.generator_version),
                 side,
             ) {
                 entrances.push((index, entry));
@@ -437,7 +461,7 @@ pub(crate) fn build(a: &mut Assembly, scene: &IndoorManifest) {
                 0.012,
             );
         }
-        garden(a, p, &vegetation);
+        garden(a, p, &vegetation, scene.generator_version);
         if p.kind == 2 {
             // Courtyard bench, backrest and two legs, kept inside its parcel.
             for z in [-0.22, 0., 0.22] {

@@ -32,18 +32,59 @@ pub(super) fn tress(
     radius: impl Fn(f32) -> f32,
     uv_offset: f32,
 ) {
-    let base = g.positions.len() as u32;
-    let mut distance = 0.;
-    let mut previous = centre(0.);
-    for row in 0..=rings {
-        let t = row as f32 / rings as f32;
-        let p = centre(t);
-        distance += p.distance(previous);
-        previous = p;
+    let samples = (0..(rings as usize + 1)).map(|i| {
+        let t = i as f32 / rings as f32;
         let tangent =
             (centre((t + 0.001).min(1.)) - centre((t - 0.001).max(0.))).normalize_or(Vec3::NEG_Y);
-        let x = (Vec3::X - tangent * tangent.x).normalize_or(Vec3::Z);
+        (centre(t), tangent)
+    });
+    sweep(g, samples, sides, section, Vec3::X, radius, uv_offset);
+}
+
+/// Loose locks follow an already sampled guide. Their broad axis lies along
+/// the head's circumference, including at the temples when seen in profile.
+pub(super) fn loose_lock(
+    g: &mut Geometry,
+    path: &[Vec3],
+    section: Vec2,
+    across: Vec3,
+    radius: impl Fn(f32) -> f32,
+    uv_offset: f32,
+) {
+    let samples = path.iter().enumerate().map(|(i, &p)| {
+        let tangent = path[(i + 1).min(path.len() - 1)] - path[i.saturating_sub(1)];
+        (p, tangent.normalize_or(Vec3::NEG_Y))
+    });
+    sweep(g, samples, 10, section, across, radius, uv_offset);
+}
+
+fn sweep(
+    g: &mut Geometry,
+    samples: impl ExactSizeIterator<Item = (Vec3, Vec3)>,
+    sides: u32,
+    section: Vec2,
+    across: Vec3,
+    radius: impl Fn(f32) -> f32,
+    uv_offset: f32,
+) {
+    let rings = samples.len() as u32 - 1;
+    let base = g.positions.len() as u32;
+    let mut distance = 0.;
+    let mut first = Vec3::ZERO;
+    let mut previous = Vec3::ZERO;
+    for (row, (p, tangent)) in samples.enumerate() {
+        let t = row as f32 / rings as f32;
+        if row == 0 {
+            first = p;
+        } else {
+            distance += p.distance(previous);
+        }
+        previous = p;
+        let x = (across - tangent * tangent.dot(across))
+            .try_normalize()
+            .unwrap_or_else(|| tangent.any_orthonormal_vector());
         let y = tangent.cross(x);
+        let taper = radius(t);
         for side in 0..=sides {
             let a = if side == sides {
                 0.
@@ -52,7 +93,7 @@ pub(super) fn tress(
             };
             let radial = x * (a.cos() * section.x) + y * (a.sin() * section.y);
             let n = (x * (a.cos() / section.x) + y * (a.sin() / section.y)).normalize_or(x);
-            g.positions.push((p + radial * radius(t)).to_array());
+            g.positions.push((p + radial * taper).to_array());
             g.normals.push(n.to_array());
             g.uvs.push([
                 TAU * side as f32 / sides as f32 * section.x + uv_offset,
@@ -71,7 +112,8 @@ pub(super) fn tress(
         let cap = g.positions.len() as u32;
         let ring = base + row * (sides + 1);
         let t = row as f32 / rings as f32;
-        g.positions.push(centre(t).to_array());
+        g.positions
+            .push(if row == 0 { first } else { previous }.to_array());
         g.normals.push(Vec3::Y.to_array());
         g.uvs.push([uv_offset, t * distance]);
         for side in 0..sides {
@@ -94,15 +136,19 @@ pub(super) fn backing(g: &mut Geometry, paths: &[Vec<Vec3>]) {
     let layer = (rows * paths.len()) as u32;
     let base = g.positions.len() as u32;
     for offset in [-0.0045, -0.0020] {
-        for path in paths {
+        let mut cross_arc = vec![0.; rows];
+        for (col, path) in paths.iter().enumerate() {
             let mut arc = 0.;
-            let mut previous = path[0];
-            for &p in path {
-                arc += p.distance(previous);
-                previous = p;
-                g.positions.push((p + Vec3::Z * offset).to_array());
-                g.normals.push(Vec3::Z.to_array());
-                g.uvs.push([p.x - paths[0][0].x, arc]);
+            for (row, &p) in path.iter().enumerate() {
+                let prev = paths[col.saturating_sub(1)][row];
+                let across = paths[(col + 1).min(paths.len() - 1)][row] - prev;
+                let down = path[(row + 1).min(rows - 1)] - path[row.saturating_sub(1)];
+                let outward = down.cross(across).normalize_or(Vec3::Z);
+                arc += p.distance(path[row.saturating_sub(1)]);
+                cross_arc[row] += p.distance(prev);
+                g.positions.push((p + outward * offset).to_array());
+                g.normals.push(outward.to_array());
+                g.uvs.push([cross_arc[row], arc]);
             }
         }
     }
@@ -360,6 +406,47 @@ pub(super) fn recompute_normals(g: &mut Geometry, first_vertex: usize, first_ind
 mod tests {
     use super::*;
     use crate::scene::procedural_indoor::humans::{sample_person, HumanPoseKind};
+
+    #[test]
+    fn a_profile_lock_and_its_backing_have_width_along_the_temple() {
+        let path = |z| {
+            vec![
+                Vec3::new(0.09, 0.12, z),
+                Vec3::new(0.09, 0.05, z),
+                Vec3::new(0.09, -0.02, z),
+            ]
+        };
+        let paths = [path(0.013), path(0.), path(-0.013)];
+        let mut lock = Geometry::default();
+        loose_lock(
+            &mut lock,
+            &paths[1],
+            Vec2::new(0.009, 0.003),
+            Vec3::NEG_Z,
+            |_| 1.,
+            0.,
+        );
+        let span = lock.positions.iter().map(|p| Vec3::from_array(*p)).fold(
+            (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+            |(lo, hi), p| (lo.min(p), hi.max(p)),
+        );
+        let span = span.1 - span.0;
+        assert!(span.z > 0.017 && span.x < 0.0061);
+        let mut base = Geometry::default();
+        backing(&mut base, &paths);
+        for layer in 0..2 {
+            for col in 0..paths.len() {
+                for row in 0..3 {
+                    let i = layer * 9 + col * 3 + row;
+                    let p = Vec3::from_array(base.positions[i]);
+                    assert!(p.x < 0.089 && p.x > 0.085);
+                    assert!((p.z - paths[col][row].z).abs() < 1e-7);
+                    assert!((base.uvs[i][0] - col as f32 * 0.013).abs() < 1e-7);
+                    assert!((base.uvs[i][1] - row as f32 * 0.07).abs() < 1e-7);
+                }
+            }
+        }
+    }
 
     #[test]
     fn tied_roots_stay_on_individual_scalp_sides_at_extreme_tie_heights() {

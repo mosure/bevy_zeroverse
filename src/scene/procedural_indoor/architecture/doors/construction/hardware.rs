@@ -113,7 +113,9 @@ pub(super) fn build(
             DoorHandle::Recessed => panel::finger_cup(a.part(finish, label), leaf, fit, side),
         }
     }
-    if matches!(p.mechanism, DoorMechanism::Hinged | DoorMechanism::Paired) {
+    if p.swing_hanging.is_none()
+        && matches!(p.mechanism, DoorMechanism::Hinged | DoorMechanism::Paired)
+    {
         for h in [0.22, s.y * 0.5, s.y - 0.22] {
             // The analytic hinge is 2 mm beyond the trimmed leaf edge.
             let pos = Vec3::new(fit.side * (s.x * 0.5 + 0.002), h - s.y * 0.5, 0.);

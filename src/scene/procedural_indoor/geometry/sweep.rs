@@ -24,14 +24,38 @@ impl Geometry {
     /// Continuous circular sweep for handles, goosenecks and binding wire.
     /// The caller provides distinct adjacent points; end caps are separate faces.
     pub fn tube(&mut self, points: &[Vec3], radius: f32, sides: u32) {
-        if points.len() < 2 || sides < 3 {
+        self.tapered_tube(points, radius, radius, sides);
+    }
+
+    /// Sweep one connected skin along the path, with a linear taper in metres
+    /// of arclength. Closed paths require matching radii at their welded seam.
+    pub(crate) fn tapered_tube(
+        &mut self,
+        points: &[Vec3],
+        root_radius: f32,
+        tip_radius: f32,
+        sides: u32,
+    ) {
+        if points.len() < 2 || sides < 3 || root_radius <= 0. || tip_radius <= 0. {
             return;
         }
         let start = self.positions.len() as u32;
         let closed = points[0].distance_squared(*points.last().unwrap()) < 1e-12;
+        if closed && (points.len() < 4 || root_radius != tip_radius) {
+            return;
+        }
         let mut distance = 0.;
         let mut frame = Vec3::ZERO;
-        let mut frames = Vec::with_capacity(points.len());
+        // Stems, petioles, spouts and cables commonly have just 2–8 nodes.
+        let empty = (Vec3::ZERO, Vec3::ZERO, 0.);
+        let mut local = [empty; 8];
+        let mut long_path;
+        let frames = if points.len() <= local.len() {
+            &mut local[..points.len()]
+        } else {
+            long_path = vec![empty; points.len()];
+            long_path.as_mut_slice()
+        };
         for (i, &p) in points.iter().enumerate() {
             let before = points[if closed && i == 0 {
                 points.len() - 2
@@ -43,14 +67,27 @@ impl Geometry {
             } else {
                 (i + 1).min(points.len() - 1)
             }];
-            let tangent = (after - before).normalize();
-            frame = (frame - tangent * frame.dot(tangent))
-                .try_normalize()
-                .unwrap_or_else(|| tangent.any_orthonormal_vector());
+            // At a tapered branch elbow a long incoming segment must not tip
+            // the cross-section backwards over its shorter outgoing segment.
+            let direction = if root_radius != tip_radius && i > 0 && i + 1 < points.len() {
+                (p - before).normalize_or_zero() + (after - p).normalize_or_zero()
+            } else {
+                after - before
+            };
+            let Some(tangent) = direction.try_normalize() else {
+                return;
+            };
+            frame = if root_radius != tip_radius && i > 0 && points.len() > 2 {
+                Quat::from_rotation_arc(frames[i - 1].0, tangent) * frame
+            } else {
+                (frame - tangent * frame.dot(tangent))
+                    .try_normalize()
+                    .unwrap_or_else(|| tangent.any_orthonormal_vector())
+            };
             if i > 0 {
                 distance += p.distance(points[i - 1]);
             }
-            frames.push((tangent, frame, distance));
+            frames[i] = (tangent, frame, distance);
         }
         // A transported frame can return with a twist on a closed curve. Spread
         // its correction by arclength rather than leaving a crack at the seam.
@@ -62,14 +99,20 @@ impl Geometry {
             0.
         };
         let angles = primitives::tube_angles(sides);
-        for (i, (&p, &(tangent, frame, along))) in points.iter().zip(&frames).enumerate() {
-            let frame = Quat::from_axis_angle(tangent, twist * along / distance.max(1e-6)) * frame;
+        let slope = (tip_radius - root_radius) / distance;
+        for (i, (&p, &(tangent, frame, along))) in points.iter().zip(frames.iter()).enumerate() {
+            let frame = if closed {
+                Quat::from_axis_angle(tangent, twist * along / distance) * frame
+            } else {
+                frame
+            };
+            let radius = root_radius + slope * along;
             let cross = tangent.cross(frame);
             for (j, angle) in angles.iter().enumerate() {
-                let normal = frame * angle.cos + cross * angle.sin;
+                let radial = frame * angle.cos + cross * angle.sin;
                 self.vertex(
-                    p + radius * normal,
-                    normal,
+                    p + radius * radial,
+                    radial - tangent * slope,
                     Vec2::new(angle.radians * radius, along),
                     &Transform::IDENTITY,
                 );
@@ -109,7 +152,14 @@ impl Geometry {
                 let p = Vec3::from_array(
                     self.positions[(start + ring as u32 * (sides + 1) + side) as usize],
                 );
-                self.vertex(p, normal, Vec2::ZERO, &Transform::IDENTITY);
+                let uv = if root_radius != tip_radius {
+                    let (_, across, _) = frames[ring];
+                    let offset = p - points[ring];
+                    Vec2::new(offset.dot(across), offset.dot(normal.cross(across)))
+                } else {
+                    Vec2::ZERO
+                };
+                self.vertex(p, normal, uv, &Transform::IDENTITY);
             }
             for side in 0..sides {
                 let a = center + 1 + side;
@@ -153,6 +203,44 @@ mod tests {
         let mut g = Geometry::default();
         g.tube(&[Vec3::ZERO, Vec3::Y], 0.013, 2);
         assert!(g.positions.is_empty());
+    }
+
+    #[test]
+    fn bent_taper_has_one_ring_per_node_and_only_terminal_caps() {
+        let points = [
+            Vec3::ZERO,
+            Vec3::Y * 0.21,
+            Vec3::new(0.12, 0.42, 0.03),
+            Vec3::new(0.22, 0.47, -0.01),
+        ];
+        let length: f32 = points.windows(2).map(|p| p[0].distance(p[1])).sum();
+        let mut mesh = Geometry::default();
+        mesh.tapered_tube(&points, 0.025, 0.009, 8);
+        assert_eq!(mesh.indices.len() / 3, (points.len() - 1) * 16 + 16);
+        assert_eq!(mesh.positions.len(), points.len() * 9 + 2 * 10);
+        let mut along = 0.;
+        for (i, &center) in points.iter().enumerate() {
+            if i > 0 {
+                along += center.distance(points[i - 1]);
+            }
+            let radius = 0.025 + (0.009 - 0.025) * along / length;
+            let j = i * 9;
+            assert_eq!(mesh.positions[j], mesh.positions[j + 8]);
+            assert_eq!(mesh.normals[j], mesh.normals[j + 8]);
+            for k in j..j + 9 {
+                assert!(
+                    (Vec3::from_array(mesh.positions[k]).distance(center) - radius).abs() < 1e-6
+                );
+                assert!((mesh.uvs[k][1] - along).abs() < 1e-6);
+            }
+        }
+        for tri in mesh.indices.as_chunks::<3>().0 {
+            let p = tri.map(|i| Vec3::from_array(mesh.positions[i as usize]));
+            let normal = (p[1] - p[0]).cross(p[2] - p[0]);
+            assert!(tri
+                .iter()
+                .all(|&i| normal.dot(Vec3::from_array(mesh.normals[i as usize])) > 0.));
+        }
     }
 
     #[test]

@@ -119,7 +119,7 @@ impl IndoorManifest {
                     0.,
                     height,
                     Some(family),
-                    Some(item.seed),
+                    Some(&item),
                     &mut product,
                 );
                 chair.id = item.id + 1;

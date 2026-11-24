@@ -94,7 +94,7 @@ impl Bays {
             cell: (width - 0.20) / columns as f32,
             width,
             frame: building.frame_width,
-            corner: recess + building.window_installation.rebate_m + 0.026,
+            corner: building.window_installation.corner_pier(recess),
         }
     }
     pub fn offset(&self, column: usize) -> f32 {

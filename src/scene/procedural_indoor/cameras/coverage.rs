@@ -299,12 +299,32 @@ impl Coverage {
                 }
                 continue;
             }
+            if o.kind == super::super::layout::ObjectKind::Chair
+                && matches!(o.variant, 6 | 7)
+                && scene.generator_version >= super::super::objects::chairs::stool::FIT_VERSION
+            {
+                let tf = o.transform();
+                let inverse = tf.rotation.inverse();
+                super::super::objects::chairs::stool::parameters(o).view_boxes(
+                    o,
+                    |center, half| {
+                        colliders.push(Collider {
+                            triangle: None,
+                            center: tf.transform_point(center),
+                            half,
+                            inverse,
+                            label: "chair",
+                        })
+                    },
+                );
+                continue;
+            }
             if o.kind == super::super::layout::ObjectKind::Chair && o.variant != 8 {
                 // A tall chair's full bounding box hides the seated person's
                 // face even when the front of the real chair is completely open.
                 // Use its seat/back/headrest structure for view proposals.
-                let program = super::super::objects::chairs::parameters(o);
-                let back_top = o.size.y - if program.headrest { 0.22 } else { 0.02 };
+                let (headrest, arm_height) = super::super::objects::chairs::view_supports(o);
+                let back_top = o.size.y - if headrest { 0.22 } else { 0.02 };
                 let mut parts = vec![
                     (Vec3::new(0.0, 0.43, -0.015), Vec3::new(0.27, 0.045, 0.25)),
                     (
@@ -313,16 +333,16 @@ impl Coverage {
                     ),
                     (Vec3::new(0.0, 0.23, 0.0), Vec3::new(0.055, 0.20, 0.055)),
                 ];
-                if program.headrest {
+                if headrest {
                     parts.push((
                         Vec3::new(0.0, o.size.y - 0.10, 0.22),
                         Vec3::new(0.17, 0.075, 0.055),
                     ));
                 }
-                if program.armrests {
+                if let Some(arm_height) = arm_height {
                     for x in [-0.285, 0.285] {
                         parts.push((
-                            Vec3::new(x, program.arm_height, 0.0),
+                            Vec3::new(x, arm_height, 0.0),
                             Vec3::new(0.023, 0.025, 0.125),
                         ));
                     }

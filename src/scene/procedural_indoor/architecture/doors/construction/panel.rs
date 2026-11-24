@@ -2,6 +2,7 @@
 //! All surfaces and texture coordinates are constructed in the moving leaf frame.
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
+mod curved;
 
 fn corners(r: Rect, z: f32) -> [Vec3; 4] {
     [
@@ -138,6 +139,12 @@ pub(super) fn build(
         blank_face(g, tf, face_rect, [fit.opening, cup], z, side);
     }
     let Some(hole) = fit.opening else { return };
+    if p.panel == DoorPanel::VisionLite {
+        if let Some(v) = p.vision_light {
+            curved::build(a, leaf, hole, v, p.finish, j, labels);
+            return;
+        }
+    }
     match p.panel {
         DoorPanel::Glazed | DoorPanel::VisionLite => {
             let gauge = j.glass.metres();

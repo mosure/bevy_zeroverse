@@ -51,7 +51,7 @@ fn handed_tablets_use_their_actual_side_for_support_geometry_and_clearance() {
         assert!(contains(t.center));
         assert!(!contains(t.center.with_x(-t.center.x)));
         let mut a = Assembly::default();
-        t.build(&mut a, p.shell_stock);
+        t.build(&mut a);
         audit::check(&o, &a).unwrap();
         let (lo, hi) = a.bounds();
         assert!(
@@ -78,6 +78,14 @@ fn mounted_seat_skins_share_watertight_material_boundaries_and_local_uv_frames()
     p.back.build(&mut a, p.face_stock, p.shell_stock);
     assert_eq!(a.parts.len(), 2);
     audit::check(&o, &a).unwrap();
+    assert_closed(&a);
+    for side in [-1., 1.] {
+        let mount = p.back.mount(side);
+        assert!(mount.z > p.back.z && mount.z < o.size.z * 0.5);
+    }
+}
+
+pub(super) fn assert_closed(a: &Assembly) {
     let mut edges = BTreeMap::new();
     for g in a.parts.values() {
         for t in g.indices.as_chunks::<3>().0 {
@@ -94,8 +102,145 @@ fn mounted_seat_skins_share_watertight_material_boundaries_and_local_uv_frames()
         }
     }
     assert!(edges.values().all(|v| *v == (2, 0)));
-    for side in [-1., 1.] {
-        let mount = p.back.mount(side);
-        assert!(mount.z > p.back.z && mount.z < o.size.z * 0.5);
+}
+
+#[test]
+fn tablet_footprints_reserve_the_top_and_cover_all_four_fasteners() {
+    let mut classes = std::collections::BTreeSet::new();
+    let mut stock_pairs = std::collections::BTreeSet::new();
+    for seed in 0..256 {
+        let mut o = audit::fixture(ObjectKind::Chair, seed);
+        o.variant = 10;
+        o.size = Vec3::new(
+            0.56 + 0.026 * (seed % 10) as f32,
+            0.96,
+            0.55 + 0.038 * (seed % 8) as f32,
+        );
+        o.finish_seed = Some(seed);
+        let t = TeachingSeat::sample(&o).tablet.unwrap();
+        classes.insert((format!("{:?}", t.outline), t.left_handed, t.yaw == 0.));
+        stock_pairs.insert((format!("{:?}", t.face_stock), format!("{:?}", t.edge_stock)));
+        let mut a = Assembly::default();
+        t.build(&mut a);
+        let (lo, hi) = clearance_boxes(&o)[2];
+        for point in a.parts.values().flat_map(|g| &g.positions) {
+            let p = Vec3::from_array(*point);
+            assert!(
+                p.cmpge(lo - Vec3::splat(1e-6)).all() && p.cmple(hi + Vec3::splat(1e-6)).all(),
+                "{seed}"
+            );
+        }
+        let (plate, size) = t.mounting_plate();
+        let bottom = t.center.y - t.thickness * 0.5;
+        let underside = a
+            .parts
+            .values()
+            .flat_map(|g| {
+                g.indices
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .map(move |tri| tri.map(|i| Vec3::from_array(g.positions[i as usize])))
+            })
+            .filter(|points| points.iter().all(|p| (p.y - bottom).abs() < 1e-6))
+            .map(|tri| tri.map(|p| p.xz()))
+            .collect::<Vec<_>>();
+        for sx in [-0.5, 0.5] {
+            for sz in [-0.5, 0.5] {
+                let contact =
+                    plate.transform_point(Vec3::new(sx * size.x, size.y * 0.5, sz * size.z));
+                assert!(contact.y > bottom && contact.y < t.center.y);
+                assert!(
+                    underside
+                        .iter()
+                        .any(|tri| inside_triangle(*tri, contact.xz())),
+                    "unsupported tablet {seed}"
+                );
+            }
+        }
+        // Changing the room's finish cannot move a top, its support, or the cutout.
+        o.finish_seed = Some(seed + 500);
+        let refinished = TeachingSeat::sample(&o).tablet.unwrap();
+        assert_eq!(refinished.mounting_plate(), t.mounting_plate());
+        let mut b = Assembly::default();
+        refinished.build(&mut b);
+        let vertices = |a: &Assembly| {
+            let mut points: Vec<_> = a
+                .parts
+                .values()
+                .flat_map(|g| g.positions.iter().map(|p| p.map(f32::to_bits)))
+                .collect();
+            points.sort_unstable();
+            points
+        };
+        assert_eq!(vertices(&a), vertices(&b));
+    }
+    assert_eq!(classes.len(), 12);
+    assert_eq!(stock_pairs.len(), 3);
+}
+
+// Orientation-independent point test on the actual triangles used by the renderer.
+pub(super) fn inside_triangle([a, b, c]: [Vec2; 3], p: Vec2) -> bool {
+    let area = (b - a).perp_dot(c - a);
+    if area.abs() < 1e-12 {
+        return false;
+    }
+    let orientation = area.signum();
+    [(a, b), (b, c), (c, a)]
+        .iter()
+        .all(|&(u, v)| orientation * (v - u).perp_dot(p - u) >= -1e-9)
+}
+
+#[test]
+fn tablet_seat_stays_bear_on_rear_plates_without_breaking_through_the_front() {
+    for seed in 0..64 {
+        let mut o = audit::fixture(ObjectKind::Chair, seed);
+        o.variant = 10;
+        let seat = TeachingSeat::sample(&o);
+        let mut skin = Assembly::default();
+        seat.back
+            .build(&mut skin, seat.face_stock, seat.shell_stock);
+        let mut stays = Assembly::default();
+        frame::build(&mut stays, &seat);
+        let front: Vec<_> = skin
+            .parts
+            .values()
+            .flat_map(|g| {
+                g.indices
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
+                    .filter(|t| g.normals[t[0] as usize][2] < -0.60)
+                    .map(|t| t.map(|i| Vec3::from_array(g.positions[i as usize])))
+            })
+            .collect();
+        let mut samples = 0;
+        for g in stays.parts.values() {
+            for triangle in g.indices.as_chunks::<3>().0 {
+                let tri = triangle.map(|i| Vec3::from_array(g.positions[i as usize]));
+                for p in [tri[0], (tri[0] + tri[1] + tri[2]) / 3.] {
+                    if p.y < 0.54 || p.z < seat.back.z - 0.02 {
+                        continue;
+                    }
+                    for face in &front {
+                        let [a, b, c] = face.map(|p| p.truncate());
+                        if !inside_triangle([a, b, c], p.truncate()) {
+                            continue;
+                        }
+                        let area = (b - a).perp_dot(c - a);
+                        let v = (p.truncate() - a).perp_dot(c - a) / area;
+                        let w = (b - a).perp_dot(p.truncate() - a) / area;
+                        let front_z =
+                            face[0].z + v * (face[1].z - face[0].z) + w * (face[2].z - face[0].z);
+                        assert!(
+                            p.z >= front_z - 1e-5,
+                            "stay pierces chair {seed} at {p:?} / {front_z}"
+                        );
+                        samples += 1;
+                    }
+                }
+            }
+        }
+        assert!(samples > 32, "missed rear mounting plates on chair {seed}");
     }
 }

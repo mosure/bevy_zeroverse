@@ -116,9 +116,46 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     };
+    if kind == Clock {
+        clocks::install(&mut o, seed, super::super::layout::LightingMood::Daylight);
+    }
+    if kind == ProjectionScreen {
+        o.variant |= presentation::projection::INSTALLED;
+    }
+    if kind == Laptop {
+        o.variant |= computers::io::FITTED_IO;
+    }
+    if kind == Notebook {
+        o.variant |= literature::SPREAD_BINDING;
+    }
+    if kind == CeilingFan {
+        o.variant = fans::installed_variant(seed, o.size.x);
+        o.finish_seed = Some(seed);
+    }
+    if kind == TissueBox {
+        o.variant = containers::tissue::installed_case(seed) as u32;
+    }
+    if matches!(kind, WallOutlet | PowerStrip) {
+        o.variant = wall::installed_variant((seed % 3) as u32);
+    }
+    if kind == LightSwitch {
+        wall::switches::install(&mut o, seed, (seed % 3) as u32);
+    }
+    if kind == FloorOutlet {
+        let mut stock = stream(seed, u64::from_le_bytes(*b"FloorSku"));
+        o.variant = floor::service::installed_variant(stock.random_range(0..3), (seed % 3) as u32);
+        if stock.random_bool(0.5) {
+            o.variant |= 8;
+            o.size.y = 0.006;
+        }
+    }
     if kind.is_kitchen() {
         o.size = kitchen::dimensions(kind, seed);
+    }
+    if kind == Rug {
+        o.variant = floor::rug::Cut::sample(seed, o.size) as u32;
     }
     if kind == Cable {
         let mut r = stream(seed, 7480);
@@ -145,7 +182,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         WallSconce => return serde_json::json!(equipment::sconce::parameters(o)),
         Notepad => return serde_json::json!(super::super::clutter::tabletop::pad::parameters(o)),
         Pencil => {
-            return serde_json::json!(super::super::clutter::tabletop::writing::parameters(o))
+            return serde_json::json!(super::super::clutter::tabletop::writing::parameters(o));
         }
         Microphone => return serde_json::json!(super::super::clutter::microphone::parameters(o)),
         Speaker => return serde_json::json!(accessories::speaker::parameters(o)),
@@ -154,18 +191,58 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         TapeDispenser => return serde_json::json!(accessories::stationery::tape_parameters(o)),
         Ottoman => return serde_json::json!(services::ottoman::parameters(o)),
         Bench => return serde_json::json!(services::bench::parameters(o)),
-        DrawerUnit => return serde_json::json!(services::drawers::parameters(o)),
-        MobileCart => return serde_json::json!(services::cart::parameters(o)),
+        DrawerUnit => {
+            let p = services::drawers::parameters(o);
+            let mut value = serde_json::json!(p);
+            if p.base == 0 {
+                value["casters"] = serde_json::json!(services::casters::CasterSet::pedestal(o, &p));
+            }
+            return value;
+        }
+        MobileCart => {
+            let p = services::cart::parameters(o);
+            let mut value = serde_json::json!(p);
+            let casters = services::casters::CasterSet::cart(o, &p);
+            value["wheel_radius"] = serde_json::json!(casters.radius_m);
+            value["casters"] = serde_json::json!(casters);
+            return value;
+        }
         RoomDivider => return serde_json::json!(services::divider::parameters(o)),
         Kettle => return serde_json::json!(hospitality::kettle::parameters(o)),
         DeskFan => return serde_json::json!(accessories::fan::parameters(o)),
-        Printer => return serde_json::json!(utilities::printer::parameters(o)),
+        Printer => {
+            let p = utilities::printer::parameters(o);
+            let mut report = serde_json::json!(p);
+            report["output"] = serde_json::json!(utilities::printer::OutputProgram::sample(o, &p));
+            report["status"] = serde_json::json!(p
+                .screen
+                .then(|| crate::scene::procedural_indoor::materials::printer_lcd::status(o)));
+            return report;
+        }
         StorageBox => return serde_json::json!(utilities::boxes::parameters(o)),
-        CoatRack => return serde_json::json!(utilities::racks::parameters(o)),
+        CoatRack => {
+            let rack = utilities::racks::parameters(o);
+            let mut report = serde_json::json!(&rack);
+            report["garments"] = serde_json::json!(utilities::racks::dressing::garments(o, &rack));
+            return report;
+        }
         TrashCan => return serde_json::json!(containers::bin_parameters(o)),
         Projector => return serde_json::json!(equipment::projector::parameters(o)),
-        Locker => return serde_json::json!(public::education::parameters(o)),
-        Banquette => return serde_json::json!(public::banquette::parameters(o)),
+        Locker => {
+            let mut p = serde_json::json!(public::education::parameters(o));
+            if let Some(installation) = public::education::installation(o) {
+                p["installation"] = installation.into();
+            }
+            return p;
+        }
+        Banquette => {
+            let p = public::banquette::parameters(o);
+            let mut value = serde_json::json!(p);
+            if let Some(cover) = p.sewn_back(o) {
+                value["sewn_back"] = serde_json::json!(cover);
+            }
+            return value;
+        }
         Bookcase => return serde_json::json!(storage::bookcase::parameters(o)),
         WallShelf => return serde_json::json!(equipment::wall_shelf::parameters(o)),
         ProjectionScreen => return serde_json::json!(presentation::projection::parameters(o)),
@@ -179,8 +256,22 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         QueueBarrier => return serde_json::json!(public::barrier::parameters(o)),
         Vase | Bowl => return serde_json::json!(vessels::parameters(o)),
         SodaCan => return serde_json::json!(super::super::clutter::beverages::can::parameters(o)),
-        Mug | CoffeeCup | WaterBottle => {
-            return serde_json::json!(super::super::clutter::beverages::parameters(o))
+        Mug | CoffeeCup => {
+            let p = super::super::clutter::beverages::parameters(o);
+            let form = super::super::clutter::beverages::cups::CupForm::sample(o, &p);
+            let mut program = serde_json::json!(p);
+            program["wall_m"] = form.wall_m.into();
+            program["cup"] = serde_json::json!(form);
+            return program;
+        }
+        WaterBottle => {
+            use super::super::clutter::beverages::{self, bottle::Closure};
+            let p = beverages::parameters(o);
+            let mut program = serde_json::json!(p);
+            program["closure"] = serde_json::json!(Closure::sample(o, &p));
+            program["liquid_height_m"] =
+                serde_json::json!((p.style <= 2 && !p.empty).then_some(o.size.y * p.fill_fraction));
+            return program;
         }
         _ => {}
     }
@@ -192,13 +283,27 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
     }
     if o.kind == NoticeBoard {
         let p = equipment::parameters(o);
-        return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "section":equipment::board_section::parameters(o), "attachments":equipment::pinups::placements(o)});
+        return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "section":equipment::board_section::parameters(o), "facing":equipment::board_section::Facing::for_board(o, bevy_zeroverse_capture::GENERATOR_VERSION), "attachments":equipment::pinups::placements(o)});
     }
     if matches!(o.kind, InformationStand | ExhibitionPanel) {
         return serde_json::json!(public::signage::parameters(o));
     }
     let all = match o.kind {
-        BaseboardHeater => serde_json::json!(services::heater::parameters(o)),
+        BaseboardHeater => {
+            let stock = services::heater::Installation::for_object(o);
+            let mut fields =
+                if let services::heater::Emitter::Convector { hydronic } = stock.emitter {
+                    let mut cabinet = services::heater::parameters(o);
+                    cabinet.hydronic = hydronic;
+                    cabinet.surface = Surface::Metal;
+                    serde_json::json!(cabinet)
+                } else {
+                    serde_json::json!({})
+                };
+            fields["emitter"] = serde_json::json!(stock.emitter);
+            fields["finish_lot"] = stock.finish_lot.into();
+            return fields;
+        }
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
         | Lectern | Locker | TeachingBoard | ExhibitPlinth | Sculpture | InformationStand
         | ExhibitionPanel | ExtractionHood | Banquette => serde_json::json!(public::parameters(o)),
@@ -207,34 +312,73 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
         | CuttingBoard | FruitBowl | Bread => kitchen::metadata(o),
 
-        Table | Desk | CoffeeTable | SideTable => serde_json::json!(tables::parameters(o)),
+        Table | Desk | CoffeeTable | SideTable => {
+            let program = tables::parameters(o);
+            let mut data = serde_json::json!(&program);
+            if let Some(cut) = tables::sheet_cut(o, &program) {
+                data["sheet_cut"] = serde_json::json!(cut);
+            }
+            data
+        }
         Chair if o.variant >= 10 => {
             serde_json::json!(chairs::TeachingSeat::sample(o))
         }
         Chair if matches!(o.variant, 6 | 7) => serde_json::json!(chairs::stool::parameters(o)),
-        Chair if o.variant == 8 => serde_json::json!(seating::parameters(o)),
-        Chair => serde_json::json!(chairs::parameters(o)),
-        Sofa => serde_json::json!(seating::parameters(o)),
+        Chair if o.variant == 8 => seating::audit_program(o),
+        Chair => {
+            let p = chairs::parameters(o);
+            let mut data = serde_json::json!(p);
+            if let Some(stock) = p.tension_back(o, super::super::layout::GENERATOR_VERSION) {
+                data["tension_back"] = serde_json::json!(stock);
+            }
+            if let Some(stock) = p.runner_stock(o, super::super::layout::GENERATOR_VERSION) {
+                data["runner_stock"] = serde_json::json!(stock);
+            }
+            data
+        }
+        Sofa => seating::audit_program(o),
         Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
         Plant => {
             let growth = super::super::plants::Growth::sample(o.seed);
+            let pot = super::super::plants::PotProfile::sample(o.seed);
+            let (r, h) = pot.dimensions(o, &growth);
             let mut data = serde_json::json!({"growth":growth,
-                "pot":super::super::plants::PotProfile::sample(o.seed),
-                "pot_radius_height_m":super::super::plants::pot_dimensions(o,&growth),
+                "pot":pot,
+                "pot_radius_height_m":(r,h),
+                "potting_medium":super::super::plants::soil::stats(o,&pot,r,h),
                 "species":super::super::plants::species_name(o.variant)});
+            if o.variant % super::super::plants::SPECIES == 3 {
+                data["split_leaf_habit"] =
+                    serde_json::json!(super::super::plants::split_leaf_stats(o.seed, &growth));
+            }
             if o.variant % super::super::plants::SPECIES == 5 {
                 data["cane_habit"] =
                     serde_json::json!(super::super::plants::CaneHabit::sample(o.seed));
+            }
+            if o.variant % super::super::plants::SPECIES == 7 {
+                data["rosette_habit"] =
+                    serde_json::json!(super::super::plants::RosetteHabit::sample(o.seed, &growth));
             }
             data
         }
         TrashCan => serde_json::json!(containers::bin_parameters(o)),
         TissueBox => serde_json::json!(containers::tissue_parameters(o)),
         Monitor | Display => serde_json::json!(computers::display_parameters(o)),
-        Laptop => serde_json::json!(computers::parameters(o)),
+        Laptop => {
+            let p = computers::parameters(o);
+            let mut report = serde_json::json!(p);
+            if let Some(bank) = p.io_bank(o) {
+                report["io"] = serde_json::json!(bank);
+            }
+            report
+        }
         Clock => serde_json::json!(clocks::parameters(o)),
         WallOutlet | LightSwitch => serde_json::json!(wall::parameters(o)),
-        Keyboard | Mouse => serde_json::json!(desktop::parameters(o)),
+        Keyboard => serde_json::json!(desktop::parameters(o)),
+        Mouse => {
+            let input = desktop::parameters(o);
+            return serde_json::json!({"trackball":input.trackball,"pointer":desktop::pointer::PointerProgram::sample(o,&input)});
+        }
         PcTower => serde_json::json!(desktop::tower::parameters(o)),
         Books | Notebook => serde_json::json!(literature::parameters(o)),
         FloorLamp => serde_json::json!(standing_lamp::parameters(o)),
@@ -253,24 +397,42 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         }
         CeilingFan => return serde_json::json!(fans::parameters(o)),
         StringLights => return serde_json::json!(equipment::signals::string_program(o)),
-        FireAlarm | FireDetector | FirePullStation => {
-            return serde_json::json!(equipment::signals::fire::program(o))
+        FireDetector => {
+            return serde_json::json!(equipment::signals::fire::detector::parameters(o))
+        }
+        FireAlarm | FirePullStation => {
+            return serde_json::json!(equipment::signals::fire::program(o));
         }
         ExitSign => return serde_json::json!(equipment::signals::exit::parameters(o)),
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
         DocumentTray | DeskOrganizer => {
-            return serde_json::json!(accessories::organizers::parameters(o))
+            return serde_json::json!(accessories::organizers::parameters(o));
         }
         PowerStrip => return serde_json::json!(equipment::power_strip::parameters(o)),
         Speaker | Headphones | Stapler | TapeDispenser | DeskFan => {
             serde_json::json!(accessories::parameters(o))
         }
-        Projector | ProjectionScreen | WallShelf | NoticeBoard | WallSconce | CeilingPendant => {
+        CeilingPendant => {
+            let p = equipment::pendant::parameters(o);
+            let mut v = serde_json::json!(p);
+            v["shade_fraction"] = (p.shade_height_m / o.size.y).into();
+            v["diffuser_fraction"] = p.diffuser_fraction().unwrap_or(0.).into();
+            return v;
+        }
+        Projector | ProjectionScreen | WallShelf | NoticeBoard | WallSconce => {
             serde_json::json!(equipment::parameters(o))
         }
         WallArt => serde_json::json!(super::super::materials::art::frame_parameters(o)),
+        Rug if let Some(program) = floor::rug::parameters(o) => return serde_json::json!(program),
+        FloorOutlet if let Some(p) = floor::service::parameters(o) => return serde_json::json!(p),
         Rug | FloorOutlet => serde_json::json!(floor::parameters(o)),
-        PenHolder => return serde_json::json!(super::super::clutter::pen_holder::parameters(o)),
+        PenHolder => {
+            let p = super::super::clutter::pen_holder::parameters(o);
+            let mut program = serde_json::json!(p);
+            program["contents"] =
+                serde_json::json!(super::super::clutter::pen_holder::contents(o, &p));
+            return program;
+        }
         Cable => serde_json::json!({"variant":o.variant}),
     };
     // Exclude known dormant fields of shared equipment/item programs.
@@ -338,13 +500,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "row_stagger",
             "wrist_rest",
         ],
-        Mouse => &[
-            "mouse_roundness",
-            "mouse_crown",
-            "mouse_waist",
-            "button_fraction",
-            "trackball",
-        ],
+
         Phone => &[
             "span",
             "body_height",
@@ -357,6 +513,11 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "buttons",
             "shell",
             "face_up",
+            "front_camera",
+            "rear_flash",
+            "glazed_island",
+            "lens_radii",
+            "optical_fraction",
         ],
         Pencil => &["tip_fraction", "barrel_sides", "binding"],
         Notepad => &["binding", "leaf_fraction"],
@@ -393,7 +554,15 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         DeskFan => &["style", "support_fraction"],
         DeskLamp => &["style", "tilt", "reach"],
         Rug => &["rug_exponent", "rug_taper", "clipped_corners"],
-        FloorOutlet => &["lid_width_fraction", "lid_height_fraction"],
+        FloorOutlet => &[
+            "housing",
+            "open",
+            "hatch_width_m",
+            "hatch_depth_m",
+            "open_angle_rad",
+            "socket_count",
+            "face",
+        ],
         Mug => &["style", "taper", "fill_fraction", "wall_m"],
         CoffeeCup => &["style", "taper", "fill_fraction", "wall_m", "lid"],
         WaterBottle => &[
@@ -402,7 +571,14 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "shoulder_fraction",
             "neck_fraction",
         ],
-        SodaCan => &["style", "lid", "heel_fraction", "neck_fraction"],
+        SodaCan => &[
+            "opened",
+            "bare",
+            "heel_radius",
+            "neck",
+            "shoulder",
+            "lid_yaw",
+        ],
         MobileCart => &["shelf_tops", "wheel_radius", "post_span", "handles"],
         DrawerUnit => &["weights", "banks", "foot", "profile", "handle_width"],
         Bench => &["slats", "backed", "roundness"],
@@ -439,7 +615,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "seam",
             "finish",
         ],
-        CoatRack => &["construction", "arms", "branch_height", "handle_span"],
+        CoatRack => &["rail", "hooks", "hanger_x", "foot_span", "garments"],
         CoffeeMaker => &["style", "belly", "neck", "taper"],
         Kettle => &["style", "belly", "taper"],
         Bowl => &["style", "taper", "belly", "flutes"],
@@ -511,7 +687,9 @@ pub fn check(o: &IndoorObject, a: &Assembly) -> Result<MeshCheck, String> {
             if normal.length_squared() < 1e-20 || normal.dot(smooth) < -1e-6 {
                 return Err(format!(
                     "{:?}/{} degenerate/inverted triangle {tri:?} in {label}, points {p:?}, orientation {}",
-                    o.kind, o.seed, normal.dot(smooth)
+                    o.kind,
+                    o.seed,
+                    normal.dot(smooth)
                 ));
             }
             triangles += 1;

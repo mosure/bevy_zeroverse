@@ -3,9 +3,7 @@
 Native `Auto` now computes diffuse indirect illumination from the generated
 scene, including its furniture and procedural people. No lightmap, room scan,
 HDR photograph, or imported mesh is required. `Portable` and Wasm keep the
-documented environment-light fallback. Bevy 0.17.3 explicitly disables
-irradiance-volume shader bindings in Wasm, so the browser profile must not be
-described as having this GI implementation.
+documented environment-light fallback.
 
 The baker builds a triangle BVH from the same architecture, object, and human
 assemblies used for rendering. Surface colors come from the generated PBR
@@ -140,8 +138,78 @@ The generated sky is an analytic approximation, and the albedo reduction and
 Lambertian transport differ from the full raster BRDF. Human geometry is baked
 at its generated pose. Regenerate/rebake when geometry or lighting changes.
 
-Solari was considered but is not silently enabled: Bevy 0.17 describes its
-hardware-raytraced implementation as experimental and its realtime path as
-diffuse-only. That would change the existing material and platform contract.
-See the official [Bevy 0.17 rendering notes](https://bevy.org/news/bevy-0-17/)
-and the pinned [irradiance-volume implementation](https://docs.rs/bevy_pbr/0.17.3/src/bevy_pbr/light_probe/irradiance_volume.rs.html).
+## Experimental Solari preview
+
+Build the native Studio with `cargo run --features solari -- --preview-lighting solari`.
+**View & playback → RGB display & anti-aliasing → RGB preview lighting** switches the editor
+and camera grid live. The preview uses Bevy's realtime path tracer with its default bounce
+and sampling settings. The **Solari + ReSTIR** option (`--preview-lighting solari-restir`)
+adds spatial and temporal sample reuse. Hardware ray queries, bindless arrays and a sufficiently large
+storage-buffer binding are required. An unsupported device falls back to raster PBR.
+Browser, archive, and Burn workers use the standard raster renderer. Burn resolves
+a Studio configuration to raster before computing the WGPU or CUDA capture policy fingerprint.
+
+The release supports indirect lighting, glossy reflections, emissive meshes, a directional
+sun and the generated environment. Eligible, visible rigid room batches reuse their mesh
+and material handles. Hidden prefetched rooms enter the acceleration structure when they
+become visible. Glass and skinned or morphing meshes use forward rendering on primary
+rays. Secondary rays omit them and use Bevy’s reduced base, metallic/roughness, normal
+and emission material representation for traced hits. The traced pass does not evaluate the generator's
+analytic point, spot and rectangular lights. The existing diffuse volume and shadow
+maps continue to serve forward surfaces. A single RGB image can therefore combine two
+lighting models. Sampling noise is visible without a denoiser. The initial random state
+includes the renderer frame number, which makes RGB sensitive to rendering history.
+
+Mesh batching, CPU room lookahead and GPU material synthesis still apply. The hardware
+acceleration structure is shared within the current room, while each **active physical
+view** gets its own lighting cache. Bevy allocates about 88 MiB per view for the world
+cache and light tiles alone. Three pinhole cameras start at about 264 MiB, before
+geometry, G-buffers and output images. Each active fisheye source face adds another
+cache. ReSTIR adds two 48-byte reservoirs per shaded pixel, about 96 MiB extra
+per physical 1024×1024 view, along with previous-frame prepasses. A view exceeding
+the device’s storage-buffer binding limit uses the ordinary Solari integrator. SSAA increases shaded pixels and attachment sizes. Spatial AA remains available.
+The preview writes the ordinary GPU color target before lens composition and sensor
+resolve. It introduces no CPU pixel copy. Dataset annotations and WGPU/CUDA tensor
+capture keep their existing pipelines.
+
+Zeroverse pins Solari 0.20.0 to its Bevy 0.20.0 workspace. The published Solari 0.20.1
+has the same Rust and shader source under `src/`.
+[Bevy release notes](https://bevy.org/news/bevy-0-20/#solari-and-dlss) ·
+[Solari renderer design](https://jms55.github.io/posts/2026-09-18-solari-bevy-0-20/) ·
+[Per-view allocations](https://github.com/bevyengine/bevy/blob/v0.20.0/crates/bevy_solari/src/realtime/prepare.rs).
+
+### Completed three-view benchmark
+
+On 2026-11-23, generator 213 and capture-v243 produced these RGB streams on an RTX
+PRO 6000 Blackwell with ongoing GPU training. All modes used the same rooms, camera
+calibration, automatic SSAA (2× or 3×, matched per seed), material baking, full native
+quality and CPU prefetch. Timing covers room preparation through completed readback
+and excludes file encoding. The build used Rust optimization level 1 throughout.
+
+| Native lighting | Three pinholes, rooms/s | Three circular fisheyes, rooms/s | Peak renderer VRAM, pinhole / fisheye |
+| --- | ---: | ---: | ---: |
+| Raster PBR | 1.53 | 1.30 | 2,046 / 3,008 MiB |
+| Solari | 1.64 | 1.13 | 2,230 / 3,802 MiB |
+| Solari + ReSTIR | 1.37 | 1.18 | 3,294 / 5,310 MiB |
+
+Each output was 512×512. The pinhole test repeated eight seeds per mode in reversed
+block order (16 measured rooms per mode). The circular test measured four additional
+seeds per mode. Each process discarded two warmup rooms. Mean whole-GPU activity
+ranged from 87% to 96% across measured pinhole blocks. The sample size and
+concurrent workload limit inference about other GPUs, idle rendering and training
+step time. We used 95% of raster throughput for each lens type as the threshold for
+changing the default. Both traced modes fell below it on circular rigs and produced
+visible grain in room 93400 at matched exposure. Raster PBR is the default for training.
+
+To reproduce the pinhole workload, run the command once per renderer with a fresh
+output directory. Append `--solari-preview` for the ordinary path tracer. Add
+`--solari-restir` as well for reservoir resampling. A circular rig uses
+`{"lenses":{"probability":1,"circular_probability":1,"elliptical_probability":0}}`.
+
+```sh
+cargo run --features solari,human_motion --example indoor_bench -- \
+  --scenes 10 --warmup-scenes 2 --seed 93400 --cameras 3 --width 512 --height 512 \
+  --rgb-only --preparation-threads 2 --task-pool-threads 3 \
+  --indoor-camera '{"lenses":{"probability":0},"ceiling_mount":{"probability":0}}' \
+  --output out/lighting-raster
+```

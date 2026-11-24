@@ -1,6 +1,7 @@
 //! Shared, bounded lamp components. Hollow shades, sockets and light sources
 //! remain separate material roles; profiles use metres, not stretched textures.
 use super::*;
+mod pleats;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ShadeProgram {
@@ -52,6 +53,19 @@ pub(super) fn bulb(a: &mut Assembly, label: &str, p: &ShadeProgram, center: Vec3
     }
 }
 
+pub(super) fn wall_thickness(radius: f32) -> f32 {
+    (radius * 0.018).clamp(0.001, 0.004)
+}
+
+pub(super) fn upper_radius(p: &ShadeProgram, lower: f32, taper: f32) -> f32 {
+    lower
+        * if matches!(p.shape, 1 | 3) {
+            taper.clamp(0.88, 1.)
+        } else {
+            taper
+        }
+}
+
 /// Open bottom/top, with a real inner surface and rolled rims. The cage has
 /// bent ribs rather than an opaque silhouette pretending to be wire.
 #[allow(clippy::too_many_arguments)]
@@ -64,13 +78,8 @@ pub(super) fn shade(
     height: f32,
     taper: f32,
 ) {
-    let upper = radius
-        * if matches!(p.shape, 1 | 3) {
-            taper.clamp(0.88, 1.)
-        } else {
-            taper
-        };
-    let wall = (radius * 0.018).clamp(0.001, 0.004);
+    let upper = upper_radius(p, radius, taper);
+    let wall = wall_thickness(radius);
     let mut profile = if p.shape == 2 {
         vec![
             (radius, 0.),
@@ -99,63 +108,67 @@ pub(super) fn shade(
             a.part(p.trim, label).tube(&points, wall * 0.5, 6);
         }
     } else if p.shape == 3 {
-        // Alternating radii create real folded cloth. Flat normals at each
-        // crease preserve the pleat silhouette without a shader illusion.
-        let g = a.part(Surface::FabricAlt, label);
-        let n = p.pleats * 2;
-        for i in 0..n {
-            let point = |j: u32, y: f32, inside: bool| {
-                let t = TAU * j as f32 / n as f32;
-                let r = radius + (upper - radius) * (y / height);
-                let r = r * if j.is_multiple_of(2) { 1. } else { 0.945 }
-                    - if inside { wall } else { 0. };
-                center
-                    + Vec3::new(
-                        r * t.cos(),
-                        wall + y / height * (height - 2. * wall),
-                        r * t.sin(),
-                    )
-            };
-            for inside in [false, true] {
-                let q = [
-                    point(i, 0., inside),
-                    point(i, height, inside),
-                    point(i + 1, height, inside),
-                    point(i + 1, 0., inside),
-                ];
-                let normal = (q[1] - q[0]).cross(q[2] - q[0]) * if inside { -1. } else { 1. };
-                for t in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]] {
-                    super::super::envelope::construction::triangle(g, t, normal);
-                }
-            }
-        }
+        pleats::build(
+            a.part(Surface::FabricAlt, label),
+            center,
+            radius,
+            upper,
+            height,
+            wall,
+            p.pleats,
+        );
     } else {
-        let mut closed = profile.clone();
-        closed.extend(profile.iter().rev().map(|&(r, y)| (r - wall, y)));
-        closed.push(profile[0]);
-        a.part(p.finish, label)
-            .lathe(&closed, 32, Transform::from_translation(center));
+        let skin = a.part(p.finish, label);
+        skin.lathe(&profile, 32, Transform::from_translation(center));
+        profile.reverse();
+        for (r, _) in &mut profile {
+            *r -= wall;
+        }
+        skin.lathe(&profile, 32, Transform::from_translation(center));
     }
     for (r, y) in [(radius, 0.), (upper, height)] {
         // Rolled rims sit inside the declared shade extent.
         let low = if y == 0. { y } else { y - wall };
         let inner = shade_opening(p, radius, r);
-        a.part(p.trim, label).lathe(
-            &[
-                (inner, low),
-                (r, low),
-                (r, low + wall),
-                (inner, low + wall),
-                (inner, low),
-            ],
-            32,
-            Transform::from_translation(center),
-        );
+        let trim = a.part(p.trim, label);
+        let frame = Transform::from_translation(center);
+        if p.shape < 3 {
+            // The solid shade skins terminate on the trim. Exclude the buried
+            // annulus from its bearing face; otherwise both parts own that face.
+            let edge = r - wall;
+            if y == 0. {
+                trim.lathe(&[(inner, low), (r, low), (r, low + wall)], 32, frame);
+                trim.lathe(
+                    &[(edge, low + wall), (inner, low + wall), (inner, low)],
+                    32,
+                    frame,
+                );
+            } else {
+                trim.lathe(&[(inner, low), (edge, low)], 32, frame);
+                trim.lathe(
+                    &[(r, low), (r, low + wall), (inner, low + wall), (inner, low)],
+                    32,
+                    frame,
+                );
+            }
+        } else {
+            trim.lathe(
+                &[
+                    (inner, low),
+                    (r, low),
+                    (r, low + wall),
+                    (inner, low + wall),
+                    (inner, low),
+                ],
+                32,
+                frame,
+            );
+        }
     }
 }
 
 pub(super) fn shade_opening(p: &ShadeProgram, lower: f32, rim: f32) -> f32 {
-    let wall = (lower * 0.018).clamp(0.001, 0.004);
+    let wall = wall_thickness(lower);
     rim - if p.shape == 3 {
         rim * 0.065 + wall
     } else {

@@ -50,7 +50,7 @@ pub(super) fn mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     })
 }
 
-pub(super) fn furnish(scene: &mut IndoorManifest, r: &mut ChaCha8Rng) {
+pub(super) fn furnish(scene: &mut IndoorManifest, r: &mut ChaCha8Rng, structure: &[(Vec3, Vec3)]) {
     let Some(door) = scene.entry_door.clone() else {
         return;
     };
@@ -91,7 +91,7 @@ pub(super) fn furnish(scene: &mut IndoorManifest, r: &mut ChaCha8Rng) {
             o.size = Vec3::new(width, height, depth);
             o.position = Vec3::new(x, roof - height - 0.001, z);
         }
-        if mounted_clear(scene, &o) {
+        if mounted_clear_against(scene, &o, structure) {
             scene.objects.push(o);
             return;
         }

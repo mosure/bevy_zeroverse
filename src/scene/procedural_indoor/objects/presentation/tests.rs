@@ -1,6 +1,7 @@
 use super::*;
 use crate::scene::procedural_indoor::placement::{rotated_half, Footprint};
 use std::collections::BTreeSet;
+mod picture_mounts;
 mod qualification;
 
 const KINDS: [ObjectKind; 3] = [
@@ -162,7 +163,8 @@ fn shelves_keep_full_top_support_and_vary_mounting_construction() {
 fn optical_targets_hit_the_actual_projection_sheet_in_all_screen_styles() {
     let mut framed = 0;
     for seed in 0..128 {
-        let o = audit::fixture(ObjectKind::ProjectionScreen, seed);
+        let mut o = audit::fixture(ObjectKind::ProjectionScreen, seed);
+        o.variant = 0; // Archived screen construction and optical coordinates.
         let p = projection::parameters(&o);
         framed += usize::from(p.framed);
         assert!(p.image_width_m() > o.size.x * 0.65);
@@ -220,7 +222,7 @@ fn presentation_finishes_are_independent_of_meshes_and_optical_targets() {
     }
 }
 
-fn ray_hit(a: &Assembly, origin: Vec3, direction: Vec3) -> Option<(Surface, f32)> {
+pub(super) fn ray_hit(a: &Assembly, origin: Vec3, direction: Vec3) -> Option<(Surface, f32)> {
     a.parts
         .iter()
         .flat_map(|((surface, _), g)| {

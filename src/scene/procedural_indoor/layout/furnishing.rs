@@ -1,5 +1,6 @@
 //! Functional furniture groups are transformed together inside the architectural zone.
 use super::*;
+mod coat_racks;
 mod heaters;
 mod neighbor;
 mod perimeter;
@@ -278,8 +279,15 @@ impl IndoorManifest {
         };
         let yaw_jitter = if rng.random_bool(0.24) { 1.20 } else { 0.48 };
         let delta = rng.random_range(-yaw_jitter..yaw_jitter);
-        let collection = surface.map(|id| self.objects[id].seed);
+        let collection = surface.map(|id| &self.objects[id]);
         let mut chair = self.chair_product(pos, yaw + delta, height, family, collection, rng);
+        if matches!(chair.variant, 6 | 7)
+            && collection
+                .is_some_and(|top| !super::super::objects::chairs::stool::same_floor(&chair, top))
+        {
+            self.rejected_placements += 1;
+            return;
+        }
         chair.interaction_target = surface;
         // Tight conference rows allow less swivel than an open workstation.
         // Preserve every planned seat, choosing the widest collision-free angle.
@@ -299,7 +307,7 @@ impl IndoorManifest {
         yaw: f32,
         height: f32,
         family: Option<u32>,
-        collection: Option<u64>,
+        collection: Option<&IndoorObject>,
         rng: &mut ChaCha8Rng,
     ) -> IndoorObject {
         let mut chair = self.floor_candidate(ObjectKind::Chair, pos, Vec3::Y * height, yaw, rng);
@@ -310,13 +318,9 @@ impl IndoorManifest {
             // Tall upholstered task backs and headrests have different envelopes
             // from a dining shell or a lounge armchair.
             2..=4 => chair.size.y = 0.80 + (height - 0.83) / 0.61 * 0.32,
-            6 => chair.size.y = 0.48,
-            7 => {
-                chair.size.y = if super::super::objects::chairs::is_backless(&chair) {
-                    0.48
-                } else {
-                    0.79
-                }
+            6 | 7 => {
+                chair.size.y =
+                    super::super::objects::chairs::stool::fitted_envelope(&chair, collection)
             }
             8 => {
                 chair.size.y = 0.78 + (height - 0.83) / 0.61 * 0.30;
@@ -337,7 +341,7 @@ impl IndoorManifest {
         if chair.variant % super::super::objects::chairs::FAMILIES != 8 {
             let footprint = super::super::objects::chairs::footprint(
                 chair.variant,
-                collection.unwrap_or(chair.seed),
+                collection.map_or(chair.seed, |o| o.seed),
                 chair.seed,
             );
             chair.size.x = footprint.x;

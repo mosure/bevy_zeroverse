@@ -1,7 +1,13 @@
 //! Closed basin shell: rectangular worktop interface, rounded/tapered bowl,
 //! real open top and a supported inner floor. Fixed 32-side construction cost.
 use super::*;
-pub(super) fn build(a: &mut Assembly, p: &program::Basin, top: f32, finish: Surface) {
+pub(super) fn build(
+    a: &mut Assembly,
+    p: &program::Basin,
+    top: f32,
+    finish: Surface,
+    shared_edges: [bool; 2],
+) {
     const N: usize = 32;
     let inner = p.inner_half();
     let floor = p.floor_half();
@@ -52,6 +58,18 @@ pub(super) fn build(a: &mut Assembly, p: &program::Basin, top: f32, finish: Surf
     );
     for ring in 0..sections.len() - 1 {
         for i in 0..N {
+            // Twin bowls meet at a single lip. Omit both hidden vertical faces
+            // along the join; the top and underside still meet edge to edge.
+            if ring == 2
+                && p.waste.is_some()
+                && match i / (N / 8) {
+                    3 | 4 => shared_edges[0],
+                    7 | 0 => shared_edges[1],
+                    _ => false,
+                }
+            {
+                continue;
+            }
             let start = g.positions.len() as u32;
             for (row, col) in [(ring, i), (ring + 1, i), (ring + 1, i + 1), (ring, i + 1)] {
                 let pos = point(row, col);
@@ -70,6 +88,10 @@ pub(super) fn build(a: &mut Assembly, p: &program::Basin, top: f32, finish: Surf
             g.indices
                 .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
         }
+    }
+    if let Some(waste) = &p.waste {
+        waste.build(a, p, finish, &rings[5], &rings[0]);
+        return;
     }
     for (ring, sign) in [(0, -1.), (sections.len() - 1, 1.)] {
         let start = g.positions.len() as u32;

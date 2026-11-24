@@ -1,6 +1,8 @@
 use super::*;
 mod catenary;
+mod plug;
 pub(crate) use catenary::hanging_curve;
+pub(crate) use plug::{MainsPlug, RECESSED_MAINS};
 
 pub(crate) const USB_LEAD: u32 = 16;
 pub(crate) const DISPLAY_LEAD: u32 = 17;
@@ -29,6 +31,23 @@ pub(crate) fn bound_radius(o: &IndoorObject) -> f32 {
     radius(o) * 1.8
 }
 
+/// Bounds in the coordinate frame of the supplied points, including the
+/// molded termination only where it is physically mounted.
+pub(crate) fn path_bounds(o: &IndoorObject, points: &[Vec3], radius: f32) -> (Vec3, Vec3) {
+    let (mut lo, mut hi) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+    for &point in points {
+        lo = lo.min(point);
+        hi = hi.max(point);
+    }
+    let (lo, hi) = (lo - radius, hi + radius);
+    if let Some(plug) = MainsPlug::from_path(o, points) {
+        let (a, b) = plug.bounds();
+        (lo.min(a), hi.max(b))
+    } else {
+        (lo, hi)
+    }
+}
+
 /// Realized, sampled routes are bounded even when they contain curved bends.
 pub(crate) const MAX_PATH_POINTS: usize = 128;
 
@@ -44,7 +63,6 @@ pub(crate) fn archive_world_path(o: &mut IndoorObject, path: &[Vec3], max_span: 
         return false;
     };
     let mut samples = Vec::with_capacity(curve.len());
-    let (mut lo, mut hi) = (curve[0], curve[0]);
     samples.push(curve[0]);
     for segment in curve.windows(2) {
         let steps = (segment[0].distance(segment[1]) / max_span).ceil().max(1.) as usize;
@@ -52,12 +70,8 @@ pub(crate) fn archive_world_path(o: &mut IndoorObject, path: &[Vec3], max_span: 
             return false;
         }
         samples.extend((1..=steps).map(|i| segment[0].lerp(segment[1], i as f32 / steps as f32)));
-        lo = lo.min(segment[1]);
-        hi = hi.max(segment[1]);
     }
-    let radius = bound_radius(o);
-    lo -= radius;
-    hi += radius;
+    let (lo, hi) = path_bounds(o, &samples, bound_radius(o));
     o.yaw = 0.;
     o.position = Vec3::new((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5);
     o.size = hi - lo;
@@ -145,9 +159,10 @@ fn round_path(points: &[Vec3], jacket: f32, preferred_radius: f32) -> Option<Vec
 /// curvature. Radius tolerance covers sampled f32 arc coordinates only; kinked
 /// or reversed polylines are rejected before constructing their sweep mesh.
 pub(crate) fn path_qualified(o: &IndoorObject) -> bool {
-    o.cable_path
-        .as_ref()
-        .is_some_and(|p| path_points_qualified(p, radius(o)))
+    o.cable_path.as_ref().is_some_and(|p| {
+        path_points_qualified(p, radius(o))
+            && MainsPlug::from_path(o, p).is_none_or(MainsPlug::fits)
+    })
 }
 
 fn path_points_qualified(points: &[Vec3], jacket: f32) -> bool {
@@ -234,10 +249,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let r = radius(o);
     let label = o.kind.class_name();
     a.part(Surface::Rubber, label).tube(points, r, 8);
-    for (end, next) in [
+    for (i, (end, next)) in [
         (points[0], points[1]),
         (*points.last().unwrap(), points[points.len() - 2]),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if i == 1 {
+            if let Some(plug) = MainsPlug::from_path(o, points) {
+                plug.build(a, label, r);
+                continue;
+            }
+        }
         let direction = (next - end).normalize_or_zero();
         a.part(Surface::Plastic, label).rod(
             end,
@@ -291,6 +315,7 @@ mod tests {
             interaction_target: None,
             cable_path: Some(points),
             cable_target: None,
+            cable_target_socket: None,
         }
     }
 

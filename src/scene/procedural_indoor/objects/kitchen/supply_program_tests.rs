@@ -84,7 +84,7 @@ fn served_food_contacts_the_inside_of_the_dish_and_inventory_stays_bare() {
                     );
                 }
                 assert!(
-                    (bottom - d.wall).abs() < 1e-6,
+                    (bottom - d.interior_floor()).abs() < 1e-6,
                     "floating serving {meal:?} {seed}: {bottom}"
                 );
             }
@@ -109,9 +109,12 @@ fn dishes_have_hollow_interiors_supported_stacks_and_correct_yawed_footprints() 
                 let mut a = Assembly::default();
                 dishware::build(&mut a, Transform::IDENTITY, &p, seed);
                 assert_fits(&o, &a);
-                // A downward ray through the opening hits the real inner floor,
-                // not a solid cylinder's top cap. Stacks add one wall per plate.
-                assert!((tests::top_at(&a, Vec2::ZERO) - p.wall * p.count as f32).abs() < 1e-5);
+                // Each foot contacts the preceding well; the central ray hits
+                // the uppermost usable floor even when the stack is staggered.
+                assert!(
+                    (tests::top_at(&a, Vec2::ZERO) - p.interior_floor() * p.count as f32).abs()
+                        < 1e-5
+                );
                 materials.insert(format!("{:?}", p.surface));
                 shapes.insert(serde_json::to_string(&p).unwrap());
                 for yaw in [0.17, 0.71, 1.43, 2.22] {
@@ -126,13 +129,7 @@ fn dishes_have_hollow_interiors_supported_stacks_and_correct_yawed_footprints() 
                     let half = p.half_extents(yaw) + Vec2::splat(1e-5);
                     assert!(lo.xz().cmpge(-half).all() && hi.xz().cmple(half).all());
                 }
-                if style == 0 {
-                    let profile = p.profile();
-                    for (a, b) in [(0, 7), (1, 6), (2, 5), (3, 4)] {
-                        assert!((profile[a].0 - profile[b].0).abs() < 1e-7);
-                        assert!((profile[b].1 - profile[a].1 - p.wall).abs() < 1e-6);
-                    }
-                }
+                assert!((a.bounds().1.y - p.stack_height()).abs() < 1e-5);
             }
         }
     }
@@ -234,6 +231,7 @@ fn racks_fit_plates_between_real_wires_and_rest_them_on_the_tray() {
                 assert!((lo.y - p.tray).abs() < 1e-5);
                 assert!(lo.x >= p.rail_x[plate.slot] + p.wire + 0.0009);
                 assert!(hi.x <= p.rail_x[plate.slot + 1] - p.wire - 0.0009);
+                assert!(lo.z >= -p.size.z * 0.37 - 1e-5 && hi.z <= p.size.z * 0.37 + 1e-5);
                 for peer in &p.plates {
                     if peer.slot == plate.slot {
                         assert!(std::ptr::eq(plate, peer));
@@ -369,7 +367,7 @@ fn assigning_parent_finishes_never_discards_explicit_child_meshes() {
         ] {
             let o = fixture(kind, seed);
             let mut raw = Assembly::default();
-            build(&mut raw, &o);
+            build(&mut raw, &o, bevy_zeroverse_capture::GENERATOR_VERSION);
             let finished = super::super::build_object(&o);
             let vertices =
                 |a: &Assembly| a.parts.values().map(|g| g.positions.len()).sum::<usize>();
@@ -428,16 +426,24 @@ fn coordinated_finish_identity_changes_dish_and_rack_finishes_without_shape_chan
             alternate.finish_seed = Some(seed ^ 0xfeed1234);
             let a = super::super::build_object(&o);
             let b = super::super::build_object(&alternate);
-            let positions = |a: &Assembly| {
+            // A rim glaze can split a shared vertex ring between two materials.
+            // Compare the actual oriented triangles across all material groups.
+            let triangles = |a: &Assembly| {
                 let mut p: Vec<_> = a
                     .parts
                     .values()
-                    .flat_map(|g| g.positions.iter().map(|p| p.map(f32::to_bits)))
+                    .flat_map(|g| {
+                        g.indices
+                            .as_chunks::<3>()
+                            .0
+                            .iter()
+                            .map(|t| t.map(|i| g.positions[i as usize].map(f32::to_bits)))
+                    })
                     .collect();
                 p.sort_unstable();
                 p
             };
-            assert_eq!(positions(&a), positions(&b));
+            assert_eq!(triangles(&a), triangles(&b));
             changed += usize::from(
                 a.parts.keys().collect::<Vec<_>>() != b.parts.keys().collect::<Vec<_>>(),
             );

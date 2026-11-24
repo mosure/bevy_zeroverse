@@ -46,12 +46,14 @@ pub(super) fn segmented(
     width: f32,
     height: f32,
     tf: Transform,
-) {
+) -> [Vec3; 2] {
     // Continuous rails carry the separated panels. Every panel's backing touches
     // both rails; the openings are geometry in all annotation modes.
-    for side in [-1., 1.] {
+    let sockets =
+        [-1., 1.].map(|side| tf.transform_point(Vec3::new(side * width * 0.31, 0., 0.020)));
+    for (side, socket) in [-1., 1.].into_iter().zip(sockets) {
         a.part(p.frame_surface, "chair").rod(
-            tf.transform_point(Vec3::new(side * width * 0.31, 0., 0.020)),
+            socket,
             tf.transform_point(Vec3::new(
                 side * width * 0.31,
                 height - 0.025,
@@ -92,6 +94,7 @@ pub(super) fn segmented(
             tf.with_translation(tf.transform_point(Vec3::new(0., y, y * 0.13))),
         );
     }
+    sockets
 }
 
 /// Split ergonomic lobes, an open lumbar aperture, upholstered ribs, and
@@ -102,11 +105,12 @@ pub(super) fn constructed(
     width: f32,
     height: f32,
     tf: Transform,
-) {
+) -> [Vec3; 2] {
     let rail = |x, y| tf.transform_point(Vec3::new(x, y, y * 0.13 + 0.024));
-    for side in [-1., 1.] {
+    let sockets = [-1., 1.].map(|side| rail(side * width * 0.32, 0.));
+    for (side, socket) in [-1., 1.].into_iter().zip(sockets) {
         a.part(p.frame_surface, "chair").rod(
-            rail(side * width * 0.32, 0.),
+            socket,
             rail(side * width * 0.32, height - 0.018),
             0.012,
         );
@@ -201,4 +205,5 @@ pub(super) fn constructed(
             }
         }
     }
+    sockets
 }

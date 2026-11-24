@@ -204,6 +204,7 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     };
     let mut r = stream(seed, 8011);
     o.size *= Vec3::new(
@@ -370,7 +371,14 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
                 CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
                 Sponge => serde_json::json!(supplies::sponge::parameters(o)),
                 Dishware => {
-                    let mut value = serde_json::json!(dishware::for_object(o, &p));
+                    let dish = dishware::for_object(o, &p);
+                    let mut value = serde_json::json!(dish);
+                    if dish.plate.is_some() {
+                        value["rim_glaze_slot"] = serde_json::json!(dishware::PlateForm::rim_slot(
+                            dish.surface,
+                            o.finish_seed.unwrap_or(o.seed)
+                        ));
+                    }
                     if let Some(meal) = serving::sample(o) {
                         value["serving"] = serde_json::json!(meal);
                     }
@@ -409,14 +417,14 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
     value
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     match o.kind {
         ObjectKind::KitchenCounter if is_island(o) => island::build(a, o, &p),
         ObjectKind::KitchenCounter | ObjectKind::KitchenCupboard | ObjectKind::Pantry => {
             cabinet::build(a, o, &p)
         }
-        ObjectKind::KitchenSink => sink::build(a, o, &p),
+        ObjectKind::KitchenSink => sink::build(a, o, &p, version),
         ObjectKind::Cooktop
         | ObjectKind::Range
         | ObjectKind::Oven

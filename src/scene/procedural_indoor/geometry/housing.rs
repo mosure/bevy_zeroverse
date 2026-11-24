@@ -3,17 +3,43 @@ use super::*;
 const N: usize = 32;
 /// Shared profile for inserts fitted to the actual polygonal housing.
 pub(crate) fn housing_outline(exponent: f32) -> [Vec2; N] {
+    let angles = primitives::tube_angles(N as u32);
+    let power = 2. / exponent;
     std::array::from_fn(|i| {
-        let t = TAU * i as f32 / N as f32;
-        let f = |v: f32| {
-            if v.abs() < 1e-6 {
-                0.
-            } else {
-                v.signum() * v.abs().powf(2. / exponent)
-            }
-        };
-        Vec2::new(f(t.cos()), f(t.sin()))
+        Vec2::new(
+            profile_coordinate(angles[i].cos, power),
+            profile_coordinate(angles[i].sin, power),
+        )
     })
+}
+
+fn profile_coordinate(v: f32, power: f32) -> f32 {
+    if v.abs() < 1e-6 {
+        0.
+    } else {
+        v.signum() * v.abs().powf(power)
+    }
+}
+
+/// Front edge at a horizontal station in the *tessellated* housing.
+/// Used when fitting small features near the perimeter of a rounded product.
+pub(crate) fn housing_front_z(half: Vec2, exponent: f32, x: f32) -> f32 {
+    let x = x.abs();
+    let angles = primitives::tube_angles(N as u32);
+    let power = 2. / exponent;
+    let mut prior = Vec2::new(0., -half.y);
+    for a in &angles[N * 3 / 4 + 1..=N] {
+        let next = half
+            * Vec2::new(
+                profile_coordinate(a.cos, power),
+                profile_coordinate(a.sin, power),
+            );
+        if x <= next.x {
+            return prior.y + (next.y - prior.y) * ((x - prior.x) / (next.x - prior.x));
+        }
+        prior = next;
+    }
+    0.
 }
 impl Geometry {
     /// Each ring is (height, half-width/depth). Caps and side normals are separate.
@@ -158,6 +184,33 @@ impl Geometry {
                     self.normals[band + col * 4] = normal;
                     self.normals[band + prior * 4 + 3] = normal;
                 }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::*;
+    #[test]
+    fn cached_housing_directions_replay_and_edge_queries_follow_actual_chords() {
+        let half = Vec2::new(0.041, 0.076);
+        for e in [2.0_f32, 2.7, 4., 6.41, 12., 17.73, 22.] {
+            let outline = housing_outline(e);
+            for (i, &actual) in outline.iter().enumerate() {
+                let t = TAU * i as f32 / N as f32;
+                let reference = |v: f32| {
+                    if v.abs() < 1e-6 {
+                        0.
+                    } else {
+                        v.signum() * v.abs().powf(2. / e)
+                    }
+                };
+                assert_eq!(actual, Vec2::new(reference(t.cos()), reference(t.sin())));
+            }
+            for i in 24..32 {
+                let p = (outline[i] * 0.29 + outline[(i + 1) % 32] * 0.71) * half;
+                assert!((housing_front_z(half, e, p.x) - p.y).abs() < 3e-6);
             }
         }
     }

@@ -14,6 +14,7 @@ pub(crate) mod floor;
 pub mod functional;
 mod furnishing;
 pub mod kitchen;
+mod printers;
 mod programs;
 pub(crate) mod refreshments;
 mod sampling;
@@ -179,6 +180,10 @@ pub struct IndoorObject {
     /// Cable destination instance; `interaction_target` identifies its source.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cable_target: Option<usize>,
+    /// Zero-based mains receptacle on a wall plate, floor box or power strip.
+    /// Older routes use its first receptacle. Dedicated data and USB ports omit this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cable_target_socket: Option<u8>,
 }
 
 impl IndoorObject {
@@ -219,6 +224,7 @@ impl IndoorObject {
                     (c - half, c + half)
                 }),
         )
+        .chain(super::objects::equipment::wires::MainsPlug::world(self).map(|plug| plug.bounds()))
         .chain(self.cable_path.iter().flat_map(move |path| {
             path.windows(2).map(move |pair| {
                 let a = tf.transform_point(pair[0]);
@@ -262,9 +268,14 @@ impl IndoorObject {
         }
     }
 
-    pub(crate) fn wall_clearance(&self) -> f32 {
+    pub(crate) fn wall_clearance(&self, generator: u32) -> f32 {
         if self.kind == ObjectKind::BaseboardHeater {
             0.006
+        } else if self.kind == ObjectKind::Locker
+            && self.variant == super::objects::public::education::WALL_BANK
+            && generator >= super::objects::public::education::FITTED_VERSION
+        {
+            0.045
         } else if super::objects::kitchen::is_island(self) {
             0.90
         } else if self.kind.is_kitchen() && self.solid {
@@ -624,6 +635,7 @@ impl IndoorManifest {
         if scene.layout.is_public() {
             scene.dress_public_programs();
         }
+        let pending_printer = scene.furnish_worktop_printer();
         scene.furnish_supported_botany();
         scene.scatter_clutter();
         scene.finish_program_equipment();
@@ -633,14 +645,19 @@ impl IndoorManifest {
         // Pin the reconstruction room before its fixtures and occupants use it.
         scene.add_baseboard_heaters();
         scene.select_primary_room();
+        scene.furnish_entry_coat_rack();
         scene.furnish_ceiling_fans();
         scene.furnish_wall_installations();
         scene.furnish_area_rugs();
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
         scene.furnish_floor_details();
+        if let Some(printer) = pending_printer {
+            scene.furnish_print_stand(printer);
+        }
         scene.connect_equipment();
         scene.finish_floor_outlets();
+        scene.finish_counter_flatware();
         scene.record_program_services();
         scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
@@ -661,7 +678,7 @@ impl IndoorManifest {
         yaw: f32,
         rng: &mut ChaCha8Rng,
     ) -> IndoorObject {
-        IndoorObject {
+        let mut object = IndoorObject {
             finish_seed: None,
             id: self.objects.len(),
             kind,
@@ -690,7 +707,24 @@ impl IndoorManifest {
             interaction_target: None,
             cable_path: None,
             cable_target: None,
+            cable_target_socket: None,
+        };
+        if kind == ObjectKind::Clock && self.generator_version >= 201 {
+            super::objects::clocks::install(&mut object, self.seed, self.lighting);
         }
+        if kind == ObjectKind::Laptop && self.generator_version >= 205 {
+            object.variant |= super::objects::computers::io::FITTED_IO;
+        }
+        if kind == ObjectKind::Notebook && self.generator_version >= 199 {
+            object.variant |= super::objects::literature::SPREAD_BINDING;
+        }
+        if kind == ObjectKind::TissueBox {
+            super::objects::containers::tissue::fit_proposal(&mut object);
+        }
+        if kind == ObjectKind::Rug {
+            object.variant = super::objects::floor::rug::Cut::sample(object.seed, size) as u32;
+        }
+        object
     }
 
     /// Resolve base-floor proposals without modifying explicit upper-floor heights.
@@ -759,7 +793,7 @@ impl IndoorManifest {
         let footprint = Footprint::object(object);
         let (lo, hi) = object.bounds();
         let half = self.room_size * 0.5;
-        let wall_clearance = object.wall_clearance();
+        let wall_clearance = object.wall_clearance(self.generator_version);
         if self.envelope.as_ref().is_some_and(|e| {
             !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), wall_clearance)
                 || !self.floor_support_clear(lo, hi)
@@ -791,8 +825,11 @@ impl IndoorManifest {
             return false;
         }
         if self.functional_programs().iter().any(|p| {
-            p.members.contains(&object.id)
-                && (lo.x < p.min.x || hi.x > p.max.x || lo.z < p.min.y || hi.z > p.max.y)
+            if !p.members.contains(&object.id) {
+                return false;
+            }
+            let (min, max) = p.member_region(self, object);
+            lo.x < min.x || hi.x > max.x || lo.z < min.y || hi.z > max.y
         }) {
             return false;
         }
@@ -855,6 +892,7 @@ impl IndoorManifest {
             .cloned()
             .collect();
         let walls = self.columns();
+        let mut loose_stools = Vec::new();
         for chair in self
             .objects
             .iter_mut()
@@ -866,10 +904,12 @@ impl IndoorManifest {
                 continue;
             }
             let forward = Quat::from_rotation_y(chair.yaw) * Vec3::NEG_Z;
-            chair.interaction_target = surfaces
+            let target = surfaces
                 .iter()
                 .filter_map(|surface| {
                     if surface.neighbor != chair.neighbor
+                        || (matches!(chair.variant, 6 | 7)
+                            && !super::objects::chairs::stool::same_floor(chair, surface))
                         || (surface.position.y - chair.position.y).abs() > 0.05
                     {
                         return None;
@@ -901,6 +941,24 @@ impl IndoorManifest {
                 })
                 .min_by(|a, b| a.1.total_cmp(&b.1))
                 .map(|(id, _)| id);
+            if matches!(chair.variant, 6 | 7) {
+                if let Some(id) = target {
+                    loose_stools.push((chair.id, id));
+                }
+            } else {
+                chair.interaction_target = target;
+            }
+        }
+        // A loose stool can be paired only if it still fits at working height.
+        // Prearranged sets already used their worktop during construction.
+        for (id, target) in loose_stools {
+            let mut chair = self.objects[id].clone();
+            chair.interaction_target = Some(target);
+            chair.size.y =
+                super::objects::chairs::stool::fitted_envelope(&chair, Some(&self.objects[target]));
+            if self.placement_clear(&chair, 0.0) {
+                self.objects[id] = chair;
+            }
         }
     }
 
@@ -1054,6 +1112,11 @@ impl IndoorManifest {
         if !self.orient_and_check_prop(&mut obj, support) {
             self.rejected_placements += 1;
             return false;
+        }
+        if kind == ObjectKind::Mouse
+            && self.generator_version >= super::objects::desktop::pointer::INTRODUCED
+        {
+            super::objects::desktop::pointer::fit_operator_side(&mut obj, &self.objects);
         }
         self.objects.push(obj);
         true

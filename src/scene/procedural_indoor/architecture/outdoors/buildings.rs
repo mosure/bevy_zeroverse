@@ -36,24 +36,30 @@ pub(super) fn build(
     viewed_side: Option<usize>,
 ) -> Option<streets::Entrance> {
     let mut entrance = None;
-    let mut wings = vec![(Vec2::ZERO, p.size, b.levels)];
-    if b.split < 1. {
-        let left = p.size.x * b.split;
-        let right = p.size.x - left;
-        wings = vec![
-            (
-                Vec2::new(-right * 0.5, 0.),
-                Vec2::new(left, p.size.y),
-                b.levels,
-            ),
-            (
-                Vec2::new(left * 0.5, (p.size.y * (b.wing_depth - 1.)) * 0.5),
-                Vec2::new(right, p.size.y * b.wing_depth),
-                b.wing_levels,
-            ),
-        ];
-    }
-    for (origin, footprint, levels) in wings {
+    let left = p.size.x * b.split;
+    let right = p.size.x - left;
+    let primary = if b.split < 1. {
+        (
+            Vec2::new(-right * 0.5, 0.),
+            Vec2::new(left, p.size.y),
+            b.levels,
+        )
+    } else {
+        (Vec2::ZERO, p.size, b.levels)
+    };
+    let secondary = (b.split < 1.).then(|| {
+        (
+            Vec2::new(left * 0.5, p.size.y * (b.wing_depth - 1.) * 0.5),
+            Vec2::new(right, p.size.y * b.wing_depth),
+            b.wing_levels,
+        )
+    });
+    let mut doors = [None; 2];
+    for ((origin, footprint, levels), door) in [Some(primary), secondary]
+        .into_iter()
+        .flatten()
+        .zip(&mut doors)
+    {
         let mut top = (origin, footprint);
         for level in 0..levels {
             let inset = if level >= b.terrace_level && footprint.min_element() > 2.8 {
@@ -104,8 +110,11 @@ pub(super) fn build(
             );
             // On a setback wing a diagonal approach could hit the adjoining
             // wing. Use a door on the foremost plane of the assembled footprint.
-            if level == 0 && origin.y + footprint.y * 0.5 >= p.size.y * 0.5 - 0.001 {
-                entrance = doorway;
+            if level == 0 {
+                *door = doorway;
+                if origin.y + footprint.y * 0.5 >= p.size.y * 0.5 - 0.001 {
+                    entrance = doorway;
+                }
             }
             // A shallow slab overlaps its wall at an internal face, leaving no
             // coplanar exterior cap. Upper floors remain supported inside it.
@@ -121,6 +130,10 @@ pub(super) fn build(
             top = (offset, size);
         }
         roofs::build(a, p, b, top.0, top.1, levels as f32 * b.pitch - 0.045);
+    }
+    if let Some(course) = &b.plinth {
+        let notch = secondary.map(|(center, size, _)| center + size * Vec2::new(-0.5, 0.5));
+        course.build(a, p, b, notch, &doors);
     }
     entrance
 }
@@ -154,6 +167,14 @@ fn facade(
     let frames = ["window", "door"].map(|name| finish(b.frame, name, p.seed));
     let panes = ["window", "door"].map(|name| finish(Surface::Glass, name, p.seed));
     let mut entrance = None;
+    let fin_lift = if level == 0 {
+        b.plinth
+            .as_ref()
+            .and_then(|course| course.top(b))
+            .map_or(0., |top| (top - bottom + 0.004 - 0.09).max(0.))
+    } else {
+        0.
+    };
     for side in 0..4 {
         let (axis, normal, width, depth) = if side % 2 == 0 {
             (Vec3::X, Vec3::Z, size.x, size.y)
@@ -355,8 +376,11 @@ fn facade(
                     p,
                     b.frame,
                     "other_structure",
-                    origin + axis * (u + cell * 0.5) + Vec3::Y * b.pitch * 0.5 + normal * 0.07,
-                    axis.abs() * 0.04 + Vec3::Y * (b.pitch - 0.18) + normal.abs() * 0.15,
+                    origin
+                        + axis * (u + cell * 0.5)
+                        + Vec3::Y * ((b.pitch + fin_lift) * 0.5)
+                        + normal * 0.07,
+                    axis.abs() * 0.04 + Vec3::Y * (b.pitch - 0.18 - fin_lift) + normal.abs() * 0.15,
                     0.,
                 );
             }
@@ -364,9 +388,8 @@ fn facade(
         if let Some(room) = room.filter(|_| has_opening) {
             room.build(a, &face);
         }
-        // Plinth/sill courses and rainwater goods have metric rather than
-        // fixed relative sizes, while respecting each facade's bay envelope.
-        if level == 0 && side != 0 {
+        // Replay the independent side strips of pre-197 manifests.
+        if b.plinth.is_none() && level == 0 && side != 0 {
             box_at(
                 a,
                 p,

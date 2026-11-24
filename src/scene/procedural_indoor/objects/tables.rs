@@ -4,6 +4,9 @@ mod clearance;
 mod conference;
 mod outline;
 mod rows;
+mod sheet;
+pub(crate) use sheet::REGISTERED_SHEET_VERSION;
+pub use sheet::{sheet_cut, SheetCut, SheetEdge};
 mod structure;
 mod supports;
 #[cfg(test)]
@@ -222,34 +225,22 @@ pub(crate) fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32
             })
         })
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let s = o.size;
     let p = parameters(o);
     let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
+    let stock = top::TopStock::sample(o, &p, version);
     if o.variant == SHARED_ROW_VARIANT {
-        rows::top(a, o, &p, &outline);
+        rows::top(a, o, &p, &outline, &stock);
     } else if o.variant == BOARDROOM_VARIANT {
-        conference::joined_top(a, o, &p, &outline);
+        conference::joined_top(a, o, &p, &outline, &stock);
     } else {
         let tf = Transform::from_xyz(0., s.y - p.top_thickness * 0.5, 0.);
-        top::TopStock::sample(o, &p).build(a, o, &p, &outline, tf, 0);
+        stock.build(a, o, &p, &outline, tf, 0);
     }
     let edge: Vec<_> = outline.iter().map(|p| *p * 0.985).collect();
-    a.part(
-        if p.top_surface == Surface::Wood {
-            Surface::WoodEdge
-        } else {
-            p.top_surface
-        },
-        &super::super::materials::worktop_finish::table_label(o, p.top_surface),
-    )
-    .profile_slab(
-        &edge,
-        0.012,
-        0.003,
-        Transform::from_xyz(0.0, underside - 0.006, 0.0),
-    );
+    stock.backing(a, o, &edge, underside, p.top_surface, version);
     build_structure(a, o, &p, &outline);
 }
 

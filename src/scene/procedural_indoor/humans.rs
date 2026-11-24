@@ -4,7 +4,9 @@ pub mod appearance;
 pub(crate) mod body;
 pub mod contact;
 pub mod eyes;
+pub mod eyewear;
 mod face;
+pub mod finishes;
 #[cfg(test)]
 mod floor_clearance_tests;
 pub mod footwear;
@@ -153,6 +155,21 @@ pub struct IndoorHuman {
 }
 
 impl IndoorHuman {
+    pub(crate) fn foot_support_height(&self) -> f32 {
+        self.pose_program
+            .as_ref()
+            .and_then(|p| p.stool_support)
+            .filter(|s| self.pose.seated() && s.uses_rail(self.stature))
+            .map_or(0., |s| s.rail_top_m)
+    }
+
+    pub(crate) fn arm_lengths(&self) -> [f32; 2] {
+        self.pose_program
+            .as_ref()
+            .map(|p| p.limb_proportions)
+            .unwrap_or_default()
+            .arm_lengths(self.stature / 1.75)
+    }
     pub(crate) fn has_coiled_hair(&self) -> bool {
         matches!(
             hair::HairStyle::from_id(self.hairstyle),
@@ -181,7 +198,22 @@ impl IndoorHuman {
         (lo, hi)
     }
     pub fn material_color(&self, surface: HumanSurface) -> Color {
-        if let Some(color) = self.appearance.as_ref().and_then(|a| a.color(surface)) {
+        if let Some((appearance, color)) = self
+            .appearance
+            .as_ref()
+            .and_then(|a| a.color(surface).map(|c| (a, c)))
+        {
+            if surface == HumanSurface::Hair && self.hairstyle == hair::HairStyle::Buzz as u8 {
+                if let (Some(cut), Some(skin)) = (
+                    appearance.hair_program.scalp_cut,
+                    appearance.color(HumanSurface::Skin),
+                ) {
+                    return skin
+                        .to_linear()
+                        .mix(&color.to_linear(), cut.buzz_coverage())
+                        .into();
+                }
+            }
             return color;
         }
         let skin = [
@@ -399,6 +431,14 @@ pub(crate) fn person_material(
             m.uv_transform *= bevy::math::Affine2::from_scale(Vec2::splat(0.5));
             m
         }
+    } else if surface == HumanSurface::ShoeDetail
+        && person
+            .appearance
+            .as_ref()
+            .is_some_and(|a| a.footwear.construction.is_some())
+    {
+        // Braided laces or apron stitching. These are dyed fibres, not outsole rubber.
+        materials.get(&indoor_materials.cloth).unwrap().clone()
     } else if matches!(surface, HumanSurface::Sole | HumanSurface::ShoeDetail) {
         materials
             .get(&indoor_materials.get(super::materials::Surface::Rubber))
@@ -409,7 +449,14 @@ pub(crate) fn person_material(
     };
     material.base_color = person.material_color(surface);
     if surface == HumanSurface::Lens {
-        material.base_color = Color::srgba(0.94, 0.98, 1.0, 0.045);
+        material.base_color = person
+            .appearance
+            .as_ref()
+            .and_then(|a| a.face.eyewear)
+            .map_or_else(
+                || Color::srgba(0.94, 0.98, 1.0, 0.045),
+                |frame| frame.lens_color(),
+            );
         material.alpha_mode = AlphaMode::Blend;
         material.perceptual_roughness = 0.045;
         material.reflectance = 0.5;
@@ -440,32 +487,64 @@ pub(crate) fn person_material(
     if let Some(appearance) = &person.appearance {
         if cloth {
             // Preserve the spatial roughness map and only modulate it gently.
-            material.perceptual_roughness = 0.72 + appearance.cloth_roughness * 0.25;
-            material.uv_transform *= appearance.weave_uv_transform();
-            material.anisotropy_rotation -= appearance.weave_rotation;
+            let (_, angle, roughness) = appearance.cloth_grain(surface);
+            material.perceptual_roughness = 0.72 + roughness * 0.25;
+            material.uv_transform *= appearance.weave_uv_transform(surface);
+            material.anisotropy_rotation -= angle;
         }
         if matches!(surface, HumanSurface::Skin | HumanSurface::Lip) {
             material.perceptual_roughness = appearance.skin_roughness;
             material.reflectance = 0.42;
+            if surface == HumanSurface::Lip {
+                if let Some(c) = &appearance.face.complexion {
+                    material.perceptual_roughness =
+                        appearance.skin_roughness * (0.98 - 0.44 * c.lip_moisture);
+                }
+            }
         }
         if surface == HumanSurface::Eyewear {
             material.metallic = appearance.face.frame_metallic;
         }
         if surface == HumanSurface::Shoes {
             material.perceptual_roughness = 0.95 - appearance.footwear.leather * 0.15;
+            if appearance.footwear.construction.is_some() && appearance.footwear.leather >= 0.45 {
+                material.perceptual_roughness = 0.90 - 0.33 * appearance.footwear.leather;
+            }
+        }
+        if surface == HumanSurface::ShoeDetail && appearance.footwear.construction.is_some() {
+            material.perceptual_roughness = 0.88;
         }
     }
     if surface == HumanSurface::Hair {
         hair::finish_material(&mut material, person);
     }
     if surface == HumanSurface::Eyewear {
-        material.perceptual_roughness = 0.27;
+        material.perceptual_roughness = person
+            .appearance
+            .as_ref()
+            .and_then(|a| a.face.eyewear)
+            .map_or(0.27, |frame| frame.frame_roughness);
     }
     if surface == HumanSurface::FacialHair {
         material.perceptual_roughness = 0.88;
         material.reflectance = 0.22;
         material.anisotropy_strength = 0.0;
-        material.uv_transform = bevy::math::Affine2::from_scale(Vec2::splat(24.0));
+    }
+    if matches!(
+        surface,
+        HumanSurface::Skin | HumanSurface::Lip | HumanSurface::FacialHair
+    ) {
+        if let Some(c) = person
+            .appearance
+            .as_ref()
+            .and_then(|a| a.face.complexion.as_ref())
+        {
+            material.uv_transform = bevy::math::Affine2::from_scale_angle_translation(
+                Vec2::splat(c.pore_repeat),
+                0.,
+                Vec2::from_array(c.pore_phase),
+            );
+        }
     }
     if matches!(
         surface,
@@ -663,7 +742,7 @@ fn update_bounds(human: &mut IndoorHuman) {
         lo = lo.min(a.min(b) - Vec3::splat(r));
         hi = hi.max(a.max(b) + Vec3::splat(r));
     }
-    human.bounds_min = lo.with_y(0.0) - Vec3::new(0.055, 0.0, 0.055);
+    human.bounds_min = lo.with_y(human.foot_support_height()) - Vec3::new(0.055, 0.0, 0.055);
     human.bounds_max = hi + Vec3::splat(0.055);
 }
 
@@ -986,6 +1065,15 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             };
             let transform = object.transform();
             let jacket = super::objects::equipment::wires::bound_radius(object);
+            if let Some(plug) = super::objects::equipment::wires::MainsPlug::world(object) {
+                let (p, q) = plug.bounds();
+                if capsules
+                    .iter()
+                    .any(|&(a, b, r)| super::layout::segment_hits_box(a, b, p - r, q + r))
+                {
+                    return false;
+                }
+            }
             if path.windows(2).any(|pair| {
                 capsules.iter().any(|&(a, b, r)| {
                     super::objects::equipment::wires::segment_distance_squared(
@@ -1081,6 +1169,26 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
     }
     for (index, human) in scene.humans.iter().enumerate() {
         if let Some(program) = &human.pose_program {
+            if let Some(support) = program.stool_support {
+                let chair = human
+                    .chair
+                    .and_then(|id| scene.objects.get(id))
+                    .filter(|o| {
+                        human.pose.seated()
+                            && o.kind == ObjectKind::Chair
+                            && matches!(o.variant, 6 | 7)
+                    })
+                    .ok_or("stool pose lacks its support")?;
+                let actual =
+                    super::objects::chairs::stool::parameters_at(chair, scene.generator_version)
+                        .support(chair);
+                if !support.matches(actual) {
+                    return Err("seated pose and stool support dimensions disagree".into());
+                }
+            }
+            if !program.limb_proportions.valid() {
+                return Err("invalid skeletal limb proportions".into());
+            }
             if !program.head_pitch.is_finite()
                 || program.head_pitch.abs() > 0.5
                 || !program.head_roll.is_finite()
@@ -1157,6 +1265,18 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
                 return Err("invalid sewn torso ease or taper".into());
             }
             appearance.footwear.validate()?;
+            if appearance
+                .face
+                .complexion
+                .as_ref()
+                .is_some_and(|c| !c.valid())
+                || appearance.layers.as_ref().is_some_and(|f| !f.valid())
+            {
+                return Err("invalid complexion or clothing finish".into());
+            }
+            if appearance.face.eyewear.is_some_and(|frame| !frame.valid()) {
+                return Err("invalid fitted eyewear dimensions or finish".into());
+            }
             appearance.hair_program.validate()?;
             if let Some(program) = &appearance.body_program {
                 program.validate()?;

@@ -15,7 +15,9 @@ Scene Studio uses the same validated policies as native generation and the brows
 
 **F11** toggles fullscreen independently of F1. The same setting is in **View & playback → Viewport & annotation**. Start the native viewer with `--fullscreen` or open the browser with `?fullscreen=true`. A browser needs a click or keypress to enter fullscreen from a link.
 
-The same group offers **RGB tone mapping** and **HDR RGB output**. Automatic uses Tony McMapface for SDR and Bevy’s linear curve for HDR. You can also pick any of Bevy’s ten curves. **Linear** retains grading and exposure, while **None** bypasses the tone-mapping stage. Changes apply immediately to the editor and capture grid, including fisheye views. Numeric annotations keep their own rendering path.
+**View & playback → RGB display & anti-aliasing** offers **RGB tone mapping** and **HDR RGB output**. Automatic uses Tony McMapface for SDR and Bevy’s linear curve for HDR. You can also pick any of Bevy’s ten curves. **Linear** retains grading and exposure, while **None** bypasses the tone-mapping stage. Changes apply immediately to the editor and capture grid, including fisheye views. Numeric annotations keep their own rendering path.
+
+Native builds with `--features solari` also offer **RGB preview lighting** in this section. Select **Solari · experimental** to preview ray-traced opaque surfaces, or launch with `--preview-lighting solari`. Raster PBR is the default for Studio and dataset generation. [Lighting support and costs](procedural_indoor_gi.md#experimental-solari-preview).
 
 Use `--hdr --tonemapping auto` or `?hdr=true&tonemapping=agx`. The Studio reports the negotiated output in the footer. HDR requires a compatible monitor, OS display mode and adapter. On an SDR display the automatic preview retains the SDR curve. Windowless HDR capture is independent of the monitor and retains highlights above 1.0 in floating-point RGB. JPEG previews use the SDR range.
 
@@ -23,9 +25,39 @@ Use `--hdr --tonemapping auto` or `?hdr=true&tonemapping=agx`. The Studio report
 
 **Next scene interval** is the minimum time each room stays on screen. Studio prepares one successor during playback. A rejected seed or a room that spends 60 seconds in preparation, uploads and material baking is skipped. A ready room can wait for any configured display interval. The console records the attempted seed and the phase of a timeout. The browser URL follows the displayed room. Setting the interval to zero cancels the pending automatic transition.
 
-The standalone native `--kiosk` viewer also monitors presentation independently of the window thread. If a visible, active kiosk goes 60 seconds without a rendered window frame, it reopens with the current settings and advances past the last attempted seed. Three expired room deadlines without a successful transition also trigger recovery. After three unsuccessful restarts the process exits with a diagnostic. Closing the window exits normally.
+The kiosk preset (`--kiosk` or `?kiosk`) presents one RGB camera fullscreen, requests HDR and TAA, and keeps each room on screen for at least 30 seconds. Its camera follows a smoothstep trajectory with a 2 m minimum path length and up to 10° of roll in either direction. It samples pinhole and full-frame fisheye lenses. Explicit launch settings override the preset.
+
+The standalone native kiosk also monitors presentation independently of the window thread. If a visible, active kiosk goes 60 seconds without a rendered window frame, it reopens with the current settings and advances past the last attempted seed. Three expired room deadlines without a successful transition also trigger recovery. After three unsuccessful restarts the process exits with a diagnostic. Closing the window exits normally.
 
 Controls are declared in `src/app/editor/fields/`, separate from retained Feathers widgets, distribution previews, validated editor state, and URL encoding. Updating a continuous control preserves its widget identity, focus and scroll position. Human motion controls do not initialize models until an enabled policy is applied.
+
+## Preview and capture anti-aliasing
+
+Search **Find setting** for **Preview anti-aliasing** to change the Studio RGB view live.
+For fine patterns in a kiosk grid, run `bevy_zeroverse --kiosk --ssaa-factor 2`
+or open `?kiosk&ssaa_factor=2`. Studio shows the active filters and supersampling
+factor for each distinct camera configuration.
+
+| Preview choice | Behavior |
+| --- | --- |
+| Automatic | Uses TAA for the editor and kiosk. Ordinary capture grids use the scene default. |
+| TAA (kiosk default) | Full-viewport pinhole views accumulate jittered frames. Fisheye views use SMAA High on the source faces and filter the final lens warp. Inset pinhole views use SMAA Ultra. |
+| TAA + FXAA (`--preview-aa taa-fxaa`, `?preview_aa=taa-fxaa`) | Smooths residual high-contrast pinhole edges after tone mapping. This adds a fullscreen pass and can soften small text. Fisheye views use SMAA Ultra and the filtered lens warp. Inset pinhole views use SMAA Ultra. |
+| MSAA 2×, 4× or 8× | Uses the highest supported sample count up to the request, with SMAA High as a fallback. Native screen-space ambient occlusion requires a single-sample view. |
+| Off, FXAA, SMAA High or SMAA Ultra | Selects the preview filter directly. |
+
+Bevy requires MSAA to be off for TAA. Both temporal preview choices can be combined with
+`--ssaa-factor 2` for fine blinds and railings. This doubles the grid camera raster in
+each dimension and costs more GPU time and memory. A larger RGB tile can display the
+extra raster detail directly. Cameras with sensor artifacts display the processed image
+at the configured output resolution. Use `--width` and `--height` to match that
+resolution to a fullscreen display.
+
+For dataset RGB, **Capture & tools → Capture & export → Capture supersampling (SSAA)**
+sets the sampling factor. Auto (`--ssaa-factor 0`) uses 2× per dimension for images
+under 921,600 pixels (1280 × 720) and can select 3× or 4× for fine window shades in small
+indoor captures. Set 1 for native resolution or 2, 3 or 4 for a fixed factor.
+The GPU averages RGB samples. Geometry and class labels use the final pixel-center rays.
 
 ## Navigating groups
 

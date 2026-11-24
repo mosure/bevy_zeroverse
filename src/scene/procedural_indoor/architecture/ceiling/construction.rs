@@ -1,8 +1,11 @@
 //! Bounded local assemblies. All geometry shares the camera/placement reserve.
+mod duct;
 mod grid;
 mod panels;
 mod recesses;
+mod register;
 mod services;
+mod sprinkler;
 mod truss;
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
@@ -104,11 +107,14 @@ fn build_internal(
     anchors_only: bool,
 ) -> Vec<Vec3> {
     let Some(detail) = &m.detail else {
-        super::legacy::build(a, scene, m);
+        if !anchors_only {
+            super::legacy::build(a, scene, m);
+        }
         return vec![];
     };
     let f = Frame::new(m, detail.finish);
     let mut local = Assembly::default();
+    let service_mesh = (!anchors_only).then_some(&mut local);
     let anchors = match detail.shape {
         CeilingShape::Coffer {
             aspect,
@@ -162,8 +168,8 @@ fn build_internal(
             rise,
             branches,
             seam_pitch_m,
-        } => services::duct(
-            &mut local,
+        } => duct::build(
+            service_mesh,
             &f,
             section,
             end_scale,
@@ -171,6 +177,7 @@ fn build_internal(
             rise,
             branches,
             seam_pitch_m,
+            scene.generator_version,
         ),
         CeilingShape::Sprinkler {
             radius_m,
@@ -178,12 +185,13 @@ fn build_internal(
             head_pitch_m,
             upright,
         } => services::sprinkler(
-            &mut local,
+            service_mesh,
             &f,
             radius_m,
             branch_reach,
             head_pitch_m,
             upright,
+            scene.generator_version,
         ),
         CeilingShape::Conduit {
             count,
@@ -192,7 +200,7 @@ fn build_internal(
             rise,
             junction_pitch_m,
         } => services::conduit(
-            &mut local,
+            service_mesh,
             &f,
             count,
             radius_m,
@@ -204,7 +212,7 @@ fn build_internal(
             cables,
             rung_pitch_m,
             rise,
-        } => services::tray(&mut local, &f, cables, rung_pitch_m, rise),
+        } => services::tray(service_mesh, &f, cables, rung_pitch_m, rise),
         CeilingShape::Truss {
             web,
             chord_radius_m,

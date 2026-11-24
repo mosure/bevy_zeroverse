@@ -24,6 +24,18 @@ pub struct GlazingProgram {
     pub opening: f32,
 }
 impl GlazingProgram {
+    pub(crate) fn treatment_name(&self) -> &'static str {
+        match self.treatment {
+            0 => "Clear",
+            1 => "UniformFrost",
+            2 => "PrivacyBand",
+            3 => "Gradient",
+            4 => "Dots",
+            5 => "EtchedStripes",
+            6 => "CeramicFrit",
+            _ => "Unknown",
+        }
+    }
     pub(crate) fn glass_recipe(&self) -> glass::GlassRecipe {
         let mut recipe = glass::GlassRecipe::sample(self.installation, Surface::Glass);
         recipe.thickness_m = self.thickness_m;
@@ -97,11 +109,34 @@ impl GlazingProgram {
     }
 }
 
-fn roughness_image(program: &GlazingProgram, opening: &WindowOpening, clear: f32) -> Image {
+#[derive(Clone, Copy)]
+enum MapFootprint {
+    Opening,
+    /// Only height varies across this installation, including at grazing angles.
+    VerticalStrip,
+}
+
+fn roughness_texel(moment: f32) -> u8 {
+    (moment.sqrt().sqrt() * 255.).round() as u8
+}
+
+fn roughness_image(
+    program: &GlazingProgram,
+    opening: &WindowOpening,
+    clear: f32,
+    footprint: MapFootprint,
+) -> Image {
     const SIZE: u32 = 128;
-    let mut moments: Vec<f32> = (0..SIZE * SIZE)
+    // Only dots vary across X. Evaluate each distinct row once. Exterior maps
+    // keep their full width for the same GPU mip selection at grazing angles.
+    let mut cols = if program.treatment == 4 { SIZE } else { 1 };
+    let width = match footprint {
+        MapFootprint::Opening => SIZE,
+        MapFootprint::VerticalStrip => cols,
+    };
+    let mut moments: Vec<f32> = (0..cols * SIZE)
         .map(|i| {
-            let p = Vec2::new((i % SIZE) as f32, (i / SIZE) as f32);
+            let p = Vec2::new((i % cols) as f32, (i / cols) as f32);
             [
                 Vec2::new(0.25, 0.25),
                 Vec2::new(0.75, 0.25),
@@ -119,22 +154,33 @@ fn roughness_image(program: &GlazingProgram, opening: &WindowOpening, clear: f32
                 * 0.25
         })
         .collect();
-    let mut bytes = Vec::new();
+    let texels = if width == 1 {
+        2 * SIZE - 1
+    } else {
+        (4 * SIZE * SIZE - 1) / 3
+    };
+    let mut bytes = Vec::with_capacity(4 * texels as usize);
+    let mut mip_width = width;
     let mut n = SIZE;
     loop {
         for &m in &moments {
-            bytes.extend([255, (m.sqrt().sqrt() * 255.).round() as u8, 0, 255]);
+            let texel = [255, roughness_texel(m), 0, 255];
+            for _ in 0..mip_width / cols {
+                bytes.extend_from_slice(&texel);
+            }
         }
         if n == 1 {
             break;
         }
-        let mut next = Vec::with_capacity((n * n / 4) as usize);
+        let next_cols = (cols / 2).max(1);
+        let mut next = Vec::with_capacity((n / 2 * next_cols) as usize);
+        let dx = u32::from(cols > 1);
         for y in 0..n / 2 {
-            for x in 0..n / 2 {
+            for x in 0..next_cols {
                 next.push(
-                    [0, 1, n, n + 1]
+                    [0, dx, cols, cols + dx]
                         .iter()
-                        .map(|d| moments[(y * 2 * n + x * 2 + d) as usize])
+                        .map(|d| moments[(y * 2 * cols + x * 2 + d) as usize])
                         .sum::<f32>()
                         * 0.25,
                 );
@@ -142,15 +188,16 @@ fn roughness_image(program: &GlazingProgram, opening: &WindowOpening, clear: f32
         }
         moments = next;
         n /= 2;
+        mip_width = (mip_width / 2).max(1);
+        cols = next_cols;
     }
-    let mut image = Image::new(
+    let mut image = Image::new_uninit(
         Extent3d {
-            width: SIZE,
+            width,
             height: SIZE,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        vec![0; (SIZE * SIZE * 4) as usize],
         TextureFormat::Rgba8Unorm,
         RenderAssetUsages::default(),
     );
@@ -173,6 +220,9 @@ pub(super) fn build(
     images: &mut impl super::super::preparation::AssetStore<Image>,
     materials: &mut impl super::super::preparation::AssetStore<StandardMaterial>,
 ) -> BTreeMap<u64, Handle<StandardMaterial>> {
+    use crate::scene::procedural_indoor::architecture::interior_glazing::{
+        partition_height, shared_facade, InteriorGlazing,
+    };
     let facades: Vec<_> = if let Some(envelope) = &scene.envelope {
         envelope
             .walls
@@ -192,10 +242,22 @@ pub(super) fn build(
         .as_ref()
         .and_then(|p| p.windows.as_ref())
         .map(|w| &w.facade);
-    for opening in facades
+    // All entry-wall bays have the same vertical UV range and a height-only
+    // treatment. Register just one material, and none for a solid wall.
+    let shared = (scene.envelope.is_some()
+        && InteriorGlazing::for_scene(scene).is_some_and(|p| p.vision_panels.is_some()))
+    .then(|| shared_facade(scene, partition_height(scene)));
+    for (opening, footprint) in facades
         .into_iter()
         .chain(adjoining)
         .flat_map(|f| &f.openings)
+        .map(|o| (o, MapFootprint::Opening))
+        .chain(
+            shared
+                .as_ref()
+                .and_then(|f| f.openings.first())
+                .map(|o| (o, MapFootprint::VerticalStrip)),
+        )
     {
         let Some(program) = &opening.glazing else {
             continue;
@@ -203,10 +265,23 @@ pub(super) fn build(
         let recipe = program.glass_recipe();
         let mut material = StandardMaterial::default();
         recipe.apply(&mut material, quality);
-        if (1..=5).contains(&program.treatment) {
-            material.metallic_roughness_texture =
-                Some(images.add(roughness_image(program, opening, recipe.roughness)));
-            material.perceptual_roughness = 1.;
+        match program.treatment {
+            1 => {
+                // Uniform frost is constant across every texel and mip. Match
+                // the original UNORM8 material input without uploading a map.
+                let uniform = recipe.roughness.lerp(program.frost_roughness, 1.);
+                material.perceptual_roughness = f32::from(roughness_texel(uniform.powi(4))) / 255.;
+            }
+            2..=5 => {
+                material.metallic_roughness_texture = Some(images.add(roughness_image(
+                    program,
+                    opening,
+                    recipe.roughness,
+                    footprint,
+                )));
+                material.perceptual_roughness = 1.;
+            }
+            _ => {}
         }
         result.insert(program.identity, materials.add(material));
     }
@@ -214,56 +289,4 @@ pub(super) fn build(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn treatments_are_metric_bounded_and_replayable() {
-        let mut treatments = std::collections::BTreeSet::new();
-        for seed in 0..256 {
-            let p = GlazingProgram::sample(seed, 0, true);
-            p.validate().unwrap();
-            treatments.insert(p.treatment);
-            assert_eq!(p, GlazingProgram::sample(seed, 0, true));
-            assert_eq!(p.band_m, GlazingProgram::sample(seed, 3, true).band_m);
-            assert_eq!(
-                p.thickness_m,
-                GlazingProgram::sample(seed, 1, true).thickness_m
-            );
-            for y in 0..100 {
-                let f = p.frost(Vec2::new(0.13, y as f32 * 0.04));
-                assert!((0.0..=1.).contains(&f));
-            }
-        }
-        assert_eq!(treatments.len(), 7);
-    }
-    #[test]
-    fn roughness_pyramid_keeps_energy_and_full_chain() {
-        let mut p = GlazingProgram::sample(21, 0, false);
-        p.treatment = 2;
-        let opening = WindowOpening {
-            min: Vec2::ZERO,
-            max: Vec2::new(2., 3.),
-            columns: 1,
-            transoms: Vec::new(),
-            transom: 0.,
-            operable: false,
-            glazing: Some(p.clone()),
-        };
-        let image = roughness_image(&p, &opening, 0.025);
-        assert_eq!(image.texture_descriptor.mip_level_count, 8);
-        let bytes = image.data.unwrap();
-        assert_eq!(
-            bytes.len(),
-            (0..8).map(|i| 4 * (128usize >> i).pow(2)).sum::<usize>()
-        );
-        let mean = bytes[..128 * 128 * 4]
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|b| (b[1] as f32 / 255.).powi(4))
-            .sum::<f32>()
-            / (128. * 128.);
-        let tail = (bytes[bytes.len() - 3] as f32 / 255.).powi(4);
-        assert!((mean - tail).abs() < 0.001);
-    }
-}
+mod tests;

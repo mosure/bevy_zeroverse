@@ -17,22 +17,19 @@ fn one_order_shares_its_construction_but_takes_individual_surface_cuts() {
         );
         substrates.insert(pa.top_surface);
         if let (
-            top::TopStock::Sheet {
-                label,
-                cut_origin: x,
-                ..
-            },
+            top::TopStock::Sheet { label, cut: x, .. },
             top::TopStock::Sheet {
                 label: other,
-                cut_origin: y,
+                cut: y,
                 ..
             },
         ) = (
-            top::TopStock::sample(&a, &pa),
-            top::TopStock::sample(&b, &pb),
+            top::TopStock::sample(&a, &pa, REGISTERED_SHEET_VERSION),
+            top::TopStock::sample(&b, &pb, REGISTERED_SHEET_VERSION),
         ) {
             assert_eq!(label, other);
-            assert_ne!(x, y);
+            assert_ne!(x.face_origin_m, y.face_origin_m);
+            assert_eq!((x.edge, x.heading_rad), (y.edge, y.heading_rad));
         }
         a.variant = ORIGINAL_SHARED_ROW_VARIANT;
         a.kind = ObjectKind::Desk;
@@ -103,7 +100,13 @@ fn splices_land_on_real_crossrails_and_the_whole_frame_reaches_the_floor() {
                 (Vec2::Y, Vec2::X)
             };
             let mut leaf = Assembly::default();
-            top(&mut leaf, &o, &p, &outline);
+            top(
+                &mut leaf,
+                &o,
+                &p,
+                &outline,
+                &top::TopStock::sample(&o, &p, REGISTERED_SHEET_VERSION),
+            );
             for joint in joints(&o, &p) {
                 for side in [-0.13, 0.13] {
                     let middle = axis * joint + across * (x.min(z) * side);

@@ -1,5 +1,12 @@
 //! Independent garment-rack structure, stable bases and usable hooks/hangers.
 use super::*;
+pub(crate) const ENTRY_RACK: u32 = 32;
+mod cloth;
+pub mod dressing;
+#[cfg(test)]
+mod garment_tests;
+mod outerwear;
+mod scarf;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Hook {
@@ -104,8 +111,40 @@ pub fn parameters(o: &IndoorObject) -> RackProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+impl Hook {
+    fn path(&self) -> [Vec3; 3] {
+        let d = Vec3::new(self.angle.cos(), 0., self.angle.sin());
+        [
+            Vec3::Y * self.root_height,
+            d * self.reach * 0.68 + Vec3::Y * (self.root_height + self.rise * 0.35),
+            d * self.reach + Vec3::Y * (self.root_height + self.rise),
+        ]
+    }
+}
+impl RackProgram {
+    fn hanger(&self, o: &IndoorObject) -> (f32, f32, f32, f32) {
+        let width = self.hanger_width.min(o.size.z * 0.78);
+        let wire = (self.upright * 0.22).min(width * 0.0035);
+        let radius = self.upright + wire * 1.25;
+        (width, wire, radius, self.height - radius * 3.)
+    }
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
+    let garments = if version >= dressing::INTRODUCED {
+        dressing::garments(o, &p)
+    } else {
+        Vec::new()
+    };
+    let loaded = !garments.is_empty();
+    // Spend the triangle budget on the cloth silhouette. The rounded rubber
+    // feet and peg ends are centimetre-sized, the bent wire is millimetre-sized.
+    let end_cap = if loaded {
+        Geometry::small_ellipsoid
+    } else {
+        Geometry::ellipsoid
+    };
     let l = o.kind.class_name();
     let foot = p.upright * 1.15;
     if p.rail {
@@ -123,7 +162,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 foot * 0.8,
             );
             for end in [-1., 1.] {
-                a.part(Surface::Rubber, l).ellipsoid(
+                end_cap(
+                    a.part(Surface::Rubber, l),
                     Vec3::new(foot * 1.5, foot, foot * 1.5),
                     Transform::from_xyz(x, foot, end * p.foot_span.y),
                 );
@@ -139,19 +179,17 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             Vec3::new(p.rail_width * 0.5, p.base_height, 0.),
             p.upright * 0.65,
         );
-        let w = p.hanger_width.min(o.size.z * 0.78);
+        let (w, wire, hook_radius, neck) = p.hanger(o);
+        let (arc_steps, corner_steps, sides) = if loaded { (12, 6, 6) } else { (18, 10, 8) };
         // Thin bent wire stays well below the minimum shoulder bend radius.
         // Scaling it like a structural rack tube folds the inside of the bend.
-        let wire = (p.upright * 0.22).min(w * 0.0035);
         for &x in &p.hanger_x {
-            let hook_radius = p.upright + wire * 1.25;
             // Contact at the top of the horizontal rail. The arc ends with a
             // downward tangent, avoiding a near reversal at the straight stem.
             let center_y = p.height - wire * 0.25;
-            let neck = p.height - hook_radius * 3.;
-            let mut path: Vec<_> = (0..=18)
+            let mut path: Vec<_> = (0..=arc_steps)
                 .map(|i| {
-                    let t = 0.68 * PI - i as f32 / 18. * 1.18 * PI;
+                    let t = 0.68 * PI - i as f32 / arc_steps as f32 * 1.18 * PI;
                     Vec3::new(x, center_y + hook_radius * t.cos(), hook_radius * t.sin())
                 })
                 .collect();
@@ -160,20 +198,20 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 Vec3::new(x, neck - w * 0.26, -hook_radius - w * 0.5),
                 Vec3::new(x, neck - w * 0.26, -hook_radius + w * 0.5),
             ];
-            let mut outline = Vec::with_capacity(34);
+            let mut outline = Vec::with_capacity(3 * (corner_steps + 1) + 1);
             for i in 0..3 {
                 let a = corners[i].lerp(corners[(i + 2) % 3], 0.18);
                 let b = corners[i];
                 let c = corners[i].lerp(corners[(i + 1) % 3], 0.18);
-                for j in 0..=10 {
-                    let t = j as f32 / 10.;
+                for j in 0..=corner_steps {
+                    let t = j as f32 / corner_steps as f32;
                     outline.push(a * (1. - t).powi(2) + b * (2. * t * (1. - t)) + c * t * t);
                 }
             }
-            path.push(outline[5]);
+            path.push(outline[corner_steps / 2]);
             outline.push(outline[0]);
-            a.part(Surface::Metal, l).tube(&path, wire, 8);
-            a.part(Surface::Metal, l).tube(&outline, wire, 8);
+            a.part(Surface::Metal, l).tube(&path, wire, sides);
+            a.part(Surface::Metal, l).tube(&outline, wire, sides);
         }
     } else {
         a.part(p.finish, l)
@@ -194,24 +232,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 let end = Vec3::new(t.cos() * p.foot_span.x, foot, t.sin() * p.foot_span.y);
                 a.part(p.finish, l)
                     .rod(Vec3::Y * p.base_height, end, p.upright * 0.8);
-                a.part(Surface::Rubber, l).ellipsoid(
+                end_cap(
+                    a.part(Surface::Rubber, l),
                     Vec3::new(foot * 1.4, foot, foot * 1.4),
                     Transform::from_translation(end),
                 );
             }
         }
         for h in &p.hooks {
-            let d = Vec3::new(h.angle.cos(), 0., h.angle.sin());
-            let path = [
-                Vec3::Y * h.root_height,
-                d * h.reach * 0.68 + Vec3::Y * (h.root_height + h.rise * 0.35),
-                d * h.reach + Vec3::Y * (h.root_height + h.rise),
-            ];
+            let path = h.path();
             a.part(p.finish, l).tube(&path, p.upright * 0.65, 8);
-            a.part(p.tips, l).ellipsoid(
+            end_cap(
+                a.part(p.tips, l),
                 Vec3::splat(p.upright * 1.05),
                 Transform::from_translation(path[2]),
             );
         }
+    }
+    for garment in garments {
+        garment.build(a);
     }
 }

@@ -29,11 +29,11 @@ pub fn parameters(o: &IndoorObject) -> UtilityProgram {
         branch_height: r.random_range(0.62..0.84),
     }
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
-        ObjectKind::Printer => printer::build(a, o),
+        ObjectKind::Printer => printer::build(a, o, version),
         ObjectKind::StorageBox => boxes::build(a, o),
-        ObjectKind::CoatRack => racks::build(a, o),
+        ObjectKind::CoatRack => racks::build(a, o, version),
         ObjectKind::Bag => super::bags::build(a, o),
         _ => unreachable!(),
     }
@@ -71,6 +71,7 @@ mod tests {
                     interaction_target: None,
                     cable_path: None,
                     cable_target: None,
+                    cable_target_socket: None,
                 };
                 let a = super::super::build_object(&o);
                 let (lo, hi) = a.bounds();

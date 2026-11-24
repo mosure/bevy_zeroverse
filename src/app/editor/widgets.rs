@@ -206,18 +206,42 @@ pub(super) struct ActiveAaLabel;
 /// Show adapter fallbacks and mixed pinhole/fisheye grids beside the selector.
 pub(super) fn show_active_aa(
     labels: Query<&mut Text, With<ActiveAaLabel>>,
-    cameras: Query<&crate::render::anti_alias::ManagedPreviewAa>,
+    cameras: Query<(
+        &crate::render::anti_alias::ManagedPreviewAa,
+        Option<&crate::render::ssaa::SsaaCamera>,
+    )>,
+    mut filters: Local<Vec<(&'static str, u32)>>,
+    mut caption: Local<String>,
 ) {
+    if labels.is_empty() {
+        return;
+    }
+    filters.clear();
+    filters.extend(
+        cameras
+            .iter()
+            .map(|(camera, ssaa)| (camera.label(), ssaa.map_or(1, |s| s.factor))),
+    );
+    filters.sort_unstable();
+    filters.dedup();
+    caption.clear();
+    caption.push_str("Active · ");
+    if filters.is_empty() {
+        caption.push_str("Scene default");
+    }
+    for (index, &(filter, factor)) in filters.iter().enumerate() {
+        if index != 0 {
+            caption.push_str(" / ");
+        }
+        caption.push_str(filter);
+        if factor > 1 {
+            use std::fmt::Write;
+            write!(*caption, " + {factor}× SSAA").expect("writing to a String");
+        }
+    }
     for mut label in labels {
-        let mut filters = cameras.iter().map(|camera| camera.label());
-        let active = filters.next().unwrap_or("Scene default");
-        let caption = if filters.any(|filter| filter != active) {
-            "TAA and SMAA High"
-        } else {
-            active
-        };
-        if label.0.strip_prefix("Active · ") != Some(caption) {
-            label.0 = format!("Active · {caption}");
+        if label.0 != *caption {
+            label.0.clone_from(&caption);
         }
     }
 }

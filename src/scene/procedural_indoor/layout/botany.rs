@@ -279,6 +279,7 @@ mod tests {
                 interaction_target: None,
                 cable_path: None,
                 cable_target: None,
+                cable_target_socket: None,
             };
             assert!(!aisles.clear(&plant));
             plant.position.z = 0.65;

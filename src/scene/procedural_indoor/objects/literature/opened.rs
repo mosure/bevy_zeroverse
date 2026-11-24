@@ -1,5 +1,4 @@
-//! Open, supported page blocks. Their height field is shared by the closed
-//! paper volumes and markings, so writing follows the actual curved surface.
+//! Replay of the original extruded page blocks and raised ink in archived notebooks.
 use super::*;
 
 fn quad(g: &mut Geometry, p: [Vec3; 4]) {
@@ -153,6 +152,7 @@ mod tests {
                 ObjectKind::Notebook,
                 2_530_243_425_158_947_287,
             );
+            o.variant = 0; // Archived notebook from the affected room.
             o.size = Vec3::new(0.13320178, 0.031643983, 0.15321597) * scale;
             assert!(parameters(&o).opened);
             let a = super::super::super::build_object(&o);
@@ -181,7 +181,8 @@ mod tests {
     fn open_notebooks_have_two_curved_page_blocks_with_support_and_reserved_bounds() {
         let mut states = [0; 2];
         for seed in 0..256 {
-            let o = super::super::super::audit::fixture(ObjectKind::Notebook, seed);
+            let mut o = super::super::super::audit::fixture(ObjectKind::Notebook, seed);
+            o.variant = 0;
             let p = parameters(&o);
             states[usize::from(p.opened)] += 1;
             let a = super::super::super::build_object(&o);

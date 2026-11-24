@@ -85,12 +85,13 @@ fn extract(
             &GlobalTransform,
             Option<&crate::io::image_copy::ImageCopier>,
             Option<&crate::render::ground_truth::GroundTruthCamera>,
+            Has<crate::render::anti_alias::LensPreviewAa>,
         )>,
     >,
 ) {
     use crate::render::RenderMode::*;
     jobs.0.clear();
-    for (lens, camera, transform, copier, gt) in &cameras {
+    for (lens, camera, transform, copier, gt, preview_aa) in &cameras {
         jobs.0.push(Job {
             lens: lens.clone(),
             world: transform.to_matrix(),
@@ -101,7 +102,7 @@ fn extract(
                 config.depth_format as u32 as f32,
                 flow.interval_seconds / time.delta_secs().max(0.000001),
                 flow.full_scale_pixels,
-                0.,
+                f32::from(preview_aa && copier.is_none()),
             ],
             gt: gt.cloned(),
             active: crate::sample::camera_activity::render_active(
@@ -309,6 +310,7 @@ fn prepare(
 
 fn preview_parameters(mode: u32, preview: [f32; 4]) -> [f32; 4] {
     match mode {
+        0 => [0., 0., 0., preview[3]],
         1 => [preview[0], 0., 0., 0.],
         6 => [0., preview[1], preview[2], 0.],
         // Frame duration is only a flow visualization input. It must not force
@@ -435,12 +437,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn filtered_lens_resolve_validates_without_optional_shader_features() {
+        let source = crate::camera::lens::shader(include_str!("resolve.wgsl"), "");
+        let shader = wgpu::naga::front::wgsl::parse_str(&source).unwrap();
+        wgpu::naga::valid::Validator::new(
+            wgpu::naga::valid::ValidationFlags::all(),
+            wgpu::naga::valid::Capabilities::empty(),
+        )
+        .validate(&shader)
+        .unwrap();
+    }
+
+    #[test]
     fn preview_uniforms_track_only_the_selected_modes_inputs() {
         let first = [2., 0.5, 64., 0.];
         let changed = [3., 1.5, 128., 0.];
         for mode in [0, 2, 3, 4, 5] {
             assert_eq!(preview_parameters(mode, first), [0.; 4]);
             assert_eq!(preview_parameters(mode, changed), [0.; 4]);
+        }
+        let lens_aa = [2., 0.5, 64., 1.];
+        assert_eq!(preview_parameters(0, lens_aa), [0., 0., 0., 1.]);
+        for mode in 1..=6 {
+            assert_eq!(
+                preview_parameters(mode, first),
+                preview_parameters(mode, lens_aa)
+            );
         }
         assert_eq!(preview_parameters(1, first), [2., 0., 0., 0.]);
         assert_eq!(preview_parameters(1, changed), [3., 0., 0., 0.]);

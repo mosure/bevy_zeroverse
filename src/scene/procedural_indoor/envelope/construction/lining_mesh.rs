@@ -5,6 +5,26 @@ use crate::scene::procedural_indoor::{
     architecture::facade::WindowOpening, envelope::lining::WallLining,
 };
 mod courses;
+mod masonry;
+
+// A planar stock face, bevel or mortar strip needs just four resident vertices.
+// Where two bevels meet the surface twists; retain separate triangle normals.
+fn patch(tf: &Transform, g: &mut Geometry, p: [Vec3; 4], uv: Vec2) {
+    if (p[1].z - p[0].z) == (p[2].z - p[3].z) {
+        let world = p.map(|v| tf.transform_point(v));
+        let cross = (world[1] - world[0]).cross(world[2] - world[0]);
+        let other = (world[2] - world[0]).cross(world[3] - world[0]);
+        if cross.length_squared().min(other.length_squared()) >= 1e-14 {
+            g.vertex_quad(
+                world,
+                [cross.normalize(); 4],
+                p.map(|v| (v.truncate() + uv).to_array()),
+            );
+            return;
+        }
+    }
+    Skin::triangles(tf, g, p, uv);
+}
 
 struct Skin {
     board: Geometry,
@@ -19,29 +39,36 @@ impl Skin {
         } else {
             &mut self.board
         };
+        patch(&self.tf, g, p, offset);
+    }
+
+    fn triangles(tf: &Transform, g: &mut Geometry, p: [Vec3; 4], offset: Vec2) {
         for ids in [[0, 1, 2], [0, 2, 3]] {
-            let local = ids.map(|i| p[i]);
-            let normal = (local[1] - local[0])
-                .cross(local[2] - local[0])
-                .normalize_or_zero();
-            let points = local.map(|v| self.tf.transform_point(v));
-            if normal == Vec3::ZERO
-                || (points[1] - points[0])
-                    .cross(points[2] - points[0])
-                    .length_squared()
-                    < 1e-14
-            {
-                continue;
-            }
-            let start = g.positions.len() as u32;
-            let normal = (self.tf.rotation * normal).to_array();
-            for (v, w) in local.into_iter().zip(points) {
-                g.positions.push(w.to_array());
-                g.normals.push(normal);
-                g.uvs.push((Vec2::new(v.x, v.y) + offset).to_array());
-            }
-            g.indices.extend([start, start + 1, start + 2]);
+            Self::triangle(tf, g, ids.map(|i| p[i]), offset);
         }
+    }
+
+    fn triangle(tf: &Transform, g: &mut Geometry, local: [Vec3; 3], offset: Vec2) {
+        let normal = (local[1] - local[0])
+            .cross(local[2] - local[0])
+            .normalize_or_zero();
+        let points = local.map(|v| tf.transform_point(v));
+        if normal == Vec3::ZERO
+            || (points[1] - points[0])
+                .cross(points[2] - points[0])
+                .length_squared()
+                < 1e-14
+        {
+            return;
+        }
+        let start = g.positions.len() as u32;
+        let normal = (tf.rotation * normal).to_array();
+        for (v, w) in local.into_iter().zip(points) {
+            g.positions.push(w.to_array());
+            g.normals.push(normal);
+            g.uvs.push((Vec2::new(v.x, v.y) + offset).to_array());
+        }
+        g.indices.extend([start, start + 1, start + 2]);
     }
 
     fn strip(&mut self, x: [f32; 2], z: [f32; 2], y: [f32; 2], offset: Vec2, joint: bool) {
@@ -130,7 +157,7 @@ pub(super) fn build(
         }
     };
     let half = s.joint_width_m * 0.5;
-    let trough = half * 0.44;
+    let trough = half * s.joint_bottom_fraction();
     let d = -s.joint_depth_m;
     let mut last = left;
     for i in ((left - origin) / pitch).ceil() as i32..=((right - origin) / pitch).floor() as i32 {
@@ -148,7 +175,12 @@ pub(super) fn build(
     strip(last, right, 0., 0., false);
     let label = format!("wall#finish{}", s.finish_slot);
     a.part(s.stock.surface(), &label).append(skin.board);
-    a.part(Surface::Paint, "wall").append(skin.joint);
+    let backing = if s.stock == super::super::lining::LiningStock::AcousticFabric {
+        Surface::Rubber
+    } else {
+        Surface::Paint
+    };
+    a.part(backing, "wall").append(skin.joint);
 }
 
 #[cfg(test)]
@@ -254,5 +286,137 @@ mod tests {
                 assert!(hit(-0.20 + 0.0003, joint)[0] < 0.151);
             }
         }
+    }
+
+    #[test]
+    fn masonry_units_turn_at_the_bed_joint_and_terminate_at_real_openings() {
+        let h = WindowOpening {
+            min: Vec2::new(-0.57, 0.31),
+            max: Vec2::new(-0.21, 0.92),
+            glazing: None,
+            columns: 1,
+            transom: 0.,
+            transoms: Vec::new(),
+            operable: false,
+        };
+        let tf = Transform::from_xyz(3., 0., -7.).with_rotation(Quat::from_rotation_y(1.02));
+        let n = tf.rotation * Vec3::Z;
+        for (stock, pitch, height, offset) in [
+            (LiningStock::FiredBrick, 0.237, 0.079, 1. / 3.),
+            (LiningStock::FiredBrick, 0.313, 0.081, -1. / 3.),
+            (LiningStock::ConcreteBlock, 0.401, 0.191, 0.5),
+            (LiningStock::ConcreteBlock, 0.395, 0.179, 0.),
+        ] {
+            let c = WallCourses {
+                height_m: height,
+                phase: 0.27,
+                bond_offset: offset,
+            };
+            let w = WallLining {
+                stock,
+                height_m: 1.4,
+                module_width_m: pitch,
+                phase: 0.17,
+                joint_width_m: 0.014,
+                joint_depth_m: 0.004,
+                finish_slot: 2,
+                courses: Some(c),
+            };
+            let mut a = Assembly::default();
+            build(&mut a, tf, &w, 2.6, w.height_m, std::slice::from_ref(&h));
+            assert_eq!(a.parts.len(), 4);
+            let mut bed_area = 0_f64;
+            let mut tri = Vec::new();
+            for ((s, label), g) in &a.parts {
+                let slot =
+                    crate::scene::procedural_indoor::materials::finish_slot(*s, label).unwrap();
+                assert!(
+                    label.starts_with("wall#")
+                        && crate::scene::procedural_indoor::materials::registered_finish(*s, slot)
+                );
+                for ids in g.indices.as_chunks::<3>().0 {
+                    let p = ids.map(|i| Vec3::from(g.positions[i as usize]));
+                    let cross = (p[1] - p[0]).cross(p[2] - p[0]);
+                    assert!(
+                        cross.dot(n) > 0.
+                            && cross.normalize().dot(g.normals[ids[0] as usize].into()) > 0.99
+                    );
+                    if *label
+                        == crate::scene::procedural_indoor::materials::masonry::label(
+                            2,
+                            crate::scene::procedural_indoor::materials::masonry::MORTAR,
+                        )
+                        && p.iter()
+                            .all(|v| ((*v - tf.translation).dot(n) + w.joint_depth_m).abs() < 1e-6)
+                    {
+                        bed_area += f64::from(cross.dot(n)) * 0.5;
+                    }
+                    tri.push(p);
+                }
+            }
+            assert!((bed_area - f64::from(2.6 * w.height_m - h.area())).abs() < 0.00006);
+            let hit = |x, y| {
+                let p = tf.transform_point(Vec3::new(x, y, 0.16));
+                tri.iter()
+                    .filter_map(|t| ray_triangle(p, -n, *t))
+                    .min_by(f32::total_cmp)
+            };
+            assert!(hit(-0.43, 0.63).is_none());
+            for ix in 0..17 {
+                for iy in 0..11 {
+                    let x = -1.3 + (ix as f32 + 0.371) * (2.6 / 17.);
+                    let y = (iy as f32 + 0.191) * (1.4 / 11.);
+                    let pt = Vec2::new(x, y);
+                    let hole = pt.cmpgt(h.min).all() && pt.cmplt(h.max).all();
+                    assert_eq!(hit(x, y).is_none(), hole);
+                }
+            }
+            for row in -1_i32..8 {
+                let y = (c.phase + row as f32 + 0.81) * height;
+                if y <= 0.01 || y >= w.height_m - 0.01 {
+                    continue;
+                }
+                let x = (w.phase + (row.rem_euclid(c.phase_count(stock) as i32) as f32) * offset)
+                    * pitch
+                    + pitch;
+                for (x, depth) in [(x, 0.164), (x + 0.28 * pitch, 0.16)] {
+                    let nearest = hit(x, y).unwrap();
+                    assert!(
+                        (nearest - depth).abs() < 0.00002,
+                        "{stock:?} {row} {nearest}"
+                    );
+                }
+            }
+            let bed = (c.phase + (0.60 / height).floor()) * height;
+            assert!(hit(h.max.x + 0.0003, bed).unwrap() < 0.1605);
+        }
+    }
+
+    #[test]
+    fn complete_field_units_have_bounded_mesh_cost() {
+        let c = WallCourses {
+            height_m: 0.077,
+            phase: 0.13,
+            bond_offset: -1. / 3.,
+        };
+        let s = WallLining {
+            stock: LiningStock::FiredBrick,
+            height_m: 3.,
+            module_width_m: 0.227,
+            phase: 0.31,
+            joint_width_m: 0.012,
+            joint_depth_m: 0.004,
+            finish_slot: 0,
+            courses: Some(c),
+        };
+        let mut a = Assembly::default();
+        build(&mut a, Transform::IDENTITY, &s, 10., 3., &[]);
+        let units = 10. * 3. / (s.module_width_m * c.height_m);
+        let triangles = a.parts.values().map(|g| g.indices.len() / 3).sum::<usize>();
+        assert!(
+            triangles as f32 <= 17. * units,
+            "{triangles} for {units:.0} nominal units"
+        );
+        assert_eq!(a.parts.len(), 4);
     }
 }

@@ -813,6 +813,19 @@ fn export_inner(
         }
         for plant in scene.objects.iter().filter(|o| o.kind == ObjectKind::Plant) {
             let p = super::plants::Growth::sample(plant.seed);
+            if plant.variant % super::plants::SPECIES == 3
+                && scene.generator_version >= super::plants::SPLIT_LEAF_VERSION
+            {
+                let canopy = super::plants::split_leaf_stats(plant.seed, &p);
+                for (key, count) in [
+                    ("plant_split_leaf_blades", canopy.leaves),
+                    ("plant_split_leaf_intact_blades", canopy.intact_leaves),
+                    ("plant_split_leaf_marginal_clefts", canopy.marginal_clefts),
+                    ("plant_split_leaf_closed_windows", canopy.closed_windows),
+                ] {
+                    numeric.push(key, f64::from(count))?;
+                }
+            }
             if plant.variant % super::plants::SPECIES == 5 {
                 let cane = super::plants::CaneHabit::sample(plant.seed);
                 for (key, value) in [
@@ -827,7 +840,29 @@ fn export_inner(
                 }
             }
             let pot = super::plants::PotProfile::sample(plant.seed);
-            let (pot_radius, pot_height) = super::plants::pot_dimensions(plant, &p);
+            let (pot_radius, pot_height) = pot.dimensions(plant, &p);
+            if scene.generator_version >= super::plants::soil::INTRODUCED {
+                let mix = super::plants::soil::stats(plant, &pot, pot_radius, pot_height);
+                *report
+                    .categories
+                    .entry("plant_potting_medium".into())
+                    .or_default()
+                    .entry(format!("{:?}", mix.medium))
+                    .or_default() += 1;
+                for (key, value) in [
+                    ("plant_coarse_grains", mix.coarse_grains as f64),
+                    (
+                        "plant_nominal_grain_diameter_m",
+                        mix.nominal_grain_diameter_m as f64,
+                    ),
+                    (
+                        "plant_coarse_grain_ellipse_fraction",
+                        mix.coarse_footprint_fraction as f64,
+                    ),
+                ] {
+                    numeric.push(key, value)?;
+                }
+            }
             let support = plant
                 .support
                 .and_then(|id| scene.objects.iter().find(|o| o.id == id));
@@ -857,7 +892,7 @@ fn export_inner(
                 .or_default() += 1;
             for (key, value) in [
                 ("plant_pot_height_m", pot_height),
-                ("plant_pot_radius_m", super::plants::pot_radius(plant, &p)),
+                ("plant_pot_radius_m", pot_radius),
                 (
                     "plant_pot_height_to_diameter",
                     pot_height / (2. * pot_radius),
@@ -1069,7 +1104,6 @@ fn export_inner(
                 if object.kind == ObjectKind::MobileCart {
                     let p = super::objects::services::cart::parameters(object);
                     numeric.push("cart_shelf_count", p.shelf_tops.len() as f64)?;
-                    numeric.push("cart_wheel_radius_m", p.wheel_radius as f64)?;
                     for gap in p.shelf_tops.windows(2) {
                         numeric.push(
                             "cart_shelf_clearance_m",
@@ -1085,8 +1119,7 @@ fn export_inner(
                     .or_default() += 1;
             }
             if object.kind == ObjectKind::Sofa
-                || object.kind == ObjectKind::Chair
-                    && object.variant % super::objects::chairs::FAMILIES == 8
+                || object.kind == ObjectKind::Chair && object.variant == 8
             {
                 let p = super::objects::seating::parameters(object);
                 for (name, value) in [
@@ -1104,8 +1137,34 @@ fn export_inner(
                 numeric.push("upholstery_cushion_crown", p.cushion_crown as f64)?;
                 numeric.push("upholstery_cushion_dish_m", p.cushion_dish_m as f64)?;
                 numeric.push("upholstery_seam_radius_m", p.seam_radius_m as f64)?;
-                for width in super::objects::seating::module_widths(object) {
-                    numeric.push("sofa_module_width_m", width as f64)?;
+                let widths = super::objects::seating::module_widths_for(object, &p);
+                for &width in &widths {
+                    numeric.push("sofa_module_width_m", f64::from(width))?;
+                }
+                let frame =
+                    super::objects::seating::foundation::Foundation::new(object, &p, &widths);
+                numeric.push("sofa_frame_sections", frame.sections.len() as f64)?;
+                numeric.push("sofa_frame_floor_glides", frame.glide_count() as f64)?;
+                for section in &frame.sections {
+                    numeric.push(
+                        "sofa_frame_section_width_m",
+                        f64::from(section.right - section.left),
+                    )?;
+                    numeric.push(
+                        "sofa_frame_section_depth_m",
+                        f64::from(section.back - section.front),
+                    )?;
+                }
+                for (key, value) in [
+                    ("sofa_frame_type", format!("{:?}", frame.base)),
+                    ("sofa_frame_stock", format!("{:?}", frame.stock)),
+                ] {
+                    *report
+                        .categories
+                        .entry(key.into())
+                        .or_default()
+                        .entry(value)
+                        .or_default() += 1;
                 }
                 if p.pillows && object.size.x > 1.2 {
                     numeric.push("sofa_pillow_maximum_width_m", p.pillow_width_m as f64)?;
@@ -1188,6 +1247,23 @@ fn export_inner(
                         .or_default() += 1;
                     if let Some(pitch) = wood.pitch_m {
                         numeric.push("table_timber_nominal_strip_width_m", f64::from(pitch))?;
+                    }
+                } else if scene.generator_version
+                    >= super::objects::tables::REGISTERED_SHEET_VERSION
+                {
+                    if let Some(cut) = super::objects::tables::sheet_cut(object, &p) {
+                        *report
+                            .categories
+                            .entry("table_sheet_edge".into())
+                            .or_default()
+                            .entry(format!("{:?}", cut.edge))
+                            .or_default() += 1;
+                        numeric.push(
+                            "table_sheet_heading_deg",
+                            f64::from(cut.heading_rad.to_degrees()),
+                        )?;
+                        numeric.push("table_sheet_origin_u_m", f64::from(cut.face_origin_m.x))?;
+                        numeric.push("table_sheet_origin_v_m", f64::from(cut.face_origin_m.y))?;
                     }
                 }
                 let bays = super::objects::tables::bay_count(object, &p);
@@ -1302,7 +1378,7 @@ fn export_inner(
                 let construction = match object.kind {
                     ObjectKind::Mug => format!(
                         "{}-{}",
-                        if p.style.is_multiple_of(3) {
+                        if p.belly_fraction > p.taper.max(1.) {
                             "barrel"
                         } else {
                             "tapered"
@@ -1330,9 +1406,29 @@ fn export_inner(
                     ),
                 };
                 if matches!(object.kind, ObjectKind::Mug | ObjectKind::CoffeeCup) {
-                    numeric.push("drink_fill_fraction", p.fill_fraction as f64)?;
+                    let f = super::clutter::beverages::cups::CupForm::sample(object, &p);
+                    if let Some(brew) = f.brew {
+                        numeric.push("drink_fill_fraction", p.fill_fraction as f64)?;
+                        *report
+                            .categories
+                            .entry("cup_beverage".into())
+                            .or_default()
+                            .entry(format!("{brew:?}"))
+                            .or_default() += 1;
+                    }
                     numeric.push("vessel_taper", p.taper as f64)?;
-                    numeric.push("vessel_wall_m", p.wall_m as f64)?;
+                    numeric.push("vessel_wall_m", f.wall_m as f64)?;
+                    if let Some(saucer) = f.saucer {
+                        numeric.push("saucer_seat_height_m", saucer.seat_y_m as f64)?;
+                        numeric.push(
+                            "cup_saucer_offset_m",
+                            f.center_m.distance(saucer.center_m) as f64,
+                        )?;
+                    }
+                    if let Some(lid) = f.lid {
+                        numeric.push("cup_lid_rise_m", lid.rise_m as f64)?;
+                        numeric.push("cup_sip_offset_fraction", lid.port_offset_fraction as f64)?;
+                    }
                 } else if object.kind == ObjectKind::WaterBottle && p.style <= 2 {
                     numeric.push("water_fill_fraction", p.fill_fraction.min(0.53) as f64)?;
                 }
@@ -1341,17 +1437,6 @@ fn export_inner(
                     .entry(format!("{:?}_construction", object.kind))
                     .or_default()
                     .entry(construction)
-                    .or_default() += 1;
-            }
-            if object.kind == ObjectKind::Clock {
-                let p = super::objects::clocks::parameters(object);
-                numeric.push("clock_time_seconds", p.seconds as f64)?;
-                numeric.push("clock_bezel_fraction", p.bezel_fraction as f64)?;
-                *report
-                    .categories
-                    .entry("clock_display".into())
-                    .or_default()
-                    .entry(if p.digital { "digital" } else { "analog" }.into())
                     .or_default() += 1;
             }
             if matches!(object.kind, ObjectKind::Monitor | ObjectKind::Display) {
@@ -1364,16 +1449,19 @@ fn export_inner(
                     numeric.push(key, value as f64)?;
                 }
             }
-            let category = match object.kind {
-                ObjectKind::Chair => "chair_family",
-                ObjectKind::Laptop => "laptop_family",
+            let (category, family) = match object.kind {
+                ObjectKind::Chair => ("chair_family", object.variant),
+                ObjectKind::Laptop => (
+                    "laptop_family",
+                    object.variant & !super::objects::computers::io::FITTED_IO,
+                ),
                 _ => continue,
             };
             *report
                 .categories
                 .entry(category.into())
                 .or_default()
-                .entry(object.variant.to_string())
+                .entry(family.to_string())
                 .or_default() += 1;
             if object.kind == ObjectKind::Laptop {
                 let p = super::objects::computers::parameters(object);
@@ -1387,10 +1475,18 @@ fn export_inner(
                 ] {
                     numeric.push(name, value as f64)?;
                 }
-                numeric.push(
-                    "laptop_lid_angle_radians",
-                    super::objects::computers::lid_angle(object) as f64,
-                )?;
+                numeric.push("laptop_lid_angle_radians", p.hinge_radians as f64)?;
+                if let Some(bank) = p.io_bank(object) {
+                    let dock = bank.ports[0].center_m;
+                    let side = if dock.x < 0. { "left" } else { "right" };
+                    *report
+                        .categories
+                        .entry("laptop_charge_side".into())
+                        .or_default()
+                        .entry(side.into())
+                        .or_default() += 1;
+                    numeric.push("laptop_fitted_socket_count", bank.ports.len() as f64)?;
+                }
             } else {
                 let yaw = (object.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
                     - std::f32::consts::PI;
@@ -1398,8 +1494,16 @@ fn export_inner(
                 // Stool/armchair geometry has its own program; do not report
                 // unused office-back parameters as realized scene diversity.
                 if matches!(object.variant, 6 | 7) {
-                    let p = super::objects::chairs::stool::parameters(object);
+                    let p = super::objects::chairs::stool::parameters_at(
+                        object,
+                        scene.generator_version,
+                    );
                     for (key, value) in [
+                        ("stool_seat_height_m", p.seat_height_m),
+                        (
+                            "stool_seat_to_rail_drop_m",
+                            p.seat_height_m - p.support(object).rail_top_m,
+                        ),
                         ("stool_seat_aspect", p.seat_aspect),
                         ("stool_seat_roundness", p.seat_roundness),
                         ("stool_padding_m", p.padding_m),
@@ -1420,6 +1524,31 @@ fn export_inner(
                     continue;
                 }
                 let p = super::objects::chairs::parameters(object);
+                if let Some(seat) = p.formed_seat {
+                    *report
+                        .categories
+                        .entry("chair_formed_seat_table_order".into())
+                        .or_default()
+                        .entry(seat.table_order.to_string())
+                        .or_default() += 1;
+                    for (key, value) in [
+                        ("chair_formed_seat_center_thickness_m", seat.gauge_m),
+                        ("chair_formed_seat_side_rise_m", seat.side_rise_m),
+                        ("chair_formed_seat_rear_rise_m", seat.rear_rise_m),
+                        ("chair_formed_seat_nose_drop_m", seat.nose_drop_m),
+                        ("chair_formed_seat_width_taper", seat.width_taper),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                } else {
+                    for (key, value) in [
+                        ("chair_seat_crown", p.seat_crown),
+                        ("chair_seat_dish_m", p.seat_dish_m),
+                        ("chair_seat_roundness", p.seat_roundness),
+                    ] {
+                        numeric.push(key, value as f64)?;
+                    }
+                }
                 for (key, value) in [
                     ("chair_base_structure", p.base_style),
                     ("chair_seat_structure", p.seat_style),
@@ -1484,9 +1613,6 @@ fn export_inner(
                     ("chair_recline_radians", p.recline),
                     ("chair_arm_height_m", p.arm_height),
                     ("chair_lumbar_m", p.lumbar),
-                    ("chair_seat_crown", p.seat_crown),
-                    ("chair_seat_dish_m", p.seat_dish_m),
-                    ("chair_seat_roundness", p.seat_roundness),
                     ("chair_shoulder_flare", p.shoulder_flare),
                     ("chair_seat_width_fraction", p.seat_width_fraction),
                     ("chair_seat_depth_fraction", p.seat_depth_fraction),
@@ -1496,11 +1622,71 @@ fn export_inner(
                 ] {
                     numeric.push(name, value as f64)?;
                 }
-                if object.variant % super::objects::chairs::FAMILIES == 2 {
+                if let Some(stock) = p.runner_stock(object, scene.generator_version) {
+                    use super::objects::chairs::RunnerSection;
+                    let section = match stock.section {
+                        RunnerSection::RoundTube => "round_tube",
+                        RunnerSection::BentPlywood => "bent_plywood",
+                    };
+                    *report
+                        .categories
+                        .entry("chair_runner_section".into())
+                        .or_default()
+                        .entry(section.into())
+                        .or_default() += 1;
+                    for (key, value) in [
+                        ("chair_runner_width_m", stock.width_m),
+                        ("chair_runner_thickness_m", stock.thickness_m),
+                        ("chair_runner_nominal_bend_radius_m", stock.bend_radius_m),
+                        (
+                            "chair_runner_front_rake_depth_fraction",
+                            stock.floor_front_fraction - stock.mount_front_fraction,
+                        ),
+                    ] {
+                        numeric.push(key, f64::from(value))?;
+                    }
+                } else if scene.generator_version < super::objects::chairs::RUNNER_VERSION
+                    && object.variant % super::objects::chairs::FAMILIES == 2
+                {
                     numeric.push("chair_frame_bend_m", p.frame_bend_m as f64)?;
                 }
-                if p.back_construction == 0 {
-                    numeric.push("chair_mesh_pitch_m", p.mesh_pitch_m as f64)?;
+                if let Some(stock) = p.tension_back(object, scene.generator_version) {
+                    use super::objects::chairs::{TensionInfill, WebbingDirection};
+                    numeric.push(
+                        "chair_tension_rail_diameter_m",
+                        f64::from(2. * stock.rail_radius_m),
+                    )?;
+                    let construction = match stock.infill {
+                        TensionInfill::OpenCord => {
+                            numeric.push("chair_mesh_pitch_m", p.mesh_pitch_m as f64)?;
+                            "open_cord"
+                        }
+                        TensionInfill::WovenSling { gauge_m, ease_m } => {
+                            numeric.push("chair_sling_gauge_m", gauge_m as f64)?;
+                            numeric.push("chair_sling_ease_m", ease_m as f64)?;
+                            "woven_sling"
+                        }
+                        TensionInfill::Webbing {
+                            direction,
+                            nominal_pitch_m,
+                            fill_fraction,
+                            ..
+                        } => {
+                            numeric
+                                .push("chair_webbing_nominal_pitch_m", nominal_pitch_m as f64)?;
+                            numeric.push("chair_webbing_fill_fraction", fill_fraction as f64)?;
+                            match direction {
+                                WebbingDirection::Horizontal => "horizontal_webbing",
+                                WebbingDirection::Vertical => "vertical_webbing",
+                            }
+                        }
+                    };
+                    *report
+                        .categories
+                        .entry("chair_tension_back".into())
+                        .or_default()
+                        .entry(construction.into())
+                        .or_default() += 1;
                 }
             }
         }
@@ -1518,7 +1704,14 @@ fn export_inner(
                 numeric.push(name, value)?;
             }
             if let Some(p) = &human.pose_program {
+                let scale = human.stature / 1.75;
+                let [upper, forearm] = p.limb_proportions.arm_lengths(scale);
+                let [thigh, shin] = p.limb_proportions.leg_lengths(scale);
                 for (name, value) in [
+                    ("human_upper_arm_m", upper),
+                    ("human_forearm_m", forearm),
+                    ("human_thigh_m", thigh),
+                    ("human_shin_m", shin),
                     ("pose_lean_x", p.lean.x),
                     ("pose_lean_z", p.lean.y),
                     ("pose_twist", p.torso_twist),
@@ -1539,6 +1732,65 @@ fn export_inner(
                 }
             }
             if let Some(a) = &human.appearance {
+                use super::humans::hair::HairStyle;
+                if let (Some(cut), Some(style)) = (
+                    a.hair_program.scalp_cut,
+                    HairStyle::from_id(human.hairstyle),
+                ) {
+                    if style != HairStyle::Bald {
+                        numeric.push(
+                            "human_hair_temple_recession_rest_m",
+                            cut.temple_recession_m.into(),
+                        )?;
+                        numeric
+                            .push("human_hair_part_width_rest_m", cut.part_width(style).into())?;
+                    }
+                    if style == HairStyle::Buzz {
+                        numeric.push("human_clipper_length_rest_m", cut.clip_length_m.into())?;
+                        numeric.push("human_buzz_fibre_coverage", cut.buzz_coverage().into())?;
+                    }
+                }
+                if let Some(frame) = a.face.eyewear.filter(|_| human.glasses) {
+                    use super::humans::eyewear::Rim;
+                    let rim = match frame.rim {
+                        Rim::Full => "full",
+                        Rim::Upper => "upper",
+                        Rim::DrillMounted => "drill_mounted",
+                    };
+                    *report
+                        .categories
+                        .entry("worn_spectacle_rim".into())
+                        .or_default()
+                        .entry(rim.into())
+                        .or_default() += 1;
+                    for (name, value) in [
+                        ("worn_spectacle_bridge_width_rest_m", frame.bridge_width_m),
+                        ("worn_spectacle_lens_height_rest_m", frame.lens_height_m),
+                        ("worn_spectacle_tilt_slope", frame.tilt),
+                        ("worn_spectacle_wrap_slope", frame.wrap),
+                        ("worn_spectacle_rim_radius_rest_m", frame.rim_radius_m),
+                        ("worn_spectacle_lens_opacity", frame.lens_opacity),
+                        ("worn_spectacle_frame_roughness", frame.frame_roughness),
+                    ] {
+                        numeric.push(name, value.into())?;
+                    }
+                }
+                if let Some(c) = &a.face.complexion {
+                    for (name, v) in [
+                        ("human_skin_warmth", c.warmth),
+                        ("human_skin_flush", c.flush),
+                        ("human_lip_moisture", c.lip_moisture),
+                    ] {
+                        numeric.push(name, f64::from(v))?;
+                    }
+                }
+                if let Some(c) = &a.footwear.construction {
+                    numeric.push("human_shoe_toe_spring_rest_m", f64::from(c.toe_spring))?;
+                    numeric.push("human_shoe_medial_bias", f64::from(c.toe_bias))?;
+                }
+                if let Some(f) = &a.layers {
+                    numeric.push("human_trouser_weave_scale", f64::from(f.weave_scale[0]))?;
+                }
                 for (name, value) in [
                     ("human_melanin", a.melanin),
                     ("human_skin_roughness", a.skin_roughness),

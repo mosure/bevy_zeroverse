@@ -144,6 +144,7 @@ fn validate_layout_integrity(
     if scene.objects.is_empty() {
         return fail("empty scene");
     }
+    let service_structure = std::cell::OnceCell::new();
     let mut main_furniture = 0;
     for (i, object) in scene.objects.iter().enumerate() {
         if object.id != i
@@ -161,7 +162,13 @@ fn validate_layout_integrity(
             continue;
         }
         let wall_service = super::layout::equipment::services::is_wall_service(object);
-        if wall_service && !super::layout::equipment::services::mounted_clear(scene, object) {
+        if wall_service
+            && !super::layout::equipment::services::mounted_clear_against(
+                scene,
+                object,
+                service_structure.get_or_init(|| scene.camera_obstacles()),
+            )
+        {
             return fail(&format!(
                 "room service fixture {:?}/{} lacks backing or intersects another installation",
                 object.kind, object.id
@@ -172,7 +179,10 @@ fn validate_layout_integrity(
         {
             return fail("floor outlet is unsupported or intersects furniture or a person");
         }
-        if object.cable_path.is_some() || object.cable_target.is_some() {
+        if object.cable_path.is_some()
+            || object.cable_target.is_some()
+            || object.cable_target_socket.is_some()
+        {
             return fail("only cables may carry routed-wire metadata");
         }
         if object.kind == super::layout::ObjectKind::CeilingPendant
@@ -274,7 +284,7 @@ fn validate_layout_integrity(
             main_furniture += 1;
             let (lo, hi) = object.bounds();
             let half = scene.room_size * 0.5;
-            let clearance = object.wall_clearance() - 0.001;
+            let clearance = object.wall_clearance(scene.generator_version) - 0.001;
             if lo.x < -half.x + clearance
                 || hi.x > half.x - clearance
                 || lo.z < -half.z + clearance

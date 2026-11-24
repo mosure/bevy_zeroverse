@@ -955,7 +955,8 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
                 };
                 assert!(
                     clear(position, CAMERA_CLEARANCE - 0.001),
-                    "seed {seed}: actual architectural geometry violates camera clearance at {position:?}: nearest {:?}", nearest()
+                    "seed {seed}: actual architectural geometry violates camera clearance at {position:?}: nearest {:?}",
+                    nearest()
                 );
             }
         }
@@ -964,7 +965,15 @@ fn actual_architecture_preserves_door_opening_and_camera_clearance() {
                 for z in [-0.25, 0.0, 0.25, 0.9] {
                     let point = Vec3::new(scene.door_x + x, y, scene.room_size.z * 0.5 + z);
                     if !clear(point, 0.05) {
-                        assert!(scene.door_installations().iter().flat_map(|d|d.obstacles()).any(|(lo,hi)|point.cmpge(lo-Vec3::splat(0.05)).all()&&point.cmple(hi+Vec3::splat(0.05)).all()),"seed {seed}: doorway obstructed by geometry outside the door collision contract at {point:?}");
+                        assert!(
+                            scene
+                                .door_installations()
+                                .iter()
+                                .flat_map(|d| d.obstacles())
+                                .any(|(lo, hi)| point.cmpge(lo - Vec3::splat(0.05)).all()
+                                    && point.cmple(hi + Vec3::splat(0.05)).all()),
+                            "seed {seed}: doorway obstructed by geometry outside the door collision contract at {point:?}"
+                        );
                     }
                 }
             }
@@ -1297,9 +1306,13 @@ fn dressed_staged_humans_have_finite_geometry_and_material_parts() {
             let assembly = super::humans::build_human(h);
             for (surface, g) in assembly.parts {
                 for (index, (p, n)) in g.positions.iter().zip(&g.normals).enumerate() {
-                    assert!(Vec3::from_array(*p).is_finite() && Vec3::from_array(*n).is_finite()
-                        && Vec3::from_array(*n).length_squared() > 0.99,
-                        "seed={seed}, human={}, surface={surface:?}, vertex={index}, p={p:?}, n={n:?}", h.id);
+                    assert!(
+                        Vec3::from_array(*p).is_finite()
+                            && Vec3::from_array(*n).is_finite()
+                            && Vec3::from_array(*n).length_squared() > 0.99,
+                        "seed={seed}, human={}, surface={surface:?}, vertex={index}, p={p:?}, n={n:?}",
+                        h.id
+                    );
                 }
             }
         }
@@ -1372,8 +1385,11 @@ fn backless_stools_survive_placement_and_have_no_back_geometry() {
                 stools += 1;
                 found = true;
                 let (_, hi) = super::objects::build_object(chair).bounds();
-                assert!(hi.y <= 0.481, "stool acquired a back: {hi:?}");
-                assert!(hi.y >= 0.469, "missing stool seat: {hi:?}");
+                let seat = super::objects::chairs::stool::parameters(chair).seat_height_m;
+                assert!(
+                    (seat - 0.001..=seat + 0.008).contains(&hi.y),
+                    "seat at {seat}, top {hi:?}"
+                );
             }
         }
         rooms += usize::from(found);

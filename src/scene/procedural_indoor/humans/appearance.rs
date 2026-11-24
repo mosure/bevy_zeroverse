@@ -2,6 +2,8 @@
 use super::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Appearance {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layers: Option<super::finishes::LayerFinishes>,
     pub melanin: f32,
     pub blood_tint: f32,
     pub skin_roughness: f32,
@@ -62,6 +64,7 @@ mod tests {
             assert!((0.0..=1.0).contains(&a.garment.trouser_coverage));
             let mut old = serde_json::to_value(&a).unwrap();
             for key in [
+                "layers",
                 "garment",
                 "face",
                 "hair_volume",
@@ -76,6 +79,7 @@ mod tests {
             }
             let legacy: Appearance = serde_json::from_value(old).unwrap();
             assert_eq!(legacy.face.stubble, 0.0);
+            assert!(legacy.face.complexion.is_none() && legacy.layers.is_none());
             assert!(legacy.body_program.is_none());
             assert_eq!(
                 legacy.garment,
@@ -83,6 +87,54 @@ mod tests {
             );
         }
         assert!(necks.len() > 500 && irises.len() > 500);
+    }
+    #[test]
+    fn actor_finishes_and_proportions_cover_independent_ranges() {
+        use super::super::{morphology::LimbProportions, poses::PoseProgram, HumanPoseKind};
+        let mut values = [const { Vec::<f32>::new() }; 7];
+        let mut laced = 0;
+        let mut crossed = 0;
+        let mut aprons = 0;
+        for seed in 0..1024 {
+            let a = Appearance::sample(seed);
+            let face = a.face.complexion.as_ref().unwrap();
+            let dress = a.layers.as_ref().unwrap();
+            let last = a.footwear.construction.as_ref().unwrap();
+            assert!(face.valid() && dress.valid() && a.footwear.validate().is_ok());
+            let limbs = LimbProportions::sample(seed);
+            assert_eq!(
+                PoseProgram::sample(seed, HumanPoseKind::SeatedWorking).limb_proportions,
+                limbs
+            );
+            let [upper, _] = limbs.arm_lengths(1.);
+            let [thigh, _] = limbs.leg_lengths(1.);
+            for (v, x) in values.iter_mut().zip([
+                face.warmth,
+                face.flush,
+                face.lip_moisture,
+                dress.shirt[1],
+                last.toe_spring,
+                upper,
+                thigh,
+            ]) {
+                v.push(x);
+            }
+            laced += usize::from(a.footwear.laces > 0);
+            crossed += usize::from(a.footwear.laces > 0 && last.crossed);
+            aprons += usize::from(a.footwear.laces == 0 && last.apron);
+        }
+        for series in &mut values {
+            series.sort_unstable_by(f32::total_cmp);
+        }
+        let ranges = values.map(|s| [s[51], s[512], s[972]]);
+        for (q, min_width) in ranges
+            .iter()
+            .zip([1.65, 1.65, 0.65, 0.64, 0.010, 0.025, 0.041])
+        {
+            assert!(q[2] - q[0] > min_width, "collapsed actor range {q:?}");
+        }
+        assert!((430..600).contains(&crossed) && (125..260).contains(&aprons));
+        println!("1024 actor seeds: p05/median/p95 [warmth,flush,lip moisture,shirt green,toe spring m,upper arm m,thigh m] {ranges:?}; laced={laced}, crossed={crossed}, apron slip-ons={aprons}");
     }
 }
 fn default_volume() -> f32 {
@@ -92,6 +144,10 @@ fn default_volume() -> f32 {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FaceProgram {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eyewear: Option<super::eyewear::EyewearProgram>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complexion: Option<super::finishes::Complexion>,
     /// Absent in saved faces that use Anny's original UVs and polygonal irises.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub optics: Option<super::eyes::EyeOptics>,
@@ -107,7 +163,9 @@ pub struct FaceProgram {
 impl Default for FaceProgram {
     fn default() -> Self {
         Self {
+            eyewear: None,
             optics: None,
+            complexion: None,
             iris: [0.18, 0.12, 0.07],
             brow_width: 0.041,
             brow_thickness: 0.0045,
@@ -129,8 +187,10 @@ impl FaceProgram {
             rng.random_range(0.035..0.28),
         )
         .to_srgba();
-        Self {
+        let mut face = Self {
+            eyewear: None,
             optics: Some(super::eyes::EyeOptics::sample(seed)),
+            complexion: Some(super::finishes::Complexion::sample(seed)),
             iris,
             brow_width: rng.random_range(0.034..0.050),
             brow_thickness: rng.random_range(0.0026..0.0065),
@@ -147,7 +207,15 @@ impl FaceProgram {
                 0.0
             },
             frame_color: [frame.red, frame.green, frame.blue],
+        };
+        face.eyewear = Some(super::eyewear::EyewearProgram::sample(
+            seed,
+            face.frame_metallic,
+        ));
+        if face.frame_metallic > 0.5 {
+            face.frame_color = super::eyewear::metal_tint(seed, face.frame_color);
         }
+        face
     }
 }
 fn default_sleeve() -> f32 {
@@ -160,12 +228,15 @@ fn default_weave_scale() -> f32 {
     1.0
 }
 impl Appearance {
-    pub(crate) fn weave_uv_transform(&self) -> bevy::math::Affine2 {
-        bevy::math::Affine2::from_scale_angle_translation(
-            Vec2::splat(self.weave_scale),
-            self.weave_rotation,
-            Vec2::ZERO,
-        )
+    pub(crate) fn cloth_grain(&self, surface: HumanSurface) -> (f32, f32, f32) {
+        self.layers
+            .as_ref()
+            .and_then(|f| f.cloth(surface))
+            .unwrap_or((self.weave_scale, self.weave_rotation, self.cloth_roughness))
+    }
+    pub(crate) fn weave_uv_transform(&self, surface: HumanSurface) -> bevy::math::Affine2 {
+        let (scale, angle, _) = self.cloth_grain(surface);
+        bevy::math::Affine2::from_scale_angle_translation(Vec2::splat(scale), angle, Vec2::ZERO)
     }
 
     pub fn sample(seed: u64) -> Self {
@@ -195,6 +266,7 @@ impl Appearance {
             [darkness, green, green * rng.random_range(0.45..0.78)]
         };
         Self {
+            layers: Some(super::finishes::LayerFinishes::sample(seed)),
             melanin: rng.random_range(0.0..1.0),
             blood_tint: rng.random_range(0.015..0.09),
             skin_roughness: rng.random_range(0.42..0.64),
@@ -236,6 +308,7 @@ impl Appearance {
             0.74 * (1.0 - t) + 0.145 * t,
             0.61 * (1.0 - t) + 0.09 * t,
         ];
+        let skin = self.face.complexion.as_ref().map_or(skin, |c| c.tint(skin));
         let rgb = match surface {
             HumanSurface::Skin => [
                 skin[0],
@@ -249,7 +322,7 @@ impl Appearance {
             ],
             HumanSurface::Top => self.top,
             HumanSurface::Seam => self.top.map(|v| v * 0.86),
-            HumanSurface::Shirt => [0.87, 0.88, 0.86],
+            HumanSurface::Shirt => self.layers.as_ref().map_or([0.87, 0.88, 0.86], |f| f.shirt),
             HumanSurface::Eye if self.face.optics.is_some() => [1.; 3],
             HumanSurface::Iris => self.face.iris,
             HumanSurface::Trousers => self.trousers,
@@ -261,7 +334,12 @@ impl Appearance {
             }),
             HumanSurface::Eyewear => self.face.frame_color,
             HumanSurface::Shoes => self.footwear.upper_color,
-            HumanSurface::Sole | HumanSurface::ShoeDetail => self.footwear.sole_color,
+            HumanSurface::Sole => self.footwear.sole_color,
+            HumanSurface::ShoeDetail => self
+                .footwear
+                .construction
+                .as_ref()
+                .map_or(self.footwear.sole_color, |c| c.fastening_color),
             _ => return None,
         };
         Some(Color::srgb(rgb[0], rgb[1], rgb[2]))

@@ -16,6 +16,8 @@ mod tests;
 use super::{architecture::facade::Facade, layout::IndoorManifest};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
+pub(crate) use tests::ray_triangle;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FloorPatch {
