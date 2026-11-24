@@ -6,11 +6,11 @@ The bounded fallback completes an accepted sofa group only when ordinary
 workstation repair leaves no primary activity surface. Successful ordinary
 scenes and their random streams remain unchanged.
 
-[Receipt](receipt.json) binds the final generator identity to native six-view
+[Receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/release_0311/receipt.json) binds the final generator identity to native six-view
 RGB/depth/normal/position/semantic/co-visibility captures and a 256-seed
 neighborhood audit. The neighborhood checks all layouts and camera paths and
-actual meshes for its first sixteen seeds. [Capture](capture.json),
-[geometry](geometry.json) and [distribution](neighborhood.json) retain the
+actual meshes for its first sixteen seeds. [Capture](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/release_0311/capture.json),
+[geometry](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/release_0311/geometry.json) and [distribution](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/release_0311/neighborhood.json) retain the
 complete diagnostic measurements.
 
 The regression suite covers three cameras, twelve density/occupancy combinations,

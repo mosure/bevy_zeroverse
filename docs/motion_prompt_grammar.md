@@ -56,9 +56,9 @@ dance 52 and floor actions 9. Jogging did not appear in these constrained room
 paths and clip durations. Grammar tests exercised all 40 actions and all eight
 gaits; this is distinct from their feasibility in furnished rooms.
 
-The [distribution JSON](evidence/motion_prompt_grammar/prompt_distribution.json)
+The [distribution JSON](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/motion_prompt_grammar/prompt_distribution.json)
 contains all frequency tables and one example per observed program. The
-[summary](evidence/motion_prompt_grammar/summary.json) records policy, source
+[summary](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/motion_prompt_grammar/summary.json) records policy, source
 hashes, tokenizer identity, device, test results and per-actor measurements.
 Independent grammar tests checked 2,956 distinct prompts across two corpora
 with the pinned upstream tokenizer; the longest used 53 of 64 tokens including
@@ -74,7 +74,7 @@ contained two action stops. Measured net horizontal root displacement for the
 five traveling actors ranged from 1.189 to 2.916 metres. Both rooms shared one
 model load and used batches of four.
 
-![Two rooms, two cameras and five capture times](evidence/motion_prompt_grammar/gallery.jpg)
+![Two rooms, two cameras and five capture times](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/motion_prompt_grammar/gallery.jpg)
 
 Twenty 384×288 views covered five times per camera, with RGB, depth, normal,
 semantic, optical-flow and motion-vector outputs. Pose IDs, person bounds and

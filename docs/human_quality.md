@@ -6,15 +6,15 @@ dimensions and groom parameters expand the appearance space. Motion samples
 obstacle-aware travel programs after furnishing placement and admits the actual
 dressed render geometry. This is a local
 construction and annotation qualification, not a claim of photographic humans.
-The [receipt](evidence/human_quality/receipt.json) binds all evidence to the
+The [receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/receipt.json) binds all evidence to the
 renderer, package versions, source and model artifacts used.
 
 The [long-hair review](hair_quality.md) separately qualifies the expanded cut
 programs with current front/rear galleries, construction audits and motion checks.
 The cohort and receipt below retain their own source identity.
 
-![Standing wardrobe and body coverage](evidence/human_quality/final_standing_bodys.jpg)
-![Seated wardrobe and body coverage](evidence/human_quality/final_seated_bodys.jpg)
+![Standing wardrobe and body coverage](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_standing_bodys.jpg)
+![Seated wardrobe and body coverage](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_seated_bodys.jpg)
 
 ## Clothing construction and PBR
 
@@ -44,8 +44,8 @@ not measured cloth BSDFs or a cloth dynamics simulation.
 
 ## Constructed footwear
 
-![Standing footwear](evidence/human_quality/final_standing_footwears.jpg)
-![Natural-pose footwear](evidence/human_quality/final_seated_footwears.jpg)
+![Standing footwear](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_standing_footwears.jpg)
+![Natural-pose footwear](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_seated_footwears.jpg)
 
 Shoes use independent meshes for the upper, beveled rubber sole and optional
 laces. A body-fitted last follows the actual ankle and foot dimensions, with
@@ -63,8 +63,8 @@ stylized lasts provide construction diversity, not scanned footwear fidelity.
 
 ## Face and hair
 
-![Portrait coverage, source seeds 0–7](evidence/human_quality/final_standing_portraits.jpg)
-![Portrait coverage, source seeds 16–23](evidence/human_quality/final_seated_portraits.jpg)
+![Portrait coverage, source seeds 0–7](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_standing_portraits.jpg)
+![Portrait coverage, source seeds 16–23](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/final_seated_portraits.jpg)
 
 Iris pigment is sampled independently of skin melanin. Brow width/thickness/arch,
 lip tint, stubble density and eyewear frame tint/metallicity vary continuously.
@@ -88,7 +88,7 @@ mesh construction was audited for all seeds. Sampled outfits were polo 246,
 cardigan 234, knitwear 230, shirt 229, blazer 219 and tee 209. Each of eight groom
 selectors appeared 154–180 times; dimensions and fields vary within selectors.
 Full categories, scalar histograms and placement heatmaps are in
-[metrics.json](evidence/human_quality/metrics.json).
+[metrics.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/metrics.json).
 
 | Continuous control | P05 | Median | P95 |
 |---|---:|---:|---:|
@@ -111,7 +111,7 @@ These are sampled controls, not perceptual distances. For collared outfits the
 effective neckline depth is reduced during construction. Clothing remains a
 body-derived shell: the audit contains 937 person faces below its area tolerance
 across 143,679,225 total triangles. Architecture and furnishings had no such
-faces. [Per-seed topology](evidence/human_quality/geometry_audit.json) retains
+faces. [Per-seed topology](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/geometry_audit.json) retains
 these counts; this qualification does not assert universally nondegenerate people.
 
 ## Motion programs and admission
@@ -140,7 +140,7 @@ recipes included 105 bends, 35 direct paths and 12 returns. Continuous speed,
 amplitude, repetition timing, path shape and action ordering also vary. The pinned
 tokenizer measured a maximum of 45 of 64 tokens including the header. Counts are
 planning coverage, not proof the model performs every requested behavior.
-See [prompt distributions and examples](evidence/human_quality/prompt_distribution.json).
+See [prompt distributions and examples](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/prompt_distribution.json).
 
 Four consecutive rooms were actually generated with the real models, two actor
 slots per room, 120 frames, batch size two, ten diffusion steps and at most two
@@ -163,13 +163,13 @@ Raw clips use 20 fps and 5.95 seconds. Diagnostics record root velocity,
 acceleration and joint angular-speed distributions in physical units, separately
 from normalized capture progress. They are not perceptual quality thresholds.
 Clip joint-speed P95 ranged from 0.585 to 1.706 rad/s; longer and human-rated motion
-qualification remains necessary. [Summary](evidence/human_quality/summary.json)
+qualification remains necessary. [Summary](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/summary.json)
 links the numbers to per-clip records and all rejection reasons.
 
-![Room 0, two views at five progress values](evidence/human_quality/motion_0.jpg)
-![Room 1, two views at five progress values](evidence/human_quality/motion_1.jpg)
-![Room 2, two views at five progress values](evidence/human_quality/motion_2.jpg)
-![Room 3, two views at five progress values](evidence/human_quality/motion_3.jpg)
+![Room 0, two views at five progress values](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_0.jpg)
+![Room 1, two views at five progress values](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_1.jpg)
+![Room 2, two views at five progress values](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_2.jpg)
+![Room 3, two views at five progress values](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_3.jpg)
 
 The motion gallery retains every room. Moving people were visible in room 1,
 with 26,913 moving-person flow pixels summed across intervals/views. Rooms 0, 2
@@ -177,9 +177,9 @@ and 3 had no moving-person flow pixels in these views. Their hidden actors still
 passed geometry admission, but those RGB captures do not establish visible
 performance of the return march, shuffle, calf-raise or room-3 tiptoe behaviors.
 
-![All five admitted clips, saved joint and trajectory replay](evidence/human_quality/motion_pose_replay.jpg)
+![All five admitted clips, saved joint and trajectory replay](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_pose_replay.jpg)
 
-The [focused replay records](evidence/human_quality/motion_pose_replay.json)
+The [focused replay records](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/motion_pose_replay.json)
 show every admitted actor's saved Anny pose annotations
 at five physical times and overlays its generated root trajectory on the timed
 navigation route. It reuses the captured records without loading a model or
@@ -188,8 +188,8 @@ it cannot establish their clothing appearance in RGB.
 
 ## Production room captures and annotations
 
-![All sixteen consecutive rooms, camera zero](evidence/human_quality/rooms_0_15.jpg)
-![Room zero, three views and aligned annotation channels](evidence/human_quality/annotations_0.jpg)
+![All sixteen consecutive rooms, camera zero](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/rooms_0_15.jpg)
+![Room zero, three views and aligned annotation channels](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_quality/annotations_0.jpg)
 
 Sixteen consecutive rooms were captured at three 512×512 views with native Auto
 quality, shadows, SSAO, bloom, specular transmission and baked diffuse GI retained.

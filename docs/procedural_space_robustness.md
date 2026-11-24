@@ -3,11 +3,11 @@
 The indoor generator now checks that manufactured objects agree with their
 placement reservations, supported props fit below the roof, and wall fixtures
 have real mounting contact. This local qualification is bound to
-[the receipt](evidence/space_robustness/receipt.json) and core source
+[the receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/receipt.json) and core source
 `51c775d8ffcdfb29f2a8ac1d29ea5b8cc41c7234c3bf42294ad925349416d18a`.
 Generator version 27 identifies the changed placement/construction program.
 
-![Eight consecutive dense rooms, first view of each](evidence/space_robustness/rooms.jpg)
+![Eight consecutive dense rooms, first view of each](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/rooms.jpg)
 
 ## Construction and acceptance
 
@@ -75,8 +75,8 @@ about independent perceptual diversity.
 
 Every camera was in the primary room. Factor counts and denominators, histogram
 bins, object count distributions, placement heatmaps and camera overlap metadata
-are retained in [metrics.json](evidence/space_robustness/metrics.json).
-The [per-seed geometry audit](evidence/space_robustness/geometry_audit.json)
+are retained in [metrics.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/metrics.json).
+The [per-seed geometry audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/geometry_audit.json)
 retains all constructed checks and semantic triangle counts. Raw program control
 variance does not establish effective visual diversity or ten-million-sample
 learning utility.
@@ -89,7 +89,7 @@ SSAO, bloom, glass transmission and baked diffuse GI. These are static captures;
 motion models were not requested or loaded. Existing local WGPU patches are
 included in the source identity and disclosed in the receipt.
 
-![One scene, three views and six aligned annotations](evidence/space_robustness/annotations.jpg)
+![One scene, three views and six aligned annotations](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/annotations.jpg)
 
 | Capture check | Result |
 |---|---:|
@@ -104,7 +104,7 @@ included in the source identity and disclosed in the receipt.
 
 Geometric targets used direct float32 precision. All eight occupied rooms
 contained person pixels in at least one view; this does not mean every actor
-was visible. [Capture checks](evidence/space_robustness/capture_checks.json) retain
+was visible. [Capture checks](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/space_robustness/capture_checks.json) retain
 calibration, photometry, semantic pixel counts and measured overlap for all views.
 The evidence folder contains all 24 original RGB images and room 3's exact
 16-bit co-visibility membership masks with separate validity masks. Additive

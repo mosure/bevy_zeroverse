@@ -51,29 +51,29 @@ classrooms and galleries. Each thumbnail opens the full native capture.
 <table>
   <tr>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s7-t0-c3-color.webp"><img src="www/project/static/media/architecture/s7-t0-c3-color.webp" width="320" height="200" alt="Generated lounge with a mezzanine and stairs"></a><br>
+      <a href="docs/gallery/s7-t0-c3-color.webp"><img src="docs/gallery/s7-t0-c3-color.webp" width="320" height="200" alt="Generated lounge with a mezzanine and stairs"></a><br>
       <strong>Mezzanine &amp; stairs</strong><br><sub>Seed 7 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s8-t0-c3-color.webp"><img src="www/project/static/media/architecture/s8-t0-c3-color.webp" width="320" height="200" alt="Generated breakroom with varied floor levels"></a><br>
+      <a href="docs/gallery/s8-t0-c3-color.webp"><img src="docs/gallery/s8-t0-c3-color.webp" width="320" height="200" alt="Generated breakroom with varied floor levels"></a><br>
       <strong>Stepped breakroom</strong><br><sub>Seed 8 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s6-t0-c1-color.webp"><img src="www/project/static/media/architecture/s6-t0-c1-color.webp" width="320" height="200" alt="Generated reception with furnished seating and architectural details"></a><br>
+      <a href="docs/gallery/s6-t0-c1-color.webp"><img src="docs/gallery/s6-t0-c1-color.webp" width="320" height="200" alt="Generated reception with furnished seating and architectural details"></a><br>
       <strong>Furnished reception</strong><br><sub>Seed 6 · camera 1</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s4-t0-c0-color.webp"><img src="www/project/static/media/architecture/s4-t0-c0-color.webp" width="320" height="200" alt="Generated mixed-use interior with a sloping ceiling and pillar"></a><br>
+      <a href="docs/gallery/s4-t0-c0-color.webp"><img src="docs/gallery/s4-t0-c0-color.webp" width="320" height="200" alt="Generated mixed-use interior with a sloping ceiling and pillar"></a><br>
       <strong>Mixed-use interior</strong><br><sub>Seed 4 · camera 0</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s2-t0-c3-color.webp"><img src="www/project/static/media/architecture/s2-t0-c3-color.webp" width="320" height="200" alt="Generated low-light workspace with a desk and chair"></a><br>
+      <a href="docs/gallery/s2-t0-c3-color.webp"><img src="docs/gallery/s2-t0-c3-color.webp" width="320" height="200" alt="Generated low-light workspace with a desk and chair"></a><br>
       <strong>Low-light workspace</strong><br><sub>Seed 2 · camera 3</sub>
     </td>
     <td width="33%" align="center">
-      <a href="www/project/static/media/architecture/s28-t0-c0-color.webp"><img src="www/project/static/media/architecture/s28-t0-c0-color.webp" width="320" height="200" alt="Generated classroom with varied seating and lighting"></a><br>
+      <a href="docs/gallery/s28-t0-c0-color.webp"><img src="docs/gallery/s28-t0-c0-color.webp" width="320" height="200" alt="Generated classroom with varied seating and lighting"></a><br>
       <strong>Classroom lighting</strong><br><sub>Seed 28 · camera 0</sub>
     </td>
   </tr>

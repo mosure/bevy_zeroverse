@@ -4,8 +4,8 @@
 > [documentation index](README.md) for current capabilities and defaults.
 
 This revision fixes concrete rendering and control defects while retaining the
-AnnyBody phenotype mesh and optional ARDY motion. The [portrait/body gallery](evidence/human_review_v11/review.html)
-and [machine-readable report](evidence/human_review_v11/summary.json) show the
+AnnyBody phenotype mesh and optional ARDY motion. The [portrait/body gallery](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_review_v11/review.html)
+and [machine-readable report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_review_v11/summary.json) show the
 bounded evaluation. These are synthetic people with approximate garment and hair
 surfaces; these checks do not establish photographic realism.
 

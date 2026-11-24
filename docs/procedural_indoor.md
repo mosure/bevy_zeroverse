@@ -419,7 +419,7 @@ It reports feature frequencies, structural uniqueness, semantic coverage,
 annotation alignment and CPU/GPU voxel agreement. These are bounded diagnostics,
 not a photographic-realism or downstream-training qualification.
 
-![Every consecutively rendered room, first camera](evidence/architecture_v22/consecutive_rooms.jpg)
+![Every consecutively rendered room, first camera](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/architecture_v22/consecutive_rooms.jpg)
 
 Reproduce the architectural audit and report in a fresh output directory:
 

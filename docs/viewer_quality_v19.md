@@ -10,7 +10,7 @@ compression folds concentrate near garment edges and joints. Collars, lapels
 and button bands use the actual garment triangles and a small surface clearance.
 Clothing still uses the Anny geometry and skinning, including moving actors.
 
-[Eight matched clothing comparisons](evidence/viewer_quality_v19/clothing_before_after.png)
+[Eight matched clothing comparisons](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/viewer_quality_v19/clothing_before_after.png)
 use identical people, poses, cameras, materials and lighting before and after the
 change. All three outfit types are included. This is a visual geometry review,
 not a photographic similarity benchmark or a cloth simulation. Fine fabric,
@@ -38,9 +38,9 @@ Editor regeneration preserves projection settings, including field of view,
 near/far planes and aspect ratio. Repositioning in the primary room remains.
 Advanced indoor settings now expose the indirect-lighting budget, orientation
 augmentation and a summary of the active room, furnishings and lighting.
-[WebGPU screenshots](evidence/viewer_quality_v19/web_controls.png) show the motion
-controls; [advanced settings](evidence/viewer_quality_v19/web_advanced.png) and
-[pose overlays](evidence/viewer_quality_v19/web_pose_on.png) were also checked in
+[WebGPU screenshots](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/viewer_quality_v19/web_controls.png) show the motion
+controls; [advanced settings](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/viewer_quality_v19/web_advanced.png) and
+[pose overlays](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/viewer_quality_v19/web_pose_on.png) were also checked in
 the browser. Editing generation controls still requires explicit regeneration.
 
 The optical-flow preview now shows velocity over a fixed reference interval,
@@ -54,7 +54,7 @@ translation discontinuities at frame boundaries when offsets vary.
 
 ## Recorded checks
 
-[Machine-readable results](evidence/viewer_quality_v19/validation.json) record the
+[Machine-readable results](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/viewer_quality_v19/validation.json) record the
 small-sample qualification and its limits.
 
 | Check | Result |

@@ -2,9 +2,9 @@
 
 The batch-fix versions below now resolve from crates.io with exact requirements
 and verified registry checksums. All six sibling checkout overrides have been
-removed. The [published resolution report](evidence/human_registry_upgrade/published_resolution.json)
+removed. The [published resolution report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/published_resolution.json)
 records availability at 15:52 UTC, the resolved sources and the source comparison.
-The earlier [14:09 UTC check](evidence/human_registry_upgrade/registry_visibility.json)
+The earlier [14:09 UTC check](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/registry_visibility.json)
 is retained as historical evidence from before publication completed.
 
 | Crate | Required version |
@@ -31,11 +31,11 @@ The wgpu optimizations reviewed separately are unchanged.
 ## Registry transition validation
 
 - Motion-enabled library tests: **106 passed**, three existing long qualifications
-  ignored ([log](evidence/human_registry_upgrade/published_tests.txt)).
+  ignored ([log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/published_tests.txt)).
 - Default native viewer: compile check passed
-  ([log](evidence/human_registry_upgrade/published_native.txt)).
+  ([log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/published_native.txt)).
 - Wasm viewer with `web,human_motion`: compile check passed
-  ([log](evidence/human_registry_upgrade/published_wasm.txt)); browser execution
+  ([log](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/published_wasm.txt)); browser execution
   was not rerun. Cargo still reports the existing `burn-cubecl` future Rust
   compatibility notice.
 - Metadata contains no dependency on the sibling `burn_human` checkout; all six
@@ -52,7 +52,7 @@ cargo check -p bevy_zeroverse --target wasm32-unknown-unknown \
 
 ## Historical local preflight
 
-[Results](evidence/human_registry_upgrade/preflight.json) use the local batch-fix
+[Results](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_registry_upgrade/preflight.json) use the local batch-fix
 sources, not registry packages:
 
 - Native library tests: 102 passed, three long qualifications ignored.

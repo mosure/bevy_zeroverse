@@ -9,7 +9,7 @@ is effectively flat (**−0.17%**), with **1.18% higher CPU seconds/room**. RGB 
 six-mode single CPU seconds/room fall **1.57% and 0.76%**. This is incremental
 progress; the requested 2× improvement and downstream generate-to-train speedup
 remain unproven. All saved RGB, annotation and metadata files match the accepted
-local baseline byte for byte. The [qualification receipt](evidence/cpu_efficiency/receipt.json)
+local baseline byte for byte. The [qualification receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/cpu_efficiency/receipt.json)
 binds source, builds, tests, measured runs and exact replay.
 
 ## Qualified implementation

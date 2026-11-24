@@ -22,7 +22,7 @@ flowchart LR
     copies --> consumer[Owned CPU, WGPU or CUDA sample]
 ```
 
-The source-bound [paper timing section](../tex/generated/pipeline_evaluation.tex) reports current measurements and their conditions. Branch times overlap; they must not be added as exclusive wall time. Shared-workstation measurements do not establish an isolated hardware ceiling.
+The source-bound [paper timing section](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/tex/generated/pipeline_evaluation.tex) reports current measurements and their conditions. Branch times overlap; they must not be added as exclusive wall time. Shared-workstation measurements do not establish an isolated hardware ceiling.
 
 | Area | Implementation and preserved contract |
 | --- | --- |

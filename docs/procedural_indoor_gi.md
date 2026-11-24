@@ -79,8 +79,8 @@ transport. For seed 6, the aggregate relative mean absolute error was 17.01% at
 points against a finite-sample reference; it does not measure agreement with
 a photograph or a full path-traced renderer. The captured GPU volume contained
 825 probes in 39,600 bytes and about 13.5 MB of transient transport buffers.
-See the [256-ray reference](procedural_indoor/gi_gpu_reference.json) and
-[1024-ray reference](procedural_indoor/gi_gpu_reference_1024.json).
+See the [256-ray reference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_gpu_reference.json) and
+[1024-ray reference](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_gpu_reference_1024.json).
 
 Matched native generation measurements used 64 scenes, discarded eight warmup
 scenes, and returned three 320×240 cameras with RGB, depth, position, normal,
@@ -92,8 +92,8 @@ Preparation and completed readback are included; file encoding is excluded.
 | 256 (default) | 17.01% | 5.741 | 0.514 |
 | 1024 | 8.76% | 2.877 | 1.001 |
 
-The [256-ray](procedural_indoor/gi_benchmark_256.json) and
-[1024-ray](procedural_indoor/gi_benchmark_1024.json) reports record the adapter,
+The [256-ray](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_benchmark_256.json) and
+[1024-ray](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_benchmark_1024.json) reports record the adapter,
 actual settings, and measurement policy. The default retains the more efficient
 budget. These short comparisons do not establish long-run memory stability;
 see the separate engine qualification for that evidence.
@@ -102,10 +102,10 @@ In the two fixed-camera seed-6 images, disabling only the GI volume produced
 mean absolute per-pixel linear-luminance differences of 0.000574 and 0.001219; respectively 1.03% and 2.26% of
 pixels changed by more than 0.005. The contribution is measurable but modest
 in these views, and the ceiling remains dark. The
-[controlled RGB report](procedural_indoor/gi_render_ablation.json),
-[GI image](procedural_indoor/gi_native.png), and
-[same camera without GI](procedural_indoor/gi_native_no_indirect.png) preserve
-that limitation. A separate [fixed-camera lighting control](procedural_indoor/lighting_ablation_v3.json)
+[controlled RGB report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_render_ablation.json),
+[GI image](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_native.png), and
+[same camera without GI](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/gi_native_no_indirect.png) preserve
+that limitation. A separate [fixed-camera lighting control](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/lighting_ablation_v3.json)
 confirmed both local and sun shadows affect the image: removing local shadows
 produced luminance MAEs of 0.00774 and 0.00658; removing all direct lights
 produced 0.04545 and 0.04330. The baked GI field stays fixed in the direct-light

@@ -7,7 +7,7 @@ constrained adapters; it is not a throughput preset. Headless Portable capture
 emits a warning describing those reductions.
 
 Preparation, polling and capture-buffer optimizations are automatic. The current
-source-bound [paper timing receipt](../tex/generated/pipeline_receipt.json) records
+source-bound [paper timing receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/tex/generated/pipeline_receipt.json) records
 the qualified workload and measured cost. No additional scheduling controls are
 required.
 
@@ -178,7 +178,7 @@ bounded aggregate diagnostics, not exclusive CPU/GPU stage attribution.
 
 ## Validation scope
 
-The current source-bound [paper timing receipt](../tex/generated/pipeline_receipt.json)
+The current source-bound [paper timing receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/tex/generated/pipeline_receipt.json)
 records the measured preparation and completed-capture workloads, environment,
 latencies and memory. Preparation timers distinguish tree emission, probe-tree
 construction and shadow-tree construction. Parallel branch durations overlap;

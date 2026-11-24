@@ -22,13 +22,13 @@ mix the previous full-scene normalization with the new primary-room contract.
   The audit independently reconstructs the primary-room crop from the manifest
   and checks that all captured cameras belong to that room.
 - CPU/GPU sparse fields pass the existing comparison tolerances, with one bake
-  per scene. See [validation.json](validation.json).
+  per scene. See [validation.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/primary_aabb/validation.json).
 - A filesystem export of seed 11 passes the same checks. A capture with voxel
   export disabled has the same primary-room AABB and no voxel tensors.
 - Across eight CPU views, **2,163 visible context pixels** lie outside the AABB.
   Decoding position with the exported bounds still agrees with depth: worst
   per-view p99 depth discrepancy **2.72 µm**, reprojection **0.00220 pixels**.
-  [summary.json](summary.json) retains per-view measurements.
+  [summary.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/primary_aabb/summary.json) retains per-view measurements.
 
 The 137-test library run passed before the final voxel-corner preservation fix.
 After that fix, all five targeted AABB/position tests passed; ten storage
@@ -39,8 +39,8 @@ compatibility notice. The Wasm check is compilation, not a new browser runtime
 qualification.
 
 This is a bounded correctness check, not a distribution or photorealism claim.
-Commands are recorded in [runs.json](runs.json); raw exports and the frozen
-binary remain in `out/primary_aabb_review/final/`. [provenance.json](provenance.json)
+Commands are recorded in [runs.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/primary_aabb/runs.json); raw exports and the frozen
+binary remain in `out/primary_aabb_review/final/`. [provenance.json](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/primary_aabb/provenance.json)
 records source and binary hashes. Use the current
 `scripts/validate_indoor_ovoxel.py` for the new contract; older captures with
 full-scene annotation bounds intentionally fail its equality check.

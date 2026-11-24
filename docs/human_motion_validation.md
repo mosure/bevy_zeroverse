@@ -74,8 +74,8 @@ regeneration, takes 127 seconds. The loader uses a local HTTP mirror with the
 unchanged pinned digests. Headless Chrome produced blank screenshots on this
 driver; the successful visual qualification uses a visible browser window.
 
-[Walking frame A](evidence/human_motion/walking_a.png) and
-[walking frame B](evidence/human_motion/walking_b.png) show the real browser
+[Walking frame A](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_motion/walking_a.png) and
+[walking frame B](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_motion/walking_b.png) show the real browser
 render. They are integration evidence; photographic realism is not established.
 
 The production dataset CLI completes a separate seed-2 capture in a child

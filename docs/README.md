@@ -17,14 +17,13 @@ These guides describe the current generator and export contracts.
 | Measure embedding-space diversity | [SigLIP2 audit](embedding_audit.md) |
 | Extend object, material or camera families | [Module ownership and compatibility contracts](code_organization.md) |
 
-The [architectural evaluation](architecture_v22.md) contains the latest
-512-room structural audit and 256-view rendered evaluation, including complete
-contact sheets and machine-readable distributions. The
-[release compatibility notes](release_0_31.md) describe manifest and capture
-compatibility.
+The [project page](https://mosure.github.io/bevy_zeroverse/project/) publishes
+the current architecture audit, gallery and paper. The [Rust publication
+protocol](project_page.md) defines the recipe and its release checks.
 
-The [Rust publication protocol](project_page.md) defines the single recipe and
-release gate for the website and paper. Versioned reviews, release notes and evidence directories are
-archival records: retain their original generator identities and input hashes.
-Use these guides for current behavior; a recorded benchmark does not automatically
-qualify a later generator or a different renderer/backend.
+Historical reviews link to the evidence captured at their recorded revision.
+To run an older analysis locally, restore its files from that revision to the
+working tree. For example, `git restore --source=6cc9ee235004b0e71b7eeb69bc5990375f77d48c --worktree -- docs/evidence/domain10`
+retrieves the archived domain study. The corresponding
+[evidence tree](https://github.com/mosure/bevy_zeroverse/tree/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence)
+also works without a local copy of the history.

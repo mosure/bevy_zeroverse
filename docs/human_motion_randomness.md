@@ -57,9 +57,9 @@ The first eight-clip batch took 5.82 seconds; the bounded qualification took
 29.78 seconds including cached model loading, encoding, replay and comparisons.
 These are diagnostic timings, not a throughput benchmark.
 
-The [machine-readable report](evidence/human_motion_randomness/summary.json)
+The [machine-readable report](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_motion_randomness/summary.json)
 records complete requests, model hashes, frame-content hashes and every
-comparison. [Dependency resolution](evidence/human_motion_randomness/dependencies.json)
+comparison. [Dependency resolution](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_motion_randomness/dependencies.json)
 confirms the published ARDY 0.1.4, Llama 0.1.2, motion 0.1.1 and inference 0.1.4
 crates. Source clips remain locally at `out/motion_seed_validation/clips.json`.
 

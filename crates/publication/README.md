@@ -40,21 +40,17 @@ masks, inconsistent denominators, broken page links and mismatched PDF sources.
 It checks the automatic run receipt as well as the page/paper attestation.
 
 The Pages workflow runs on main pushes, published releases and manual dispatch.
-Hosted Ubuntu uses Mesa Vulkan software rendering; the motion-enabled WASM
-viewer builds independently in parallel. A second job verifies the exact
-SHA-named artifacts before deploying them together. Only current main can
-deploy; superseded/failed runs leave the previously deployed site intact. The
-paper is produced in this same workflow, not by a separate stale-PDF job.
-Software-render timing is explicitly labeled with the actual adapter and must
-not be read as GPU training throughput. These workflows activate after the
-changes are pushed to main.
+Hosted Ubuntu uses Mesa Vulkan software rendering. The motion-enabled WASM
+viewer builds in parallel. A packaging job verifies the SHA-named artifacts
+and uploads a single GitHub Pages artifact containing the viewer, page and
+paper. Deployment checks the current main revision immediately before promotion.
+Timing receipts identify the rendering adapter.
 
-Local rendering is the supported alternative: run `sync` on a Linux GPU host,
-then include the resulting `www/project`, `tex`, configured `docs/evidence`
-directories and `docs/evidence/publication_run.json` in the source revision.
-CI still verifies all bytes against that revision; it skips rendering only when
-the current-source gate passes. Capture-tool or renderer changes invalidate this
-shortcut. A cache hit never relaxes freshness or annotation checks. Required
+For a local publication run `sync` on a Linux host with Vulkan. Generated
+outputs stay in the working directory. For offline verification, download the
+CI run's `publication-<commit>` artifact into the matching source checkout and
+run `verify-current`. CI reuses a completed bundle only after checking its
+source identity, bytes and annotations. Required
 local tools are Rust, Vulkan, `latexmk`/pdfLaTeX and Poppler (`pdftoppm`); the
 checked-in Anny reference supplies static people, without motion-model downloads.
 

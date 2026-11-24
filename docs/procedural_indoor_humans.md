@@ -52,7 +52,7 @@ placement heatmaps.
 
 ## Occupied-room qualification
 
-The [local receipt](evidence/human_morphology/receipt.json) binds this audit to
+The [local receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/receipt.json) binds this audit to
 the body-fit qualification before the release-version bump (local crate stamp
 0.29.0, generator 29), and source
 `9a5203b52006b2a061a48bc52c1e21d72c875fe73e5a52b31d976ed646911c9c`.
@@ -80,28 +80,28 @@ Collision admission favors shorter seated people: 718 seated people averaged
 was 1.500–1.950 m. The audit exposes this placement bias; it does not establish a
 representative demographic mixture. Primary/neighbor occupancy, raw per-person
 dimensions, anchor distributions, count denominators and heatmaps remain in
-[the measured geometry audit](evidence/human_morphology/geometry_audit.json),
-[human records](evidence/human_morphology/humans.csv) and
-[metrics](evidence/human_morphology/metrics.json).
+[the measured geometry audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/geometry_audit.json),
+[human records](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/humans.csv) and
+[metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/metrics.json).
 
-![Controlled body-size comparison with identical full-body framing](evidence/human_morphology/body_comparison.jpg)
+![Controlled body-size comparison with identical full-body framing](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/body_comparison.jpg)
 
 The staged comparison holds clothing, pigmentation and pose program constant,
 varying stature, build and Anny gender-shape at selected endpoints. All full-body
 cameras use the same 32-degree field of view and 4.3 m offset. Bald heads expose
 morphology; this is a controlled slice, not a population sample.
 
-![Short muscular bodies across all six garment cuts](evidence/human_morphology/wardrobe.jpg)
+![Short muscular bodies across all six garment cuts](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/wardrobe.jpg)
 
 The wardrobe stress slice fixes stature at 1.50 m, build at 1.22 and the muscle
 anchor at 0.88. It covers all six outfit cuts on one gender-shape setting and two additional
 cuts on a second setting, with identical full-body camera intrinsics. Shared-vertex cuff and neckline
 classification avoids contradictory skin/cloth assignments at neighboring faces.
 These are fitted surfaces, not a cloth simulation; fabric and faces remain
-visibly synthetic. The [66-forward Anny calibration](evidence/human_morphology/anny_sweep.csv)
+visibly synthetic. The [66-forward Anny calibration](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/anny_sweep.csv)
 records actual height-anchor dimensions independently of retargeting and clothes.
 
-![First views of four consecutive fully occupied rooms](evidence/human_morphology/rooms.jpg)
+![First views of four consecutive fully occupied rooms](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/rooms.jpg)
 
 The first four consecutive rooms were captured at three 512×512 views each on
 NVIDIA RTX PRO 6000 Blackwell/Vulkan, retaining Auto-quality 2048-pixel shadows,
@@ -113,7 +113,7 @@ P99 was 0.000001907 m, normal-length error was at most 0.000000239 and exported
 joint alignment error was zero. Directed peer co-visibility P05/median/P95 was
 0.344/0.622/0.866.
 
-![Three views with RGB, semantic, depth, normal, position and co-visibility annotations](evidence/human_morphology/annotations.jpg)
+![Three views with RGB, semantic, depth, normal, position and co-visibility annotations](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/human_morphology/annotations.jpg)
 
 All 251 core tests, formatting and strict workspace/all-target Clippy passed.
 The 64-case morphology stress test covers short/tall, light/heavy, gender-shape,

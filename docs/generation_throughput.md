@@ -15,7 +15,7 @@ normals, position, semantics and co-visibility.
 
 The current optimization improves matched capture throughput **1.62×** over the
 previous one-room-lookahead/surface-area-BVH implementation. The requested
-additional **2× is not achieved**. The [qualification receipt](evidence/throughput_512/pipeline.json)
+additional **2× is not achieved**. The [qualification receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/throughput_512/pipeline.json)
 records commands, source identities, artifact hashes, timing and pixel comparisons.
 These are optimized dev builds with the checkout's existing WGPU patches;
 registry WGPU performance was not measured.
@@ -104,8 +104,8 @@ capture and interactive callers remain non-speculative. The file writer stays
 bounded. New worker pools are native-only; browser construction retains its
 cooperative scheduling and incurs no additional model initialization.
 
-The earlier [lookahead](evidence/throughput_512/measurements.json) and
-[transport-index](evidence/throughput_512/acceleration.json) receipts retain their
+The earlier [lookahead](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/throughput_512/measurements.json) and
+[transport-index](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/throughput_512/acceleration.json) receipts retain their
 original experimental identities. These finite throughput measurements do not
 establish photographic realism or downstream learning utility. Motion-model
 inference, O-voxel, multi-timestep throughput and browser runtime performance are
@@ -113,7 +113,7 @@ outside this benchmark.
 
 ## Person placement qualification
 
-The [512-room population receipt](evidence/throughput_512/person-placement.json)
+The [512-room population receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/throughput_512/person-placement.json)
 identifies the old hotspot as a hard-coded presenter coordinate, not a plotting
 error. The corrected generator has **zero people at that anchor**, versus 38 in
 the original audit. Total population remains 1,144, including 1,044 people in

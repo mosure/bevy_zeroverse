@@ -5,13 +5,13 @@ long straight, wavy, curly and layered falls, asymmetric bobs, braids, twin brai
 high and low ponytails, locs, buns, pixie cuts and shorter grooms. Continuous cut
 and grooming parameters change silhouettes within these topologies. This is a
 local construction and rendering qualification; photographic strand realism is
-not established. The [receipt](evidence/hair_quality/receipt.json) binds the
+not established. The [receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/receipt.json) binds the
 galleries, audits and model artifacts to their actual generator source.
 
-![Long cuts on the same Anny female-anchor body, front](evidence/hair_quality/final_long_portraits.jpg)
-![The same cuts, rear](evidence/hair_quality/final_long_rears.jpg)
+![Long cuts on the same Anny female-anchor body, front](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_long_portraits.jpg)
+![The same cuts, rear](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_long_rears.jpg)
 
-![Fitted twin-tail bases and cohesive loose-hair coverage](evidence/hair_quality/attachment_and_fall.jpg)
+![Fitted twin-tail bases and cohesive loose-hair coverage](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/attachment_and_fall.jpg)
 
 These fixtures fix the Anny female shape anchor at 0.95, source person seed 0,
 body proportions, palette, pose and continuous grooming program, and vary the
@@ -62,10 +62,10 @@ or downloads. Static actors do not initialize motion generation. Motion prepares
 the groom once and updates bones during playback. A controlled throughput
 comparison was not run on the shared training GPU.
 
-![Independent natural-pose female-anchor appearances, front](evidence/hair_quality/final_varied_portraits.jpg)
-![Their rear silhouettes](evidence/hair_quality/final_varied_rears.jpg)
-![Short and tied cuts on the controlled body](evidence/hair_quality/final_short_portraits.jpg)
-![Short and tied rear coverage](evidence/hair_quality/final_short_rears.jpg)
+![Independent natural-pose female-anchor appearances, front](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_varied_portraits.jpg)
+![Their rear silhouettes](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_varied_rears.jpg)
+![Short and tied cuts on the controlled body](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_short_portraits.jpg)
+![Short and tied rear coverage](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/final_short_rears.jpg)
 
 The independent fixtures use source seeds 16–23 with natural sampled poses;
 their styles are forced for coverage. These fixtures are isolated review people,
@@ -84,11 +84,11 @@ sampling covers all 19 types independently of the sampled body shape.
 A consecutive 256-room cohort, seeds 0–255, at furniture density 0.65 and human
 density 0.7 contains **1,328 people** and all 19 hair types, with 49–91 instances
 per type. All rooms pass layout, clearance and actual construction checks.
-The [metrics](evidence/hair_quality/metrics.json) export named style counts,
+The [metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/metrics.json) export named style counts,
 continuous control histograms and the existing placement heatmaps. Metrics schema
 15 and generator identity 26 describe this cohort.
 
-![Hair type coverage and continuous controls](evidence/hair_quality/distributions.png)
+![Hair type coverage and continuous controls](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/distributions.png)
 
 | Sampled control | P05 | Median | P95 |
 |---|---:|---:|---:|
@@ -110,7 +110,7 @@ perceptual distances, effective dataset entropy or 10M-sample learning utility.
 
 Actual construction of the 256 rooms produced **153,792,941 triangles**, with
 zero faces flagged by the geometry audit's degeneracy tolerance. The
-[per-seed audit](evidence/hair_quality/geometry_audit.json) retains the raw counts.
+[per-seed audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/geometry_audit.json) retains the raw counts.
 This is bounded seed coverage, not a guarantee for every possible parameter set.
 
 Eight consecutive rooms, seeds 0–7, were captured from three 512×512 views each
@@ -119,14 +119,14 @@ retained. No rooms or views were selected by image quality. All eight rooms show
 some person pixels, which does not establish visibility of every individual.
 The 24 views contain 8–15 semantic classes each.
 
-![Consecutive production rooms](evidence/hair_quality/rooms_0_7.jpg)
-![Aligned RGB, semantic, depth, normal, position and co-visibility for room 1](evidence/hair_quality/annotations_1.jpg)
+![Consecutive production rooms](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/rooms_0_7.jpg)
+![Aligned RGB, semantic, depth, normal, position and co-visibility for room 1](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/annotations_1.jpg)
 
 Worst per-view reprojection P99 is **0.00246 pixels**; depth/position P99 disagreement
 is **2.87 µm**, and maximum normal-length error is **2.39×10⁻⁷**. Camera pose export
 matches exactly in these captures. Directed rendered peer visibility has
 P05/median/P95 of **0.210/0.615/0.829**. Captures use direct float32 annotations.
-[Capture checks](evidence/hair_quality/room_capture_checks.json) retain the
+[Capture checks](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/room_capture_checks.json) retain the
 renderer, alignment, scene bounds, person pixel counts and co-visibility results.
 
 The real-model motion probe planned 64 consecutive rooms, then generated two
@@ -142,7 +142,7 @@ Only room 1 shows moving-person pixels, with 332 over its sampled views. This
 small motion probe checks admission and annotations, not close-up temporal hair
 quality. Rejections and kinematics are retained in the receipt.
 
-![Admitted motion in room 1, both cameras at five times](evidence/hair_quality/motion_1.jpg)
+![Admitted motion in room 1, both cameras at five times](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/hair_quality/motion_1.jpg)
 
 The final core suite passes **239 tests**, with three explicit qualification
 tests ignored. Strict workspace/all-target Clippy and the motion-enabled WebGPU

@@ -27,7 +27,7 @@ cargo run --bin bevy_zeroverse -- --scene-type procedural-indoor --indoor-seed 4
 The same preview works in WebGPU with
 `?scene_type=procedural-indoor&num_cameras=4&camera_grid=true&render_mode=co-visibility`.
 
-![WebGPU capture-camera masks and the shared camera legend](evidence/co_visibility/browser_legend.png)
+![WebGPU capture-camera masks and the shared camera legend](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/co_visibility/browser_legend.png)
 
 The editor retains its RGB view. Camera-grid slots and legend bits follow ascending
 `CaptureCameraIndex`, with entity order as the fallback. Use unique indices when

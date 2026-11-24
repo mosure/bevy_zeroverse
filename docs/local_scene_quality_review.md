@@ -103,7 +103,7 @@ were zero; the largest per-view p99 reprojection error was 0.00260 pixels and p9
 depth/position disagreement was 3.82 micrometres. Clipped RGB fractions were at most
 0.295%. PNGs are previews; annotation validation uses the native float32 planes.
 
-![Actual local engine captures, first trajectory step](procedural_indoor/contact_generator5.jpg)
+![Actual local engine captures, first trajectory step](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/procedural_indoor/contact_generator5.jpg)
 
 Inspect the actual images as well as geometry and distribution checks. The rooms
 remain visibly synthetic: people need better hair, faces and clothing; surface

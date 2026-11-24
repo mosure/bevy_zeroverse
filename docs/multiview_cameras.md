@@ -212,7 +212,7 @@ constraints. This prevents a stored custom policy from being silently relaxed.
 
 These constrain a stochastic sampler, rather than determining exact camera
 positions. Room dimensions, furniture, camera intrinsics and visibility rejection
-shape the realized spacing and overlap. The [current camera study](evidence/camera_counts/study.json)
+shape the realized spacing and overlap. The [current camera study](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/camera_counts/study.json)
 records distributions across matched rooms and camera counts. Wider settings trade shared
 pixels for viewpoint variation; they do not guarantee a training-quality optimum.
 

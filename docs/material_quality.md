@@ -1,13 +1,13 @@
 # Procedural material quality
 
 The material qualification below is bound to the source recorded in
-[the qualification receipt](evidence/material_quality/receipt.json). For current
+[the qualification receipt](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/receipt.json). For current
 room and furniture construction, see the [geometry review](geometry_quality.md).
 The subsequent [human review](human_quality.md) qualifies garment-specific knit
 maps, hair microstructure and actor appearance against its own source snapshot.
 Material streams stay independent of room geometry, cameras and actor poses.
 
-![Glazes, wall finishes and concrete](evidence/material_quality/finish_preview.jpg)
+![Glazes, wall finishes and concrete](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/finish_preview.jpg)
 
 These are production PBR materials, generated from recorded Rust programs without
 photographic texture precursors. The panels span 25 cm. Fixed key/fill lighting,
@@ -17,7 +17,7 @@ surfaces and manufactured glazed ware need not be visibly bumpy.
 
 ## Fired ceramics and glazes
 
-![Ceramic programs and finish slots](evidence/material_quality/ceramic_glazes.jpg)
+![Ceramic programs and finish slots](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/ceramic_glazes.jpg)
 
 Ceramics have their own fired-body/glaze program rather than receiving wall
 plaster noise. Continuous parameters control body grain, turning pitch and
@@ -49,7 +49,7 @@ repair patches. Coarse texture, fine film relief, pigment variation and gloss ar
 separate controls. Matte paint does not receive an artificial clearcoat. The
 same approach supports accent walls and ceilings with independent recipes.
 
-![Recorded finish controls](evidence/material_quality/finish_controls.jpg)
+![Recorded finish controls](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/finish_controls.jpg)
 
 The rows above hold seed 1 and swatch geometry fixed while recording smooth,
 rough and mixed finish controls. The exact overrides are in the receipt. They
@@ -75,7 +75,7 @@ programs are not a geological or concrete-manufacturing simulation. Casting
 voids, finishing texture and inherent color variation are consistent with the
 surface factors described by [ACI](https://www.concrete.org/frequentlyaskedquestions/faqid/787.aspx).
 
-![Seven sampled mineral and coating programs](evidence/material_quality/minerals_coatings.jpg)
+![Seven sampled mineral and coating programs](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/minerals_coatings.jpg)
 
 Sub-texel round inclusions preserve projected area as filtering grows. An
 integration regression checks coverage across radii and footprints. Thin veins,
@@ -86,9 +86,9 @@ not path-traced reference agreement.
 
 ## Timber, foliage and upholstery
 
-![One-metre production swatches](evidence/material_quality/metre_swatches.jpg)
+![One-metre production swatches](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/metre_swatches.jpg)
 
-The [close-ups](evidence/material_quality/closeups.jpg) use the same seed at a
+The [close-ups](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/closeups.jpg) use the same seed at a
 25 cm scale. Rounded BRDF samples have metric latitude UVs, which compress near
 sphere poles; the planar panels are the texture-scale reference.
 
@@ -116,7 +116,7 @@ for the distinction between reflectance, roughness and coating controls.
 
 ## Diversity audit
 
-The [Rust audit](evidence/material_quality/substrate_audit.json) samples **1,024
+The [Rust audit](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/substrate_audit.json) samples **1,024
 seeds / 37,888 recorded recipes** across roles and floor choices. For the target
 finishes it generates **1,152 production map sets across 128 consecutive seeds**:
 paint, accent, ceiling, concrete, three ceramic structures, terracotta and stone
@@ -166,10 +166,10 @@ semantic/co-visibility planes** against the recorded geometry control. All 192
 RGB planes change; all 64 nonmaterial manifests and camera/bounding-box/pose
 metadata remain identical. The receipt records the control identity and hashes.
 
-![Rooms 200–215](evidence/material_quality/rooms_0.jpg)
-![Rooms 216–231](evidence/material_quality/rooms_1.jpg)
-![Rooms 232–247](evidence/material_quality/rooms_2.jpg)
-![Rooms 248–263](evidence/material_quality/rooms_3.jpg)
+![Rooms 200–215](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/rooms_0.jpg)
+![Rooms 216–231](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/rooms_1.jpg)
+![Rooms 232–247](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/rooms_2.jpg)
+![Rooms 248–263](https://raw.githubusercontent.com/mosure/bevy_zeroverse/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/material_quality/rooms_3.jpg)
 
 All nonchrome swatches agree with forward shading without the normal prepass
 within one 8-bit channel value. Chrome retains a maximum difference of twelve

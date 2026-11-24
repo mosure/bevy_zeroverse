@@ -9,12 +9,12 @@ local and are excluded from this publication path.
 ## Commands and contract
 
 ```sh
-# Current generator → verified captures → page, paper, archives and receipt.
-cargo run --locked -p bevy_zeroverse_publication -- refresh
+# Generate all prerequisite studies, captures, the page and the paper from a clean checkout.
+cargo run --locked -p bevy_zeroverse_publication -- sync
 # Force new captures instead of reusing identical completed inputs.
-cargo run --locked -p bevy_zeroverse_publication -- refresh --recapture
+cargo run --locked -p bevy_zeroverse_publication -- sync --recapture
 # Offline artifact and provenance check; no GPU or source capture directory.
-cargo run --locked -p bevy_zeroverse_publication -- verify
+cargo run --locked -p bevy_zeroverse_publication -- verify-current
 # Rebuild presentation from the verified shipped dataset.
 cargo run --locked -p bevy_zeroverse_publication -- rebuild
 # Explicit registry workflow; this example performs no upload.
@@ -45,9 +45,26 @@ incorrect calibration, incomplete captures, invalid masks, duplicate camera/time
 identities, stale evidence, broken links and paper warnings stop installation.
 
 `www/project/publication.json` records renderer and publisher inputs, capture
-hashes and every managed output. The shipped archives make `verify` independent
-of absolute workstation paths and `out/`. Edit templates, recipes or source
-measurements; do not hand-edit generated figures, text or counts.
+hashes and every managed output. CI packages the verified site and WASM viewer
+as a GitHub Pages artifact and deploys it from the current `main` revision. The
+repository's Pages publishing source is **GitHub Actions**. The public URL and
+downloadable paper, source archive and annotations are available on the
+[project page](https://mosure.github.io/bevy_zeroverse/project/).
+
+Git stores the generator, authored web assets, publication templates, study
+recipes and selected README illustrations. Full galleries, evidence, PDFs and
+compiled viewers are build outputs. For an offline copy of a CI run, download
+its `publication-<commit>` artifact into the matching checkout, then run
+`verify-current`. To reproduce the measurements independently, run `sync`.
+The source-size check budgets 64 MiB for tracked files and detects force-added
+publication outputs. Run `bash scripts/check_source_checkout.sh` against the
+Git index before committing assets.
+
+For development, `git clone --filter=blob:none --single-branch --branch main`
+with the repository URL fetches historical file contents on demand. Historical
+branch-based website deployments are available through
+`git ls-remote origin 'refs/archive/pages/*'`. Normal clones and pulls skip
+these archival references.
 
 ## Additional measurements
 

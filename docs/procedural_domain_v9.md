@@ -9,12 +9,12 @@ niches, plant morphology and camera positions. The local qualification covers
 bounded constraint and annotation checks, with measured diversity and quality
 gaps; they do not establish 10M-sample learning utility or photographic realism.
 
-Open the [capture dashboard](evidence/domain9/consecutive/capture_dashboard.svg),
-[placement and trajectory heatmaps](evidence/domain9/consecutive/capture_placement.svg),
+Open the [capture dashboard](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/capture_dashboard.svg),
+[placement and trajectory heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/capture_placement.svg),
 or [all capture contact sheets](evidence/domain9/README.md). Machine-readable
-[capture distributions](evidence/domain9/consecutive/capture_distribution.json)
-and [scene](evidence/domain9/consecutive/captured_scenes.csv) /
-[view](evidence/domain9/consecutive/captured_views.csv) CSVs describe the rendered
+[capture distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/capture_distribution.json)
+and [scene](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/captured_scenes.csv) /
+[view](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/captured_views.csv) CSVs describe the rendered
 cohort, separately from the larger CPU audit.
 
 ## Changes to the generator
@@ -51,7 +51,7 @@ rail. On the same 10,000 room manifests and 20,000 cameras:
 | Starts more than 1.8 m from every outer wall | 0.005% | 30.245% |
 | Occupied cells in normalized 20×20 start-position grid | 254 / 400 | 396 / 400 |
 
-This is a [matched CPU camera comparison](evidence/domain9/camera_policy_comparison.json),
+This is a [matched CPU camera comparison](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/camera_policy_comparison.json),
 not a paired RGB ablation. Cell occupancy measures coverage at one resolution,
 not uniformity or useful visual content.
 
@@ -73,7 +73,7 @@ Both cohorts used native Auto quality, shadows, SSAO, specular transmission and
 diffuse GI with **64 rays per probe** (below the normal 256-ray default), on an
 NVIDIA RTX PRO 6000 Blackwell / Vulkan. People are static AnnyBody-based meshes;
 this cohort does not evaluate ARDY motion or optical flow. Full CLI commands and
-artifact/source hashes are retained in [provenance](evidence/domain9/provenance.json).
+artifact/source hashes are retained in [provenance](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/provenance.json).
 
 | Quantity | Consecutive 128 rooms | Denser 16-room stress cohort |
 | --- | ---: | ---: |
@@ -101,7 +101,7 @@ The 10,000-room CPU audit has **zero invalid manifests, placements or swept came
 paths**. It covers room areas **38.00–270.00 m²**, heights **2.65–4.80 m**, **1–11**
 zones and **0–23** main-room chairs. The main-room chair median is **2**, with
 **10.54%** of scenes containing no chairs. Counts include zero-instance scenes.
-The [full metrics](evidence/domain9/consecutive/metrics.json) include object counts,
+The [full metrics](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/metrics.json) include object counts,
 material scale/roughness, glazing recipes, human pose parameters, lighting,
 architecture, plant morphology and joint histograms. Sampling ranges already
 introduced in generator 8 remain active; this turn does not expand all of them.
@@ -113,7 +113,7 @@ Review flags are exported without filtering: >95% pixels below linear luminance
 Neither cohort triggered the first two thresholds, but **this does not mean all
 images are well exposed**: the darkest consecutive view has **90.5%** dark pixels.
 Its mean linear luminance is **0.00136**; the cohort's median is **0.06446**.
-The [darkest views](evidence/domain9/consecutive/darkest_views.jpg) preserve that tail.
+The [darkest views](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/darkest_views.jpg) preserve that tail.
 
 The at-most-two-class scene rate is **4.69%**, with a scene-level Wilson 95% interval
 of **2.17–9.85%**. For zero capture/annotation failures in 128 scenes, the one-sided
@@ -141,7 +141,7 @@ Visual repetition diagnostics compare start frames from different scenes, exclud
 temporal pairs and within-scene views. Among **256** consecutive-cohort start views,
 there were **no exact decoded-RGB duplicates**. The nearest cross-scene 64-bit
 difference-hash distance had median **19 bits**, minimum **9**; inspect the
-[closest pairs](evidence/domain9/consecutive/closest_pairs.jpg). This inexpensive
+[closest pairs](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/domain9/consecutive/closest_pairs.jpg). This inexpensive
 image hash is sensitive to composition and is not evidence of semantic novelty.
 
 Contact sheets, exposure tails, closest pairs and sampled full-resolution views

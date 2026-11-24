@@ -5,10 +5,10 @@
 
 Generator 12 addresses annotation preview cost, camera placement, furniture
 geometry, fixture annotations, motion prompts and overlapping architectural trim.
-The [render gallery](evidence/room_review_v12/review.html),
-[measurements](evidence/room_review_v12/summary.json),
-[128-room distributions](evidence/room_review_v12/metrics.json) and
-[placement heatmaps](evidence/room_review_v12/placement_heatmaps.svg) contain the
+The [render gallery](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/room_review_v12/review.html),
+[measurements](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/room_review_v12/summary.json),
+[128-room distributions](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/room_review_v12/metrics.json) and
+[placement heatmaps](https://github.com/mosure/bevy_zeroverse/blob/6cc9ee235004b0e71b7eeb69bc5990375f77d48c/docs/evidence/room_review_v12/placement_heatmaps.svg) contain the
 bounded evaluation. Work remains local; no release or CI run was requested here.
 
 ## Rendering and geometry
