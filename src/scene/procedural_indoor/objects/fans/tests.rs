@@ -385,7 +385,7 @@ fn installed_rotors_have_balanced_closed_blades_and_bounded_spin() {
                 assert_ne!(blades.uvs[0], blades.uvs[start]);
             }
             let (mut up, mut down, mut side) = (0, 0, 0);
-            for tri in blades.indices.chunks_exact(3) {
+            for tri in blades.indices.as_chunks::<3>().0 {
                 let [i, j, k] = [tri[0], tri[1], tri[2]].map(|v| v as usize);
                 let [x, y, z] = [i, j, k].map(|idx| Vec3::from_array(blades.positions[idx]));
                 let cross = (y - x).cross(z - x);

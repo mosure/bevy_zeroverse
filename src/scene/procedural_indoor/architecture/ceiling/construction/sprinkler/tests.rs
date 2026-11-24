@@ -73,7 +73,9 @@ fn routed_heads_fit_short_shallow_and_long_runs_in_both_orientations() {
 
 fn hits(g: &Geometry, origin: Vec3, d: Vec3) -> usize {
     g.indices
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .filter(|t| {
             let p = |j: usize| Vec3::from(g.positions[t[j] as usize]);
             let e1 = p(1) - p(0);
@@ -101,7 +103,7 @@ fn stamped_teeth_have_open_slots_a_closed_edge_and_seated_bulbs() {
         deflector(&mut g, stock);
         // Every geometric edge has one incident triangle in each winding.
         let mut edges = BTreeMap::new();
-        for tri in g.indices.chunks_exact(3) {
+        for tri in g.indices.as_chunks::<3>().0 {
             let key = |j: usize| g.positions[tri[j] as usize].map(f32::to_bits);
             for i in 0..3 {
                 let a = key(i);

@@ -687,51 +687,40 @@ fn trajectory_validation_matches_runtime_poses_and_covers_metric_baselines() {
 
 #[test]
 fn books_expose_the_paper_edges_between_the_covers() {
-    use super::materials::Surface;
-    let scene = IndoorManifest::generate(0, IndoorLayout::Lounge, 1.0, 0).unwrap();
-    for object in scene
-        .objects
-        .iter()
-        .filter(|o| matches!(o.kind, ObjectKind::Books | ObjectKind::Notebook))
-    {
-        let assembly = super::objects::build_object(object);
-        let height = object.size.y
-            / if object.kind == ObjectKind::Books {
-                3.0
-            } else {
-                1.0
-            };
-        let origin = Vec3::new(object.size.x, height * 0.5, 0.0);
-        let direction = -Vec3::X;
-        let mut hits = Vec::new();
-        for ((surface, _), geometry) in assembly.parts {
-            for tri in geometry.indices.as_chunks::<3>().0.iter() {
-                let a = Vec3::from_array(geometry.positions[tri[0] as usize]);
-                let b = Vec3::from_array(geometry.positions[tri[1] as usize]);
-                let c = Vec3::from_array(geometry.positions[tri[2] as usize]);
-                let edge1 = b - a;
-                let edge2 = c - a;
-                let p = direction.cross(edge2);
-                let determinant = edge1.dot(p);
-                if determinant.abs() < 1e-9 {
-                    continue;
+    use super::{envelope::ray_triangle, materials::Surface, objects};
+    for kind in [ObjectKind::Books, ObjectKind::Notebook] {
+        for seed in 0..16 {
+            let object = objects::audit::fixture(kind, seed);
+            let assembly = objects::build_object(&object);
+            let triangles: Vec<_> = assembly
+                .parts
+                .iter()
+                .flat_map(|((surface, _), g)| {
+                    g.indices.as_chunks::<3>().0.iter().map(move |tri| {
+                        (
+                            *surface,
+                            tri.map(|i| Vec3::from_array(g.positions[i as usize])),
+                        )
+                    })
+                })
+                .collect();
+            // Aim at an actual fore-edge. Open notebooks and offset stacks have
+            // different heights and do not necessarily intersect a central ray.
+            let distance = 2. * object.size.length();
+            let exposed = triangles.iter().any(|&(surface, [a, b, c])| {
+                let normal = (b - a).cross(c - a).normalize_or_zero();
+                if surface != Surface::Paper || normal.x < 0.7 || normal.y.abs() > 0.2 {
+                    return false;
                 }
-                let t = origin - a;
-                let u = t.dot(p) / determinant;
-                let q = t.cross(edge1);
-                let v = direction.dot(q) / determinant;
-                let distance = edge2.dot(q) / determinant;
-                if u >= 0.0 && v >= 0.0 && u + v <= 1.0 && distance > 0.0 {
-                    hits.push((distance, surface));
-                }
-            }
+                let origin = (a + b + c) / 3. + normal * distance;
+                triangles
+                    .iter()
+                    .filter_map(|(s, t)| ray_triangle(origin, -normal, *t).map(|d| (d, s)))
+                    .min_by(|a, b| a.0.total_cmp(&b.0))
+                    .is_some_and(|(d, s)| *s == Surface::Paper && (d - distance).abs() < 0.0001)
+            });
+            assert!(exposed, "{kind:?} {seed}: no exposed paper fore-edge");
         }
-        hits.sort_by(|a, b| a.0.total_cmp(&b.0));
-        assert_eq!(
-            hits[0].1,
-            Surface::Paper,
-            "page edges hidden inside solid book cover"
-        );
     }
 }
 
@@ -1077,9 +1066,11 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
                     human.bounds_min,
                     human.bounds_max
                 );
+                let support = human.foot_support_height();
                 assert!(
-                    lo.y >= -0.001 && lo.y <= 0.02,
-                    "human shoes must contact floor: {lo:?}"
+                    (-0.001..=0.02).contains(&(lo.y - support)),
+                    "seed {seed}: shoes at {}, floor or stool rail at {support}",
+                    lo.y
                 );
             }
         }

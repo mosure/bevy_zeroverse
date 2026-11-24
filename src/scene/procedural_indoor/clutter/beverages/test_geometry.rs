@@ -25,7 +25,7 @@ pub(super) fn top_surface_at(a: &Assembly, q: Vec2) -> Option<(f32, Surface)> {
             let u = delta.perp_dot(f.xz()) / det;
             let v = e.xz().perp_dot(delta) / det;
             (u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001)
-                .then(|| (a.y + u * e.y + v * f.y, surface))
+                .then_some((a.y + u * e.y + v * f.y, surface))
         })
         .max_by(|a, b| a.0.total_cmp(&b.0))
 }

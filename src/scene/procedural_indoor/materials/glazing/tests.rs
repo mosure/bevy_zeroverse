@@ -178,7 +178,13 @@ fn shared_partition_installs_one_finish_and_obeys_both_annotation_policies() {
                 let dense =
                     roughness_image(p, o, p.glass_recipe().roughness, MapFootprint::Opening);
                 let value = (mat.perceptual_roughness * 255.).round() as u8;
-                assert!(dense.data.unwrap().chunks_exact(4).all(|t| t[1] == value));
+                assert!(dense
+                    .data
+                    .unwrap()
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|t| t[1] == value));
             } else if let Some(handle) = &mat.metallic_roughness_texture {
                 let image = images.get(handle).unwrap();
                 assert_eq!(image.width(), 1);

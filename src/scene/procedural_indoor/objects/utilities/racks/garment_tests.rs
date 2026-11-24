@@ -66,7 +66,9 @@ fn belongings_fit_the_admitted_volume_and_reuse_independent_fabric_finishes() {
 
 fn nearest_hit(g: &Geometry, ray: Vec3, up: Vec3) -> f32 {
     g.indices
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .filter_map(|idx| {
             let a = Vec3::from(g.positions[idx[0] as usize]);
             let e1 = Vec3::from(g.positions[idx[1] as usize]) - a;
@@ -163,7 +165,7 @@ fn outerwear_is_sewn_closed_and_rests_on_both_hanger_shoulders() {
                 .unwrap()
                 .1;
             let mut edges = BTreeMap::new();
-            for tri in cloth.indices.chunks_exact(3) {
+            for tri in cloth.indices.as_chunks::<3>().0 {
                 let points = [tri[0], tri[1], tri[2]]
                     .map(|i| cloth.positions[i as usize].map(|x| (x * 1e6).round() as i32));
                 for j in 0..3 {

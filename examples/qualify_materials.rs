@@ -10,7 +10,7 @@ use std::{fs, path::PathBuf};
 
 // Common illustration seeds. Seed four includes frosted interior glass;
 // frequencies use the full consecutive cohort, never this selected grid.
-pub const SEEDS: [u64; 6] = [0, 1, 4, 19, 53, 101];
+pub const SEEDS: [u64; 6] = [0, 1, 2, 4, 19, 102];
 pub const RESOLUTION: u32 = 384;
 pub fn tool_sources() -> std::collections::BTreeMap<&'static str, String> {
     use sha2::{Digest, Sha256};

@@ -67,7 +67,7 @@ fn glides_contact_both_runner_and_floor_and_bends_reach_the_seat() {
             }
             for ((_, label), g) in &a.parts {
                 assert_eq!(label, "chair");
-                for t in g.indices.chunks_exact(3) {
+                for t in g.indices.as_chunks::<3>().0 {
                     let idx = [t[0], t[1], t[2]].map(|i| i as usize);
                     let [a, b, c] = idx.map(|i| Vec3::from(g.positions[i]));
                     let n: Vec3 = idx.iter().map(|&i| Vec3::from(g.normals[i])).sum();
@@ -126,13 +126,8 @@ fn wood_veneer_follows_the_bend_at_metric_scale() {
     );
     laminate::build(&mut a, &path, 0.042, 0.021, Vec2::new(0.3, 1.2));
     let g = &a.parts[&(Surface::Wood, "chair".into())];
-    for face in g.uvs.chunks_exact(2 * PATH_NODES) {
-        for (i, rings) in face
-            .chunks_exact(2)
-            .collect::<Vec<_>>()
-            .windows(2)
-            .enumerate()
-        {
+    for face in g.uvs.as_chunks::<{ 2 * PATH_NODES }>().0 {
+        for (i, rings) in face.as_chunks::<2>().0.windows(2).enumerate() {
             assert!((rings[1][0][1] - rings[0][0][1] - path[i].distance(path[i + 1])).abs() < 3e-7);
             assert_eq!(rings[0][0][0], rings[1][0][0]);
         }

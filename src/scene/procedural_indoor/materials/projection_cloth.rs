@@ -127,12 +127,18 @@ mod tests {
                 .unwrap();
             tones.push(
                 base[..32 * 32 * 4]
-                    .chunks_exact(4)
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
                     .map(|p| u32::from(p[0]))
                     .sum::<u32>()
                     / 1024,
             );
-            assert!(base.chunks_exact(4).all(|p| p[0] == p[1] && p[1] == p[2]));
+            assert!(base
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|p| p[0] == p[1] && p[1] == p[2]));
             assert!(m.uv_transform.matrix2.x_axis.x > 150.);
         }
         assert!(tones[1] + 12 < tones[0] && tones[1] + 10 < tones[2]);

@@ -4,7 +4,7 @@ use crate::scene::procedural_indoor::objects::{audit, build_object};
 // Independent +Z ray/triangle intersection in door space.
 fn front_depth(g: &Geometry, x: f32, y: f32) -> Option<f32> {
     let mut front = None;
-    for tri in g.indices.chunks_exact(3) {
+    for tri in g.indices.as_chunks::<3>().0 {
         let at = |i: usize| Vec3::from(g.positions[tri[i] as usize]);
         let a = at(0);
         let b = at(1) - a;

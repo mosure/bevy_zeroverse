@@ -69,8 +69,10 @@ mod tests {
         let mut prev_end = None;
         for (i, (pts, uvs)) in g
             .positions
-            .chunks_exact(8)
-            .zip(g.uvs.chunks_exact(8))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .zip(g.uvs.as_chunks::<8>().0)
             .enumerate()
         {
             let points: Vec<_> = pts.iter().copied().map(Vec3::from).collect();

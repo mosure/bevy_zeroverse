@@ -12,7 +12,7 @@ fn back_stays_pass_behind_the_sitting_surface() {
                 depth,
                 [-1., 1.].map(|side| Vec3::new(side * 0.15, 0.57, socket_z)),
             );
-            for tri in g.indices.chunks_exact(3) {
+            for tri in g.indices.as_chunks::<3>().0 {
                 let [a, b, c] =
                     [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
                 let normal: Vec3 = tri
@@ -96,7 +96,7 @@ fn finished_shells_are_closed_metric_surfaces_at_the_pelvis_datum() {
         crate::scene::procedural_indoor::objects::audit::check(&o, &a).unwrap();
         let mut edges = BTreeMap::new();
         for g in a.parts.values() {
-            for tri in g.indices.chunks_exact(3) {
+            for tri in g.indices.as_chunks::<3>().0 {
                 for (i, j) in [(0, 1), (1, 2), (2, 0)] {
                     let point = |idx: usize| {
                         g.positions[tri[idx] as usize]

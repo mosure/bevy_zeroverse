@@ -307,7 +307,13 @@ mod tests {
         append(&h, &face, &topology, &eyes, rot, 1., &mut mesh);
         let brow = &mesh.parts[&HumanSurface::Brow];
         assert_eq!(brow.positions.len(), 2 * 17 * 3);
-        for (i, patch) in brow.positions.chunks_exact(17 * 3).enumerate() {
+        for (i, patch) in brow
+            .positions
+            .as_chunks::<{ 17 * 3 }>()
+            .0
+            .iter()
+            .enumerate()
+        {
             let width = |row: usize| {
                 Vec3::from_array(patch[row * 3]).distance(Vec3::from_array(patch[row * 3 + 2]))
             };

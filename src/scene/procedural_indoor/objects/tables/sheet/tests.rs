@@ -69,7 +69,7 @@ fn edge_charts_have_area_and_the_wrapped_face_meets_every_bevel_and_corner() {
         let rotation = Mat2::from_angle(cut.heading_rad);
         let mut g = Geometry::default();
         cut.edge_uvs(&mut g, &outline, height, profile, &tf, rotation);
-        for tri in g.indices.chunks_exact(3) {
+        for tri in g.indices.as_chunks::<3>().0 {
             let [a, b, c] = [tri[0], tri[1], tri[2]].map(|i| Vec2::from_array(g.uvs[i as usize]));
             assert!(
                 (b - a).perp_dot(c - a).abs() > 1e-6,

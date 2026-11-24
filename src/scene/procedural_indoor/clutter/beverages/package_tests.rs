@@ -111,7 +111,7 @@ fn label_edges_are_welded_to_the_body_and_one_revolution_spans_one_print() {
                 .unwrap()
                 .1;
             assert_eq!(g.uvs.len() % 33, 0);
-            for row in g.uvs.chunks_exact(33) {
+            for row in g.uvs.as_chunks::<33>().0 {
                 assert!((row[0][0] - row[32][0] - 1.).abs() < 2e-7);
                 assert!(row
                     .windows(2)

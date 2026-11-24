@@ -9,27 +9,43 @@ fn rejected_mixed_rig_seed_has_a_furnished_primary_room() {
                 .unwrap();
         validate_layout(&scene).unwrap();
         validate_geometry(&scene).unwrap();
-        let desk = scene
+        // The primary zone may be a seated desk, standing desk, or lounge
+        // depending on density. Verify a usable local activity relationship.
+        let (surface, seat) = scene
             .objects
             .iter()
-            .find(|o| {
-                o.kind == ObjectKind::Desk && !o.neighbor && scene.in_primary_room(o.position, 0.)
+            .filter(|o| !o.neighbor && scene.in_primary_room(o.position, 0.))
+            .find_map(|surface| {
+                let seat = scene.objects.iter().find(|o| {
+                    !o.neighbor
+                        && scene.in_primary_room(o.position, 0.)
+                        && ((surface.kind == ObjectKind::Desk
+                            && o.kind == ObjectKind::Chair
+                            && o.interaction_target == Some(surface.id))
+                            || (surface.kind == ObjectKind::CoffeeTable
+                                && o.kind == ObjectKind::Sofa
+                                && surface.position.distance(o.position)
+                                    < (surface.size.xz().length() + o.size.xz().length()) * 0.5
+                                        + 0.8))
+                });
+                let standing = surface.kind == ObjectKind::Desk
+                    && scene.assembly_diagnostics.accepted.iter().any(|a| {
+                        a.surface == surface.id
+                            && a.role == assemblies::AssemblyRole::StandingWorkstation
+                    });
+                (seat.is_some() || standing).then_some((surface, seat))
             })
             .expect("other partitions must not satisfy an empty primary work area");
-        let chair = scene
-            .objects
-            .iter()
-            .find(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(desk.id))
-            .expect("the repair must include usable seating");
-        for o in [desk, chair] {
-            assert!(scene.in_primary_room(o.position, 0.));
-            // Final chairs may be pushed in using the existing 14 mm seating
-            // clearance; the initial 60 mm furnishing margin no longer applies.
+        for o in std::iter::once(surface).chain(seat) {
             assert!(scene.placement_clear(o, 0.));
             assert!((scene.floor_height(o.position.xz()) - o.position.y).abs() < 1e-5);
         }
-        assert!(!seating::furniture_overlap(desk, chair, 0.014));
-        assert!((desk.position.y - chair.position.y).abs() < 1e-5);
+        if let Some(seat) = seat {
+            assert!(!seating::furniture_overlap(surface, seat, 0.014));
+            assert!((surface.position.y - seat.position.y).abs() < 1e-5);
+        } else {
+            assert!((0.94..=1.19).contains(&surface.size.y));
+        }
         assert!(scene.assembly_diagnostics.proposed_workstations < 2000);
         let mut recovered = scene.clone();
         recovered.complete_empty_primary_work_area();

@@ -44,12 +44,17 @@ mod tests {
             assert_eq!(bytes, pixels(seed));
             let mut ink = [0; 2];
             let mut identical = true;
-            for row in bytes.chunks_exact(256 * 4) {
+            for row in bytes.as_chunks::<{ 256 * 4 }>().0 {
                 let (left, right) = row.split_at(128 * 4);
                 for (i, page) in [left, right].into_iter().enumerate() {
                     assert_eq!(&page[..3], &stock.paper);
                     assert_eq!(&page[127 * 4..127 * 4 + 3], &stock.paper);
-                    ink[i] += page.chunks_exact(4).filter(|v| v[..3] == stock.ink).count();
+                    ink[i] += page
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .filter(|v| v[..3] == stock.ink)
+                        .count();
                 }
                 identical &= left == right;
             }

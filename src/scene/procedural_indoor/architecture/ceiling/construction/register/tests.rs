@@ -162,7 +162,7 @@ fn real_slots_survive_complete_bent_reducing_ducts_and_planning_skips_meshing() 
         );
         let back = &a.parts[&ink];
         assert_eq!(back.positions.len(), 4 * usize::from(n.max(1)));
-        for rear in back.positions.chunks_exact(4) {
+        for rear in back.positions.as_chunks::<4>().0 {
             let (open, relief) = cavity_hits(&a, rear);
             assert!(
                 (0.15..0.99).contains(&open) && relief > 0.002,

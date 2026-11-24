@@ -78,31 +78,45 @@ mod tests {
     use crate::scene::procedural_indoor::{layout::IndoorLayout, validation};
     #[test]
     fn indexed_strip_leads_seat_in_the_reserved_well() {
-        let scene = IndoorManifest::generate_with_humans(93419, IndoorLayout::Mixed, 0.65, 3, 0.25)
-            .unwrap();
-        let cable = scene
-            .objects
-            .iter()
-            .find(|c| {
-                c.cable_target_socket.is_some()
-                    && c.cable_target.is_some_and(|id| {
-                        scene.objects[id].kind == ObjectKind::PowerStrip
-                            && scene.objects[id].variant % 3 == 1
-                    })
-            })
-            .expect("fixture contains an occupied round-well power strip");
-        let target = &scene.objects[cable.cable_target.unwrap()];
-        let port =
-            equipment::receptacles::target_port(target, false, cable.cable_target_socket).unwrap();
-        let tip = cable
-            .transform()
-            .transform_point(*cable.cable_path.as_ref().unwrap().last().unwrap());
-        assert!(port.distance(tip) < 1e-5);
-        assert_eq!(cable.variant, wires::RECESSED_MAINS);
-        assert!(cable_route_clear(&scene, cable));
-        let mut invalid = cable.clone();
-        invalid.variant = 0;
-        assert!(!cable_route_clear(&scene, &invalid));
+        let mut checked_rooms = 0;
+        for seed in 0..64 {
+            if super::super::super::decor::electrical_standard(seed) != 1 {
+                continue;
+            }
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::OpenOffice, 0.75, 0, 0.)
+                    .unwrap();
+            let Some(cable) = scene.objects.iter().find(|c| {
+                c.cable_target.is_some_and(|id| {
+                    let target = &scene.objects[id];
+                    target.kind == ObjectKind::PowerStrip
+                        && equipment::receptacles::recessed_connection(
+                            target,
+                            c.cable_target_socket,
+                        )
+                })
+            }) else {
+                continue;
+            };
+            let target = &scene.objects[cable.cable_target.unwrap()];
+            let port =
+                equipment::receptacles::target_port(target, false, cable.cable_target_socket)
+                    .unwrap();
+            let tip = cable
+                .transform()
+                .transform_point(*cable.cable_path.as_ref().unwrap().last().unwrap());
+            assert!(port.distance(tip) < 1e-5);
+            assert_eq!(cable.variant, wires::RECESSED_MAINS);
+            assert!(cable_route_clear(&scene, cable));
+            let mut invalid = cable.clone();
+            invalid.variant = 0;
+            assert!(!cable_route_clear(&scene, &invalid));
+            checked_rooms += 1;
+            if checked_rooms == 2 {
+                break;
+            }
+        }
+        assert_eq!(checked_rooms, 2, "missing occupied round-well power strips");
     }
 
     #[test]

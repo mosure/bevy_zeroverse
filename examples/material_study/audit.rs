@@ -64,6 +64,7 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
     let mut category_counts = BTreeMap::<String, usize>::new();
     let mut part_count = 0;
     let mut room_rows = Vec::new();
+    let mut observed_special_slots = BTreeSet::new();
     for seed in 0..rooms as u64 {
         let scene = IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.)
             .map_err(anyhow::Error::msg)?;
@@ -122,6 +123,7 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
                     row["objects"] = json!(row["objects"].as_u64().unwrap() + 1);
                 }
                 if let Some(slot) = specialized_slot {
+                    observed_special_slots.insert(slot);
                     let key = slot.to_string();
                     let count = row["special_slots"][&key].as_u64().unwrap_or(0);
                     row["special_slots"][&key] = json!(count + 1);
@@ -144,14 +146,25 @@ pub fn run(output: &Path, categories: &[Category], samples: usize, rooms: usize)
             r.validate().map_err(anyhow::Error::msg)?;
             ensure!(r == recipe(c, seed), "recipe replay failed");
         }
-        rows.push(json!({"name":c.name,"surface":c.surface,"floor_style":c.floor,
+        // Resolve every observed ID against each role's production registry.
+        // This also distinguishes identical numeric slots on different substrates.
+        let registered_special_slots: Vec<_> = observed_special_slots
+            .iter()
+            .copied()
+            .filter(|&slot| {
+                c.name != "Rug"
+                    && slot >= variants::count(c.surface)
+                    && registered_finish(c.surface, slot)
+            })
+            .collect();
+        rows.push(json!({"registered_special_slots":registered_special_slots,"name":c.name,"surface":c.surface,"floor_style":c.floor,
             "structure_count":if c.name == "Rug" { rugs::COUNT } else { variants::structure_count(c.surface) },"finish_slots":if c.name == "Rug" { rugs::COUNT } else if variants::supports(c.surface){variants::count(c.surface)}else{1},
             "samples":records}));
     }
     fs::write(
         output.join("audit.json"),
         serde_json::to_vec(&json!({
-        "schema_version":1,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"tool_sources":super::tool_sources(),
+        "schema_version":2,"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"tool_sources":super::tool_sources(),
             "sample_count":samples,"room_count":rooms,"room_density":0.65,"human_density":0.,
         "object_count":object_count,"object_counts_by_category":category_counts,"part_count":part_count,"usage":usage,"rooms":room_rows,
             "unobserved_object_categories":ObjectKind::ALL.iter().filter(|k| !usage.contains_key(&format!("{k:?}"))).collect::<Vec<_>>(),
@@ -195,7 +208,7 @@ mod tests {
         assert!(!registered_finish(Surface::Metal, 104));
         assert!(!registered_finish(Surface::Paper, 105));
         let output = tempfile::tempdir().unwrap();
-        run(output.path(), &[], 0, 32).unwrap();
+        run(output.path(), &super::super::categories(), 0, 32).unwrap();
         let audit: Value =
             serde_json::from_slice(&fs::read(output.path().join("audit.json")).unwrap()).unwrap();
         assert!(audit["usage"]
@@ -209,6 +222,27 @@ mod tests {
                         .is_some_and(|slots| !slots.is_empty())
                 })
             }));
+        for cat in super::super::categories() {
+            let category = audit["categories"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == cat.name)
+                .unwrap();
+            let slots: Vec<usize> =
+                serde_json::from_value(category["registered_special_slots"].clone()).unwrap();
+            assert!(slots.windows(2).all(|s| s[0] < s[1]));
+            for slot in &slots {
+                assert!(registered_finish(cat.surface, *slot));
+            }
+            for object in audit["usage"].as_object().unwrap().values() {
+                if let Some(histogram) = object[&cat.name]["special_slots"].as_object() {
+                    for id in histogram.keys() {
+                        assert!(slots.contains(&id.parse().unwrap()));
+                    }
+                }
+            }
+        }
     }
     #[test]
     fn inventory_and_seeded_structure_contract() {

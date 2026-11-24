@@ -87,9 +87,9 @@ pub(super) fn wing(
             }
             let y = bottom + (f32::from(i) + 0.5) * pitch;
             let half = (pitch - 0.001) * 0.5;
-            // A folded tongue runs from the plate into its own knuckle. Its
-            // side is inset from the plate so the two visible faces never fight.
-            let start = toe - 0.0005;
+            // Butt the folded tongue against the end of the plate. Overlapping
+            // these thin sheets makes their near-parallel faces fight at a distance.
+            let start = toe;
             let end = -r * 0.56;
             g.cuboid(
                 Vec3::new(gauge * 0.90, half * 2. - 0.0004, end - start),

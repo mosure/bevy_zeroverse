@@ -435,12 +435,12 @@ mod tests {
         let mut base = Geometry::default();
         backing(&mut base, &paths);
         for layer in 0..2 {
-            for col in 0..paths.len() {
-                for row in 0..3 {
+            for (col, path) in paths.iter().enumerate() {
+                for (row, vertex) in path.iter().enumerate() {
                     let i = layer * 9 + col * 3 + row;
                     let p = Vec3::from_array(base.positions[i]);
                     assert!(p.x < 0.089 && p.x > 0.085);
-                    assert!((p.z - paths[col][row].z).abs() < 1e-7);
+                    assert!((p.z - vertex.z).abs() < 1e-7);
                     assert!((base.uvs[i][0] - col as f32 * 0.013).abs() < 1e-7);
                     assert!((base.uvs[i][1] - row as f32 * 0.07).abs() < 1e-7);
                 }

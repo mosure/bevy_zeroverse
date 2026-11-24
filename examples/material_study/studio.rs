@@ -534,7 +534,7 @@ pub fn run(output: &Path, categories: &[Category]) -> Result<()> {
 }
 
 fn galleries(output: &Path, categories: &[Category]) -> Result<()> {
-    let mut html = String::from("<!doctype html><meta charset=utf-8><title>Production PBR surfaces</title><style>body{background:#171b23;color:#eef0f5;font:16px system-ui;margin:32px;max-width:1200px}img{width:100%}a{color:#a5ceff}section{margin:40px 0}</style><h1>Production PBR surfaces</h1><p>Native Bevy rendering, fixed lighting and camera rig. Six material seeds per category: 0, 1, 4, 19, 53, 101 (left to right, top to bottom). Content is sampled from the production scene palette. <a href=renders.json>Parameters, maps and renderer provenance</a>.</p>");
+    let mut html = String::from("<!doctype html><meta charset=utf-8><title>Production PBR surfaces</title><style>body{background:#171b23;color:#eef0f5;font:16px system-ui;margin:32px;max-width:1200px}img{width:100%}a{color:#a5ceff}section{margin:40px 0}</style><h1>Production PBR surfaces</h1><p>Native Bevy rendering, fixed lighting and camera rig. Each category uses the same six illustration seeds in row-major order. Content is sampled from the production scene palette. <a href=renders.json>Parameters, maps and renderer provenance</a>.</p>");
     for category in categories {
         for mode in ["color", "normal"] {
             let mut grid = image::RgbImage::new(RESOLUTION * 3, RESOLUTION * 2);

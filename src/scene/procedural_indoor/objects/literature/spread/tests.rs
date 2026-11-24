@@ -57,7 +57,7 @@ fn facing_pages_stay_supported_outward_and_read_in_the_same_direction() {
             assert_eq!(seam.len(), 4);
             assert_eq!(seam[0], seam[2]);
             assert_eq!(seam[1], seam[3]);
-            for indices in top.indices.chunks_exact(3) {
+            for indices in top.indices.as_chunks::<3>().0 {
                 let [a, b, c] = [indices[0], indices[1], indices[2]].map(|i| i as usize);
                 let [v0, v1, v2] = [a, b, c].map(|i| Vec3::from_array(top.positions[i]));
                 let face = (v1 - v0).cross(v2 - v0).normalize();

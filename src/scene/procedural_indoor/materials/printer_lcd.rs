@@ -127,8 +127,8 @@ mod tests {
                     .sum::<usize>()
             );
             let pixels = &rgba[..64 * 64 * 4];
-            assert!(pixels.chunks_exact(4).any(|p| p == [46, 56, 50, 255]));
-            assert!(pixels.chunks_exact(4).all(|p| p[3] == 255));
+            assert!(pixels.as_chunks::<4>().0.contains(&[46, 56, 50, 255]));
+            assert!(pixels.as_chunks::<4>().0.iter().all(|p| p[3] == 255));
             assert!(rgba[rgba.len() - 4] > 100);
         }
     }

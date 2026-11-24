@@ -9,7 +9,7 @@ pub(super) fn vertical_intersections<'a>(
 ) -> Vec<f32> {
     let mut hits = Vec::new();
     for g in geometry {
-        for tri in g.indices.chunks_exact(3) {
+        for tri in g.indices.as_chunks::<3>().0 {
             let [a, b, c] =
                 [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
             let (e, f, q) = (b.xz() - a.xz(), c.xz() - a.xz(), xz - a.xz());

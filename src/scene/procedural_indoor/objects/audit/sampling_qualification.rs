@@ -62,13 +62,16 @@ fn installed_shelves_and_bench_slats_follow_their_cut_direction() {
 }
 
 #[test]
-fn toggle_levers_project_within_the_plate_envelope_and_dimmers_travel_the_slot() {
+fn archived_toggle_levers_project_within_the_plate_envelope_and_dimmers_travel_the_slot() {
     let mut toggle_states = [0; 2];
     let mut split = false;
     let mut slider_extremes = [false; 2];
     for seed in 0..160 {
         let mut o = fixture(ObjectKind::LightSwitch, seed);
         o.size.x = 0.225; // exercise multi-gang products
+                          // Exercise the archived switch construction; installed banks have
+                          // separate actuator geometry tests in wall::switches.
+        o.variant = (seed % 3) as u32;
         let p = super::super::wall::parameters(&o);
         if !matches!(p.style, 1 | 4) {
             continue;
@@ -121,10 +124,13 @@ fn toggle_levers_project_within_the_plate_envelope_and_dimmers_travel_the_slot()
     assert_eq!(slider_extremes, [true; 2]);
 }
 #[test]
-fn paired_switch_buttons_have_disjoint_front_faces() {
+fn archived_paired_switch_buttons_have_disjoint_front_faces() {
     let mut checked = 0;
     for seed in 0..128 {
-        let o = fixture(ObjectKind::LightSwitch, seed);
+        let mut o = fixture(ObjectKind::LightSwitch, seed);
+        // Exercise the archived switch construction; installed banks have
+        // separate actuator geometry tests in wall::switches.
+        o.variant = (seed % 3) as u32;
         let p = super::super::wall::parameters(&o);
         if p.style != 5 {
             continue;
