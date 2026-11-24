@@ -3,24 +3,28 @@
 use super::*;
 use std::f32::consts::TAU;
 
-pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
-    let p = cup.p;
-    let mut set = Vec::with_capacity(p.requested_pens);
-    let upper_tilt = (p.body_span_m.min_element() * 0.84 / (cup.height - p.floor_m))
+pub(super) fn settle(
+    owner_seed: u64,
+    body_finish: Option<u64>,
+    envelope: Vec3,
+    pocket: &Pocket,
+) -> Vec<Pen> {
+    let mut set = Vec::with_capacity(pocket.count);
+    let upper_tilt = (pocket.span.min_element() * 0.84 / (pocket.height - pocket.floor))
         .atan()
         .clamp(0.09, 0.52);
-    let mut stock_rng = stream(o.seed, u64::from_le_bytes(*b"PenStock"));
-    for _ in 0..p.requested_pens {
+    let mut stock_rng = stream(owner_seed, u64::from_le_bytes(*b"PenStock"));
+    for _ in 0..pocket.count {
         let seed = stock_rng.random();
         let mut r = stream(seed, u64::from_le_bytes(*b"PenStand"));
         let finish = if stock_rng.random_bool(0.30) {
-            o.finish_seed.unwrap_or(o.seed)
+            body_finish.unwrap_or(owner_seed)
         } else {
-            seed ^ o.finish_seed.unwrap_or(0)
+            seed ^ body_finish.unwrap_or(0)
         };
         let width = stock_rng.random_range(0.007..0.013_f32);
-        let mut tool = writing::stock(seed, finish, Vec3::new(width, width, o.size.y));
-        tool.length = o.size.y * stock_rng.random_range(0.81..0.99);
+        let mut tool = writing::stock(seed, finish, Vec3::new(width, width, envelope.y));
+        tool.length = envelope.y * stock_rng.random_range(0.81..0.99);
         let preferred_axis_up = r.random_bool(if tool.clip { 0.27 } else { 0.48 });
         let slot = variants::object_slot(tool.finish, seed, Some(finish));
         let phase = r.random_range(0.0..TAU);
@@ -36,17 +40,17 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
             };
             if attempt >= 12 {
                 tool.length = (original_length * r.random_range(0.92..1.09))
-                    .clamp(o.size.y * 0.80, o.size.y * 0.99);
+                    .clamp(envelope.y * 0.80, envelope.y * 0.99);
             }
-            let (edge, lip) = rim_position(cup, &set, phase, attempt, &mut r);
+            let (edge, lip) = rim_position(pocket, &set, phase, attempt, &mut r);
             let heading = Vec2::from_angle(r.random_range(-0.72..0.72)).rotate(edge.normal);
             let estimated_center = lip - tool.radius * edge.normal;
-            let run = (o.size.xz() * 0.5 - tool.radius - heading.signum() * estimated_center)
+            let run = (envelope.xz() * 0.5 - tool.radius - heading.signum() * estimated_center)
                 / heading.abs().max(Vec2::splat(1e-5));
-            let depth = cup.height - p.floor_m;
+            let depth = pocket.height - pocket.floor;
             let upper = upper_tilt
                 .min((run.min_element().max(0.) / (tool.length - depth).max(0.004)).atan());
-            let lower = ((p.mouth_radius_fraction - p.base_radius_fraction) * edge.distance
+            let lower = ((pocket.mouth - pocket.base) * edge.distance
                 / (depth * heading.dot(edge.normal)))
             .atan()
             .max(0.025);
@@ -73,14 +77,14 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
             let x = Vec3::new(edge.normal.x, -edge.normal.dot(slope), edge.normal.y).normalize();
             let rot = Quat::from_mat3(&Mat3::from_cols(x, axis, x.cross(axis))).normalize();
             let (lo, hi) = tool.vertical_range(rot);
-            let y = cup.p.floor_m - lo;
-            if y + hi > o.size.y {
+            let y = pocket.floor - lo;
+            if y + hi > envelope.y {
                 continue;
             }
-            let Some((bearing, transition_y)) = tool.shaft_at(cup.height, y, axis.y) else {
+            let Some((bearing, transition_y)) = tool.shaft_at(pocket.height, y, axis.y) else {
                 continue;
             };
-            let along = (cup.height - y - x.y * bearing) / axis.y;
+            let along = (pocket.height - y - x.y * bearing) / axis.y;
             let start = lip - axis.xz() * along - x.xz() * bearing;
             let origin = Vec3::new(start.x, y, start.y);
             let end = origin + axis * tool.length;
@@ -92,7 +96,7 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
             let candidate = Pen {
                 base,
                 top,
-                contact: Vec3::new(lip.x, cup.height, lip.y),
+                contact: Vec3::new(lip.x, pocket.height, lip.y),
                 rotation: rot,
                 upper_end: tool.upper_end(axis_up),
                 bounds: clearance::ToolBounds::new(
@@ -104,7 +108,7 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
             };
             let pad = candidate.clearance_radius();
             if (base.xz().abs().max(top.xz().abs()) + pad)
-                .cmpgt(o.size.xz() * 0.5)
+                .cmpgt(envelope.xz() * 0.5)
                 .any()
             {
                 // A pointed end or a side-facing clip can fit where the
@@ -112,7 +116,7 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
                 if [Vec3::X, Vec3::Z].into_iter().any(|axis| {
                     let (a, b) = tool.projected_extent(rot.inverse() * axis);
                     let center = origin.dot(axis);
-                    let half = o.size.dot(axis) * 0.5;
+                    let half = envelope.dot(axis) * 0.5;
                     center + a < -half || center + b > half
                 }) {
                     continue;
@@ -124,7 +128,7 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
             {
                 continue;
             }
-            if fits(cup, &candidate, slope, bearing, transition_y) {
+            if fits(pocket, &candidate, slope, bearing, transition_y) {
                 set.push(candidate);
                 break;
             }
@@ -136,22 +140,22 @@ pub(super) fn settle(o: &IndoorObject, cup: &Cup<'_>) -> Vec<Pen> {
 /// Keep initial poses grouped when the sampled heading permits it. For a
 /// crowded rim, choose among a few widely spaced, jittered contacts.
 fn rim_position<'a>(
-    cup: &'a Cup<'_>,
+    pocket: &'a Pocket,
     settled: &[Pen],
     phase: f32,
     attempt: usize,
     r: &mut impl Rng,
 ) -> (&'a Edge, Vec2) {
-    let p = cup.p;
-    let lip_scale = cup.inner_scale(cup.height);
+    let lip_scale = pocket.inner_scale(pocket.height);
     let mut proposal = || {
         let direction = if attempt < 5 {
-            p.lean_heading_rad + r.random_range(-p.lean_spread_rad..p.lean_spread_rad)
+            pocket.heading + r.random_range(-pocket.spread..pocket.spread)
         } else {
             phase + 2.399_963_1 * (attempt - 5) as f32 + r.random_range(-1.0..1.0)
         };
-        let index = (direction.rem_euclid(TAU) / TAU * p.sides as f32) as usize % cup.edges.len();
-        let edge = &cup.edges[index];
+        let index = (direction.rem_euclid(TAU) / TAU * pocket.edges.len() as f32) as usize
+            % pocket.edges.len();
+        let edge = &pocket.edges[index];
         let point = edge.start.lerp(edge.end, r.random_range(0.04..0.96)) * lip_scale;
         (edge, point)
     };
@@ -176,18 +180,18 @@ fn rim_position<'a>(
     best
 }
 
-fn fits(cup: &Cup<'_>, pen: &Pen, slope: Vec2, bearing: f32, transition_y: f32) -> bool {
+fn fits(pocket: &Pocket, pen: &Pen, slope: Vec2, bearing: f32, transition_y: f32) -> bool {
     // Each wall is piecewise linear in height. The support distance of the
     // horizontal ellipse of a tilted cylinder is also analytic. It suffices
     // to check the floor, belly, lip and change of barrel diameter.
     let radius = pen.tool.radius;
-    let pocket = cup.p.floor_m;
-    let floor_scale = cup.inner_scale(pocket);
-    let lip_scale = cup.inner_scale(cup.height);
-    let belly_scale = cup.inner_scale(cup.belly_y);
+    let floor = pocket.floor;
+    let floor_scale = pocket.inner_scale(floor);
+    let lip_scale = pocket.inner_scale(pocket.height);
+    let belly_scale = pocket.inner_scale(pocket.belly_y);
     let transition =
-        (bearing < radius && transition_y > pocket).then(|| cup.inner_scale(transition_y));
-    for edge in &cup.edges {
+        (bearing < radius && transition_y > floor).then(|| pocket.inner_scale(transition_y));
+    for edge in &pocket.edges {
         let n = edge.normal;
         let drift = n.dot(slope);
         let projected = (1. + drift * drift).sqrt();
@@ -195,11 +199,11 @@ fn fits(cup: &Cup<'_>, pen: &Pen, slope: Vec2, bearing: f32, transition_y: f32) 
         let clears = |y: f32, r: f32, scale: f32| {
             at_base + drift * (y - pen.base.y) + r * projected <= edge.distance * scale + 1e-7
         };
-        if !clears(pocket, radius, floor_scale)
-            || !clears(cup.height, bearing, lip_scale)
+        if !clears(floor, radius, floor_scale)
+            || !clears(pocket.height, bearing, lip_scale)
             || !clears(
-                cup.belly_y,
-                if cup.belly_y > transition_y {
+                pocket.belly_y,
+                if pocket.belly_y > transition_y {
                     bearing
                 } else {
                     radius
@@ -218,15 +222,16 @@ fn fits(cup: &Cup<'_>, pen: &Pen, slope: Vec2, bearing: f32, transition_y: f32) 
             .clip_rings()
             .map(|s| s.map(|pt| tf.transform_point(pt)));
         for pair in sections.windows(2) {
-            if pair.iter().flatten().all(|pt| pt.y > cup.height) {
+            if pair.iter().flatten().all(|pt| pt.y > pocket.height) {
                 continue;
             }
             // Extending the top frustum above the lip is conservative for a
             // partly submerged clip segment. Higher segments are unrestricted.
             if pair.iter().flatten().any(|pt| {
-                cup.edges
+                pocket
+                    .edges
                     .iter()
-                    .any(|e| e.normal.dot(pt.xz()) > e.distance * cup.inner_scale(pt.y) + 1e-7)
+                    .any(|e| e.normal.dot(pt.xz()) > e.distance * pocket.inner_scale(pt.y) + 1e-7)
             }) {
                 return false;
             }

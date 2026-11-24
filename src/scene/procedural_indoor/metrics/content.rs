@@ -5,7 +5,7 @@ use super::super::{
     layout::{IndoorManifest, IndoorObject, ObjectKind},
     materials::{self, program::MaterialRecipe, Surface},
     metrics_sort::NumericCollector,
-    objects::equipment,
+    objects::{equipment, seating},
 };
 use bevy::math::Vec3Swizzles;
 use std::{collections::BTreeMap, io};
@@ -372,6 +372,21 @@ pub(super) fn record_material(
     numeric: &mut NumericCollector,
     categories: &mut Categories,
 ) -> io::Result<()> {
+    if let Some(f) = material.wood.as_ref().and_then(|w| w.figure) {
+        for (key, value) in [
+            ("ring_pitch_mm", f.ring_pitch_m(material) * 1000.),
+            ("crown_deflection", f.crown.abs()),
+            ("vessels", f.vessel_strength),
+            ("ring_porosity", f.ring_porosity),
+            ("ray_fleck", f.ray_strength),
+            ("knot", f.knot),
+        ] {
+            numeric.push(
+                &format!("material_{:?}_timber_{key}", material.surface),
+                value as f64,
+            )?;
+        }
+    }
     if let Some(f) = &material.flooring {
         category(categories, "floor_installation", format!("{:?}", f.layout));
         if material.carpet.is_some() {
@@ -903,9 +918,142 @@ pub(super) fn record_object(
     categories: &mut Categories,
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use super::super::objects::desktop::tower;
+    if o.kind == ObjectKind::Sofa && scene.generator_version >= seating::pillows::INTRODUCED {
+        let p = seating::parameters(o);
+        let throws = seating::pillows::metadata(o, &p, &seating::module_widths_for(o, &p));
+        numeric.push("sofa_throw_count", throws.len() as f64)?;
+        for item in throws {
+            category(
+                categories,
+                "sofa_throw_support",
+                if item.propped {
+                    "seat_and_back"
+                } else {
+                    "seat"
+                },
+            );
+            category(categories, "sofa_throw_edge", item.edge_name());
+            numeric.push("sofa_throw_width_m", f64::from(item.width_m()))?;
+            if item.propped {
+                if let Some(d) = item.back_gap_m {
+                    numeric.push("propped_sofa_throw_back_gap_m", f64::from(d))?;
+                }
+            }
+        }
+    }
+    use super::super::objects::public::elevator;
+    if o.kind == ObjectKind::PcTower
+        && scene.generator_version >= tower::INTRODUCED
+        && tower::installed(o)
+    {
+        let f = tower::Fascia::sample(o, &tower::parameters(o));
+        category(categories, "pc_control_bank", format!("{:?}", f.bank));
+        category(categories, "pc_intake", format!("{:?}", f.intake));
+        category(
+            categories,
+            "pc_installation",
+            if o.support.is_some() {
+                "desktop"
+            } else {
+                "floor"
+            },
+        );
+        numeric.push("pc_front_controls", f.controls.len() as f64)?;
+        numeric.push("pc_front_intake_recess_m", f64::from(f.intake_recess_m))?;
+        if let Some(desk) = o
+            .interaction_target
+            .and_then(|i| scene.objects.get(i))
+            .and_then(|s| s.support)
+            .and_then(|i| scene.objects.get(i))
+        {
+            let bearing = o.yaw - desk.yaw;
+            numeric.push(
+                "pc_axis_offset_from_desk_rad",
+                f64::from(bearing.sin().abs().atan2(bearing.cos().abs())),
+            )?;
+        }
+    }
+    if o.kind == ObjectKind::Elevator && scene.generator_version >= elevator::LANDING_VERSION {
+        let (station, sill) = elevator::installation(o);
+        category(
+            categories,
+            "elevator_sill_stock",
+            format!("{:?}", sill.stock),
+        );
+        category(
+            categories,
+            "elevator_readout_mount",
+            format!("{:?}", station.mount),
+        );
+        category(
+            categories,
+            "elevator_readout_film",
+            format!("{:?}", station.display_film),
+        );
+        for direction in station.call_directions.iter().flatten() {
+            category(
+                categories,
+                "elevator_call_direction",
+                format!("{direction:?}"),
+            );
+        }
+        for (name, value) in [
+            ("elevator_landing_floor", f64::from(station.levels.floor)),
+            (
+                "elevator_displayed_floor",
+                f64::from(station.displayed_floor),
+            ),
+            (
+                "elevator_button_diameter_m",
+                f64::from(station.button_diameter_m),
+            ),
+            ("elevator_track_count", sill.guide_centers_m.len() as f64),
+            ("elevator_track_depth_m", f64::from(sill.guide_depth_m)),
+            (
+                "elevator_car_landing_joint_m",
+                f64::from(sill.joint_width_m),
+            ),
+        ] {
+            numeric.push(name, value)?;
+        }
+    }
     record_equipment(scene, o, categories, numeric)?;
     service_equipment::record(o, categories, numeric)?;
     service_furniture::record(o, scene.generator_version, categories, numeric)?;
+    use super::super::objects::accessories::organizers;
+    if scene.generator_version >= organizers::INTRODUCED
+        && matches!(o.kind, ObjectKind::DocumentTray | ObjectKind::DeskOrganizer)
+    {
+        let p = organizers::parameters(o);
+        for bay in organizers::compartments(o, &p) {
+            let kind = match bay {
+                organizers::Contents::Empty => "empty",
+                organizers::Contents::Tools { tools, .. } => {
+                    numeric.push("organizer_writing_tools", tools.len() as f64)?;
+                    for pen in tools {
+                        numeric.push(
+                            "organizer_tool_lean_deg",
+                            f64::from(pen.inclination_rad().to_degrees()),
+                        )?;
+                    }
+                    "tools"
+                }
+                organizers::Contents::Paper(stack) => {
+                    category(categories, "organizer_paper_media", stack.media);
+                    category(
+                        categories,
+                        "organizer_printed_face_up",
+                        stack.printed_face_up,
+                    );
+                    numeric.push("organizer_sheet_count", f64::from(stack.sheets))?;
+                    numeric.push("organizer_leaf_curl_m", f64::from(stack.curl_m))?;
+                    "paper"
+                }
+            };
+            category(categories, "organizer_compartment", kind);
+        }
+    }
     use super::super::objects::desktop::{self, pointer};
     if o.kind == ObjectKind::Mouse && scene.generator_version >= pointer::INTRODUCED {
         let p = pointer::PointerProgram::sample(o, &desktop::parameters(o));
@@ -993,6 +1141,27 @@ pub(super) fn record_object(
                 format!("{surface:?}"),
             );
         }
+        if scene.generator_version >= super::super::objects::storage::hinged::INTRODUCED {
+            if let Some(bank) = super::super::objects::storage::hinged::Bank::new(o, &p) {
+                for leaf in (0..p.bays.len()).filter_map(|i| bank.leaf(o, &p, i)) {
+                    category(categories, "cabinet_hinge_side", format!("{:?}", leaf.hand));
+                    category(
+                        categories,
+                        "cabinet_hinged_panel",
+                        format!("{:?}", leaf.face),
+                    );
+                    category(
+                        categories,
+                        "cabinet_hinged_pull",
+                        format!("{:?}", leaf.pull),
+                    );
+                    numeric.push(
+                        "cabinet_leaf_rest_degrees",
+                        f64::from(leaf.rest_radians.to_degrees()),
+                    )?;
+                }
+            }
+        }
         numeric.push("cabinet_bottom_m", p.bottom_m as f64)?;
         numeric.push("cabinet_body_depth_m", p.body_depth_m as f64)?;
         numeric.push("cabinet_panel_m", p.panel_m as f64)?;
@@ -1035,7 +1204,47 @@ pub(super) fn record_object(
         numeric.push("clock_roundness", p.roundness as f64)?;
     }
     if o.kind.is_kitchen() {
-        if let Some(fields) = super::super::objects::kitchen::metadata(o).as_object() {
+        if let Some(fields) =
+            super::super::objects::kitchen::metadata_for_version(o, scene.generator_version)
+                .as_object()
+        {
+            if let Some(fruit) = fields.get("fruit").and_then(|v| v.as_array()) {
+                if let Some(kind) = fields["vessel"]["kind"].as_str() {
+                    category(categories, "fruit_bowl_carrier", kind);
+                }
+                for piece in fruit {
+                    for (field, key) in [("variety", "fruit_variety"), ("skin", "fruit_skin")] {
+                        if let Some(name) = piece[field].as_str() {
+                            category(categories, key, name);
+                        }
+                    }
+                    if let Some(height) = piece["height_m"].as_f64() {
+                        numeric.push("fruit_height_m", height)?;
+                    }
+                }
+            }
+            if let Some(panel) = fields
+                .get("construction")
+                .and_then(|c| c.get("operator_panel"))
+            {
+                let prefix = format!("kitchen_{:?}", o.kind);
+                if let Some(family) = panel["family"].as_str() {
+                    category(categories, &format!("{prefix}_control_family"), family);
+                }
+                if let Some(mount) = panel["fascia"]["mount"].as_str() {
+                    category(categories, &format!("{prefix}_control_mount"), mount);
+                }
+                for key in ["keys", "dials"] {
+                    if let Some(controls) = panel[key].as_array() {
+                        numeric.push(&format!("{prefix}_control_{key}"), controls.len() as f64)?;
+                    }
+                }
+                category(
+                    categories,
+                    &format!("{prefix}_readout"),
+                    panel["readout"]["film"].as_str().unwrap_or("none"),
+                );
+            }
             for (key, value) in fields {
                 let name = format!("kitchen_{:?}_{key}", o.kind);
                 match value {
@@ -1750,6 +1959,160 @@ pub(super) fn record_object(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn sofa_throw_metrics_count_the_cushions_installed_on_each_sofa() {
+        use super::super::super::objects::audit;
+        let directory = scratch();
+        let mut scene = IndoorManifest::generate_with_humans(
+            97504,
+            super::super::IndoorLayout::Lounge,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        for version in [
+            seating::pillows::INTRODUCED - 1,
+            seating::pillows::INTRODUCED,
+        ] {
+            scene.generator_version = version;
+            let mut categories = Categories::new();
+            let mut numeric = NumericCollector::new(&directory).unwrap();
+            let mut installed = 0usize;
+            let sofas = 16;
+            for seed in 0..sofas {
+                let o = audit::fixture(ObjectKind::Sofa, seed);
+                let p = seating::parameters(&o);
+                installed +=
+                    seating::pillows::metadata(&o, &p, &seating::module_widths_for(&o, &p)).len();
+                record_object(&scene, &o, &mut categories, &mut numeric).unwrap();
+            }
+            assert!(installed > 0);
+            let values = numeric.finish().unwrap();
+            if version < seating::pillows::INTRODUCED {
+                assert!(
+                    !values.contains_key("sofa_throw_count")
+                        && !categories.contains_key("sofa_throw_edge")
+                );
+            } else {
+                assert_eq!(
+                    values["sofa_throw_count"].mean,
+                    installed as f64 / sofas as f64
+                );
+                assert_eq!(
+                    categories["sofa_throw_edge"].values().sum::<usize>(),
+                    installed
+                );
+                assert_eq!(
+                    categories["sofa_throw_support"].values().sum::<usize>(),
+                    installed
+                );
+            }
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn organizer_metrics_describe_the_built_compartments_at_the_captured_version() {
+        use super::super::super::objects::{accessories::organizers, audit};
+        let directory = scratch();
+        let mut scene = IndoorManifest::generate_with_humans(
+            94018,
+            super::super::IndoorLayout::OpenOffice,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        for version in [organizers::INTRODUCED - 1, organizers::INTRODUCED] {
+            scene.generator_version = version;
+            let mut categories = Categories::new();
+            let mut numeric = NumericCollector::new(&directory).unwrap();
+            let mut counts = [0usize; 3];
+            let mut sheets = 0;
+            let mut pens = 0;
+            for seed in 0..16 {
+                for kind in [ObjectKind::DeskOrganizer, ObjectKind::DocumentTray] {
+                    let o = audit::fixture(kind, seed);
+                    for b in organizers::compartments(&o, &organizers::parameters(&o)) {
+                        match b {
+                            organizers::Contents::Empty => counts[0] += 1,
+                            organizers::Contents::Paper(s) => {
+                                counts[1] += 1;
+                                sheets += usize::from(s.sheets);
+                            }
+                            organizers::Contents::Tools { tools, .. } => {
+                                counts[2] += 1;
+                                pens += tools.len();
+                            }
+                        }
+                    }
+                    record_object(&scene, &o, &mut categories, &mut numeric).unwrap();
+                }
+            }
+            let values = numeric.finish().unwrap();
+            if version >= organizers::INTRODUCED {
+                let bins = &categories["organizer_compartment"];
+                for (i, name) in ["empty", "paper", "tools"].into_iter().enumerate() {
+                    assert_eq!(bins[name], counts[i]);
+                }
+                assert_eq!(
+                    values["organizer_sheet_count"].mean,
+                    sheets as f64 / counts[1] as f64
+                );
+                assert_eq!(
+                    values["organizer_writing_tools"].mean,
+                    pens as f64 / counts[2] as f64
+                );
+            } else {
+                assert!(
+                    !categories.contains_key("organizer_compartment")
+                        && !values.contains_key("organizer_sheet_count")
+                );
+            }
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn kitchen_control_metrics_follow_the_manifest_generator() {
+        use super::super::super::objects::{audit, kitchen::appliances::controls};
+        let directory = scratch();
+        let mut scene = IndoorManifest::generate_with_humans(
+            94000,
+            super::super::IndoorLayout::Kitchen,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        let o = audit::fixture(ObjectKind::Dishwasher, 14);
+        let panel = controls::for_object(&o).unwrap();
+        for version in [controls::INTRODUCED - 1, controls::INTRODUCED] {
+            scene.generator_version = version;
+            let mut categories = Categories::new();
+            let mut numeric = NumericCollector::new(&directory).unwrap();
+            record_object(&scene, &o, &mut categories, &mut numeric).unwrap();
+            let values = numeric.finish().unwrap();
+            let count = values
+                .get("kitchen_Dishwasher_control_keys")
+                .map(|v| v.mean);
+            if version < controls::INTRODUCED {
+                assert!(count.is_none());
+                assert!(!categories.contains_key("kitchen_Dishwasher_control_mount"));
+            } else {
+                assert_eq!(count, Some(panel.keys.len() as f64));
+                assert_eq!(
+                    values["kitchen_Dishwasher_control_dials"].mean,
+                    panel.dials.len() as f64
+                );
+                let mount = serde_json::to_value(panel.fascia.mount).unwrap();
+                assert_eq!(
+                    categories["kitchen_Dishwasher_control_mount"][mount.as_str().unwrap()],
+                    1
+                );
+            }
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
     #[test]
     fn divider_metrics_count_installed_bays_and_only_real_hinges() {
         use super::super::super::objects::{audit, services::divider};

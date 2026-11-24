@@ -1094,6 +1094,16 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
         )
         .then(|| super::objects::tables::Clearance::new(object));
+        if person.pose.seated() && scene.generator_version >= footwear::SOLE_CLEARANCE_VERSION {
+            if let Some(table) = &table {
+                let local = inverse * tf.compute_affine();
+                if footwear::seated_soles(person).into_iter().any(|(a, b, r)| {
+                    table.hits_capsule(local.transform_point3(a), local.transform_point3(b), r)
+                }) {
+                    return false;
+                }
+            }
+        }
         let supported = person
             .worktop_contact
             .as_ref()

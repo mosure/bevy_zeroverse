@@ -12,6 +12,9 @@ pub fn sample(seed: u64) -> Vec<MaterialRecipe> {
             materials::construction::sample(r, 0);
         }
     }
+    if let Some(w) = &mut recipes[Surface::Wood as usize].wood {
+        w.sample_figure();
+    }
     // End grain and face grain belong to the same finished timber stock.
     recipes[Surface::WoodEdge as usize].wood = recipes[Surface::Wood as usize].wood.clone();
     recipes

@@ -144,7 +144,11 @@ pub(super) fn install(
                 {
                     keys.insert((Surface::Plastic, BALL + finish as usize));
                 }
-            } else if o.kind == ObjectKind::Printer {
+            } else if o.kind == ObjectKind::Printer
+                || (o.kind == ObjectKind::PcTower
+                    && scene.generator_version >= desktop::tower::INTRODUCED
+                    && desktop::tower::installed(o))
+            {
                 keys.insert((Surface::Plastic, p.trim_slot()));
             }
             if o.kind == ObjectKind::Laptop {

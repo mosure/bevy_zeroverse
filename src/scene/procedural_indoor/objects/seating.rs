@@ -1,7 +1,7 @@
 //! Modular upholstery: armchairs, loveseats, sofas and left/right chaise returns.
 use super::*;
 pub(crate) mod foundation;
-mod pillows;
+pub(crate) mod pillows;
 pub mod recliner;
 mod structure;
 #[cfg(test)]
@@ -143,6 +143,9 @@ pub(super) fn audit_program(o: &IndoorObject) -> serde_json::Value {
     let p = parameters(o);
     let mut data = serde_json::json!(p);
     let widths = module_widths_for(o, &p);
+    if o.kind == ObjectKind::Sofa {
+        data["throw_cushions"] = serde_json::json!(pillows::metadata(o, &p, &widths));
+    }
     data["foundation"] = foundation::Foundation::new(o, &p, &widths).metadata();
     data
 }
@@ -198,12 +201,12 @@ pub(crate) fn dimensions(r: &mut impl rand::Rng) -> Vec3 {
         },
     )
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
-    build_program(a, o, p);
+    build_program(a, o, p, version);
 }
 
-fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram) {
+fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram, version: u32) {
     if p.recliner {
         recliner::build(a, o, &p);
         return;
@@ -214,34 +217,14 @@ fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram) {
     // leaving the outer footprint and seating datum exactly unchanged.
     let widths = module_widths_for(o, &p);
     foundation::Foundation::new(o, &p, &widths).build(a, o, &p);
-    let mut cursor = -s.x * 0.5 + p.arm_width;
-    for (index, &module_width) in widths.iter().enumerate() {
-        let depth = module_depth(o, &p, index);
-        let z = (s.z - depth) * 0.5;
-        let x = cursor + module_width * 0.5;
-        cursor += module_width;
-        if p.seat_style != 1 || index == 0 {
-            let (seat_x, seat_width) = if p.seat_style == 1 {
-                (0., s.x - p.arm_width * 2.)
-            } else {
-                (x, module_width)
-            };
-            upholstery::seat(
-                a,
-                o,
-                &p,
-                Vec3::new(seat_x, p.seat_height - p.cushion * 0.5, z - 0.085),
-                Vec3::new(seat_width - p.cushion_gap_m, p.cushion, depth - 0.19),
-            );
-        }
-    }
+    upholstery::seats(o, &p, &widths, |center, size| {
+        upholstery::seat(a, o, &p, center, size)
+    });
     let back_width = (s.x - p.arm_width * 2.) / p.back_modules as f32;
     for i in 0..p.back_modules {
         let x = (i as f32 - (p.back_modules - 1) as f32 * 0.5) * back_width;
         upholstery::back(a, o, &p, x, back_width, p.seat_height - p.cushion);
     }
     structure::arms(a, o, &p, base_depth);
-    for pillow in pillows::build(o, &p, &widths) {
-        a.part(Surface::FabricAlt, "pillow").append(pillow);
-    }
+    pillows::build(a, o, &p, &widths, version);
 }

@@ -1,5 +1,15 @@
 //! Sliding door banks with fitted pockets, a bounded car, and separate finishes.
 use super::*;
+use crate::scene::procedural_indoor::materials::worktop_finish::BrushedHardware;
+mod legacy;
+mod sill;
+mod station;
+#[cfg(test)]
+mod tests;
+pub(crate) use sill::Sill;
+pub(crate) use station::{Levels, Station};
+
+pub(crate) const LANDING_VERSION: u32 = 229;
 
 pub(crate) const MIN_FOOTPRINT: Vec2 = Vec2::new(2.05, 1.50);
 /// Preserve a 2.50 m car plus the enclosing core's roof structure.
@@ -31,7 +41,7 @@ pub struct ElevatorProgram {
     pub floor_number: u32,
 }
 
-pub fn parameters(o: &IndoorObject) -> ElevatorProgram {
+fn sample(o: &IndoorObject) -> ElevatorProgram {
     let mut r = stream(o.seed, 8240);
     let mut finish = stream(o.finish_seed.unwrap_or(o.seed), 8241);
     let centered = r.random_bool(0.68);
@@ -128,7 +138,7 @@ pub fn leaf_bounds(p: &ElevatorProgram) -> Vec<([f32; 3], [f32; 3])> {
 }
 
 pub fn is_core(o: &IndoorObject) -> bool {
-    o.kind == ObjectKind::Elevator && o.variant == 20
+    o.kind == ObjectKind::Elevator && (o.variant == 20 || Levels::decode(o.variant).is_some())
 }
 
 pub fn car_height(o: &IndoorObject) -> f32 {
@@ -139,22 +149,50 @@ pub fn car_height(o: &IndoorObject) -> f32 {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+fn car_size(o: &IndoorObject) -> Vec3 {
+    if is_core(o) {
+        Vec3::new(o.size.x * 0.84, car_height(o), o.size.z * 0.92)
+    } else {
+        o.size
+    }
+}
+
+pub fn parameters(o: &IndoorObject) -> ElevatorProgram {
+    let mut p = sample(o);
+    let car = car_size(o);
+    let station = Station::sample(o, car, &p);
+    p.floor_number = u32::from(station.displayed_floor);
+    p.control_side = station.button_center_m.x.signum();
+    p.control_height = station.button_center_m.y / car.y;
+    p.indicator_side = station.mount != station::ReadoutMount::Header;
+    p
+}
+
+pub(crate) fn installation(o: &IndoorObject) -> (Station, Sill) {
+    let size = car_size(o);
+    let mut p = sample(o);
+    p.threshold *= o.size.y / size.y;
+    (Station::sample(o, size, &p), Sill::sample(o, size, &p))
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if !is_core(o) {
-        return car(a, o);
+        car(a, o, o, version);
+        return;
     }
     let mut inner = o.clone();
     inner.variant = 0;
-    inner.size = Vec3::new(o.size.x * 0.84, car_height(o), o.size.z * 0.92);
-    car(a, &inner);
-    for ((_, label), g) in &mut a.parts {
-        if label == "control_panel" {
-            for point in &mut g.positions {
-                point[2] += o.size.z * (0.485 - 0.493 * 0.92);
+    inner.size = car_size(o);
+    let p = car(a, &inner, o, version);
+    if version < LANDING_VERSION {
+        for ((_, label), g) in &mut a.parts {
+            if label == "control_panel" {
+                for point in &mut g.positions {
+                    point[2] += o.size.z * (0.485 - 0.493 * 0.92);
+                }
             }
         }
     }
-    let p = parameters(&inner);
     let l = "wall";
     // Full-height masonry/service-core enclosure, with a genuine recessed portal.
     // It replaces the exposed exterior of the car; no wall covers its doorway.
@@ -203,11 +241,15 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     );
 }
 
-fn car(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+fn threshold_back(p: &ElevatorProgram) -> f32 {
+    0.46 - p.recess - (p.leaves_per_side - 1) as f32 * 0.026 - 0.02
+}
+
+fn car(a: &mut Assembly, o: &IndoorObject, outer: &IndoorObject, version: u32) -> ElevatorProgram {
+    let p = sample(o);
     // The car floor ends where the threshold starts: overlapping top faces
     // would flicker even though both slabs fit the elevator envelope.
-    let threshold_back = 0.46 - p.recess - (p.leaves_per_side - 1) as f32 * 0.026 - 0.02;
+    let threshold_back = threshold_back(&p);
     for x in [-0.48, 0.48] {
         panel(
             a,
@@ -282,95 +324,11 @@ fn car(a: &mut Assembly, o: &IndoorObject) {
             [0.002, size[1] * 0.97, 0.001],
         );
     }
-    panel(
-        a,
-        o,
-        Surface::Metal,
-        "elevator",
-        [cx, p.threshold * 0.5, (threshold_back + 0.5) * 0.5],
-        [width, p.threshold, 0.5 - threshold_back],
-    );
-    for i in 0..p.leaves_per_side {
-        panel(
-            a,
-            o,
-            Surface::Rubber,
-            "elevator",
-            [cx, p.threshold + 0.0007, 0.46 - p.recess - i as f32 * 0.026],
-            [width, 0.001, 0.004],
-        );
-    }
-    let side = p.control_side;
-    let jamb = if side < 0. {
-        (-0.5 + p.portal_left) * 0.5
+    if version < LANDING_VERSION {
+        legacy::hall(a, o, &p, threshold_back);
     } else {
-        (0.5 + p.portal_right) * 0.5
-    };
-    panel(
-        a,
-        o,
-        Surface::Metal,
-        "control_panel",
-        [jamb, p.control_height, 0.493],
-        [0.040, 0.10, 0.006],
-    );
-    for delta in [-0.023, 0.023] {
-        a.part(Surface::Chrome, "control_panel").cylinder(
-            o.size.x * 0.009,
-            o.size.z * 0.0015,
-            Transform::from_xyz(
-                jamb * o.size.x,
-                (p.control_height + delta) * o.size.y,
-                o.size.z * 0.497,
-            )
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        );
-    }
-    let indicator = if p.indicator_side {
-        [jamb, p.portal_top * 0.84]
-    } else {
-        [cx, (1. + p.portal_top) * 0.5]
-    };
-    panel(
-        a,
-        o,
-        Surface::Ink,
-        "control_panel",
-        [indicator[0], indicator[1], 0.493],
-        [0.054, 0.045, 0.006],
-    );
-    const DIGITS: [u8; 10] = [0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f];
-    for (i, digit) in [p.floor_number / 10, p.floor_number % 10]
-        .into_iter()
-        .enumerate()
-    {
-        for (bit, (x, y, w, h)) in [
-            (0., 1., 0.010, 0.0015),
-            (1., 0.5, 0.0015, 0.011),
-            (1., -0.5, 0.0015, 0.011),
-            (0., -1., 0.010, 0.0015),
-            (-1., -0.5, 0.0015, 0.011),
-            (-1., 0.5, 0.0015, 0.011),
-            (0., 0., 0.010, 0.0015),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            if DIGITS[digit as usize] & (1 << bit) != 0 {
-                panel(
-                    a,
-                    o,
-                    Surface::Light,
-                    "control_panel",
-                    [
-                        indicator[0] + (i as f32 - 0.5) * 0.022 + x * 0.006,
-                        indicator[1] + y * 0.013,
-                        0.497,
-                    ],
-                    [w, h, 0.001],
-                );
-            }
-        }
+        Sill::sample(outer, o.size, &p).build(a);
+        Station::sample(outer, o.size, &p).build(a);
     }
     let radius = o.size.min_element() * 0.008;
     rod(
@@ -427,4 +385,5 @@ fn car(a: &mut Assembly, o: &IndoorObject) {
             [0.002, 0.86, 0.001],
         );
     }
+    p
 }

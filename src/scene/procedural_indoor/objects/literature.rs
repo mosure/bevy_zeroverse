@@ -1,5 +1,6 @@
 //! Bound printed objects with sampled construction, stacks and fitted covers.
 use super::*;
+pub(crate) mod media;
 mod opened;
 pub(crate) mod spread;
 

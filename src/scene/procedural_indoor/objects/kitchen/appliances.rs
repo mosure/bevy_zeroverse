@@ -1,6 +1,7 @@
 //! Appliance cavities, doors, controls and supported interior contents.
 use super::super::super::motion::{construction as motion, MotionKind};
 use super::*;
+pub mod controls;
 pub mod cooktop;
 pub mod interior;
 pub mod notes;
@@ -73,10 +74,12 @@ fn oven_leaf(
     bottom: Vec2,
     front: f32,
     p: &KitchenProgram,
-    label: &str,
     seed: u64,
     o: &IndoorObject,
+    console: Option<&controls::Controls>,
 ) {
+    let label = o.kind.class_name();
+    let finish = program::finishes(o).1;
     let rotation = Quat::from_rotation_x(p.opening_radians);
     let tf = Transform::from_translation(
         Vec3::new(bottom.x, bottom.y, front + 0.014) + rotation * Vec3::Y * height * 0.5,
@@ -95,15 +98,11 @@ fn oven_leaf(
         joint
     };
     motion::hinged(a, MotionKind::Appliance, seed, joint, |a| {
-        cabinet::panel(
-            a,
-            Vec2::new(width, height),
-            tf,
-            program::finishes(o).1,
-            label,
-            p.viewport,
-        );
+        cabinet::panel(a, Vec2::new(width, height), tf, finish, label, p.viewport);
         cabinet::handle(a, tf, 0., height * 0.36, p, true, label);
+        if let Some(console) = console {
+            console.build(a, o, finish);
+        }
     });
 }
 fn side_leaf(
@@ -151,7 +150,7 @@ fn side_leaf(
         }
     });
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, version: u32) {
     if o.kind == ObjectKind::Cooktop {
         let (base, slab) = cooktop_slab(o, p);
         cooktop::build(a, slab, base, p, o.seed);
@@ -251,52 +250,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 p,
                 o,
             );
-            let center = if lower {
-                Vec3::new(0., s.y * 0.17, front + 0.016)
+            if version >= controls::INTRODUCED {
+                let fascia = controls::Fascia::fitted(o, p, &product, front);
+                controls::Controls::sample(o, p, fascia).build(a, o, Surface::Plastic);
             } else {
-                Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.51, front + 0.016)
-            };
-            let panel_size = if lower {
-                Vec3::new(w * 0.96, s.y * 0.21, 0.025)
-            } else {
-                Vec3::new(w * fraction - 0.006, s.y * 0.86, 0.025)
-            };
-            a.box_part(Surface::Plastic, label, center, panel_size, 0.003);
-            if lower {
-                knobs(
-                    a,
-                    center + Vec3::new(-w * 0.29, 0., 0.021),
-                    Vec3::X * w * 0.18,
-                    3,
-                    0.012,
-                    label,
-                    o.seed,
-                );
-            } else {
-                knobs(
-                    a,
-                    Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.24, front + 0.037),
-                    Vec3::Y * s.y * 0.19,
-                    2,
-                    0.016,
-                    label,
-                    o.seed,
-                );
+                controls::legacy::microwave(a, o, fraction, front, lower, sign);
             }
-            let screen_center = if lower {
-                center + Vec3::new(w * 0.30, 0., 0.014)
-            } else {
-                Vec3::new(sign * w * (1. - fraction) * 0.5, s.y * 0.77, front + 0.030)
-            };
-            computers::displays::screen_cover(
-                a,
-                Surface::Metal,
-                Surface::Screen,
-                label,
-                Vec3::new(w * 0.12, s.y * 0.11, 0.002),
-                0.,
-                Transform::from_translation(screen_center),
-            );
             let tray_y = if lower {
                 s.y * 0.34 + 0.01
             } else {
@@ -334,13 +293,43 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             }
         }
         ObjectKind::Dishwasher => {
-            let bottom = toe + 0.024;
-            // Fit below the control fascia even on short compact appliances.
-            // A fixed fraction plus the toe height overlapped the fascia.
-            let height = program::dishwasher_door_height(o);
-            let fascia_bottom = s.y * (1. - product.fascia_fraction);
-            let fascia_top = s.y - 0.01;
-            let fascia_y = (fascia_bottom + fascia_top) * 0.5;
+            let low = s.y * (1. - product.fascia_fraction);
+            let high = s.y - 0.01;
+            let panel = (version >= controls::INTRODUCED).then(|| {
+                let f = controls::Fascia::fitted(o, p, &product, front);
+                controls::Controls::sample(o, p, f)
+            });
+            let moving = panel
+                .as_ref()
+                .filter(|panel| panel.fascia.mount == controls::Mount::DropDoor);
+            let (bottom, height) = if moving.is_some() {
+                let hinge = controls::dishwasher_hinge_y(o);
+                let plinth = hinge - toe - 0.014;
+                if plinth > 0. {
+                    a.box_part(
+                        product.shell,
+                        label,
+                        Vec3::new(0., toe + plinth * 0.5, front - 0.011),
+                        Vec3::new(w - 0.039, plinth, 0.014),
+                        0.001,
+                    );
+                }
+                (hinge, low - hinge - 0.0015)
+            } else if panel.is_some() {
+                // A fixed header has a narrow reveal; the recessed compression
+                // seal closes the line of sight to the wash rack behind it.
+                let bottom = toe + 0.024;
+                a.box_part(
+                    Surface::Rubber,
+                    label,
+                    Vec3::new(0., low - 0.002, front - 0.003),
+                    Vec3::new(w * 0.965, 0.016, 0.006),
+                    0.001,
+                );
+                (bottom, (low - bottom - 0.004).max(0.10))
+            } else {
+                (toe + 0.024, program::dishwasher_door_height(o))
+            };
             oven_leaf(
                 a,
                 w * 0.96,
@@ -348,27 +337,34 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                 Vec2::new(0., bottom),
                 front,
                 p,
-                label,
                 o.seed,
                 o,
+                moving,
             );
-            a.box_part(
-                product.front,
-                label,
-                Vec3::new(0., fascia_y, front + 0.014),
-                Vec3::new(w * 0.97, fascia_top - fascia_bottom, 0.022),
-                0.003,
-            );
-            knobs(
-                a,
-                Vec3::new(-w * 0.30, fascia_y, front + 0.03),
-                Vec3::X * w * 0.18,
-                4,
-                0.012,
-                label,
-                o.seed,
-            );
-            for basket in interior::dishwasher_baskets(o, p) {
+            if let Some(panel) = panel {
+                if panel.fascia.mount == controls::Mount::Chassis {
+                    panel.build(a, o, product.front);
+                }
+            } else {
+                let fascia_y = (low + high) * 0.5;
+                a.box_part(
+                    product.front,
+                    label,
+                    Vec3::new(0., fascia_y, front + 0.014),
+                    Vec3::new(w * 0.97, high - low, 0.022),
+                    0.003,
+                );
+                knobs(
+                    a,
+                    Vec3::new(-w * 0.30, fascia_y, front + 0.03),
+                    Vec3::X * w * 0.18,
+                    4,
+                    0.012,
+                    label,
+                    o.seed,
+                );
+            }
+            for basket in interior::dishwasher_baskets_for_version(o, p, version) {
                 let mut rack = supplies::rack::parameters(
                     basket.size,
                     if p.contents && !basket.cutlery { 6 } else { 0 },
@@ -427,9 +423,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
                     Vec2::new(offset, bottom),
                     front,
                     &q,
-                    label,
                     o.seed ^ level as u64,
                     o,
+                    None,
                 );
                 for y in [bottom + 0.008, bottom + dh - 0.008] {
                     a.box_part(
@@ -548,6 +544,18 @@ pub fn refrigerator_doors(o: &IndoorObject, p: &KitchenProgram) -> Vec<Appliance
         .collect()
 }
 pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
+    metadata_for_version(
+        o,
+        p,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    )
+}
+
+pub(super) fn metadata_for_version(
+    o: &IndoorObject,
+    p: &KitchenProgram,
+    version: u32,
+) -> serde_json::Value {
     let plan = program::parameters(o);
     let mut value = serde_json::json!({"shell":plan.shell,"front":plan.front});
     match o.kind {
@@ -568,7 +576,8 @@ pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
         }
         ObjectKind::Dishwasher => {
             value["fascia_fraction"] = serde_json::json!(plan.fascia_fraction);
-            value["baskets"] = serde_json::json!(interior::dishwasher_baskets(o, p));
+            value["baskets"] =
+                serde_json::json!(interior::dishwasher_baskets_for_version(o, p, version));
         }
         ObjectKind::Microwave => {
             value["control_fraction"] = serde_json::json!(plan.control_fraction);
@@ -578,6 +587,13 @@ pub fn metadata(o: &IndoorObject, p: &KitchenProgram) -> serde_json::Value {
             value["cooktop"] = serde_json::json!(cooktop::parameters(o.seed, size, p));
         }
         _ => {}
+    }
+    if version >= controls::INTRODUCED
+        && matches!(o.kind, ObjectKind::Microwave | ObjectKind::Dishwasher)
+    {
+        let (depth, z) = body(o, p);
+        let fascia = controls::Fascia::fitted(o, p, &plan, z + depth * 0.5);
+        value["operator_panel"] = serde_json::json!(controls::Controls::sample(o, p, fascia));
     }
     if matches!(o.kind, ObjectKind::Oven | ObjectKind::Range) {
         let fronts = program::oven_fronts(o, p);
@@ -603,6 +619,11 @@ pub(crate) fn review_fixture(
     let mut p = parameters(&o);
     p.opening_radians = 0.;
     let mut a = Assembly::default();
-    build(&mut a, &o, &p);
+    build(
+        &mut a,
+        &o,
+        &p,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    );
     (o, a, p)
 }

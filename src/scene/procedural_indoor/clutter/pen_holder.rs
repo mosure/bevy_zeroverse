@@ -8,6 +8,8 @@ use crate::scene::procedural_indoor::{
 
 mod clearance;
 mod packing;
+mod pocket;
+use pocket::{Edge, Pocket};
 #[cfg(test)]
 mod tests;
 
@@ -69,22 +71,12 @@ pub fn parameters(o: &IndoorObject) -> PenHolderProgram {
     }
 }
 
-struct Edge {
-    start: Vec2,
-    end: Vec2,
-    normal: Vec2,
-    distance: f32,
-}
-
 struct Cup<'a> {
     p: &'a PenHolderProgram,
     outline: RevolvedOutline,
-    edges: Vec<Edge>,
     radius: f32,
-    height: f32,
-    belly_y: f32,
+    pocket: Pocket,
 }
-
 impl<'a> Cup<'a> {
     fn new(o: &IndoorObject, p: &'a PenHolderProgram) -> Self {
         let radius = p.body_span_m.min_element() * 0.5;
@@ -113,30 +105,27 @@ impl<'a> Cup<'a> {
             } else {
                 outline
             },
-            edges,
             radius,
-            height,
-            belly_y: height * p.belly_height,
+            pocket: Pocket {
+                edges,
+                span: p.body_span_m,
+                height,
+                belly_y: height * p.belly_height,
+                floor: p.floor_m,
+                base: p.base_radius_fraction,
+                mouth: p.mouth_radius_fraction,
+                wall: p.wall_fraction,
+                count: p.requested_pens,
+                heading: p.lean_heading_rad,
+                spread: p.lean_spread_rad,
+            },
         }
-    }
-
-    /// Scale of the polygon that bounds the cavity. Its two linear pieces
-    /// form a concave radius profile, so each frustum is an exact half-space test.
-    fn inner_scale(&self, y: f32) -> f32 {
-        let p = self.p;
-        let fraction = if y <= self.belly_y {
-            p.base_radius_fraction
-                + (1. - p.base_radius_fraction) * (y - p.floor_m) / (self.belly_y - p.floor_m)
-        } else {
-            1. + (p.mouth_radius_fraction - 1.) * (y - self.belly_y) / (self.height - self.belly_y)
-        };
-        fraction - p.wall_fraction
     }
 
     fn draw(&self, a: &mut Assembly, label: &str) {
         let p = self.p;
         let r = self.radius;
-        let h = self.height;
+        let h = self.pocket.height;
         let wall = r * p.wall_fraction;
         let base = r * p.base_radius_fraction;
         let mouth = r * p.mouth_radius_fraction;
@@ -149,12 +138,12 @@ impl<'a> Cup<'a> {
                 (0., 0.),
                 (base - wall * 0.43, 0.),
                 (base, wall * 0.43),
-                (r, self.belly_y),
+                (r, self.pocket.belly_y),
                 (mouth, h - lip),
                 (mouth + lip * 0.22, h - lip * 0.55),
                 (mouth, h),
                 (mouth - wall, h),
-                (r - wall, self.belly_y),
+                (r - wall, self.pocket.belly_y),
                 (base - wall, p.floor_m),
                 (0., p.floor_m),
             ],
@@ -184,6 +173,13 @@ impl Pen {
             .with_rotation(self.rotation)
     }
 
+    pub(crate) fn draw(&self, a: &mut Assembly, label: &str, offset: Vec3) {
+        let mut tf = self.transform();
+        tf.translation += offset;
+        let barrel = format!("{label}#finish{}", self.finish_slot);
+        self.tool.draw(a, tf, label, &barrel);
+    }
+
     fn clearance_radius(&self) -> f32 {
         self.tool.radius * if self.tool.clip { 1.56 } else { 1. }
     }
@@ -198,7 +194,7 @@ pub fn contents(o: &IndoorObject, p: &PenHolderProgram) -> Vec<Pen> {
     if p.requested_pens == 0 {
         return Vec::new();
     }
-    packing::settle(o, &Cup::new(o, p))
+    packing::settle(o.seed, o.finish_seed, o.size, &Cup::new(o, p).pocket)
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
@@ -206,8 +202,23 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let cup = Cup::new(o, &p);
     let label = o.kind.class_name();
     cup.draw(a, label);
-    for pen in packing::settle(o, &cup) {
-        let barrel = format!("{label}#finish{}", pen.finish_slot);
-        pen.tool.draw(a, pen.transform(), label, &barrel);
+    for pen in packing::settle(o.seed, o.finish_seed, o.size, &cup.pocket) {
+        pen.draw(a, label, Vec3::ZERO);
     }
+}
+
+/// Settle the same finished tools inside a rectangular organizer compartment.
+/// The envelope contains any overhang above the lip and is exclusive to this bay.
+pub(crate) fn compartment_tools(
+    o: &IndoorObject,
+    index: usize,
+    envelope: Vec3,
+    clear: Vec2,
+    floor: f32,
+    rim: f32,
+) -> Vec<Pen> {
+    let mut r = stream(o.seed, u64::from_le_bytes(*b"DeskPens") + index as u64);
+    let seed = r.random();
+    let pocket = Pocket::rectangle(clear, floor, rim, &mut r);
+    packing::settle(seed, o.finish_seed, envelope, &pocket)
 }

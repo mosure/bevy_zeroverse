@@ -1,7 +1,7 @@
 //! Cabinet chassis and contents share their physical compartment boundaries.
 use super::*;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let t = p.panel_m;
@@ -71,7 +71,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             }
         }
     }
-    fronts::build(a, o, &p);
+    fronts::build(a, o, &p, version);
 }
 
 pub(super) fn content_program(

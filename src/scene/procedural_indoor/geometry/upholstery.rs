@@ -1,7 +1,9 @@
 //! Closed, shaped upholstery with a shared smooth normal field and metric UVs.
 use super::*;
 use std::{f32::consts::PI, sync::OnceLock};
+mod support;
 mod topology;
+pub(crate) use support::CushionSurface;
 use topology::{ChartVertex, Grid};
 
 #[derive(Debug, Clone, Copy, serde::Serialize)]
@@ -14,12 +16,24 @@ pub struct CushionProfile {
     pub dish: f32,
 }
 
+fn full_grid() -> &'static Grid<33, 12> {
+    static GRID: OnceLock<Grid<33, 12>> = OnceLock::new();
+    GRID.get_or_init(Grid::new)
+}
+
+fn power(x: f32, p: f32) -> f32 {
+    if x.abs() < 1e-6 {
+        0.
+    } else {
+        x.signum() * x.abs().powf(p)
+    }
+}
+
 impl Geometry {
     /// A bounded superellipsoid, with a compressed upper surface. UV seams split
     /// the top/bottom cloth panels from the perimeter boxing, but share normals.
     pub fn cushion(&mut self, size: Vec3, profile: CushionProfile, tf: Transform) {
-        static GRID: OnceLock<Grid<33, 12>> = OnceLock::new();
-        self.cushion_grid(size, profile, tf, None, GRID.get_or_init(Grid::new));
+        self.cushion_grid(size, profile, tf, None, full_grid());
     }
 
     /// Replace the bottom panel with a distinct stock on the same closed mesh.
@@ -44,13 +58,6 @@ impl Geometry {
     ) {
         let sides = COLUMNS - 1;
         let half = size * 0.5;
-        let power = |x: f32, p: f32| {
-            if x.abs() < 1e-6 {
-                0.
-            } else {
-                x.signum() * x.abs().powf(p)
-            }
-        };
         let shape = profile.roundness.clamp(2., 10.);
         let crown = profile.crown.clamp(2., 6.);
         let dish = profile.dish.clamp(0., size.y * 0.20);

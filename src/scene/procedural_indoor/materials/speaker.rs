@@ -17,6 +17,23 @@ pub(crate) const PALE_LABEL: &str = "speaker#finish481#uv_local";
 pub(crate) const DAMPER_LABEL: &str = DARK_LABEL;
 pub(crate) const YOKE_LABEL: &str = "speaker#finish482";
 
+// Perforated, backed sheet is also installed in computer casework. Both
+// uses share metric PBR maps, but keep their own semantic class.
+pub(crate) fn perforated_pc(o: &super::super::layout::IndoorObject) -> &'static str {
+    if pale_pc(o) {
+        "pc_tower#finish481#uv_local"
+    } else {
+        "pc_tower#finish480#uv_local"
+    }
+}
+fn pale_pc(o: &super::super::layout::IndoorObject) -> bool {
+    stream(
+        o.finish_seed.unwrap_or(o.seed),
+        u64::from_le_bytes(*b"MeshCoat"),
+    )
+    .random_bool(0.26)
+}
+
 pub(super) fn supports(s: Surface, slot: usize) -> bool {
     matches!(
         (s, slot),
@@ -178,6 +195,16 @@ pub(super) fn install(
                 keys.insert((Surface::Metal, YOKE));
             }
         }
+        use super::super::objects::desktop::tower;
+        if scene.generator_version >= tower::INTRODUCED {
+            for o in scene
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::PcTower && tower::installed(o))
+            {
+                keys.insert((Surface::Metal, if pale_pc(o) { PALE } else { DARK }));
+            }
+        }
         keys
     };
     for (s, i) in keys {
@@ -276,5 +303,30 @@ mod tests {
         );
         selection.finishes.clear();
         assert_eq!(install_keys(&scene, Some(&selection)), (BTreeSet::new(), 0));
+
+        // A room with only PCs still installs both perforated coatings, and
+        // multiple cases with the same coating share all three texture maps.
+        scene.objects.clear();
+        for seed in 0..32 {
+            let mut o = audit::fixture(ObjectKind::PcTower, seed);
+            o.finish_seed = Some(seed);
+            for (s, label) in build_object(&o).parts.into_keys() {
+                if let Some(slot) = finish_slot(s, &label).filter(|i| supports(s, *i)) {
+                    selection.finishes.insert((s, slot));
+                }
+            }
+            scene.objects.push(o);
+        }
+        assert_eq!(
+            selection.finishes,
+            BTreeSet::from([(Surface::Metal, DARK), (Surface::Metal, PALE)])
+        );
+        assert_eq!(install_keys(&scene, None), (selection.finishes.clone(), 6));
+        assert_eq!(
+            install_keys(&scene, Some(&selection)),
+            install_keys(&scene, None)
+        );
+        scene.generator_version = super::super::super::objects::desktop::tower::INTRODUCED - 1;
+        assert_eq!(install_keys(&scene, None), (BTreeSet::new(), 0));
     }
 }

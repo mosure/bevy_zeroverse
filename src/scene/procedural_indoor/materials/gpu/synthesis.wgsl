@@ -15,6 +15,8 @@ struct Recipe {
     floor_stock: vec4<u32>, floor_cut: vec4<f32>,
     carpet_dye: vec4<u32>, carpet_weights: vec4<f32>, carpet_mix: vec4<f32>,
     carpet_grain0: vec4<u32>, carpet_grain1: vec4<u32>,
+    wood_counts: vec4<u32>, wood_cut: vec4<f32>, wood_center: vec4<f32>, wood_pores: vec4<f32>,
+    wood_finish: vec4<f32>, wood_base: vec4<f32>, wood_stain: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
 // Offsets/strides share the host's padded texture-copy layout. No dynamic mip
@@ -27,6 +29,9 @@ struct Dispatch { destination: Level, source: Level, plane: vec4<u32> }
 @group(0) @binding(4) var<storage, read> srgb: array<f32>;
 @group(0) @binding(5) var<uniform> dispatch: Dispatch;
 
+fn encode_srgb(c: f32) -> f32 {
+    if c<=0.0031308 {return c*12.92;}return 1.055*pow(c,1./2.4)-0.055;
+}
 fn unpack(v: u32) -> vec3<f32> { return vec3<f32>(f32(v & 255u), f32((v >> 8u) & 255u), f32((v >> 16u) & 255u)); }
 fn pack(v: vec3<u32>) -> u32 { return v.x | (v.y << 8u) | (v.z << 16u) | 0xff000000u; }
 fn quant(v: vec3<f32>) -> vec3<u32> { return vec3<u32>(clamp(v, vec3(0.), vec3(255.))); }

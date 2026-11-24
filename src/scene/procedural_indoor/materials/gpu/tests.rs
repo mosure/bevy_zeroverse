@@ -75,7 +75,7 @@ fn material_shader_parses_and_validates_without_a_gpu() {
 
 #[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 49 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 56 * 16);
     assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
     assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {
@@ -110,7 +110,9 @@ fn recipe_abi_and_bounded_mip_layout() {
             if recipe::Recipe::new(&r, floor).is_some() {
                 assert!(matches!(
                     r.surface,
-                    Surface::Fabric
+                    Surface::Wood
+                        | Surface::WoodEdge
+                        | Surface::Fabric
                         | Surface::FabricAlt
                         | Surface::Leather
                         | Surface::Metal
@@ -126,6 +128,47 @@ fn recipe_abi_and_bounded_mip_layout() {
                 assert!(r.surface != Surface::Floor || floor == 1);
             }
         }
+    }
+}
+
+#[test]
+fn timber_dispatch_requires_a_valid_explicit_furniture_cut() {
+    let palette = program::sample_with_floor(202, 0).unwrap();
+    for surface in [Surface::Wood, Surface::WoodEdge] {
+        let mut board = palette[surface as usize].clone();
+        let p = recipe::Recipe::new(&board, 0).unwrap();
+        let figure = board.wood.as_ref().unwrap().figure.unwrap();
+        assert_eq!(p.meta[0], 6);
+        assert_eq!(
+            &p.wood_counts[..3],
+            &[
+                figure.rings_across(&board),
+                figure.vessel_cells[0],
+                figure.vessel_cells[1]
+            ]
+        );
+        let mut archive = serde_json::to_value(&board).unwrap();
+        archive["wood"].as_object_mut().unwrap().remove("figure");
+        let legacy: MaterialRecipe = serde_json::from_value(archive).unwrap();
+        for slot in 0..3 {
+            let old = legacy.variant(slot);
+            old.validate().unwrap();
+            assert!(recipe::Recipe::new(&old, 0).is_none());
+            assert!(old.wood.unwrap().figure.is_none());
+        }
+        board
+            .wood
+            .as_mut()
+            .unwrap()
+            .figure
+            .as_mut()
+            .unwrap()
+            .vessel_cells[0] = 0;
+        assert!(recipe::Recipe::new(&board, 0).is_none());
+        let mut floor = palette[Surface::Floor as usize].clone();
+        assert!(recipe::Recipe::new(&floor, 0).is_none());
+        floor.wood.as_mut().unwrap().figure = Some(figure);
+        assert!(floor.validate().is_err());
     }
 }
 

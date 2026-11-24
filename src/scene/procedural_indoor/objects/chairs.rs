@@ -344,7 +344,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         return;
     }
     if o.variant % FAMILIES == 8 {
-        super::seating::build(a, o);
+        super::seating::build(a, o, version);
         return;
     }
     let mut rng = stream(o.seed, 70);

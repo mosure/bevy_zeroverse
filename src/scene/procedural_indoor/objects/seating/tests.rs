@@ -10,8 +10,8 @@ fn loose_pillows_are_asymmetric_replayable_and_separated() {
         let o = object(seed);
         let p = parameters(&o);
         let widths = module_widths(&o);
-        let parts = pillows::build(&o, &p, &widths);
-        let replay = pillows::build(&o, &p, &widths);
+        let parts = pillows::legacy::build(&o, &p, &widths);
+        let replay = pillows::legacy::build(&o, &p, &widths);
         counts[parts.len()] += 1;
         let bounds: Vec<_> = parts
             .iter()
@@ -203,7 +203,12 @@ fn upholstery_controls_change_actual_surfaces_with_fixed_other_parameters() {
                 _ => p.seat_style = value,
             }
             let mut a = Assembly::default();
-            build_program(&mut a, &o, p);
+            build_program(
+                &mut a,
+                &o,
+                p,
+                super::super::super::layout::GENERATOR_VERSION,
+            );
             audit::check(&o, &a).unwrap();
             maps.push(audit::descriptor_at_resolution(&o, &a, 128));
         }

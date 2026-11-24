@@ -19,15 +19,12 @@ pub struct OutputProgram {
 }
 
 fn preferred_media(r: &mut impl Rng) -> [(&'static str, Vec2); 4] {
-    let a4 = ("A4", Vec2::new(0.210, 0.297));
-    let letter = ("Letter", Vec2::new(0.2159, 0.2794));
-    let a5 = ("A5", Vec2::new(0.148, 0.210));
-    let photo = ("4x6", Vec2::new(0.1016, 0.1524));
+    use crate::scene::procedural_indoor::objects::literature::media::{A4, A5, LETTER, PHOTO};
     match r.random_range(0..20) {
-        0 => [photo, a5, letter, a4],
-        1..=3 => [a5, letter, a4, photo],
-        4..=11 => [letter, a4, a5, photo],
-        _ => [a4, letter, a5, photo],
+        0 => [PHOTO, A5, LETTER, A4],
+        1..=3 => [A5, LETTER, A4, PHOTO],
+        4..=11 => [LETTER, A4, A5, PHOTO],
+        _ => [A4, LETTER, A5, PHOTO],
     }
 }
 

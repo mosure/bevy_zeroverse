@@ -76,13 +76,15 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::DocumentTray
         | ObjectKind::DeskOrganizer
         | ObjectKind::TissueBox
-        | ObjectKind::DeskFan => accessories::build(a, o),
+        | ObjectKind::DeskFan => accessories::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::CoffeeMaker | ObjectKind::Kettle | ObjectKind::Vase | ObjectKind::Bowl => {
             hospitality::build(a, o)
         }
         ObjectKind::Chair => chairs::build(a, o, super::super::layout::GENERATOR_VERSION),
-        ObjectKind::Sofa => seating::build(a, o),
-        ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(a, o),
+        ObjectKind::Sofa => seating::build(a, o, super::super::layout::GENERATOR_VERSION),
+        ObjectKind::Cabinet | ObjectKind::Bookcase => {
+            storage::build(a, o, super::super::layout::GENERATOR_VERSION)
+        }
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(a, o),
         ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => {
             desktop::build(a, o, super::super::layout::GENERATOR_VERSION)

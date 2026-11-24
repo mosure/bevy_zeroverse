@@ -17,6 +17,7 @@ use bevy::{
 };
 use std::f32::consts::TAU;
 pub use upholstery::CushionProfile;
+pub(crate) use upholstery::CushionSurface;
 
 #[derive(Default, Clone)]
 pub struct Geometry {

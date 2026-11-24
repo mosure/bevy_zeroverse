@@ -69,10 +69,10 @@ fn prepared_wood_cpu_benchmark() {
         let mut old = Vec::new();
         let mut new = Vec::new();
         for seed in 200..208 {
-            let recipes = super::super::program::sample(seed);
+            let recipes = legacy_sample_with_floor(seed, 0).unwrap();
             let r = &recipes[Surface::Wood as usize];
             let w = r.wood.as_ref().unwrap();
-            let p = PreparedWood::new(w, r.color);
+            let p = PreparedWood::new(w, r);
             let (a, b) = bench_texels(
                 size,
                 |uv| reference(w, r, uv),

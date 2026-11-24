@@ -3,6 +3,7 @@
 //! requests a surface/finish; only bindings install Bevy material/image assets.
 //! Role-specific PBR textures, generated in memory with repeat sampling and mip chains.
 pub(crate) mod acoustic_tile;
+pub(crate) mod appliance_panel;
 pub mod art;
 mod atlas;
 pub(crate) mod bin_film;
@@ -49,6 +50,7 @@ pub mod paint;
 pub mod paper;
 mod potting;
 pub(crate) mod printer_lcd;
+pub(crate) mod produce_skin;
 pub mod program;
 #[cfg(test)]
 mod qualification;
@@ -63,6 +65,7 @@ pub mod rug_design;
 pub mod rugs;
 pub mod screens;
 mod signals;
+pub(crate) use signals::indicator_lens_finish;
 pub(crate) mod sprinkler;
 mod supplies;
 pub mod textile;

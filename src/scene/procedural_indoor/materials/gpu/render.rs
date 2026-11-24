@@ -24,6 +24,7 @@ impl Plugin for MaterialBakePlugin {
                     source,
                     include_str!("paint.wgsl"),
                     include_str!("flooring.wgsl"),
+                    include_str!("timber.wgsl"),
                 ]
                 .join("\n"),
                 path,
@@ -82,7 +83,7 @@ fn extract(
 struct Pipeline {
     layout: BindGroupLayout,
     descriptor: BindGroupLayoutDescriptor,
-    ids: Option<[CachedComputePipelineId; 8]>,
+    ids: Option<[CachedComputePipelineId; kernel::ENTRIES.len()]>,
 }
 impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {

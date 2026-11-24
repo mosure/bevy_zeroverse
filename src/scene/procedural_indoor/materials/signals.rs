@@ -9,6 +9,15 @@ use crate::scene::procedural_indoor::{
 };
 use rand::Rng;
 
+/// Translucent-colored indicator resin shared by manufactured signal hardware.
+pub(crate) fn indicator_lens_finish(amber: bool) -> usize {
+    if amber {
+        FIRST_LENS + 1
+    } else {
+        LAST_LENS
+    }
+}
+
 pub(super) fn supports(surface: Surface, slot: usize) -> bool {
     (matches!(surface, Surface::Plastic | Surface::Metal)
         && (FINISH_BASE..FINISH_BASE + 5).contains(&slot))

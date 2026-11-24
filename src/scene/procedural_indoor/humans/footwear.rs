@@ -10,6 +10,26 @@ mod construction;
 use construction::Last;
 pub use construction::ShoeConstruction;
 
+pub(super) const SOLE_CLEARANCE_VERSION: u32 = 235;
+
+/// The anatomical toe joint stops before the toe box. Reserve the full sole
+/// on its actual support plane, including when a stool carries both feet.
+pub(super) fn seated_soles(human: &super::IndoorHuman) -> [(Vec3, Vec3, f32); 2] {
+    let scale = human.stature / 1.75;
+    let height = human.foot_support_height() + 0.043 * scale;
+    [15, 19].map(|i| {
+        let ankle = human.joints[i].with_y(height);
+        let forward = (human.joints[i + 1] - human.joints[i])
+            .with_y(0.)
+            .normalize_or(Vec3::NEG_Z);
+        (
+            ankle - forward * (0.045 * scale),
+            ankle + forward * (0.223 * scale),
+            0.090 * scale,
+        )
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FootwearProgram {

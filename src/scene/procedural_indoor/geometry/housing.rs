@@ -197,6 +197,7 @@ mod profile_tests {
         let half = Vec2::new(0.041, 0.076);
         for e in [2.0_f32, 2.7, 4., 6.41, 12., 17.73, 22.] {
             let outline = housing_outline(e);
+            assert_eq!(outline, housing_outline(e));
             for (i, &actual) in outline.iter().enumerate() {
                 let t = TAU * i as f32 / N as f32;
                 let reference = |v: f32| {
@@ -206,7 +207,10 @@ mod profile_tests {
                         v.signum() * v.abs().powf(2. / e)
                     }
                 };
-                assert_eq!(actual, Vec2::new(reference(t.cos()), reference(t.sin())));
+                // The scalar reference and the cached sin/cos pair can differ
+                // by a few ULPs across platform math libraries.
+                let expected = Vec2::new(reference(t.cos()), reference(t.sin()));
+                assert!(actual.abs_diff_eq(expected, 4. * f32::EPSILON));
             }
             for i in 24..32 {
                 let p = (outline[i] * 0.29 + outline[(i + 1) % 32] * 0.71) * half;

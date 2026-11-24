@@ -92,7 +92,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
 
 pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
-        ObjectKind::Elevator => elevator::build(a, o),
+        ObjectKind::Elevator => elevator::build(a, o, version),
         ObjectKind::QueueBarrier => barrier::build(a, o),
         ObjectKind::DisplayCase | ObjectKind::TrayReturn | ObjectKind::ExhibitPlinth => {
             casework::build(a, o)

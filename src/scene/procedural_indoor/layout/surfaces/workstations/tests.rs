@@ -9,6 +9,7 @@ use crate::scene::procedural_indoor::{
 fn installations_have_usable_operator_positions_and_matching_devices() {
     let (mut raised, mut shared, mut opposed_screens, mut dual, mut portrait) = (0, 0, 0, 0, 0);
     let mut cases = [0; 2];
+    let mut case_angles = [0; 2];
     let mut inputs = [0; 2];
     for profile in [IndoorLayout::OpenOffice, IndoorLayout::Coworking] {
         for seed in 81500..81512 {
@@ -50,6 +51,10 @@ fn installations_have_usable_operator_positions_and_matching_devices() {
                     ObjectKind::PcTower => {
                         let monitor = &s.objects[o.interaction_target.unwrap()];
                         assert_eq!(monitor.kind, ObjectKind::Monitor);
+                        let desk = &s.objects[monitor.support.unwrap()];
+                        let angle = (o.yaw - desk.yaw).sin().abs().asin().to_degrees();
+                        case_angles[0] += usize::from(angle < 4.);
+                        case_angles[1] += usize::from(angle > 9.);
                         if let Some(id) = o.support {
                             assert_eq!(monitor.support, Some(id));
                             assert!(
@@ -87,6 +92,7 @@ fn installations_have_usable_operator_positions_and_matching_devices() {
     }
     assert!(raised >= 6 && shared >= 3 && opposed_screens > 0 && dual >= 2 && portrait > 0,
         "standing={raised}, shared={shared}, equipped on both sides={opposed_screens}, dual={dual}, portrait={portrait}");
+    assert!(case_angles.into_iter().all(|n| n > 1), "{case_angles:?}");
     assert!(
         cases.iter().all(|&n| n >= 3) && inputs.iter().all(|&n| n >= 12),
         "{cases:?} {inputs:?}"

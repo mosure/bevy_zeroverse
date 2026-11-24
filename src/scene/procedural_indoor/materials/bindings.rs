@@ -60,9 +60,11 @@ impl MaterialSelection {
             if coated_stock::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
                 || speaker::supports(surface, slot)
+                || (surface == Surface::Ink && slot == produce_skin::SLOT)
                 || cork::supports(surface, slot)
                 || potting::supports(surface, slot)
                 || sprinkler::supports(surface, slot)
+                || appliance_panel::supports(surface, slot)
                 || printer_lcd::supports(surface, slot)
                 || clock_face::supports(surface, slot)
                 || projection_cloth::supports(surface, slot)
@@ -553,6 +555,7 @@ impl IndoorMaterials {
         package_print::install(scene, images, materials, selection, &mut variants);
         cork::install(scene, images, materials, selection, &mut variants);
         potting::install(scene, images, materials, selection, &mut variants);
+        appliance_panel::install(scene, images, materials, selection, &mut variants);
         printer_lcd::install(scene, images, materials, selection, &mut variants);
         clock_face::install(scene, images, materials, selection, &mut variants);
         projection_cloth::install(scene, images, materials, selection, &mut variants);
@@ -752,7 +755,9 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || coated_stock::supports(surface, slot)
         || acoustic_tile::supports(surface, slot)
         || speaker::supports(surface, slot)
+        || (surface == Surface::Ink && slot == produce_skin::SLOT)
         || cork::supports(surface, slot)
+        || appliance_panel::supports(surface, slot)
         || printer_lcd::supports(surface, slot)
         || clock_face::supports(surface, slot)
         || projection_cloth::supports(surface, slot)

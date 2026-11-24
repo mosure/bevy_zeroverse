@@ -124,6 +124,9 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     if kind == ProjectionScreen {
         o.variant |= presentation::projection::INSTALLED;
     }
+    if kind == PcTower {
+        o.variant |= desktop::tower::FITTED_IO;
+    }
     if kind == Laptop {
         o.variant |= computers::io::FITTED_IO;
     }
@@ -276,7 +279,11 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         _ => {}
     }
     if o.kind == Elevator {
-        return serde_json::json!(public::elevator::parameters(o));
+        let mut spec = serde_json::json!(public::elevator::parameters(o));
+        let (station, sill) = public::elevator::installation(o);
+        spec["station"] = serde_json::json!(station);
+        spec["sill"] = serde_json::json!(sill);
+        return spec;
     }
     if o.kind == Sculpture {
         return serde_json::json!(public::sculpture::parameters(o));
@@ -337,7 +344,16 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             data
         }
         Sofa => seating::audit_program(o),
-        Cabinet | Bookcase => serde_json::json!(storage::parameters(o)),
+        Cabinet => {
+            let p = storage::parameters(o);
+            let mut data = serde_json::json!(p);
+            let bank = storage::hinged::Bank::new(o, &p);
+            data["hinged_leaves"] = serde_json::json!((0..p.bays.len())
+                .filter_map(|i| bank.as_ref()?.leaf(o, &p, i))
+                .collect::<Vec<_>>());
+            data
+        }
+        Bookcase => serde_json::json!(storage::parameters(o)),
         Plant => {
             let growth = super::super::plants::Growth::sample(o.seed);
             let pot = super::super::plants::PotProfile::sample(o.seed);
@@ -379,7 +395,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             let input = desktop::parameters(o);
             return serde_json::json!({"trackball":input.trackball,"pointer":desktop::pointer::PointerProgram::sample(o,&input)});
         }
-        PcTower => serde_json::json!(desktop::tower::parameters(o)),
+        PcTower => desktop::tower::metadata(o),
         Books | Notebook => serde_json::json!(literature::parameters(o)),
         FloorLamp => serde_json::json!(standing_lamp::parameters(o)),
         Printer | StorageBox | CoatRack => serde_json::json!(utilities::parameters(o)),
@@ -406,7 +422,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         ExitSign => return serde_json::json!(equipment::signals::exit::parameters(o)),
         DeskLamp => return serde_json::json!(accessories::lamp_parameters(o)),
         DocumentTray | DeskOrganizer => {
-            return serde_json::json!(accessories::organizers::parameters(o));
+            return accessories::organizers::metadata(o);
         }
         PowerStrip => return serde_json::json!(equipment::power_strip::parameters(o)),
         Speaker | Headphones | Stapler | TapeDispenser | DeskFan => {
@@ -490,6 +506,9 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "intake_fraction",
             "vertical_louvers",
             "louver_pitch_m",
+            "fascia",
+            "exhaust",
+            "rear_sockets_m",
         ],
         Keyboard => &[
             "keyboard_split",

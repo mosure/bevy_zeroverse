@@ -19,6 +19,38 @@ const TAP: usize = 114;
 pub(crate) const TAP_LABEL: &str = "faucet#finish114";
 pub(crate) const BASIN_LABEL: &str = "sink#finish111";
 
+/// Installed bare metalwork uses the same metre-scale brushed roughness map
+/// as stainless bowls and satin-plated fittings. Both stocks are conductive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrushedHardware {
+    Stainless,
+    SatinPlated,
+}
+impl BrushedHardware {
+    pub(crate) fn for_landing(o: &IndoorObject) -> Self {
+        if stream(
+            o.finish_seed.unwrap_or(o.seed),
+            u64::from_le_bytes(*b"SillStok"),
+        )
+        .random_bool(0.68)
+        {
+            Self::Stainless
+        } else {
+            Self::SatinPlated
+        }
+    }
+    fn slot(self) -> usize {
+        match self {
+            Self::Stainless => BASIN,
+            Self::SatinPlated => TAP,
+        }
+    }
+    pub(crate) fn label(self, class: &str) -> String {
+        format!("{class}#finish{}#uv_local", self.slot())
+    }
+}
+
 pub(crate) fn is_sheet_slot(slot: usize) -> bool {
     (FIRST..FIRST + 2).contains(&slot)
 }
@@ -200,6 +232,12 @@ pub(super) fn install(
         let mut keys = std::collections::BTreeSet::new();
         for o in &scene.objects {
             match o.kind {
+                ObjectKind::Elevator
+                    if scene.generator_version
+                        >= super::super::objects::public::elevator::LANDING_VERSION =>
+                {
+                    keys.insert((Surface::Metal, BrushedHardware::for_landing(o).slot()));
+                }
                 ObjectKind::KitchenCounter
                 | ObjectKind::KitchenSink
                 | ObjectKind::KitchenCupboard => {
@@ -255,6 +293,69 @@ pub(super) fn install(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn elevator_sill_stock_is_conductive_and_shares_one_filtered_roughness_map() {
+        use crate::scene::procedural_indoor::{
+            layout::IndoorLayout,
+            objects::{audit, public::elevator},
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(95500, IndoorLayout::ElevatorLanding, 0.65, 0, 0.)
+                .unwrap();
+        scene.objects = [BrushedHardware::Stainless, BrushedHardware::SatinPlated]
+            .map(|stock| {
+                (0..128)
+                    .map(|seed| {
+                        let mut car = audit::fixture(ObjectKind::Elevator, seed);
+                        car.finish_seed = Some(seed);
+                        car
+                    })
+                    .find(|o| BrushedHardware::for_landing(o) == stock)
+                    .unwrap()
+            })
+            .into();
+        let selected = MaterialSelection {
+            finishes: [(Surface::Metal, BASIN), (Surface::Metal, TAP)].into(),
+            surfaces: Default::default(),
+            direct_surfaces: Default::default(),
+        };
+        for selection in [None, Some(&selected)] {
+            let mut images = Assets::default();
+            let mut materials = Assets::default();
+            let mut variants = BTreeMap::new();
+            install(
+                &scene,
+                &mut images,
+                &mut materials,
+                selection,
+                &mut variants,
+            );
+            let stock_material = |slot| materials.get(&variants[&(Surface::Metal, slot)]).unwrap();
+            let stainless = stock_material(BASIN);
+            let plated = stock_material(TAP);
+            assert_eq!(stainless.metallic, 1.);
+            assert_eq!(plated.metallic, 1.);
+            assert_eq!(
+                stainless.metallic_roughness_texture,
+                plated.metallic_roughness_texture
+            );
+            let map = images
+                .get(stainless.metallic_roughness_texture.as_ref().unwrap())
+                .unwrap();
+            assert!(map.texture_descriptor.mip_level_count > 1);
+        }
+        scene.generator_version = elevator::LANDING_VERSION - 1;
+        let mut variants = BTreeMap::new();
+        install(
+            &scene,
+            &mut Assets::default(),
+            &mut Assets::default(),
+            None,
+            &mut variants,
+        );
+        assert!(variants.is_empty());
+    }
 
     #[test]
     fn full_scene_and_selected_install_cover_every_manufactured_table_family() {

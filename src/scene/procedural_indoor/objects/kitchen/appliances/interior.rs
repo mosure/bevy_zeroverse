@@ -8,11 +8,25 @@ pub struct Basket {
     pub seed: u64,
 }
 pub fn dishwasher_baskets(o: &IndoorObject, p: &KitchenProgram) -> Vec<Basket> {
+    dishwasher_baskets_for_version(
+        o,
+        p,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    )
+}
+pub(super) fn dishwasher_baskets_for_version(
+    o: &IndoorObject,
+    p: &KitchenProgram,
+    version: u32,
+) -> Vec<Basket> {
     let product = program::parameters(o);
     let (d, z) = body(o, p);
     let w = o.size.x - 0.018;
     let mut r = stream(o.seed, 0x444953484241534b);
-    let bottom = product.toe_m + r.random_range(0.042..0.065);
+    let mut bottom = product.toe_m + r.random_range(0.042..0.065);
+    if version >= controls::INTRODUCED && controls::door_console(o) {
+        bottom = bottom.max(controls::dishwasher_hinge_y(o) + 0.019);
+    }
     let top = o.size.y * (1. - product.fascia_fraction) - 0.035;
     let available = top - bottom;
     let tray = available > 0.55 && r.random_bool(0.45);

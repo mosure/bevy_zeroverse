@@ -54,7 +54,7 @@ pub fn parameters(o: &IndoorObject) -> InputProgram {
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::PcTower {
-        tower::build(a, o);
+        tower::build(a, o, version);
         return;
     }
     let p = parameters(o);

@@ -45,8 +45,7 @@ fn served_food_contacts_the_inside_of_the_dish_and_inventory_stays_bare() {
             assert_eq!(meal, serving::sample(&o).unwrap());
             assert_eq!(metadata(&o)["serving"], serde_json::json!(meal));
             counts[meal as usize] += 1;
-            let mut built = Assembly::default();
-            props::build(&mut built, &o);
+            let built = super::super::build_object(&o);
             assert_fits(&o, &built);
             let food: Vec<_> = built
                 .parts

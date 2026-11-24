@@ -20,7 +20,7 @@ pub enum Connector {
 
 impl Connector {
     /// Nominal aperture width, height and pocket depth in metres.
-    fn dimensions(self) -> (Vec2, f32) {
+    pub(crate) fn dimensions(self) -> (Vec2, f32) {
         match self {
             Self::UsbC => (Vec2::new(0.0086, 0.0031), 0.0061),
             Self::UsbA => (Vec2::new(0.0131, 0.0055), 0.0085),

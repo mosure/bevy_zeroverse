@@ -21,7 +21,7 @@ fn tools_rest_on_the_actual_floor_and_lip_without_piercing_the_cup_or_one_anothe
         ][seed as usize % 4];
         let p = parameters(&o);
         let cup = Cup::new(&o, &p);
-        let pens = packing::settle(&o, &cup);
+        let pens = packing::settle(o.seed, o.finish_seed, o.size, &cup.pocket);
         counts.insert(pens.len());
         requested += p.requested_pens;
         admitted += pens.len();
@@ -58,8 +58,11 @@ fn tools_rest_on_the_actual_floor_and_lip_without_piercing_the_cup_or_one_anothe
             );
             let mut nearest = f32::INFINITY;
             let check = |pt: Vec3| {
-                assert!(cup.edges.iter().all(|e|e.normal.dot(pt.xz())
-                    <= e.distance*cup.inner_scale(pt.y)+1e-6),"wall {seed}/{i} {pt}");
+                assert!(
+                    cup.pocket.edges.iter().all(|e| e.normal.dot(pt.xz())
+                        <= e.distance * cup.pocket.inner_scale(pt.y) + 1e-6),
+                    "wall {seed}/{i} {pt}"
+                );
             };
             for g in mesh.parts.values() {
                 for tri in g.indices.as_chunks::<3>().0 {
@@ -74,11 +77,11 @@ fn tools_rest_on_the_actual_floor_and_lip_without_piercing_the_cup_or_one_anothe
                         ) <= f64::from(c.radius + 1e-6).powi(2))));
                     for j in 0..3 {
                         let (a, b) = (vs[j], vs[(j + 1) % 3]);
-                        if a.y <= cup.height {
+                        if a.y <= cup.pocket.height {
                             check(a);
                         }
-                        if (a.y < cup.height) != (b.y < cup.height) {
-                            let cross = a.lerp(b, (cup.height - a.y) / (b.y - a.y));
+                        if (a.y < cup.pocket.height) != (b.y < cup.pocket.height) {
+                            let cross = a.lerp(b, (cup.pocket.height - a.y) / (b.y - a.y));
                             check(cross);
                             nearest = nearest.min(cross.distance(pen.contact));
                         }
@@ -93,8 +96,8 @@ fn tools_rest_on_the_actual_floor_and_lip_without_piercing_the_cup_or_one_anothe
                 let v = tri.map(|j| Vec3::from(shell.positions[j as usize]));
                 (0..3).any(|j| {
                     let (a, b) = (v[j], v[(j + 1) % 3]);
-                    a.y == cup.height
-                        && b.y == cup.height
+                    a.y == cup.pocket.height
+                        && b.y == cup.pocket.height
                         && wires::segment_distance_squared(pen.contact, pen.contact, a, b) < 4e-12
                 })
             });

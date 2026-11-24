@@ -712,6 +712,11 @@ impl IndoorManifest {
         if kind == ObjectKind::Clock && self.generator_version >= 201 {
             super::objects::clocks::install(&mut object, self.seed, self.lighting);
         }
+        if kind == ObjectKind::PcTower
+            && self.generator_version >= super::objects::desktop::tower::INTRODUCED
+        {
+            object.variant |= super::objects::desktop::tower::FITTED_IO;
+        }
         if kind == ObjectKind::Laptop && self.generator_version >= 205 {
             object.variant |= super::objects::computers::io::FITTED_IO;
         }

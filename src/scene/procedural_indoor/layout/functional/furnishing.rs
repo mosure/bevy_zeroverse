@@ -376,6 +376,11 @@ impl IndoorManifest {
                         continue;
                     }
                 }
+                if kind == ObjectKind::Elevator
+                    && self.generator_version >= geometry::elevator::LANDING_VERSION
+                {
+                    o.variant = geometry::elevator::Levels::sample(self.seed).core_variant();
+                }
                 self.objects.push(o);
                 if let Some(route) = operational {
                     self.assembly_diagnostics.programs[index]
