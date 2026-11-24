@@ -93,6 +93,18 @@ fn cut_ceiling_closes_a_concave_footprint_and_keeps_equipment_pockets_open() {
     let board = grid.center(UVec2::new(3, 2));
     assert!((hit(board).unwrap() - (h + 0.0036 - grid.tile.drop_m)).abs() < 1e-5);
     assert!((hit(board + Vec2::X * 0.299).unwrap() - h).abs() < 1e-5);
+    let detector_radius = 0.085;
+    assert!(
+        (grid.fixture_support(&s, board, detector_radius).unwrap() - hit(board).unwrap()).abs()
+            < 1e-5
+    );
+    assert!(grid.fixture_support(&s, c, detector_radius).is_none());
+    assert!(grid
+        .fixture_support(&s, board + Vec2::X * 0.25, detector_radius)
+        .is_none());
+    assert!(grid.air_terminals.iter().all(|v| grid
+        .fixture_support(&s, grid.center(v.cell), detector_radius)
+        .is_none()));
     for air in &grid.air_terminals {
         let center = grid.center(air.cell);
         assert!(grid

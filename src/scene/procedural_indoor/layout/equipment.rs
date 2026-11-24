@@ -2,8 +2,17 @@
 //! between actual ports after all supported objects have been accepted.
 mod fans;
 mod hanging;
+mod mounting;
+mod outlets;
 mod pendants;
+pub(crate) use mounting::canopy_support_height;
 mod power_strips;
+mod projectors;
+#[cfg(test)]
+pub(crate) use projectors::rendered_projector_axis_clear;
+#[cfg(test)]
+use projectors::{projector_axis, projector_axis_clear};
+mod wire_clearance;
 mod workstation_wires;
 use super::super::objects::desktop::ports;
 pub(crate) mod services;
@@ -28,6 +37,9 @@ impl IndoorManifest {
                 ObjectKind::ProjectionScreen,
                 ObjectKind::WallSconce,
             ][rng.random_range(0..4)];
+            if kind == ObjectKind::ProjectionScreen && self.generator_version >= 200 {
+                continue;
+            }
             let size = match kind {
                 ObjectKind::WallShelf => Vec3::new(
                     rng.random_range(0.42..1.70),
@@ -89,6 +101,9 @@ impl IndoorManifest {
                 break;
             }
         }
+        if self.generator_version >= 200 {
+            self.furnish_projection_screens();
+        }
         let surfaces: Vec<_> = self
             .objects
             .iter()
@@ -116,76 +131,6 @@ impl IndoorManifest {
         self.pendant_equipment();
     }
 
-    fn projector_equipment(&mut self, surfaces: &[IndoorObject]) {
-        let screens: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| !o.neighbor && o.kind == ObjectKind::ProjectionScreen)
-            .cloned()
-            .collect();
-        for screen in screens {
-            let target = screen.transform().transform_point(
-                super::super::objects::presentation::projection::parameters(&screen).target_local(),
-            );
-            let mut rng = stream(screen.seed, 5785);
-            if !rng.random_bool(0.60 + self.density as f64 * 0.35) {
-                continue;
-            }
-            let mut supports: Vec<_> = surfaces
-                .iter()
-                .filter(|surface| {
-                    matches!(
-                        surface.kind,
-                        ObjectKind::Desk
-                            | ObjectKind::Table
-                            | ObjectKind::MobileCart
-                            | ObjectKind::Cabinet
-                    ) && (0.60..=1.22).contains(&(surface.position.y + surface.size.y))
-                })
-                .collect();
-            supports.shuffle(&mut rng);
-            let mut installed = false;
-            for support in supports.into_iter().take(12) {
-                // One physical product per support; retries change placement,
-                // not its dimensions. A centered first proposal used to win
-                // almost every time, suppressing the sampled offsets entirely.
-                let size = Vec3::new(
-                    rng.random_range(0.23..0.36),
-                    rng.random_range(0.09..0.15),
-                    rng.random_range(0.21..0.29),
-                );
-                for _ in 0..8 {
-                    let offset = Vec3::new(
-                        rng.random_range(-0.28..0.28) * support.size.x,
-                        0.,
-                        rng.random_range(-0.26..0.26) * support.size.z,
-                    );
-                    let position = support
-                        .transform()
-                        .transform_point(offset + Vec3::Y * support.size.y);
-                    let direction = (target - position).with_y(0.);
-                    let yaw = direction.x.atan2(direction.z);
-                    let mut projector =
-                        self.candidate(ObjectKind::Projector, position, size, yaw, &mut rng);
-                    projector.solid = false;
-                    projector.support = Some(support.id);
-                    if !self.prop_clear(&projector, support, 0.012)
-                        || !projector_axis_clear(self, &projector, &screen)
-                    {
-                        self.rejected_placements += 1;
-                        continue;
-                    }
-                    self.objects.push(projector);
-                    installed = true;
-                    break;
-                }
-                if installed {
-                    break;
-                }
-            }
-        }
-    }
-
     /// Call after all supported decoration and occupied-seat settlement, before
     /// camera planning. Screen rotations have then stopped changing port frames.
     /// Routes avoid existing supported clutter and people, and stay on the top.
@@ -201,6 +146,7 @@ impl IndoorManifest {
                         ObjectKind::Laptop
                             | ObjectKind::Monitor
                             | ObjectKind::Projector
+                            | ObjectKind::Printer
                             | ObjectKind::PcTower
                     )
             })
@@ -221,7 +167,22 @@ impl IndoorManifest {
                 if !rng.random_bool(0.55 + self.density as f64 * 0.35) {
                     continue;
                 }
-                for _ in 0..10 {
+                let low = source.kind == ObjectKind::Laptop;
+                let choices = outlets::available(self, &source, &target, low);
+                if choices.is_empty() {
+                    continue;
+                }
+                let inv = parent.transform().compute_affine().inverse();
+                let start = inv.transform_point3(equipment::power_port(&source, low).unwrap());
+                let source_dir = inv
+                    .transform_vector3(equipment::power_port_normal(&source, low).unwrap())
+                    .normalize();
+                let target_dir = inv
+                    .transform_vector3(equipment::power_port_normal(&target, low).unwrap())
+                    .normalize();
+                for attempt in 0..10 {
+                    let (socket, port) = choices[attempt % choices.len()];
+                    let end = inv.transform_point3(port);
                     let mut o = self.candidate(
                         ObjectKind::Cable,
                         Vec3::ZERO,
@@ -233,17 +194,11 @@ impl IndoorManifest {
                     o.support = Some(parent.id);
                     o.interaction_target = Some(source.id);
                     o.cable_target = Some(target.id);
+                    o.cable_target_socket = socket;
+                    if equipment::receptacles::recessed_connection(&target, socket) {
+                        o.variant = wires::RECESSED_MAINS;
+                    }
                     let radius = wires::bound_radius(&o);
-                    let inv = parent.transform().compute_affine().inverse();
-                    let low = source.kind == ObjectKind::Laptop;
-                    let start = inv.transform_point3(equipment::power_port(&source, low).unwrap());
-                    let end = inv.transform_point3(equipment::power_port(&target, low).unwrap());
-                    let source_dir = inv
-                        .transform_vector3(equipment::power_port_normal(&source, low).unwrap())
-                        .normalize();
-                    let target_dir = inv
-                        .transform_vector3(equipment::power_port_normal(&target, low).unwrap())
-                        .normalize();
                     let mut points = vec![start, start + source_dir * 0.039];
                     let b = end + target_dir * 0.039;
                     if source.kind == ObjectKind::Monitor {
@@ -255,7 +210,7 @@ impl IndoorManifest {
                             .transform()
                             .compute_affine()
                             .inverse()
-                            .transform_point3(equipment::power_port(&target, low).unwrap());
+                            .transform_point3(port);
                         let side = if rng.random_bool(0.80) {
                             if target_local.x >= 0. {
                                 1.
@@ -290,14 +245,7 @@ impl IndoorManifest {
                     let Some(points) = wires::fillet_path(&points, wires::radius(&o)) else {
                         continue;
                     };
-                    let lo = points
-                        .iter()
-                        .fold(Vec3::splat(f32::INFINITY), |a, &b| a.min(b))
-                        - Vec3::splat(radius);
-                    let hi = points
-                        .iter()
-                        .fold(Vec3::splat(f32::NEG_INFINITY), |a, &b| a.max(b))
-                        + Vec3::splat(radius);
+                    let (lo, hi) = wires::path_bounds(&o, &points, radius);
                     let origin = Vec3::new((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5);
                     o.position = parent.transform().transform_point(origin);
                     o.size = hi - lo;
@@ -322,80 +270,6 @@ impl IndoorManifest {
     }
 }
 
-/// Plausible tabletop projection axis at installation time. The equipment is
-/// powered off: later occupants may cross this axis without an imaginary beam
-/// or projected image being fabricated. Architecture is never traversed.
-fn projector_axis_clear(
-    scene: &IndoorManifest,
-    projector: &IndoorObject,
-    screen: &IndoorObject,
-) -> bool {
-    let Some((origin, target)) = projector_axis(scene, projector, screen) else {
-        return false;
-    };
-    !scene
-        .objects
-        .iter()
-        .filter(|o| {
-            o.solid && o.id != screen.id && o.id != projector.id && Some(o.id) != projector.support
-        })
-        .any(|o| {
-            let (a, b) = o.bounds();
-            segment_hits_box(origin, target, a, b)
-        })
-}
-
-fn projector_axis(
-    scene: &IndoorManifest,
-    projector: &IndoorObject,
-    screen: &IndoorObject,
-) -> Option<(Vec3, Vec3)> {
-    let p = equipment::projector::parameters(projector);
-    let origin = projector
-        .transform()
-        .transform_point(p.optical_origin() + Vec3::Z * 0.015);
-    let surface = super::super::objects::presentation::projection::parameters(screen);
-    let target = screen.transform().transform_point(surface.target_local());
-    let planar = (target - origin).with_y(0.);
-    let throw = planar.length();
-    if !(0.9..=9.0).contains(&throw) || !(0.65..=3.5).contains(&(throw / surface.image_width_m())) {
-        return None;
-    }
-    let normal = screen.transform().rotation * Vec3::Z;
-    let forward = projector.transform().rotation * Vec3::Z;
-    if normal.dot(-planar.normalize()) < 0.55
-        || forward.dot(planar.normalize()) < 0.98
-        || (target.y - origin.y).abs() > throw * 0.65
-        || scene.envelope.as_ref().is_some_and(|e| {
-            // Camera segment queries deliberately reserve a 20 cm wall
-            // rail. An optical ray must be able to reach a wall-mounted
-            // screen: test its physical first surface instead of applying
-            // camera-body clearance to the near-wall endpoint.
-            let delta = target - origin;
-            [origin, target].into_iter().any(|point| {
-                !super::super::envelope::polygon::contains(&e.footprint, point.xz(), 0.)
-                    || point.y <= e.floor_height(point.xz())
-                    || point.y >= e.ceiling_height(scene.room_size, point.xz())
-            }) || e
-                .ray_hit(
-                    scene.room_size,
-                    scene.door_x,
-                    scene.entry_width(),
-                    scene.entry_height(),
-                    origin,
-                    delta.normalize(),
-                )
-                .is_some_and(|(distance, _)| distance < delta.length() - 0.001)
-        })
-        || scene
-            .camera_obstacles()
-            .into_iter()
-            .any(|(a, b)| segment_hits_box(origin, target, a, b))
-    {
-        return None;
-    }
-    Some((origin, target))
-}
 /// Real mounted volume below the locally sampled ceiling, with conservative
 /// existing geometry clearance. A sloping ceiling cannot intersect the canopy.
 pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
@@ -403,18 +277,26 @@ pub(crate) fn ceiling_fixture_clear(scene: &IndoorManifest, o: &IndoorObject) ->
         return false;
     }
     let (lo, hi) = o.bounds();
-    let corners = [
-        lo.xz(),
-        hi.xz(),
-        Vec2::new(lo.x, hi.z),
-        Vec2::new(hi.x, lo.z),
-    ];
-    let center_height = scene.ceiling_height(o.position.xz());
-    if (hi.y + 0.004 - center_height).abs() > 0.001
-        || lo.y < 2.05
-        || corners
-            .into_iter()
-            .any(|p| hi.y > scene.ceiling_height(p) - 0.001)
+    if scene.generator_version >= 184 {
+        if !pendants::mounted_clear(scene, o, lo, hi) {
+            return false;
+        }
+    } else {
+        let corners = [
+            lo.xz(),
+            hi.xz(),
+            Vec2::new(lo.x, hi.z),
+            Vec2::new(hi.x, lo.z),
+        ];
+        if (hi.y + 0.004 - scene.ceiling_height(o.position.xz())).abs() > 0.001
+            || corners
+                .into_iter()
+                .any(|p| hi.y > scene.ceiling_height(p) - 0.001)
+        {
+            return false;
+        }
+    }
+    if lo.y < 2.05
         || scene
             .columns()
             .iter()
@@ -489,7 +371,7 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
             if !workstation_wires::hosts_match(scene, cable.support, source, target) {
                 return false;
             }
-            let Some(ports) = ports::connection(source, target) else {
+            let Some(ports) = ports::connection(source, target, cable.cable_target_socket) else {
                 return false;
             };
             let (port, normal) = ports[usize::from(is_target)];
@@ -506,6 +388,12 @@ pub(crate) fn cables_clear_proposed_prop(scene: &IndoorManifest, prop: &IndoorOb
             {
                 return false;
             }
+        }
+        if !is_target
+            && wires::MainsPlug::world(cable)
+                .is_some_and(|plug| wire_clearance::overlaps(plug.bounds(), prop.bounds()))
+        {
+            return false;
         }
         let hits_prop = cable_prop_intersector(prop, wires::bound_radius(cable));
         for (i, pair) in points.windows(2).enumerate() {
@@ -542,6 +430,7 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
             }
         }
     }
+    let floor_box = std::cell::OnceCell::new();
     move |start, end| {
         if start.min(end).cmpgt(world_hi).any() || start.max(end).cmplt(world_lo).any() {
             return false;
@@ -559,7 +448,12 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
             }
         }
         if prop.kind == ObjectKind::FloorOutlet {
-            super::super::objects::floor::cable_hits(prop, start, end, radius)
+            use super::super::objects::floor;
+            if let Some(p) = floor_box.get_or_init(|| floor::service::parameters(prop)) {
+                p.cable_hits(floor::service_size(prop), start, end, radius)
+            } else {
+                floor::legacy_cable_hits(prop, start, end, radius)
+            }
         } else {
             segment_hits_box(start, end, lo, hi)
         }
@@ -606,13 +500,15 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         || parent.neighbor
         || source.id >= o.id
         || target.id >= o.id
+        || (o.variant == wires::RECESSED_MAINS)
+            != equipment::receptacles::recessed_connection(target, o.cable_target_socket)
         || data_variant != wires::data_variant(source.kind, target.kind)
         || !workstation_wires::hosts_match(scene, Some(parent.id), source, target)
     {
         return false;
     }
     let Some([(source_port, source_normal), (target_port, target_normal)]) =
-        ports::connection(source, target)
+        ports::connection(source, target, o.cable_target_socket)
     else {
         return false;
     };
@@ -633,14 +529,8 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         return false;
     }
     let radius = wires::bound_radius(o);
-    let lo = points
-        .iter()
-        .fold(Vec3::splat(f32::INFINITY), |a, &b| a.min(b))
-        - Vec3::splat(radius);
-    let hi = points
-        .iter()
-        .fold(Vec3::splat(f32::NEG_INFINITY), |a, &b| a.max(b))
-        + Vec3::splat(radius);
+    let jacket = wires::radius(o);
+    let (lo, hi) = wires::path_bounds(o, points, radius);
     if lo.distance(Vec3::new(-o.size.x * 0.5, 0., -o.size.z * 0.5)) > 0.0001
         || hi.distance(Vec3::new(o.size.x * 0.5, o.size.y, o.size.z * 0.5)) > 0.0001
     {
@@ -663,10 +553,12 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
             route_lo.cmple(b + peer_margin).all() && route_hi.cmpge(a - peer_margin).all()
         })
         .map(|other| {
-            (
-                other,
-                (other.kind != ObjectKind::Cable).then(|| cable_prop_intersector(other, radius)),
-            )
+            let shape = if other.kind == ObjectKind::Cable {
+                wire_clearance::Peer::Wire(wire_clearance::Wire::new(other, radius))
+            } else {
+                wire_clearance::Peer::Rigid(cable_prop_intersector(other, radius))
+            };
+            (other.id, shape)
         })
         .collect();
     let partitions = super::super::floorplan::obstacles(scene);
@@ -691,12 +583,14 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         if (i == 0 || i == world.len() - 2) && distance > 0.04 {
             return false;
         }
-        for step in 0..=4 {
-            let q = inv.transform_point3(pair[0].lerp(pair[1], step as f32 / 4.));
-            let half = parent.size.xz() * 0.5;
-            if !hanging
-                && (q.y < parent.size.y + wires::radius(o) - 0.0003
-                    || q.xz().abs().cmpgt(half - Vec2::splat(radius + 0.002)).any()
+        if !hanging
+            && (0..=4).any(|step| {
+                let q = inv.transform_point3(pair[0].lerp(pair[1], step as f32 / 4.));
+                q.y < parent.size.y + jacket - 0.0003
+                    || q.xz()
+                        .abs()
+                        .cmpgt(parent.size.xz() * 0.5 - Vec2::splat(radius + 0.002))
+                        .any()
                     || desk_outline.as_ref().is_some_and(|outline| {
                         !super::super::objects::tables::supports_outline(
                             outline,
@@ -704,42 +598,19 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
                             q.xz() + Vec2::splat(radius),
                             0.001,
                         )
-                    }))
-            {
-                return false;
-            }
+                    })
+            })
+        {
+            return false;
         }
-        if peers.iter().any(|(other, hits_prop)| {
-            if (other.id == source.id && i == 0) || (other.id == target.id && i == world.len() - 2)
-            {
+        if peers.iter().any(|(id, shape)| {
+            if (*id == source.id && i == 0) || (*id == target.id && i == world.len() - 2) {
                 return false;
             }
-            if other.kind == ObjectKind::Cable {
-                let (a, b) = other.bounds();
-                let padding = Vec3::splat(radius);
-                if pair[0].min(pair[1]).cmpgt(b + padding).any()
-                    || pair[0].max(pair[1]).cmplt(a - padding).any()
-                {
-                    return false;
-                }
-                // Symmetric capsule clearance prevents accepting a new
-                // lead whose large enclosing rectangle would invalidate a
-                // previously accepted, physically separate lead on replay.
-                let Some(other_points) = &other.cable_path else {
-                    return true;
-                };
-                let tf = other.transform();
-                let clearance = (radius + wires::bound_radius(other)) as f64;
-                return other_points.windows(2).any(|segment| {
-                    wires::segment_distance_squared(
-                        pair[0],
-                        pair[1],
-                        tf.transform_point(segment[0]),
-                        tf.transform_point(segment[1]),
-                    ) <= clearance * clearance
-                });
+            match shape {
+                wire_clearance::Peer::Rigid(hit) => hit(pair[0], pair[1]),
+                wire_clearance::Peer::Wire(wire) => wire.hits(pair[0], pair[1]),
             }
-            hits_prop.as_ref().unwrap()(pair[0], pair[1])
         }) {
             return false;
         }
@@ -786,6 +657,17 @@ pub(crate) fn cable_route_clear(scene: &IndoorManifest, o: &IndoorObject) -> boo
         }
     }
     (0.05..=if hanging { 6.0 } else { 2.0 }).contains(&length)
+        && wires::MainsPlug::from_path(o, &world).is_none_or(|plug| {
+            wire_clearance::plug_clear(
+                scene,
+                o,
+                plug,
+                target,
+                &columns,
+                &partitions,
+                &human_capsules,
+            )
+        })
 }
 
 #[cfg(test)]

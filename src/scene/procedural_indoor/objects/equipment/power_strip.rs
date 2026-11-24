@@ -1,6 +1,9 @@
 //! Portable distribution strips. Socket cells, chassis and routed cable ports
 //! share one sampled program; electrical layout is coherent within a product.
 use super::*;
+mod deck;
+mod legacy;
+pub use deck::SocketDeck;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct StripProgram {
@@ -16,6 +19,9 @@ pub struct StripProgram {
     pub housing: Surface,
     pub plate: Surface,
     pub end_caps: bool,
+    /// Present on products with metric, recessed contacts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deck: Option<SocketDeck>,
 }
 
 /// Sample the product before placement, including compact twin-row units.
@@ -44,7 +50,7 @@ pub fn parameters(o: &IndoorObject) -> StripProgram {
         1
     };
     let columns = r.random_range(2..=((o.size.x / 0.050).floor() as usize).clamp(2, 8));
-    StripProgram {
+    let mut p = StripProgram {
         height_fraction: r.random_range(0.62..0.88),
         bevel_fraction: r.random_range(0.07..0.22),
         socket_span: r.random_range(0.62..0.80),
@@ -66,11 +72,23 @@ pub fn parameters(o: &IndoorObject) -> StripProgram {
             Surface::Plastic
         },
         end_caps: r.random_bool(0.48),
+        deck: None,
+    };
+    if let Some(face) = super::super::wall::OutletFace::from_variant(o.variant) {
+        p.fit_deck(o, face);
     }
+    p
 }
 impl StripProgram {
     pub fn socket_center(&self, s: Vec3, index: usize) -> Vec2 {
         let columns = self.socket_count / self.rows;
+        if let Some(deck) = self.deck {
+            return Vec2::new(
+                s.x * self.socket_offset
+                    + ((index % columns) as f32 - (columns - 1) as f32 * 0.5) * deck.column_pitch_m,
+                ((index / columns) as f32 - (self.rows - 1) as f32 * 0.5) * deck.row_pitch_m,
+            );
+        }
         Vec2::new(
             s.x * (self.socket_offset
                 + self.socket_span * (((index % columns) as f32 + 0.5) / columns as f32 - 0.5)),
@@ -82,6 +100,18 @@ impl StripProgram {
             .min(s.z / self.rows as f32)
             * self.plate_fraction
     }
+    pub fn mains_port(&self, size: Vec3, index: usize) -> Option<Vec3> {
+        if index >= self.socket_count {
+            return None;
+        }
+        let center = self.socket_center(size, index);
+        Some(Vec3::new(
+            center.x,
+            size.y * self.height_fraction + self.deck.map_or(0.002, |d| d.lip_m - d.well_depth_m),
+            center.y,
+        ))
+    }
+
     pub fn output_port(&self, s: Vec3, low_voltage: bool) -> Vec3 {
         if low_voltage {
             Vec3::new(
@@ -90,8 +120,7 @@ impl StripProgram {
                 s.z * 0.5 + 0.001,
             )
         } else {
-            let center = self.socket_center(s, 0);
-            Vec3::new(center.x, s.y * self.height_fraction + 0.002, center.y)
+            self.mains_port(s, 0).expect("power strip has a receptacle")
         }
     }
     pub fn inlet(&self, s: Vec3) -> Vec3 {
@@ -103,75 +132,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let l = o.kind.class_name();
     let h = s.y * p.height_fraction;
-    if p.end_caps {
-        // End caps share boundaries with the channel; no stacked coplanar lids.
-        let cap = s.x * 0.055;
-        a.box_part(
-            p.housing,
-            l,
-            Vec3::Y * h * 0.5,
-            Vec3::new(s.x - 2. * cap, h, s.z),
-            h * p.bevel_fraction,
-        );
-        for sign in [-1., 1.] {
-            a.box_part(
-                p.plate,
-                l,
-                Vec3::new(sign * (s.x - cap) * 0.5, h * 0.5, 0.),
-                Vec3::new(cap, h, s.z),
-                h * p.bevel_fraction * 0.45,
-            );
-        }
+    let width = if let Some(deck) = p.deck {
+        deck::build(a, o, &p, deck);
+        deck.cut_width_m
     } else {
-        a.box_part(
-            p.housing,
-            l,
-            Vec3::Y * h * 0.5,
-            s.with_y(h),
-            h * p.bevel_fraction,
-        );
-    }
-    let width = p.plate_width(s);
-    for i in 0..p.socket_count {
-        let center = p.socket_center(s, i);
-        a.part(p.plate, l).cylinder(
-            width * 0.5,
-            0.001,
-            Transform::from_xyz(center.x, h + 0.0005, center.y),
-        );
-        let turn = Quat::from_rotation_y(p.socket_yaw);
-        for z in [-1., 1.] {
-            let position = Vec3::new(center.x, h + 0.0012, center.y)
-                + turn * Vec3::new(0., 0., z * width * 0.22);
-            if o.variant.is_multiple_of(4) {
-                a.part(Surface::Ink, l).cylinder(
-                    width * 0.065,
-                    0.0004,
-                    Transform::from_translation(position),
-                );
-            } else {
-                let size = Vec3::new(
-                    width * if o.variant % 4 == 2 { 0.26 } else { 0.19 },
-                    0.0004,
-                    width * 0.072,
-                );
-                a.part(Surface::Ink, l).cuboid(
-                    size,
-                    0.0001,
-                    Transform::from_translation(position).with_rotation(turn),
-                );
-            }
-        }
-        if o.variant % 4 >= 2 {
-            let position =
-                Vec3::new(center.x, h + 0.0012, center.y) + turn * Vec3::new(width * 0.22, 0., 0.);
-            a.part(Surface::Ink, l).cuboid(
-                Vec3::new(width * 0.08, 0.0004, width * 0.10),
-                0.0001,
-                Transform::from_translation(position).with_rotation(turn),
-            );
-        }
-    }
+        legacy::build(a, o, &p);
+        p.plate_width(s)
+    };
     if p.switch {
         let last = p.socket_center(s, p.socket_count / p.rows - 1);
         let left = last.x + width * 0.5 + 0.002;
@@ -199,89 +166,4 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn sampled_strip_cells_are_disjoint_bounded_and_finish_independent() {
-        use crate::scene::procedural_indoor::objects::{audit, build_object};
-        let mut configurations = std::collections::BTreeSet::new();
-        let mut shapes = std::collections::BTreeSet::new();
-        for seed in 0..256 {
-            let mut o = audit::fixture(ObjectKind::PowerStrip, seed);
-            o.size = dimensions(&mut stream(seed, 10701));
-            let p = parameters(&o);
-            configurations.insert((p.rows, p.end_caps, (p.socket_yaw * 100.) as i32));
-            shapes.insert((
-                (o.size.x * 1000.) as i32,
-                (o.size.y * 1000.) as i32,
-                (o.size.z * 1000.) as i32,
-            ));
-            let a = build_object(&o);
-            audit::check(&o, &a).unwrap_or_else(|e| panic!("{seed}: {e}"));
-            let (lo, hi) = a.bounds();
-            assert!(lo.y.abs() < 1e-6);
-            assert!(hi.y <= o.size.y + 1e-6);
-            for i in 0..p.socket_count {
-                let center = p.socket_center(o.size, i);
-                assert!((center.abs() + Vec2::splat(p.plate_width(o.size) * 0.5))
-                    .cmplt(o.size.xz() * 0.5)
-                    .all());
-                for j in 0..i {
-                    assert!((center - p.socket_center(o.size, j)).length() > p.plate_width(o.size));
-                }
-            }
-            let replay = build_object(&o);
-            for (key, g) in &a.parts {
-                assert_eq!(g.positions, replay.parts[key].positions);
-                assert_eq!(g.indices, replay.parts[key].indices);
-            }
-            o.finish_seed = Some(888);
-            let alt = parameters(&o);
-            assert_eq!(p.socket_count, alt.socket_count);
-            assert_eq!(p.output_port(o.size, false), alt.output_port(o.size, false));
-            assert_eq!(p.inlet(o.size), alt.inlet(o.size));
-            assert_eq!(p.socket_yaw, alt.socket_yaw);
-        }
-        assert_eq!(configurations.len(), 16);
-        assert!(shapes.len() > 240);
-    }
-
-    #[test]
-    fn routed_power_endpoints_follow_actual_socket_decks() {
-        for seed in 0..128 {
-            let o = crate::scene::procedural_indoor::objects::audit::fixture(
-                ObjectKind::PowerStrip,
-                seed,
-            );
-            let p = parameters(&o);
-            let mut a = Assembly::default();
-            build(&mut a, &o);
-            let port = p.output_port(o.size, false);
-            let q = port.xz();
-            let mut top = f32::NEG_INFINITY;
-            for g in a.parts.values() {
-                for tri in g.indices.as_chunks::<3>().0 {
-                    let v = tri.map(|i| Vec3::from_array(g.positions[i as usize]));
-                    let area = (v[1].xz() - v[0].xz()).perp_dot(v[2].xz() - v[0].xz());
-                    if area.abs() < 1e-10 {
-                        continue;
-                    }
-                    let u = (v[1].xz() - q).perp_dot(v[2].xz() - q) / area;
-                    let w = (v[2].xz() - q).perp_dot(v[0].xz() - q) / area;
-                    let t = 1. - u - w;
-                    if u >= -1e-5 && w >= -1e-5 && t >= -1e-5 {
-                        top = top.max(u * v[0].y + w * v[1].y + t * v[2].y);
-                    }
-                }
-            }
-            assert!(
-                (0.0003..0.0021).contains(&(port.y - top)),
-                "{seed}: port={port:?}, mesh={top}"
-            );
-            assert_eq!(
-                super::super::power_port(&o, false).unwrap(),
-                o.transform().transform_point(port)
-            );
-        }
-    }
-}
+mod tests;

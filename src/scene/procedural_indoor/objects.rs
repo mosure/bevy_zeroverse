@@ -9,6 +9,7 @@ pub mod clocks;
 pub mod computers;
 pub mod containers;
 pub mod desktop;
+mod electrical;
 pub mod equipment;
 pub mod fans;
 pub mod floor;
@@ -189,11 +190,28 @@ pub(crate) fn build_object_with_motion(
     o: &IndoorObject,
     policy: Option<&super::motion::IndoorMotionConfig>,
 ) -> Assembly {
+    build_object_at_version(o, policy, super::layout::GENERATOR_VERSION)
+}
+
+/// Rebuild an object with the archived motion policy and sheet registration.
+pub fn build_manifest_object(scene: &super::layout::IndoorManifest, o: &IndoorObject) -> Assembly {
+    build_object_at_version(
+        o,
+        scene.indoor_motion.as_ref().map(|m| &m.policy),
+        scene.generator_version,
+    )
+}
+
+pub(super) fn build_object_at_version(
+    o: &IndoorObject,
+    policy: Option<&super::motion::IndoorMotionConfig>,
+    version: u32,
+) -> Assembly {
     let mut a = Assembly {
         motion_policy: policy.cloned(),
         ..default()
     };
-    routing::build(&mut a, o);
+    routing::build(&mut a, o, version);
     if matches!(o.kind, ObjectKind::CoffeeMaker | ObjectKind::DrinkDispenser) {
         a.box_part(
             Surface::Rubber,
@@ -205,7 +223,17 @@ pub(crate) fn build_object_with_motion(
     }
     // Flat printed pages and phones use their horizontal face dimensions;
     // normalizing all six cuboid faces would crop portrait content horizontally.
+    let registered_table =
+        version >= tables::REGISTERED_SHEET_VERSION && o.kind.family() == ObjectFamily::Tables;
     for ((surface, label), geometry) in &mut a.parts {
+        if registered_table
+            && matches!(surface, Surface::Concrete | Surface::Plastic)
+            && super::materials::finish_slot(*surface, label)
+                .is_some_and(super::materials::worktop_finish::is_sheet_slot)
+        {
+            // These parts already have a cut in metres, including their edge and backing.
+            continue;
+        }
         if super::materials::rugs::key(label).is_some_and(|(_, binding)| !binding) {
             // Whole-rug coordinates are already normalized and outline-aligned.
             continue;
@@ -337,111 +365,11 @@ pub(crate) fn build_object_with_motion(
 }
 
 fn wall_panel(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    // Printed/painted content is a single front-facing image domain. Metric
-    // cuboid UVs are correct for timber, but crop images when the panel changes
-    // aspect. The physical backing closes the solid mount behind this face.
-    let image_face = |a: &mut Assembly, surface: Surface, size: Vec2, center: Vec2, z: f32| {
-        let g = a.part(surface, label);
-        let start = g.positions.len() as u32;
-        let y0 = center.y - size.y * 0.5;
-        let y1 = y0 + size.y;
-        g.positions.extend([
-            [center.x - size.x * 0.5, y0, z],
-            [center.x + size.x * 0.5, y0, z],
-            [center.x + size.x * 0.5, y1, z],
-            [center.x - size.x * 0.5, y1, z],
-        ]);
-        g.normals.extend([[0., 0., 1.]; 4]);
-        g.uvs.extend([[0., 1.], [1., 1.], [1., 0.], [0., 0.]]);
-        g.indices
-            .extend([start, start + 1, start + 2, start, start + 2, start + 3]);
-    };
     if o.kind == ObjectKind::Whiteboard {
         presentation::whiteboard(a, o);
-        return;
+    } else {
+        presentation::artwork::build(a, o);
     }
-    let p = super::materials::art::frame_parameters(o);
-    let border = p.border_width;
-    let inner = Vec2::new(s.x - border * 2., s.y - border * 2.);
-    let mat = p.mat_scale * p.mat_width;
-    let image_size = inner - (mat + Vec2::splat(p.shadow_gap)) * 2.;
-    let image_center = Vec2::new(0., s.y * 0.5) + mat * p.picture_bias;
-    // All front surfaces have explicit depth separation. In particular, the
-    // paper mat cannot share a plane with the picture or the frame front.
-    let front = s.z * 0.5 - p.picture_inset;
-    let backing_depth = (s.z - p.picture_inset - 0.0015).max(s.z * 0.3);
-    a.box_part(
-        if p.style == 4 {
-            Surface::Plastic
-        } else {
-            Surface::Paper
-        },
-        label,
-        Vec3::new(0., s.y * 0.5, -s.z * 0.5 + backing_depth * 0.5),
-        Vec3::new(inner.x, inner.y, backing_depth),
-        0.001,
-    );
-    if p.style != 0 {
-        let surface = match p.style {
-            1 | 4 => Surface::Wood,
-            2 => Surface::Plastic,
-            _ => Surface::Metal,
-        };
-        let bevel = (border * 0.12).min(s.z * 0.1);
-        let recess = if p.stepped {
-            s.z * p.recess_fraction
-        } else {
-            0.
-        };
-        for y in [border * 0.5, s.y - border * 0.5] {
-            a.box_part(
-                surface,
-                label,
-                Vec3::new(0., y, -recess * 0.5),
-                Vec3::new(s.x, border, s.z - recess),
-                bevel,
-            );
-            if p.stepped {
-                let sign = if y < s.y * 0.5 { -1. } else { 1. };
-                a.box_part(
-                    surface,
-                    label,
-                    Vec3::new(
-                        0.,
-                        y + sign * border * (1. - p.outer_fraction) * 0.5,
-                        (s.z - recess) * 0.5,
-                    ),
-                    Vec3::new(s.x, border * p.outer_fraction, recess),
-                    bevel.min(recess * 0.15),
-                );
-            }
-        }
-        for x in [-s.x * 0.5 + border * 0.5, s.x * 0.5 - border * 0.5] {
-            a.box_part(
-                surface,
-                label,
-                Vec3::new(x, s.y * 0.5, -recess * 0.5),
-                Vec3::new(border, s.y - border * 2., s.z - recess),
-                bevel,
-            );
-            if p.stepped {
-                a.box_part(
-                    surface,
-                    label,
-                    Vec3::new(
-                        x + x.signum() * border * (1. - p.outer_fraction) * 0.5,
-                        s.y * 0.5,
-                        (s.z - recess) * 0.5,
-                    ),
-                    Vec3::new(border * p.outer_fraction, s.y - border * 2., recess),
-                    bevel.min(recess * 0.15),
-                );
-            }
-        }
-    }
-    image_face(a, Surface::Art, image_size, image_center, front);
 }
 
 #[cfg(test)]

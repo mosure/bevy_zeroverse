@@ -306,9 +306,9 @@ fn action_keys(
     anchor: &Waypoint,
     start: usize,
     end: usize,
-    seated: bool,
+    seated_pelvis: Option<f32>,
 ) -> Vec<Waypoint> {
-    let base = if seated { 0.61 } else { STANDING_PELVIS };
+    let base = seated_pelvis.unwrap_or(STANDING_PELVIS);
     let mut keys = Vec::new();
     for i in 0..=action.phase.repetitions * 2 {
         let t = i as f32 / (action.phase.repetitions * 2) as f32;
@@ -327,7 +327,7 @@ fn action_keys(
         });
         keys.push(Waypoint {
             frame: start + ((end - start) as f32 * t).round() as usize,
-            position: anchor.position.with_y(if peak && !seated {
+            position: anchor.position.with_y(if peak && seated_pelvis.is_none() {
                 action.phase.peak_pelvis_height
             } else {
                 base
@@ -343,7 +343,7 @@ pub(super) fn stationary(
     mut action: SampledAction,
     points: &mut Vec<Waypoint>,
     config: &HumanMotionConfig,
-    seated: bool,
+    seated_pelvis: Option<f32>,
     rng: &mut impl Rng,
 ) -> Draft {
     let last = config.frames - 1;
@@ -352,22 +352,22 @@ pub(super) fn stationary(
     let anchor = points[0].clone();
     let mut timed = std::collections::BTreeMap::new();
     for mut w in [points[0].clone(), points.last().unwrap().clone()] {
-        w.position.y = if seated { 0.61 } else { STANDING_PELVIS };
+        w.position.y = seated_pelvis.unwrap_or(STANDING_PELVIS);
         w.constrain_height = true;
         timed.insert(w.frame, w);
     }
-    for w in action_keys(&action, &anchor, start, end, seated) {
+    for w in action_keys(&action, &anchor, start, end, seated_pelvis) {
         timed.insert(w.frame, w);
     }
     *points = timed.into_values().collect();
     action.phase.start_frame = start;
     action.phase.end_frame = end;
-    if seated {
-        action.phase.peak_pelvis_height = 0.61;
+    if let Some(height) = seated_pelvis {
+        action.phase.peak_pelvis_height = height;
     }
     let mut recipe = recipe(action.spec.family);
     recipe.actions.push(action.phase.clone());
-    let prefix = if seated {
+    let prefix = if seated_pelvis.is_some() {
         "A seated person"
     } else {
         "A person"
@@ -380,7 +380,7 @@ pub(super) fn stationary(
         rng,
     );
     Draft {
-        behavior: if seated {
+        behavior: if seated_pelvis.is_some() {
             "seated_gesture".into()
         } else {
             action.spec.id.into()

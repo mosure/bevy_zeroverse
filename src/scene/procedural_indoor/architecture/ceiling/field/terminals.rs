@@ -1,5 +1,5 @@
 //! Lay-in diffusers with folded four-way cones or angled return blades.
-use super::mesh::{band, ring};
+use super::super::sheet::{band, ring};
 use super::*;
 use crate::scene::procedural_indoor::materials::acoustic_tile::GRID_LABEL;
 

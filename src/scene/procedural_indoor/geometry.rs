@@ -1,6 +1,6 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
 mod housing;
-pub(crate) use housing::housing_outline;
+pub(crate) use housing::{housing_front_z, housing_outline};
 #[cfg(test)]
 pub(crate) mod preview;
 mod primitives;
@@ -17,6 +17,7 @@ use bevy::{
 };
 use std::f32::consts::TAU;
 pub use upholstery::CushionProfile;
+pub(crate) use upholstery::CushionSurface;
 
 #[derive(Default, Clone)]
 pub struct Geometry {

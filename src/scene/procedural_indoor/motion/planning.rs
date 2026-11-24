@@ -227,30 +227,26 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
     if joint.kind == MotionKind::Fan {
         // Bound the complete rotor at any speed, including many revolutions.
         // AABB vertices at finitely sampled angles cannot certify a fast rotor.
-        let points: Vec<_> = joint
-            .parts
-            .iter()
-            .flat_map(|k| &a.parts[k].positions)
-            .map(|p| Vec3::from_array(*p))
-            .collect();
-        let b = bounds(points.iter().copied());
-        let radius = points
-            .iter()
-            .map(|p| (*p - joint.pivot).xz().length())
-            .fold(0., f32::max)
-            + 0.0001;
+        let mut radius_squared = 0.0_f32;
+        let (mut bottom, mut top) = (f32::INFINITY, f32::NEG_INFINITY);
+        for vertex in joint.parts.iter().flat_map(|key| &a.parts[key].positions) {
+            let point = Vec3::from_array(*vertex);
+            radius_squared = radius_squared.max((point - joint.pivot).xz().length_squared());
+            bottom = bottom.min(point.y);
+            top = top.max(point.y);
+        }
+        if bottom > top {
+            return result;
+        }
+        let radius = radius_squared.sqrt() + 0.0001;
         return vec![Sweep {
             local: (
                 Vec3::new(
                     joint.pivot.x - radius,
-                    b.0.y - 0.0001,
+                    bottom - 0.0001,
                     joint.pivot.z - radius,
                 ),
-                Vec3::new(
-                    joint.pivot.x + radius,
-                    b.1.y + 0.0001,
-                    joint.pivot.z + radius,
-                ),
+                Vec3::new(joint.pivot.x + radius, top + 0.0001, joint.pivot.z + radius),
             ),
             frame: tf,
             hull: None,

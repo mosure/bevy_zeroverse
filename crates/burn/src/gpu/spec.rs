@@ -1,6 +1,6 @@
 //! Resolved scene/output policy, independent of transport and queue scheduling.
 use super::*;
-use bevy_zeroverse::render::{RenderMode, depth::DepthFormat};
+use bevy_zeroverse::render::{RenderMode, depth::DepthFormat, lighting::PreviewLighting};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -140,6 +140,8 @@ impl CaptureSpec {
         );
         config.headless = true;
         config.image_copiers = true;
+        // Session metadata and its fingerprint describe the lighting used by capture.
+        config.preview_lighting = PreviewLighting::Raster;
         config.editor = false;
         config.keybinds = false;
         config.press_esc_close = false;
@@ -401,7 +403,9 @@ mod tests {
         config.indoor_seed = Some(42);
         let a = CaptureSpec::from_scene(config.clone()).resolve().unwrap();
         config.indoor_seed = Some(47);
+        config.preview_lighting = PreviewLighting::SolariRestir;
         let b = CaptureSpec::from_scene(config.clone()).resolve().unwrap();
+        assert_eq!(b.scene().preview_lighting, PreviewLighting::Raster);
         assert_eq!(a.fingerprint, b.fingerprint);
         assert_ne!(
             a.fingerprint,

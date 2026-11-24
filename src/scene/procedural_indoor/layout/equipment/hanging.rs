@@ -14,6 +14,7 @@ impl IndoorManifest {
                             o.kind,
                             ObjectKind::PowerStrip
                                 | ObjectKind::PcTower
+                                | ObjectKind::Printer
                                 | ObjectKind::Monitor
                                 | ObjectKind::Projector
                         )
@@ -55,28 +56,27 @@ impl IndoorManifest {
             });
             let mut installed = false;
             for target in targets.into_iter().take(3) {
-                let (Some(end), Some(target_normal)) = (
-                    equipment::power_port(&target, false),
-                    equipment::power_port_normal(&target, false),
-                ) else {
+                let Some(target_normal) = equipment::power_port_normal(&target, false) else {
                     continue;
                 };
-                let mut rng = stream(source.seed ^ target.seed, 5801);
-                // One physical receptacle cannot receive multiple mains plugs.
-                if self
-                    .objects
-                    .iter()
-                    .any(|c| c.kind == ObjectKind::Cable && c.cable_target == Some(target.id))
-                {
+                let choices = outlets::available(self, &source, &target, false);
+                if choices.is_empty() {
                     continue;
                 }
+                let fitted_floor = super::super::super::objects::floor::service::installed(&target);
+                let mut rng = stream(source.seed ^ target.seed, 5801);
                 for side in 0..4 {
+                    let (socket, end) = choices[side % choices.len()];
                     let mut o =
                         self.candidate(ObjectKind::Cable, Vec3::ZERO, Vec3::ONE, 0., &mut rng);
                     o.solid = false;
                     o.support = Some(parent.id);
                     o.interaction_target = Some(source.id);
                     o.cable_target = Some(target.id);
+                    o.cable_target_socket = socket;
+                    if equipment::receptacles::recessed_connection(&target, socket) {
+                        o.variant = wires::RECESSED_MAINS;
+                    }
                     let radius = wires::bound_radius(&o);
                     let a = start + source_normal * 0.039;
                     let b = end + target_normal * 0.039;
@@ -114,21 +114,33 @@ impl IndoorManifest {
                         .fold(f32::INFINITY, f32::min)
                         + radius
                         + 0.002;
-                    let Some(hanging) =
-                        wires::hanging_curve(edge, b, floor, rng.random_range(0.12..0.55))
-                    else {
-                        continue;
-                    };
-                    let mut path = vec![start];
-                    if source.support.is_some() {
-                        path.push(a);
+                    let sag = rng.random_range(0.12..0.55);
+                    // A bend into the socket can consume the straight segment
+                    // reserved for the plug. Try a short lead above the cover
+                    // only when the direct approach fails exact route checks.
+                    let approaches = [b, b + target_normal * (0.04 + radius * 5.)];
+                    for entry in &approaches[..if fitted_floor { 2 } else { 1 }] {
+                        let Some(hanging) = wires::hanging_curve(edge, *entry, floor, sag) else {
+                            continue;
+                        };
+                        let mut path = vec![start];
+                        if source.support.is_some() {
+                            path.push(a);
+                        }
+                        path.extend(hanging);
+                        if *entry != b {
+                            path.push(b);
+                        }
+                        path.push(end);
+                        if wires::archive_world_path(&mut o, &path, 0.30)
+                            && cable_route_clear(self, &o)
+                        {
+                            self.objects.push(o);
+                            installed = true;
+                            break;
+                        }
                     }
-                    path.extend(hanging);
-                    path.push(end);
-                    if wires::archive_world_path(&mut o, &path, 0.30) && cable_route_clear(self, &o)
-                    {
-                        self.objects.push(o);
-                        installed = true;
+                    if installed {
                         break;
                     }
                 }

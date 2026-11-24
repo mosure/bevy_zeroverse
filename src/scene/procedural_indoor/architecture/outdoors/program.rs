@@ -51,6 +51,8 @@ pub(super) struct Building {
     pub fins: bool,
     pub hood: f32,
     pub window_installation: WindowInstallation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plinth: Option<plinth::Course>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub(super) struct WindowInstallation {
@@ -76,13 +78,18 @@ impl WindowInstallation {
             },
         }
     }
+    /// Leave stock behind both perpendicular window cavities at an exterior corner.
+    pub fn corner_pier(&self, recess: f32) -> f32 {
+        recess + self.rebate_m + 0.026
+    }
+
     pub fn recess(&self, footprint: Vec2) -> f32 {
         self.recess_m.min(footprint.min_element() * 0.13)
     }
 }
 
 impl Building {
-    pub fn sample(p: &Parcel, sky_radius: f32) -> Self {
+    pub fn sample(p: &Parcel, sky_radius: f32, generator_version: u32) -> Self {
         let mut r = stream(p.seed, 6381);
         let pitch = r.random_range(2.65_f32..3.65);
         // All projections, roofs and services fit within this conservative ball.
@@ -150,6 +157,8 @@ impl Building {
                 0.
             },
             window_installation: WindowInstallation::sample(p.seed, wall),
+            plinth: (generator_version >= plinth::FIRST_VERSION)
+                .then(|| plinth::Course::sample(p.seed, wall)),
         }
     }
 }

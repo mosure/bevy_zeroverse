@@ -23,14 +23,16 @@ fn pot_proportions_vary_independently_of_a_fixed_canopy_with_real_support() {
         saucers.insert(p.saucer);
         sides.insert(p.sides);
         let mut a = Assembly::default();
-        let (soil, soil_radius) = crate::scene::procedural_indoor::plants::pots::build(
+        let fill = crate::scene::procedural_indoor::plants::pots::build(
             &mut a,
             Surface::Ceramic,
             r,
             h,
             growth.pot_taper,
             &p,
+            "other_prop",
         );
+        let (soil, soil_radius) = (fill.level, fill.roots);
         let (lo, hi) = a.bounds();
         assert!(lo.y.abs() < 1e-6 && hi.y <= h + 1e-6);
         assert!(lo.x >= -0.45 && hi.x <= 0.45 && lo.z >= -0.45 && hi.z <= 0.45);
@@ -90,14 +92,16 @@ fn potting_mix_meets_the_actual_inner_wall_without_leaking_outside() {
         let p = PotProfile::sample(seed);
         let mut a = Assembly::default();
         let (r, h) = (0.18, 0.24);
-        let (level, roots) = crate::scene::procedural_indoor::plants::pots::build(
+        let fill = crate::scene::procedural_indoor::plants::pots::build(
             &mut a,
             Surface::Ceramic,
             r,
             h,
             0.7,
             &p,
+            "other_prop",
         );
+        let (level, roots) = (fill.level, fill.roots);
         let part = |s| &a.parts[&(s, "other_prop".into())];
         for drop in [0.024, 0.0002] {
             let y = level - h * drop;
@@ -135,7 +139,7 @@ fn grounds_cross_the_fill_at_every_scale_and_preserve_the_canopy_random_stream()
                 let _ = original.random_range(0.0_f32..TAU);
             }
             let level = 0.15;
-            soil::dressing(&mut g, seed, level, radius, &mut rng);
+            soil::legacy::dressing(&mut g, seed, level, radius, &mut rng);
             assert_eq!(original.random::<u64>(), rng.random::<u64>());
             assert_eq!(g.indices.len() / 3, 18 * 12);
             for clod in g.positions.as_chunks::<36>().0 {

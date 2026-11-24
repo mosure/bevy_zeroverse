@@ -9,12 +9,11 @@ pub(super) fn build(
     base: Vec3,
     spread: f32,
     soil_radius: f32,
+    (pot_outer, pot_height): (f32, f32),
 ) {
     let mut r = stream(o.seed, 6453);
     let height = o.size.y - base.y;
     let climb = o.size.y / o.size.x.min(o.size.z) > 1.75 && r.random_bool(0.60);
-    let (pot_radius, pot_height) = pot_dimensions(o, g);
-    let pot_outer = pot_radius * PotProfile::sample(o.seed).outer_radius_factor().max(1.10);
     let trailing = pot_outer < spread * 0.52;
     let shoots = g.count(if climb { 8 } else { 11 });
     let stake = base + Vec3::Y * height * 0.86;

@@ -10,7 +10,7 @@ enum Prepared {
 }
 
 impl Prepared {
-    fn new(surface: Surface, seed: u64) -> Self {
+    fn new((surface, slot): (Surface, usize), seed: u64) -> Self {
         match surface {
             Surface::Screen | Surface::PhoneScreen | Surface::Television => {
                 let kind = match surface {
@@ -22,7 +22,7 @@ impl Prepared {
             }
             Surface::Whiteboard => Self::Board(Box::new(boards::prepare(seed))),
             Surface::Art => Self::Art(seed, Box::new(art::maps(seed))),
-            Surface::PrintedPaper => Self::Paper(seed, Box::new(paper::prepare(seed))),
+            Surface::PrintedPaper => Self::Paper(seed, Box::new(paper::prepare_slot(seed, slot))),
             _ => unreachable!("content jobs only synthesize supported surfaces"),
         }
     }
@@ -41,7 +41,7 @@ pub(super) struct Job {
     #[cfg(not(target_arch = "wasm32"))]
     prepared: Prepared,
     #[cfg(target_arch = "wasm32")]
-    input: (Surface, u64),
+    input: ((Surface, usize), u64),
 }
 
 impl Job {
@@ -89,7 +89,7 @@ pub(super) fn queue(
                         (
                             key,
                             Job {
-                                prepared: Prepared::new(key.0, seed),
+                                prepared: Prepared::new(key, seed),
                             },
                         )
                     });
@@ -101,14 +101,7 @@ pub(super) fn queue(
     #[cfg(target_arch = "wasm32")]
     inputs
         .into_iter()
-        .map(|(key, seed)| {
-            (
-                key,
-                Job {
-                    input: (key.0, seed),
-                },
-            )
-        })
+        .map(|(key, seed)| (key, Job { input: (key, seed) }))
         .collect()
 }
 
@@ -172,9 +165,10 @@ mod tests {
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1, COUNT - 1][i]))
+                .chain([(Surface::PrintedPaper, paper::spread_slot(seed))])
                 .collect();
             let mut jobs = queue(seed, Some(&used));
-            assert_eq!(jobs.len(), surfaces.len());
+            assert_eq!(jobs.len(), used.len());
             for (surface, slot) in used {
                 let content_seed = content_seed(seed, surface, slot);
                 let mut a = StandardMaterial {
@@ -192,6 +186,12 @@ mod tests {
                     Surface::Television => screens::apply_tv(content_seed, &mut a, &mut ia),
                     Surface::Whiteboard => boards::apply(content_seed, &mut a, &mut ia),
                     Surface::Art => art::apply(content_seed, &mut a, &mut ia),
+                    Surface::PrintedPaper if slot >= COUNT => paper::apply_prepared(
+                        content_seed,
+                        paper::prepare_slot(content_seed, slot),
+                        &mut a,
+                        &mut ia,
+                    ),
                     Surface::PrintedPaper => paper::apply(content_seed, &mut a, &mut ia),
                     _ => unreachable!(),
                 }

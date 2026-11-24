@@ -126,16 +126,6 @@ impl IndoorManifest {
                 }
             }
         }
-        if !lecture {
-            let size = geometry::dimensions(ObjectKind::Locker, r.random());
-            self.public_fit(
-                index,
-                ObjectKind::Locker,
-                Vec3::new(p.max.x - size.x * 0.5, 0., p.min.y + size.z * 0.5),
-                size,
-                0.,
-                r,
-            );
-        }
+        self.fit_classroom_lockers(index, r);
     }
 }

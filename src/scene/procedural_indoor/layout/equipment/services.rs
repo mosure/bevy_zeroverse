@@ -19,7 +19,16 @@ pub(crate) fn is_wall_service(o: &IndoorObject) -> bool {
     ) || (o.kind == ObjectKind::Speaker && o.support.is_none() && !o.solid)
 }
 
+#[cfg(test)]
 pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
+    mounted_clear_against(scene, o, &scene.camera_obstacles())
+}
+
+pub(crate) fn mounted_clear_against(
+    scene: &IndoorManifest,
+    o: &IndoorObject,
+    structure: &[(Vec3, Vec3)],
+) -> bool {
     if o.solid || o.neighbor || o.support.is_some() {
         return false;
     }
@@ -35,25 +44,30 @@ pub(crate) fn mounted_clear(scene: &IndoorManifest, o: &IndoorObject) -> bool {
     if !mounted {
         return false;
     }
-    let structure: Vec<_> = scene
-        .camera_obstacles()
-        .into_iter()
-        .chain(scene.humans.iter().map(|h| h.bounds()))
-        .collect();
     // Match the existing fan/pendant reservation margin in both directions.
     // A late service must not invalidate an already accepted fixture (seed 66).
     let overlaps = |lo: Vec3, hi: Vec3, a: Vec3, b: Vec3| {
         lo.cmplt(b + Vec3::splat(INSTALLATION_GAP)).all()
             && hi.cmpgt(a - Vec3::splat(INSTALLATION_GAP)).all()
     };
-    let reservations: Vec<_> = o.obstacle_bounds().collect();
-    if reservations
-        .iter()
-        .any(|&(lo, hi)| structure.iter().any(|&(a, b)| overlaps(lo, hi, a, b)))
-    {
+    let bounds = o.bounds();
+    let segments;
+    let reservations = if o.kind == ObjectKind::StringLights {
+        segments = o.obstacle_bounds().collect::<Vec<_>>();
+        segments.as_slice()
+    } else {
+        std::slice::from_ref(&bounds)
+    };
+    if reservations.iter().any(|&(lo, hi)| {
+        structure
+            .iter()
+            .copied()
+            .chain(scene.humans.iter().map(|h| h.bounds()))
+            .any(|(a, b)| overlaps(lo, hi, a, b))
+    }) {
         return false;
     }
-    let (lo, hi) = o.bounds();
+    let (lo, hi) = bounds;
     !scene.objects.iter().filter(|p| p.id != o.id).any(|p| {
         let (a, b) = p.bounds();
         overlaps(lo, hi, a, b)
@@ -75,11 +89,19 @@ fn pull_mounted(scene: &IndoorManifest, o: &IndoorObject) -> bool {
 }
 
 impl IndoorManifest {
-    pub(in super::super::super) fn furnish_exit_signs(&mut self) {
-        exits::furnish(self, &mut sampling::Domain::ExitSigns.rng(self.seed));
+    pub(in super::super::super) fn furnish_exit_signs(&mut self, structure: &[(Vec3, Vec3)]) {
+        exits::furnish(
+            self,
+            &mut sampling::Domain::ExitSigns.rng(self.seed),
+            structure,
+        );
     }
 
-    pub(in super::super::super) fn furnish_wall_service(&mut self, kind: ObjectKind) {
+    pub(in super::super::super) fn furnish_wall_service(
+        &mut self,
+        kind: ObjectKind,
+        structure: &[(Vec3, Vec3)],
+    ) {
         let domain = match kind {
             ObjectKind::FireAlarm => sampling::Domain::Alarms,
             ObjectKind::Speaker => sampling::Domain::Speakers,
@@ -147,14 +169,14 @@ impl IndoorManifest {
                 // Sample the feasible interval; clamping used to stack fixtures
                 // at exactly roof - height - 0.28 under lower ceilings.
                 o.position.y = r.random_range(low..high);
-                if mounted_clear(self, &o) {
+                if mounted_clear_against(self, &o, structure) {
                     self.objects.push(o);
                     break;
                 }
             }
         }
     }
-    pub(in super::super::super) fn furnish_pull_station(&mut self) {
+    pub(in super::super::super) fn furnish_pull_station(&mut self, structure: &[(Vec3, Vec3)]) {
         let Some(door) = self.entry_door.clone() else {
             return;
         };
@@ -190,7 +212,7 @@ impl IndoorManifest {
             let mut o = self.candidate(ObjectKind::FirePullStation, position, size, yaw, &mut r);
             o.variant = r.random_range(0..4);
             o.solid = false;
-            if mounted_clear(self, &o) {
+            if mounted_clear_against(self, &o, structure) {
                 self.objects.push(o);
                 break;
             }
@@ -221,6 +243,7 @@ mod tests {
             crate::scene::procedural_indoor::validation::validate_layout(&scene)
                 .unwrap_or_else(|e| panic!("{seed}: {e}"));
             let mut practical_runs = 0;
+            let mut first_detector: Option<&IndoorObject> = None;
             for o in &scene.objects {
                 if matches!(
                     o.kind,
@@ -318,6 +341,14 @@ mod tests {
                             .or_default() += 1;
                     }
                     if o.kind == ObjectKind::FireDetector {
+                        if let Some(mate) = first_detector {
+                            assert!(o.position.xz().distance(mate.position.xz()) >= 2.);
+                            if o.seed == mate.seed {
+                                assert_eq!((o.size, o.variant), (mate.size, mate.variant));
+                                assert_ne!(o.id, mate.id);
+                            }
+                        }
+                        first_detector = Some(o);
                         let mut floating = o.clone();
                         floating.position.y -= 0.1;
                         assert!(!mounted_clear(&scene, &floating));

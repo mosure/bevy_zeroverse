@@ -7,6 +7,7 @@ pub mod dishware;
 pub mod flatware;
 mod island;
 pub mod packaging;
+pub(crate) mod produce;
 mod props;
 mod serving;
 pub mod sink;
@@ -204,6 +205,7 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     };
     let mut r = stream(seed, 8011);
     o.size *= Vec3::new(
@@ -251,8 +253,20 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
     if kind == ObjectKind::Oven && r.random_bool(0.38) {
         o.size.y = 0.90;
     }
-    let p = parameters(&o);
-    o.size.z += extension(&o, &p);
+    if matches!(
+        kind,
+        ObjectKind::KitchenCupboard
+            | ObjectKind::Pantry
+            | ObjectKind::KitchenCounter
+            | ObjectKind::KitchenSink
+            | ObjectKind::Refrigerator
+            | ObjectKind::Oven
+            | ObjectKind::Range
+            | ObjectKind::Dishwasher
+            | ObjectKind::Microwave
+    ) {
+        o.size.z += extension(&o, &parameters(&o));
+    }
     o.size
 }
 fn extension(o: &IndoorObject, p: &KitchenProgram) -> f32 {
@@ -305,8 +319,24 @@ fn body(o: &IndoorObject, p: &KitchenProgram) -> (f32, f32) {
 }
 
 pub fn metadata(o: &IndoorObject) -> serde_json::Value {
-    let p = parameters(o);
+    metadata_for_version(o, super::super::layout::GENERATOR_VERSION)
+}
+pub(crate) fn metadata_for_version(o: &IndoorObject, version: u32) -> serde_json::Value {
     use ObjectKind::*;
+    if o.kind == FruitBowl {
+        if version < produce::INTRODUCED {
+            let p = props::program(o);
+            return serde_json::json!({"basket":p.basket, "fruit_count":p.count});
+        }
+        let p = produce::Arrangement::sample(o);
+        return serde_json::json!({
+            "basket": p.vessel.is_basket(),
+            "fruit_count": p.fruit.len(),
+            "vessel": p.vessel,
+            "fruit": p.fruit,
+        });
+    }
+    let p = parameters(o);
     let mut value = match o.kind {
         KitchenSink => {
             serde_json::json!({"door_style":p.door_style,"opening_radians":p.opening_radians,"cabinet_motion":p.cabinet_motion,"front_profile":p.front_profile,"handles":p.handles,"basins":p.basins,"faucet":p.faucet,"faucet_handles":p.faucet_handles,"hand_soap":p.hand_soap,"dish_soap":p.dish_soap,"sponge":p.sponge,"dishes":p.sink_dishes,"draining_board":p.draining_board,"top":p.top})
@@ -370,14 +400,20 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
                 CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
                 Sponge => serde_json::json!(supplies::sponge::parameters(o)),
                 Dishware => {
-                    let mut value = serde_json::json!(dishware::for_object(o, &p));
+                    let dish = dishware::for_object(o, &p);
+                    let mut value = serde_json::json!(dish);
+                    if dish.plate.is_some() {
+                        value["rim_glaze_slot"] = serde_json::json!(dishware::PlateForm::rim_slot(
+                            dish.surface,
+                            o.finish_seed.unwrap_or(o.seed)
+                        ));
+                    }
                     if let Some(meal) = serving::sample(o) {
                         value["serving"] = serde_json::json!(meal);
                     }
                     value
                 }
                 Flatware => serde_json::json!(flatware::parameters(o)),
-                FruitBowl => serde_json::json!({"basket":p.basket,"fruit_count":p.count}),
                 KnifeBlock => serde_json::json!(supplies::knives::parameters(o)),
                 UtensilHolder => serde_json::json!(supplies::utensils::parameters(o)),
                 DryingRack => {
@@ -394,7 +430,7 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
         o.kind,
         Cooktop | Range | Oven | Microwave | Dishwasher | Refrigerator
     ) {
-        value["construction"] = appliances::metadata(o, &p);
+        value["construction"] = appliances::metadata_for_version(o, &p, version);
         if o.kind == Refrigerator {
             value["shelves"] =
                 serde_json::json!(appliances::program::parameters(o).shelf_levels_m.len());
@@ -409,21 +445,20 @@ pub fn metadata(o: &IndoorObject) -> serde_json::Value {
     value
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
-        ObjectKind::KitchenCounter if is_island(o) => island::build(a, o, &p),
+        ObjectKind::KitchenCounter if is_island(o) => island::build(a, o, &parameters(o)),
         ObjectKind::KitchenCounter | ObjectKind::KitchenCupboard | ObjectKind::Pantry => {
-            cabinet::build(a, o, &p)
+            cabinet::build(a, o, &parameters(o))
         }
-        ObjectKind::KitchenSink => sink::build(a, o, &p),
+        ObjectKind::KitchenSink => sink::build(a, o, &parameters(o), version),
         ObjectKind::Cooktop
         | ObjectKind::Range
         | ObjectKind::Oven
         | ObjectKind::Microwave
         | ObjectKind::Dishwasher
-        | ObjectKind::Refrigerator => appliances::build(a, o, &p),
-        _ => props::build(a, o),
+        | ObjectKind::Refrigerator => appliances::build(a, o, &parameters(o), version),
+        _ => props::build(a, o, version),
     }
 }
 fn box_at(a: &mut Assembly, s: Surface, label: &str, center: Vec3, size: Vec3, tf: Transform) {

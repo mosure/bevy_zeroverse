@@ -1,5 +1,5 @@
-//! Factory-coated and brushed blind stock. Lighting a painted aluminium blade
-//! uses the outer dielectric coating; the metal underneath does not act as a mirror.
+//! Factory-coated and brushed stock for blind slats and indoor heating equipment.
+//! Powder-coated surfaces use the optical properties of their outer dielectric layer.
 use super::*;
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;

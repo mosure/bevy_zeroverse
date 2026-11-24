@@ -4,6 +4,21 @@ use crate::scene::procedural_indoor::layout::{ArchitectureStyle, NEIGHBOR_DEPTH}
 /// Rectangle complement, merged along each row. No intact wall is left behind
 /// glazing, including when openings form ribbons or multiple vertical bands.
 pub fn solid_rectangles(min: Vec2, max: Vec2, holes: &[WindowOpening]) -> Vec<(Vec2, Vec2)> {
+    rectangles(min, max, holes, true)
+}
+
+/// Keep matching edges on both sides of every jamb and sill. A watertight
+/// rendered substrate cannot rely on rasterizers snapping T-junctions alike.
+pub(crate) fn solid_cells(min: Vec2, max: Vec2, holes: &[WindowOpening]) -> Vec<(Vec2, Vec2)> {
+    rectangles(min, max, holes, false)
+}
+
+fn rectangles(
+    min: Vec2,
+    max: Vec2,
+    holes: &[WindowOpening],
+    merge_rows: bool,
+) -> Vec<(Vec2, Vec2)> {
     let mut xs = vec![min.x, max.x];
     let mut ys = vec![min.y, max.y];
     for o in holes {
@@ -27,7 +42,7 @@ pub fn solid_rectangles(min: Vec2, max: Vec2, holes: &[WindowOpening]) -> Vec<(V
             if solid {
                 start.get_or_insert(x[0]);
             }
-            if (!solid || i + 2 == xs.len()) && start.is_some() {
+            if (!merge_rows || !solid || i + 2 == xs.len()) && start.is_some() {
                 let left = start.take().unwrap();
                 let right = if solid { x[1] } else { x[0] };
                 result.push((Vec2::new(left, y[0]), Vec2::new(right, y[1])));

@@ -34,6 +34,10 @@ impl IndoorManifest {
         if unit.kind == ObjectKind::ExtractionHood && self.generator_version >= 123 {
             let (a, b) = footprint_bounds(flue_corners(unit, &hood_parameters(unit)));
             self.minimum_ceiling_height(a, b)
+        } else if unit.kind == ObjectKind::CeilingPendant && self.generator_version >= 184 {
+            let canopy = super::super::super::objects::equipment::pendant::Canopy::sample(unit);
+            super::super::equipment::canopy_support_height(self, unit.position.xz(), canopy)
+                .unwrap_or(f32::NAN)
         } else {
             self.ceiling_height(unit.position.xz())
         }

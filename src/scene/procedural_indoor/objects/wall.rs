@@ -27,9 +27,9 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
             }
         }
         ObjectKind::Speaker if !o.solid && o.support.is_none() => {
-            return Some(accessories::speaker::case_depth(o) * 0.5 + 0.001)
+            return Some(accessories::speaker::case_depth(o) * 0.5 + 0.001);
         }
-        ObjectKind::Clock => return Some(clocks::case_depth(o) * 0.5 + 0.001),
+        ObjectKind::Clock => return Some(0.001 - clocks::case_planes(o).0),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => 0.35,
         _ => return None,
     };
@@ -37,6 +37,11 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
 }
 
 mod fixtures;
+mod receptacles;
+pub mod switches;
+pub(crate) use super::electrical::installed_variant;
+pub use super::electrical::OutletFace;
 pub(super) use fixtures::build as fixture;
 pub(crate) use fixtures::outlet_port_local;
 pub use fixtures::{parameters, FixtureProgram};
+pub use receptacles::OutletBank;

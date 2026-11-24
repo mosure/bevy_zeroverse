@@ -122,6 +122,9 @@ impl MaterialRecipe {
         }
         if let Some(w) = &self.wood {
             w.validate()?;
+            if w.figure.is_some() && !matches!(self.surface, Surface::Wood | Surface::WoodEdge) {
+                return Err("furniture grain requires a timber face or edge".into());
+            }
         }
         if let Some(l) = &self.leaf {
             l.validate()?;
@@ -361,9 +364,13 @@ impl MaterialRecipe {
                 result.phase = [finish.random(), finish.random()];
             }
             if let Some(w) = &self.wood {
-                result.wood = Some(materials::timber::WoodFinish::sample(
+                let mut finish = materials::timber::WoodFinish::sample(
                     stream(w.seed, 0x46494e495348 + group as u64).random(),
-                ));
+                );
+                if w.figure.is_some() {
+                    finish.sample_figure();
+                }
+                result.wood = Some(finish);
             }
             if self.construction.is_some() {
                 materials::construction::sample(&mut result, 0);
@@ -514,7 +521,7 @@ impl MaterialRecipe {
             .as_ref()
             .filter(|_| self.surface != Surface::Floor || floor_style == 0)
         {
-            return Some(PreparedMaterial::Wood(PreparedWood::new(w, self.color)));
+            return Some(PreparedMaterial::Wood(PreparedWood::new(w, self)));
         }
         if (matches!(self.surface, Surface::Fabric | Surface::FabricAlt)
             || self.surface == Surface::Floor && floor_style == 1)
@@ -538,20 +545,15 @@ impl MaterialRecipe {
         if let Some(l) = &self.leaf {
             return l.evaluate(self, [u, v]);
         }
-        // Knit crossovers can have coincident nearest yarns. Wrapping the
-        // integer tile offset before rotation/phase keeps opposite tile edges
-        // bit-identical instead of letting (1 + phase) - 1 round to a different
-        // yarn. Bake texels already lie in [0,1), so archived map bytes and the
-        // GPU bake domain remain unchanged.
-        let (u, v) = if self.carpet.is_none() && self.textile.as_ref().is_some_and(|t| t.knit) {
-            let wrap = |v: f32| {
-                if (0.0..1.).contains(&v) {
-                    v
-                } else {
-                    v.rem_euclid(1.)
-                }
-            };
-            (wrap(u), wrap(v))
+        // Add the phase within the fundamental tile. Applying it to large or
+        // negative repeats first can round onto another yarn or growth band.
+        let wrap_before_phase = self.wood.as_ref().is_some_and(|w| w.figure.is_some())
+            || self.carpet.is_none() && self.textile.as_ref().is_some_and(|t| t.knit);
+        let (u, v) = if wrap_before_phase {
+            (
+                materials::field::periodic_unit(u),
+                materials::field::periodic_unit(v),
+            )
         } else {
             (u, v)
         };

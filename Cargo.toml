@@ -1,7 +1,7 @@
 [package]
 name = "bevy_zeroverse"
 description = "bevy zeroverse synthetic dataset generator"
-version = "0.70.0"
+version = "0.72.0"
 edition = "2021"
 rust-version = "1.97.1"
 authors = ["mosure <mitchell@mosure.me>"]
@@ -61,6 +61,10 @@ multi_threaded = [
 
 development = ["bevy/dynamic_linking"]
 
+# Experimental native Studio lighting. Dataset workers and WebGPU use the
+# calibrated raster renderer unless running an explicit lighting comparison.
+solari = ["dep:bevy_solari"]
+
 # Models are initialized only when human_motion JSON requests trajectories.
 human_motion = ["dep:burn", "dep:burn_ardy", "dep:burn_llama", "dep:burn_human_inference"]
 # Offline capture auditing only; no model initialization in scene generation.
@@ -98,7 +102,7 @@ webgpu = [
 
 
 [dependencies]
-bevy_zeroverse_capture = { version = "=0.6.31", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.6.33", path = "crates/capture", features = ["provenance"] }
 bevy_args = { version = "4.0.0", default-features = false }
 bevy_mesh = "0.20.0"
 clap = { version = "4.5", features = ["derive"] }
@@ -154,6 +158,9 @@ wasm-bindgen-futures = "0.4"
 version = "=0.20.0"
 default-features = false
 features = ["experimental_pbr_pcss"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+bevy_solari = { version = "=0.20.0", optional = true }
 
 
 [dependencies.bevy]
@@ -219,7 +226,7 @@ tempfile = "3.10"
 criterion = { version = "0.7", features = ["html_reports"] }
 
 [build-dependencies]
-bevy_zeroverse_capture = { version = "=0.6.31", path = "crates/capture", features = ["provenance"] }
+bevy_zeroverse_capture = { version = "=0.6.33", path = "crates/capture", features = ["provenance"] }
 serde_json = "1.0"
 toml = "0.9"
 
@@ -264,6 +271,11 @@ test = true
 name = "indoor_validate"
 # The publication capture frontend is part of the renderer's source digest.
 path = "src/qualification/main.rs"
+test = true
+
+[[example]]
+name = "qualify_materials"
+# Check the material chart and real object bindings before the Pages render.
 test = true
 
 [[example]]

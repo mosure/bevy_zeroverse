@@ -10,6 +10,20 @@ use crate::scene::procedural_indoor::{
 };
 use rand::{seq::IteratorRandom, Rng};
 
+/// When independent origins repeatedly fail in a cramped rig, spend the
+/// remaining joint search on a larger variety of paths and parent views.
+/// Each accepted pose still passes the same clearance and visibility tests.
+pub(super) fn origin_attempts(scene: &IndoorManifest) -> usize {
+    if scene.generator_version < 226 {
+        return 32;
+    }
+    match scene.camera_diagnostics.reference_proposals {
+        0..16_384 => 32,
+        16_384..24_576 => 16,
+        _ => 8,
+    }
+}
+
 pub(super) fn propose(
     scene: &mut IndoorManifest,
     index: usize,
@@ -91,7 +105,7 @@ fn propose_inner(
         }
     }
     scene
-        .sample_slots_with_budget(index, 1, rng, coverage, 32, fixed_fov)
+        .sample_slots_with_budget(index, 1, rng, coverage, origin_attempts(scene), fixed_fov)
         .ok()?;
     scene.cameras.pop()
 }

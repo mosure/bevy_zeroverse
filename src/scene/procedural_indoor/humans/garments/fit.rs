@@ -8,8 +8,9 @@ const SECTIONS: usize = 12;
 pub(crate) struct TorsoFit {
     bottom: f32,
     top: f32,
-    // half width, front, back
-    sections: [Vec3; SECTIONS],
+    // Half width, front, back and distance from the centreline to the front support.
+    sections: [Vec4; SECTIONS],
+    suspended_front: bool,
     roundness: f32,
     drape: f32,
     ease: f32,
@@ -21,18 +22,22 @@ impl TorsoFit {
         let bottom = waist - 0.06;
         let top = shoulder + 0.05;
         let step = (top - bottom) / (SECTIONS - 1) as f32;
-        let mut sections = std::array::from_fn(|i| {
-            let y = bottom + i as f32 * step;
-            let mut section = Vec3::new(0.04, f32::INFINITY, f32::NEG_INFINITY);
-            for &&p in vertices {
-                if (p.y - y).abs() < step * 1.8 {
-                    section.x = section.x.max(p.x.abs());
-                    section.y = section.y.min(p.z);
-                    section.z = section.z.max(p.z);
+        let mut sections = [Vec4::new(0.04, f32::INFINITY, f32::NEG_INFINITY, 0.); SECTIONS];
+        for &&p in vertices {
+            let near = ((p.y - bottom) / step).floor() as i32;
+            for i in (near - 1).max(0)..=(near + 2).min(SECTIONS as i32 - 1) {
+                if (p.y - (bottom + i as f32 * step)).abs() >= step * 1.8 {
+                    continue;
                 }
+                let s = &mut sections[i as usize];
+                s.x = s.x.max(p.x.abs());
+                if p.z < s.y {
+                    s.y = p.z;
+                    s.w = p.x.abs();
+                }
+                s.z = s.z.max(p.z);
             }
-            section
-        });
+        }
         // End sections can be above/below the torso rig's ownership boundary.
         for i in 0..SECTIONS {
             if !sections[i].is_finite() {
@@ -40,13 +45,17 @@ impl TorsoFit {
                     .filter(|&j| sections[j].is_finite())
                     .min_by_key(|&j| i.abs_diff(j))
                     .map(|j| sections[j])
-                    .unwrap_or(Vec3::new(0.15, -0.08, 0.08));
+                    .unwrap_or(Vec4::new(0.15, -0.08, 0.08, 0.04));
             }
         }
         // Below the bust cloth hangs from its support instead of shrinking
         // into each rib/abdomen contour. A little taper retains a tailored hem.
         for i in (0..SECTIONS - 1).rev() {
-            sections[i].y = sections[i].y.min(sections[i + 1].y + step * 0.035);
+            let hanging = sections[i + 1].y + step * 0.035;
+            if hanging < sections[i].y {
+                sections[i].y = hanging;
+                sections[i].w = sections[i + 1].w;
+            }
             sections[i].z = sections[i].z.max(sections[i + 1].z - step * 0.04);
         }
         for _ in 0..3 {
@@ -59,6 +68,7 @@ impl TorsoFit {
             bottom,
             top,
             sections,
+            suspended_front: false,
             roundness: 2.05,
             drape: 0.55,
             ease: 0.008,
@@ -66,11 +76,12 @@ impl TorsoFit {
         }
     }
 
-    pub fn with_program(mut self, program: &super::GarmentProgram) -> Self {
+    pub fn with_program(mut self, program: &super::GarmentProgram, suspended_front: bool) -> Self {
         self.roundness = program.section_roundness;
         self.drape = program.drape;
         self.ease = program.torso_ease_m;
         self.taper = program.waist_taper;
+        self.suspended_front = suspended_front;
         self
     }
 
@@ -112,12 +123,28 @@ impl TorsoFit {
         let x = (p.x.abs() / radii.x).min(1.0);
         // A sewn front panel has continuous curvature across the chest. The
         // previous broad flat bridge created a box-like highlight plateau.
-        let front = center - radii.y * (1. - (x * 0.96).powi(2)).max(0.).sqrt();
+        let (front, compliance) = if self.suspended_front {
+            // The fabric spans the two anterior supports. A shallow, curved sag
+            // between them preserves the chest outline without tracing each breast.
+            let support = (section.w / radii.x).clamp(0.10, 0.62);
+            let flank = ((x - support) / (1. - support)).max(0.);
+            let sag =
+                (0.002 + 0.008 * (1. - self.drape)) * (1. - (x / support).min(1.).powi(2)).powi(2);
+            (
+                center - radii.y * (1. - (flank * 0.96).powi(2)).max(0.).sqrt() + sag,
+                0.18,
+            )
+        } else {
+            (
+                center - radii.y * (1. - (x * 0.96).powi(2)).max(0.).sqrt(),
+                0.075,
+            )
+        };
         let bridge = -(p.z - front).max(0.0);
         let front_mask = 1. - smooth(center - 0.025, center + 0.025, p.z);
         correction.y = correction
             .y
-            .min(bridge * (0.075 / (0.075 + bridge.abs())) * front_mask);
+            .min(bridge * (compliance / (compliance + bridge.abs())) * front_mask);
         let mask = smooth(waist, waist + 0.08, p.y)
             * (1.0 - smooth(shoulder - 0.045, neck - 0.005, p.y))
             * (1.0 - smooth(radii.x * 0.84, radii.x * 1.16, p.x.abs()));
@@ -133,6 +160,32 @@ pub(super) fn smooth(lo: f32, hi: f32, x: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn suspended_front_spans_anatomical_recesses_without_lifting_bare_shoulders() {
+        let mut pts = Vec::new();
+        for row in 0..35 {
+            for col in -18..=18 {
+                let x = col as f32 * 0.01;
+                let y = 0.88 + row as f32 * 0.018;
+                let depth = -0.088 - 0.057 * (-((x.abs() - 0.075) / 0.032).powi(2)).exp();
+                pts.extend([Vec3::new(x, y, depth), Vec3::new(x, y, 0.11)]);
+            }
+        }
+        let refs: Vec<_> = pts.iter().collect();
+        let program = super::super::GarmentProgram::default();
+        let control = TorsoFit::new(&refs, 1., 1.4).with_program(&program, false);
+        let panel = TorsoFit::new(&refs, 1., 1.4).with_program(&program, true);
+        let p = Vec3::new(0., 1.21, -0.088);
+        let old = control.delta(p, 1., 1.4, 1.50);
+        let new = panel.delta(p, 1., 1.4, 1.50);
+        assert!(
+            new.z < old.z - 0.003 && new.z > -0.075,
+            "old {old:?}, new {new:?}"
+        );
+        assert_eq!(panel.delta(p.with_y(1.51), 1., 1.4, 1.50), Vec3::ZERO);
+        let side = p.with_x(0.30);
+        assert_eq!(panel.delta(side, 1., 1.4, 1.50), Vec3::ZERO);
+    }
 
     #[test]
     fn fitted_cloth_has_no_chest_or_hem_ledge() {

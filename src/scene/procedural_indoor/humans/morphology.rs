@@ -5,6 +5,40 @@ use super::{stream, IndoorHuman};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+/// Paired segment length offsets in metres at 1.75 m stature. Both sides of
+/// the body share the same proportions across gestures and contact solves.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct LimbProportions {
+    pub upper_arm_offset: f32,
+    pub thigh_offset: f32,
+}
+impl LimbProportions {
+    pub(super) fn sample(seed: u64) -> Self {
+        let mut r = stream(seed, 0x4c494d42464f524d);
+        // Central mass with independently reachable longer forearms or shins.
+        let mut offset = |span: f32| (r.random::<f32>() + r.random::<f32>() - 1.) * span;
+        Self {
+            upper_arm_offset: offset(0.021),
+            thigh_offset: offset(0.033),
+        }
+    }
+    pub(super) fn valid(self) -> bool {
+        self.upper_arm_offset.abs() <= 0.023 && self.thigh_offset.abs() <= 0.035
+    }
+    pub fn arm_lengths(self, scale: f32) -> [f32; 2] {
+        [
+            (0.29 + self.upper_arm_offset) * scale,
+            (0.26 - self.upper_arm_offset) * scale,
+        ]
+    }
+    pub fn leg_lengths(self, scale: f32) -> [f32; 2] {
+        [
+            (0.43 + self.thigh_offset) * scale,
+            (0.43 - self.thigh_offset) * scale,
+        ]
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BodyProgram {
     /// Anny male-to-female shape interpolation, independent of pigmentation.

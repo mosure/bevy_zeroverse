@@ -261,10 +261,17 @@ fn storage_finish_seeds_preserve_geometry_and_semantic_ownership() {
                 v
             };
             assert_eq!(shape(&a), shape(&b));
-            assert!(a
-                .parts
-                .keys()
-                .all(|(_, l)| part_label(l) == kind.class_name()));
+            let mut expected = BTreeSet::from([kind.class_name()]);
+            if kind == ObjectKind::CoatRack
+                && !racks::dressing::garments(&o, &racks::parameters(&o)).is_empty()
+            {
+                expected.insert("clothes");
+            }
+            for assembly in [&a, &b] {
+                let labels: BTreeSet<_> =
+                    assembly.parts.keys().map(|(_, l)| part_label(l)).collect();
+                assert_eq!(labels, expected);
+            }
             changed += usize::from(
                 a.parts.keys().collect::<Vec<_>>() != b.parts.keys().collect::<Vec<_>>(),
             );

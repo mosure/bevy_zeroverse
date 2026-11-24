@@ -391,6 +391,7 @@ pub(super) fn status(world: &mut World, state: &EditorState) {
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn viewport(
     state: Res<EditorState>,
+    lighting: Option<Res<crate::render::lighting::SolariPreviewStatus>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     capture: Res<EditorInputCapture>,
     mut editor: Query<(&mut Camera, &mut PanOrbitCamera), With<EditorCameraMarker>>,
@@ -412,7 +413,13 @@ pub(super) fn viewport(
     }
     for (mut camera, mut pan) in &mut editor {
         let rect = insets.viewport(window);
-        if camera.viewport.as_ref().is_none_or(|v| {
+        // Solari 0.20 dispatches in target coordinates starting at (0, 0).
+        // Keep editor chrome over the full target while that renderer is active.
+        if lighting.as_ref().is_some_and(|s| s.active) {
+            if camera.viewport.is_some() {
+                camera.viewport = None;
+            }
+        } else if camera.viewport.as_ref().is_none_or(|v| {
             v.physical_position != rect.physical_position || v.physical_size != rect.physical_size
         }) {
             camera.viewport = Some(rect);

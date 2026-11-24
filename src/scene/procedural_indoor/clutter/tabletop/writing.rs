@@ -1,5 +1,13 @@
 //! Sharpened, mechanical and capped writing tools with fitted tips and clips.
 use super::*;
+use crate::scene::procedural_indoor::geometry::{Geometry, ProfileJoints, RevolvedOutline};
+use std::sync::LazyLock;
+
+mod clip;
+mod rest;
+
+const MARKER_BARREL_RADIUS: f32 = 0.84;
+const MARKER_SHOULDER_HEIGHT: f32 = 0.94;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct WritingProgram {
@@ -15,15 +23,33 @@ pub struct WritingProgram {
     pub clip: bool,
     pub finish: Surface,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize)]
+pub enum WritingEnd {
+    PencilPoint,
+    Ballpoint,
+    MarkerCap,
+    PushButton,
+    Eraser,
+    BarrelEnd,
+}
 pub fn parameters(o: &IndoorObject) -> WritingProgram {
-    let mut r = stream(o.seed, 0x57524954494e4750);
-    let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x57524954494e4746);
+    stock(o.seed, o.finish_seed.unwrap_or(o.seed), o.size)
+}
+
+pub(in crate::scene::procedural_indoor::clutter) fn stock(
+    seed: u64,
+    finish: u64,
+    size: Vec3,
+) -> WritingProgram {
+    let mut r = stream(seed, 0x57524954494e4750);
+    let mut f = stream(finish, 0x57524954494e4746);
     let mechanism = r.random_range(0..3);
     let clip = mechanism != 0 && r.random_bool(0.8);
-    let radius = o.size.x.min(o.size.y) * r.random_range(0.30..if clip { 0.37 } else { 0.45 });
+    let radius = size.x.min(size.y) * r.random_range(0.30..if clip { 0.37 } else { 0.45 });
     WritingProgram {
         mechanism,
-        length: o.size.z * r.random_range(0.76..0.99),
+        length: size.z * r.random_range(0.76..0.99),
         radius,
         sides: if mechanism == 0 {
             [6, 8, 16][r.random_range(0..3)]
@@ -45,126 +71,165 @@ pub fn parameters(o: &IndoorObject) -> WritingProgram {
         },
     }
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
-    let l = o.kind.class_name();
-    let h = p.length;
-    let r = p.radius;
-    // Put a polygon vertex on the supporting plane for every barrel section.
-    let tf = Transform::from_xyz(0., r, h * 0.5)
-        .with_rotation(Quat::from_rotation_x(-FRAC_PI_2) * Quat::from_rotation_y(FRAC_PI_2));
-    let tail = if p.eraser || p.mechanism == 1 {
-        h * p.tail_fraction
-    } else {
-        0.
-    };
-    let end = h * (1. - p.tip_fraction);
-    if p.mechanism == 2 {
-        // A cap sits on a narrower barrel neck, with a physical butt joint.
-        let cap = h * (0.20 + p.grip_fraction * 0.40);
-        a.part(p.finish, l).lathe(
-            &[
-                (0., 0.),
-                (r * 0.75, 0.),
-                (r, cap * 0.07),
-                (r, cap * 0.96),
-                (r * 0.84, cap * 0.96),
-            ],
-            p.sides,
-            tf,
-        );
-        a.part(p.finish, l).lathe(
-            &[
-                (0., cap),
-                (r * 0.84, cap),
-                (r * 0.84, h * 0.94),
-                (r * 0.50, h),
-                (0., h),
-            ],
-            p.sides,
-            tf,
-        );
-        a.part(Surface::Metal, l)
-            .lathe(&[(r, cap * 0.96), (r, cap)], 16, tf);
-    } else {
-        let grip = if p.mechanism == 1 {
-            end - h * p.grip_fraction
+// The same cross-section is used on both sides of every material joint.
+static HEX: LazyLock<RevolvedOutline> = LazyLock::new(|| RevolvedOutline::polygon(6));
+static OCT: LazyLock<RevolvedOutline> = LazyLock::new(|| RevolvedOutline::polygon(8));
+static ROUND: LazyLock<RevolvedOutline> = LazyLock::new(|| RevolvedOutline::round(16, 0., 0));
+
+impl WritingProgram {
+    pub(crate) fn upper_end(&self, axis_up: bool) -> WritingEnd {
+        match (self.mechanism, axis_up) {
+            (0, true) => WritingEnd::PencilPoint,
+            (0, false) if self.eraser => WritingEnd::Eraser,
+            (1, true) => WritingEnd::Ballpoint,
+            (1, false) => WritingEnd::PushButton,
+            (2, false) => WritingEnd::MarkerCap,
+            _ => WritingEnd::BarrelEnd,
+        }
+    }
+
+    fn outline(&self) -> &'static RevolvedOutline {
+        match self.sides {
+            6 => &HEX,
+            8 => &OCT,
+            _ => &ROUND,
+        }
+    }
+
+    /// Closed external meridian. The cap starts at local zero on a marker.
+    /// Contiguous stocks meet on a ring and exposed steps have annular end faces.
+    pub(super) fn profiles(&self, mut emit: impl FnMut(Surface, &[(f32, f32)])) {
+        let (h, r) = (self.length, self.radius);
+        if self.mechanism == 2 {
+            let cap = self.cap_length();
+            let barrel = r * MARKER_BARREL_RADIUS;
+            emit(
+                self.finish,
+                &[(0., 0.), (r * 0.75, 0.), (r, cap * 0.07), (r, cap * 0.96)],
+            );
+            emit(Surface::Metal, &[(r, cap * 0.96), (r, cap), (barrel, cap)]);
+            emit(
+                self.finish,
+                &[
+                    (barrel, cap),
+                    (barrel, h * MARKER_SHOULDER_HEIGHT),
+                    (r * 0.50, h),
+                    (0., h),
+                ],
+            );
+            return;
+        }
+
+        let tail = if self.eraser || self.mechanism == 1 {
+            h * self.tail_fraction
+        } else {
+            0.
+        };
+        if self.eraser {
+            emit(
+                Surface::Rubber,
+                &[(0., 0.), (r * 0.88, 0.), (r * 0.88, tail * 0.65)],
+            );
+            emit(
+                Surface::Metal,
+                &[(r * 0.88, tail * 0.65), (r, tail * 0.65), (r, tail)],
+            );
+        } else if self.mechanism == 1 {
+            emit(
+                Surface::Metal,
+                &[(0., 0.), (r * 0.68, 0.), (r * 0.68, tail), (r, tail)],
+            );
+        } else {
+            emit(self.finish, &[(0., 0.), (r, 0.)]);
+        }
+        let end = h * (1. - self.tip_fraction);
+        let grip = if self.mechanism == 1 {
+            end - h * self.grip_fraction
         } else {
             end
         };
-        a.part(p.finish, l)
-            .lathe(&[(0., tail), (r, tail), (r, grip), (0., grip)], p.sides, tf);
-        if p.mechanism == 1 {
-            a.part(Surface::Rubber, l).lathe(
-                &[(0., grip), (r, grip), (r * p.grip_radius, end), (0., end)],
-                16,
-                tf,
-            );
-            a.part(Surface::Metal, l).lathe(
-                &[(0., 0.), (r * 0.68, 0.), (r * 0.68, tail), (0., tail)],
-                16,
-                tf,
-            );
+        emit(self.finish, &[(r, tail), (r, grip)]);
+        let taper = if self.mechanism == 1 {
+            emit(Surface::Rubber, &[(r, grip), (r * self.grip_radius, end)]);
+            (Surface::Metal, r * self.grip_radius)
+        } else {
+            (Surface::Wood, r)
+        };
+        emit(taper.0, &[(taper.1, end), (r * 0.16, h * 0.98)]);
+        emit(Surface::Ink, &[(r * 0.16, h * 0.98), (0., h)]);
+    }
+
+    fn cap_length(&self) -> f32 {
+        self.length * (0.20 + self.grip_fraction * 0.40)
+    }
+
+    /// Exact low and high vertices under a rigid rotation. The clip stock is
+    /// included, so a tool can rest on either end or lie flat on a worktop.
+    pub(crate) fn vertical_range(&self, rot: Quat) -> (f32, f32) {
+        self.projected_extent(rot.inverse() * Vec3::Y)
+    }
+
+    pub(crate) fn projected_extent(&self, y: Vec3) -> (f32, f32) {
+        let (low, high) = self.outline().projected_range(y.xz());
+        let mut lo = f32::INFINITY;
+        let mut hi = f32::NEG_INFINITY;
+        self.profiles(|_, path| {
+            for &(r, t) in path {
+                lo = lo.min(y.y * t + r * low);
+                hi = hi.max(y.y * t + r * high);
+            }
+        });
+        if self.clip {
+            for v in self.clip_rings().into_iter().flatten() {
+                let h = y.dot(v);
+                lo = lo.min(h);
+                hi = hi.max(h);
+            }
         }
-        a.part(
-            if p.mechanism == 0 {
-                Surface::Wood
+        (lo, hi)
+    }
+
+    pub(crate) fn shaft_at(&self, height: f32, base_y: f32, vertical: f32) -> Option<(f32, f32)> {
+        // The whole horizontal slice must cut a cylindrical length of stock.
+        // The lower transition is used to clear any wider sections below it.
+        let lift = self.radius * (1. - vertical * vertical).max(0.).sqrt();
+        let mut bearing = None;
+        self.profiles(|_, path| {
+            for pair in path.windows(2) {
+                let [(r, a), (other, b)] = [pair[0], pair[1]];
+                if r != other || r <= 0. || a >= b {
+                    continue;
+                }
+                let a = base_y + vertical * a;
+                let b = base_y + vertical * b;
+                let lower = a.min(b) + lift;
+                if lower < height && height < a.max(b) - lift {
+                    bearing = Some((r, lower));
+                }
+            }
+        });
+        bearing
+    }
+
+    pub(crate) fn draw(&self, a: &mut Assembly, tf: Transform, label: &str, barrel_label: &str) {
+        self.profiles(|surface, path| {
+            let label = if surface == self.finish {
+                barrel_label
             } else {
-                Surface::Metal
-            },
-            l,
-        )
-        .lathe(
-            &[
-                (r * if p.mechanism == 0 { 1. } else { p.grip_radius }, end),
-                (r * 0.16, h * 0.98),
-            ],
-            p.sides,
-            tf,
-        );
-        a.part(Surface::Ink, l)
-            .lathe(&[(r * 0.16, h * 0.98), (0., h)], 12, tf);
-        if p.eraser {
-            a.part(Surface::Rubber, l).lathe(
-                &[
-                    (0., 0.),
-                    (r * 0.88, 0.),
-                    (r * 0.88, tail * 0.65),
-                    (0., tail * 0.65),
-                ],
-                16,
-                tf,
-            );
-            a.part(Surface::Metal, l)
-                .lathe(&[(r, tail * 0.65), (r, tail)], 16, tf);
+                label
+            };
+            self.outline()
+                .sweep(a.part(surface, label), path, ProfileJoints::Creased, tf);
+        });
+        if self.clip {
+            self.draw_clip(a.part(Surface::Metal, label), tf);
         }
     }
-    if p.clip {
-        // Thin bent sheet-metal clip. A tube swept around near-hairpin bends
-        // folds its cross-section on short pens; these fitted strips do not.
-        let near = h * 0.46;
-        let far = h * (0.38 - p.tail_fraction);
-        let width = r * 0.45;
-        a.box_part(
-            Surface::Metal,
-            l,
-            Vec3::new(0., r * 2.13, near),
-            Vec3::new(width, r * 0.66, r * 0.24),
-            r * 0.05,
-        );
-        a.box_part(
-            Surface::Metal,
-            l,
-            Vec3::new(0., r * 2.45, (near + far) * 0.5),
-            Vec3::new(width, r * 0.22, near - far + r * 0.24),
-            r * 0.05,
-        );
-        a.box_part(
-            Surface::Metal,
-            l,
-            Vec3::new(0., r * 2.20, far),
-            Vec3::new(width, r * 0.50, r * 0.24),
-            r * 0.05,
-        );
-    }
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    let p = parameters(o);
+    let (tf, _) = p.table_rest(o.seed);
+    let label = o.kind.class_name();
+    p.draw(a, tf, label, label);
 }

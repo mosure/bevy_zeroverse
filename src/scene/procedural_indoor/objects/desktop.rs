@@ -1,6 +1,7 @@
 //! Construction programs for input devices. Keys, controls and housings are
 //! physical separate parts; construction is independent of the finish seed.
 use super::*;
+pub mod pointer;
 pub(crate) mod ports;
 pub(crate) mod tower;
 
@@ -51,9 +52,9 @@ pub fn parameters(o: &IndoorObject) -> InputProgram {
     );
     p
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::PcTower {
-        tower::build(a, o);
+        tower::build(a, o, version);
         return;
     }
     let p = parameters(o);
@@ -61,6 +62,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let l = o.kind.class_name();
     if o.kind == ObjectKind::Keyboard {
         super::keyboard::desktop(a, o, &p);
+    } else if version >= pointer::INTRODUCED {
+        pointer::build(a, o, &p);
+        return;
     } else {
         let stock = super::super::materials::input_housing::Housing::for_object(o);
         let shell = stock.case_label(o);

@@ -165,6 +165,16 @@ impl Canvas {
         }
     }
     pub(super) fn digit(&mut self, digit: u32, x: i32, y: i32, scale: i32, color: [u8; 3]) {
+        self.digit_scaled(digit, x, y, [scale, scale], color);
+    }
+    pub(super) fn digit_scaled(
+        &mut self,
+        digit: u32,
+        x: i32,
+        y: i32,
+        [sx, sy]: [i32; 2],
+        color: [u8; 3],
+    ) {
         for (index, (dx, dy, w, h)) in [
             (1, 0, 3, 1),
             (4, 1, 1, 3),
@@ -178,7 +188,7 @@ impl Canvas {
         .enumerate()
         {
             if super::screens::SEGMENTS[digit as usize] & (1 << index) != 0 {
-                self.rect(x + dx * scale, y + dy * scale, w * scale, h * scale, color);
+                self.rect(x + dx * sx, y + dy * sy, w * sx, h * sy, color);
             }
         }
     }
@@ -204,6 +214,23 @@ impl Canvas {
             self.rect(x + scale * 14, y + scale * dy, scale, scale, color);
         }
     }
+}
+
+/// Three-by-five numerals for printed legends on keyboards and appliances.
+pub(super) fn number_rows(digit: usize) -> [u8; 5] {
+    const NUMERALS: [[u8; 5]; 10] = [
+        [7, 5, 5, 5, 7],
+        [2, 6, 2, 2, 7],
+        [7, 1, 7, 4, 7],
+        [7, 1, 7, 1, 7],
+        [5, 5, 7, 1, 1],
+        [7, 4, 7, 1, 7],
+        [7, 4, 7, 5, 7],
+        [7, 1, 2, 2, 2],
+        [7, 5, 7, 5, 7],
+        [7, 5, 7, 1, 7],
+    ];
+    NUMERALS[digit]
 }
 
 /// Compact print shared by document textures and integral lettering on bindings.

@@ -50,7 +50,8 @@ pub(super) fn centered(
     }
     budget.poses -= 1;
     let fraction = std::mem::replace(&mut scene.camera_settings.motion_fraction, 0.);
-    let result = scene.sample_slots_with_budget(index, 1, rng, coverage, 32, Some(fov));
+    let attempts = super::super::room::origin_attempts(scene);
+    let result = scene.sample_slots_with_budget(index, 1, rng, coverage, attempts, Some(fov));
     scene.camera_settings.motion_fraction = fraction;
     result.ok()?;
     let pose = scene.cameras.pop()?;

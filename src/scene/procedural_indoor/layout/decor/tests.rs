@@ -72,3 +72,49 @@ fn electrical_installations_vary_heights_and_sizes_without_mixing_socket_standar
         serde_json::json!({"rooms":96,"standards":standards,"plate_depth_mm_bins":depths,"outlet_height_cm_bins":heights,"raised_outlets":raised,"samples":rows})
     );
 }
+
+#[test]
+fn fitted_lockers_leave_visible_wall_elevations_for_decor_and_switches() {
+    use crate::scene::procedural_indoor::objects::public::education;
+    let mut sets = 0;
+    for seed in 94500..94532 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Classroom, 0.65, 0, 0.25)
+                .unwrap();
+        for bank in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::Locker && o.variant == education::WALL_BANK)
+        {
+            let normal = bank.transform().rotation * Vec3::Z;
+            let wall = bank
+                .transform()
+                .with_translation(bank.position - normal * (bank.size.z * 0.5 + 0.10));
+            let y = bank.position.y + bank.size.y;
+            assert!(scene.locker_covers_wall_patch(wall, 0., 0.4, y - 0.12, y + 0.15));
+            assert!(!scene.locker_covers_wall_patch(wall, 0., 0.4, y + 0.02, y + 0.2));
+            assert!(!scene.locker_covers_wall_patch(
+                wall,
+                bank.size.x * 0.5 + 0.25,
+                0.4,
+                y - 0.3,
+                y
+            ));
+            for fixture in scene.objects.iter().filter(|o| {
+                !o.neighbor
+                    && matches!(
+                        o.kind,
+                        ObjectKind::WallArt | ObjectKind::Whiteboard | ObjectKind::Clock
+                    )
+            }) {
+                assert!(
+                    scene.wall_attachment_clear(fixture),
+                    "{seed} {:?}",
+                    fixture.kind
+                );
+            }
+            sets += 1;
+        }
+    }
+    assert!(sets > 10);
+}

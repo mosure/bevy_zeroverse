@@ -21,8 +21,8 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-pub(crate) use geometry::backdrop;
 pub(super) use geometry::shell;
+pub(crate) use geometry::{backdrop, solid_cells};
 pub use geometry::{clipped_wall_box, glazing_at, solid_rectangles};
 
 /// The +Z wall adjoins the furnished neighboring room and remains internal.

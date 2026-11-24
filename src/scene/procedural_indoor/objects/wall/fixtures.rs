@@ -11,6 +11,10 @@ pub struct FixtureProgram {
     pub case_fraction: Vec2,
     pub control_fraction: Vec2,
     pub receptacle_height: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank: Option<OutletBank>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub switch_bank: Option<switches::SwitchBank>,
 }
 pub fn parameters(o: &IndoorObject) -> FixtureProgram {
     let mut rng = stream(o.seed, 3070);
@@ -21,7 +25,7 @@ pub fn parameters(o: &IndoorObject) -> FixtureProgram {
         section.random_range(0.72..1.),
     );
     let capacity = (o.size.x * case_fraction.x / 0.075).round().clamp(1., 3.) as usize;
-    FixtureProgram {
+    let mut program = FixtureProgram {
         gangs: if capacity > 1 && fit.random_bool(0.35) {
             capacity - 1
         } else {
@@ -43,11 +47,39 @@ pub fn parameters(o: &IndoorObject) -> FixtureProgram {
             section.random_range(0.52..0.70),
         ),
         receptacle_height: section.random_range(0.25..0.32),
+        bank: None,
+        switch_bank: None,
+    };
+    if let Some(bank) = OutletBank::fitted(o, &program) {
+        // Keep the existing public measurements tied to the realized insert.
+        program.control_fraction = bank.module_size
+            / Vec2::new(
+                bank.case_size.x / bank.plate_slots() as f32,
+                bank.case_size.y,
+            );
+        program.receptacle_height = bank.socket_local(0).unwrap().y / bank.case_size.y;
+        program.bank = Some(bank);
+    } else if let Some(primary) = switches::primary(o) {
+        let bank = switches::SwitchBank::fitted(o, &program, primary);
+        program.style = primary;
+        program.finish = bank.finish;
+        program.edge_radius = bank.corner_m;
+        program.screws = bank.screws;
+        program.rocker_angle = match bank.modules[0] {
+            switches::Actuator::Paddle { angle_rad } => angle_rad,
+            switches::Actuator::Split { angles_rad } => angles_rad[0],
+            _ => 0.,
+        };
+        program.switch_bank = Some(bank);
     }
+    program
 }
 /// Lower receptacle of the first gang. Cable endpoints use this exact frame.
 pub(crate) fn outlet_port_local(o: &IndoorObject) -> Vec3 {
     let p = parameters(o);
+    if let Some(bank) = p.bank.as_ref() {
+        return bank.socket_local(0).unwrap();
+    }
     let s = case_size(o, &p);
     let gangs = p.gangs as f32;
     Vec3::new(
@@ -75,6 +107,14 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = case_size(o, &p);
     let label = o.kind.class_name();
+    if let Some(bank) = p.bank.as_ref() {
+        bank.build(a, label);
+        return;
+    }
+    if let Some(bank) = &p.switch_bank {
+        bank.build(a, label);
+        return;
+    }
     // A toggle needs room for its lever. Keep the same wall contact but
     // transfer depth from the faceplate to the projecting actuator.
     let toggle = o.kind == ObjectKind::LightSwitch && p.style == 1;

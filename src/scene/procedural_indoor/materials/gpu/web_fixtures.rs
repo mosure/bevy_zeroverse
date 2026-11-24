@@ -18,6 +18,8 @@ fn export_webgpu_material_fixtures() {
             Surface::Chrome,
             Surface::Fabric,
             Surface::FabricAlt,
+            Surface::Wood,
+            Surface::WoodEdge,
             Surface::Leather,
             Surface::Floor,
             Surface::Metal,

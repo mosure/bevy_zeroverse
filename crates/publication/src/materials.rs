@@ -17,7 +17,8 @@ pub const TOOLS: [&str; 3] = [
     "examples/material_study/audit.rs",
     "examples/material_study/studio.rs",
 ];
-const SEEDS: [u64; 6] = [0, 1, 4, 19, 53, 101];
+const SEEDS: [u64; 6] = [0, 1, 2, 4, 19, 102];
+const LEGACY_SEEDS: [u64; 6] = [0, 1, 4, 19, 53, 101];
 const MODES: [&str; 5] = ["color", "normal", "albedo", "normal_map", "roughness"];
 const SAMPLES: usize = 256;
 const ROOMS: usize = 256;
@@ -45,28 +46,71 @@ fn histogram_parts(row: &Value, capacity: usize) -> Result<u64> {
     })
 }
 
-fn special_parts(surface: &str, row: &Value) -> Result<u64> {
+// Older, checksum-bound atlases predate the producer's per-surface registry.
+fn legacy_special_finish(surface: &str, slot: usize) -> bool {
+    matches!(
+        (surface, slot),
+        ("Ceramic", 100..=102)
+            | ("Terracotta", 103)
+            | ("Paper", 104)
+            | ("Plastic" | "Metal", 300..=304)
+            | ("Plastic" | "Fabric", 320..=327)
+    )
+}
+
+struct FinishBindings {
+    histogram_width: usize,
+    special: Option<Vec<usize>>,
+}
+
+impl FinishBindings {
+    fn read(category: &Value, schema: u64) -> Result<Self> {
+        let capacity = finish_capacity(category)?;
+        let histogram_width = if schema >= 3 {
+            category["assignment_slots"]
+                .as_u64()
+                .filter(|n| (capacity as u64..=4096).contains(n))
+                .context("invalid assignment histogram width")? as usize
+        } else {
+            capacity
+        };
+        let special = if schema >= 3 {
+            let slots: Vec<usize> =
+                serde_json::from_value(category["registered_special_slots"].clone())
+                    .context("missing or invalid per-surface finish registry")?;
+            ensure!(
+                slots.iter().all(|&n| n >= histogram_width)
+                    && slots.windows(2).all(|s| s[0] < s[1]),
+                "overlapping, duplicate or unordered special finish IDs"
+            );
+            Some(slots)
+        } else {
+            None
+        };
+        Ok(Self {
+            histogram_width,
+            special,
+        })
+    }
+}
+
+fn special_parts(surface: &str, row: &Value, registered: Option<&[usize]>) -> Result<u64> {
     let Some(slots) = row.get("special_slots") else {
         return Ok(0);
     };
     let mut total = 0u64;
-    for (slot, count) in slots
+    for (key, count) in slots
         .as_object()
         .context("invalid special finish histogram")?
     {
+        let slot: usize = key.parse().context("invalid special finish ID")?;
         ensure!(
-            matches!(
-                (surface, slot.as_str()),
-                ("Ceramic", "100" | "101" | "102")
-                    | ("Terracotta", "103")
-                    | ("Paper", "104")
-                    | ("Plastic" | "Metal", "300" | "301" | "302" | "303" | "304")
-                    | (
-                        "Plastic" | "Fabric",
-                        "320" | "321" | "322" | "323" | "324" | "325" | "326" | "327"
-                    )
-            ),
-            "unregistered special finish {surface}/{slot}"
+            key == &slot.to_string()
+                && match registered {
+                    Some(allowed) => allowed.binary_search(&slot).is_ok(),
+                    None => legacy_special_finish(surface, slot),
+                },
+            "unregistered special finish {surface}/{key}"
         );
         let count = count
             .as_u64()
@@ -165,8 +209,7 @@ fn validate_samples(c: &Value) -> Result<()> {
 pub fn prepare(root: &Path, input: &Path, output: &Path) -> Result<()> {
     let identity = pipeline::identity(root)?;
     let audit: Value = io::read(&input.join("audit.json"))?;
-    let render: Value = io::read(&input.join("renders.json"))?;
-    for v in [&audit, &render] {
+    let check_origin = |v: &Value| -> Result<()> {
         ensure!(
             v["tool_sources"] == json!(sources(root)?),
             "stale material study tool binary"
@@ -175,25 +218,29 @@ pub fn prepare(root: &Path, input: &Path, output: &Path) -> Result<()> {
             v["build_provenance"]["source_sha256"] == identity.source_sha256,
             "stale material study"
         );
-    }
+        Ok(())
+    };
+    check_origin(&audit)?;
     ensure!(
-        audit["sample_count"] == SAMPLES && audit["room_count"] == ROOMS,
+        audit["schema_version"] == 2
+            && audit["sample_count"] == SAMPLES
+            && audit["room_count"] == ROOMS,
         "material study protocol mismatch"
     );
-    ensure!(
-        audit["failures"].as_array().is_some_and(Vec::is_empty),
-        "material assignment failures"
-    );
+    let roles = audit["categories"]
+        .as_array()
+        .context("missing categories")?;
+    verify_usage(&audit, roles, 3)?;
+    let render: Value =
+        io::read(&input.join("renders.json")).context("reading material renders")?;
+    check_origin(&render)?;
     ensure!(
         render["selected_seeds"] == json!(SEEDS) && render["image_size"] == json!([384, 384]),
         "render protocol mismatch"
     );
     fs::create_dir_all(output)?;
     let mut categories = Vec::new();
-    for category in audit["categories"]
-        .as_array()
-        .context("missing categories")?
-    {
+    for category in roles {
         validate_samples(category)?;
         let name = category["name"].as_str().context("missing category name")?;
         ensure!(
@@ -236,7 +283,7 @@ pub fn prepare(root: &Path, input: &Path, output: &Path) -> Result<()> {
     io::write(&output.join("usage.json"), &usage)?;
     let mut hashes = io::files(output, output)?;
     hashes.remove("atlas.json");
-    let atlas = json!({"schema_version":2,"generator_identity":identity,"tool_sources":sources(root)?,
+    let atlas = json!({"schema_version":3,"generator_identity":identity,"tool_sources":sources(root)?,
         "sample_count":SAMPLES,"room_count":ROOMS,"selected_seeds":SEEDS,"image_size":[384,384],
         "build_provenance":render["build_provenance"],"adapter":render["adapter"],
         "map_baker":render["map_baker"],"rig":render["rig"],"object_count":audit["object_count"],"part_count":audit["part_count"],
@@ -248,7 +295,7 @@ pub fn prepare(root: &Path, input: &Path, output: &Path) -> Result<()> {
 pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
     let a: Value = io::read(&directory.join("atlas.json"))?;
     ensure!(
-        matches!(a["schema_version"].as_u64(), Some(1 | 2))
+        matches!(a["schema_version"].as_u64(), Some(1..=3))
             && a["generator_identity"] == json!(identity)
             && a["sample_count"] == SAMPLES
             && a["room_count"] == ROOMS,
@@ -260,15 +307,18 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
         a["files"] == json!(files),
         "material artifact hash mismatch"
     );
+    let schema = a["schema_version"]
+        .as_u64()
+        .context("material atlas schema")?;
+    let seeds = if schema >= 3 { SEEDS } else { LEGACY_SEEDS };
     ensure!(
-        a["selected_seeds"] == json!(SEEDS),
+        a["selected_seeds"] == json!(seeds),
         "altered material sample selection"
     );
     let categories = a["categories"].as_array().context("material categories")?;
     let mut inventory:BTreeSet<_>="Paint Accent Wood WoodEdge FloorTimber FloorCarpet FloorStone Ceiling Metal Chrome Plastic Fabric FabricAlt Glass Ceramic Soil Leaf LeafLight Paper Screen Ink Light Concrete Art Rubber LeafVariegated Terracotta Bark GlassInterior ContainerGlass Liquid Drink PhoneScreen PrintedPaper Leather Whiteboard Television Succulent".split_whitespace().collect();
-    // A retained checksum-bound v1 snapshot remains readable. Fresh production
-    // always emits v2, whose mandatory rug row cannot silently disappear.
-    if a["schema_version"] == 2 {
+    // Version two introduced the dedicated rug row.
+    if schema >= 2 {
         inventory.insert("Rug");
     }
     ensure!(
@@ -309,7 +359,7 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             c["selected"].as_array().is_some_and(|v| v.len() == 6),
             "missing material columns"
         );
-        for (i, seed) in SEEDS.into_iter().enumerate() {
+        for (i, seed) in seeds.into_iter().enumerate() {
             let row = &c["selected"][i];
             ensure!(
                 row["seed"] == seed && row["name"] == name && row["column"] == i,
@@ -354,6 +404,15 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             && usage["part_count"] == a["part_count"],
         "usage counts"
     );
+    verify_usage(&usage, categories, schema)?;
+    Ok(a)
+}
+
+fn verify_usage(usage: &Value, categories: &[Value], schema: u64) -> Result<()> {
+    ensure!(
+        schema < 3 || usage["schema_version"] == 2,
+        "material usage schema mismatch"
+    );
     let rooms = usage["rooms"].as_array().context("missing usage cohort")?;
     ensure!(
         rooms.len() == ROOMS && rooms.iter().enumerate().all(|(i, r)| r["seed"] == i),
@@ -383,23 +442,20 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
         .map(|c| {
             Ok((
                 c["name"].as_str().context("material name")?,
-                finish_capacity(c)?,
+                FinishBindings::read(c, schema)?,
             ))
         })
         .collect::<Result<BTreeMap<_, _>>>()?;
-    // Base roles and rugs use the generic palette's histogram storage. Content
-    // roles declare their larger, independently sampled document pools.
-    let generic_capacity = capacities
-        .iter()
-        .filter(|(name, _)| {
-            !matches!(
-                **name,
-                "Screen" | "PhoneScreen" | "Television" | "Whiteboard" | "Art" | "Rug"
-            )
-        })
-        .map(|(_, n)| *n)
-        .max()
-        .context("missing generic finish palette")?;
+    // Earlier atlases padded base material rows to the generic stock palette.
+    // Current atlases also record independent print and display pool widths.
+    let legacy_width = if schema < 3 {
+        capacities
+            .get("Wood")
+            .context("missing generic finish palette")?
+            .histogram_width
+    } else {
+        0
+    };
     let mut parts = 0;
     for (kind, category) in usage["usage"]
         .as_object()
@@ -410,11 +466,12 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
             .and_then(Value::as_u64)
             .context("missing category denominator")?;
         for (surface, row) in category.as_object().context("missing assignment row")? {
-            let capacity = *capacities
+            let bindings = capacities
                 .get(surface.as_str())
                 .context("unregistered assignment surface")?;
-            let total = histogram_parts(row, capacity.max(generic_capacity))?
-                + special_parts(surface, row)?
+            let total = histogram_parts(row, bindings.histogram_width.max(legacy_width))
+                .with_context(|| format!("assignment histogram for {kind}/{surface}"))?
+                + special_parts(surface, row, bindings.special.as_deref())?
                 + row["base_parts"].as_u64().unwrap_or(0);
             ensure!(row["parts"] == total, "part/slot count mismatch");
             ensure!(
@@ -430,7 +487,7 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
         usage["part_count"] == parts && usage["failures"].as_array().is_some_and(Vec::is_empty),
         "failed material assignment audit"
     );
-    Ok(a)
+    Ok(())
 }
 pub fn refresh_cache(root: &Path, cache: &Path, identity: &GeneratorIdentity) -> Result<()> {
     if let Ok(a) = verify(cache, identity) {
@@ -488,23 +545,93 @@ pub fn page() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn legacy_parts(surface: &str, row: &Value) -> Result<u64> {
+        special_parts(surface, row, None)
+    }
+
+    #[test]
+    fn current_atlas_checks_finish_ids_against_the_producers_surface_registry() {
+        let ceramic = FinishBindings::read(
+            &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":[100,109,110]}),
+            3,
+        )
+        .unwrap();
+        let mouse = FinishBindings::read(
+            &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":[801,803]}),
+            3,
+        )
+        .unwrap();
+        let count = |name, bindings: &FinishBindings, row: Value| {
+            special_parts(
+                name,
+                &json!({"special_slots":row}),
+                bindings.special.as_deref(),
+            )
+        };
+        assert_eq!(
+            count("Ceramic", &ceramic, json!({"109":2,"110":1})).unwrap(),
+            3
+        );
+        assert_eq!(count("Plastic", &mouse, json!({"801":4})).unwrap(), 4);
+        for slots in [
+            json!({"801":1}),
+            json!({"0109":1}),
+            json!({"109":0}),
+            json!({"109":1.5}),
+        ] {
+            assert!(count("Ceramic", &ceramic, slots).is_err());
+        }
+        assert!(count("Plastic", &mouse, json!({"109":1})).is_err());
+        for slots in [
+            Value::Null,
+            json!([11]),
+            json!([109, 109]),
+            json!([110, 109]),
+        ] {
+            assert!(FinishBindings::read(
+                &json!({"finish_slots":12,"assignment_slots":12,"registered_special_slots":slots}),
+                3
+            )
+            .is_err());
+        }
+    }
+    #[test]
+    fn assignment_width_is_independent_of_material_probe_slots() {
+        for (probes, assignments) in [(1, 12), (4, 12), (12, 12), (24, 24), (120, 120)] {
+            let role = json!({"finish_slots":probes,"assignment_slots":assignments,"registered_special_slots":[]});
+            let bindings = FinishBindings::read(&role, 3).unwrap();
+            assert_eq!(bindings.histogram_width, assignments);
+            let row = json!({"slots":vec![1; assignments]});
+            assert_eq!(
+                histogram_parts(&row, bindings.histogram_width).unwrap(),
+                assignments as u64
+            );
+        }
+        for bad in [
+            json!({"finish_slots":24, "assignment_slots":12, "registered_special_slots":[]}),
+            json!({"finish_slots":1, "assignment_slots":12, "registered_special_slots":[5]}),
+        ] {
+            assert!(FinishBindings::read(&bad, 3).is_err());
+        }
+    }
+
     #[test]
     fn specialized_food_binding_receipts_are_typed_and_counted() {
-        assert_eq!(special_parts("Paper", &json!({})).unwrap(), 0);
+        assert_eq!(legacy_parts("Paper", &json!({})).unwrap(), 0);
         assert_eq!(
-            special_parts("Paper", &json!({"special_slots":{"104":3}})).unwrap(),
+            legacy_parts("Paper", &json!({"special_slots":{"104":3}})).unwrap(),
             3
         );
         assert_eq!(
-            special_parts("Ceramic", &json!({"special_slots":{"100":2,"102":4}})).unwrap(),
+            legacy_parts("Ceramic", &json!({"special_slots":{"100":2,"102":4}})).unwrap(),
             6
         );
         assert_eq!(
-            special_parts("Plastic", &json!({"special_slots":{"300":2,"301":3}})).unwrap(),
+            legacy_parts("Plastic", &json!({"special_slots":{"300":2,"301":3}})).unwrap(),
             5
         );
         assert_eq!(
-            special_parts("Metal", &json!({"special_slots":{"304":1}})).unwrap(),
+            legacy_parts("Metal", &json!({"special_slots":{"304":1}})).unwrap(),
             1
         );
         for (surface, slots) in [
@@ -517,7 +644,7 @@ mod tests {
             ("Paper", json!({"104":1.5})),
             ("Paper", json!([])),
         ] {
-            assert!(special_parts(surface, &json!({"special_slots":slots})).is_err());
+            assert!(legacy_parts(surface, &json!({"special_slots":slots})).is_err());
         }
     }
     #[test]
@@ -529,7 +656,7 @@ mod tests {
                 .map(|slot| (slot.to_string(), json!(2)))
                 .collect();
             assert_eq!(
-                special_parts(surface, &json!({"special_slots":slots})).unwrap(),
+                legacy_parts(surface, &json!({"special_slots":slots})).unwrap(),
                 16
             );
         }
@@ -541,7 +668,7 @@ mod tests {
             ("Metal", 321),
         ] {
             let slots = serde_json::Map::from_iter([(slot.to_string(), json!(1))]);
-            assert!(special_parts(surface, &json!({"special_slots":slots})).is_err());
+            assert!(legacy_parts(surface, &json!({"special_slots":slots})).is_err());
         }
     }
     #[test]

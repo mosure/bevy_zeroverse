@@ -2,6 +2,32 @@ use super::super::audit;
 use super::*;
 use std::collections::BTreeSet;
 
+/// Vertical intersections with the actual triangles in a set of material batches.
+pub(super) fn vertical_intersections<'a>(
+    geometry: impl IntoIterator<Item = &'a Geometry>,
+    xz: Vec2,
+) -> Vec<f32> {
+    let mut hits = Vec::new();
+    for g in geometry {
+        for tri in g.indices.as_chunks::<3>().0 {
+            let [a, b, c] =
+                [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
+            let (e, f, q) = (b.xz() - a.xz(), c.xz() - a.xz(), xz - a.xz());
+            let det = e.perp_dot(f);
+            if det.abs() < 1e-11 {
+                continue;
+            }
+            let (u, v) = (q.perp_dot(f) / det, e.perp_dot(q) / det);
+            if u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001 {
+                hits.push(a.y + u * (b.y - a.y) + v * (c.y - a.y));
+            }
+        }
+    }
+    hits.sort_by(f32::total_cmp);
+    hits.dedup_by(|a, b| (*a - *b).abs() < 1e-5);
+    hits
+}
+
 #[test]
 fn compact_upholstered_shells_keep_the_rear_skin_outside_the_lumbar_bend() {
     // The fully built adjoining-room chair in mixed seed 31248 inverted its
@@ -108,10 +134,8 @@ fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
             let size = footprint(variant, seed / 4, seed);
             o.size.x = size.x;
             o.size.z = size.y;
-            o.size.y = if is_backless(&o) {
-                0.48
-            } else if variant == 7 {
-                0.79
+            o.size.y = if matches!(variant, 6 | 7) {
+                stool::fitted_envelope(&o, None)
             } else if variant <= 4 {
                 0.84 + seed as f32 / 96. * 0.28
             } else {
@@ -145,7 +169,7 @@ fn chair_and_stool_programs_fit_clearances_replay_and_keep_seating_datum() {
                     .flat_map(|g| &g.positions)
                     .any(|p| p[0].abs() < 0.02
                         && p[2].abs() < 0.02
-                        && (p[1] - 0.47).abs() < 0.006));
+                        && (p[1] - stool::parameters(&o).seat_height_m).abs() < 0.006));
             } else {
                 backs.insert(parameters(&o).back_construction);
             }
@@ -173,7 +197,15 @@ fn base_and_seat_choices_change_actual_surfaces() {
         p.base_style = style;
         p.casters = false;
         let mut a = Assembly::default();
-        base::build(&mut a, &o, &p, 0.48, 0.46);
+        base::build(
+            &mut a,
+            &o,
+            &p,
+            0.48,
+            0.46,
+            0.39,
+            super::super::super::layout::GENERATOR_VERSION,
+        );
         audit::check(&o, &a).unwrap();
         bases.push(audit::descriptor(&o, &a));
     }
@@ -216,7 +248,7 @@ fn structural_controls_are_realized_and_mechanically_compatible() {
     }
     assert_eq!(bases, (0..8).collect());
     assert_eq!(arms, (0..6).collect());
-    assert_eq!(seats, (0..3).collect());
+    assert_eq!(seats, (0..6).collect());
     assert_eq!(headrests, (0..3).collect());
 }
 

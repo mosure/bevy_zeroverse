@@ -57,14 +57,28 @@ pub(super) fn joints(o: &IndoorObject, p: &TableProgram) -> impl Iterator<Item =
     })
 }
 
-pub(super) fn top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, outline: &[Vec2]) {
+pub(super) fn top(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &TableProgram,
+    outline: &[Vec2],
+    stock: &top::TopStock,
+) {
     let mut joints = joints(o, p).peekable();
     if joints.peek().is_some() {
         // One to two millimetres between adjoining finished edges.
-        conference::cut_leaves(a, o, p, outline, p.edge_bevel * 0.10 + 0.00035, joints);
+        conference::cut_leaves(
+            a,
+            o,
+            p,
+            outline,
+            stock,
+            p.edge_bevel * 0.10 + 0.00035,
+            joints,
+        );
     } else {
         let tf = Transform::from_xyz(0., o.size.y - p.top_thickness * 0.5, 0.);
-        top::TopStock::sample(o, p).build(a, o, p, outline, tf, 0);
+        stock.build(a, o, p, outline, tf, 0);
     }
 }
 

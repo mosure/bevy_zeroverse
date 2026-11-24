@@ -35,6 +35,40 @@ fn audience_rejects_back_faces_blocked_sightlines_and_the_back_of_a_classroom() 
 }
 
 #[test]
+fn primary_projection_needs_a_clear_sightline_from_at_least_half_the_audience() {
+    let mut room =
+        IndoorManifest::generate_with_humans(17, IndoorLayout::Training, 0.65, 0, 0.).unwrap();
+    room.envelope = None;
+    let mut screen = fixture(ObjectKind::ProjectionScreen, 16);
+    screen.position = Vec3::new(0., 1., 0.);
+    let p = crate::scene::procedural_indoor::objects::presentation::projection::parameters(&screen);
+    let target = screen.transform().transform_point(p.viewing_target_local());
+    let audience = Audience {
+        eyes: [-2., -1., 0., 1., 2.]
+            .map(|x| (None, Vec3::new(x, 1.35, 3.5)))
+            .to_vec(),
+        teaching_front: None,
+    };
+    let mut space = MountSpace {
+        structure: vec![],
+        objects: vec![],
+    };
+    assert!(audience
+        .score_at(&room, &screen, &space, None, target)
+        .is_some());
+    space
+        .structure
+        .push((Vec3::new(-4., 0., 1.7), Vec3::new(0.20, 3., 1.9)));
+    assert!(audience
+        .score_at(&room, &screen, &space, None, target)
+        .is_none());
+    space.structure[0].1.x = -0.28;
+    assert!(audience
+        .score_at(&room, &screen, &space, None, target)
+        .is_some());
+}
+
+#[test]
 fn office_teaching_and_service_programs_have_distinct_nonexclusive_tv_demand() {
     let mut room =
         IndoorManifest::generate_with_humans(202, IndoorLayout::Conference, 0.65, 0, 0.).unwrap();

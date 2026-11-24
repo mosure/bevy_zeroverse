@@ -25,6 +25,23 @@ pub(super) fn build(
     used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
 ) -> std::collections::BTreeMap<(Surface, usize), Handle<StandardMaterial>> {
     let mut result = std::collections::BTreeMap::new();
+    let skin = (Surface::Ink, produce_skin::SLOT);
+    if scene.generator_version >= super::super::objects::kitchen::produce::INTRODUCED
+        && used.map_or_else(
+            || {
+                scene
+                    .objects
+                    .iter()
+                    .any(|o| o.kind == super::super::layout::ObjectKind::FruitBowl)
+            },
+            |u| u.contains(&skin),
+        )
+    {
+        result.insert(
+            skin,
+            materials.add(produce_skin::material(scene.material_seed(), images)),
+        );
+    }
     if !scene.objects.iter().any(|o| o.kind.is_kitchen()) {
         return result;
     }

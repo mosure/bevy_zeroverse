@@ -2,6 +2,9 @@
 //! triangulated before clipping, so a courtyard notch never acquires a floor.
 use bevy::prelude::*;
 
+mod outside;
+pub use outside::outside;
+
 /// Shortest buildable wall segment in a room footprint, in metres.
 pub(super) const MIN_WALL_EDGE_M: f32 = 0.08;
 
@@ -270,31 +273,6 @@ pub fn line_intervals(poly: &[Vec2], axis: usize, coordinate: f32) -> Vec<(f32, 
         .iter()
         .map(|p| (p[0], p[1]))
         .collect()
-}
-
-/// Convex pieces of a bounding rectangle outside the concave envelope.
-pub fn outside(poly: &[Vec2], lo: Vec2, hi: Vec2) -> Vec<Vec<Vec2>> {
-    let mut pieces = vec![vec![lo, Vec2::new(hi.x, lo.y), hi, Vec2::new(lo.x, hi.y)]];
-    for tri in triangles(poly) {
-        pieces = pieces
-            .into_iter()
-            .flat_map(|piece| {
-                let mut inside = piece;
-                let mut outside = Vec::new();
-                for (a, b) in edges(&tri) {
-                    let n = Vec2::new(a.y - b.y, b.x - a.x);
-                    let d = n.dot(a);
-                    let p = clip(&inside, -n, -d);
-                    if p.len() >= 3 && area(&p) > 1e-7 {
-                        outside.push(p);
-                    }
-                    inside = clip(&inside, n, d);
-                }
-                outside
-            })
-            .collect();
-    }
-    pieces
 }
 
 pub fn validate(poly: &[Vec2]) -> Result<(), String> {

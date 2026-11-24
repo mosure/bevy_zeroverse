@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
+pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram, version: u32) {
     let s = o.size;
     let label = o.kind.class_name();
     let frame = s.x.min(s.y) * p.board_frame_fraction;
@@ -43,9 +43,12 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
             bevel,
         );
     }
+    let facing = super::board_section::Facing::for_board(o, version);
+    let cork_label = crate::scene::procedural_indoor::materials::cork::slot(facing)
+        .map(|slot| format!("{label}#finish{slot}"));
     a.box_part(
         Surface::FabricAlt,
-        label,
+        cork_label.as_deref().unwrap_or(label),
         Vec3::new(0., s.y * 0.5, (backing_front + section.face_z_m) * 0.5),
         Vec3::new(
             s.x - frame * 2.,
@@ -66,119 +69,8 @@ pub(super) fn notice_board(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProg
             0.001,
         );
     }
-    for note in super::pinups::placements(o) {
-        let mut rng = stream(note.seed, 5731);
-        let width = note.size.x;
-        let height = note.size.y;
-        let center = Vec3::new(note.center.x, note.center.y, section.face_z_m + s.z * 0.009);
-        let tf = Transform::from_translation(center).with_rotation(Quat::from_rotation_z(note.yaw));
-        a.part(Surface::Paper, label)
-            .cuboid(Vec3::new(width, height, s.z * 0.012), 0.0001, tf);
-        let image = rng.random_bool(0.40);
-        let left = rng.random_range(-0.44..-0.24);
-        let right = rng.random_range(0.26..0.44);
-        let top = rng.random_range(0.22..0.40);
-        let lines = rng.random_range(2..=9);
-        let pitch = rng.random_range(0.38..0.65) / lines as f32;
-        if image {
-            let slot = crate::scene::procedural_indoor::materials::variants::object_slot(
-                Surface::Art,
-                note.seed,
-                None,
-            );
-            let mut picture = Assembly::default();
-            super::super::presentation::face(
-                &mut picture,
-                Surface::Art,
-                &format!("{label}#finish{slot}"),
-                Vec3::new(left * width, -height * 0.35, s.z * 0.008),
-                Vec3::new(right * width, height * 0.12, s.z * 0.008),
-            );
-            super::super::public::append_at(a, picture, tf);
-        }
-        for line in 0..lines {
-            if image && line > 1 {
-                break;
-            }
-            let length = width * rng.random_range((right - left) * 0.45..right - left);
-            let start = Vec3::new(
-                width * left,
-                height * (top - line as f32 * pitch),
-                s.z * 0.008,
-            );
-            a.part(Surface::Ink, label).rod(
-                tf.transform_point(start),
-                tf.transform_point(start + Vec3::X * length),
-                0.00045,
-            );
-        }
-        a.part(Surface::Chrome, label).ellipsoid(
-            Vec3::new(0.002, 0.002, s.z * 0.010),
-            Transform::from_translation(tf.transform_point(Vec3::new(
-                width * rng.random_range(-0.22..0.22),
-                height * 0.41,
-                s.z * 0.008,
-            ))),
-        );
-    }
-}
-
-pub(super) fn light(a: &mut Assembly, o: &IndoorObject, p: &EquipmentProgram) {
-    let s = o.size;
-    let label = o.kind.class_name();
-    if o.kind == ObjectKind::CeilingPendant {
-        let radius = s.x.min(s.z) * 0.46;
-        let shade = s.y * p.shade_fraction;
-        // Conical shell with real inner wall and rim, suspended by a connected
-        // stem. Geometry remains below the ceiling and above the seated zone.
-        let style = super::super::luminaires::parameters(o.seed);
-        let taper = 0.48 + style.shoulder * 0.46;
-        super::super::luminaires::shade(
-            a,
-            label,
-            &style,
-            Vec3::Y * s.y * 0.05,
-            radius,
-            shade - s.y * 0.05,
-            taper,
-        );
-        super::super::luminaires::bulb(
-            a,
-            label,
-            &style,
-            Vec3::Y * (s.y * 0.05 + (shade - s.y * 0.05) * 0.45),
-            (radius * 0.19).min((shade - s.y * 0.05) * 0.17),
-        );
-        a.part(Surface::Rubber, label).rod(
-            Vec3::new(0., shade, 0.),
-            Vec3::new(0., s.y - 0.012, 0.),
-            0.0035,
-        );
-        a.part(Surface::Metal, label).cylinder(
-            radius * 0.22,
-            0.024,
-            Transform::from_xyz(0., s.y - 0.012, 0.),
-        );
-        let upper = radius
-            * if matches!(style.shape, 1 | 3) {
-                taper.clamp(0.88, 1.)
-            } else {
-                taper
-            };
-        for sign in [-1., 1.] {
-            a.part(style.trim, label).rod(
-                Vec3::Y * (shade - 0.002),
-                Vec3::new(sign * (upper - 0.001), shade - 0.002, 0.),
-                0.0015,
-            );
-        }
-        a.part(Surface::Light, label).cylinder(
-            radius * p.diffuser_fraction,
-            0.003,
-            Transform::from_xyz(0., s.y * 0.05 + 0.003, 0.),
-        );
-    } else {
-        super::sconce::build(a, o);
+    for note in super::pinups::placements_at(o, p, version) {
+        super::pinups::sheet::build(a, o, &note, section.face_z_m, version);
     }
 }
 
@@ -217,9 +109,10 @@ mod tests {
     }
 
     #[test]
-    fn pinboards_have_exposed_fabric_and_notes_inside_their_placement_envelope() {
+    fn pinboards_expose_the_selected_stock_and_only_the_notes_actually_posted() {
         for seed in 0..128 {
-            let o = super::super::super::audit::fixture(ObjectKind::NoticeBoard, seed);
+            let mut o = super::super::super::audit::fixture(ObjectKind::NoticeBoard, seed);
+            o.finish_seed = None;
             let a = super::super::super::build_object(&o);
             super::super::super::audit::check(&o, &a).unwrap();
             let mut fabric = 0;
@@ -237,10 +130,14 @@ mod tests {
                     }
                 }
             }
-            assert!(
-                fabric > 128 && paper > 0,
-                "seed {seed}: fabric {fabric}, paper {paper}"
-            );
+            let version = bevy_zeroverse_capture::GENERATOR_VERSION;
+            let facing = super::super::board_section::Facing::for_board(&o, version);
+            if let Some(i) = crate::scene::procedural_indoor::materials::cork::slot(facing) {
+                assert!(a.parts.keys().any(|(s, l)| *s == Surface::FabricAlt
+                    && crate::scene::procedural_indoor::materials::finish_slot(*s, l) == Some(i)));
+            }
+            assert!(fabric > 128, "seed {seed}: exposed {fabric}");
+            assert_eq!(paper == 0, super::super::pinups::placements(&o).is_empty());
         }
     }
 }

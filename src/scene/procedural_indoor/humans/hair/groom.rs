@@ -13,23 +13,37 @@ pub(super) struct Groom {
     style: HairStyle,
     pub(super) volume: f32,
     pub(super) program: HairProgram,
+    pub(super) parting: Option<super::cut::Part>,
     hairline: f32,
     clusters: noise::OpenSimplex,
 }
 impl Groom {
     pub fn new(h: &IndoorHuman, lo: Vec3, hi: Vec3) -> Self {
+        let style = HairStyle::from_id(h.hairstyle).expect("validated groom");
+        let program = h
+            .appearance
+            .as_ref()
+            .map_or_else(HairProgram::default, |a| a.hair_program.clone());
+        let part = h.appearance.as_ref().map_or(0.2, |a| a.hair_part);
+        let parting = program.scalp_cut.and_then(|cut| {
+            let width = cut.part_width(style);
+            (width > 0.).then_some(super::cut::Part {
+                width,
+                crown: cut.part_end,
+                start_x: part * 0.76,
+                curve: program.part_curve,
+            })
+        });
         Self {
             centre: (lo + hi) * 0.5,
             size: hi - lo,
             length: h.appearance.as_ref().map_or(0.015, |a| a.hair_length),
-            part: h.appearance.as_ref().map_or(0.2, |a| a.hair_part),
+            part,
             curl: h.appearance.as_ref().map_or(0.0, |a| a.hair_curl / 0.06),
-            style: HairStyle::from_id(h.hairstyle).expect("validated groom"),
+            style,
             volume: h.appearance.as_ref().map_or(1.0, |a| a.hair_volume),
-            program: h
-                .appearance
-                .as_ref()
-                .map_or_else(HairProgram::default, |a| a.hair_program.clone()),
+            program,
+            parting,
             hairline: h.appearance.as_ref().map_or(0.0, |a| a.hairline_raise),
             clusters: noise::OpenSimplex::new((h.seed ^ (h.seed >> 32)) as u32),
         }
@@ -37,16 +51,22 @@ impl Groom {
     pub fn uv_period(&self) -> f32 {
         TAU * self.size.x * 0.5
     }
-    /// Offset in metres, signed hairline distance, and fibre-aligned metric UVs.
-    pub fn sample(&self, p: Vec3) -> (f32, f32, Vec2) {
+    pub(super) fn part_coordinates(&self, p: Vec3) -> Vec2 {
+        self.parting.map_or(Vec2::ZERO, |cut| {
+            cut.coordinates((p - self.centre) / (self.size * 0.5), self.size.x * 0.5)
+        })
+    }
+    pub fn hairline_field(&self, p: Vec3) -> f32 {
         let local = (p - self.centre) / (self.size * 0.5);
-        let front = (-local.z).clamp(0.0, 1.0);
-        let side = local.x.abs().clamp(0.0, 1.0);
+        p.y - self.hairline_height(local, (-local.z).clamp(0., 1.), local.x.abs().min(1.))
+    }
+
+    fn hairline_height(&self, local: Vec3, front: f32, side: f32) -> f32 {
         let phi = local.x.atan2(local.z);
         let irregular = self.noise(Vec3::new(phi.sin(), 0.2, phi.cos()), 7.) * 0.003;
         // Lower nape, recessed temples and a shallow widow's peak instead of a
         // horizontal boundary across the occiput.
-        let line = self.centre.y
+        self.centre.y
             + self.size.y
                 * (-0.20 + front * front * 0.55 + side * side * 0.24 + 0.075 * side * front
                     - 0.05 * front * (1.0 - side).powi(4))
@@ -57,10 +77,21 @@ impl Groom {
             } else {
                 0.
             }
-            + self.cut_contour(local);
-        let field = p.y - line;
+            + self.cut_contour(local)
+            + self
+                .program
+                .scalp_cut
+                .map_or(0., |cut| cut.hairline_offset(local, front, side))
+    }
+
+    /// Offset in metres, signed hairline distance, and fibre-aligned metric UVs.
+    pub fn sample(&self, p: Vec3) -> (f32, f32, Vec2) {
+        let local = (p - self.centre) / (self.size * 0.5);
+        let front = (-local.z).clamp(0.0, 1.0);
+        let side = local.x.abs().clamp(0.0, 1.0);
+        let field = p.y - self.hairline_height(local, front, side);
         // This chart is regular at the crown and periodic across the nape.
-        let uv = Vec2::new(
+        let mut uv = Vec2::new(
             (local.z + local.x * self.program.sweep * 0.08) * self.size.z * 0.5,
             (local.x - self.part * 0.4).atan2(local.y + 0.05) * self.size.x * 0.5,
         );
@@ -69,6 +100,17 @@ impl Groom {
         }
         let taper = (field / 0.014).clamp(0.0, 1.0);
         let taper = taper * taper * (3.0 - 2.0 * taper);
+        if self.style == HairStyle::Buzz {
+            if let Some(cut) = self.program.scalp_cut {
+                let crown = local.y.clamp(0., 1.);
+                let grain = self.noise(local, 5.2);
+                let nap = (0.36 + 0.53 * crown + 0.08 * grain) * cut.clip_length_m;
+                // A clipper leaves short nap at the temples and nape. Preserve
+                // the scalp silhouette and comb around the crown.
+                uv.x += self.size.x * 0.12 * local.x * (0.40 + crown * self.program.crown_whorl);
+                return (0.0008 + taper * nap, field, uv);
+            }
+        }
         // Comb from a displaced crown/part. Metric meridians supply fibre UVs
         // rather than stretching a planar stripe across the entire skull.
         let direction = (local - Vec3::new(self.part * 0.65, 0.0, 0.22)).normalize_or(Vec3::Y);
@@ -140,8 +182,19 @@ impl Groom {
         } else {
             0.0
         };
-        let height =
+        let mut height =
             0.0012 + taper * (bulk + curl_mass * cluster + relief + combed - part).max(0.0005);
+        if let Some(cut) = self.parting {
+            let bank = cut.coordinates(local, self.size.x * 0.5);
+            let active = 2. * bank.y / cut.width;
+            let distance = (bank.x.abs() - bank.y).max(0.);
+            let root = super::cut::smooth(distance / (0.007 + cut.width));
+            height = 0.0012 + (height - 0.0012) * (1. - active * (1. - root));
+            // The combed fibres turn away from the part on each side. Smooth
+            // the bend across its centre so finite mip footprints stay bounded.
+            let span = (bank.x * bank.x + 0.000025).sqrt() - 0.005;
+            uv.x += span * (0.40 + self.program.sweep * 0.21) * active;
+        }
         (height, field, uv)
     }
 

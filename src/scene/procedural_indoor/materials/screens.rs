@@ -1,4 +1,5 @@
 //! Seeded compositional software and media displays; generated once per palette.
+mod ambient;
 mod chrome;
 mod tv;
 mod workspace;
@@ -7,6 +8,7 @@ use super::{
     *,
 };
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
+pub use ambient::AmbientClock;
 pub use chrome::ChromeProgram;
 use rand::Rng;
 
@@ -48,6 +50,12 @@ fn device_parameters(seed: u64, kind: DisplayKind) -> ScreenProgram {
             0.48
         });
     }
+    if matches!(kind, DisplayKind::Phone) {
+        ambient::configure(seed, &mut p);
+        if p.dormant || p.ambient_clock.is_some() {
+            return p;
+        }
+    }
     chrome::arrange(seed, kind, &mut p);
     p
 }
@@ -70,6 +78,8 @@ pub struct ScreenProgram {
     pub white_kelvin: f32,
     pub white_tint: f32,
     pub dormant: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ambient_clock: Option<AmbientClock>,
     pub sidebar: f32,
     pub content_split: f32,
     pub density: f32,
@@ -121,6 +131,7 @@ pub(super) fn base_parameters(seed: u64) -> ScreenProgram {
         white_kelvin,
         white_tint: output.random_range(-0.025..0.025),
         dormant: rng.random_bool(0.12),
+        ambient_clock: None,
         sidebar: rng.random_range(0.065..0.25),
         content_split: rng.random_range(0.30..0.74),
         density: rng.random_range(0.16..0.97),
@@ -176,6 +187,9 @@ fn device_pixels(seed: u64, kind: DisplayKind) -> Vec<u8> {
 }
 
 fn active_pixels(seed: u64, kind: DisplayKind, p: &ScreenProgram) -> Vec<u8> {
+    if let Some(clock) = &p.ambient_clock {
+        return clock.pixels(p.minutes);
+    }
     if p.full_bleed {
         return art::illustration(seed ^ 0x4d45444941);
     }

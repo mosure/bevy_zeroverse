@@ -31,7 +31,14 @@ pub enum PreviewAa {
     #[serde(rename = "msaa-8")]
     #[value(name = "msaa-8")]
     Msaa8,
+    /// Temporal accumulation followed by a spatial edge pass on full pinhole views.
+    TaaFxaa,
 }
+
+/// Integrate the warped RGB pixel footprint on interactive fisheye views.
+/// Its absence keeps the calibrated renderer on the original center ray.
+#[derive(Component)]
+pub(crate) struct LensPreviewAa;
 
 pub(crate) fn indoor_fxaa() -> Fxaa {
     Fxaa {

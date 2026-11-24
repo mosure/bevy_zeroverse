@@ -15,10 +15,19 @@ pub struct ElectricalProgram {
     pub plate_depth: f32,
     pub worktop_probability: f32,
 }
+// Preserve the first draw for existing wall installations and expose it to
+// portable equipment without sampling the rest of the installation.
+fn standard_and_stream(seed: u64) -> (u32, ChaCha8Rng) {
+    let mut r = stream(seed, 0x454c454354524943);
+    (r.random_range(0..3), r)
+}
+pub(in super::super) fn electrical_standard(seed: u64) -> u32 {
+    standard_and_stream(seed).0
+}
 pub fn electrical_parameters(scene: &IndoorManifest) -> ElectricalProgram {
-    let mut r = stream(scene.seed, 0x454c454354524943);
+    let (standard, mut r) = standard_and_stream(scene.seed);
     ElectricalProgram {
-        standard: r.random_range(0..3),
+        standard,
         switches: r.random_range(1..=4),
         outlet_height: r.random_range(0.19..0.62),
         switch_height: r.random_range(0.96..1.43),
@@ -100,7 +109,15 @@ impl IndoorManifest {
             obj.solid = false;
             obj.position += tf.rotation * Vec3::Z * wall::mount_offset(&obj).unwrap();
             // One electrical convention per scene; finishes/gang counts can vary.
-            obj.variant = electrical.standard;
+            if switch && self.generator_version >= wall::switches::VERSION {
+                wall::switches::install(&mut obj, self.seed, electrical.standard);
+            } else {
+                obj.variant = if switch {
+                    electrical.standard
+                } else {
+                    wall::installed_variant(electrical.standard)
+                };
+            }
             // One circuit may be operated on entry. Other zone controls and
             // service sockets keep independent unconstrained wall proposals.
             if let Some(entry) = (i == 0)

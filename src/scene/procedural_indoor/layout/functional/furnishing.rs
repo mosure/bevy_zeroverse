@@ -2,6 +2,7 @@ use super::*;
 mod dining;
 mod exhibition;
 mod lecture;
+mod lockers;
 mod queue;
 mod recovery;
 mod table_rows;
@@ -374,6 +375,11 @@ impl IndoorManifest {
                         self.assembly_diagnostics.programs[index].rejected_candidates += 1;
                         continue;
                     }
+                }
+                if kind == ObjectKind::Elevator
+                    && self.generator_version >= geometry::elevator::LANDING_VERSION
+                {
+                    o.variant = geometry::elevator::Levels::sample(self.seed).core_variant();
                 }
                 self.objects.push(o);
                 if let Some(route) = operational {

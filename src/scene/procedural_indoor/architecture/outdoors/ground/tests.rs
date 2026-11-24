@@ -123,7 +123,7 @@ fn every_rotated_courtyard_root_terminates_in_soil_and_bench_feet_on_paving() {
         let bed = Bed::fit(&p, frame, &plants).unwrap();
         let mut a = Assembly::default();
         patio(&mut a, &p, &mut plants);
-        garden(&mut a, &p, &plants);
+        garden(&mut a, &p, &plants, scene.generator_version);
         check(&a);
         let bark = &a.parts[&(Surface::Bark, "plant".into())];
         let roots: Vec<_> = bark

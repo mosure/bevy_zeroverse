@@ -1,7 +1,7 @@
 //! Mesh qualification; one assembly is held at a time.
 use super::*;
 use crate::scene::procedural_indoor::layout::ObjectKind;
-use crate::scene::procedural_indoor::objects::{build_object, Assembly};
+use crate::scene::procedural_indoor::objects::{build_object_at_version, Assembly};
 
 pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String> {
     let mut stats = GeometryStats::default();
@@ -17,7 +17,7 @@ pub fn validate_geometry(scene: &IndoorManifest) -> Result<GeometryStats, String
                 scene.seed
             ));
         }
-        let assembly = build_object(object);
+        let assembly = build_object_at_version(object, None, scene.generator_version);
         let (lo, hi) = assembly.bounds();
         let reserved_lo = Vec3::new(-object.size.x * 0.5, 0., -object.size.z * 0.5);
         let reserved_hi = Vec3::new(object.size.x * 0.5, object.size.y, object.size.z * 0.5);
@@ -145,9 +145,10 @@ fn qualify_human(
             human.id
         ));
     }
-    if lo.y.abs() > 0.003 {
+    let foot_support = human.foot_support_height();
+    if (lo.y - foot_support).abs() > 0.003 {
         return Err(format!(
-            "seed {seed}: person {} has no floor contact ({:.6} m)",
+            "seed {seed}: person {} foot contact is at {:.6} m; expected {foot_support:.6} m",
             human.id, lo.y
         ));
     }
@@ -313,7 +314,7 @@ mod tests {
         human.bounds_max.y += 0.01;
         assert!(qualify_human(scene.seed, &human, &mesh, &mut stats)
             .unwrap_err()
-            .contains("floor contact"));
+            .contains("foot contact"));
     }
 
     #[test]

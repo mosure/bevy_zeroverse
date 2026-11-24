@@ -149,11 +149,6 @@ impl SurfaceProgram {
                 rng.random_range(0.10..0.19),
                 rng.random_range(0.09..0.16),
             ),
-            TissueBox => Vec3::new(
-                rng.random_range(0.14..0.24),
-                rng.random_range(0.08..0.14),
-                rng.random_range(0.10..0.16),
-            ),
             Vase => {
                 let d = rng.random_range(0.08..0.18);
                 Vec3::new(d, rng.random_range(0.14..0.30), d)
@@ -164,11 +159,6 @@ impl SurfaceProgram {
                 rng.random_range(0.15..0.23),
             ),
             Plant => sizing::loose(Plant, rng).expect("plant sizing"),
-            Printer => Vec3::new(
-                rng.random_range(0.36..0.53),
-                rng.random_range(0.19..0.29),
-                rng.random_range(0.30..0.40),
-            ),
             _ => unreachable!("unsupported task item"),
         };
         (kind, size)

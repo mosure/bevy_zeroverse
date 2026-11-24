@@ -1,33 +1,52 @@
 # bevy_zeroverse ♾️
 
-[![test](https://github.com/mosure/bevy_zeroverse/workflows/test/badge.svg)](https://github.com/Mosure/bevy_zeroverse/actions?query=workflow%3Atest)
+[![Tests](https://github.com/mosure/bevy_zeroverse/actions/workflows/test.yml/badge.svg)](https://github.com/mosure/bevy_zeroverse/actions/workflows/test.yml)
 [![crates.io](https://img.shields.io/crates/v/bevy_zeroverse.svg)](https://crates.io/crates/bevy_zeroverse)
 [![License](https://img.shields.io/github/license/mosure/bevy_zeroverse)](LICENSE)
 
-Bevy Zeroverse is a procedural synthetic reconstruction dataset generator.
-Sample textured primitive objects or furnished interiors, capture synchronized
-views, and export calibrated cameras with aligned images, geometry and labels.
+Bevy Zeroverse generates synthetic datasets for multi-view 3D reconstruction.
+Capture synchronized views of a furnished room or a procedural object, with
+camera calibration and pixel-aligned geometry and labels.
 
-[Project page](https://mosure.github.io/bevy_zeroverse/project/) ·
-[WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=procedural-indoor&indoor_seed=7&num_cameras=4&camera_grid=true&regenerate_ms=0) ·
-[Whitepaper](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf) ·
+[Open WebGPU Studio](https://mosure.github.io/bevy_zeroverse/?scene_type=procedural-indoor&indoor_seed=7&num_cameras=4&camera_grid=true&regenerate_ms=0) ·
+[Generate a dataset](#generate-a-dataset) ·
+[Project gallery](https://mosure.github.io/bevy_zeroverse/project/) ·
+[Whitepaper (PDF)](https://mosure.github.io/bevy_zeroverse/project/static/papers/bevy_zeroverse.pdf) ·
 [Documentation](docs/README.md)
+
+## Quick start
+
+With Rust 1.97.1 or newer, install Scene Studio and open four views of room 7.
+
+```sh
+cargo install bevy_zeroverse --locked
+bevy_zeroverse --indoor-seed 7 --num-cameras 4 --camera-grid
+```
+
+Run `bevy_zeroverse` alone to explore with the editor camera. **Apply changes**
+rebuilds the current seed. **R** advances to the next room, **F1** hides the controls,
+and **F11** toggles fullscreen. [Studio controls](docs/studio_controls.md)
+
+For a fullscreen presentation with automatic scene changes, run `bevy_zeroverse --kiosk`.
+[Open kiosk in the browser](https://mosure.github.io/bevy_zeroverse/?kiosk)
 
 ## Object Zeroverse
 
-The original object scenes combine parametric primitives, mesh deformation,
-randomized materials and multi-view capture. The Python/PyTorch dataloader can
-generate samples online.
+The original object scenes combine parametric primitives, mesh deformation and
+sampled materials. The Python/PyTorch dataloader can generate these views during training.
 
 ![Object-scene dataloader captures showing matched RGB, depth and normal views](docs/bevy_zeroverse_dataloader_grid.webp)
 
 ```sh
-cargo run -- --scene-type object --num-cameras 4 --camera-grid
+bevy_zeroverse --scene-type object --num-cameras 4 --camera-grid
 ```
 
-[Open object scenes in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?scene_type=object&num_cameras=4&camera_grid=true&regenerate_ms=8000)
+[Open object scenes in WebGPU Studio](https://mosure.github.io/bevy_zeroverse/?scene_type=object&num_cameras=4&camera_grid=true&regenerate_ms=8000)
 
 ## Procedural interiors
+
+Room programs range from shared offices and boardrooms to kitchens, cafés,
+classrooms and galleries. Each thumbnail opens the full native capture.
 
 <table>
   <tr>
@@ -60,249 +79,73 @@ cargo run -- --scene-type object --num-cameras 4 --camera-grid
   </tr>
 </table>
 
-Selected native captures at the start of each camera trajectory, with no exposure
-correction. Click a thumbnail for the full image. The project page includes more
-rooms, synchronized views, matching annotations, floor plans and distributions.
+### Capabilities
 
-## Capabilities
+- **Architecture and placement** share a floor plan. Stairs, mezzanines, glazing and
+  exterior scenery change sightlines. Furniture layouts leave space for doors and circulation.
+- **Materials and lighting** come from the room seed. Cameras see the same
+  parquet grain, upholstery weave and tinted glass under daylight and interior fixtures.
+- **Camera rigs** mix room trajectories and ceiling mounts with pinhole or calibrated
+  fisheye lenses. Baseline controls spacing and shared visibility.
+- **Motion** uses one timeline for cameras, people and furnishings. AnnyBody people
+  can hold a pose or follow ARDY text and waypoint prompts while chairs roll and doors open.
 
-Loose furnishings and supplies vary in position, rotation and physical size before
-clearance checks. Shelves mix dishware and pantry sizes; pillows vary independently;
-ceiling fixtures share a construction style with varied dimensions and spacing.
+Cornell cube, simple room, semantic room and standalone human scenes are also available.
 
+## Generate a dataset
 
-- **Object scene programs:** parametric primitives, mesh deformation, rotation
-  augmentation and material sampling, with Cornell cube and simple room scenes.
-- **Continuous scene programs:** polygonal footprints, cut-ins, chamfered corners,
-  sloped and raised tray ceilings, arches, pillars, floor levels and mezzanines.
-  Acoustic panels, coffers, suspended grids, round/square/rectangular ducts, ventilation terminals, conduit,
-  sprinklers and trusses vary overhead detail. Exposed framing includes deep
-  rafters, purlins and suspended services; mezzanines vary stair construction,
-  structural supports and guardrail profiles.
-  Windows include shaped glazing, tints, partial frosting, blinds and curtains;
-  exterior streets, planted courtyards and multi-storey buildings with varied
-  wings, setbacks, roof forms and facade bays provide context beyond the glass.
-  Room-wide joinery programs vary skirting and crown heights, section profiles,
-  finishes and presence. Glazing varies piers, sill and header levels, unequal
-  panes, transom counts, sash sections, seals and projecting sill materials.
-- **Functional interiors:** offices, kitchens and kitchenettes, cafes, cafeterias,
-  classrooms, lecture halls, elevator landings, showrooms and galleries. Service,
-  seating and circulation areas have placement and clearance constraints.
-  Conference layouts range from small meeting tables to long, four-sided
-  boardrooms with space behind the chairs for the entrance. Lecture
-  halls mix chair-only seating with tiered shared desks; cafeterias mix small
-  dining groups with tables seating multiple people on both sides. Row spacing,
-  seat position, rotation and vacancies vary while preserving clear passages. Doors
-  and cabinetry vary their mechanisms, hardware, materials and opening states.
-- **Procedural furnishings and appearance:** 106 item kinds, multipart furniture,
-  task-conditioned tabletop groups, multi-monitor workspaces, coordinated wall
-  galleries, 17 plant growth habits, connected equipment and fixtures. Continuous
-  construction and finish programs vary furniture supports, shaped upholstery,
-  dyed yarns, timber treatments, concrete, glass and lighting. Ceiling fixtures,
-  floor lamps and task lights vary their bulbs, hollow shades, articulated supports,
-  recesses, aim directions and independently finished trims. Mounted exit signs,
-  fire alarms, ceiling detectors, manual pull stations, speakers and suspended or
-  wall-mounted string lights add room services. Strands range from miniature LEDs
-  on twisted cables to shadow-casting globes and angled reflectors. Floor finishes vary
-  plank/tile structure, herringbone and chevron parquet, hexagonal tiles,
-  seamless mineral finishes, mixed tile/plank stock, carpet dye fields, staggered
-  joints, independently sampled physical pattern sizes, regional wear and
-  furniture-bearing area rugs, with floor outlets and
-  routed cables. Cabinets, kitchen appliances, clocks, wall shelves and presentation
-  equipment vary construction independently of surface finishes. Walls mix quiet
-  paint with washed, woven and patterned wallpaper surfaces;
-  metal and polymer finishes vary grain, polish, peening and roughness.
-  Architecture and
-  furnishings need no downloaded mesh or texture catalog. Power cables follow
-  collision-checked gravity curves, including floor contact. Daylight-aware
-  exposure and native soft sun shadows retain surface detail in bright rooms.
-  Supported PBR recipes bake once on the GPU by default, with CPU fallback.
-  Screens, whiteboards and artwork sample content independently of shared furniture
-  finishes, with varied composition, typography, color, physical aspect and placement.
-  Finite, separately labelled sky geometry closes window views without changing
-  primary-room reconstruction bounds. RGB exposure is adjustable in Scene Studio.
-- **Calibrated multi-view cameras:** configurable perspective intrinsics, including
-  a 28–145° vertical FOV default distribution, primary-room placement,
-  collision-checked trajectories and adjustable baselines with shared-view constraints.
-  Ceiling-mounted CCTV cameras can mix with room cameras, using downward-facing,
-  calibrated fisheye or wide rectilinear lenses. Fixed mounts and opt-in ceiling
-  trajectories preserve body and swept-path clearance around fixtures.
-  Mounting tilt defaults to a continuous 0–12° offset around the actual ceiling
-  normal; `ceiling_mount.tilt_degrees` controls the range independently of roof
-  slope, lens choice and trajectory motion.
-  Studio and schematic camera glyphs share compact, camera-indexed colors;
-  prediction overlays use the matching color with dashed outlines. Independent
-  editor/schematic scale controls apply live and round-trip through CLI/URL
-  settings without changing capture calibration or metric trajectories.
-  The baseline preset accounts for mounting height and unequal lens coverage;
-  directed co-visibility and physical camera separation remain explicit in exports.
-- **People and motion:** AnnyBody meshes with procedural clothing and optional
-  ARDY text/waypoint motion. Cameras and people share a capture timeline; static
-  scenes do not initialize motion models. Captures include calibrated pose joints.
-- **Optional room motion:** chairs swivel or roll, doors and cabinets open, and
-  blinds or curtains move on the capture timeline. Swept reservations keep accepted
-  mechanisms clear of geometry and people; disabled motion adds no planning work.
-
-Semantic-room and standalone-human scenes are also supported. The engine is
-built with Bevy 0.20 and Rust, with native dataset generation, a WebGPU viewer, and
-Python/PyTorch integration.
-
-Capture RGB defaults to 2× supersampling below 1280×720 pixels. Small indoor
-rigs can use 3× or 4× when distant slats or woven shades would alias.
-A GPU area filter resolves RGB to the requested dimensions. Numeric annotations retain aligned final pixel-center rays and
-categorical labels. `--ssaa-factor 1` disables it; 0 selects Auto and 2/3/4 force
-a fixed factor. Output dimensions and camera calibration remain unchanged.
-
-## Quick start
-
-Install the native Studio. Running it with no arguments opens a procedural indoor room.
+From a checkout, run the headless generator to write 100 rooms as SafeTensors
+chunks. This example captures four views per room at one instant.
 
 ```sh
-cargo install bevy_zeroverse --locked
-bevy_zeroverse
-bevy_zeroverse --indoor-seed 7 --num-cameras 4 --camera-grid
-bevy_zeroverse --kiosk
-```
-
-Kiosk mode presents one calibrated RGB view fullscreen, requests HDR, and hides the
-Studio controls. Each room stays on screen for at least 30 seconds while its successor
-loads. If preparation takes 60 seconds, the Studio skips that seed and continues playback.
-The camera follows a collision-checked
-path of at least 2 m with smoothstep easing. It samples pinhole and full-frame fisheye
-lenses with horizon roll limited to ±10°. Explicit launch settings override the preset.
-F1 restores the controls and F11 toggles fullscreen. On the web, click once to allow
-fullscreen. HDR uses the available display mode. [Open kiosk mode](https://mosure.github.io/bevy_zeroverse/?kiosk)
-
-**Studio anti-aliasing.** In **View & playback → RGB display & anti-aliasing**,
-choose Automatic, Off, FXAA, SMAA High or Ultra, TAA, or 2×/4×/8× MSAA. Type
-“anti-aliasing” into **Find setting** on any tab to jump there. The setting
-applies live and can also be shared as `?preview_aa=taa` or set with
-`--preview-aa msaa-4`. Automatic uses TAA on full-viewport pinhole editor and kiosk views. An editor
-viewport inset by the control panel uses SMAA Ultra to preserve its framing. Fisheye views use SMAA High for temporal requests so their component
-views share a consistent spatial filter. Ordinary grids retain their scene
-default. MSAA steps down to a supported sample count, then to SMAA High if
-needed. Native screen-space ambient occlusion requires a single-sample view.
-
-Dataset capture keeps its existing indoor RGB FXAA and geometry-aware SSAA.
-**Capture & tools → Capture & export** controls the capture supersampling factor.
-
-From a checkout, `cargo run -- --help` shows the same CLI and
-`cargo install --path . --locked` installs the working tree. The repository
-pins `nightly-2026-08-31` (MSRV 1.97.1). Optional motion and SigLIP2 inference
-use Burn 0.22.1.
-
-Run developer tools explicitly, for example `cargo run --example indoor_capacity -- --help`
-or `cargo run --example indoor_prepare_bench -- --help`. To install an individual
-tool, use `cargo install bevy_zeroverse --locked --example indoor_validate`.
-
-Screens, TVs and phones use device-aware procedural content; whiteboards combine
-handwriting and diagrams. Rugs have whole-surface textile designs, and artwork
-varies composition independently from canvas, paper, paint relief and varnish.
-Materials remain consistent across views and time, with bounded texture residency.
-
-Native JIT training can use `bevy_zeroverse_burn::gpu::GpuLiveDataset` (feature
-`gpu_tensor`) to render into Burn-owned buffers on the same device, retaining
-full native quality without host image transfers. `cuda_interop` supports Linux
-Vulkan → CUDA; `cuda_ipc` connects externally supervised renderer processes to
-an existing training device. CUDA uses an owned device copy and published
-dependencies without patches. Requested outputs are authoritative, including
-RGB-only capture; explicit GPU sRGB conversion matches archive training inputs.
-See the [tensor contract and benchmark](docs/gpu_jit.md).
-
-Scene Studio uses Bevy 0.20 Feathers controls and the built-in pan-orbit camera
-on native and WebGPU; it needs no egui, inspector or external camera plugin. **Apply changes**
-keeps the selected seed; **Next / R** advances it. Editing does not regenerate.
-**F1** presents the editor camera, camera grid or schematic edge to edge. Press F1
-again to restore the controls. With **Next scene interval** enabled, Studio prepares
-one indoor successor during playback and skips rejected seeds. The interval is
-the minimum display time for each room.
-Collapsible task groups and **Jump to group…** keep related controls together;
-each page remembers its scroll position. **Capture & tools** groups output size,
-timesteps and configuration import/export.
-Camera baseline coordinates spacing, shared surfaces and gaze variation across
-the requested camera count. **Moving cameras (%)** selects fixed or moving views
-(default 100%); travel bounds apply to moving cameras while scene animation stays
-independent. **Cameras → Roll & horizon** controls both fixed and moving room cameras.
-The default favors level framing and samples tails out to ±45°.
-Continuous **lens preference/spread** controls include a live PDF
-preview, separate from spatial baseline. Optional calibrated **fisheye lenses**
-add seeded per-camera frequency, angular FOV preference/spread, distortion and
-circular coverage, with aligned depth, flow, semantics and co-visibility.
-Studio starts at 50% fisheye; library and dataset APIs remain pinhole unless
-enabled explicitly.
-The viewport selector offers **Editor camera**, **Capture grid**,
-and **Room schematic**. Browser links omit default settings while preserving the
-active seed, preview and pending edits.
-Schematics distinguish pinhole and fisheye cameras, including their angular
-coverage and downward-facing ceiling mounts, in the live view and exported diagrams.
-**View & playback → Glass in annotations** selects glass surfaces (default) or
-unrefracted geometry behind glass for depth, normal, position, semantic, optical
-flow and co-visibility. RGB transmission is unchanged. The same policy is available
-as `--annotation-glass through` or `?annotation_glass=through` and recorded in
-exports (`annotation_glass`: 0 = surface, 1 = through in tensor datasets).
-
-Generate a dataset with four views per room:
-
-```sh
-cargo run -p bevy_zeroverse_burn --bin zeroverse_gen -- \
-  --scene-type procedural-indoor --output out/indoor_dataset \
-  --samples 100 --seed 0 --workers 1 --chunk-size 16 \
-  --cameras 4 --width 640 --height 480 --playback-steps 1 \
-  --indoor-camera '{"baseline":0.5}' \
+cargo run --release --locked -p bevy_zeroverse_burn --bin zeroverse_gen -- \
+  --scene-type procedural-indoor --output out/indoor_dataset --samples 100 --seed 0 \
+  --cameras 4 --width 640 --height 480 --indoor-camera '{"baseline":0.5}' \
   --render-modes color depth normal semantic position co-visibility \
   --ov-mode disabled --no-ui
 ```
 
-Add `--schematic` to export top-down diagrams at each capture timestep.
+Use `--schematic` to add top-down views. The generator also exports distributions
+of object counts, placements, lighting and camera parameters. Split training and
+evaluation by room seed to keep related views together. [Dataset guide](docs/procedural_indoor_dataset.md)
 
-The native capture CLI requires a GPU but no display server. Capture waits for assets,
-render pipelines and requested motion. The executable includes the AnnyBody reference
-for people. Each renderer process or browser tab decodes it once on first use and shares it
-across people and rooms. Set `--indoor-human-density 0` for unoccupied interiors.
+For online training, the Burn bridge renders to WGPU tensors on the same device
+and supports Vulkan-to-CUDA transfers on Linux. [GPU tensor API](docs/gpu_jit.md)
+
+### Exports
+
+| Output | What you get |
+| --- | --- |
+| RGB and cameras | Color images, image dimensions, lens models, intrinsics, poses and capture times |
+| Indoor geometry | Depth in metres, view-space normals and world positions encoded relative to the primary-room bounds |
+| Labels | Semantic classes and their color palette, oriented object boxes and human joints |
+| Correspondence | Optical flow with validity masks and per-pixel co-visibility for rigs of up to 16 cameras |
+| Room schematic | Metric top-down JSON, SVG and PNG with cameras, skeletons and optional prediction overlays |
+| O-voxel | Primary-room surfaces and semantics for a single timestep with human and furnishing motion disabled |
+
+Glass is a surface in geometric annotations by default. Use
+`--annotation-glass through` to label the geometry behind it.
 
 ## MatSynth
 
-Object scenes can sample PBR materials from
-[MatSynth](https://huggingface.co/datasets/gvecchio/MatSynth). The original material
-grid shows the texture variety available alongside the procedural indoor materials.
+Object scenes can also sample PBR material maps from MatSynth.
 
 ![MatSynth material grid rendered in the Bevy Zeroverse viewer](docs/bevy_zeroverse_material_grid.webp)
 
-Download the maps using the dataset's
-[download script](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py),
-then resize them into the local material directory:
+[Open the material grid in WebGPU Studio](https://mosure.github.io/bevy_zeroverse/?scene_type=object&material_grid=true)
+
+<details>
+<summary>Use MatSynth maps locally</summary>
+
+Download the maps to `data/MatSynth`, then run these commands from the checkout.
+The resize script uses NumPy, OpenCV and tqdm. [MatSynth download script](https://huggingface.co/datasets/gvecchio/MatSynth/blob/main/scripts/download_dataset.py)
 
 ```sh
-python mat-synth/resize.py --source_dir <path-to-mat-synth> --dest_dir assets/materials
-cargo run -- --material-grid
+python3 mat-synth/resize.py --source_dir data/MatSynth --dest_dir assets/materials
+cargo run --locked -- --scene-type object --material-grid
 ```
 
-[Open the material grid in the WebGPU viewer](https://mosure.github.io/bevy_zeroverse/?material_grid=true)
-
-## Exports
-
-| Output | Contents |
-| --- | --- |
-| RGB and calibration | Color images, camera intrinsics, poses and capture times |
-| Depth, normals and positions | Native float32 geometric annotations |
-| Semantics and instances | Class labels, object bounds, primary-room AABB and human joints |
-| Optical flow and motion vectors | Temporal correspondence, validity and visibility masks |
-| Co-visibility | Per-pixel membership in up to 16 capture cameras |
-| Room schematic | Metric top-down JSON/SVG/PNG with captured cameras, skeletons and optional prediction overlays |
-| O-voxel | Primary-room surface geometry and semantics |
-
-The versioned semantic vocabulary includes plants, phones, laptops,
-monitors, bins, cables, outlets, ceiling fans and distinct furniture classes. Capture provenance
-includes the complete label/color palette; existing class colors remain stable.
-Consumers should read this palette rather than assume a fixed class count.
-
-Exports support chunked or per-sample storage, resume validation and distributions
-of object counts, placements, lighting and camera parameters. Glass is the first
-surface in geometry annotations. O-voxel requires one timestep and disabled human
-and furnishing motion. Split training and evaluation by room seed.
-
-Materials, people and indirect lighting remain approximate; photographic realism
-and downstream training gains require further evaluation.
+</details>
 
 ## Credits
 

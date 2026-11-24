@@ -53,10 +53,18 @@ pub(super) struct Recipe {
     pub carpet_mix: [f32; 4],
     pub carpet_grain0: [u32; 4],
     pub carpet_grain1: [u32; 4],
+    pub wood_counts: [u32; 4],
+    pub wood_cut: [f32; 4],
+    pub wood_center: [f32; 4],
+    pub wood_pores: [f32; 4],
+    pub wood_finish: [f32; 4],
+    pub wood_base: [f32; 4],
+    pub wood_stain: [f32; 4],
 }
 
 impl Recipe {
     pub(super) fn new(r: &MaterialRecipe, floor: u32) -> Option<Self> {
+        let furniture = r.wood.as_ref().and_then(|w| w.figure.map(|f| (w, f)));
         // Match texel_prepared's precedence. Never silently bypass an authored program.
         if !matches!(r.map_size(floor), 256 | 512)
             || r.validate().is_err()
@@ -68,7 +76,10 @@ impl Recipe {
             || r.carpet.is_none()
                 && r.mineral.is_some()
                 && (r.surface != Surface::Floor || floor == 2)
-            || r.carpet.is_none() && r.wood.is_some() && (r.surface != Surface::Floor || floor == 0)
+            || r.carpet.is_none()
+                && r.wood.is_some()
+                && furniture.is_none()
+                && (r.surface != Surface::Floor || floor == 0)
         {
             return None;
         }
@@ -78,7 +89,12 @@ impl Recipe {
             r.surface,
             Surface::Metal | Surface::Chrome | Surface::Plastic | Surface::Rubber | Surface::Paper
         );
-        if !cloth && r.surface != Surface::Leather && !generic && r.coating.is_none() {
+        if !cloth
+            && r.surface != Surface::Leather
+            && !generic
+            && r.coating.is_none()
+            && furniture.is_none()
+        {
             return None;
         }
         let period = r.period_uv();
@@ -191,6 +207,23 @@ impl Recipe {
                 p.carpet_grain0.copy_from_slice(&d.grain_cells[..4]);
                 p.carpet_grain1[..2].copy_from_slice(&d.grain_cells[4..]);
             }
+        } else if let Some((w, f)) = furniture {
+            p.meta[0] = 6;
+            let stock = super::super::program::PreparedWood::new(w, r);
+            p.wood_counts = [stock.rings, f.vessel_cells[0], f.vessel_cells[1], 0];
+            p.wood_cut = [f.crown, f.crown_width, stock.wander, f.latewood_width];
+            p.wood_center = [f.center[0], f.center[1], f.knot_center[0], f.knot_center[1]];
+            p.wood_pores = [f.vessel_strength, f.ring_porosity, f.knot, f.ray_strength];
+            p.wood_finish = [
+                w.pore_fill,
+                w.ring_contrast,
+                w.clearcoat,
+                r.detail_scale.unwrap_or(1.),
+            ];
+            let [base, stain] = stock.pigment;
+            p.wood_base[..3].copy_from_slice(&base);
+            p.wood_base[3] = w.stain_strength;
+            p.wood_stain[..3].copy_from_slice(&stain);
         } else if cloth {
             let mut t = r
                 .textile

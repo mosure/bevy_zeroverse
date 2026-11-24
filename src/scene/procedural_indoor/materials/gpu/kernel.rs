@@ -8,21 +8,24 @@ pub(super) const SHADER: &str = concat!(
     "\n",
     include_str!("paint.wgsl"),
     "\n",
-    include_str!("flooring.wgsl")
+    include_str!("flooring.wgsl"),
+    "\n",
+    include_str!("timber.wgsl")
 );
 pub(super) const MAX_SIZE: u32 = 512;
-pub(super) const ENTRIES: [&str; 8] = [
+pub(super) const ENTRIES: [&str; 9] = [
     "woven_map",
     "leather_map",
     "knit_map",
     "finish_map",
     "carpet_map",
     "paint_map",
+    "timber_map",
     "normals",
     "mips",
 ];
-pub(super) const NORMALS: usize = 6;
-pub(super) const MIPS: usize = 7;
+pub(super) const NORMALS: usize = 7;
+pub(super) const MIPS: usize = 8;
 pub(super) fn layout_entries() -> Vec<wgpu::BindGroupLayoutEntry> {
     (0..6)
         .map(|binding| wgpu::BindGroupLayoutEntry {

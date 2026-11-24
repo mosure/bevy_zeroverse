@@ -1,12 +1,15 @@
 //! Shared washing-station construction and fitted accessory poses.
 use super::*;
 mod basin;
+pub mod tap;
+pub mod waste;
+pub(crate) const FITTED_PLUMBING_VERSION: u32 = 218;
 pub mod program;
 #[cfg(test)]
 mod tests;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
-    let plan = program::parameters(o, p);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, version: u32) {
+    let plan = program::parameters_at(o, p, version);
     let top = plan.worktop_m;
     let underside = top - worktop::RUN_THICKNESS;
     let s = o.size;
@@ -48,8 +51,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         (plan.aperture_min, plan.aperture_max),
         top,
     );
-    for bowl in &plan.basins {
-        basin::build(a, bowl, top, plan.basin_finish);
+    for (i, bowl) in plan.basins.iter().enumerate() {
+        let shared_edges = [i > 0, i + 1 < plan.basins.len()];
+        basin::build(a, bowl, top, plan.basin_finish, shared_edges);
     }
     for dish in &plan.dishes {
         dishware::build(
@@ -60,33 +64,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             dish.seed,
         );
     }
-    pipe(
-        a,
-        plan.faucet_finish,
-        "faucet",
-        &plan.faucet_points,
-        plan.faucet_radius_m,
-    );
-    a.part(plan.faucet_finish, "faucet").cylinder(
-        plan.faucet_radius_m * 2.0,
-        0.018,
-        Transform::from_translation(plan.mount),
-    );
-    for &h in &plan.handles {
-        a.part(plan.faucet_finish, "faucet").cylinder(
-            0.016,
-            0.035,
-            Transform::from_translation(h + Vec3::Y * 0.014),
-        );
-        let points = match p.faucet_handles {
-            1 => [
-                h + Vec3::new(-0.025, 0.034, 0.),
-                h + Vec3::new(0.025, 0.034, 0.),
-            ],
-            2 => [h + Vec3::Y * 0.034, h + Vec3::new(0.035, 0.034, 0.)],
-            _ => [h + Vec3::Y * 0.03, h + Vec3::new(0., 0.075, 0.015)],
-        };
-        pipe(a, plan.faucet_finish, "faucet", &points, 0.004);
+    if let Some(tap) = &plan.tap {
+        tap.build(a, &plan, p.faucet_handles);
+    } else {
+        legacy_faucet(a, &plan, p.faucet_handles);
     }
     for prop in &plan.accessories {
         let mut child = Assembly::default();
@@ -116,5 +97,36 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             }
             a.part(surface, &label).append(g);
         }
+    }
+}
+
+fn legacy_faucet(a: &mut Assembly, plan: &program::SinkProgram, handles: u8) {
+    pipe(
+        a,
+        plan.faucet_finish,
+        "faucet",
+        &plan.faucet_points,
+        plan.faucet_radius_m,
+    );
+    a.part(plan.faucet_finish, "faucet").cylinder(
+        plan.faucet_radius_m * 2.0,
+        0.018,
+        Transform::from_translation(plan.mount),
+    );
+    for &h in &plan.handles {
+        a.part(plan.faucet_finish, "faucet").cylinder(
+            0.016,
+            0.035,
+            Transform::from_translation(h + Vec3::Y * 0.014),
+        );
+        let points = match handles {
+            1 => [
+                h + Vec3::new(-0.025, 0.034, 0.),
+                h + Vec3::new(0.025, 0.034, 0.),
+            ],
+            2 => [h + Vec3::Y * 0.034, h + Vec3::new(0.035, 0.034, 0.)],
+            _ => [h + Vec3::Y * 0.03, h + Vec3::new(0., 0.075, 0.015)],
+        };
+        pipe(a, plan.faucet_finish, "faucet", &points, 0.004);
     }
 }

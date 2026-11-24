@@ -56,31 +56,88 @@ fn composite(direction:vec3<f32>)->vec4<f32> {
     if weights.z>0.0 && direction.z<0.0 {color+=weights.z*sample_face(0u,direction);total+=weights.z;}
     return color/total;
 }
+
+fn covered_radiance(direction: vec4<f32>) -> vec4<f32> {
+    if direction.w == 0.0 { return vec4<f32>(0.0); }
+    let color = composite(direction.xyz);
+    return vec4<f32>(color.rgb * color.a, color.a);
+}
+
+fn straight_rgba(sum: vec4<f32>, weight: f32) -> vec4<f32> {
+    return vec4<f32>(sum.rgb / max(sum.a, 1e-12), weight * sum.a);
+}
+
+// The lens warp can cover several cubemap texels with one sensor pixel, even
+// after each face has been antialiased. Integrate that footprint in this pass.
+fn preview_rgb(pixel: vec2<f32>, direction: vec4<f32>) -> vec4<f32> {
+    let d = direction.xyz;
+    let major = max(max(abs(d.x), abs(d.y)), abs(d.z));
+    let cube_texel = 0.5 * params.control.x * f32(textureDimensions(front).x);
+    let cube_point = d / max(major, 1e-6) * cube_texel;
+    let footprint = vec2<f32>(length(dpdx(cube_point)), length(dpdy(cube_point)));
+    let dx = dpdx(d);
+    let dy = dpdy(d);
+
+    // Only the rim needs exact subpixel inversions. The derivative of an
+    // invalid center ray across the edge of the disk is undefined.
+    let l = params.lens;
+    let y = (pixel.y - l.k.w) / l.k.y;
+    let x = (pixel.x - l.k.z - l.sensor.x * y) / l.k.x;
+    let radial = length(vec2<f32>(x, y));
+    let rim = abs(radial - radius(l, l.domain.x)) <= fwidth(radial);
+    let quarter = vec2<f32>(0.25);
+    var sum: vec4<f32>;
+    if rim {
+        sum = covered_radiance(ray(l, pixel - quarter))
+            + covered_radiance(ray(l, pixel + vec2<f32>(quarter.x, -quarter.y)))
+            + covered_radiance(ray(l, pixel + vec2<f32>(-quarter.x, quarter.y)))
+            + covered_radiance(ray(l, pixel + quarter));
+    } else {
+        if direction.w == 0.0 { return vec4<f32>(0.0); }
+        if all(footprint <= vec2<f32>(1.0)) { return composite(d); }
+        // Bilinear reconstruction already covers a texel. Widen continuously
+        // on minified axes only. Direction differentials cross face seams.
+        let spread = 0.25 * smoothstep(vec2<f32>(1.0), vec2<f32>(2.0), footprint);
+        let u = dx * spread.x;
+        let v = dy * spread.y;
+        if min(spread.x, spread.y) == 0.0 {
+            let offset = u + v;
+            return straight_rgba(covered_radiance(vec4<f32>(d-offset, 1.0))
+                + covered_radiance(vec4<f32>(d+offset, 1.0)), 0.5);
+        }
+        sum = covered_radiance(vec4<f32>(d-u-v, 1.0)) + covered_radiance(vec4<f32>(d+u-v, 1.0))
+            + covered_radiance(vec4<f32>(d-u+v, 1.0)) + covered_radiance(vec4<f32>(d+u+v, 1.0));
+    }
+    return straight_rgba(sum, 0.25);
+}
 @vertex fn vertex(@builtin(vertex_index) i:u32)->@builtin(position) vec4<f32> {
     return vec4<f32>(f32((i<<1u)&2u)*2.0-1.0,f32(i&2u)*2.0-1.0,0.0,1.0);
 }
 @fragment fn fragment(@builtin(position) pixel:vec4<f32>)->@location(0) vec4<f32> {
     let mode=u32(params.control.y);
-    if mode!=0u {
-        let coord=vec2<i32>(pixel.xy);
-        let hit=textureLoad(world_depth,coord,0);let n=textureLoad(normal_semantic,coord,0);
-        if hit.w<=0.0 {return vec4<f32>(0.0);}
-        if mode==1u {return vec4<f32>(depth_color(hit.w),1.0);}
-        if mode==2u {return vec4<f32>(n.xyz,1.0);}
-        if mode==3u {return params.colors[min(u32(n.w),127u)];}
-        if mode==4u {return vec4<f32>((hit.xyz-params.bounds_min.xyz)/max(params.bounds_max.xyz-params.bounds_min.xyz,vec3<f32>(0.0001)),1.0);}
-        if mode==6u {
-            let f=textureLoad(flow,coord,0);
-            if f.z==0.0 {return vec4<f32>(1.0);}
-            let delta=f.xy*params.preview.y;
-            let h=atan2(delta.y,delta.x)/6.28318530718;
-            let saturation=pow(clamp(length(delta)/max(params.preview.z,1.0),0.0,1.0),0.65);
-            let rgb=clamp(abs(fract(vec3<f32>(h)+vec3<f32>(0.0,0.666666667,0.333333333))*6.0-3.0)-1.0,vec3<f32>(0.0),vec3<f32>(1.0));
-            return vec4<f32>(mix(vec3<f32>(1.0),rgb,saturation),1.0);
-        }
-        return vec4<f32>(0.0);
+    // Enter the derivative-based RGB pass under uniform control flow, before
+    // any per-pixel geometry or domain rejection (required by WebGPU).
+    if mode==0u {
+        let d=ray(params.lens,pixel.xy);
+        if params.preview.w != 0.0 { return preview_rgb(pixel.xy, d); }
+        if d.w==0.0 {return vec4<f32>(0.0);}
+        return composite(d.xyz);
     }
-    let d=ray(params.lens,pixel.xy);
-    if d.w==0.0 {return vec4<f32>(0.0);}
-    return composite(d.xyz);
+    let coord=vec2<i32>(pixel.xy);
+    let hit=textureLoad(world_depth,coord,0);let n=textureLoad(normal_semantic,coord,0);
+    if hit.w<=0.0 {return vec4<f32>(0.0);}
+    if mode==1u {return vec4<f32>(depth_color(hit.w),1.0);}
+    if mode==2u {return vec4<f32>(n.xyz,1.0);}
+    if mode==3u {return params.colors[min(u32(n.w),127u)];}
+    if mode==4u {return vec4<f32>((hit.xyz-params.bounds_min.xyz)/max(params.bounds_max.xyz-params.bounds_min.xyz,vec3<f32>(0.0001)),1.0);}
+    if mode==6u {
+        let f=textureLoad(flow,coord,0);
+        if f.z==0.0 {return vec4<f32>(1.0);}
+        let delta=f.xy*params.preview.y;
+        let h=atan2(delta.y,delta.x)/6.28318530718;
+        let saturation=pow(clamp(length(delta)/max(params.preview.z,1.0),0.0,1.0),0.65);
+        let rgb=clamp(abs(fract(vec3<f32>(h)+vec3<f32>(0.0,0.666666667,0.333333333))*6.0-3.0)-1.0,vec3<f32>(0.0),vec3<f32>(1.0));
+        return vec4<f32>(mix(vec3<f32>(1.0),rgb,saturation),1.0);
+    }
+    return vec4<f32>(0.0);
 }

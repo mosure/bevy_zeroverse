@@ -6,6 +6,15 @@ pub(super) fn material(
     seed: u64,
     images: &mut impl AssetStore<Image>,
 ) -> StandardMaterial {
+    with_budget(surface, seed, images, 8 * 1024)
+}
+
+fn with_budget(
+    surface: Surface,
+    seed: u64,
+    images: &mut impl AssetStore<Image>,
+    budget: usize,
+) -> StandardMaterial {
     let mut r = stream(seed, 0x4241_5349_4e53_544b ^ surface as u64);
     let (value, roughness, variation, texture_scale) = match surface {
         Surface::Metal => (
@@ -31,15 +40,24 @@ pub(super) fn material(
     let tint = Vec3::new(value + warmth, value, value - warmth);
     let metal = surface == Surface::Metal;
     let composite = surface == Surface::Concrete;
-    let mut pigment = Vec::new();
+    let mut pigment = if composite {
+        Vec::with_capacity(64 * 64 * 4)
+    } else {
+        Vec::new()
+    };
     let mut orm = Vec::with_capacity(64 * 64 * 4);
     let key = r.random::<u64>();
+    let [brush, grit_field] = sheet_fields(
+        key,
+        [([if metal { 4 } else { 25 }, 31], 0), ([29, 27], 1)],
+        budget,
+    );
     for y in 0..64 {
         for x in 0..64 {
             let u = (x as f32 + 0.5) / 64.;
             let v = (y as f32 + 0.5) / 64.;
-            let grain = periodic_noise(u, v, if metal { 4 } else { 25 }, 31, key);
-            let grit = periodic_noise(u, v, 29, 27, key ^ 1);
+            let grain = brush.sample(u, v);
+            let grit = grit_field.sample(u, v);
             let finish =
                 (roughness + ((grain - 0.5) * 0.76 + (grit - 0.5) * 0.24) * variation) * 255.;
             orm.extend([255, finish.round() as u8, if metal { 255 } else { 0 }, 255]);
@@ -74,6 +92,23 @@ pub(super) fn material(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cached_basin_fields_replay_every_mip_byte() {
+        for seed in 0..12 {
+            for surface in [Surface::Metal, Surface::Ceramic, Surface::Concrete] {
+                let maps = |budget| {
+                    let mut images = Assets::default();
+                    let material = with_budget(surface, seed, &mut images, budget);
+                    [
+                        material.base_color_texture,
+                        material.metallic_roughness_texture,
+                    ]
+                    .map(|handle| handle.map(|h| images.get(h.id()).unwrap().data.clone().unwrap()))
+                };
+                assert!(maps(0) == maps(8 * 1024), "{seed} {surface:?}");
+            }
+        }
+    }
     #[test]
     fn bowl_material_preserves_substrate_and_only_composite_needs_pigment_map() {
         for s in [Surface::Metal, Surface::Concrete, Surface::Ceramic] {

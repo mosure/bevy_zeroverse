@@ -506,7 +506,7 @@ struct Actor {
     last: Option<(u32, bool)>,
 }
 #[derive(Component)]
-struct MotionPart {
+pub(crate) struct MotionPart {
     skin: SkinVertices,
     skinned: SkinnedMesh,
 }

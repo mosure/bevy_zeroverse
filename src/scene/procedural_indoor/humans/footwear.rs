@@ -6,10 +6,35 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::{FRAC_PI_2, TAU};
+mod construction;
+use construction::Last;
+pub use construction::ShoeConstruction;
+
+pub(super) const SOLE_CLEARANCE_VERSION: u32 = 235;
+
+/// The anatomical toe joint stops before the toe box. Reserve the full sole
+/// on its actual support plane, including when a stool carries both feet.
+pub(super) fn seated_soles(human: &super::IndoorHuman) -> [(Vec3, Vec3, f32); 2] {
+    let scale = human.stature / 1.75;
+    let height = human.foot_support_height() + 0.043 * scale;
+    [15, 19].map(|i| {
+        let ankle = human.joints[i].with_y(height);
+        let forward = (human.joints[i + 1] - human.joints[i])
+            .with_y(0.)
+            .normalize_or(Vec3::NEG_Z);
+        (
+            ankle - forward * (0.045 * scale),
+            ankle + forward * (0.223 * scale),
+            0.090 * scale,
+        )
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FootwearProgram {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub construction: Option<ShoeConstruction>,
     pub sole_height: f32,
     pub toe_room: f32,
     pub toe_roundness: f32,
@@ -24,6 +49,7 @@ pub struct FootwearProgram {
 impl Default for FootwearProgram {
     fn default() -> Self {
         Self {
+            construction: None,
             sole_height: 0.015,
             toe_room: 0.008,
             toe_roundness: 3.1,
@@ -53,6 +79,7 @@ impl FootwearProgram {
             }
         }
         if self.laces > 8
+            || self.construction.as_ref().is_some_and(|c| !c.valid())
             || self
                 .upper_color
                 .iter()
@@ -77,7 +104,10 @@ impl FootwearProgram {
         } else {
             rng.random_range(0.025..0.15)
         };
+        let upper_color = [value, value * (1. - warm), value * (1. - warm * 1.5)];
+        let sole_color = [rubber, rubber * 0.98, rubber * 0.95];
         Self {
+            construction: Some(ShoeConstruction::sample(seed, upper_color, sole_color)),
             sole_height: rng.random_range(0.010..0.026),
             toe_room: rng.random_range(0.005..0.016),
             toe_roundness: rng.random_range(2.3..4.2),
@@ -90,8 +120,8 @@ impl FootwearProgram {
                 0
             },
             leather,
-            upper_color: [value, value * (1. - warm), value * (1. - warm * 1.5)],
-            sole_color: [rubber, rubber * 0.98, rubber * 0.95],
+            upper_color,
+            sole_color,
         }
     }
 }
@@ -130,7 +160,8 @@ pub(super) struct FootFrame {
     pub ankle: Vec3,
     pub toe: Vec3,
     pub posed_from_rest: Mat4,
-    pub floor: f32,
+    /// Height of this posed anatomical foot above the body's support plane.
+    pub contact_height: f32,
     pub shoe_top: f32,
 }
 
@@ -144,7 +175,7 @@ pub(super) fn append(
         ankle,
         toe,
         posed_from_rest,
-        floor,
+        contact_height,
         shoe_top,
     } = frame;
     let back = (ankle - toe).with_y(0.).normalize_or(Vec3::Z);
@@ -156,18 +187,11 @@ pub(super) fn append(
         ankle.extend(1.),
     );
     let inverse = basis.inverse();
-    let local: Vec<_> = points
-        .iter()
-        .map(|p| inverse.transform_point3(*p))
-        .collect();
-    let (lo, hi) = local
-        .iter()
-        .copied()
-        .filter(|p| p.y <= shoe_top - ankle.y)
-        .fold(
-            (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
-            |(lo, hi), p| (lo.min(p), hi.max(p)),
-        );
+    let local = || points.iter().map(|p| inverse.transform_point3(*p));
+    let (lo, hi) = local().filter(|p| p.y <= shoe_top - ankle.y).fold(
+        (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+        |(lo, hi), p| (lo.min(p), hi.max(p)),
+    );
     if !lo.is_finite() || !hi.is_finite() {
         return;
     }
@@ -179,8 +203,7 @@ pub(super) fn append(
     let sole_top = lo.y + program.sole_height;
     let collar_top = (shoe_top - ankle.y + program.collar_raise).max(sole_top + 0.075);
     let height = collar_top - sole_top;
-    let collar = local
-        .iter()
+    let collar = local()
         .filter(|p| p.y > collar_top - 0.025)
         .fold(Vec2::new(width * 0.50, width * 0.55), |radius, p| {
             radius.max(Vec2::new(p.x.abs() + 0.004, p.z.abs() + 0.004))
@@ -250,34 +273,66 @@ pub(super) fn append(
         },
         profiles[0],
     ];
-    let mut sole = loft(&sole_profile, program.toe_roundness, 1);
-    cap(&mut sole, sole_profile[0], program.toe_roundness, false);
-    cap(&mut sole, sole_profile[3], program.toe_roundness, true);
-    let mut upper = loft(&profiles, program.toe_roundness, 3);
-    let mut laces = Geometry::default();
-    for row in 0..program.laces {
-        let t = (row as f32 + 1.) / (program.laces as f32 + 1.);
-        let at = t * 1.7;
-        let section = if at < 1. {
-            profiles[2].lerp(profiles[3], at)
+    let last = Last {
+        construction: program.construction.as_ref(),
+        medial: if ankle.x * right.x >= 0. { -1. } else { 1. },
+        width,
+        back,
+        length: back - front,
+    };
+    let modern = program.construction.is_some();
+    let mut sole = loft(&sole_profile, program.toe_roundness, 1, &last, false);
+    for (section, top) in [(sole_profile[0], false), (sole_profile[3], true)] {
+        if modern {
+            last.cap(&mut sole, section, program.toe_roundness, top);
         } else {
-            profiles[3].lerp(profiles[4], at - 1.)
-        };
-        let points: Vec<_> = (0..=8)
-            .map(|step| {
-                let angle = -FRAC_PI_2 + (step as f32 / 8. - 0.5) * 0.85;
-                section.point(angle, program.toe_roundness)
-                    + Vec3::new(angle.cos(), 0.2, angle.sin()) * 0.0018
-            })
-            .collect();
-        laces.tube(&points, 0.0012, 6);
+            cap(&mut sole, section, program.toe_roundness, top);
+        }
     }
-    let transform = posed_from_rest * basis;
+    let mut upper = loft(
+        &profiles,
+        program.toe_roundness,
+        if modern { 2 } else { 3 },
+        &last,
+        true,
+    );
+    let mut laces = Geometry::default();
+    if modern {
+        last.fastenings(&profiles, program.toe_roundness, program.laces, &mut laces);
+    } else {
+        for row in 0..program.laces {
+            let t = (row as f32 + 1.) / (program.laces as f32 + 1.);
+            let at = t * 1.7;
+            let section = if at < 1. {
+                profiles[2].lerp(profiles[3], at)
+            } else {
+                profiles[3].lerp(profiles[4], at - 1.)
+            };
+            let points: Vec<_> = (0..=8)
+                .map(|step| {
+                    let angle = -FRAC_PI_2 + (step as f32 / 8. - 0.5) * 0.85;
+                    section.point(angle, program.toe_roundness)
+                        + Vec3::new(angle.cos(), 0.2, angle.sin()) * 0.0018
+                })
+                .collect();
+            laces.tube(&points, 0.0012, 6);
+        }
+    }
+    let mut transform = posed_from_rest * basis;
+    // The anatomical toes deform, whereas a shoe is rigid and its toe may
+    // curve upwards. Ground the actual outsole at this foot's contact height.
+    // Translating the whole shoe preserves its shape and a lifted foot's gap.
+    let y = transform.row(1);
+    let bottom = sole
+        .positions
+        .iter()
+        .map(|p| y.dot(Vec3::from_array(*p).extend(1.)))
+        .fold(f32::INFINITY, f32::min);
+    transform.w_axis.y += contact_height - bottom;
     let normal = Mat3::from_mat4(transform).inverse().transpose();
     for g in [&mut upper, &mut sole, &mut laces] {
         for p in &mut g.positions {
-            let q = transform.transform_point3(Vec3::from_array(*p)) - Vec3::Y * floor;
-            *p = q.with_y(q.y.max(0.)).to_array();
+            *p = transform.transform_point3(Vec3::from_array(*p)).to_array();
         }
         for n in &mut g.normals {
             *n = (normal * Vec3::from_array(*n))
@@ -291,19 +346,57 @@ pub(super) fn append(
 }
 
 const SIDES: usize = 40;
-fn loft(profiles: &[Section], roundness: f32, subdivisions: usize) -> Geometry {
+fn loft(
+    profiles: &[Section],
+    roundness: f32,
+    subdivisions: usize,
+    last: &Last,
+    upper: bool,
+) -> Geometry {
     let mut g = Geometry::default();
-    for pair in profiles.windows(2) {
+    let metric = last.construction.is_some();
+    let mut previous = [Vec3::ZERO; SIDES + 1];
+    let mut v = [0.; SIDES + 1];
+    let angles: [_; SIDES + 1] = std::array::from_fn(|i| (i % SIDES) as f32 * TAU / SIDES as f32);
+    // The circumferential powers are identical for every row of this last.
+    let ring = angles.map(|a| {
+        let (sin, cos) = a.sin_cos();
+        let power = 2. / roundness;
+        (
+            cos.signum() * cos.abs().powf(power),
+            sin.signum() * sin.abs().powf(power),
+            sin.max(0.),
+        )
+    });
+    for (band, pair) in profiles.windows(2).enumerate() {
         let base = g.positions.len() as u32;
+        let first_index = g.indices.len();
         for row in 0..=subdivisions {
             let section = pair[0].lerp(pair[1], row as f32 / subdivisions as f32);
+            let mut u = 0.;
+            let mut preceding = Vec3::ZERO;
             for side in 0..=SIDES {
-                // Exactly welded wrap coordinates, including noninteger powers.
-                let a = (side % SIDES) as f32 * TAU / SIDES as f32;
-                let p = section.point(a, roundness);
+                let (x, z, heel) = ring[side];
+                let p = last.shape(Vec3::new(
+                    x * section.radii.x * (1. - (1. - section.heel) * heel),
+                    section.y,
+                    section.centre + z * section.radii.y,
+                ));
                 g.positions.push(p.to_array());
                 g.normals.push([0.; 3]);
-                g.uvs.push([a * section.radii.x, section.y]);
+                if metric {
+                    if side != 0 {
+                        u += p.distance(preceding);
+                    }
+                    if band != 0 || row != 0 {
+                        v[side] += p.distance(previous[side]);
+                    }
+                    g.uvs.push([u, v[side]]);
+                    preceding = p;
+                    previous[side] = p;
+                } else {
+                    g.uvs.push([angles[side] * section.radii.x, section.y]);
+                }
             }
         }
         for row in 0..subdivisions {
@@ -314,15 +407,7 @@ fn loft(profiles: &[Section], roundness: f32, subdivisions: usize) -> Geometry {
             }
         }
         // Each construction crease has its own averaged shading field.
-        for ids in g
-            .indices
-            .iter()
-            .skip(g.indices.len() - subdivisions * SIDES * 6)
-            .copied()
-            .collect::<Vec<_>>()
-            .as_chunks::<3>()
-            .0
-        {
+        for ids in g.indices[first_index..].as_chunks::<3>().0 {
             let [a, b, c] = ids.map(|i| Vec3::from_array(g.positions[i as usize]));
             let n = (b - a).cross(c - a);
             for &i in ids {
@@ -334,6 +419,17 @@ fn loft(profiles: &[Section], roundness: f32, subdivisions: usize) -> Geometry {
             let n = Vec3::from_array(g.normals[first]) + Vec3::from_array(g.normals[first + SIDES]);
             g.normals[first] = n.to_array();
             g.normals[first + SIDES] = n.to_array();
+        }
+        if metric && upper && (1..=3).contains(&band) {
+            for side in 0..=SIDES {
+                let current = base as usize + side;
+                let before = current - (SIDES + 1);
+                let n = (Vec3::from_array(g.normals[before])
+                    + Vec3::from_array(g.normals[current]))
+                .to_array();
+                g.normals[before] = n;
+                g.normals[current] = n;
+            }
         }
     }
     for n in &mut g.normals {
@@ -365,6 +461,52 @@ fn cap(g: &mut Geometry, section: Section, roundness: f32, top: bool) {
 mod tests {
     use super::*;
     #[test]
+    fn toe_boxes_are_handed_and_grain_continues_across_the_uv_wrap() {
+        let p = FootwearProgram::sample(17);
+        let left = Last {
+            construction: p.construction.as_ref(),
+            medial: 1.,
+            width: 0.05,
+            back: 0.055,
+            length: 0.25,
+        };
+        let right = Last {
+            medial: -1.,
+            ..left
+        };
+        let toe = Vec3::new(0., 0., -0.195);
+        assert!(left.shape(toe).x > 0.002 && left.shape(toe).y > 0.001);
+        for q in [
+            toe,
+            Vec3::new(0.048, 0., -0.045),
+            Vec3::new(0.02, 0.02, 0.055),
+        ] {
+            let mirror = Vec3::new(-1., 1., 1.);
+            assert!(left.shape(q).distance(mirror * right.shape(q * mirror)) < 1e-6);
+        }
+        assert_eq!(left.shape(Vec3::Z * 0.055).y, 0.);
+        let a = Section {
+            y: 0.003,
+            centre: -0.06,
+            radii: Vec2::new(0.05, 0.12),
+            heel: 0.78,
+        };
+        let b = Section {
+            y: 0.022,
+            radii: a.radii * 0.99,
+            ..a
+        };
+        let g = loft(&[a, b], 3.1, 1, &left, true);
+        for row in 0..2 {
+            let start = row * (SIDES + 1);
+            assert_eq!(g.positions[start], g.positions[start + SIDES]);
+            for uv in g.uvs[start..=start + SIDES].windows(2) {
+                assert!(uv[1][0] > uv[0][0]);
+            }
+            assert!(g.uvs[start + SIDES][0] > 0.5);
+        }
+    }
+    #[test]
     fn shoe_programs_replay_and_solids_have_outward_finite_triangles() {
         let points = [Vec3::new(-0.045, 0., -0.18), Vec3::new(0.045, 0.09, 0.04)];
         for seed in 0..64 {
@@ -372,18 +514,27 @@ mod tests {
             assert_eq!(p, FootwearProgram::sample(seed));
             assert!(p.validate().is_ok());
             let mut mesh = HumanAssembly::default();
+            let height = if seed % 2 == 0 { 0. } else { 0.084 };
+            let pitch = (seed as f32 / 63. - 0.5) * 0.72;
             append(
                 &p,
                 &points,
                 FootFrame {
                     ankle: Vec3::new(0., 0.09, 0.),
                     toe: Vec3::new(0., 0.015, -0.14),
-                    posed_from_rest: Mat4::IDENTITY,
-                    floor: 0.,
+                    posed_from_rest: Mat4::from_rotation_x(pitch),
+                    contact_height: height,
                     shoe_top: 0.105,
                 },
                 &mut mesh,
             );
+            let sole = &mesh.parts[&HumanSurface::Sole];
+            let bottom = sole
+                .positions
+                .iter()
+                .map(|p| p[1])
+                .fold(f32::INFINITY, f32::min);
+            assert!((bottom - height).abs() < 1e-6, "{bottom} != {height}");
             for (surface, g) in &mesh.parts {
                 for ids in g.indices.as_chunks::<3>().0 {
                     let [a, b, c] = ids.map(|i| Vec3::from_array(g.positions[i as usize]));

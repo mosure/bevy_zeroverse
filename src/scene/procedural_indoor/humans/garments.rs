@@ -1,6 +1,7 @@
 //! Clothing regions live in the rest body, then follow the full Anny skinning.
 //! Anatomical heights define waist/cuffs/necklines; rig ownership alone does not.
 pub(super) mod details;
+mod fastenings;
 pub(super) mod fit;
 pub(super) mod legs;
 mod program;
@@ -23,6 +24,10 @@ pub(super) struct GarmentCut {
     pub program: GarmentProgram,
 }
 impl GarmentCut {
+    fn opening_half_width(&self, height: f32) -> f32 {
+        let y = ((height - self.waist) / (self.neck - self.waist)).clamp(0., 1.);
+        self.program.placket_width + y * y * self.program.collar_width
+    }
     pub fn surface(&self, h: &IndoorHuman, p: Vec3, bone: &str) -> HumanSurface {
         if bone.starts_with("eye.") {
             return HumanSurface::Eye;
@@ -59,11 +64,7 @@ impl GarmentCut {
             };
         }
         let front = p.z < self.depth_center;
-        let y = ((p.y - self.waist) / (self.neck - self.waist)).clamp(0.0, 1.0);
-        if h.outfit.open_front()
-            && front
-            && p.x.abs() < self.program.placket_width + y.powi(2) * self.program.collar_width
-        {
+        if h.outfit.open_front() && front && p.x.abs() < self.opening_half_width(p.y) {
             return HumanSurface::Shirt;
         }
         HumanSurface::Top
@@ -109,11 +110,7 @@ impl GarmentCut {
         if h.outfit.open_front() {
             let (shirt, jacket) = split(
                 &top,
-                |p| {
-                    let y = ((p.y - self.waist) / (self.neck - self.waist)).clamp(0.0, 1.0);
-                    (p.x.abs() - self.program.placket_width - y.powi(2) * self.program.collar_width)
-                        .max(p.z - self.depth_center)
-                },
+                |p| (p.x.abs() - self.opening_half_width(p.y)).max(p.z - self.depth_center),
                 Some((mesh, 0.0011)),
             );
             emit(&shirt, HumanSurface::Shirt, mesh);
@@ -244,20 +241,11 @@ pub(super) fn emit(poly: &[GarmentVertex], surface: HumanSurface, mesh: &mut Hum
 
 #[cfg(test)]
 mod tests {
+    use super::super::{finishes::LayerFinishes, HumanOutfit};
     use super::*;
 
-    #[test]
-    fn palms_and_fingers_are_skin_even_below_the_waist() {
-        let h = crate::scene::procedural_indoor::humans::sample_person(
-            0,
-            0,
-            Vec3::ZERO,
-            0.0,
-            crate::scene::procedural_indoor::humans::HumanPoseKind::StandingRelaxed,
-            None,
-            false,
-        );
-        let cut = GarmentCut {
+    fn test_cut() -> GarmentCut {
+        GarmentCut {
             legs: std::array::from_fn(|_| {
                 legs::LegFit::new(&[], Vec3::Y, Vec3::ZERO, &GarmentProgram::default())
             }),
@@ -270,7 +258,47 @@ mod tests {
             cuffs: [(Vec3::ZERO, Vec3::X); 2],
             leg_cuffs: [(Vec3::ZERO, Vec3::NEG_Y); 2],
             program: GarmentProgram::default(),
-        };
+        }
+    }
+
+    #[test]
+    fn open_garment_buttons_clear_the_inner_shirt_and_closed_plackets_follow_the_midline() {
+        let cut = test_cut();
+        for seed in 0..128 {
+            let finish = LayerFinishes::sample(seed);
+            for (outfit, counts) in [
+                (HumanOutfit::Blazer, 1..=3),
+                (HumanOutfit::Cardigan, 3..=6),
+                (HumanOutfit::Polo, 2..=4),
+                (HumanOutfit::Shirt, 5..=8),
+                (HumanOutfit::Tee, 0..=0),
+            ] {
+                let buttons: Vec<_> = fastenings::buttons(&cut, outfit, &finish).collect();
+                assert!(counts.contains(&buttons.len()));
+                for (p, r) in buttons {
+                    assert!((cut.waist..cut.neck).contains(&p.y));
+                    if outfit.open_front() {
+                        assert!(p.x * finish.button_side - r > cut.opening_half_width(p.y));
+                    } else {
+                        assert_eq!(p.x, 0.);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn palms_and_fingers_are_skin_even_below_the_waist() {
+        let h = super::super::sample_person(
+            0,
+            0,
+            Vec3::ZERO,
+            0.,
+            super::super::HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        let cut = test_cut();
         for side in ["L", "R"] {
             for bone in [
                 "metacarpal1",

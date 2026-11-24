@@ -1,5 +1,6 @@
 use super::super::super::assemblies::SeatPath;
 use super::*;
+use crate::scene::procedural_indoor::objects::chairs;
 use rand::seq::SliceRandom;
 #[cfg(test)]
 mod tests;
@@ -95,7 +96,12 @@ impl IndoorManifest {
         r: &mut ChaCha8Rng,
     ) {
         let collection = variation::Collection::sample(self.seed, index);
-        let table_size = collection.table(width, r);
+        let mut table_size = collection.table(width, r);
+        let activity = self.assembly_diagnostics.programs[index].activity;
+        let high_top = high_top(self.seed, index, pos, activity);
+        if let Some((height, _)) = high_top {
+            table_size.y = height;
+        }
         let start = self.objects.len();
         let Some(id) = self.public_fit(index, ObjectKind::Table, pos, table_size, yaw, r) else {
             self.assembly_diagnostics.programs[index].requested_capacity += 2;
@@ -113,32 +119,31 @@ impl IndoorManifest {
                 .round()
                 .clamp(2., 8.) as usize;
         self.assembly_diagnostics.programs[index].requested_capacity += capacity;
-        let bench_side = if self.assembly_diagnostics.programs[index].activity == IndoorLayout::Cafe
-            && r.random_bool(0.48)
-        {
-            self.assembly_diagnostics.programs[index].requested_capacity += 1;
-            let side = if r.random_bool(0.5) { -1. } else { 1. };
-            let depth = r.random_range(0.63..0.76);
-            let offset = Vec3::new(
-                r.random_range(-0.10..0.10),
-                0.,
-                side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
-            );
-            self.public_fit_with(
-                index,
-                FloorProposal {
-                    kind: ObjectKind::Banquette,
-                    position: table.transform().transform_point(offset),
-                    size: Vec3::new(table.size.x.max(1.15), r.random_range(0.96..1.17), depth),
-                    yaw: yaw + if side > 0. { PI } else { 0. },
-                },
-                r,
-                |o| station_clear(&table, o, offset.xz()),
-            )
-            .map(|_| side)
-        } else {
-            None
-        };
+        let bench_side =
+            if high_top.is_none() && activity == IndoorLayout::Cafe && r.random_bool(0.48) {
+                self.assembly_diagnostics.programs[index].requested_capacity += 1;
+                let side = if r.random_bool(0.5) { -1. } else { 1. };
+                let depth = r.random_range(0.63..0.76);
+                let offset = Vec3::new(
+                    r.random_range(-0.10..0.10),
+                    0.,
+                    side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
+                );
+                self.public_fit_with(
+                    index,
+                    FloorProposal {
+                        kind: ObjectKind::Banquette,
+                        position: table.transform().transform_point(offset),
+                        size: Vec3::new(table.size.x.max(1.15), r.random_range(0.96..1.17), depth),
+                        yaw: yaw + if side > 0. { PI } else { 0. },
+                    },
+                    r,
+                    |o| station_clear(&table, o, offset.xz()),
+                )
+                .map(|_| side)
+            } else {
+                None
+            };
         let path = SeatPath::new(&table, r.random_range(0.46..0.57));
         let phase = r.random_range(0.0..1.0);
         let mut stations: Vec<_> = (0..capacity).collect();
@@ -152,7 +157,10 @@ impl IndoorManifest {
                 continue;
             }
             let size = collection.chair(r);
-            let variant = if r.random_bool(0.5) { 3 } else { 4 };
+            let variant = high_top.map_or_else(
+                || if r.random_bool(0.5) { 3 } else { 4 },
+                |(_, stool)| stool,
+            );
             self.public_fit_with(
                 index,
                 FloorProposal {
@@ -168,6 +176,14 @@ impl IndoorManifest {
                     // Admit the final chair geometry and pairing, so leg/top
                     // clearance is checked before this station is accepted.
                     o.variant = variant;
+                    if high_top.is_some() {
+                        let footprint = chairs::footprint(variant, table.seed, o.seed);
+                        o.size = Vec3::new(
+                            footprint.x,
+                            chairs::stool::fitted_envelope(o, Some(&table)),
+                            footprint.y,
+                        );
+                    }
                     o.interaction_target = Some(id);
                     station_clear(&table, o, point)
                 },
@@ -190,4 +206,24 @@ fn station_clear(table: &IndoorObject, seat: &IndoorObject, station: Vec2) -> bo
     local.xz().distance_squared(station) < 0.40_f32.powi(2)
         && local.xz().dot(station) > 0.
         && (table.position.y - seat.position.y).abs() < 0.015
+}
+
+/// One venue can mix dining and high-top stations. Its product line controls
+/// height and back style. Each table independently draws from that venue's mix.
+fn high_top(seed: u64, zone: usize, pos: Vec3, activity: IndoorLayout) -> Option<(f32, u32)> {
+    let prevalence = match activity {
+        IndoorLayout::Cafe => 0.55,
+        IndoorLayout::Cafeteria => 0.29,
+        _ => return None,
+    };
+    let mut venue = stream(seed, 0x4849_544f_5053 + zone as u64);
+    let key = u64::from(pos.x.to_bits()) << 32 | u64::from(pos.z.to_bits());
+    let mut table = stream(seed ^ key, 0x4341_4645_5345_4154);
+    if !table.random_bool(venue.random_range(0.03..prevalence)) {
+        return None;
+    }
+    Some((
+        venue.random_range(0.905..1.085) + table.random_range(-0.014..0.014),
+        if venue.random_bool(0.48) { 6 } else { 7 },
+    ))
 }

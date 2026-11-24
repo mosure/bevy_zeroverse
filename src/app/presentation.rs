@@ -3,6 +3,7 @@
 use super::{view_state::ViewState, BevyZeroverseConfig, PlaybackMode};
 use crate::{
     camera::lens::LensSampling,
+    render::anti_alias::PreviewAa,
     scene::procedural_indoor::cameras::{CameraSettings, RollDistribution},
 };
 
@@ -64,6 +65,7 @@ pub(super) fn kiosk_defaults(
     set!(num_cameras, 1);
     set!(camera_grid, true);
     set!(hdr, true);
+    set!(preview_aa, PreviewAa::Taa);
     set!(fullscreen, true);
     set!(regenerate_ms, SCENE_SECONDS * 1000);
     set!(playback_mode, PlaybackMode::Smoothstep);

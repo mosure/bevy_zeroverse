@@ -168,14 +168,13 @@ fn tucked_seating_and_surface_programs_cover_occupied_and_empty_cases() {
                     .is_none()
             );
             for base in [5, 9] {
-                let s = human.stature / 1.75;
+                let [upper, forearm] = human.arm_lengths();
                 assert!(
-                    (mesh.local_joints[base].distance(mesh.local_joints[base + 1]) - 0.29 * s)
-                        .abs()
+                    (mesh.local_joints[base].distance(mesh.local_joints[base + 1]) - upper).abs()
                         < 1e-5
                 );
                 assert!(
-                    (mesh.local_joints[base + 1].distance(mesh.local_joints[base + 2]) - 0.26 * s)
+                    (mesh.local_joints[base + 1].distance(mesh.local_joints[base + 2]) - forearm)
                         .abs()
                         < 1e-5
                 );

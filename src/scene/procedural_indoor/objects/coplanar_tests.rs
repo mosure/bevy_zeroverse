@@ -45,7 +45,14 @@ fn lids_panels_and_wall_hardware_have_no_competing_flat_faces() {
             o.kind = kind;
             o.size = size;
             o.seed = seed;
-            o.variant = (seed % 4) as u32;
+            o.variant = if kind == ObjectKind::TissueBox {
+                containers::tissue::installed_case(seed) as u32
+            } else {
+                (seed % 4) as u32
+            };
+            if kind == ObjectKind::LightSwitch {
+                wall::switches::install(&mut o, seed, (seed % 3) as u32);
+            }
             let mut planes = BTreeMap::<(usize, i32, i32), Vec<([Vec2; 3], String)>>::new();
             for ((surface, label), g) in build_object(&o).parts {
                 for tri in g.indices.as_chunks::<3>().0 {

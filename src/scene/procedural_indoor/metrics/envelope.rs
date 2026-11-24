@@ -1,7 +1,10 @@
 //! Measurements of the built envelope, including zero counts for absent features.
 mod mezzanine;
+mod sprinklers;
 use super::{CoverageReport, IndoorManifest};
-use crate::scene::procedural_indoor::{envelope::polygon, metrics_sort::NumericCollector};
+use crate::scene::procedural_indoor::{
+    architecture::doors::VisionShape, envelope::polygon, metrics_sort::NumericCollector,
+};
 use bevy::math::Vec3Swizzles;
 use std::io::{self, Write};
 
@@ -32,7 +35,7 @@ pub(super) fn record(
         }
     }
     let mut lined_walls = 0;
-    for lining in e.walls.iter().filter_map(|w| w.lining) {
+    for (edge, lining) in e.walls.iter().filter_map(|w| w.lining.map(|s| (w.edge, s))) {
         lined_walls += 1;
         *report
             .categories
@@ -40,15 +43,26 @@ pub(super) fn record(
             .or_default()
             .entry(format!("{:?}", lining.stock))
             .or_default() += 1;
-        numeric.push("wall_lining_height_m", lining.height_m as f64)?;
+        let cap = |i| e.ceiling_height(scene.room_size, e.footprint[i]);
+        numeric.push(
+            "wall_lining_height_m",
+            f64::from(lining.installed_height(cap(edge), cap((edge + 1) % e.footprint.len()))),
+        )?;
         numeric.push("wall_lining_module_width_m", lining.module_width_m as f64)?;
         numeric.push("wall_lining_joint_depth_m", lining.joint_depth_m as f64)?;
+        numeric.push("wall_lining_joint_width_m", lining.joint_width_m as f64)?;
         let arrangement = match lining.courses {
             None => "Upright",
             Some(c) => {
                 numeric.push("wall_lining_course_height_m", f64::from(c.height_m))?;
                 numeric.push("wall_lining_bond_offset", f64::from(c.bond_offset))?;
-                if c.bond_offset == 0. {
+                if c.phase_count(lining.stock) == 3 {
+                    if c.bond_offset > 0. {
+                        "ThirdLapRight"
+                    } else {
+                        "ThirdLapLeft"
+                    }
+                } else if c.bond_offset == 0. {
                     "Stacked"
                 } else {
                     "Staggered"
@@ -67,6 +81,25 @@ pub(super) fn record(
     let adjoining_outline = adjoining.footprint(scene.room_size);
     let height = super::super::architecture::interior_glazing::partition_height(scene);
     let glazing = super::super::architecture::interior_glazing::shared_facade(scene, height);
+    let installed_finish = match glazing.openings.first() {
+        None => "SolidWall",
+        Some(o) => match &o.glazing {
+            Some(glass) => {
+                numeric.push("shared_glazing_thickness_m", f64::from(glass.thickness_m))?;
+                glass.treatment_name()
+            }
+            None => "LegacyUniform",
+        },
+    };
+    *report
+        .categories
+        .entry("shared_glazing_treatment".into())
+        .or_default()
+        .entry(installed_finish.into())
+        .or_default() += 1;
+    for o in &glazing.openings {
+        numeric.push("shared_glazing_bay_width_m", f64::from(o.max.x - o.min.x))?;
+    }
     let opening_area: f32 = glazing
         .openings
         .iter()
@@ -205,6 +238,42 @@ pub(super) fn record(
     }
     numeric.push("door_count", doors.len() as f64)?;
     for d in &doors {
+        for (hole, radius) in d.vision_apertures() {
+            let shape = match d.program.vision_light.map(|v| v.shape) {
+                None => "Rectangular",
+                Some(VisionShape::Porthole { .. }) => "Porthole",
+                Some(VisionShape::Slot { .. }) => "Slot",
+                Some(VisionShape::Rounded { .. }) => "Rounded",
+            };
+            *report
+                .categories
+                .entry("door_vision_shape".into())
+                .or_default()
+                .entry(shape.into())
+                .or_default() += 1;
+            for (key, value) in [
+                ("door_vision_width_m", hole.width()),
+                ("door_vision_height_m", hole.height()),
+                ("door_vision_center_height_m", hole.center().y),
+                ("door_vision_corner_radius_m", radius),
+                (
+                    "door_vision_cutout_area_m2",
+                    hole.width() * hole.height() - (4. - std::f32::consts::PI) * radius.powi(2),
+                ),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
+        if let Some(h) = d.program.swing_hanging {
+            for (key, value) in [
+                ("swing_door_face_setback_m", h.reveal_m),
+                ("swing_door_stop_projection_m", h.stop_projection_m),
+                ("swing_door_hinges_per_leaf", h.hinges_per_leaf(d) as f32),
+                ("swing_door_hinge_length_m", h.hinge_length_m),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         for (key, value) in [
             ("door_mechanism", format!("{:?}", d.program.mechanism)),
             ("door_panel", format!("{:?}", d.program.panel)),
@@ -378,6 +447,37 @@ pub(super) fn record(
                         branches,
                         seam_pitch_m,
                     } => {
+                        if let Some(stock) = m.duct_register_stock(scene.generator_version) {
+                            for i in 0..branches.max(1) {
+                                let site = stock.site(m, branches, i);
+                                *report
+                                    .categories
+                                    .entry("ceiling_duct_register_pattern".into())
+                                    .or_default()
+                                    .entry(format!("{:?}", stock.pattern))
+                                    .or_default() += 1;
+                                *report
+                                    .categories
+                                    .entry("ceiling_duct_register_finish".into())
+                                    .or_default()
+                                    .entry(
+                                        if stock.coated {
+                                            "factory_coated"
+                                        } else {
+                                            "duct_metal"
+                                        }
+                                        .into(),
+                                    )
+                                    .or_default() += 1;
+                                for (key, value) in [
+                                    ("ceiling_duct_register_length_m", site.size.x),
+                                    ("ceiling_duct_register_width_m", site.size.y),
+                                    ("ceiling_duct_register_station", site.station),
+                                ] {
+                                    numeric.push(key, f64::from(value))?;
+                                }
+                            }
+                        }
                         for (key, value) in [
                             ("ceiling_duct_section", section),
                             ("ceiling_duct_end_scale", end_scale),
@@ -450,6 +550,7 @@ pub(super) fn record(
                         upright,
                         ..
                     } => {
+                        sprinklers::record(m, scene.generator_version, report, numeric)?;
                         numeric.push("ceiling_sprinkler_pitch_m", head_pitch_m as f64)?;
                         numeric.push("ceiling_sprinkler_branch_reach", branch_reach as f64)?;
                         *report

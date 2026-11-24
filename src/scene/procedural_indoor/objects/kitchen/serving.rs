@@ -45,10 +45,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, d: &DishProgram, meal: S
         d.radius * d.foot - d.wall
     };
     let flat = inner_foot * d.aspect.min_element() * (PI / d.segments as f32).cos();
+    let floor = d.interior_floor();
     match meal {
         Serving::Empty => {}
-        Serving::Toast => bakery::toast(a, flat, d.wall, o.size.y, &mut r),
-        Serving::Biscuit => bakery::biscuit(a, flat, d.wall, o.size.y, &mut r),
+        Serving::Toast => bakery::toast(a, flat, floor, o.size.y, &mut r),
+        Serving::Biscuit => bakery::biscuit(a, flat, floor, o.size.y, &mut r),
         Serving::Fruit => {
             let count = r.random_range(3..=7);
             let stock_radius = (flat * r.random_range(0.18..0.25)).min(0.0145);
@@ -82,10 +83,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, d: &DishProgram, meal: S
                     center
                 };
                 fruit.push((center, radius));
-                let height = (radius * r.random_range(0.77..1.12)).min((o.size.y - d.wall) * 0.47);
+                let height = (radius * r.random_range(0.77..1.12)).min((o.size.y - floor) * 0.47);
                 a.part(Surface::Ceramic, stock).small_ellipsoid(
                     Vec3::new(radius, height, radius * r.random_range(0.75..1.)),
-                    Transform::from_xyz(center.x, d.wall + height, center.y)
+                    Transform::from_xyz(center.x, floor + height, center.y)
                         .with_rotation(Quat::from_rotation_y(r.random_range(-PI..PI))),
                 );
             }

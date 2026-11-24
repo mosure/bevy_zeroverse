@@ -45,7 +45,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::Flatware
         | ObjectKind::CuttingBoard
         | ObjectKind::FruitBowl
-        | ObjectKind::Bread => kitchen::build(a, o),
+        | ObjectKind::Bread => kitchen::build(a, o, bevy_zeroverse_capture::GENERATOR_VERSION),
         ObjectKind::Projector
         | ObjectKind::ProjectionScreen
         | ObjectKind::PowerStrip
@@ -53,19 +53,21 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::WallShelf
         | ObjectKind::NoticeBoard
         | ObjectKind::WallSconce
-        | ObjectKind::CeilingPendant => equipment::build(a, o),
+        | ObjectKind::CeilingPendant => {
+            equipment::build(a, o, bevy_zeroverse_capture::GENERATOR_VERSION)
+        }
         ObjectKind::Printer | ObjectKind::StorageBox | ObjectKind::CoatRack | ObjectKind::Bag => {
-            utilities::build(a, o)
+            utilities::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
         ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable | ObjectKind::SideTable => {
-            tables::build(a, o)
+            tables::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
         ObjectKind::MobileCart
         | ObjectKind::DrawerUnit
         | ObjectKind::Bench
         | ObjectKind::Ottoman
         | ObjectKind::BaseboardHeater
-        | ObjectKind::RoomDivider => services::build(a, o),
+        | ObjectKind::RoomDivider => services::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::DeskLamp
         | ObjectKind::Speaker
         | ObjectKind::Headphones
@@ -74,15 +76,19 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::DocumentTray
         | ObjectKind::DeskOrganizer
         | ObjectKind::TissueBox
-        | ObjectKind::DeskFan => accessories::build(a, o),
+        | ObjectKind::DeskFan => accessories::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::CoffeeMaker | ObjectKind::Kettle | ObjectKind::Vase | ObjectKind::Bowl => {
             hospitality::build(a, o)
         }
-        ObjectKind::Chair => chairs::build(a, o),
-        ObjectKind::Sofa => seating::build(a, o),
-        ObjectKind::Cabinet | ObjectKind::Bookcase => storage::build(a, o),
+        ObjectKind::Chair => chairs::build(a, o, super::super::layout::GENERATOR_VERSION),
+        ObjectKind::Sofa => seating::build(a, o, super::super::layout::GENERATOR_VERSION),
+        ObjectKind::Cabinet | ObjectKind::Bookcase => {
+            storage::build(a, o, super::super::layout::GENERATOR_VERSION)
+        }
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(a, o),
-        ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => desktop::build(a, o),
+        ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => {
+            desktop::build(a, o, super::super::layout::GENERATOR_VERSION)
+        }
         ObjectKind::WaterBottle
         | ObjectKind::Mug
         | ObjectKind::CoffeeCup
@@ -112,7 +118,11 @@ fn catalog_routing_preserves_every_geometry_buffer_and_semantic_material_key() {
             let mut expected = Assembly::default();
             original_route(&mut expected, &object);
             let mut actual = Assembly::default();
-            routing::build(&mut actual, &object);
+            routing::build(
+                &mut actual,
+                &object,
+                super::super::layout::GENERATOR_VERSION,
+            );
             assert_eq!(actual.parts.len(), expected.parts.len(), "{kind:?}/{seed}");
             assert!(!actual.parts.is_empty(), "missing builder: {kind:?}");
             for ((key, a), (old_key, b)) in actual.parts.iter().zip(&expected.parts) {

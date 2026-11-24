@@ -6,10 +6,11 @@ mod floors;
 mod lining_mesh;
 #[cfg(test)]
 mod normal_tests;
+mod wall_section;
 use crate::scene::procedural_indoor::{
     architecture, geometry::Geometry, layout::AdjoiningFloor, materials::Surface, objects::Assembly,
 };
-const SHARED_WALL_THICKNESS_M: f32 = 0.18;
+pub(crate) const SHARED_WALL_THICKNESS_M: f32 = 0.18;
 
 /// Flat, metric UVs. Triangle winding and stored normals always agree, including
 /// negative floor levels, angled reveals and the underside of a sloping ceiling.
@@ -188,60 +189,40 @@ pub(super) fn wall(
 ) {
     let e = scene.envelope.as_ref().unwrap();
     let size = scene.room_size;
-    let thickness = if e.shared_edge(edge, size) {
-        SHARED_WALL_THICKNESS_M
-    } else {
-        e.wall_thickness()
-    };
     let p = e.footprint[edge];
     let q = e.footprint[(edge + 1) % e.footprint.len()];
     let length = p.distance(q);
     let tf = e.wall_transform(edge);
     let hp = e.ceiling_height(size, p);
     let hq = e.ceiling_height(size, q);
-    let slope = (hq - hp) / length;
-    let midpoint = (hp + hq) * 0.5;
     let lining = e
         .walls
         .iter()
         .find(|w| w.edge == edge)
         .and_then(|w| w.lining.as_ref());
-    let finish_line = lining.map_or(0., |s| s.height_m.min(hp.min(hq)));
+    let finish_line = lining.map_or(0., |s| s.installed_height(hp, hq));
     if let Some(s) = lining {
         lining_mesh::build(a, tf, s, length, finish_line, holes);
     }
-    for (lo, hi) in architecture::facade::solid_rectangles(
-        Vec2::new(-length * 0.5, 0.),
-        Vec2::new(length * 0.5, hp.max(hq)),
-        holes,
-    ) {
-        let rect = [lo, Vec2::new(hi.x, lo.y), hi, Vec2::new(lo.x, hi.y)];
-        let p = polygon::clip(&rect, Vec2::new(slope, -1.), -midpoint);
-        panel_faces(
-            &p.iter()
-                .map(|p| tf.transform_point(Vec3::new(p.x, p.y, 0.)))
-                .collect::<Vec<_>>(),
-            tf.rotation * Vec3::Z * thickness,
-            |points, normal, front| {
-                if front && lo.y < finish_line {
-                    if hi.y > finish_line {
-                        let upper = polygon::clip(&p, Vec2::Y, finish_line);
-                        let world: Vec<_> = upper
-                            .iter()
-                            .map(|v| tf.transform_point(v.extend(0.)))
-                            .collect();
-                        wall_face(a.part(surface, "wall"), &world, normal);
-                    }
-                    return;
-                }
-                wall_face(
-                    a.part(if front { surface } else { Surface::Paint }, "wall"),
-                    points,
-                    normal,
-                )
-            },
+    let section = wall_section::WallSection::new(
+        &e.footprint,
+        edge,
+        |p| e.ceiling_height(size, p),
+        |i| {
+            if e.shared_edge(i, size) {
+                SHARED_WALL_THICKNESS_M
+            } else {
+                e.wall_thickness()
+            }
+        },
+    );
+    section.build(holes, finish_line, |p, n, front| {
+        wall_face(
+            a.part(if front { surface } else { Surface::Paint }, "wall"),
+            p,
+            n,
         );
-    }
+    });
     if let Some(trim) = trim {
         if let Some(section) = &trim.base {
             let cutouts = e

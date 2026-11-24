@@ -2,9 +2,11 @@
 //! than inferred from an unrelated decorative shape at render time.
 pub mod board_section;
 mod fixtures;
+pub mod pendant;
 pub mod pinups;
 pub mod power_strip;
 pub mod projector;
+pub(crate) mod receptacles;
 pub mod sconce;
 pub mod signals;
 pub mod wall_shelf;
@@ -20,6 +22,7 @@ pub struct EquipmentProgram {
     pub vent_count: usize,
     pub socket_count: usize,
     pub shelf_brackets: usize,
+    /// Requested postings. Clearance and the exposed-area budget determine the installed count.
     pub note_count: usize,
     pub shade_fraction: f32,
     pub diffuser_fraction: f32,
@@ -35,6 +38,10 @@ pub struct EquipmentProgram {
 }
 
 pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> EquipmentProgram {
     let mut rng = stream(o.seed, 5700);
     let mut detail = stream(o.seed, 7460);
     let mut board = stream(o.seed, 7510);
@@ -65,7 +72,9 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
         shade_fraction: rng.random_range(0.18..0.48),
         diffuser_fraction: rng.random_range(0.44..0.84),
     };
-    if o.kind == ObjectKind::PowerStrip {
+    if o.kind == ObjectKind::NoticeBoard && version >= board_section::TACKBOARD_VERSION {
+        p.note_count = pinups::requested_count(o);
+    } else if o.kind == ObjectKind::PowerStrip {
         let strip = power_strip::parameters(o);
         p.socket_count = strip.socket_count;
         p.housing = strip.housing;
@@ -85,6 +94,11 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
         p.housing = screen.housing;
         p.screen_drop = screen.drop_fraction;
         p.screen_frame = screen.framed;
+    } else if o.kind == ObjectKind::CeilingPendant {
+        let fixture = pendant::parameters(o);
+        p.housing = fixture.shade.finish;
+        p.shade_fraction = fixture.shade_height_m / o.size.y;
+        p.diffuser_fraction = fixture.diffuser_fraction().unwrap_or(0.);
     } else if o.kind == ObjectKind::WallSconce {
         let fixture = sconce::parameters(o);
         p.housing = fixture.shade.finish;
@@ -96,20 +110,20 @@ pub fn parameters(o: &IndoorObject) -> EquipmentProgram {
     p
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
         ObjectKind::Projector => return projector::build(a, o),
         ObjectKind::PowerStrip => return power_strip::build(a, o),
         ObjectKind::Cable => return wires::build(a, o),
         ObjectKind::WallShelf => return wall_shelf::build(a, o),
+        ObjectKind::CeilingPendant => return pendant::build(a, o),
         ObjectKind::WallSconce => return sconce::build(a, o),
         ObjectKind::ProjectionScreen => return super::presentation::screen(a, o),
         _ => {}
     }
-    let p = parameters(o);
+    let p = parameters_at(o, version);
     match o.kind {
-        ObjectKind::NoticeBoard => fixtures::notice_board(a, o, &p),
-        ObjectKind::CeilingPendant => fixtures::light(a, o, &p),
+        ObjectKind::NoticeBoard => fixtures::notice_board(a, o, &p, version),
         _ => unreachable!("non-equipment object"),
     }
 }
@@ -119,21 +133,9 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
     let s = o.size;
     let local = match o.kind {
-        ObjectKind::Laptop => {
-            let p = super::computers::parameters(o);
-            let tilt = p.hinge_radians - FRAC_PI_2;
-            let screen_height = (s.x / p.aspect_ratio)
-                .min((s.y - p.chassis_m - 0.008) / tilt.cos())
-                .min((s.z - 0.114) / tilt.sin().max(0.001));
-            let rear = tilt.sin().max(0.) * screen_height;
-            let base_depth = (s.z - rear - 0.014).max(0.10);
-            Vec3::new(
-                s.x * 0.5 + 0.001,
-                p.chassis_m * 0.55 + 0.003,
-                -s.z * 0.5 + rear + 0.008 + base_depth * 0.17,
-            )
-        }
+        ObjectKind::Laptop => super::computers::io::charge_port(o),
         ObjectKind::DrinkDispenser if !low_voltage => super::public::dispenser::power_port(o)?,
+        ObjectKind::Printer if !low_voltage => super::utilities::printer::power_port(o),
         ObjectKind::CoffeeMaker if !low_voltage => Vec3::new(0., s.y * 0.10, -s.z * 0.5 - 0.001),
         ObjectKind::PcTower if !low_voltage => {
             super::desktop::ports::tower_local(o, super::desktop::ports::TowerJack::Mains)
@@ -141,9 +143,7 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).0,
         ObjectKind::Projector => projector::parameters(o).power_port(),
         ObjectKind::WallOutlet if !low_voltage => super::wall::outlet_port_local(o),
-        ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => {
-            super::floor::port_local(o)
-        }
+        ObjectKind::FloorOutlet if !low_voltage => super::floor::port_local(o)?,
         ObjectKind::PowerStrip => power_strip::parameters(o).output_port(s, low_voltage),
         _ => return None,
     };
@@ -154,13 +154,14 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
 /// validation and archived graph qualification share one physical port frame.
 pub(crate) fn power_port_normal(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
     let local = match o.kind {
-        ObjectKind::Laptop => Vec3::X,
+        ObjectKind::Laptop => super::computers::io::charge_normal(o),
         ObjectKind::Monitor if !low_voltage => super::computers::monitor_power_port_local(o).1,
         ObjectKind::DrinkDispenser if !low_voltage => {
             super::public::dispenser::power_port(o)?;
             Vec3::NEG_Z
         }
         ObjectKind::Projector => projector::parameters(o).port_normal(),
+        ObjectKind::Printer if !low_voltage => Vec3::NEG_Z,
         ObjectKind::CoffeeMaker | ObjectKind::PcTower => Vec3::NEG_Z,
         ObjectKind::WallOutlet if !low_voltage => Vec3::Z,
         ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => Vec3::Y,
@@ -191,18 +192,16 @@ pub(crate) fn source_power_normal(o: &IndoorObject) -> Option<Vec3> {
 }
 
 pub(crate) fn fixture_beam(o: &IndoorObject) -> super::super::photometry::FixtureBeam {
+    if o.kind == ObjectKind::CeilingPendant {
+        return pendant::parameters(o).beam(o);
+    }
     let mut rng = stream(o.seed, 0x4245414d434f4e45);
-    let (local, direction) = if o.kind == ObjectKind::CeilingPendant {
-        (Vec3::new(0., o.size.y * 0.05 - 0.003, 0.), Vec3::NEG_Y)
-    } else {
-        let p = sconce::parameters(o);
-        (p.emitter, p.mount_rotation * Vec3::NEG_Y)
-    };
+    let p = sconce::parameters(o);
     let world = o.transform();
     super::super::photometry::FixtureBeam {
-        position: world.transform_point(local),
+        position: world.transform_point(p.emitter),
         radius: 0.018,
-        direction: world.rotation * direction,
+        direction: world.rotation * (p.mount_rotation * Vec3::NEG_Y),
         inner: rng.random_range(0.37..0.64),
         outer: rng.random_range(0.82..1.18),
     }

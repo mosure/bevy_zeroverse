@@ -87,6 +87,14 @@ impl IndoorManifest {
         if let Some(seed) = settings.material_seed {
             program.materials = materials::program::sample(seed);
             materials::program::floor_finish(&mut program.materials, self.floor_style);
+            if let Some(stock) = program
+                .finishes
+                .as_mut()
+                .and_then(|f| f.interior_glazing.as_mut())
+                .and_then(|p| p.vision_panels.as_mut())
+            {
+                stock.apply_material_seed(seed);
+            }
         }
         for recipe in &mut program.materials {
             recipe.detail_scale =
@@ -170,9 +178,18 @@ mod tests {
     }
     #[test]
     fn factors_preserve_geometry_people_cameras_and_the_scene_family_seed() {
+        use super::super::architecture::interior_glazing::InteriorGlazing;
         let original =
             IndoorManifest::generate(7, super::super::layout::IndoorLayout::Mixed, 0.65, 2)
                 .unwrap();
+        let stock = |s: &IndoorManifest| {
+            InteriorGlazing::for_scene(s)
+                .unwrap()
+                .vision_panels
+                .clone()
+                .unwrap()
+        };
+        let initial = stock(&original);
         for settings in [
             AppearanceSettings {
                 material_seed: Some(55),
@@ -199,6 +216,20 @@ mod tests {
             assert_eq!(scene.humans, original.humans);
             assert_eq!(scene.cameras, original.cameras);
             assert_eq!(scene.envelope, original.envelope);
+            let mut installed = stock(&scene);
+            if settings.material_seed.is_some() {
+                assert_ne!(
+                    installed.glass.glass_recipe().attenuation,
+                    initial.glass.glass_recipe().attenuation
+                );
+                assert_ne!(
+                    installed.glass.frost_roughness,
+                    initial.glass.frost_roughness
+                );
+                installed.glass.installation = initial.glass.installation;
+                installed.glass.frost_roughness = initial.glass.frost_roughness;
+            }
+            assert_eq!(installed, initial);
             assert_eq!(
                 scene.program.as_ref().unwrap().partitions,
                 original.program.as_ref().unwrap().partitions

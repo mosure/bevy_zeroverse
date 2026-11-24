@@ -1,4 +1,4 @@
-use super::{indoor_fxaa, ConfigurePreviewAa, PreviewAa};
+use super::{indoor_fxaa, ConfigurePreviewAa, LensPreviewAa, PreviewAa};
 use crate::{
     app::BevyZeroverseConfig,
     camera::{lens::LensCamera, ProcessedEditorCameraMarker, ZeroverseCamera},
@@ -8,7 +8,7 @@ use crate::{
 };
 use bevy::{
     anti_alias::{
-        fxaa::Fxaa,
+        fxaa::{Fxaa, Sensitivity},
         smaa::{Smaa, SmaaPreset},
         taa::TemporalAntiAliasing,
     },
@@ -46,11 +46,17 @@ enum Filter {
     Off,
     Fxaa,
     Smaa(SmaaPreset),
+    LensSmaa(SmaaPreset),
     Taa,
+    TaaFxaa,
     Msaa(Msaa),
 }
 
 impl Filter {
+    fn temporal(self) -> bool {
+        matches!(self, Self::Taa | Self::TaaFxaa)
+    }
+
     fn samples(self) -> Msaa {
         if let Self::Msaa(msaa) = self {
             msaa
@@ -121,11 +127,15 @@ fn select(
     msaa: impl FnOnce(u32) -> Filter,
 ) -> Filter {
     match request {
-        PreviewAa::Taa | PreviewAa::Auto if angular => Filter::Smaa(SmaaPreset::High),
+        PreviewAa::TaaFxaa if angular => Filter::LensSmaa(SmaaPreset::Ultra),
+        PreviewAa::Taa | PreviewAa::Auto if angular => Filter::LensSmaa(SmaaPreset::High),
         // Bevy 0.20 TAA samples full-target UVs through a viewport-sized
         // triangle. On an inset viewport this re-applies the inset to RGB.
-        PreviewAa::Taa | PreviewAa::Auto if cropped => Filter::Smaa(SmaaPreset::Ultra),
+        PreviewAa::Taa | PreviewAa::Auto | PreviewAa::TaaFxaa if cropped => {
+            Filter::Smaa(SmaaPreset::Ultra)
+        }
         PreviewAa::Taa | PreviewAa::Auto => Filter::Taa,
+        PreviewAa::TaaFxaa => Filter::TaaFxaa,
         PreviewAa::Smaa => Filter::Smaa(SmaaPreset::High),
         PreviewAa::SmaaUltra => Filter::Smaa(SmaaPreset::Ultra),
         PreviewAa::Off => Filter::Off,
@@ -138,7 +148,7 @@ fn select(
 
 /// Bevy inserts these components when TAA is added, but keeps them when it
 /// is removed. Preserve any prepasses already owned by capture or shading.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct AddedForTaa {
     depth: bool,
     motion: bool,
@@ -193,7 +203,10 @@ impl ManagedPreviewAa {
             Filter::Fxaa => "FXAA",
             Filter::Smaa(SmaaPreset::Ultra) => "SMAA Ultra",
             Filter::Smaa(_) => "SMAA High",
+            Filter::LensSmaa(SmaaPreset::Ultra) => "SMAA Ultra + lens resolve",
+            Filter::LensSmaa(_) => "SMAA High + lens resolve",
             Filter::Taa => "TAA",
+            Filter::TaaFxaa => "TAA + FXAA",
             Filter::Msaa(Msaa::Sample2) => "2× MSAA",
             Filter::Msaa(Msaa::Sample4) => "4× MSAA",
             Filter::Msaa(Msaa::Sample8) => "8× MSAA",
@@ -224,6 +237,7 @@ fn configure(
     mut commands: Commands,
     config: Res<BevyZeroverseConfig>,
     mode: Res<RenderMode>,
+    lighting: Option<Res<crate::render::lighting::SolariPreviewStatus>>,
     sampler: Option<Res<SamplerState>>,
     copiers: Query<(), With<crate::io::image_copy::ImageCopier>>,
     mut loaded: MessageReader<SceneLoadedEvent>,
@@ -239,6 +253,21 @@ fn configure(
     let sampling = !copiers.is_empty() || sampler.is_some_and(|s| s.enabled);
     for mut view in &mut cameras {
         let filter = requested(&config, &mode, view.editor, sampling).map(|request| {
+            // The Solari g-buffer requires a single, unjittered sample. Spatial
+            // AA still runs after the traced RGB pass or after fisheye composition.
+            let request = if lighting.as_ref().is_some_and(|s| s.active)
+                && matches!(
+                    request,
+                    PreviewAa::Taa
+                        | PreviewAa::TaaFxaa
+                        | PreviewAa::Msaa2
+                        | PreviewAa::Msaa4
+                        | PreviewAa::Msaa8
+                ) {
+                PreviewAa::Smaa
+            } else {
+                request
+            };
             let cropped = view.camera.viewport.as_ref().is_some_and(|vp| {
                 vp.physical_position != UVec2::ZERO
                     || Some(vp.physical_size) != view.camera.physical_target_size()
@@ -251,37 +280,41 @@ fn configure(
                     .resolve(n)
             })
         });
-        let history = (filter == Some(Filter::Taa)).then(|| HistoryView {
+        let temporal = filter.is_some_and(Filter::temporal);
+        let history = temporal.then(|| HistoryView {
             translation: view.transform.translation,
             rotation: view.transform.rotation,
             projection: view.projection.get_clip_from_view(),
             size: view.camera.physical_viewport_size(),
         });
         let previous = view.managed.as_deref().map(|s| s.filter);
+        let keep_history = temporal && previous.is_some_and(Filter::temporal);
+        if keep_history {
+            if let (Some(next), Some(state), Some(taa)) = (
+                history,
+                view.managed.as_deref_mut(),
+                view.taa.as_deref_mut(),
+            ) {
+                let cut = state
+                    .history
+                    .replace(next)
+                    .is_none_or(|p| next.cut_from(&p));
+                if cut || scene_cut {
+                    taa.reset = true;
+                }
+            }
+        }
         if previous == filter {
             if let Some(filter) = filter {
                 if *view.samples != filter.samples() {
                     commands.entity(view.entity).insert(filter.samples());
-                }
-                if let (Some(next), Some(state), Some(taa)) = (
-                    history,
-                    view.managed.as_deref_mut(),
-                    view.taa.as_deref_mut(),
-                ) {
-                    let cut = state
-                        .history
-                        .replace(next)
-                        .is_none_or(|p| next.cut_from(&p));
-                    if cut || scene_cut {
-                        taa.reset = true;
-                    }
                 }
             }
             continue;
         }
         let mut entity = commands.entity(view.entity);
         if let Some(previous) = &view.managed {
-            if previous.filter == Filter::Taa {
+            if previous.filter.temporal() && !temporal {
                 entity.remove::<TemporalAntiAliasing>();
                 previous.added.release(&mut entity);
             }
@@ -289,30 +322,46 @@ fn configure(
         // Updating Msaa also lets the indoor camera system restore its exact
         // FXAA/SSAO configuration when the camera returns to calibrated capture.
         entity
-            .remove::<(Smaa, Fxaa)>()
+            .remove::<(Smaa, Fxaa, LensPreviewAa)>()
             .insert(filter.map_or(Msaa::Off, Filter::samples));
         let Some(filter) = filter else {
             entity.remove::<ManagedPreviewAa>();
             continue;
         };
-        let mut added = AddedForTaa::default();
+        let added = if temporal && !keep_history {
+            entity.insert(TemporalAntiAliasing::default());
+            AddedForTaa {
+                depth: !view.depth,
+                motion: !view.motion,
+                jitter: !view.jitter,
+                mip_bias: !view.mip_bias,
+            }
+        } else {
+            view.managed
+                .as_deref()
+                .filter(|_| keep_history)
+                .map_or_else(AddedForTaa::default, |s| s.added)
+        };
         match filter {
-            Filter::Taa => {
-                added = AddedForTaa {
-                    depth: !view.depth,
-                    motion: !view.motion,
-                    jitter: !view.jitter,
-                    mip_bias: !view.mip_bias,
-                };
-                entity.insert(TemporalAntiAliasing::default());
+            Filter::LensSmaa(preset) => {
+                entity.insert((Smaa { preset }, LensPreviewAa));
             }
             Filter::Smaa(preset) => {
                 entity.insert(Smaa { preset });
             }
+            Filter::TaaFxaa => {
+                // TAA has already reconstructed fine detail. Limit the final
+                // pass to strong residual edges after tone mapping.
+                entity.insert(Fxaa {
+                    edge_threshold: Sensitivity::Low,
+                    edge_threshold_min: Sensitivity::Low,
+                    ..default()
+                });
+            }
             Filter::Fxaa => {
                 entity.insert(indoor_fxaa());
             }
-            Filter::Off | Filter::Msaa(_) => {}
+            Filter::Off | Filter::Taa | Filter::Msaa(_) => {}
         }
         entity.insert(ManagedPreviewAa {
             filter,

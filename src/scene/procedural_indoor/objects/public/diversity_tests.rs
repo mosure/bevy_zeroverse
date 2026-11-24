@@ -123,12 +123,16 @@ fn elevator_core_controls_stay_in_front_of_the_masonry_face() {
         let controls: Vec<_> = a
             .parts
             .iter()
-            .filter(|((_, label), _)| label == "control_panel")
+            .filter(|((_, label), _)| super::super::part_label(label) == "control_panel")
             .collect();
         assert!(!controls.is_empty());
         assert!(controls
             .iter()
-            .all(|(_, g)| g.positions.iter().all(|p| p[2] > o.size.z * 0.48)));
+            .all(|(_, g)| g.positions.iter().all(|p| p[2] >= o.size.z * 0.48 - 1e-6)));
+        assert!(controls.iter().any(|(_, g)| g
+            .positions
+            .iter()
+            .any(|p| (p[2] - o.size.z * 0.48).abs() < 1e-6)));
         assert!(a.parts.keys().any(|(_, l)| l == "wall"));
         assert!(a.parts.keys().any(|(_, l)| l == "door"));
     }

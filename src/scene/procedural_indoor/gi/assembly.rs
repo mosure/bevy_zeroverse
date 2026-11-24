@@ -373,7 +373,7 @@ impl GeometryTransport {
                         }
                     };
                     if let Some(appearance) = person.appearance.as_ref().filter(|_| cloth) {
-                        material.uv_transform *= appearance.weave_uv_transform();
+                        material.uv_transform *= appearance.weave_uv_transform(surface);
                     }
                     material.albedo = linear(person.material_color(surface));
                     self.scene.materials.push(material);

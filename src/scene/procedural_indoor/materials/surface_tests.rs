@@ -566,6 +566,16 @@ fn wardrobe_reuses_bounded_structure_maps_with_independent_tint() {
     let before = images.len();
     let mut structures = std::collections::BTreeSet::new();
     for person in &scene.humans {
+        let skin = person_material(person, HumanSurface::Skin, &indoor, &materials);
+        let lip = person_material(person, HumanSurface::Lip, &indoor, &materials);
+        assert_eq!(lip.normal_map_texture, skin.normal_map_texture);
+        assert_eq!(lip.uv_transform, skin.uv_transform);
+        assert!(lip.perceptual_roughness < skin.perceptual_roughness);
+        let cord = person_material(person, HumanSurface::ShoeDetail, &indoor, &materials);
+        assert_eq!(
+            cord.normal_map_texture,
+            materials.get(&indoor.cloth).unwrap().normal_map_texture
+        );
         for surface in [
             HumanSurface::Shoes,
             HumanSurface::Sole,
@@ -601,7 +611,8 @@ fn wardrobe_reuses_bounded_structure_maps_with_independent_tint() {
             structures.insert(m.normal_map_texture.unwrap().id());
             if let Some(a) = &person.appearance {
                 assert!(
-                    (m.anisotropy_rotation - base.anisotropy_rotation + a.weave_rotation).abs()
+                    (m.anisotropy_rotation - base.anisotropy_rotation + a.cloth_grain(surface).1)
+                        .abs()
                         < 1e-5
                 );
             }

@@ -153,6 +153,10 @@ fn supersampling_preserves_calibration_labels_flow_and_resolves_rgb_on_gpu() {
         "Auto must resolve identically to explicit 2× below 720p"
     );
     let reference = take(&mut app, 512, 1);
+    // A presentation selection must have no effect on a calibrated replay.
+    app.world_mut()
+        .resource_mut::<BevyZeroverseConfig>()
+        .preview_aa = bevy_zeroverse::render::anti_alias::PreviewAa::TaaFxaa;
     let replay = take(&mut app, 256, 1);
     assert_eq!(
         app.world_mut()

@@ -15,9 +15,6 @@ fn paint_cell(uv: vec2<f32>, n: u32) -> vec2<f32> {
     }}
     return vec2(sqrt(nearest),dye);
 }
-fn paint_srgb(c: f32) -> f32 {
-    if c<=0.0031308 {return c*12.92;}return 1.055*pow(c,1./2.4)-0.055;
-}
 struct WallTerms { gain: vec3<f32>, height: f32, roughness: f32 }
 fn wall_finish(uv: vec2<f32>) -> WallTerms {
     if r.wall_counts.w == 0u { return WallTerms(vec3(1.),0.,0.); }
@@ -61,7 +58,7 @@ fn paint(uv: vec2<f32>) -> Texel {
     let gain=1.+(passes-0.5)*r.paint1.y-holes*0.035;
     let wall=wall_finish(uv);
     let linear=clamp(r.paint_color.xyz*gain*wall.gain,vec3(0.),vec3(1.));
-    let color=vec3(paint_srgb(linear.x),paint_srgb(linear.y),paint_srgb(linear.z));
+    let color=vec3(encode_srgb(linear.x),encode_srgb(linear.y),encode_srgb(linear.z));
     let height=r.metric.z*(texture*0.80+(lap-0.5)*r.paint0.w*0.22-holes*0.40)
         +0.000025*(roller*r.paint0.z+film*r.paint1.w)*r.paint2.w+0.000016*brush*r.paint2.x*r.paint2.w+wall.height;
     return Texel(color,height,clamp(r.metric.w+film*0.025+roller*r.paint0.z*0.035+(lap-0.5)*r.paint2.y+holes*0.04-repair*r.paint1.z*0.10+wall.roughness,0.16,0.99),max(1.-holes*0.025,0.97));

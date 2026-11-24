@@ -23,6 +23,7 @@ pub mod color;
 pub mod depth;
 pub mod glass;
 pub mod ground_truth;
+pub mod lighting;
 mod material_aliases;
 pub mod normal;
 pub mod optical_flow;

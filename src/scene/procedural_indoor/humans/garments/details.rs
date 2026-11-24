@@ -16,6 +16,14 @@ pub(in crate::scene::procedural_indoor::humans) fn append(
     if !h.outfit.buttoned() && !cut.program.pocket {
         return;
     }
+    let layers = h.appearance.as_ref().and_then(|a| a.layers.as_ref());
+    let band_center = |y: f32, side: f32| {
+        if layers.is_some() {
+            super::fastenings::band_center(cut, h.outfit, y, side)
+        } else {
+            0.
+        }
+    };
     // Project onto the exact front-facing garment triangles. Nearest-vertex
     // averages sit *inside* curved necks/chests and bury collars in the body.
     let cell = |p: Vec2| ((p.x / 0.03).floor() as i32, (p.y / 0.03).floor() as i32);
@@ -196,20 +204,29 @@ pub(in crate::scene::procedural_indoor::humans) fn append(
             let y0 = bottom + (cut.neck - bottom - 0.04) * i as f32 / 12.0;
             let y1 = bottom + (cut.neck - bottom - 0.04) * (i + 1) as f32 / 12.0;
             let half = cut.program.placket_width * 0.5;
-            panel(
-                HumanSurface::Seam,
-                &[
-                    Vec2::new(-half, y0),
-                    Vec2::new(half, y0),
-                    Vec2::new(half, y1),
-                    Vec2::new(-half, y1),
-                ],
-                0.0,
-            );
+            let sides: &[f32] = if h.outfit.open_front() && layers.is_some() {
+                &[-1., 1.]
+            } else {
+                &[1.]
+            };
+            for &side in sides {
+                let x0 = band_center(y0, side);
+                let x1 = band_center(y1, side);
+                panel(
+                    HumanSurface::Seam,
+                    &[
+                        Vec2::new(x0 - half, y0),
+                        Vec2::new(x0 + half, y0),
+                        Vec2::new(x1 + half, y1),
+                        Vec2::new(x1 - half, y1),
+                    ],
+                    0.,
+                );
+            }
         }
     }
     if cut.program.pocket {
-        let centre = 0.085;
+        let centre = layers.map_or(0.085, |f| f.pocket_side * f.pocket_offset);
         let half = cut.program.pocket_width * 0.5;
         let top = cut.chest - 0.035;
         panel(
@@ -232,6 +249,17 @@ pub(in crate::scene::procedural_indoor::humans) fn append(
             ],
             0.002,
         );
+    }
+    if let Some(f) = layers.filter(|_| h.outfit.buttoned()) {
+        for (centre, r) in super::fastenings::buttons(cut, h.outfit, f) {
+            if let Some((p, n)) = sample(centre) {
+                mesh.part(HumanSurface::Detail).ellipsoid(
+                    Vec3::new(r, r, r * 0.29),
+                    Transform::from_translation(p + n * 0.0016)
+                        .with_rotation(Quat::from_rotation_arc(Vec3::Z, n)),
+                );
+            }
+        }
     }
 }
 

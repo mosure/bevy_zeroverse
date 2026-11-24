@@ -9,11 +9,15 @@ use leaf::{blade, incline};
 mod habits;
 mod palm;
 mod pots;
+mod rosette;
+pub(crate) use rosette::RosetteHabit;
 mod sampling;
-mod soil;
+pub(crate) mod soil;
+mod split_leaf;
+pub(super) use split_leaf::{canopy_stats as split_leaf_stats, VERSION as SPLIT_LEAF_VERSION};
 mod vines;
 mod woody;
-pub(super) use pots::dimensions as pot_dimensions;
+
 pub use pots::PotProfile;
 pub(super) use sampling::{sample_size, sample_species};
 
@@ -138,52 +142,79 @@ fn along(points: &[Vec3], t: f32) -> Vec3 {
     points[i].lerp(points[i + 1], u - i as f32)
 }
 
-pub(super) fn pot_radius(o: &IndoorObject, growth: &Growth) -> f32 {
-    pot_dimensions(o, growth).0
+#[cfg(test)]
+pub(super) fn pot_dimensions(o: &IndoorObject, growth: &Growth) -> (f32, f32) {
+    PotProfile::sample(o.seed).dimensions(o, growth)
 }
 
 fn stem(a: &mut Assembly, points: &[Vec3], radius: f32) {
-    for (i, pair) in points.windows(2).enumerate() {
-        let delta = pair[1] - pair[0];
-        let r0 = radius * (1.0 - 0.65 * i as f32 / points.len() as f32);
-        let r1 = radius * (1.0 - 0.65 * (i + 1) as f32 / points.len() as f32);
-        a.part(Surface::Bark, "other_prop").lathe(
-            &[
-                (0.0, 0.0),
-                (r0, 0.0),
-                (r1, delta.length()),
-                (0.0, delta.length()),
-            ],
-            8,
-            Transform::from_translation(pair[0])
-                .with_rotation(Quat::from_rotation_arc(Vec3::Y, delta.normalize())),
-        );
+    if points.len() >= 2 {
+        let tip_radius = radius * (1.0 - 0.65 * (points.len() - 1) as f32 / points.len() as f32);
+        a.part(Surface::Bark, "other_prop")
+            .tapered_tube(points, radius, tip_radius, 8);
     }
 }
 
-pub fn build(a: &mut Assembly, o: &IndoorObject) {
-    let mut rng = stream(o.seed, 5);
+#[cfg(test)]
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    build_at_version(a, o, super::layout::GENERATOR_VERSION);
+}
+
+pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    build_plant(a, o, version, true);
+}
+
+pub(super) fn build_in_ground(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    build_plant(a, o, version, false);
+}
+
+fn build_plant(a: &mut Assembly, o: &IndoorObject, version: u32, potted: bool) {
     let h = o.size.y;
     let growth = Growth::sample(o.seed);
     // The foliage envelope includes maximum leaf-width modulation and droop.
     let spread = o.size.x.min(o.size.z) * 0.40;
-    let (r, ph) = pot_dimensions(o, &growth);
-    let pot = match stream(o.seed, 6441).random_range(0..5) {
-        0 => Surface::Terracotta,
-        1 => Surface::Concrete,
-        2 => Surface::Plastic,
-        3 => Surface::Metal,
-        _ => Surface::Ceramic,
-    };
     let pot_program = PotProfile::sample(o.seed);
-    let (soil, soil_radius) = pots::build(a, pot, r, ph, growth.pot_taper, &pot_program);
-    soil::dressing(
-        a.part(Surface::Soil, "other_prop"),
-        o.seed,
-        soil,
-        soil_radius,
-        &mut rng,
-    );
+    let (r, ph) = pot_program.dimensions(o, &growth);
+    let fill = if potted {
+        let pot = match stream(o.seed, 6441).random_range(0..5) {
+            0 => Surface::Terracotta,
+            1 => Surface::Concrete,
+            2 => Surface::Plastic,
+            3 => Surface::Metal,
+            _ => Surface::Ceramic,
+        };
+        let medium = if version >= soil::INTRODUCED {
+            soil::Medium::sample(o)
+        } else {
+            soil::Medium::Loam
+        };
+        let fill = pots::build(
+            a,
+            pot,
+            r,
+            ph,
+            growth.pot_taper,
+            &pot_program,
+            &medium.label(soil::Layer::Bed),
+        );
+        if version >= soil::INTRODUCED {
+            soil::build(a, o.seed, medium, fill);
+        } else {
+            soil::legacy::dressing(
+                a.part(Surface::Soil, "other_prop"),
+                o.seed,
+                fill.level,
+                fill.roots,
+                &mut stream(o.seed, 5),
+            );
+        }
+        fill
+    } else {
+        // The planting height still determines branch positions in a garden bed.
+        // Constructing a hidden planter and aggregates there wastes mesh work.
+        pots::Fill::new(r, ph, &pot_program)
+    };
+    let (soil, soil_radius) = (fill.level, fill.roots);
     let base = Vec3::Y * soil;
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
@@ -192,8 +223,13 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         woody::build(a, o, &growth, base, spread);
         return;
     }
+    if o.variant % SPECIES == 7 {
+        rosette::build(a, o, &growth, base, spread, soil_radius, ph);
+        return;
+    }
     if o.variant % SPECIES == 11 {
-        vines::build(a, o, &growth, base, spread, soil_radius);
+        let outer = r * pot_program.outer_radius_factor().max(1.10);
+        vines::build(a, o, &growth, base, spread, soil_radius, (outer, ph));
         return;
     }
     if o.variant % SPECIES >= 14 {
@@ -204,6 +240,10 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         habits::build(a, o, &growth, base, spread, soil_radius);
         return;
     }
+    // Historical foliage starts after three placement words for each of 18 clods.
+    // The canopy must be identical in a planter, in open ground and on replay.
+    let mut rng = stream(o.seed, 5);
+    rng.set_word_pos(54);
     match o.variant % SPECIES {
         1 | 4 => {
             // Palm / fern: arching rachises with paired, tapered pinnae.
@@ -274,6 +314,7 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
                 );
             }
         }
+        3 if version >= SPLIT_LEAF_VERSION => split_leaf::build(a, o, &growth, base, spread),
         3 => {
             // Split-leaf tropical: independent arched petioles, deeply lobed blades.
             for i in 0..growth.count(11) {

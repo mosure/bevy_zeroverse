@@ -160,6 +160,25 @@ impl ProgramAssembly {
         }
     }
 
+    /// A fitted locker belongs to the teaching zone's perimeter. Its teaching
+    /// floor rectangle is inset for desks and rows and need not reach that wall.
+    pub(crate) fn member_region(
+        &self,
+        scene: &IndoorManifest,
+        object: &IndoorObject,
+    ) -> (Vec2, Vec2) {
+        use super::super::objects::public::education;
+        if object.kind == ObjectKind::Locker
+            && object.variant == education::WALL_BANK
+            && scene.generator_version >= education::FITTED_VERSION
+        {
+            if let Some(z) = scene.program.as_ref().and_then(|p| p.zones.get(self.zone)) {
+                return (z.min, z.max);
+            }
+        }
+        (self.min, self.max)
+    }
+
     pub fn realized_capacity(&self, objects: &[IndoorObject]) -> usize {
         self.members
             .iter()

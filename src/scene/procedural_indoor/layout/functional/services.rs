@@ -101,6 +101,11 @@ impl IndoorManifest {
             let o = self.objects.get(m.object).ok_or("missing mounted object")?;
             let host = self.objects.get(m.host).ok_or("missing mount host")?;
             let ceiling = self.mount_height(o);
+            let gap = if o.kind == ObjectKind::CeilingPendant && self.generator_version >= 184 {
+                0.
+            } else {
+                0.004
+            };
             let over_host = match (o.kind, host.kind) {
                 (ObjectKind::ExtractionHood, ObjectKind::Range | ObjectKind::Cooktop) => {
                     let center = if self.generator_version >= 123 {
@@ -124,9 +129,10 @@ impl IndoorManifest {
             if o.solid
                 || o.support.is_some()
                 || o.neighbor
+                || !ceiling.is_finite()
                 || !m.ceiling_height_metres.is_finite()
                 || (m.ceiling_height_metres - ceiling).abs() > 0.002
-                || (o.position.y + o.size.y + 0.004 - ceiling).abs() > 0.002
+                || (o.position.y + o.size.y + gap - ceiling).abs() > 0.002
                 || !over_host
             {
                 return Err("invalid ceiling/service mount relationship".into());

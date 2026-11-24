@@ -2,24 +2,6 @@
 //! All dimensions are constrained by the declared pot/canopy envelope.
 use super::*;
 
-fn succulent_leaf(a: &mut Assembly, base: Vec3, delta: Vec3, width: f32, thick: f32) {
-    let length = delta.length();
-    a.part(Surface::Succulent, "other_prop").lathe(
-        &[
-            (0., 0.),
-            (width * 0.42, length * 0.10),
-            (width, length * 0.38),
-            (width * 0.73, length * 0.70),
-            (width * 0.28, length * 0.90),
-            (0., length),
-        ],
-        12,
-        Transform::from_translation(base)
-            .with_rotation(Quat::from_rotation_arc(Vec3::Y, delta.normalize()))
-            .with_scale(Vec3::new(1., 1., thick)),
-    );
-}
-
 pub(super) fn build(
     a: &mut Assembly,
     o: &IndoorObject,
@@ -31,26 +13,6 @@ pub(super) fn build(
     let mut rng = stream(o.seed, 6240);
     let height = o.size.y - base.y;
     match o.variant % SPECIES {
-        7 => {
-            // Echeveria/agave-like fleshy rosettes with thick, closed leaf volumes.
-            let rings = rng.random_range(3..=5);
-            for ring in 0..rings {
-                let count = growth.count(8 + ring * 2);
-                let t = ring as f32 / rings as f32;
-                for j in 0..count {
-                    let dir = radial(j as f32 * TAU / count as f32 + ring as f32 * 0.43);
-                    let length = spread * (0.72 - t * 0.35) * rng.random_range(0.88..1.06);
-                    let root = base + Vec3::Y * height * (0.018 + t * 0.15);
-                    succulent_leaf(
-                        a,
-                        root,
-                        dir * length + Vec3::Y * height * (0.12 + t * 0.48),
-                        spread * rng.random_range(0.065..0.10),
-                        rng.random_range(0.28..0.58),
-                    );
-                }
-            }
-        }
         8 => {
             // Barrel/columnar cactus clusters: actual rounded ribs, not painted stripes.
             let count = (rng.random_range(2..=5) as f32 * growth.density)

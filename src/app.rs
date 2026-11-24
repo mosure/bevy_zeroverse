@@ -430,6 +430,12 @@ pub struct BevyZeroverseConfig {
     #[pyo3(get, set)]
     pub preview_aa: crate::render::anti_alias::PreviewAa,
 
+    /// Lighting for interactive indoor RGB views. Solari requires a native build with the solari feature.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value_t = crate::render::lighting::PreviewLighting::Raster)]
+    #[pyo3(get, set)]
+    pub preview_lighting: crate::render::lighting::PreviewLighting,
+
     /// Request extended dynamic range for RGB captures and the Studio display.
     #[serde(default)]
     #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
@@ -757,6 +763,11 @@ pub struct BevyZeroverseConfig {
     #[arg(long, value_enum, default_value_t = crate::render::anti_alias::PreviewAa::Auto)]
     pub preview_aa: crate::render::anti_alias::PreviewAa,
 
+    /// Lighting for interactive indoor RGB views. Solari requires a native build with the solari feature.
+    #[serde(default)]
+    #[arg(long, value_enum, default_value_t = crate::render::lighting::PreviewLighting::Raster)]
+    pub preview_lighting: crate::render::lighting::PreviewLighting,
+
     /// Request extended dynamic range for RGB captures and the Studio display.
     #[serde(default)]
     #[arg(long, action=clap::ArgAction::Set, num_args=0..=1, default_missing_value="true", default_value_t=false)]
@@ -933,6 +944,7 @@ impl Default for BevyZeroverseConfig {
             render_mode: Default::default(),
             tonemapping: Default::default(),
             preview_aa: Default::default(),
+            preview_lighting: Default::default(),
             hdr: false,
             fullscreen: false,
             render_modes: vec![],
@@ -1379,6 +1391,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
         default_plugins
     };
     app.add_plugins(default_plugins);
+    crate::render::lighting::install_preview(&mut app, &args);
     if !args.headless {
         app.add_plugins(display::DisplayPlugin);
     }

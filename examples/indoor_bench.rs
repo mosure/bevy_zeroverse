@@ -71,6 +71,14 @@ struct Args {
     /// Match a downstream process's Bevy worker budget before creating its pools.
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=64))]
     task_pool_threads: Option<u8>,
+    /// Benchmark the Studio-only Solari preview with actual completed captures.
+    #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+    #[arg(long)]
+    solari_preview: bool,
+    /// Enable additional spatial/temporal reservoir resampling in the Solari comparison.
+    #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+    #[arg(long, requires = "solari_preview")]
+    solari_restir: bool,
     /// Record actual GPU timestamp spans where the adapter supports them.
     #[arg(long)]
     gpu_timings: bool,
@@ -268,6 +276,18 @@ fn main() -> Result<()> {
         ..default()
     };
     let mut app = create_app(None, Some(config.clone()), false);
+    #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+    if args.solari_preview {
+        use bevy_zeroverse::render::lighting::{PreviewLighting, SolariPreviewPlugin};
+        app.add_plugins(SolariPreviewPlugin);
+        app.world_mut()
+            .resource_mut::<BevyZeroverseConfig>()
+            .preview_lighting = if args.solari_restir {
+            PreviewLighting::SolariRestir
+        } else {
+            PreviewLighting::Solari
+        };
+    }
     app.insert_resource(bevy_zeroverse::camera::CaptureDrawPolicy {
         indirect: args.indirect_draws,
     });
@@ -311,6 +331,15 @@ fn main() -> Result<()> {
         );
     }
     app.finish();
+    #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+    if args.solari_preview {
+        ensure!(
+            app.world()
+                .resource::<bevy_zeroverse::render::lighting::SolariPreviewStatus>()
+                .supported,
+            "requested Solari, but this render device lacks the required features or limits"
+        );
+    }
     // Pipelined rendering moves RenderApp to its worker during cleanup. Keep a
     // shared instance handle so per-scene registry snapshots remain available.
     let render_instance = app
@@ -497,6 +526,19 @@ fn main() -> Result<()> {
             .iter(app.world())
             .map(|c| c.staging_bytes())
             .sum();
+        let preview = app
+            .world()
+            .get_resource::<bevy_zeroverse::render::lighting::SolariPreviewStatus>();
+        let preview_stats = preview.map(|s| serde_json::json!({
+            "active": s.active, "restir": s.temporal_reuse, "traced_instances": s.traced_instances, "traced_meshes": s.traced_meshes,
+        }));
+        #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+        if args.solari_preview && args.rgb_only {
+            ensure!(
+                preview.is_some_and(|s| s.active && s.traced_instances > 0 && s.traced_meshes > 0),
+                "completed an RGB capture without an active Solari scene"
+            );
+        }
         let capture = app.world().resource::<CaptureProgress>();
         let gpu_registry = render_instance.generate_report().map(|report| {
             [
@@ -546,7 +588,7 @@ fn main() -> Result<()> {
                 "ready_hits":prefetch.ready_hits,"staged_rooms":prefetch.staged_rooms,"staged_hits":prefetch.staged_hits},
             "completed_unix_seconds":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64(),
             "index":index,"seed":seed,"elapsed_seconds":elapsed,"request_seconds":request_seconds,
-            "material_bakes":app.world().get_resource::<procedural_indoor::materials::gpu::MaterialBakeStatistics>(),
+            "solari_preview":preview_stats,"material_bakes":app.world().get_resource::<procedural_indoor::materials::gpu::MaterialBakeStatistics>(),
             "preparation_stages": if args.fixed_scene && index > 0 { None } else { app.world().get_resource::<procedural_indoor::preparation::PreparationTimings>() },
             "capture_seconds":elapsed-request_seconds,"updates":updates,"rss_bytes":rss,"heap":heap_memory(),
             "update_phase_seconds":update_times.iter().map(|(phase,(count,sum,max))| (phase,serde_json::json!({"count":count,"sum":sum,"max":max}))).collect::<std::collections::BTreeMap<_,_>>(),
@@ -611,6 +653,8 @@ fn main() -> Result<()> {
         "generator_version":procedural_indoor::layout::GENERATOR_VERSION,"capture_engine":bevy_zeroverse::CAPTURE_ENGINE_IDENTITY,"config":config,"gi_enabled":!args.no_gi,
         "gi_settings":app.world().resource::<IndoorGiSettings>(),"gpu_timings_enabled":args.gpu_timings,"fixed_scene":args.fixed_scene,
         "adapter":app.world().get_resource::<bevy::render::renderer::RenderAdapterInfo>().map(|a|format!("{:?}",**a)),
+        "solari_preview":app.world().contains_resource::<bevy_zeroverse::render::lighting::SolariPreviewStatus>(),
+        "preview_lighting":app.world().resource::<BevyZeroverseConfig>().preview_lighting,
         "startup_seconds":startup_seconds,
         "measured_stream_seconds":measured_stream_seconds,
         "stream_scenes_per_second":n as f64/measured_stream_seconds,

@@ -1,6 +1,11 @@
-//! Low wall convectors: a closed cover with real inlet/outlet gaps, end caps,
-//! brackets and optional hydronic connections. No displacement-only detail.
+//! Low perimeter heating equipment fitted to the admitted floor reservation.
 use super::*;
+mod radiator;
+mod stock;
+pub use radiator::{Body, PressedPanel, TubeBank};
+pub(crate) use stock::HeatingSeries;
+pub use stock::{Emitter, Installation};
+pub(crate) const FITTED_HEATING_VERSION: u32 = 210;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct HeaterProgram {
@@ -40,8 +45,26 @@ pub fn parameters(o: &IndoorObject) -> HeaterProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    if version < FITTED_HEATING_VERSION {
+        convector(a, o, &parameters(o), o.kind.class_name(), false);
+        return;
+    }
+    let stock = Installation::for_object(o);
+    let label = stock.casing_label();
+    match stock.emitter {
+        Emitter::Convector { hydronic } => {
+            let mut p = parameters(o);
+            p.surface = Surface::Metal;
+            p.hydronic = hydronic;
+            convector(a, o, &p, &label, true);
+        }
+        Emitter::Pressed(panel) => panel.build(a, o, &label),
+        Emitter::Tubular(bank) => bank.build(a, o, &label),
+    }
+}
+
+fn convector(a: &mut Assembly, o: &IndoorObject, p: &HeaterProgram, casing: &str, fitted: bool) {
     let Vec3 { x: w, y: h, z: d } = o.size;
     let cap = (w * 0.04).clamp(0.018, 0.045);
     let body = w - 2. * cap - 0.004;
@@ -60,7 +83,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     for x in [-w * 0.5 + cap * 0.5, w * 0.5 - cap * 0.5] {
         a.box_part(
             p.surface,
-            metal,
+            casing,
             Vec3::new(x, h * 0.55, 0.),
             Vec3::new(cap, h * 0.90, d - 2. * skin),
             0.004,
@@ -71,14 +94,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let cover_top = h - outlet;
     a.box_part(
         p.surface,
-        metal,
+        casing,
         Vec3::new(0., (inlet + cover_top) * 0.5, d * 0.5 - skin * 0.5),
         Vec3::new(body, cover_top - inlet, skin),
         0.002,
     );
     a.box_part(
         p.surface,
-        metal,
+        casing,
         Vec3::new(0., h * 0.55, -d * 0.5 + skin * 0.5),
         Vec3::new(body, h * 0.88, skin),
         0.002,
@@ -88,7 +111,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let pitch = body / count as f32;
     for i in 0..count {
         let x = -body * 0.5 + pitch * (i as f32 + 0.5);
-        a.part(p.surface, metal).cuboid(
+        a.part(p.surface, casing).cuboid(
             Vec3::new(pitch * 0.28, outlet * 0.86, d * 0.60),
             0.,
             Transform::from_xyz(x, cover_top + outlet * 0.47, -d * 0.015).with_rotation(
@@ -117,16 +140,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
     );
     if p.hydronic {
+        // Fit both risers into the heat exchanger. Archived units placed
+        // their pipes beyond its front face.
+        let pipe_z = if fitted { -d * 0.05 } else { d * 0.16 };
         for x in [-w * 0.32, w * 0.32] {
             a.part(Surface::Chrome, metal).rod(
-                Vec3::new(x, 0., d * 0.16),
-                Vec3::new(x, h * 0.27, d * 0.16),
+                Vec3::new(x, 0., pipe_z),
+                Vec3::new(x, h * 0.27, pipe_z),
                 d * 0.045,
             );
         }
     }
     // Header slope is authored independently of the cover and stays below its top.
-    a.part(p.surface, metal).cuboid(
+    a.part(p.surface, casing).cuboid(
         Vec3::new(body, skin, d * 0.30),
         0.,
         Transform::from_xyz(0., h - skin * 1.5 - d * p.top_slope * 0.15, -d * 0.24)

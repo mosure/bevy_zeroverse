@@ -5,10 +5,15 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::TAU;
 
+mod figure;
+pub use figure::FurnitureGrain;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WoodFinish {
     #[serde(default)]
     pub seed: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub figure: Option<FurnitureGrain>,
     pub stain_color: [f32; 3],
     pub stain_strength: f32,
     pub bleach: f32,
@@ -35,6 +40,7 @@ impl WoodFinish {
         let clearcoat = rng.random_range(0.0_f32..1.0).powi(2) * 0.85;
         Self {
             seed,
+            figure: None,
             stain_color: [c.red, c.green, c.blue],
             stain_strength,
             // Pale washed timber and dark absorbed stain share a continuum;
@@ -45,6 +51,9 @@ impl WoodFinish {
             clearcoat,
             coat_roughness: rng.random_range(0.045..0.42),
         }
+    }
+    pub(super) fn sample_figure(&mut self) {
+        self.figure = Some(FurnitureGrain::sample(self.seed));
     }
     pub fn validate(&self) -> Result<(), String> {
         if self
@@ -66,6 +75,9 @@ impl WoodFinish {
         {
             return Err("invalid timber stain/finish program".into());
         }
+        if self.figure.is_some_and(|f| !f.valid()) {
+            return Err("invalid furniture timber cut or vessel dimensions".into());
+        }
         Ok(())
     }
     pub(super) fn apply(&self, mat: &mut bevy::prelude::StandardMaterial) {
@@ -83,6 +95,17 @@ impl WoodFinish {
         prepared: Option<&super::program::PreparedWood>,
     ) -> super::program::Texel {
         use super::field::*;
+        if let Some(figure) = &self.figure {
+            let local;
+            let pigment = match prepared {
+                Some(p) => p,
+                None => {
+                    local = super::program::PreparedWood::new(self, r);
+                    &local
+                }
+            };
+            return figure.evaluate(r, self, [u, v], pigment);
+        }
         let g = grain(r, u, v);
         let absorbed = (self.stain_strength * (0.92 + (0.65 - g) * 0.22)).clamp(0., 1.);
         let stained = prepared.map_or_else(

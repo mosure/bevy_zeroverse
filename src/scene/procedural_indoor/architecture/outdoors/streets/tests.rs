@@ -80,7 +80,11 @@ fn walks_use_emitted_exterior_doors_across_a_population() {
             .filter(|(_, p)| p.kind == 0)
             .filter_map(|(i, p)| {
                 let mut a = Assembly::default();
-                let b = Building::sample(p, super::super::super::background::radius(&room));
+                let b = Building::sample(
+                    p,
+                    super::super::super::background::radius(&room),
+                    room.generator_version,
+                );
                 let planned = buildings::main_entrance(p, &b);
                 let emitted = buildings::build(&mut a, p, &b, None);
                 assert_eq!(planned.is_some(), emitted.is_some());

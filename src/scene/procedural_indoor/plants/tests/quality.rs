@@ -89,6 +89,14 @@ fn coverage(tris: &[[Vec3; 3]], o: &IndoorObject, axes: [usize; 2]) -> f32 {
 }
 
 #[test]
+fn unequal_vine_internodes_keep_outward_bark_on_the_return_bend() {
+    // Mixed room 88048 contains a trailing shoot with a long rise and a short return.
+    let mut o = fixture(11, 3_082_184_606_022_021_320);
+    o.size = Vec3::from_array([0.18094587, 0.3158884, 0.18306239]);
+    audit::check(&o, &build_object(&o)).unwrap();
+}
+
+#[test]
 fn species_proportions_are_correlated_replayable_and_not_all_upright() {
     for tabletop in [false, true] {
         for variant in 0..SPECIES {

@@ -47,6 +47,7 @@ jobs:
       with:
         toolchain: ${{ matrix.rust-toolchain }}
         components: rustfmt, clippy
+        cargo-packages: ""
         enable-sccache: "false"
 
     - name: test (default)

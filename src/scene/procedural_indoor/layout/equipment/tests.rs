@@ -16,6 +16,7 @@ fn object(id: usize, kind: ObjectKind, position: Vec3, size: Vec3) -> IndoorObje
         interaction_target: None,
         cable_path: None,
         cable_target: None,
+        cable_target_socket: None,
     }
 }
 
@@ -351,6 +352,7 @@ fn projector_installations_reserve_supported_space_and_reject_bad_optical_axes()
             obstruction.solid = true;
             scene.objects.push(obstruction);
             assert!(!projector_axis_clear(&scene, &projector, &screen));
+            assert!(!rendered_projector_axis_clear(&scene, &projector, &screen));
         }
     }
     assert!(
@@ -651,4 +653,124 @@ fn wall_power_routes_dangle_from_real_ports_without_filling_their_empty_envelope
         routes >= 12 && hanging >= 10,
         "wall routes={routes}, hanging={hanging}"
     );
+}
+
+#[test]
+fn outlet_selection_reserves_each_mains_socket_separately_from_usb() {
+    let (mut scene, usb) = connected_scene();
+    let strip = scene.objects[2].clone();
+    let laptop = scene.objects[1].clone();
+    let mut source = object(4, ObjectKind::Monitor, Vec3::ZERO, Vec3::ONE);
+    let mut used = usb.clone();
+    used.interaction_target = Some(source.id);
+    let bank = equipment::receptacles::MainsBank::for_target(&strip).unwrap();
+    let mains = outlets::available(&scene, &source, &strip, false);
+    assert_eq!(mains.len(), bank.socket_count());
+    assert_eq!(mains, outlets::available(&scene, &source, &strip, false));
+    let mut first = std::collections::BTreeSet::new();
+    for seed in 0..64 {
+        source.seed = seed;
+        first.insert(
+            outlets::available(&scene, &source, &strip, false)[0]
+                .0
+                .unwrap(),
+        );
+    }
+    assert_eq!(first.len(), bank.socket_count());
+    assert!(ports::connection(&laptop, &strip, Some(0)).is_none());
+    assert!(ports::connection(&source, &strip, Some(bank.socket_count() as u8)).is_none());
+    let mut forged = usb.clone();
+    forged.cable_target_socket = Some(0);
+    assert!(!cable_route_clear(&scene, &forged));
+    scene.objects.extend([usb, source.clone()]);
+    assert!(outlets::available(&scene, &laptop, &strip, true).is_empty());
+    for (i, (socket, point)) in mains.into_iter().enumerate() {
+        assert_eq!(
+            ports::connection(&source, &strip, socket).unwrap()[1].0,
+            point
+        );
+        assert!(outlets::available(&scene, &source, &strip, false).contains(&(socket, point)));
+        used.id = scene.objects.len();
+        used.cable_target_socket = socket;
+        scene.objects.push(used.clone());
+        assert_eq!(
+            outlets::available(&scene, &source, &strip, false).len(),
+            bank.socket_count() - i - 1
+        );
+    }
+}
+
+#[test]
+fn installed_wall_bank_accepts_two_independent_routes_and_rejects_swapped_targets() {
+    use std::collections::BTreeMap;
+    // Look for a real installation in a bounded population. What gets powered
+    // in any individual room also depends on the presentation hardware fitted.
+    let (scene, [a, b]) = (86219..86475)
+        .find_map(|seed| {
+            let scene =
+                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 3, 0.25)
+                    .unwrap();
+            let mut first_cable = BTreeMap::new();
+            let pair = scene
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Cable)
+                .find_map(|c| {
+                    let outlet = c.cable_target?;
+                    if scene.objects[outlet].kind != ObjectKind::WallOutlet {
+                        return None;
+                    }
+                    first_cable.insert(outlet, c.id).map(|first| [first, c.id])
+                });
+            pair.map(|ids| (scene, ids))
+        })
+        .expect("two devices connected to a shared plate in the generated population");
+    let (a, b) = (&scene.objects[a], &scene.objects[b]);
+    assert_ne!(a.cable_target_socket, b.cable_target_socket);
+    for cable in [a, b] {
+        assert!(cable.cable_target_socket.is_some());
+        assert!(cable_route_clear(&scene, cable));
+        let replay: IndoorObject =
+            serde_json::from_value(serde_json::to_value(cable).unwrap()).unwrap();
+        assert!(cable_route_clear(&scene, &replay));
+    }
+    let plug = wires::MainsPlug::world(a).unwrap();
+    let (lo, hi) = plug.bounds();
+    let center = (lo + hi) * 0.5;
+    let mut obstruction = object(
+        scene.objects.len(),
+        ObjectKind::Phone,
+        center + Vec3::Y * 0.012,
+        Vec3::splat(0.002),
+    );
+    obstruction.position.y -= 0.001;
+    assert!(!cables_clear_proposed_prop(&scene, &obstruction));
+    let mut occupied = scene.clone();
+    occupied.objects.push(obstruction);
+    assert!(!cable_route_clear(&occupied, a));
+    crate::scene::procedural_indoor::objects::audit::check(
+        a,
+        &crate::scene::procedural_indoor::objects::build_object(a),
+    )
+    .unwrap();
+    let mut changed = a.clone();
+    changed.cable_target_socket = b.cable_target_socket;
+    assert!(!cable_route_clear(&scene, &changed));
+    changed.cable_target_socket = Some(u8::MAX);
+    assert!(!cable_route_clear(&scene, &changed));
+    let mut invalid = scene.clone();
+    let prop = invalid
+        .objects
+        .iter_mut()
+        .find(|o| o.kind == ObjectKind::WallOutlet)
+        .unwrap();
+    let clean = serde_json::to_value(&*prop).unwrap();
+    assert!(clean.get("cable_target_socket").is_none());
+    assert!(serde_json::from_value::<IndoorObject>(clean)
+        .unwrap()
+        .cable_target_socket
+        .is_none());
+    prop.cable_target_socket = Some(1);
+    let error = crate::scene::procedural_indoor::validation::validate_layout(&invalid).unwrap_err();
+    assert!(error.contains("only cables may carry routed-wire metadata"));
 }

@@ -10,6 +10,9 @@ pub(in super::super) fn legacy_sample_with_floor(
     style: u32,
 ) -> Result<Vec<MaterialRecipe>, String> {
     let mut recipes = sample_with_floor(seed, style)?;
+    for s in [Surface::Wood, Surface::WoodEdge] {
+        recipes[s as usize].wood.as_mut().unwrap().figure = None;
+    }
     let floor = &mut recipes[Surface::Floor as usize];
     floor.flooring = None;
     floor.carpet = None;

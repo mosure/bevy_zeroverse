@@ -264,6 +264,20 @@ pub fn observe(
     Ok(record)
 }
 
+/// Geometry and the material assignment are recorded separately. An idle
+/// handset cannot contribute variation from a document that emits no pixels.
+fn handset_appearance(p: &super::super::materials::screens::ScreenProgram) -> Value {
+    if p.dormant {
+        return json!({"state": "off", "cover": p.finish, "reflectance": p.panel_diffuse_reflectance});
+    }
+    if let Some(clock) = &p.ambient_clock {
+        return json!({"state": "ambient", "face": clock, "minutes": p.minutes, "luminance": p.luminance,
+            "white_kelvin": p.white_kelvin, "white_tint": p.white_tint,
+            "cover": p.finish, "reflectance": p.panel_diffuse_reflectance});
+    }
+    json!(p)
+}
+
 fn assigned_materials(
     scene: &IndoorManifest,
     a: &objects::Assembly,
@@ -291,9 +305,9 @@ fn assigned_materials(
                     seed,
                     materials::screens::DisplayKind::Desktop
                 )),
-                Surface::PhoneScreen => json!(materials::screens::parameters_for(
+                Surface::PhoneScreen => handset_appearance(&materials::screens::parameters_for(
                     seed,
-                    materials::screens::DisplayKind::Phone
+                    materials::screens::DisplayKind::Phone,
                 )),
                 Surface::Television => json!(materials::screens::parameters_for(
                     seed,
@@ -348,4 +362,31 @@ fn geometry(
     }
     parts.sort_by_key(Value::to_string);
     Ok(json!(parts))
+}
+
+#[cfg(test)]
+mod handset_tests {
+    use super::*;
+    use crate::scene::procedural_indoor::materials::screens::{parameters_for, DisplayKind};
+    #[test]
+    fn idle_handset_descriptors_count_visible_content_and_finish() {
+        let mut tested = [false; 2];
+        for seed in 0..64 {
+            let mut p = parameters_for(seed, DisplayKind::Phone);
+            if !p.dormant && p.ambient_clock.is_none() {
+                continue;
+            }
+            let before = handset_appearance(&p);
+            p.sidebar += 0.17;
+            p.layout += 1;
+            p.accent_hue += 37.;
+            assert_eq!(before, handset_appearance(&p));
+            p.minutes = (p.minutes + 1) % 1440;
+            assert_eq!(before == handset_appearance(&p), p.dormant);
+            p.finish.roughness += 0.05;
+            assert_ne!(before, handset_appearance(&p));
+            tested[usize::from(!p.dormant)] = true;
+        }
+        assert_eq!(tested, [true; 2]);
+    }
 }

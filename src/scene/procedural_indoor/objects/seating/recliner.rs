@@ -7,23 +7,28 @@ pub fn selected(seed: u64) -> bool {
     stream(seed, 6439).random_bool(0.40)
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram) {
-    let label = o.kind.class_name();
-    let width = o.size.x - p.arm_width * 2.;
+const SEAT_DEPTH: f32 = 0.49;
+pub(super) const BASE_DEPTH: f32 = SEAT_DEPTH + 0.08;
+
+fn back_dimensions(o: &IndoorObject, p: &SofaProgram) -> (f32, f32, f32) {
     let height = (o.size.y - p.seat_height - 0.06).min(0.72);
     let angle = 0.10 + p.recliner_extension * 0.46;
     let back_z = 0.22_f32.min(o.size.z * 0.5 - 0.12 - height * angle.sin());
+    (height, angle, back_z)
+}
+
+pub(super) fn base_center_z(o: &IndoorObject, p: &SofaProgram) -> f32 {
+    back_dimensions(o, p).2 - 0.19 + 0.015
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram) {
+    let label = o.kind.class_name();
+    let width = o.size.x - p.arm_width * 2.;
+    let (height, angle, back_z) = back_dimensions(o, p);
     let seat_z = back_z - 0.19;
-    let seat_depth = 0.49;
+    let seat_depth = SEAT_DEPTH;
     let base_top = p.seat_height - p.cushion;
-    a.box_part(
-        p.upholstery,
-        label,
-        Vec3::new(0., (p.leg_height + base_top) * 0.5, seat_z + 0.015),
-        Vec3::new(width, base_top - p.leg_height, seat_depth + 0.08),
-        0.035,
-    );
-    structure::feet(a, o, p, 0., seat_z, width, seat_depth + 0.08);
+    foundation::Foundation::new(o, p, &[width]).build(a, o, p);
     a.part(p.upholstery, label).cushion(
         Vec3::new(width - 0.012, p.cushion, seat_depth),
         CushionProfile {

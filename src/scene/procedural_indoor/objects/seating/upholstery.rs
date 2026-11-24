@@ -6,36 +6,70 @@ pub(super) fn maximum_back_padding(p: &SofaProgram) -> f32 {
     p.back_padding_m
 }
 
-pub(super) fn seat(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, center: Vec3, size: Vec3) {
+/// Each entry describes one seat before upholstery, in sofa-local metres.
+/// A bench has one supporting surface across all of its frame modules.
+pub(super) fn seats(
+    o: &IndoorObject,
+    p: &SofaProgram,
+    widths: &[f32],
+    mut visit: impl FnMut(Vec3, Vec3),
+) {
+    let mut cursor = -o.size.x * 0.5 + p.arm_width;
+    for (index, &w) in widths.iter().enumerate() {
+        let depth = module_depth(o, p, index);
+        let (x, width) = if p.seat_style == 1 {
+            (0., o.size.x - p.arm_width * 2.)
+        } else {
+            (cursor + w * 0.5, w)
+        };
+        visit(
+            Vec3::new(
+                x,
+                p.seat_height - p.cushion * 0.5,
+                (o.size.z - depth) * 0.5 - 0.085,
+            ),
+            Vec3::new(width - p.cushion_gap_m, p.cushion, depth - 0.19),
+        );
+        if p.seat_style == 1 {
+            break;
+        }
+        cursor += w;
+    }
+}
+
+pub(super) fn main_pad(p: &SofaProgram, center: Vec3, size: Vec3) -> (Vec3, Vec3, CushionProfile) {
     let profile = CushionProfile {
         roundness: 4.0 + p.roundness * 20.,
         crown: p.cushion_crown,
         dish: p.cushion_dish_m,
     };
-    let label = o.kind.class_name();
+    if p.seat_style != 2 {
+        return (center, size, profile);
+    }
+    let front = size.z * 0.22;
+    (
+        Vec3::new(center.x, center.y, center.z + front * 0.5),
+        Vec3::new(size.x, size.y, size.z - front - 0.004),
+        profile,
+    )
+}
+
+pub(super) fn seat(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, center: Vec3, size: Vec3) {
+    let (pad_center, pad_size, profile) = main_pad(p, center, size);
+    let g = a.part(p.upholstery, o.kind.class_name());
+    g.cushion(pad_size, profile, Transform::from_translation(pad_center));
     if p.seat_style == 2 {
         let front = size.z * 0.22;
-        for (depth, z, roundness) in [
-            (
-                size.z - front - 0.004,
-                center.z + front * 0.5,
-                profile.roundness,
-            ),
-            (front - 0.004, center.z - (size.z - front) * 0.5, 2.8),
-        ] {
-            a.part(p.upholstery, label).cushion(
-                Vec3::new(size.x, size.y, depth),
-                CushionProfile {
-                    roundness,
-                    ..profile
-                },
-                Transform::from_xyz(center.x, center.y, z),
-            );
-        }
+        g.cushion(
+            Vec3::new(size.x, size.y, front - 0.004),
+            CushionProfile {
+                roundness: 2.8,
+                ..profile
+            },
+            Transform::from_xyz(center.x, center.y, center.z - (size.z - front) * 0.5),
+        );
         return;
     }
-    a.part(p.upholstery, label)
-        .cushion(size, profile, Transform::from_translation(center));
     let piping: Vec<_> = (0..=48)
         .map(|i| {
             let t = TAU * (i % 48) as f32 / 48.;
@@ -54,8 +88,7 @@ pub(super) fn seat(a: &mut Assembly, o: &IndoorObject, p: &SofaProgram, center: 
                 )
         })
         .collect();
-    a.part(p.upholstery, label)
-        .tube(&piping, p.seam_radius_m, 6);
+    g.tube(&piping, p.seam_radius_m, 6);
 }
 
 pub(super) fn back(
@@ -73,8 +106,7 @@ pub(super) fn back(
     } else {
         p.upholstery
     };
-    let top = (s.y - 0.04 - (s.y - p.seat_height) * p.back_arch * (2. * x / s.x).powi(2))
-        .max(base_top + 0.08);
+    let top = back_top(o, p, x, base_top);
     if p.back_style == 4 {
         for side in [-1., 1.] {
             a.part(Surface::WoodEdge, label).rod(
@@ -99,6 +131,25 @@ pub(super) fn back(
             p.roundness.min(0.035),
         );
     }
+    back_pads(o, p, x, width, top, |size, profile, tf| {
+        a.part(p.upholstery, label).cushion(size, profile, tf)
+    });
+}
+
+pub(super) fn back_top(o: &IndoorObject, p: &SofaProgram, x: f32, base_top: f32) -> f32 {
+    let s = o.size;
+    (s.y - 0.04 - (s.y - p.seat_height) * p.back_arch * (2. * x / s.x).powi(2)).max(base_top + 0.08)
+}
+
+pub(super) fn back_pads(
+    o: &IndoorObject,
+    p: &SofaProgram,
+    x: f32,
+    width: f32,
+    top: f32,
+    mut emit: impl FnMut(Vec3, CushionProfile, Transform),
+) {
+    let s = o.size;
     let h = (top - p.seat_height + 0.055).max(0.18);
     let tf = Transform::from_xyz(
         x,
@@ -113,7 +164,7 @@ pub(super) fn back(
     };
     let width = width - p.cushion_gap_m;
     let mut pad = |x: f32, z: f32, w: f32, h: f32, roundness: f32, thickness: f32| {
-        a.part(p.upholstery, label).cushion(
+        emit(
             Vec3::new(w, thickness, h),
             CushionProfile {
                 roundness,

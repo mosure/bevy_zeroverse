@@ -43,23 +43,18 @@ pub fn parameters(o: &IndoorObject) -> AccessoryProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::DeskFan {
         return fan::build(a, o);
     }
-    let p = parameters(o);
     match o.kind {
-        ObjectKind::DeskLamp => lamps::build(a, o, &p),
+        ObjectKind::DeskLamp => lamps::build(a, o, &parameters(o)),
         ObjectKind::Speaker => speaker::build(a, o),
         ObjectKind::Headphones => headphones::build(a, o),
         ObjectKind::Stapler => stationery::stapler(a, o),
         ObjectKind::TapeDispenser => stationery::tape(a, o),
-        ObjectKind::DocumentTray | ObjectKind::DeskOrganizer => organizer(a, o, &p),
+        ObjectKind::DocumentTray | ObjectKind::DeskOrganizer => organizers::build(a, o, version),
         ObjectKind::TissueBox => super::containers::tissues(a, o),
         _ => unreachable!("non-accessory object"),
     }
-}
-
-fn organizer(a: &mut Assembly, o: &IndoorObject, _: &AccessoryProgram) {
-    organizers::build(a, o);
 }

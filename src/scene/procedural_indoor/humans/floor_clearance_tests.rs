@@ -2,6 +2,46 @@ use super::*;
 use crate::scene::procedural_indoor::{layout::floor::detail_clear, objects::audit::fixture};
 
 #[test]
+fn seated_clearance_encloses_rendered_soles_on_floors_and_footrests() {
+    use super::super::objects::chairs::stool;
+    for seed in 0..24 {
+        let mut h = sample_person(
+            seed,
+            1,
+            Vec3::ZERO,
+            0.,
+            HumanPoseKind::SeatedWorking,
+            Some(0),
+            false,
+        );
+        if seed % 2 == 1 {
+            let mut chair = fixture(ObjectKind::Chair, seed);
+            chair.variant = 6;
+            chair.size = Vec3::new(0.61, 0.76, 0.59);
+            let pose = h.pose_program.as_mut().unwrap();
+            pose.stool_support = Some(stool::parameters(&chair).support(&chair));
+            h.joints = pose.solve(h.stature, h.build, h.shoulder_width, true);
+            assert!(h.foot_support_height() > 0.);
+        }
+        let soles = footwear::seated_soles(&h);
+        let mesh = build_human(&h);
+        let vertices = &mesh.parts[&HumanSurface::Sole].positions;
+        assert!(!vertices.is_empty());
+        for &vertex in vertices {
+            let p = Vec3::from_array(vertex);
+            assert!(
+                soles.iter().any(|&(a, b, r)| {
+                    let ab = b - a;
+                    let t = ((p - a).dot(ab) / ab.length_squared()).clamp(0., 1.);
+                    p.distance_squared(a + t * ab) <= r * r
+                }),
+                "seed {seed}: sole vertex {p} escapes table clearance"
+            );
+        }
+    }
+}
+
+#[test]
 fn people_respect_the_same_wall_service_gap_as_fixture_admission() {
     let mut scene = IndoorManifest::generate_with_humans(
         87,

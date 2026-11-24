@@ -21,6 +21,7 @@ fn view(config: &BevyZeroverseConfig) -> ViewState {
 fn viewer_launch_defaults_and_kiosk_share_the_same_policy_on_both_platforms() {
     let web = url(&[]).unwrap();
     assert_eq!(web.scene_type, ZeroverseSceneType::ProceduralIndoor);
+    assert_eq!(web.preview_aa, PreviewAa::Auto);
     assert!(!web.kiosk && !web.fullscreen && !web.camera_grid && !view(&web).viewport_only);
     assert_eq!(
         BevyZeroverseConfig::default().scene_type,
@@ -31,6 +32,7 @@ fn viewer_launch_defaults_and_kiosk_share_the_same_policy_on_both_platforms() {
     let configs = {
         let cli = parse_cli(["bevy_zeroverse"]).unwrap();
         assert_eq!(cli.scene_type, ZeroverseSceneType::ProceduralIndoor);
+        assert_eq!(cli.preview_aa, PreviewAa::Auto);
         assert!(!cli.kiosk);
         assert_eq!(
             parse_cli(["bevy_zeroverse", "--headless"])
@@ -47,6 +49,7 @@ fn viewer_launch_defaults_and_kiosk_share_the_same_policy_on_both_platforms() {
             config.kiosk && config.hdr && config.fullscreen && config.camera_grid && config.editor
         );
         assert!(view(&config).viewport_only);
+        assert_eq!(config.preview_aa, PreviewAa::Taa);
         assert_eq!(config.num_cameras, 1);
         assert_eq!(config.regenerate_ms, 30_000);
         assert_eq!(config.playback_mode, PlaybackMode::Smoothstep);
@@ -71,11 +74,13 @@ fn kiosk_links_are_sparse_and_preserve_edits_including_revealed_controls() {
     assert!(url(&[("kiosk", ""), ("kiosk", "false")]).is_err());
     let pairs = [
         ("fullscreen", "false"),
+        ("preview_aa", "off"),
         ("view.viewport_only", "false"),
         ("camera.path_length_min", "3"),
         ("kiosk", "true"),
     ];
     let config = url(&pairs).unwrap();
+    assert_eq!(config.preview_aa, PreviewAa::Off);
     assert_eq!(policy(&config).path_length_min, 3.);
     assert!(!config.fullscreen && !view(&config).viewport_only);
     let encoded = query::encode(&config, &view(&config));
@@ -98,6 +103,8 @@ fn explicit_cli_values_override_kiosk_even_when_equal_to_normal_defaults() {
         "0",
         "--camera-grid=false",
         "--hdr=false",
+        "--preview-aa",
+        "auto",
         "--fullscreen=false",
         "--regenerate-ms",
         "0",
@@ -118,6 +125,7 @@ fn explicit_cli_values_override_kiosk_even_when_equal_to_normal_defaults() {
         !config.hdr && !config.fullscreen && !config.camera_grid && !view(&config).viewport_only
     );
     assert_eq!(config.playback_mode, PlaybackMode::Sin);
+    assert_eq!(config.preview_aa, PreviewAa::Auto);
     assert_eq!(policy(&config), CameraSettings::default());
 }
 

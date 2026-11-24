@@ -206,17 +206,31 @@ impl Station<'_> {
         let d = self.desk;
         let side = if r.random_bool(0.5) { 1. } else { -1. };
         let floor_first = r.random_bool(0.46);
+        let mut install = stream(
+            scene.objects[monitor].seed,
+            u64::from_le_bytes(*b"CaseSite"),
+        );
+        let aligned = install.random_bool(0.44);
         for floor in [floor_first, !floor_first] {
             let size = tower::dimensions(r, floor);
             for turn in [side, -side] {
+                let yaw = if aligned {
+                    install.random_range(-0.065_f32..0.065)
+                } else if !floor && size.y < size.x * 0.67 && install.random_bool(0.32) {
+                    turn * install.random_range(1.22..1.66)
+                } else {
+                    install.random_range(-0.42..0.42)
+                };
+                let (sin, cos) = yaw.sin_cos();
+                let half = (size.xz() * cos.abs() + size.zx() * sin.abs()) * 0.5;
+                let depth = d.size.z * 0.5;
                 if floor {
-                    // Beside the casework, outside the knee well and chair approach.
-                    let x = turn * (d.size.x * 0.5 + size.x * 0.5 + r.random_range(0.09..0.16));
-                    let pos = d.transform().transform_point(Vec3::new(
-                        x,
-                        0.,
-                        self.sign * d.size.z * r.random_range(-0.17..0.13),
-                    ));
+                    // Keep the rotated case clear of desk legs and the seated knee well.
+                    let gap = install.random_range(0.065..0.21);
+                    let x = turn * (d.size.x * 0.5 + half.x + gap);
+                    let z =
+                        self.sign * (depth - half.y).max(0.035) * install.random_range(-0.96..0.92);
+                    let pos = d.transform().transform_point(Vec3::new(x, 0., z));
                     let y = scene.floor_height(pos.xz());
                     if (y - d.position.y).abs() > 0.012 {
                         continue;
@@ -231,7 +245,7 @@ impl Station<'_> {
                             } else {
                                 0.
                             }
-                            + r.random_range(-0.10..0.10),
+                            + yaw,
                         r,
                     );
                     o.interaction_target = Some(monitor);
@@ -240,14 +254,25 @@ impl Station<'_> {
                         return;
                     }
                 } else {
-                    let x = turn * (d.size.x * 0.5 - size.x * 0.5 - r.random_range(0.046..0.105));
-                    for z in [self.rear + 0.035, self.front - 0.04] {
+                    // On opposing benches each operator keeps their own half of the worktop.
+                    // Admission still uses the real tabletop outline and peer footprints.
+                    let (back, front) = (
+                        if self.rear > 0. { 0. } else { -depth } + half.y + 0.012,
+                        depth - half.y - 0.012,
+                    );
+                    if back >= front {
+                        continue;
+                    }
+                    let inset = (d.size.x * install.random_range(0.018..0.15)).min(0.21);
+                    let x = turn * (d.size.x * 0.5 - half.x - inset);
+                    let t = install.random_range(0.025_f32..0.975);
+                    for f in [t, (t + 0.5).fract()] {
                         if self
                             .fit(
                                 scene,
                                 ObjectKind::PcTower,
                                 size,
-                                (Vec2::new(x, z), r.random_range(-0.10..0.10)),
+                                (Vec2::new(x, back + (front - back) * f), yaw),
                                 Some(monitor),
                                 r,
                             )

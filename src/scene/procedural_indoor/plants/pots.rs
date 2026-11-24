@@ -50,26 +50,73 @@ impl PotProfile {
             base_rounding: rng.random_range(0.04..0.22),
         }
     }
+
+    /// Root volume responds to both stature and canopy width. Sample proportions
+    /// independently of plant height, with room left for the canopy and the real
+    /// outer rim/saucer. This gives shallow bowls and tall cachepots on the same
+    /// growth habit instead of a fixed-height fraction with an almost fixed radius.
+    pub(in crate::scene::procedural_indoor) fn dimensions(
+        &self,
+        o: &IndoorObject,
+        growth: &Growth,
+    ) -> (f32, f32) {
+        let form = match o.variant % SPECIES {
+            7 => 1.25,
+            8 | 9 => 1.40,
+            _ => 1.,
+        };
+        let mut rng = stream(o.seed, 6230);
+        let width = o.size.x.min(o.size.z);
+        let radius = (width * 0.40 * growth.pot_radius * form)
+            .max(o.size.y * rng.random_range(0.055..0.085))
+            .min(width * 0.45 / self.outer_radius_factor());
+        let height = (2. * radius * self.aspect).min(o.size.y * growth.pot_fraction);
+        (radius, height)
+    }
 }
 
-/// Root volume responds to both stature and canopy width. Sample proportions
-/// independently of plant height, with room left for the canopy and the real
-/// outer rim/saucer. This gives shallow bowls and tall cachepots on the same
-/// growth habit instead of a fixed-height fraction with an almost fixed radius.
-pub(crate) fn dimensions(o: &IndoorObject, growth: &Growth) -> (f32, f32) {
-    let form = match o.variant % SPECIES {
-        7 => 1.25,
-        8 | 9 => 1.40,
-        _ => 1.,
-    };
-    let p = PotProfile::sample(o.seed);
-    let mut rng = stream(o.seed, 6230);
-    let width = o.size.x.min(o.size.z);
-    let radius = (width * 0.40 * growth.pot_radius * form)
-        .max(o.size.y * rng.random_range(0.055..0.085))
-        .min(width * 0.45 / p.outer_radius_factor());
-    let height = (2. * radius * p.aspect).min(o.size.y * growth.pot_fraction);
-    (radius, height)
+/// Fill section shared by the pot mesh, roots, dressing and dataset measurements.
+#[derive(Clone, Copy)]
+pub(super) struct Fill {
+    pub level: f32,
+    pub roots: f32,
+    pub rim_gap: f32,
+    pub radius: f32,
+    pub sides: u32,
+    bottom: f32,
+    base_radius: f32,
+    top_radius: f32,
+}
+
+impl Fill {
+    pub(super) fn new(r: f32, h: f32, p: &PotProfile) -> Self {
+        let lip = p.lip_height_fraction;
+        let wall = p.wall_fraction;
+        let level = h * (1. - lip - 0.065);
+        let inner = |y: f32| {
+            let t = ((y / h - p.shoulder_height_fraction)
+                / (1. - lip - p.shoulder_height_fraction))
+                .clamp(0., 1.);
+            r * ((p.belly - wall) * (1. - t) + (p.neck - wall) * t)
+        };
+        let bottom = level - h * 0.025;
+        let embed = r * wall * 0.12;
+        let roots = inner(level) * (1. - p.flute_depth) * (PI / p.sides as f32).cos() - r * 0.008;
+        // The grains sit within this polygon throughout their exposed height,
+        // including flutes on round planters and the sloped shoulder of a bowl.
+        let flute = if p.sides < 16 { 1. } else { 1. - p.flute_depth };
+        let radius = inner(bottom).min(inner(level)).min(inner(h)) * flute;
+        Self {
+            level,
+            roots,
+            rim_gap: h - level,
+            radius,
+            sides: p.sides,
+            bottom,
+            base_radius: inner(bottom) + embed,
+            top_radius: inner(level) + embed,
+        }
+    }
 }
 
 pub(super) fn build(
@@ -79,7 +126,8 @@ pub(super) fn build(
     h: f32,
     taper: f32,
     p: &PotProfile,
-) -> (f32, f32) {
+    soil_label: &str,
+) -> Fill {
     let foot = if p.saucer {
         h * p.pedestal_fraction
     } else {
@@ -131,28 +179,17 @@ pub(super) fn build(
             Transform::IDENTITY,
         );
     }
-    let soil = h * (1. - lip - 0.065);
-    // Intersect the inner shoulder at each fill height. A small embed inside
-    // the solid wall closes the seam even under floating-point roundoff.
-    let inner_radius = |y: f32| {
-        let t = ((y / h - p.shoulder_height_fraction) / (1. - lip - p.shoulder_height_fraction))
-            .clamp(0., 1.);
-        r * ((p.belly - wall) * (1. - t) + (p.neck - wall) * t)
-    };
-    let bottom = soil - h * 0.025;
-    let embed = r * wall * 0.12;
+    let fill = Fill::new(r, h, p);
     outline.sweep(
-        a.part(Surface::Soil, "other_prop"),
+        a.part(Surface::Soil, soil_label),
         &[
-            (0., bottom),
-            (inner_radius(bottom) + embed, bottom),
-            (inner_radius(soil) + embed, soil),
-            (0., soil),
+            (0., fill.bottom),
+            (fill.base_radius, fill.bottom),
+            (fill.top_radius, fill.level),
+            (0., fill.level),
         ],
         ProfileJoints::Creased,
         Transform::IDENTITY,
     );
-    // Plant roots use the original conservative clear radius in every direction.
-    let roots = inner_radius(soil) * (1. - p.flute_depth) * (PI / p.sides as f32).cos() - r * 0.008;
-    (soil, roots)
+    fill
 }

@@ -2,6 +2,32 @@
 //! exposed panel face; the reserved box is not an invariant solid silhouette.
 use super::*;
 
+pub(crate) const TACKBOARD_VERSION: u32 = 212;
+
+#[derive(Debug, Clone, Copy, serde::Serialize, PartialEq, Eq)]
+pub enum Facing {
+    Textile,
+    NaturalCork,
+    ToastedCork,
+}
+
+impl Facing {
+    pub fn for_board(o: &IndoorObject, version: u32) -> Self {
+        if version < TACKBOARD_VERSION {
+            return Self::Textile;
+        }
+        let mut r = stream(
+            o.finish_seed.unwrap_or(o.seed),
+            u64::from_le_bytes(*b"PinStock"),
+        );
+        match r.random_range(0..100) {
+            0..=38 => Self::Textile,
+            39..=84 => Self::NaturalCork,
+            _ => Self::ToastedCork,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, serde::Serialize, PartialEq)]
 pub struct BoardSection {
     pub backing_m: f32,

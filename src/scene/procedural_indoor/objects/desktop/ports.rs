@@ -3,7 +3,7 @@
 use super::*;
 pub(crate) type Port = (Vec3, Vec3);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum TowerJack {
     Mains,
     Video(bool),
@@ -20,6 +20,13 @@ impl TowerJack {
     ];
 }
 pub(crate) fn tower_local(o: &IndoorObject, jack: TowerJack) -> Vec3 {
+    if tower::installed(o) {
+        tower::rear_center(o, jack)
+    } else {
+        legacy_tower_local(o, jack)
+    }
+}
+pub(super) fn legacy_tower_local(o: &IndoorObject, jack: TowerJack) -> Vec3 {
     let (x, y) = match jack {
         TowerJack::Mains => (-0.26, 0.30),
         TowerJack::Video(false) => (0.16, 0.38),
@@ -30,7 +37,7 @@ pub(crate) fn tower_local(o: &IndoorObject, jack: TowerJack) -> Vec3 {
     Vec3::new(o.size.x * x, o.size.y * y, -o.size.z * 0.5 - 0.001)
 }
 
-fn input_local(o: &IndoorObject, p: &InputProgram) -> Vec3 {
+pub(super) fn input_local(o: &IndoorObject, p: &InputProgram) -> Vec3 {
     let x = if o.kind == ObjectKind::Mouse {
         0.
     } else if p.keyboard_split {
@@ -112,15 +119,19 @@ pub(crate) fn data_ports(source: &IndoorObject, target: &IndoorObject) -> Option
     };
     Some([rear(source, s), rear(target, t)])
 }
-pub(crate) fn connection(source: &IndoorObject, target: &IndoorObject) -> Option<[Port; 2]> {
+pub(crate) fn connection(
+    source: &IndoorObject,
+    target: &IndoorObject,
+    socket: Option<u8>,
+) -> Option<[Port; 2]> {
     if let Some(ports) = data_ports(source, target) {
-        return Some(ports);
+        return socket.is_none().then_some(ports);
     }
     use ObjectKind::*;
     if !(matches!(target.kind, PowerStrip | FloorOutlet | WallOutlet)
         && matches!(
             source.kind,
-            Laptop | Projector | Monitor | PcTower | PowerStrip
+            Laptop | Projector | Monitor | PcTower | PowerStrip | Printer
         ))
         || source.kind == PowerStrip && target.kind == PowerStrip
         || source.kind == Laptop && target.kind != PowerStrip
@@ -134,7 +145,7 @@ pub(crate) fn connection(source: &IndoorObject, target: &IndoorObject) -> Option
             equipment::source_power_normal(source)?,
         ),
         (
-            equipment::power_port(target, low)?,
+            equipment::receptacles::target_port(target, low, socket)?,
             equipment::power_port_normal(target, low)?,
         ),
     ])
@@ -147,7 +158,7 @@ mod tests {
 
     // Intersect the port center with the actual outward-facing socket triangles
     // in the local XY plane, independent of the analytic routing formula.
-    fn hits_socket(mesh: &Assembly, center: Vec3) -> bool {
+    fn hits_socket(mesh: &Assembly, center: Vec3, depth: std::ops::RangeInclusive<f32>) -> bool {
         mesh.parts
             .iter()
             .filter(|((surface, _), _)| *surface == Surface::Rubber)
@@ -155,7 +166,7 @@ mod tests {
                 g.indices.as_chunks::<3>().0.iter().any(|tri| {
                     let [a, b, c] =
                         [tri[0], tri[1], tri[2]].map(|i| Vec3::from_array(g.positions[i as usize]));
-                    if [a, b, c].iter().any(|p| (p.z - center.z).abs() > 0.00055)
+                    if [a, b, c].iter().any(|p| !depth.contains(&(p.z - center.z)))
                         || (b - a).cross(c - a).z >= -1e-8
                     {
                         return false;
@@ -209,7 +220,12 @@ mod tests {
                     _ => vec![input_local(&o, &parameters(&o))],
                 };
                 for p in sockets {
-                    assert!(hits_socket(&mesh, p), "{kind:?} {seed} socket {p:?}");
+                    let depth = if kind == ObjectKind::PcTower && tower::installed(&o) {
+                        0.001..=0.0091
+                    } else {
+                        -0.00055..=0.00055
+                    };
+                    assert!(hits_socket(&mesh, p, depth), "{kind:?} {seed} socket {p:?}");
                 }
             }
         }

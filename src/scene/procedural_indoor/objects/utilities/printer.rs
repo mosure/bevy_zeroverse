@@ -1,5 +1,12 @@
 //! Desktop printers with a real output cavity, fitted trays and variable scanners.
 use super::*;
+use crate::scene::procedural_indoor::materials::{input_housing::Housing, printer_lcd};
+
+mod cassette;
+mod output;
+pub(crate) use output::reserve_media;
+pub use output::OutputProgram;
+pub(crate) const OUTPUT_VERSION: u32 = 211;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PrinterProgram {
@@ -20,6 +27,10 @@ pub struct PrinterProgram {
     pub bevel: f32,
 }
 pub fn parameters(o: &IndoorObject) -> PrinterProgram {
+    sample(o, Some(&Housing::for_object(o)))
+}
+
+fn sample(o: &IndoorObject, stock: Option<&Housing>) -> PrinterProgram {
     let s = o.size;
     let mut r = stream(o.seed, 0x5052494e54455250);
     let scanner = r.random_bool(0.62);
@@ -28,7 +39,7 @@ pub fn parameters(o: &IndoorObject) -> PrinterProgram {
         r.random_range(0.59..0.78),
         r.random_range(0.62..0.82),
     );
-    PrinterProgram {
+    let mut program = PrinterProgram {
         body,
         lower_top: body.y * r.random_range(0.24..0.41),
         slot_height: body.y * r.random_range(0.12..0.24),
@@ -48,19 +59,46 @@ pub fn parameters(o: &IndoorObject) -> PrinterProgram {
         finish: [Surface::Plastic, Surface::Metal][usize::from(r.random_bool(0.23))],
         panel: [Surface::Plastic, Surface::Metal][usize::from(r.random_bool(0.40))],
         bevel: r.random_range(0.003..0.013),
+    };
+    if let Some(stock) = stock {
+        program.finish = stock.surface;
+        program.panel = Surface::Plastic;
     }
+    program
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+/// The mains inlet is recessed into the rear of the lower housing.
+pub(crate) fn power_port(o: &IndoorObject) -> Vec3 {
+    inlet(o, &sample(o, None))
+}
+fn inlet(o: &IndoorObject, p: &PrinterProgram) -> Vec3 {
+    Vec3::new(
+        -p.control_side * p.body.x * 0.27,
+        p.lower_top * 0.52,
+        -o.size.z * 0.5,
+    )
+}
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let current = version >= OUTPUT_VERSION;
+    let stock = current.then(|| Housing::for_object(o));
+    let p = sample(o, stock.as_ref());
     let s = p.body;
     let l = o.kind.class_name();
-    let front = s.z * 0.5;
+    let case_label = stock.as_ref().map(|h| h.case_label(o));
+    let label = case_label.as_deref().unwrap_or(l);
+    let trim = stock.as_ref().map(|h| h.trim_label(o));
+    let trim_label = trim.as_deref().unwrap_or(l);
+    let z = if current {
+        (s.z - o.size.z) * 0.5 + 0.004
+    } else {
+        0.
+    };
+    let front = z + s.z * 0.5;
     let slot_w = s.x * p.slot_fraction;
     let cx = s.x * p.slot_center;
     a.box_part(
         p.finish,
-        l,
-        Vec3::Y * p.lower_top * 0.5,
+        label,
+        Vec3::new(0., p.lower_top * 0.5, z),
         Vec3::new(s.x, p.lower_top, s.z),
         p.bevel,
     );
@@ -70,8 +108,8 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         let inner = cx + side * slot_w * 0.5;
         a.box_part(
             p.finish,
-            l,
-            Vec3::new((edge + inner) * 0.5, p.lower_top + p.slot_height * 0.5, 0.),
+            label,
+            Vec3::new((edge + inner) * 0.5, p.lower_top + p.slot_height * 0.5, z),
             Vec3::new((edge - inner).abs(), p.slot_height, s.z),
             p.bevel.min(0.004),
         );
@@ -79,11 +117,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let back = s.z * 0.16;
     a.box_part(
         p.panel,
-        l,
+        trim_label,
         Vec3::new(
             cx,
             p.lower_top + p.slot_height * 0.5,
-            -s.z * 0.5 + back * 0.5,
+            z - s.z * 0.5 + back * 0.5,
         ),
         Vec3::new(slot_w, p.slot_height, back),
         0.003,
@@ -91,47 +129,39 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let upper = s.y - p.lower_top - p.slot_height;
     a.box_part(
         p.finish,
-        l,
-        Vec3::new(0., s.y - upper * 0.5, 0.),
+        label,
+        Vec3::new(0., s.y - upper * 0.5, z),
         Vec3::new(s.x, upper, s.z),
         p.bevel,
     );
-    // Extend a physical ledge from the output opening; paper rests on its top.
-    let tray_depth = (o.size.z * 0.5 - front) + s.z * 0.28;
-    let tray_z = (front + o.size.z * 0.5) * 0.5 - s.z * 0.14;
-    let tray_h = o.size.y * 0.022;
-    let tray_top = p.lower_top + 0.001;
-    a.box_part(
-        p.panel,
-        l,
-        Vec3::new(cx, tray_top - tray_h * 0.5, tray_z),
-        Vec3::new(slot_w * 0.97, tray_h, tray_depth * 0.98),
-        0.002,
-    );
-    let paper_w = slot_w * 0.78;
-    let paper_d = tray_depth * 0.82;
-    for i in 0..p.sheet_count {
-        a.part(Surface::Paper, "paper").cuboid(
-            Vec3::new(paper_w, 0.00025, paper_d),
-            0.,
-            Transform::from_xyz(cx, tray_top + 0.000125 + i as f32 * 0.00028, tray_z)
-                .with_rotation(Quat::from_rotation_y(p.sheet_yaw)),
+    if current {
+        cassette::build(a, o, &p, front, label, trim_label, p.finish);
+        OutputProgram::sample(o, &p).build(a, o, &p, trim_label);
+        let port = inlet(o, &p);
+        a.box_part(
+            Surface::Rubber,
+            l,
+            port + Vec3::Z * 0.002,
+            Vec3::new(0.024, 0.014, 0.004),
+            0.001,
         );
+    } else {
+        legacy_output(a, o, &p);
     }
     let lid_h = o.size.y * if p.scanner { 0.075 } else { 0.025 };
     a.box_part(
         p.panel,
-        l,
-        Vec3::new(0., s.y + lid_h * 0.5, -s.z * 0.025),
+        trim_label,
+        Vec3::new(0., s.y + lid_h * 0.5, z - s.z * 0.025),
         Vec3::new(s.x * 0.95, lid_h, s.z * 0.90),
         p.bevel.min(lid_h * 0.24),
     );
     if p.scanner {
         for side in [-1., 1.] {
-            a.part(p.panel, l).cylinder(
+            a.part(p.panel, trim_label).cylinder(
                 lid_h * 0.45,
                 s.x * 0.08,
-                Transform::from_xyz(side * s.x * 0.32, s.y + lid_h * 0.5, -s.z * 0.455)
+                Transform::from_xyz(side * s.x * 0.32, s.y + lid_h * 0.5, z - s.z * 0.455)
                     .with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
             );
         }
@@ -140,16 +170,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         let h = (o.size.y - s.y - lid_h) * 0.78;
         a.box_part(
             p.panel,
-            l,
-            Vec3::new(-s.x * 0.27, s.y + lid_h + h * 0.5, -s.z * 0.04),
+            trim_label,
+            Vec3::new(-s.x * 0.27, s.y + lid_h + h * 0.5, z - s.z * 0.04),
             Vec3::new(s.x * 0.32, h, s.z * 0.66),
             p.bevel,
         );
         // Shallow feed tray joins the feeder housing instead of floating above it.
         a.box_part(
             p.panel,
-            l,
-            Vec3::new(s.x * 0.13, s.y + lid_h + h * 0.22, -s.z * 0.04),
+            trim_label,
+            Vec3::new(s.x * 0.13, s.y + lid_h + h * 0.22, z - s.z * 0.04),
             Vec3::new(s.x * 0.55, lid_h * 0.22, s.z * 0.66),
             0.002,
         );
@@ -160,12 +190,21 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let control_h = upper * 0.54;
     a.box_part(
         Surface::Plastic,
-        l,
+        trim_label,
         Vec3::new(cx, cy, front + 0.001),
         Vec3::new(cwidth, control_h, 0.003),
         0.001,
     );
-    if p.screen {
+    if p.screen && current {
+        let c = Vec3::new(cx, cy + control_h * 0.10, front + 0.0031);
+        let x = Vec3::X * (cwidth * 0.395);
+        let y = Vec3::Y * (control_h * 0.255);
+        a.part(Surface::Ink, &printer_lcd::label(o)).vertex_quad(
+            [c - x - y, c + x - y, c + x + y, c - x + y],
+            [Vec3::Z; 4],
+            [[0., 1.], [1., 1.], [1., 0.], [0., 0.]],
+        );
+    } else if p.screen {
         computers::displays::screen_cover(
             a,
             Surface::Plastic,
@@ -189,3 +228,36 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         );
     }
 }
+
+fn legacy_output(a: &mut Assembly, o: &IndoorObject, p: &PrinterProgram) {
+    let s = p.body;
+    let front = s.z * 0.5;
+    let slot_w = s.x * p.slot_fraction;
+    let cx = s.x * p.slot_center;
+    let l = o.kind.class_name();
+    // Extend a physical ledge from the output opening; paper rests on its top.
+    let tray_depth = (o.size.z * 0.5 - front) + s.z * 0.28;
+    let tray_z = (front + o.size.z * 0.5) * 0.5 - s.z * 0.14;
+    let tray_h = o.size.y * 0.022;
+    let tray_top = p.lower_top + 0.001;
+    a.box_part(
+        p.panel,
+        l,
+        Vec3::new(cx, tray_top - tray_h * 0.5, tray_z),
+        Vec3::new(slot_w * 0.97, tray_h, tray_depth * 0.98),
+        0.002,
+    );
+    let paper_w = slot_w * 0.78;
+    let paper_d = tray_depth * 0.82;
+    for i in 0..p.sheet_count {
+        a.part(Surface::Paper, "paper").cuboid(
+            Vec3::new(paper_w, 0.00025, paper_d),
+            0.,
+            Transform::from_xyz(cx, tray_top + 0.000125 + i as f32 * 0.00028, tray_z)
+                .with_rotation(Quat::from_rotation_y(p.sheet_yaw)),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests;

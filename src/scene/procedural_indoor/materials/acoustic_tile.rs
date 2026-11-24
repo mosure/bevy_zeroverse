@@ -172,7 +172,14 @@ pub(super) fn install(
         }
     }
     let key = (Surface::Metal, GRID_SLOT);
-    if requested(key, None) {
+    let coated_register = selection.is_none()
+        && scene.ceiling_installation.iter().any(|c| {
+            c.modules.iter().any(|m| {
+                m.duct_register_stock(scene.generator_version)
+                    .is_some_and(|s| s.coated)
+            })
+        });
+    if requested(key, None) || coated_register {
         variants.insert(key, materials.add(grid_material(seed)));
     }
 }

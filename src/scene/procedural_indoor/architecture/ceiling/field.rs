@@ -132,14 +132,36 @@ impl CeilingGrid {
     fn cells(&self) -> impl Iterator<Item = UVec2> + '_ {
         (0..self.bays.y).flat_map(move |y| (0..self.bays.x).map(move |x| UVec2::new(x, y)))
     }
-    /// Contact height on the finished face for ceiling-mounted cameras. On a
-    /// cut border the board is fitted flush. Equipment bays are reserved separately.
-    pub(crate) fn mount_height(&self, scene: &IndoorManifest, p: Vec2) -> f32 {
-        let h = scene.room_size.y;
-        let cell = (((p - self.first_joint_m) / self.pitch_m).floor() + 1.)
+    fn cell_at(&self, p: Vec2) -> UVec2 {
+        (((p - self.first_joint_m) / self.pitch_m).floor() + 1.)
             .max(Vec2::ZERO)
             .as_uvec2()
-            .min(self.bays - UVec2::ONE);
+            .min(self.bays - UVec2::ONE)
+    }
+
+    /// A surface-mounted fixture needs a continuous bearing face on one tile.
+    /// Leave runners, bevels, air terminals and illuminated service bays clear.
+    pub(crate) fn fixture_support(
+        &self,
+        scene: &IndoorManifest,
+        p: Vec2,
+        radius: f32,
+    ) -> Option<f32> {
+        let cell = self.cell_at(p);
+        let (lo, hi) = self.cell_bounds(scene.room_size.xz(), cell);
+        let margin =
+            radius + self.tile.flange_width_m * 0.5 + self.tile.clearance_m + self.tile.drop_m;
+        let inset = (p - lo).min(hi - p).min_element();
+        (inset > margin
+            && !self.troffers.iter().any(|t| t.cell == cell)
+            && !self.air_terminals.iter().any(|t| t.cell == cell))
+        .then(|| self.mount_height(scene, p))
+    }
+
+    /// Contact height on the finished face. On a cut border the board is flush.
+    pub(crate) fn mount_height(&self, scene: &IndoorManifest, p: Vec2) -> f32 {
+        let h = scene.room_size.y;
+        let cell = self.cell_at(p);
         let (lo, hi) = self.cell_bounds(scene.room_size.xz(), cell);
         let dist = (p - lo).min(hi - p).min_element();
         let lip = self.tile.flange_width_m * 0.5;

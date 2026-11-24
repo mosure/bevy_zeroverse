@@ -5,6 +5,7 @@ use rand::seq::SliceRandom;
 use std::f32::consts::{PI, TAU};
 #[cfg(test)]
 mod diversity_tests;
+mod flatware;
 pub mod sampling;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -328,23 +329,11 @@ impl IndoorManifest {
         }
         // Sink-side mats vary in shape/finish through the established rug program.
         if r.random_bool(0.72) {
-            let sink = self.objects[*units
+            let sink = &self.objects[*units
                 .iter()
                 .find(|&&id| self.objects[id].kind == ObjectKind::KitchenSink)
-                .unwrap()]
-            .clone();
-            let mut mat = self.floor_candidate(
-                ObjectKind::Rug,
-                sink.position + q * Vec3::Z * (sink.size.z * 0.5 + 0.43),
-                Vec3::new(
-                    r.random_range(0.75..1.25),
-                    0.008,
-                    r.random_range(0.48..0.72),
-                ),
-                yaw,
-                &mut r,
-            );
-            mat.solid = false;
+                .unwrap()];
+            let mat = self.sink_mat(sink, &mut r);
             if super::floor::detail_clear(self, &mat) {
                 self.objects.push(mat);
             }
@@ -525,11 +514,13 @@ impl IndoorManifest {
                     let local = local
                         + Vec3::new(r.random_range(-0.16..0.16), 0., r.random_range(-0.16..0.16));
                     let angle = angle + r.random_range(-0.30..0.30);
-                    let before = self.objects.len();
-                    self.chair(tf.transform_point(local), yaw + angle, r);
-                    if self.objects.len() > before {
-                        self.objects[before].interaction_target = Some(id);
-                    }
+                    self.chair_in_family_at_surface(
+                        tf.transform_point(local),
+                        yaw + angle,
+                        None,
+                        Some(id),
+                        r,
+                    );
                 }
                 if self.objects.len() >= checkpoint + 3 {
                     return;

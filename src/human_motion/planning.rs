@@ -559,9 +559,32 @@ pub fn plan(
                     .iter()
                     .find(|o| o.id == id && o.kind == ObjectKind::Chair)
                     .ok_or("missing support chair")?;
+                let seated_pelvis = person
+                    .pose_program
+                    .as_ref()
+                    .and_then(|p| p.stool_support)
+                    .map_or(0.61, |p| p.seat_height_m + 0.14);
                 if family == prompts::Family::Locomotion {
+                    // A stool at a table often has no space directly ahead.
+                    // Try side approaches in the existing search budget; keep
+                    // the backrest behind the actor and validate the full sweep.
+                    let turn = if attempt > 0
+                        && person
+                            .pose_program
+                            .as_ref()
+                            .is_some_and(|p| p.stool_support.is_some())
+                    {
+                        let side = if (attempt + person.id).is_multiple_of(2) {
+                            -1.
+                        } else {
+                            1.
+                        };
+                        side * rng.random_range(0.75..1.70)
+                    } else {
+                        0.
+                    };
                     let front = chair.position
-                        + Quat::from_rotation_y(chair.yaw) * Vec3::new(0.0, 0.0, -0.72);
+                        + Quat::from_rotation_y(chair.yaw + turn) * Vec3::new(0.0, 0.0, -0.72);
                     let sit = rng.random_bool(0.5);
                     let path = if sit {
                         [front, person.position]
@@ -572,7 +595,7 @@ pub fn plan(
                     for (i, w) in points.iter_mut().enumerate() {
                         w.heading = Some(person.yaw + std::f32::consts::PI);
                         w.constrain_height = true;
-                        w.position.y = if sit == (i == 0) { 0.94 } else { 0.61 };
+                        w.position.y = if sit == (i == 0) { 0.94 } else { seated_pelvis };
                     }
                     prompts::chair(if sit { "sit" } else { "stand" }, config, &mut rng)
                 } else {
@@ -590,7 +613,7 @@ pub fn plan(
                     for w in &mut points {
                         w.heading = Some(person.yaw + std::f32::consts::PI);
                     }
-                    prompts::stationary(action, &mut points, config, true, &mut rng)
+                    prompts::stationary(action, &mut points, config, Some(seated_pelvis), &mut rng)
                 }
             } else if family == prompts::Family::Locomotion {
                 let doorway = Vec3::new(scene.door_x, 0.0, half.z + 1.60);
@@ -672,7 +695,7 @@ pub fn plan(
                     // Anny's forward is -Z; ARDY heading zero is +Z.
                     w.heading = Some(person.yaw + std::f32::consts::PI);
                 }
-                prompts::stationary(action, &mut points, config, false, &mut rng)
+                prompts::stationary(action, &mut points, config, None, &mut rng)
             };
             if let Some(navigation) = navigation {
                 // Keep the core gait/action prompt short. The dense waypoints
@@ -704,10 +727,11 @@ pub fn plan(
             if draft.behavior == "seated_gesture" {
                 // The supported lower body is already placed. Upper-body gestures
                 // need clearance above desktops, rather than a floor-to-head disk.
+                let upper_body = points[0].position.y + 0.34;
                 let upper: Vec<_> = boxes
                     .iter()
                     .copied()
-                    .filter(|(_, hi)| hi.y > 0.95)
+                    .filter(|(_, hi)| hi.y > upper_body)
                     .collect();
                 if !segment_clear(
                     person.position,

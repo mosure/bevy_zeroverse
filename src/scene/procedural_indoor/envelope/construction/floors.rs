@@ -258,16 +258,40 @@ pub(super) fn build(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
             }
         }
     }
-    for p in polygon::outside(
+    exterior_apron(
+        a.part(Surface::Concrete, "floor#exterior"),
         &e.footprint,
-        -size.xz() * 0.5 - Vec2::splat(0.25),
         size.xz() * 0.5 + Vec2::splat(0.25),
-    ) {
-        slab(
-            a.part(Surface::Concrete, "floor#exterior"),
-            &p,
-            |_| -0.10,
-            0.16,
+    );
+}
+
+/// A concrete apron with vertical faces only on the room perimeter and outer rim.
+fn exterior_apron(g: &mut Geometry, footprint: &[Vec2], half_size: Vec2) {
+    let top = -0.10;
+    let bottom = top - 0.16;
+    let at = |p: Vec2, y| Vec3::new(p.x, y, p.y);
+    for ring in polygon::outside(footprint, -half_size, half_size) {
+        for edge in ring[1..].windows(2) {
+            let t = [ring[0], edge[0], edge[1]];
+            triangle(g, t.map(|p| at(p, top)), Vec3::Y);
+            triangle(g, t.map(|p| at(p, bottom)), Vec3::NEG_Y);
+        }
+    }
+    let outer = [
+        -half_size,
+        Vec2::new(half_size.x, -half_size.y),
+        half_size,
+        Vec2::new(-half_size.x, half_size.y),
+    ];
+    // Footprints are validated counterclockwise. The inner rim faces the room.
+    for (a, b) in polygon::edges(&outer).chain(polygon::edges(footprint).map(|(a, b)| (b, a))) {
+        quad(
+            g,
+            [at(a, bottom), at(b, bottom), at(b, top), at(a, top)],
+            Vec3::new(b.y - a.y, 0., a.x - b.x),
         );
     }
 }
+
+#[cfg(test)]
+mod tests;

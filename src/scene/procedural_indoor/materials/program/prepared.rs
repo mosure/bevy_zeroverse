@@ -22,14 +22,33 @@ pub(in super::super) struct PreparedWood {
     base: [f32; 3],
     stain: [f32; 3],
     bleach: [f32; 3],
+    pub(in super::super) rings: u32,
+    pub(in super::super) wander: f32,
+    pub(in super::super) pigment: [[f32; 3]; 2],
 }
 impl PreparedWood {
-    pub(in super::super) fn new(w: &WoodFinish, color: [f32; 3]) -> Self {
+    pub(in super::super) fn new(w: &WoodFinish, r: &super::MaterialRecipe) -> Self {
+        let base = r.color.map(super::super::srgb_to_linear);
+        let stain = w.stain_color.map(super::super::srgb_to_linear);
+        let bleach = [0.88, 0.87, 0.82].map(super::super::srgb_to_linear);
+        let pigment =
+            [base, stain].map(|c| [0, 1, 2].map(|i| c[i] * (1. - w.bleach) + bleach[i] * w.bleach));
         Self {
-            base: color.map(super::super::srgb_to_linear),
-            stain: w.stain_color.map(super::super::srgb_to_linear),
-            bleach: [0.88, 0.87, 0.82].map(super::super::srgb_to_linear),
+            base,
+            stain,
+            bleach,
+            pigment,
+            rings: w.figure.map_or(0, |f| f.rings_across(r)),
+            wander: w.figure.map_or(0., |f| f.wander * (10. * r.warp).min(2.)),
         }
+    }
+    pub(in super::super) fn figure_color(&self, absorption: f32, gain: f32) -> [f32; 3] {
+        let [a, b] = &self.pigment;
+        [0, 1, 2].map(|i| {
+            super::super::linear_to_srgb(
+                ((a[i] * (1. - absorption) + b[i] * absorption) * gain).clamp(0., 1.),
+            )
+        })
     }
     pub(in super::super) fn stain(&self, amount: f32) -> [f32; 3] {
         linear_mix(self.base, self.stain, amount)

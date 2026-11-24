@@ -2,6 +2,15 @@
 use super::*;
 use crate::scene::procedural_indoor::geometry::CushionProfile;
 
+mod cover;
+mod mesh;
+#[cfg(test)]
+mod tests;
+pub use cover::{SewnBack, Stitch};
+
+pub(crate) const SEWN_BACK_VERSION: u32 = 209;
+const FRAME_DEPTH: f32 = 0.018;
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BanquetteProgram {
     /// Recessed plinth, exposed legs, or continuous sleds.
@@ -52,7 +61,76 @@ pub fn parameters(o: &IndoorObject) -> BanquetteProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+#[derive(Clone, Copy)]
+struct BackFit {
+    width: f32,
+    height: f32,
+    tf: Transform,
+    seat_rear: f32,
+}
+
+impl BackFit {
+    fn new(o: &IndoorObject, p: &BanquetteProgram) -> Self {
+        let s = o.size;
+        let deck_top = p.seat_height_m - p.cushion_m;
+        let bottom = deck_top + 0.02;
+        let (sin, cos) = p.back_lean.sin_cos();
+        let h = (s.y - 0.008 - bottom - p.back_thickness_m * sin) / cos;
+        let z = -s.z * 0.5 + 0.006 + (h * sin + p.back_thickness_m * cos) * 0.5;
+        let tf = Transform::from_xyz(0., (bottom + s.y - 0.008) * 0.5, z)
+            .with_rotation(Quat::from_rotation_x(-p.back_lean));
+        let seat_rear = z + (h * sin + p.back_thickness_m * cos) * 0.5 + 0.003;
+        Self {
+            width: 0.96 * s.x,
+            height: h,
+            tf,
+            seat_rear,
+        }
+    }
+
+    fn stays(
+        self,
+        o: &IndoorObject,
+        p: &BanquetteProgram,
+    ) -> impl Iterator<Item = (Vec3, Vec3, Vec2)> {
+        let mut r = stream(o.seed, u64::from_le_bytes(*b"BoothFix"));
+        let inset = r.random_range(0.075_f32..0.18).min(self.width * 0.15);
+        let span = self.width - 2. * inset;
+        let count = (span / r.random_range(0.79..1.12)).ceil().clamp(1., 5.) as usize + 1;
+        let section = Vec2::new(r.random_range(0.026..0.042), r.random_range(0.004..0.008));
+        let rise = r.random_range(0.040..0.082);
+        let y = p.seat_height_m - p.cushion_m - 0.013;
+        let rear = -o.size.z * 0.44 + r.random_range(0.017..0.041);
+        let z = (FRAME_DEPTH - p.back_thickness_m) * 0.5;
+        (0..count).map(move |i| {
+            let x = span * (i as f32 / (count - 1) as f32 - 0.5);
+            let tip = self
+                .tf
+                .transform_point(Vec3::new(x, -self.height * 0.5 + rise, z));
+            let root = Vec3::new(x, y, rear.max(tip.z + section.y));
+            (root, tip, section)
+        })
+    }
+}
+
+impl BanquetteProgram {
+    /// Installed upholstery cut in the current generator. Separate pads and
+    /// timber slats have no sewn cover spanning the full back.
+    pub fn sewn_back(&self, o: &IndoorObject) -> Option<SewnBack> {
+        SewnBack::fit(o, self, &BackFit::new(o, self))
+    }
+
+    pub(crate) fn stock_name(&self) -> &'static str {
+        [
+            "single_pad",
+            "separate_vertical_pads",
+            "separate_horizontal_pads",
+            "timber_slats",
+        ][self.back as usize]
+    }
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let l = o.kind.class_name();
@@ -104,13 +182,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     );
     // A tilted back with a real rear frame, wholly inside the reserved envelope.
     // The adult seating datum remains independent of the overall back height.
-    let bottom = deck_top + 0.02;
-    let (sin, cos) = p.back_lean.sin_cos();
-    let h = (s.y - 0.008 - bottom - p.back_thickness_m * sin) / cos;
-    let z = -s.z * 0.5 + 0.006 + (h * sin + p.back_thickness_m * cos) * 0.5;
-    let tf = Transform::from_xyz(0., (bottom + s.y - 0.008) * 0.5, z)
-        .with_rotation(Quat::from_rotation_x(-p.back_lean));
-    let seat_rear = z + (h * sin + p.back_thickness_m * cos) * 0.5 + 0.003;
+    let back = BackFit::new(o, &p);
+    let BackFit {
+        height: h,
+        tf,
+        seat_rear,
+        ..
+    } = back;
     let seat_front = depth * 0.5;
     let profile = CushionProfile {
         roundness: p.roundness,
@@ -132,7 +210,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         );
         left += w;
     }
-    let frame_depth = 0.018;
+    let frame_depth = FRAME_DEPTH;
     a.part(p.frame, l).cuboid(
         Vec3::new(width, h, frame_depth),
         0.003,
@@ -140,14 +218,37 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             tf.transform_point(Vec3::Z * (-p.back_thickness_m + frame_depth) * 0.5),
         ),
     );
-    for x in [-width * 0.42, width * 0.42] {
-        let foot = tf.transform_point(Vec3::new(
-            x,
-            -h * 0.5 + 0.016,
-            (-p.back_thickness_m + frame_depth) * 0.5,
-        ));
-        a.part(p.frame, l)
-            .rod(Vec3::new(x, deck_top - 0.012, foot.z), foot, 0.009);
+    if version >= SEWN_BACK_VERSION {
+        // Each steel strap starts inside the seat deck and ends inside the
+        // backing. Mounting the foot at the tip's Z can miss a recessed deck.
+        let steel = a.part(Surface::Metal, l);
+        for (root, tip, section) in back.stays(o, &p) {
+            let d = tip - root;
+            steel.cuboid(
+                Vec3::new(section.x, d.length(), section.y),
+                0.,
+                Transform::from_translation((root + tip) * 0.5)
+                    .with_rotation(Quat::from_rotation_x(d.z.atan2(d.y))),
+            );
+        }
+        if let Some(cover) = SewnBack::fit(o, &p, &back) {
+            let backing_front = FRAME_DEPTH - p.back_thickness_m * 0.5;
+            cover.build(
+                a.part(p.upholstery, l),
+                tf.mul_transform(Transform::from_xyz(0., 0., backing_front)),
+            );
+            return;
+        }
+    } else {
+        for x in [-width * 0.42, width * 0.42] {
+            let foot = tf.transform_point(Vec3::new(
+                x,
+                -h * 0.5 + 0.016,
+                (-p.back_thickness_m + frame_depth) * 0.5,
+            ));
+            a.part(p.frame, l)
+                .rod(Vec3::new(x, deck_top - 0.012, foot.z), foot, 0.009);
+        }
     }
     let front_depth = p.back_thickness_m - frame_depth;
     let mut pad = |x: f32, y: f32, w: f32, height: f32| {

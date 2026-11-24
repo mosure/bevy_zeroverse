@@ -193,8 +193,15 @@ fn main() -> Result<()> {
             "invalid category {name}"
         );
         let maps: Vec<Vec<f32>> = serde_json::from_value(category["depth_descriptors"].clone())?;
+        ensure!(
+            !maps.is_empty()
+                && category["samples"]
+                    .as_array()
+                    .is_some_and(|s| s.len() == maps.len()),
+            "expected one depth descriptor per sample in non-empty category {name}"
+        );
         let mut chosen = vec![0usize];
-        while chosen.len() < 6 {
+        while chosen.len() < 6.min(maps.len()) {
             let next = (0..maps.len())
                 .filter(|i| !chosen.contains(i))
                 .max_by(|&a, &b| {

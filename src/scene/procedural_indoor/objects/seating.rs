@@ -1,6 +1,7 @@
 //! Modular upholstery: armchairs, loveseats, sofas and left/right chaise returns.
 use super::*;
-mod pillows;
+pub(crate) mod foundation;
+pub(crate) mod pillows;
 pub mod recliner;
 mod structure;
 #[cfg(test)]
@@ -138,6 +139,17 @@ pub fn parameters(o: &IndoorObject) -> SofaProgram {
     p
 }
 
+pub(super) fn audit_program(o: &IndoorObject) -> serde_json::Value {
+    let p = parameters(o);
+    let mut data = serde_json::json!(p);
+    let widths = module_widths_for(o, &p);
+    if o.kind == ObjectKind::Sofa {
+        data["throw_cushions"] = serde_json::json!(pillows::metadata(o, &p, &widths));
+    }
+    data["foundation"] = foundation::Foundation::new(o, &p, &widths).metadata();
+    data
+}
+
 pub fn is_recliner(o: &IndoorObject) -> bool {
     o.kind == ObjectKind::Chair
         && o.variant == 8
@@ -151,7 +163,7 @@ pub fn is_recliner(o: &IndoorObject) -> bool {
 pub fn module_widths(o: &IndoorObject) -> Vec<f32> {
     module_widths_for(o, &parameters(o))
 }
-fn module_widths_for(o: &IndoorObject, p: &SofaProgram) -> Vec<f32> {
+pub(crate) fn module_widths_for(o: &IndoorObject, p: &SofaProgram) -> Vec<f32> {
     let mut rng = stream(o.seed, 3032);
     let weights: Vec<_> = (0..p.modules)
         .map(|_| rng.random_range(1. - p.module_asymmetry..1. + p.module_asymmetry))
@@ -189,64 +201,30 @@ pub(crate) fn dimensions(r: &mut impl rand::Rng) -> Vec3 {
         },
     )
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
-    build_program(a, o, p);
+    build_program(a, o, p, version);
 }
 
-fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram) {
+fn build_program(a: &mut Assembly, o: &IndoorObject, p: SofaProgram, version: u32) {
     if p.recliner {
         recliner::build(a, o, &p);
         return;
     }
     let s = o.size;
-    let label = o.kind.class_name();
-    let frame = if p.exposed_frame {
-        Surface::WoodEdge
-    } else {
-        p.upholstery
-    };
     let base_depth = if p.chaise { p.return_depth_m } else { s.z };
     // Unequal cushions are sampled as a normalized construction programme,
     // leaving the outer footprint and seating datum exactly unchanged.
     let widths = module_widths_for(o, &p);
-    let mut cursor = -s.x * 0.5 + p.arm_width;
-    for (index, &module_width) in widths.iter().enumerate() {
-        let depth = module_depth(o, &p, index);
-        let z = (s.z - depth) * 0.5;
-        let x = cursor + module_width * 0.5;
-        cursor += module_width;
-        let base_top = p.seat_height - p.cushion;
-        a.box_part(
-            frame,
-            label,
-            Vec3::new(x, (p.leg_height + base_top) * 0.5, z),
-            Vec3::new(module_width - 0.004, base_top - p.leg_height, depth - 0.018),
-            p.roundness * 0.5,
-        );
-        if p.seat_style != 1 || index == 0 {
-            let (seat_x, seat_width) = if p.seat_style == 1 {
-                (0., s.x - p.arm_width * 2.)
-            } else {
-                (x, module_width)
-            };
-            upholstery::seat(
-                a,
-                o,
-                &p,
-                Vec3::new(seat_x, p.seat_height - p.cushion * 0.5, z - 0.085),
-                Vec3::new(seat_width - p.cushion_gap_m, p.cushion, depth - 0.19),
-            );
-        }
-        structure::feet(a, o, &p, x, z, module_width, depth);
-    }
+    foundation::Foundation::new(o, &p, &widths).build(a, o, &p);
+    upholstery::seats(o, &p, &widths, |center, size| {
+        upholstery::seat(a, o, &p, center, size)
+    });
     let back_width = (s.x - p.arm_width * 2.) / p.back_modules as f32;
     for i in 0..p.back_modules {
         let x = (i as f32 - (p.back_modules - 1) as f32 * 0.5) * back_width;
         upholstery::back(a, o, &p, x, back_width, p.seat_height - p.cushion);
     }
     structure::arms(a, o, &p, base_depth);
-    for pillow in pillows::build(o, &p, &widths) {
-        a.part(Surface::FabricAlt, "pillow").append(pillow);
-    }
+    pillows::build(a, o, &p, &widths, version);
 }

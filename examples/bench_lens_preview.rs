@@ -31,6 +31,16 @@ fn main() {
     let frames: usize = option("frames", "60").parse().unwrap();
     assert!(frames >= 10);
     let size: f32 = option("size", "512").parse().unwrap();
+    let solari_preview = args.iter().any(|v| v == "--solari-preview");
+    assert!(
+        !solari_preview || cfg!(all(feature = "solari", not(target_arch = "wasm32"))),
+        "Solari requires a native build with --features solari"
+    );
+    let restir = args.iter().any(|arg| arg == "--solari-restir");
+    assert!(
+        !restir || solari_preview,
+        "--solari-restir requires --solari-preview"
+    );
     let pinhole = args.iter().any(|v| v == "--pinhole");
     let direct = args.iter().any(|v| v == "--direct");
     let indirect = args.iter().any(|v| v == "--indirect");
@@ -97,6 +107,18 @@ fn main() {
     };
     setup_globals(None);
     let mut app = create_app(None, Some(config.clone()), false);
+    #[cfg(all(feature = "solari", not(target_arch = "wasm32")))]
+    if solari_preview {
+        use bevy_zeroverse::render::lighting::{PreviewLighting, SolariPreviewPlugin};
+        app.add_plugins(SolariPreviewPlugin);
+        app.world_mut()
+            .resource_mut::<BevyZeroverseConfig>()
+            .preview_lighting = if restir {
+            PreviewLighting::SolariRestir
+        } else {
+            PreviewLighting::Solari
+        };
+    }
     // Wall-clock latency must not change the animation/flow visualization
     // inputs being compared. Timing below still uses the real Instant clock.
     app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
@@ -161,6 +183,14 @@ fn main() {
         .any(|v| v == "--profile")
         .then(|| profile::install(&mut app));
     app.finish();
+    if solari_preview {
+        assert!(
+            app.world()
+                .resource::<bevy_zeroverse::render::lighting::SolariPreviewStatus>()
+                .supported,
+            "selected GPU cannot run Solari"
+        );
+    }
     profile::FrameFence::install(&mut app);
     let serial_views = args.iter().any(|v| v == "--serial-views");
     let serial_render = args.iter().any(|v| v == "--serial-render");
@@ -281,6 +311,20 @@ fn main() {
                     )
                 })
                 .collect();
+            if solari_preview && mode == RenderMode::Color {
+                let status = app
+                    .world()
+                    .resource::<bevy_zeroverse::render::lighting::SolariPreviewStatus>();
+                assert!(status.active && status.traced_instances > 0);
+                if args.iter().any(|v| v == "--diagnostics") {
+                    assert!(
+                        diagnostics.iter().any(|(path, measurement)| path
+                            .contains("solari_lighting/lighting/elapsed_gpu")
+                            && measurement["mean"].as_f64().is_some_and(|v| v > 0.)),
+                        "no completed Solari lighting GPU timestamp in this preview"
+                    );
+                }
+            }
             let views: Vec<_> = app
                 .world_mut()
                 .query::<(&Camera, &bevy::camera::RenderTarget, Has<bevy::render::view::NoIndirectDrawing>, Has<bevy::core_pipeline::prepass::MotionVectorPrepass>)>()
@@ -379,8 +423,8 @@ fn main() {
             serde_json::json!({"size":im.size().to_array(),"format":format!("{:?}", im.texture_descriptor.format)})
         }).collect();
     std::fs::write(output.join("report.json"), serde_json::to_vec_pretty(&serde_json::json!({
-        "simulation_timestep_seconds":1./60.,"serial_views":serial_views,"serial_render":serial_render,"pinhole":pinhole,"fit":fit,"fov":fov,"anisotropy":anisotropy,"warmup_frames":warmup,"render_diagnostics":diagnostics,"direct":direct,"indirect":indirect,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
-        "policy":"Same scene and admitted trajectories; only the render lens changes. Device-synchronized frame wall time, no readback. Quality unchanged. This is not window presentation FPS; record concurrent workloads separately.",
+        "solari_preview":solari_preview,"solari_restir":restir,"simulation_timestep_seconds":1./60.,"serial_views":serial_views,"serial_render":serial_render,"pinhole":pinhole,"fit":fit,"fov":fov,"anisotropy":anisotropy,"warmup_frames":warmup,"render_diagnostics":diagnostics,"direct":direct,"indirect":indirect,"config":config,"cluster_budget":cluster_budget,"provenance":bevy_zeroverse::provenance::capture_provenance(),
+        "policy":"Seeded scene and admitted trajectories; the report records lens and preview lighting. Device-synchronized frame wall time without pixel readback. This is not window presentation FPS; record concurrent workloads separately.",
         "adapter":format!("{:?}", **app.world().resource::<bevy::render::renderer::RenderAdapterInfo>()),"images":sizes,"source_faces":sources,"rows":rows
     })).unwrap()).unwrap();
 }

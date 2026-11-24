@@ -29,11 +29,9 @@ pub(crate) fn area(object: &super::super::layout::IndoorObject) -> f32 {
     match object.kind {
         ObjectKind::FloorLamp => objects::standing_lamp::emitting_area(object),
         ObjectKind::DeskLamp => objects::accessories::lamps::emitting_area(object),
-        ObjectKind::CeilingPendant => {
-            let p = objects::equipment::parameters(object);
-            std::f32::consts::PI
-                * (object.size.x.min(object.size.z) * 0.46 * p.diffuser_fraction).powi(2)
-        }
+        ObjectKind::CeilingPendant => objects::equipment::pendant::parameters(object)
+            .lens
+            .emitting_area_m2(),
         ObjectKind::WallSconce => {
             let p = objects::equipment::sconce::parameters(object);
             std::f32::consts::PI * p.diffuser_radius.powi(2)

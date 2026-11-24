@@ -1,5 +1,6 @@
 //! Surface-fitted brows and eyewear. All dimensions are metric and all pieces
 //! share the cranial frame; no facial feature is positioned from a world AABB.
+pub(super) mod projection;
 use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use rand::Rng;
@@ -66,7 +67,7 @@ pub(super) fn iris(seed: u64, eye: Vec3, rotation: Quat, scale: f32, mesh: &mut 
 pub(super) fn append(
     h: &IndoorHuman,
     posed: &[Vec3],
-    faces: &[i64],
+    topology: &projection::Topology,
     eyes: &[Vec3],
     rotation: Quat,
     scale: f32,
@@ -74,46 +75,44 @@ pub(super) fn append(
 ) {
     let origin = (eyes[0] + eyes[1]) * 0.5;
     let inverse = rotation.inverse();
-    let local: Vec<_> = posed.iter().map(|p| inverse * (*p - origin)).collect();
-    let triangles: Vec<[Vec3; 3]> = faces
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .filter(|q| q.iter().all(|i| local[*i as usize].length() < 0.19 * scale))
-        .flat_map(|q| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]])
-        .map(|q| q.map(|i| local[i as usize]))
-        .collect();
-    let front = |x: f32, y: f32| {
-        triangles
-            .iter()
-            .filter_map(|t| {
-                let a = t[0].truncate();
-                let b = t[1].truncate() - a;
-                let c = t[2].truncate() - a;
-                let p = Vec2::new(x, y) - a;
-                let det = b.perp_dot(c);
-                if det.abs() < 1e-10 {
-                    return None;
-                }
-                let u = p.perp_dot(c) / det;
-                let v = b.perp_dot(p) / det;
-                (u >= -1e-4 && v >= -1e-4 && u + v <= 1.0001)
-                    .then_some(t[0].z + u * (t[1].z - t[0].z) + v * (t[2].z - t[0].z))
-            })
-            .reduce(f32::min)
-            .unwrap_or(-0.014 * scale)
-    };
-    let world = |p: Vec3| origin + rotation * p;
+    let program = h.appearance.as_ref().map(|a| &a.face);
+    let default_face = super::appearance::FaceProgram::default();
+    let program = program.unwrap_or(&default_face);
     let mut rng = super::stream(h.seed, 0xface);
-    let program = h
-        .appearance
-        .as_ref()
-        .map(|a| &a.face)
-        .cloned()
-        .unwrap_or_default();
     let brow_width = program.brow_width * scale;
     let brow_thickness = program.brow_thickness * scale;
     let brow_rise = rng.random_range(0.022..0.028) * scale;
+    // Bound the forehead probes first. Only fitted spectacles need the wider
+    // cheek and temple surfaces.
+    let extent = (program.brow_arch.abs() + 0.008) * scale + brow_thickness.abs();
+    let (mut low, mut high) = (Vec2::Y * 0.006 * scale, Vec2::Y * 0.006 * scale);
+    for eye in eyes {
+        let centre = (inverse * (*eye - origin)).truncate() + Vec2::Y * brow_rise;
+        let half = Vec2::new(brow_width.abs() * 0.5, extent) + Vec2::splat(1e-5);
+        low = low.min(centre - half);
+        high = high.max(centre + half);
+    }
+    let frame = program.eyewear.as_ref().filter(|_| h.glasses);
+    if frame.is_some() {
+        let margin = Vec2::new(0.090, 0.045) * scale;
+        low = low.min(-margin);
+        high = high.max(margin);
+    }
+    let head = topology.project(
+        posed,
+        origin,
+        rotation,
+        scale,
+        Rect::from_corners(low, high),
+        frame.is_some(),
+    );
+    let patch = &head.front;
+    let front = |x, y| {
+        patch
+            .front(Vec2::new(x, y))
+            .unwrap_or((-0.014 * scale, Vec3::NEG_Z))
+    };
+    let world = |p: Vec3| origin + rotation * p;
     for &eye in eyes {
         let eye = inverse * (eye - origin);
         let g = mesh.part(HumanSurface::Brow);
@@ -123,22 +122,62 @@ pub(super) fn append(
         for i in 0..=16 {
             let t = i as f32 / 16.0;
             let x = eye.x + (t - 0.5) * brow_width;
-            let arch = (t * std::f32::consts::PI).sin().max(0.0);
-            let y = eye.y + brow_rise + arch * program.brow_arch * scale;
-            for side in [-1.0, 1.0] {
-                let y = y + side * brow_thickness * (0.12 + 0.88 * arch.sqrt()) * 0.5;
-                let p = Vec3::new(x, y, front(x, y) - 0.0015 * scale);
+            let outward = if eye.x < 0. { 1. - t } else { t };
+            let (rise, width) = if let Some(c) = &program.complexion {
+                let t_peak = if outward < c.brow_peak {
+                    outward / c.brow_peak
+                } else {
+                    (1. - outward) / (1. - c.brow_peak)
+                };
+                let arch = t_peak * (2. - t_peak);
+                let head = (outward / 0.17).clamp(0., 1.);
+                let tail = ((1. - outward) / 0.66).clamp(0., 1.);
+                (
+                    (arch * program.brow_arch + c.brow_slope * (outward - 0.5)) * scale,
+                    (0.50 + 0.50 * head) * (0.08 + 0.92 * tail),
+                )
+            } else {
+                let arch = (t * std::f32::consts::PI).sin().max(0.);
+                (arch * program.brow_arch * scale, 0.12 + 0.88 * arch.sqrt())
+            };
+            let rounded = program.complexion.is_some();
+            let sides: &[f32] = if rounded { &[-1., 0., 1.] } else { &[-1., 1.] };
+            for &side in sides {
+                let y = eye.y + brow_rise + rise + side * brow_thickness * width * 0.5;
+                let (z, n) = front(x, y);
+                let lift = 0.0015 * scale
+                    + if rounded {
+                        (1. - side.abs()) * width * 0.0012 * scale
+                    } else {
+                        0.
+                    };
+                let p = Vec3::new(x, y, z - lift);
                 g.positions.push(world(p).to_array());
-                g.normals.push((rotation * Vec3::NEG_Z).to_array());
+                let normal = if rounded {
+                    (n + Vec3::Y * (side * 0.28)).normalize_or(n)
+                } else {
+                    Vec3::NEG_Z
+                };
+                g.normals.push((rotation * normal).to_array());
                 g.uvs.push([t, (side + 1.0) * 0.5]);
             }
         }
+        let cols = if program.complexion.is_some() { 3 } else { 2 };
         for i in 0..16 {
-            let a = base + i * 2;
-            g.indices.extend([a, a + 1, a + 2, a + 1, a + 3, a + 2]);
+            for j in 0..cols - 1 {
+                let a = base + i * cols + j;
+                g.indices
+                    .extend([a, a + 1, a + cols, a + 1, a + cols + 1, a + cols]);
+            }
         }
     }
     if !h.glasses {
+        return;
+    }
+    if let (Some(frame), Some(temples)) = (frame, &head.temples) {
+        let eye_offsets = [eyes[0], eyes[1]].map(|p| inverse * (p - origin));
+        let fit = super::eyewear::Fit::new(frame, eye_offsets, scale, patch);
+        fit.append(posed, origin, rotation, patch, temples, mesh);
         return;
     }
     let eye_x = (inverse * (eyes[1] - eyes[0])).x.abs() * 0.5;
@@ -147,7 +186,7 @@ pub(super) fn append(
     let exponent = rng.random_range(0.56..1.0);
     let thickness = rng.random_range(0.0010..0.0020) * scale;
     // A real nose bridge has to sit in front of the nose, not through it.
-    let z = front(0.0, 0.006 * scale) - 0.006 * scale;
+    let z = front(0.0, 0.006 * scale).0 - 0.006 * scale;
     let mut inner = Vec::new();
     for &eye in eyes {
         let eye = inverse * (eye - origin);
@@ -244,6 +283,49 @@ impl BeardRegion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn modern_brows_follow_the_forehead_and_taper_towards_each_temple() {
+        let mut h = super::super::sample_person(
+            11,
+            0,
+            Vec3::ZERO,
+            0.,
+            super::super::HumanPoseKind::StandingRelaxed,
+            None,
+            false,
+        );
+        h.glasses = false;
+        let rot = Quat::from_euler(EulerRot::YXZ, 0.55, -0.26, 0.13);
+        let origin = Vec3::new(0.1, 1.62, -0.05);
+        let world = |p: Vec3| origin + rot * p;
+        let forehead = |x: f32, y: f32| -0.016 + x * 0.14 + y * 0.19;
+        let face = [(-0.09, -0.02), (0.09, -0.02), (0.09, 0.074), (-0.09, 0.074)]
+            .map(|(x, y)| world(Vec3::new(x, y, forehead(x, y))));
+        let eyes = [-0.032, 0.032].map(|x| world(Vec3::X * x));
+        let mut mesh = HumanAssembly::default();
+        let topology = projection::Topology::new(&[0, 1, 2, 3], face.len(), |_| true);
+        append(&h, &face, &topology, &eyes, rot, 1., &mut mesh);
+        let brow = &mesh.parts[&HumanSurface::Brow];
+        assert_eq!(brow.positions.len(), 2 * 17 * 3);
+        for (i, patch) in brow
+            .positions
+            .as_chunks::<{ 17 * 3 }>()
+            .0
+            .iter()
+            .enumerate()
+        {
+            let width = |row: usize| {
+                Vec3::from_array(patch[row * 3]).distance(Vec3::from_array(patch[row * 3 + 2]))
+            };
+            let (nasal, temporal) = if i == 0 { (13, 2) } else { (3, 14) };
+            assert!(width(nasal) > 1.7 * width(temporal));
+            for p in patch {
+                let q = rot.inverse() * (Vec3::from_array(*p) - origin);
+                let gap = forehead(q.x, q.y) - q.z;
+                assert!((0.0013..0.0029).contains(&gap), "forehead gap {gap}");
+            }
+        }
+    }
     #[test]
     fn irises_partition_the_source_eye_without_intersecting_overlays() {
         use crate::scene::procedural_indoor::geometry::Geometry;

@@ -122,6 +122,10 @@ fn elevator_panels_fit_pockets_and_never_intersect_during_travel() {
 
 #[test]
 fn pinups_keep_rotated_clearance_and_exposed_backing() {
+    let mut blank = 0;
+    let mut busy = 0;
+    let mut portrait = 0;
+    let mut landscape = 0;
     for seed in 0..1024 {
         let o = audit::fixture(ObjectKind::NoticeBoard, seed);
         let p = equipment::parameters(&o);
@@ -129,7 +133,8 @@ fn pinups_keep_rotated_clearance_and_exposed_backing() {
         let lo = Vec2::new(-o.size.x * 0.5 + frame * 1.8, frame * 1.8);
         let hi = Vec2::new(o.size.x * 0.5 - frame * 1.8, o.size.y - frame * 1.8);
         let notes = equipment::pinups::placements(&o);
-        assert!(!notes.is_empty(), "seed {seed}");
+        blank += usize::from(notes.is_empty());
+        busy += usize::from(notes.len() >= 6);
         assert_eq!(
             serde_json::to_value(&notes).unwrap(),
             serde_json::to_value(equipment::pinups::placements(&o)).unwrap()
@@ -137,6 +142,11 @@ fn pinups_keep_rotated_clearance_and_exposed_backing() {
         let mut area = 0.;
         let mut occupied: Vec<Footprint> = Vec::new();
         for note in notes {
+            let aspect = note.size.x / note.size.y;
+            assert!((0.58..1.71).contains(&aspect));
+            assert!(note.size.min_element() >= 0.035 && note.size.max_element() <= 0.455);
+            portrait += usize::from(aspect < 0.85);
+            landscape += usize::from(aspect > 1.15);
             let f = Footprint {
                 center: note.center,
                 half: rotated_half(note.size, note.yaw),
@@ -151,8 +161,13 @@ fn pinups_keep_rotated_clearance_and_exposed_backing() {
             area += note.size.element_product();
             occupied.push(f);
         }
-        assert!(area <= (hi - lo).element_product() * 0.48 + 1e-6);
+        assert!(area <= (hi - lo).element_product() * 0.68 + 1e-6);
     }
+    assert!(
+        (35..110).contains(&blank) && busy > 50,
+        "{blank} blank, {busy} busy"
+    );
+    assert!(portrait > 200 && landscape > 200);
 }
 
 #[test]

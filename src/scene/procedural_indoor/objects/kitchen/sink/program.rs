@@ -14,6 +14,8 @@ pub struct Basin {
     pub roundness: f32,
     pub drain: Vec2,
     pub drain_radius: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waste: Option<waste::WasteFitting>,
 }
 impl Basin {
     pub fn inner_half(&self) -> Vec2 {
@@ -49,6 +51,8 @@ pub struct SinkProgram {
     pub basin_finish: Surface,
     pub faucet_finish: Surface,
     pub faucet_points: Vec<Vec3>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tap: Option<tap::TapFitting>,
     pub faucet_radius_m: f32,
     pub mount: Vec3,
     pub handles: Vec<Vec3>,
@@ -56,9 +60,21 @@ pub struct SinkProgram {
     pub dishes: Vec<BasinDish>,
 }
 
-pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
-    let mut r = stream(o.seed, 0x53494e4b464954);
+pub fn finishes(o: &IndoorObject) -> (Surface, Surface) {
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x53494e4b46494e);
+    (
+        [Surface::Metal, Surface::Ceramic, Surface::Concrete][f.random_range(0..3)],
+        [Surface::Chrome, Surface::Metal, Surface::Ink][f.random_range(0..3)],
+    )
+}
+
+pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
+    parameters_at(o, p, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, p: &KitchenProgram, version: u32) -> SinkProgram {
+    let mut r = stream(o.seed, 0x53494e4b464954);
+    let fitted = version >= FITTED_PLUMBING_VERSION;
     let s = o.size;
     let (d, z) = body(o, p);
     let top = s.y * 0.69;
@@ -92,6 +108,7 @@ pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
         let taper = Vec2::new(r.random_range(0.65..0.91), r.random_range(0.66..0.92));
         let center = Vec2::new(x + w * 0.5, cz);
         let floor_half = inner * taper;
+        let waste = fitted.then(|| waste::WasteFitting::sample(o.seed, i));
         basins.push(Basin {
             center,
             size: Vec2::new(w, depth),
@@ -102,7 +119,13 @@ pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
             roundness: r.random_range(2.4..8.0),
             drain: center
                 + floor_half * Vec2::new(r.random_range(-0.45..0.45), r.random_range(-0.44..0.44)),
-            drain_radius: floor_half.min_element() * r.random_range(0.13..0.22),
+            drain_radius: {
+                let original = floor_half.min_element() * r.random_range(0.13..0.22);
+                waste.as_ref().map_or(original, |w| {
+                    w.seat_radius_m.min(floor_half.min_element() * 0.34)
+                })
+            },
+            waste,
         });
         x += w;
     }
@@ -121,30 +144,35 @@ pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
     );
     let rise = (s.y - top) * r.random_range(0.52..0.88) * if p.faucet == 2 { 0.74 } else { 1. };
     let travel = Vec3::new(tip.x - mount.x, 0., tip.z - mount.z);
-    let faucet_points = match p.faucet {
-        1 | 2 => vec![
-            mount,
-            mount + Vec3::Y * rise,
-            mount + travel + Vec3::Y * rise,
-            mount + travel + Vec3::Y * rise * 0.45,
-        ],
-        _ => {
-            // A semicircular gooseneck has bounded curvature even with a tall
-            // stem and short reach. Stretching a sine arch did not preserve it.
-            let radius = travel.length() * 0.5;
-            let height = rise.max(radius + 0.075);
-            let direction = travel.normalize();
-            let mut points = vec![mount, mount + Vec3::Y * (height - radius)];
-            for i in 1..=24 {
-                let t = PI * i as f32 / 24.;
-                points.push(
-                    mount
-                        + direction * radius * (1. - t.cos())
-                        + Vec3::Y * (height - radius + radius * t.sin()),
-                );
+    let tap = fitted.then(|| tap::TapFitting::sample(o.seed, p.faucet));
+    let faucet_points = if let Some(tap) = &tap {
+        tap.centerline(mount, travel, rise, s.y - mount.y)
+    } else {
+        match p.faucet {
+            1 | 2 => vec![
+                mount,
+                mount + Vec3::Y * rise,
+                mount + travel + Vec3::Y * rise,
+                mount + travel + Vec3::Y * rise * 0.45,
+            ],
+            _ => {
+                // A semicircular gooseneck has bounded curvature even with a tall
+                // stem and short reach. Stretching a sine arch did not preserve it.
+                let radius = travel.length() * 0.5;
+                let height = rise.max(radius + 0.075);
+                let direction = travel.normalize();
+                let mut points = vec![mount, mount + Vec3::Y * (height - radius)];
+                for i in 1..=24 {
+                    let t = PI * i as f32 / 24.;
+                    points.push(
+                        mount
+                            + direction * radius * (1. - t.cos())
+                            + Vec3::Y * (height - radius + radius * t.sin()),
+                    );
+                }
+                points.push(mount + travel + Vec3::Y * (height - radius - 0.025));
+                points
             }
-            points.push(mount + travel + Vec3::Y * (height - radius - 0.025));
-            points
         }
     };
     let radius = r.random_range(0.008..0.014);
@@ -260,13 +288,15 @@ pub fn parameters(o: &IndoorObject, p: &KitchenProgram) -> SinkProgram {
             });
         }
     }
+    let (basin_finish, faucet_finish) = finishes(o);
     SinkProgram {
         worktop_m: top,
         aperture_min: lo,
         aperture_max: hi,
         basins,
-        basin_finish: [Surface::Metal, Surface::Ceramic, Surface::Concrete][f.random_range(0..3)],
-        faucet_finish: [Surface::Chrome, Surface::Metal, Surface::Ink][f.random_range(0..3)],
+        basin_finish,
+        faucet_finish,
+        tap,
         faucet_points,
         faucet_radius_m: radius,
         mount,

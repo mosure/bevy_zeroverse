@@ -16,7 +16,7 @@ impl StoredProgram {
     }
     fn height(&self) -> f32 {
         match self {
-            Self::Dish(p) => p.height + p.wall * (p.count - 1) as f32,
+            Self::Dish(p) => p.stack_height(),
             Self::Package(p) => p.body.y,
         }
     }

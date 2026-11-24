@@ -83,3 +83,98 @@ fn mounted_alarm_faces_have_no_positive_area_coplanar_overlap() {
         }
     }
 }
+
+// First intersection with a rendered material batch, measured in object metres.
+fn first_hit(g: &Geometry, origin: Vec3, direction: Vec3) -> Option<f32> {
+    g.indices
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .filter_map(|tri| {
+            let [a, b, c] = tri.map(|i| Vec3::from(g.positions[i as usize]));
+            let (e, f) = (b - a, c - a);
+            let k = direction.cross(f);
+            let det = e.dot(k);
+            if det.abs() < 1e-12 {
+                return None;
+            }
+            let off = origin - a;
+            let (u, v) = (off.dot(k) / det, direction.dot(off.cross(e)) / det);
+            let d = f.dot(off.cross(e)) / det;
+            (u >= 0. && v >= 0. && u + v <= 1. && d >= 0.).then_some(d)
+        })
+        .min_by(f32::total_cmp)
+}
+
+#[test]
+fn radial_rays_enter_the_detector_chamber_between_ribs_and_the_lens_is_seated() {
+    use super::detector::{parameters, DetectorFace, CHAMBER};
+    use crate::scene::procedural_indoor::{
+        materials::registered_finish,
+        objects::{audit, build_object},
+    };
+    for seed in 0..96 {
+        let mut o = audit::fixture(ObjectKind::FireDetector, seed);
+        o.size = [
+            Vec3::new(0.09, 0.067, 0.09),
+            Vec3::new(0.184, 0.025, 0.184),
+            o.size,
+        ][(seed / 4 % 3) as usize];
+        let p = parameters(&o);
+        let a = build_object(&o);
+        audit::check(&o, &a).unwrap();
+        let get = |slot| &a.parts[&(Surface::Plastic, format!("fire_detector#finish{slot}"))];
+        let (shell, chamber, lens) = (get(p.finish), get(CHAMBER), get(p.lens_finish));
+        assert!(
+            registered_finish(Surface::Plastic, CHAMBER)
+                && registered_finish(Surface::Plastic, p.lens_finish)
+        );
+        assert!((a.bounds().1.y - o.size.y).abs() < 1e-6 && a.bounds().0.y > 0.);
+        let (pitch, t) = (TAU / p.inlets as f32, 0.28);
+        let y = p.inlet_bottom_m + t * (p.inlet_top_m - p.inlet_bottom_m);
+        for bay in 0..p.inlets {
+            let center = p.phase_rad + pitch * bay as f32 + t * p.rib_rake_rad;
+            for (angle, solid) in [(center, true), (center + pitch * 0.5, false)] {
+                let (s, c) = angle.sin_cos();
+                let d = Vec3::new(c, 0., s);
+                let eye = (d * p.radius_m * 1.1).with_y(y);
+                let back = first_hit(chamber, eye, -d).unwrap();
+                let radius = p.radius_m * 1.1 - back;
+                assert!((p.chamber_radius_m * 0.98..=p.chamber_radius_m * 1.001).contains(&radius));
+                assert_eq!(
+                    first_hit(shell, eye, -d).is_some_and(|v| v < back),
+                    solid,
+                    "{seed}/{bay}"
+                );
+            }
+        }
+        let lens_origin = Vec3::new(p.lens_center_m.x, 0., p.lens_center_m.y);
+        let cap = first_hit(lens, lens_origin, Vec3::Y).unwrap();
+        assert!(cap < p.face_y_m);
+        assert!((first_hit(shell, lens_origin, Vec3::Y).unwrap() - p.face_y_m).abs() < 1e-5);
+        if p.face == DetectorFace::GuardedProbe {
+            let metal = &a.parts[&(
+                Surface::Metal,
+                format!("fire_detector#finish{}", FINISH_BASE + 4),
+            )];
+            assert!(first_hit(metal, lens_origin, Vec3::Y).is_none());
+            assert!(first_hit(metal, Vec3::ZERO, Vec3::Y).unwrap() < p.face_y_m);
+        }
+    }
+}
+
+#[test]
+fn paired_detector_products_replay_independently_of_instance_id_and_yaw() {
+    use crate::scene::procedural_indoor::objects::{audit, build_object};
+    for seed in 0..16 {
+        let a = audit::fixture(ObjectKind::FireDetector, seed);
+        let mut b = a.clone();
+        b.id = a.id + 1;
+        b.yaw = a.yaw + 0.49;
+        assert_eq!(audit::program(&a), audit::program(&b));
+        assert_eq!(
+            audit::descriptor(&a, &build_object(&a)),
+            audit::descriptor(&b, &build_object(&b))
+        );
+    }
+}

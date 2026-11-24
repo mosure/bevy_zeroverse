@@ -92,7 +92,11 @@ fn service_finishes_change_without_altering_shape_or_motion() {
             // that member. Preserve metric scale and every other member's UVs.
             let raw_charts = |o: &IndoorObject| {
                 let mut assembly = Assembly::default();
-                super::build(&mut assembly, o);
+                super::build(
+                    &mut assembly,
+                    o,
+                    crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                );
                 let mut charts: Vec<_> = assembly
                     .parts
                     .iter()

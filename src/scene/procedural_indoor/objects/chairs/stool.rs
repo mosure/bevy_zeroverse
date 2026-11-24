@@ -1,8 +1,19 @@
-//! Backless and low-back stools share the human seating datum of task chairs.
+//! Counter, dining and low stools fitted to their support surface.
 use super::*;
+mod base;
+mod fit;
+#[cfg(test)]
+mod tests;
+pub(super) use fit::clearance_boxes;
+pub use fit::SeatedSupport;
+pub(crate) use fit::{fitted_envelope, same_floor, FIT_VERSION};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct StoolProgram {
+    pub seat_height_m: f32,
+    pub back_gap_m: f32,
+    pub back_height_m: f32,
+    pub back_curve_m: f32,
     pub radius_fraction: f32,
     pub seat_aspect: f32,
     pub seat_roundness: f32,
@@ -17,9 +28,33 @@ pub struct StoolProgram {
 }
 
 pub fn parameters(o: &IndoorObject) -> StoolProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> StoolProgram {
     let mut r = stream(o.seed, 6431);
     let base = r.random_range(0..3);
-    StoolProgram {
+    let current = version >= FIT_VERSION;
+    let height = if current { fit::seat(o) } else { 0.47 };
+    let mut back = stream(o.seed, 0x5354_4241_434b);
+    let gap = if current {
+        back.random_range(0.066..0.15)
+    } else {
+        0.13
+    };
+    let mut p = StoolProgram {
+        seat_height_m: height,
+        back_gap_m: gap,
+        back_height_m: if current {
+            back.random_range(0.105..(0.305_f32 - gap).min(0.213))
+        } else {
+            0.14
+        },
+        back_curve_m: if current {
+            back.random_range(0.025..0.060)
+        } else {
+            0.045
+        },
         radius_fraction: r.random_range(0.30..0.38),
         seat_aspect: r.random_range(0.72..1.0),
         seat_roundness: r.random_range(2.0..7.0),
@@ -27,7 +62,7 @@ pub fn parameters(o: &IndoorObject) -> StoolProgram {
         base,
         legs: r.random_range(3..=4),
         foot_spread: r.random_range(0.95..1.17),
-        footrest_height_m: r.random_range(0.15..0.24),
+        footrest_height_m: r.random_range(0.15..0.24) + (height - 0.47) * 0.88,
         phase: r.random_range(0.0..TAU),
         cover: [
             Surface::Wood,
@@ -40,28 +75,37 @@ pub fn parameters(o: &IndoorObject) -> StoolProgram {
         } else {
             [Surface::Chrome, Surface::Metal][r.random_range(0..2)]
         },
+    };
+    if current {
+        let thickness = (p.padding_m - 0.030) / 0.025;
+        p.padding_m = match p.cover {
+            Surface::Wood => 0.019 + 0.017 * thickness,
+            Surface::Plastic => 0.018 + 0.020 * thickness,
+            _ => 0.039 + 0.028 * thickness,
+        };
     }
+    p
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
     let radius = o.size.x.min(o.size.z) * p.radius_fraction;
     let half = Vec3::new(radius, 0., radius * p.seat_aspect);
-    let outline: Vec<_> = (0..48)
-        .map(|i| {
-            let t = i as f32 * TAU / 48.;
-            Vec2::new(
-                t.cos().signum() * t.cos().abs().powf(2. / p.seat_roundness) * half.x,
-                t.sin().signum() * t.sin().abs().powf(2. / p.seat_roundness) * half.z,
-            )
-        })
-        .collect();
     if matches!(p.cover, Surface::Wood | Surface::Plastic) {
+        let outline: Vec<_> = (0..48)
+            .map(|i| {
+                let t = i as f32 * TAU / 48.;
+                Vec2::new(
+                    t.cos().signum() * t.cos().abs().powf(2. / p.seat_roundness) * half.x,
+                    t.sin().signum() * t.sin().abs().powf(2. / p.seat_roundness) * half.z,
+                )
+            })
+            .collect();
         a.part(p.cover, "chair").profile_slab(
             &outline,
             p.padding_m,
             0.006,
-            Transform::from_xyz(0., 0.47 - p.padding_m * 0.5, 0.),
+            Transform::from_xyz(0., p.seat_height_m - p.padding_m * 0.5, 0.),
         );
     } else {
         // The compressed center stays on the human seating datum; increasing
@@ -74,96 +118,33 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                 crown: 3.5,
                 dish,
             },
-            Transform::from_xyz(0., 0.47 - (p.padding_m - dish) * 0.5, 0.),
+            Transform::from_xyz(0., p.seat_height_m - (p.padding_m - dish) * 0.5, 0.),
         );
     }
-    let underside = 0.47 - p.padding_m;
-    let foot_radius = radius * p.foot_spread;
-    match p.base {
-        0 => {
-            for i in 0..p.legs {
-                let t = p.phase + i as f32 * TAU / p.legs as f32;
-                let dir = Vec3::new(t.cos(), 0., t.sin());
-                let foot = dir * foot_radius + Vec3::Y * 0.016;
-                let top = dir * radius * 0.60 + Vec3::Y * underside;
-                a.part(p.frame, "chair").rod(foot, top, 0.016);
-                a.part(Surface::Rubber, "chair").cylinder(
-                    0.020,
-                    0.016,
-                    Transform::from_translation(foot.with_y(0.008)),
-                );
-            }
-            // The ring meets the actual splayed legs at this height.
-            let t = (p.footrest_height_m - 0.016) / (underside - 0.016);
-            ring(
-                a,
-                p.frame,
-                foot_radius * (1. - t) + radius * 0.60 * t,
-                p.footrest_height_m,
-            );
-        }
-        1 => {
-            a.part(p.frame, "chair").lathe(
-                &[
-                    (0., 0.),
-                    (foot_radius, 0.),
-                    (foot_radius, 0.015),
-                    (foot_radius * 0.70, 0.035),
-                    (0.032, 0.085),
-                    (0.032, underside),
-                    (0., underside),
-                ],
-                32,
-                Transform::IDENTITY,
-            );
-            let rr = radius * 0.76;
-            ring(a, p.frame, rr, p.footrest_height_m);
-            for i in 0..3 {
-                let angle = p.phase + i as f32 * TAU / 3.;
-                a.part(p.frame, "chair").rod(
-                    Vec3::Y * p.footrest_height_m,
-                    Vec3::new(angle.cos() * rr, p.footrest_height_m, angle.sin() * rr),
-                    0.010,
-                );
-            }
-        }
-        _ => {
-            for side in [-1., 1.] {
-                let x = side * radius * 0.66;
-                let z = radius * p.seat_aspect * 0.65;
-                let path = [
-                    Vec3::new(x, underside, -z),
-                    Vec3::new(x, 0.022, -z),
-                    Vec3::new(x, 0.022, z),
-                    Vec3::new(x, underside, z),
-                ];
-                a.part(p.frame, "chair").tube(&path, 0.016, 10);
-                for zz in [-z, z] {
-                    a.box_part(
-                        Surface::Rubber,
-                        "chair",
-                        Vec3::new(x, 0.006, zz),
-                        Vec3::new(0.042, 0.012, 0.042),
-                        0.004,
-                    );
-                }
-            }
+    let underside = p.seat_height_m - p.padding_m;
+    base::build(a, &p, radius, underside, version);
+    if version >= FIT_VERSION && !is_backless(o) {
+        let z = radius * p.seat_aspect * 0.70;
+        let bottom = p.seat_height_m + p.back_gap_m;
+        let h = p.back_height_m;
+        let t = 0.70;
+        let post_x = radius * 0.80 * t;
+        // Terminate both posts inside the rear skin at panel mid-height.
+        let socket_z = z + p.back_curve_m * (1. - t * t) + 0.5 * h * 0.045 + 0.014;
+        for side in [-1., 1.] {
             a.part(p.frame, "chair").rod(
-                Vec3::new(
-                    -radius * 0.66,
-                    p.footrest_height_m,
-                    radius * p.seat_aspect * 0.65,
-                ),
-                Vec3::new(
-                    radius * 0.66,
-                    p.footrest_height_m,
-                    radius * p.seat_aspect * 0.65,
-                ),
+                Vec3::new(side * post_x, underside, z * 0.83),
+                Vec3::new(side * post_x, bottom + h * 0.5, socket_z),
                 0.012,
             );
         }
-    }
-    if !is_backless(o) {
+        a.part(p.cover, "chair").chair_back_contour(
+            radius * 1.6,
+            h,
+            [p.back_curve_m, 0., 0.045, 0.025, 0., 0.],
+            Transform::from_xyz(0., bottom, z),
+        );
+    } else if !is_backless(o) {
         for side in [-1., 1.] {
             a.part(p.frame, "chair").rod(
                 Vec3::new(side * radius * 0.60, underside, radius * 0.55),
@@ -178,14 +159,4 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             Transform::from_xyz(0., 0.60, radius * 0.76),
         );
     }
-}
-
-fn ring(a: &mut Assembly, material: Surface, r: f32, h: f32) {
-    let path: Vec<_> = (0..=40)
-        .map(|i| {
-            let t = (i % 40) as f32 * TAU / 40.;
-            Vec3::new(t.cos() * r, h, t.sin() * r)
-        })
-        .collect();
-    a.part(material, "chair").tube(&path, 0.009, 8);
 }

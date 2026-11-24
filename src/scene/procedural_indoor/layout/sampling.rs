@@ -26,6 +26,7 @@ pub(super) enum Domain {
     StringLights = 0x5a56_5350_0000_0010,
     PullStations = 0x5a56_5350_0000_0011,
     PowerStandard = 0x5a56_5350_0000_0012,
+    ProjectionScreens = 0x5a56_5350_0000_0013,
 }
 
 impl Domain {
@@ -82,6 +83,9 @@ impl IndoorManifest {
     /// ceiling reservations already exist. Unrelated wall installations get a
     /// seedable priority; none is always a leftover of a different category.
     pub(super) fn furnish_wall_installations(&mut self) {
+        // Architecture and fixture positions are fixed throughout these passes.
+        // Each proposal still checks the current furniture and service instances.
+        let structure = self.camera_obstacles();
         for pass in wall_order(self.seed) {
             match pass {
                 WallPass::Groups => self.compose_wall_groups(),
@@ -90,12 +94,12 @@ impl IndoorManifest {
                 WallPass::Whiteboards => self.wall_decoration_kind(ObjectKind::Whiteboard),
                 WallPass::Clocks => self.wall_decoration_kind(ObjectKind::Clock),
                 WallPass::Electrical => self.wall_hardware(),
-                WallPass::ExitSigns => self.furnish_exit_signs(),
-                WallPass::Alarms => self.furnish_wall_service(ObjectKind::FireAlarm),
-                WallPass::Speakers => self.furnish_wall_service(ObjectKind::Speaker),
-                WallPass::Detectors => self.furnish_detectors(),
-                WallPass::Strings => self.furnish_string_lights(),
-                WallPass::PullStations => self.furnish_pull_station(),
+                WallPass::ExitSigns => self.furnish_exit_signs(&structure),
+                WallPass::Alarms => self.furnish_wall_service(ObjectKind::FireAlarm, &structure),
+                WallPass::Speakers => self.furnish_wall_service(ObjectKind::Speaker, &structure),
+                WallPass::Detectors => self.furnish_detectors(&structure),
+                WallPass::Strings => self.furnish_string_lights(&structure),
+                WallPass::PullStations => self.furnish_pull_station(&structure),
             }
         }
     }

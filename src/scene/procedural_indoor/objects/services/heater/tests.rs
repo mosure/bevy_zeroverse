@@ -1,3 +1,4 @@
+mod radiators;
 use super::*;
 use crate::scene::procedural_indoor::{
     layout::{IndoorLayout, IndoorManifest},

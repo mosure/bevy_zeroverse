@@ -239,7 +239,7 @@ pub fn prepare(
         .and_then(|id| scene.objects.iter().find(|o| o.id == id))
         .map(|chair| {
             super::contact::SupportSurface::new(
-                &crate::scene::procedural_indoor::objects::build_object(chair),
+                &crate::scene::procedural_indoor::objects::build_manifest_object(scene, chair),
                 chair.transform(),
             )
         });

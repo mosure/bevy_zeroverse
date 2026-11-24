@@ -43,100 +43,74 @@ pub(crate) fn parameters(o: &IndoorObject) -> CaseProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let s = o.size;
-    let l = o.kind.class_name();
-    let stock = Housing::for_object(o);
-    let case = stock.case_label(o);
+mod exhaust;
+mod face;
+mod fascia;
+mod legacy;
+mod sockets;
+#[cfg(test)]
+mod tests;
+
+pub(crate) const INTRODUCED: u32 = 231;
+pub(crate) const FITTED_IO: u32 = 1 << 8;
+
+pub(crate) fn installed(o: &IndoorObject) -> bool {
+    o.variant & FITTED_IO != 0
+}
+
+pub(crate) use fascia::Fascia;
+pub(super) use sockets::rear_center;
+
+pub(crate) fn metadata(o: &IndoorObject) -> serde_json::Value {
     let p = parameters(o);
-    let feet = p.feet_m;
-    let face = p.fascia_depth_m;
-    for x in [-0.36, 0.36] {
-        for z in [-0.37, 0.37] {
+    let mut meta = serde_json::json!(p);
+    if installed(o) {
+        let fascia = Fascia::sample(o, &p);
+        let bank = sockets::rear_sockets(o);
+        meta["exhaust"] = serde_json::json!(exhaust::Exhaust::fit(o, fascia.rear_face, &bank));
+        meta["fascia"] = serde_json::json!(fascia);
+        meta["rear_sockets_m"] =
+            serde_json::json!(bank.map(|socket| socket.aperture.center().extend(-0.5 * o.size.z)));
+    }
+    meta
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    if version < INTRODUCED || !installed(o) {
+        return legacy::build(a, o);
+    }
+    let p = parameters(o);
+    let fascia = Fascia::sample(o, &p);
+    let stock = Housing::for_object(o);
+    let label = stock.case_label(o);
+    let trim = stock.trim_label(o);
+    let grille = crate::scene::procedural_indoor::materials::speaker::perforated_pc(o);
+    face::case_shell(a, o, &p, &fascia, &stock, &label, grille);
+    let front = face::Plane::Front(o.size.z * 0.5);
+    fascia.build(a, front, &stock, &label, &trim, grille);
+    sockets::rear(
+        a,
+        o,
+        face::Plane::Back(-0.5 * o.size.z),
+        fascia.rear_face,
+        &stock,
+        &label,
+    );
+    // Low rubber pads bear on the actual support; wide feet on small desktops.
+    for x in [-1., 1.] {
+        for z in [-1., 1.] {
+            let size = Vec3::new(
+                (o.size.x * 0.11).clamp(0.010, 0.026),
+                p.feet_m,
+                (o.size.z * 0.09).clamp(0.013, 0.036),
+            );
             a.box_part(
                 Surface::Rubber,
-                l,
-                Vec3::new(s.x * x, feet * 0.5, s.z * z),
-                Vec3::new(s.x * 0.11, feet, s.z * 0.09),
-                feet * 0.22,
+                o.kind.class_name(),
+                Vec3::new(x * o.size.x * 0.37, size.y * 0.5, z * o.size.z * 0.38),
+                size,
+                0.,
             );
         }
-    }
-    let h = s.y - feet;
-    a.box_part(
-        stock.surface,
-        &case,
-        Vec3::new(0., feet + h * 0.5, -face * 0.5),
-        Vec3::new(s.x, h, s.z - face),
-        0.0035,
-    );
-    // Recessed intake backing, with raised louvers and a separate control fascia.
-    let front = s.z * 0.5;
-    let fraction = p.intake_fraction;
-    let vent_h = h * fraction;
-    a.box_part(
-        Surface::Rubber,
-        l,
-        Vec3::new(0., feet + vent_h * 0.5, front - face * 0.57),
-        Vec3::new(s.x * 0.97, vent_h, face * 0.74),
-        0.002,
-    );
-    a.box_part(
-        stock.surface,
-        &case,
-        Vec3::new(0., feet + vent_h + (h - vent_h) * 0.5, front - face * 0.5),
-        Vec3::new(s.x * 0.99, h - vent_h, face),
-        0.002,
-    );
-    let vertical = p.vertical_louvers;
-    let run = if vertical { s.x * 0.88 } else { vent_h * 0.88 };
-    let slats = (run / p.louver_pitch_m).round().clamp(3., 19.) as usize;
-    for i in 0..slats {
-        let f = ((i as f32 + 0.5) / slats as f32 - 0.5) * run;
-        let thickness = run / slats as f32 * 0.50;
-        let (x, y, w, height) = if vertical {
-            (f, feet + vent_h * 0.5, thickness, vent_h * 0.91)
-        } else {
-            (0., feet + vent_h * 0.5 + f, s.x * 0.89, thickness)
-        };
-        a.box_part(
-            stock.surface,
-            &case,
-            Vec3::new(x, y, front - face * 0.13),
-            Vec3::new(w, height, face * 0.22),
-            0.0009,
-        );
-    }
-    let y = feet + vent_h + (h - vent_h) * 0.55;
-    let button = s.x.min(h) * 0.052;
-    a.part(Surface::Rubber, l).cylinder(
-        button,
-        0.002,
-        Transform::from_xyz(-s.x * 0.29, y, front + 0.0006)
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-    );
-    for i in [0.10, 0.28] {
-        a.box_part(
-            Surface::Ink,
-            l,
-            Vec3::new(s.x * i, y, front + 0.00045),
-            Vec3::new(0.012, 0.0045, 0.001),
-            0.0006,
-        );
-    }
-    for plug in ports::TowerJack::ALL {
-        let pt = ports::tower_local(o, plug);
-        let (w, h) = match plug {
-            ports::TowerJack::Mains => (0.020, 0.013),
-            ports::TowerJack::Video(_) => (0.015, 0.0055),
-            _ => (0.012, 0.0045),
-        };
-        a.box_part(
-            Surface::Rubber,
-            l,
-            pt + Vec3::Z * 0.001,
-            Vec3::new(w, h, 0.0014),
-            0.00065,
-        );
     }
 }

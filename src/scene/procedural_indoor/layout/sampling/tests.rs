@@ -176,8 +176,8 @@ fn no_op_decor_intervention_does_not_change_alarm_or_outlet_proposals() {
         changed.compose_wall_groups();
         changed.wall_decoration_kind(ObjectKind::WallArt);
         changed.objects.clear();
-        scene.furnish_wall_service(ObjectKind::FireAlarm);
-        changed.furnish_wall_service(ObjectKind::FireAlarm);
+        scene.furnish_wall_service(ObjectKind::FireAlarm, &scene.camera_obstacles());
+        changed.furnish_wall_service(ObjectKind::FireAlarm, &changed.camera_obstacles());
         assert_eq!(
             objects_of(&scene, ObjectKind::FireAlarm),
             objects_of(&changed, ObjectKind::FireAlarm)

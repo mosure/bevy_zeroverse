@@ -1,7 +1,12 @@
 //! Cabinet fronts fit sampled compartments; operated leaves retain ownership.
 use super::*;
+pub(crate) mod hinged;
+mod pull;
+mod skin;
+#[cfg(test)]
+mod tests;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ShelfProgram) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ShelfProgram, version: u32) {
     let s = o.size;
     let t = p.panel_m;
     let l = o.kind.class_name();
@@ -18,7 +23,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ShelfProgram) {
             );
         }
     }
+    let hinged = (version >= hinged::INTRODUCED)
+        .then(|| hinged::Bank::new(o, p))
+        .flatten();
     for (index, bay) in p.bays.iter().enumerate() {
+        if let Some(leaf) = hinged.as_ref().and_then(|bank| bank.leaf(o, p, index)) {
+            leaf.build(a, o, p);
+            continue;
+        }
         let width = bay.right - bay.left - 0.006;
         let mut x = (bay.left + bay.right) * 0.5;
         if p.front == 3 {

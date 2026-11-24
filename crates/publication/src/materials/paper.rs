@@ -9,17 +9,21 @@ pub(super) fn write(stage: &Path) -> Result<()> {
     let categories = atlas["categories"]
         .as_array()
         .context("material inventory")?;
+    let seeds: [u64; 6] = serde_json::from_value(atlas["selected_seeds"].clone())
+        .context("material illustration seeds")?;
+    let seed_labels = seeds.map(|s| s.to_string());
+    let seed_list = seed_labels.join(", ");
     let mut text = format!(
         r"% Generated from the checksum-bound current material atlas.
 \clearpage
 \section{{Procedural material space}}
 \label{{sec:material-space}}
 \subsection{{Production bindings and sampling protocol}}
-The material atlas covers all 36 architectural/object surface roles, with the Floor role split into timber, carpet and stone, plus a dedicated rug program: 39 rows. Each row records 256 consecutive material seeds, for 9,984 recipe records. The finish selector is the production seeded selector, not a round-robin assignment. Six fixed illustration seeds (0, 1, 4, 19, 53, 101) supply 234 native PBR renders, matched normal renders and base-color, tangent-normal and roughness map previews. Seed four is included to illustrate frosted interior glass. The full consecutive cohort, rather than these illustrations, defines the reported frequencies; failed seeds are not replaced.
+The material atlas covers all 36 architectural/object surface roles, with the Floor role split into timber, carpet and stone, plus a dedicated rug program: 39 rows. Each row records 256 consecutive material seeds, for 9,984 recipe records. The finish selector is the production seeded selector, not a round-robin assignment. Six fixed illustration seeds ({seed_list}) supply 234 native PBR renders, matched normal renders and base-color, tangent-normal and roughness map previews. Seed four is included to illustrate frosted interior glass. The full consecutive cohort, rather than these illustrations, defines the reported frequencies; failed seeds are not replaced.
 
 Each render uses the actual \texttt{{IndoorMaterials}} factory and \texttt{{for\_part}} binding, including palette tint, texture structure group, UV transform, clearcoat, anisotropy and transmission. The studio reuses a native Bevy renderer. Texture maps are baked by the production CPU reference implementation; this study does not measure GPU-baking throughput. The rig uses fixed 1,400/250 lux directional lights with shadows, the same seed-zero procedural reflection environment, indoor capture exposure and a $40^\circ$ vertical field of view. A 0.46 m diameter sphere and a $0.46\times0.49$ m beveled panel expose curved highlights and flat detail. Leaves use production blades with normalized atlas UVs. The backdrop is identical across columns and reveals glass transmission. These are material probes, not representative furnished rooms.
 
-The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: {} objects and {} material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Generic object finishes use their declared coordinated palette; content bindings use their separately declared document pool. Every finish slot must be within its role-specific capacity and resolve from their recorded finish seed; deliberately independent book-cover slots are retained. Food uses separately validated role-specific bindings. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
+The separate assignment audit constructs every primary-room object in 256 consecutive mixed-layout rooms at density 0.65, without humans: {} objects and {} material parts. Rug fields use four bounded dye/pile slots; their bindings retain upholstery. Generic object finishes use their declared coordinated palette; content bindings use their separately declared document pool. Every finish slot must be within its role-specific capacity and resolve from their recorded finish seed; deliberately independent book-cover slots are retained. The generator records the registered surface for each specialized finish observed in the cohort, including ceramics, electronics and food. Per-object-category surface and slot counts are exported. This cohort checks application frequency; the studio does not estimate it. Architectural walls/floors, human skin/hair, and installation-specific facade privacy treatments are outside the object-assignment denominator. Human complexion/groom variation is not represented by these substrate probes.
 
 \subsection{{Correlated controls, bounded palettes}}
 Within a room, twelve coordinated furniture finish slots share at most three texture structures per surface. Artwork, whiteboard and electronic display content use a separate pool of 120 independently sampled content slots per category; only slots used by geometry are synthesized. Pane subdivisions, typography, marker scales, painting fields and wall installation proportions vary continuously with the seed. Ceramic, Fabric, FabricAlt, Leather, Metal, Chrome and Plastic have three structures; Wood, WoodEdge, Leaf, LeafLight, LeafVariegated and Succulent have two. Other roles reuse one structure; rug fields have up to four dedicated dye/pile structures. Shared map handles bound synthesis/upload costs; independent room material seeds resample the underlying recipe. These are correlated palettes, not twelve independent textures. Painted Metal is dielectric; Chrome is conductive. Screen, phone, television, artwork, printed-paper and whiteboard maps come from their dedicated content programs. Container glass and liquids retain several fixed optical constants; their presence is not evidence of broad optical diversity.
@@ -91,7 +95,7 @@ The page pairs each image with its actual PBR scalars and seed, and exposes eigh
             let name = c["name"].as_str().unwrap();
             let y = row as u32 * 260;
             graphics::text(&mut svg, 8., (y + 26) as f64, 26, name);
-            for (i, seed) in SEEDS.into_iter().enumerate() {
+            for (i, seed) in seeds.into_iter().enumerate() {
                 let bytes =
                     STANDARD.encode(fs::read(directory.join(format!("{name}-{i}-color.webp")))?);
                 let x = i as u32 * 240;
@@ -126,8 +130,12 @@ The following columns are the same six Ceramic images in the material plates. Re
 \begin{table}[h]
 \centering\small
 \begin{tabular}{lrrrrrr}
-\toprule Material seed & 0 & 1 & 4 & 19 & 53 & 101 \\\midrule
-");
+\toprule Material seed & ");
+    text.push_str(&seed_labels.join(" & "));
+    text.push_str(
+        r" \\\midrule
+",
+    );
     for (name, path) in [
         ("Texture structure", vec!["structure_group"]),
         ("Glaze gloss", vec!["recipe", "coating", "gloss"]),

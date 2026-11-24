@@ -11,6 +11,12 @@ pub use prompts::{
 };
 #[cfg(feature = "human_motion")]
 mod runtime;
+#[cfg(all(
+    feature = "human_motion",
+    feature = "solari",
+    not(target_arch = "wasm32")
+))]
+pub(crate) use runtime::MotionPart;
 #[cfg(feature = "human_motion")]
 mod skin;
 #[cfg(feature = "human_motion")]

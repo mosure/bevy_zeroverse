@@ -1,10 +1,15 @@
-//! Independent casing, dial and time programs; all hands share the same sampled time.
+//! Wall-clock movement, local time and housing. The print is registered to the recessed dial.
+mod dial;
+mod legacy;
 use super::*;
+pub use dial::{DialStyle, PrintedDial};
 use rand_chacha::ChaCha8Rng;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ClockProgram {
     pub seconds: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub printed: Option<PrintedDial>,
     pub digital: bool,
     pub square: bool,
     pub dark_dial: bool,
@@ -31,8 +36,16 @@ pub fn parameters(o: &IndoorObject) -> ClockProgram {
         0.30
     });
     let square = rng.random_bool(0.4) || digital;
+    // Preserve the draw order (including the old time) on archived and current stock.
+    let old_time = rng.random_range(0..86400);
+    let installed = o.variant & INSTALLED != 0;
     ClockProgram {
-        seconds: rng.random_range(0..86400),
+        seconds: if installed {
+            ((o.variant >> 3) & 0x1ffff) % 86400
+        } else {
+            old_time
+        },
+        printed: installed.then(|| PrintedDial::sample(o, digital)),
         digital,
         square,
         dark_dial: finish.random_bool(0.35),
@@ -68,6 +81,32 @@ pub fn parameters(o: &IndoorObject) -> ClockProgram {
     }
 }
 
+// Three low bits retain the legacy case variation. Store seconds in bits 3..20
+// so a standalone archived object replays without access to the room manifest.
+const INSTALLED: u32 = 1 << 24;
+
+pub(crate) fn install(
+    o: &mut IndoorObject,
+    room_seed: u64,
+    mood: super::super::layout::LightingMood,
+) {
+    use super::super::layout::LightingMood;
+    let mut local = stream(room_seed, u64::from_le_bytes(*b"WallTime"));
+    let hours = match mood {
+        LightingMood::Daylight | LightingMood::Overcast => 6..20,
+        LightingMood::Evening => 17..26,
+    };
+    let reference: i32 = local.random_range(hours.start * 3600..hours.end * 3600);
+    let mut movement = stream(o.seed, u64::from_le_bytes(*b"Quartz!!"));
+    let offset = if movement.random_bool(0.32) {
+        movement.random_range(-8..=8)
+    } else {
+        0
+    };
+    let seconds = (reference + offset).rem_euclid(86400) as u32;
+    o.variant = INSTALLED | (seconds << 3) | (o.variant & 7);
+}
+
 /// Metric dimensions are sampled before mounting/clearance admission.
 pub(crate) fn dimensions(r: &mut ChaCha8Rng) -> Vec3 {
     let height = r.random_range(0.20..0.46);
@@ -86,133 +125,28 @@ pub fn hand_angles(seconds: u32) -> [f32; 3] {
         TAU * (t % 60.) / 60.,
     ]
 }
-pub(crate) fn case_depth(o: &IndoorObject) -> f32 {
-    // Reserve the dial, stacked hands and spindle in the total depth.
-    (o.size.z - 0.026).max(o.size.z * 0.12)
-        * stream(o.seed, 0x434c4f434b444550).random_range(0.72..1.0)
+/// Local back and bezel planes. Keep the admitted wall mount and use the
+/// reserved forward volume for the movement housing on a recessed dial.
+pub(crate) fn case_planes(o: &IndoorObject) -> (f32, f32) {
+    let mut rng = stream(o.seed, 0x434c4f434b444550);
+    let back_offset = (o.size.z - 0.026).max(o.size.z * 0.12) * rng.random_range(0.72..1.0) * 0.5;
+    let front = if o.variant & INSTALLED != 0 {
+        // Allow both low-profile and deep housings at the same footprint. A
+        // 16 mm movement fits whenever the admitted depth can accommodate it.
+        let limit = o.size.z * 0.5;
+        let minimum = (0.016 - back_offset).max(back_offset).min(limit);
+        minimum + (limit - minimum) * rng.random_range(0.12..1.0)
+    } else {
+        back_offset
+    };
+    (-back_offset, front)
 }
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
-    let s = o.size;
-    let r = s.x.min(s.y) * 0.5;
-    let label = o.kind.class_name();
-    let casing = p.casing;
-    let tf = Transform::from_xyz(0., s.y * 0.5, 0.).with_rotation(Quat::from_rotation_x(FRAC_PI_2));
-    let depth = case_depth(o);
-    let front = depth * 0.5;
-    let dial = if p.dark_dial {
-        Surface::Ink
-    } else {
-        Surface::Paper
-    };
-    let marks = if p.dark_dial {
-        Surface::Paper
-    } else {
-        Surface::Ink
-    };
-    let half = Vec2::new(s.x, s.y) * 0.5;
-    a.part(casing, label).housing(
-        &[
-            (-depth * 0.5, half * p.case_taper),
-            (depth * 0.20, half),
-            (depth * 0.5, half * 0.985),
-        ],
-        p.roundness,
-        tf,
-    );
-    let dial_half = half * (1. - p.bezel_fraction).min(0.98);
-    a.part(dial, label).housing(
-        &[(front + 0.0001, dial_half), (front + 0.0011, dial_half)],
-        p.roundness,
-        tf,
-    );
-    if p.digital {
-        let minutes = p.seconds / 60;
-        let width = s.x * p.digit_width_fraction;
-        let height = (s.y * p.digit_height_fraction).min(width * 1.8);
-        let stroke = width.min(height) * p.digit_stroke_fraction;
-        // The complete four-digit rectangle must fit the rounded dial, not
-        // merely its bounding box. Keep typography proportions while fitting.
-        let radius = (((2.38 * width + stroke * 0.5) / dial_half.x).powf(p.roundness)
-            + ((height * 0.5 + stroke * 0.5) / dial_half.y).powf(p.roundness))
-        .powf(1. / p.roundness);
-        let fit = (0.97 / radius).min(1.);
-        let (width, height, stroke) = (width * fit, height * fit, stroke * fit);
-        for (i, digit) in [
-            minutes / 600,
-            minutes / 60 % 10,
-            minutes % 60 / 10,
-            minutes % 10,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let x =
-                (i as f32 - 1.5) * width * 1.22 + if i < 2 { -width * 0.05 } else { width * 0.05 };
-            for (segment, (dx, dy, sx, sy)) in [
-                (0., 0.5, 0.75, 0.),
-                (0.5, 0.25, 0., 0.36),
-                (0.5, -0.25, 0., 0.36),
-                (0., -0.5, 0.75, 0.),
-                (-0.5, -0.25, 0., 0.36),
-                (-0.5, 0.25, 0., 0.36),
-                (0., 0., 0.75, 0.),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                if super::super::materials::screens::SEGMENTS[digit as usize] & (1 << segment) != 0
-                {
-                    a.box_part(
-                        marks,
-                        label,
-                        Vec3::new(x + dx * width, s.y * 0.5 + dy * height, front + 0.002),
-                        Vec3::new((sx * width).max(stroke), (sy * height).max(stroke), 0.001),
-                        0.0003,
-                    );
-                }
-            }
-        }
-        for dy in [-0.16, 0.16] {
-            a.box_part(
-                marks,
-                label,
-                Vec3::new(0., s.y * 0.5 + dy * height, front + 0.002),
-                Vec3::new(stroke, stroke, 0.001),
-                0.0002,
-            );
-        }
-    } else {
-        let center = Vec3::new(0., s.y * 0.5, front + 0.002);
-        for i in 0..60 {
-            if i % 5 != 0 && !p.minor_ticks {
-                continue;
-            }
-            let angle = TAU * i as f32 / 60.;
-            let d = Vec3::new(angle.sin(), angle.cos(), 0.);
-            a.part(marks, label).rod(
-                center + d * r * (p.tick_radius - if i % 5 == 0 { 0.12 } else { 0.04 }),
-                center + d * r * p.tick_radius,
-                r * if i % 5 == 0 { 0.009 } else { 0.003 },
-            );
-        }
-        for (index, angle) in hand_angles(p.seconds).into_iter().enumerate() {
-            if index == 2 && !p.second_hand {
-                continue;
-            }
-            let d = Vec3::new(angle.sin(), angle.cos(), 0.);
-            let c = center + Vec3::Z * (0.002 + index as f32 * 0.0015);
-            a.part(if index == 2 { Surface::Art } else { marks }, label)
-                .rod(
-                    c - d * r * 0.12,
-                    c + d * r * p.hand_lengths[index],
-                    r * p.hand_widths[index],
-                );
-        }
-        a.part(casing, label).ellipsoid(
-            Vec3::new(r * 0.035, r * 0.035, 0.0015),
-            Transform::from_translation(center + Vec3::Z * 0.007),
-        );
+    match p.printed {
+        Some(dial) => dial.build(a, o, &p),
+        None => legacy::build(a, o, &p),
     }
 }
 

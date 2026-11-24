@@ -87,8 +87,12 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
     )
 }
 pub fn build(a: &mut Assembly, o: &IndoorObject) {
+    build_at_version(a, o, super::super::layout::GENERATOR_VERSION);
+}
+
+pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
-        ObjectKind::Elevator => elevator::build(a, o),
+        ObjectKind::Elevator => elevator::build(a, o, version),
         ObjectKind::QueueBarrier => barrier::build(a, o),
         ObjectKind::DisplayCase | ObjectKind::TrayReturn | ObjectKind::ExhibitPlinth => {
             casework::build(a, o)
@@ -96,8 +100,8 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::DrinkDispenser => dispenser::build(a, o),
         ObjectKind::ServiceCounter => service::counter(a, o),
         ObjectKind::ExtractionHood => service::hood(a, o),
-        ObjectKind::Banquette => banquette::build(a, o),
-        ObjectKind::Locker => education::build(a, o),
+        ObjectKind::Banquette => banquette::build(a, o, version),
+        ObjectKind::Locker => education::build(a, o, version),
         ObjectKind::Lectern | ObjectKind::TeachingBoard => furnishing::build(a, o),
         ObjectKind::Sculpture | ObjectKind::InformationStand | ObjectKind::ExhibitionPanel => {
             exhibits::build(a, o)

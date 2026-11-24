@@ -1,4 +1,6 @@
 use super::*;
+mod swing;
+mod vision;
 
 fn door(seed: u64, mechanism: DoorMechanism) -> DoorInstallation {
     DoorInstallation {
@@ -232,7 +234,16 @@ fn calibrated_lights_have_sealed_rebates_and_solid_shoulder_panels() {
             assert!(hit(&a, hole.center(), side, |s, _| s != Surface::GlassInterior).is_none());
             for (dx, stock) in [
                 (-0.002, d.program.finish),
-                (j.bead * 0.5, d.program.finish),
+                (
+                    j.bead * 0.5,
+                    if d.program.panel == DoorPanel::VisionLite
+                        && d.program.vision_light.is_some_and(|v| v.metal_bead)
+                    {
+                        Surface::Metal
+                    } else {
+                        d.program.finish
+                    },
+                ),
                 (j.bead + j.seal * 0.5, Surface::Rubber),
             ] {
                 let (_, s, _) = hit(

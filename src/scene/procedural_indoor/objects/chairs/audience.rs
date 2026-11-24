@@ -3,61 +3,13 @@
 use super::*;
 mod backrest;
 mod frame;
+mod tablet;
+use tablet::Tablet;
 #[cfg(test)]
 mod tests;
 
 pub fn is_folded(o: &IndoorObject) -> bool {
     o.variant == 11 && stream(o.seed, 8260).random_bool(0.22)
-}
-
-#[derive(Clone, Copy, Debug, serde::Serialize)]
-pub(crate) struct Tablet {
-    pub left_handed: bool,
-    /// Half-width and half-depth of the writing surface.
-    half: Vec2,
-    center: Vec3,
-    thickness: f32,
-    cutback: f32,
-}
-
-impl Tablet {
-    fn side(self) -> f32 {
-        if self.left_handed {
-            -1.
-        } else {
-            1.
-        }
-    }
-
-    fn build(self, a: &mut Assembly, stock: Surface) {
-        // The generous writing end faces forward (-Z); the elbow end narrows
-        // toward the outside. Mirror both the outline and its winding.
-        let x = self.half.x;
-        let z = self.half.y;
-        let c = x.min(z) * 0.19;
-        let mut outline = [
-            Vec2::new(-x + c, -z),
-            Vec2::new(x - c, -z),
-            Vec2::new(x, -z + c),
-            Vec2::new(x, z - c),
-            Vec2::new(x - c, z),
-            Vec2::new(-x + self.cutback * x, z),
-            Vec2::new(-x, z * 0.04),
-            Vec2::new(-x, -z + c),
-        ];
-        if self.left_handed {
-            outline.reverse();
-            for p in &mut outline {
-                p.x = -p.x;
-            }
-        }
-        a.part(stock, "chair").profile_slab(
-            &outline,
-            self.thickness,
-            0.0025,
-            Transform::from_translation(self.center),
-        );
-    }
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -133,25 +85,7 @@ impl TeachingSeat {
         // position. Clear the complete circular sweep, not just the end poses.
         let back_z = hinge.z + (0.5 * seat_depth - hinge.z).hypot(0.5 * pad) + 0.008;
         let back = backrest::Backrest::sample(o, seat_width, back_z, fixed, &mut r);
-        let tablet = (!fixed).then(|| {
-            let left_handed = stream(o.seed, u64::from_le_bytes(*b"WriteArm")).random_bool(0.15);
-            let half = Vec2::new(
-                o.size.x * r.random_range(0.143..0.183),
-                o.size.z * r.random_range(0.225..0.278),
-            );
-            let center = Vec3::new(
-                (o.size.x * 0.472 - half.x) * if left_handed { -1. } else { 1. },
-                r.random_range(0.685..0.743),
-                -o.size.z * r.random_range(0.13..0.165),
-            );
-            Tablet {
-                left_handed,
-                half,
-                center,
-                thickness: r.random_range(0.015..0.024),
-                cutback: r.random_range(0.46..0.94),
-            }
-        });
+        let tablet = (!fixed).then(|| Tablet::sample(o, shell_stock, &mut r));
         Self {
             family: if fixed { "auditorium" } else { "tablet_arm" },
             folded: is_folded(o),
@@ -174,6 +108,10 @@ impl TeachingSeat {
         }
     }
 
+    pub(crate) fn carry_grip_size(&self) -> Option<Vec2> {
+        self.back.grip_dimensions()
+    }
+
     fn seat_pose(&self, angle: f32) -> Transform {
         let rotation = Quat::from_rotation_x(angle);
         Transform::from_translation(self.hinge - rotation * (Vec3::Z * self.hinge.z))
@@ -190,7 +128,7 @@ impl TeachingSeat {
         // shallower; the fixed seat exposes a protective shell when tipped up.
         let mut underside = Geometry::default();
         let separate = self.face_stock != self.shell_stock;
-        a.part(self.face_stock, "chair").cushion_panels::<25, 8>(
+        a.part(self.face_stock, "chair").seat_panels(
             size,
             super::super::super::geometry::CushionProfile {
                 roundness: if self.tablet.is_some() { 5.5 } else { 4.2 },
@@ -206,7 +144,7 @@ impl TeachingSeat {
         self.back.build(a, self.face_stock, self.shell_stock);
         frame::build(a, self);
         if let Some(t) = self.tablet {
-            t.build(a, self.shell_stock);
+            t.build(a);
         }
     }
 }
@@ -226,13 +164,14 @@ pub(super) fn clearance_boxes(o: &IndoorObject) -> Vec<(Vec3, Vec3)> {
     ];
     if let Some(t) = p.tablet {
         let outer = half.x * t.side();
-        let inner = t.center.x - t.half.x * t.side();
+        let extent = t.projected_half();
+        let inner = t.center.x - extent.x * t.side();
         boxes.push((
-            Vec3::new(outer.min(inner), 0.48, t.center.z - t.half.y),
+            Vec3::new(outer.min(inner), 0.48, t.center.z - extent.y),
             Vec3::new(
                 outer.max(inner),
                 t.center.y + 0.5 * t.thickness,
-                t.center.z + t.half.y,
+                t.center.z + extent.y,
             ),
         ));
     }

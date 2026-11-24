@@ -173,7 +173,7 @@ impl Builder<'_> {
         let center = self.center();
         let blade_label = stock
             .and_then(|_| {
-                crate::scene::procedural_indoor::materials::slat_finish::slot(
+                crate::scene::procedural_indoor::materials::coated_stock::slot(
                     self.p.slat_material,
                     self.p.finish_slot,
                 )

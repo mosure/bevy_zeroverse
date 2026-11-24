@@ -4,6 +4,7 @@
 //! --fit-review stages short, muscular bodies across all six garment cuts.
 //! --beard-review forces fitted stubble on eight varied adult faces.
 //! --portraits-only --people 4 captures just the four face views.
+//! --size sets the square output size (default 640).
 use bevy::prelude::*;
 use bevy_zeroverse::{
     app::BevyZeroverseConfig,
@@ -32,6 +33,11 @@ fn main() {
         std::path::PathBuf::from(std::env::args().nth(1).unwrap_or("out/human_review".into()));
     std::fs::create_dir_all(&output).unwrap();
     let args: Vec<_> = std::env::args().collect();
+    let size: u32 = args
+        .windows(2)
+        .find(|p| p[0] == "--size")
+        .map_or(640, |p| p[1].parse().expect("--size integer"));
+    assert!((64..=1024).contains(&size), "--size must be in 64..=1024");
     let first_seed: u64 = args
         .windows(2)
         .find(|p| p[0] == "--seed")
@@ -159,8 +165,8 @@ fn main() {
             keybinds: false,
             image_copiers: true,
             num_cameras: if portraits_only { people } else { people * 4 },
-            width: 640.0,
-            height: 640.0,
+            width: size as f32,
+            height: size as f32,
             render_modes: vec![RenderMode::Color, RenderMode::Semantic],
             playback_steps: 1,
             ..default()
@@ -392,7 +398,7 @@ fn main() {
                         })
                     })
                     .collect();
-                image::RgbImage::from_raw(640, 640, rgb)
+                image::RgbImage::from_raw(size, size, rgb)
                     .unwrap()
                     .save(output.join(format!(
                         "{}_{index}.png",

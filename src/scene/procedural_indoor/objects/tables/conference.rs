@@ -27,7 +27,13 @@ pub(super) fn boardroom_finish(o: &IndoorObject, p: &mut TableProgram) {
 
 /// Manufacture a long tabletop as joined leaves on its continuous backing and
 /// multi-bay frame. Clipping the shared outline keeps all outer edges aligned.
-pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, outline: &[Vec2]) {
+pub(super) fn joined_top(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &TableProgram,
+    outline: &[Vec2],
+    stock: &top::TopStock,
+) {
     let mut r = stream(o.seed, 0x5441_424c_454c_4546);
     let span = o.size.xz().max_element();
     let leaves = (span / r.random_range(1.55..2.65)).round().max(2.) as usize;
@@ -35,7 +41,7 @@ pub(super) fn joined_top(a: &mut Assembly, o: &IndoorObject, p: &TableProgram, o
     let half = span * 0.5;
     let pitch = span / leaves as f32;
     let joints = (1..leaves).map(|i| -half + pitch * (i as f32 + r.random_range(-0.13..0.13)));
-    cut_leaves(a, o, p, outline, half_gap, joints);
+    cut_leaves(a, o, p, outline, stock, half_gap, joints);
 }
 
 pub(super) fn cut_leaves(
@@ -43,6 +49,7 @@ pub(super) fn cut_leaves(
     o: &IndoorObject,
     p: &TableProgram,
     outline: &[Vec2],
+    stock: &top::TopStock,
     half_gap: f32,
     joints: impl Iterator<Item = f32>,
 ) {
@@ -53,7 +60,6 @@ pub(super) fn cut_leaves(
         Vec2::Y
     };
     let mut start = -half;
-    let stock = top::TopStock::sample(o, p);
     for (i, joint) in joints.map(Some).chain(std::iter::once(None)).enumerate() {
         let mut leaf = polygon::clip(outline, axis, start);
         if let Some(end) = joint {

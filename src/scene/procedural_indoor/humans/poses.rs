@@ -3,6 +3,11 @@
 use super::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PoseProgram {
+    #[serde(default)]
+    pub limb_proportions: morphology::LimbProportions,
+    /// Installed stool and its front footrest, in actor-local metres.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stool_support: Option<super::super::objects::chairs::stool::SeatedSupport>,
     pub lean: Vec2,
     pub torso_twist: f32,
     pub weight_shift: f32,
@@ -84,6 +89,8 @@ impl PoseProgram {
             }
         });
         Self {
+            limb_proportions: morphology::LimbProportions::sample(seed),
+            stool_support: None,
             lean: Vec2::new(
                 rng.random_range(-0.065..0.065),
                 rng.random_range(-0.14..0.045),
@@ -145,7 +152,12 @@ impl PoseProgram {
     pub fn solve(&self, stature: f32, build: f32, shoulder_width: f32, seated: bool) -> Vec<Vec3> {
         let s = stature / 1.75;
         let hip_half_span = 0.092 * build.sqrt() * s;
-        let mut pelvis = Vec3::new(self.weight_shift, 0.585, 0.015);
+        let support = self.stool_support.filter(|_| seated);
+        let mut pelvis = Vec3::new(
+            self.weight_shift,
+            support.map_or(0.585, |p| p.seat_height_m + 0.115),
+            0.015,
+        );
         if !seated {
             let horizontal = [-1.0, 1.0]
                 .into_iter()
@@ -166,6 +178,8 @@ impl PoseProgram {
         let neck = pelvis + torso * Vec3::Y * 0.55 * s;
         let head = neck + torso * Vec3::new(0.0, 0.13, -0.006) * s;
         let mut joints = vec![pelvis, waist, chest, neck, head];
+        let [upper, forearm] = self.limb_proportions.arm_lengths(s);
+        let [thigh, shin] = self.limb_proportions.leg_lengths(s);
         for (i, side) in [-1.0, 1.0].into_iter().enumerate() {
             let shoulder = chest + torso * Vec3::new(side * shoulder_width * 0.5, -0.005, 0.0);
             let elevation = self.arm_elevation[i];
@@ -183,8 +197,8 @@ impl PoseProgram {
                 // torso. A predominantly lateral pole creates abducted elbows
                 // even when the sampled wrist target is a resting gesture.
                 torso * Vec3::new(side * 0.25, -1.0, self.elbow_pole[i] * 0.25),
-                0.29 * s,
-                0.26 * s,
+                upper,
+                forearm,
             );
             let hand = wrist + (wrist - elbow).normalize_or(Vec3::NEG_Y) * 0.075 * s;
             joints.extend([shoulder, elbow, wrist, hand]);
@@ -197,13 +211,10 @@ impl PoseProgram {
                 0.105,
                 if seated { -0.34 * s + stride } else { stride },
             );
-            let (knee, ankle) = two_bone(
-                hip,
-                goal,
-                Vec3::new(side * 0.12, 0.0, -1.0),
-                0.43 * s,
-                0.43 * s,
-            );
+            let goal = support
+                .filter(|p| p.uses_rail(stature))
+                .map_or(goal, |p| p.foot_goal(goal.x, stature));
+            let (knee, ankle) = two_bone(hip, goal, Vec3::new(side * 0.12, 0.0, -1.0), thigh, shin);
             let toe = ankle
                 + Quat::from_rotation_y(-side * self.foot_splay[i])
                     * Vec3::new(0.0, -0.06, -0.17 * s);
@@ -263,7 +274,11 @@ mod tests {
                         * if i == 0 { -1. } else { 1. }
                         > 0.07
                 );
-                assert!((p[arm].distance(p[arm + 1]) - 0.29 * s / 1.75).abs() < 1e-5);
+                assert!(
+                    (p[arm].distance(p[arm + 1]) - pose.limb_proportions.arm_lengths(s / 1.75)[0])
+                        .abs()
+                        < 1e-5
+                );
             }
             twists[usize::from(pose.torso_twist > 0.)] +=
                 usize::from(pose.torso_twist.abs() > 0.35);
@@ -280,7 +295,13 @@ mod tests {
     fn legacy_program_defaults_keep_unrecorded_head_and_hand_motion_neutral() {
         let program = PoseProgram::sample(42, HumanPoseKind::StandingPresenting);
         let mut json = serde_json::to_value(program).unwrap();
-        for key in ["head_pitch", "head_roll", "finger_curl", "index_extension"] {
+        for key in [
+            "head_pitch",
+            "head_roll",
+            "finger_curl",
+            "index_extension",
+            "limb_proportions",
+        ] {
             json.as_object_mut().unwrap().remove(key);
         }
         let decoded: PoseProgram = serde_json::from_value(json).unwrap();
@@ -288,6 +309,7 @@ mod tests {
         assert_eq!(decoded.head_roll, 0.);
         assert_eq!(decoded.finger_curl, [0.; 2]);
         assert_eq!(decoded.index_extension, [0.; 2]);
+        assert_eq!(decoded.limb_proportions.arm_lengths(1.), [0.29, 0.26]);
     }
     #[test]
     fn continuous_program_preserves_limb_lengths_and_replays() {
@@ -302,13 +324,18 @@ mod tests {
                 let program = PoseProgram::sample(seed, pose);
                 let joints = program.solve(1.75, 1.0, 0.43, seated);
                 assert_eq!(joints, program.solve(1.75, 1.0, 0.43, seated));
+                let [upper, forearm] = program.limb_proportions.arm_lengths(1.);
+                let [thigh, shin] = program.limb_proportions.leg_lengths(1.);
+                assert!(
+                    (upper + forearm - 0.55).abs() < 1e-6 && (thigh + shin - 0.86).abs() < 1e-6
+                );
                 for i in [5, 9] {
-                    assert!((joints[i].distance(joints[i + 1]) - 0.29).abs() < 1e-5);
-                    assert!((joints[i + 1].distance(joints[i + 2]) - 0.26).abs() < 1e-5);
+                    assert!((joints[i].distance(joints[i + 1]) - upper).abs() < 1e-5);
+                    assert!((joints[i + 1].distance(joints[i + 2]) - forearm).abs() < 1e-5);
                 }
                 for i in [13, 17] {
-                    assert!((joints[i].distance(joints[i + 1]) - 0.43).abs() < 1e-5);
-                    assert!((joints[i + 1].distance(joints[i + 2]) - 0.43).abs() < 1e-5);
+                    assert!((joints[i].distance(joints[i + 1]) - thigh).abs() < 1e-5);
+                    assert!((joints[i + 1].distance(joints[i + 2]) - shin).abs() < 1e-5);
                     assert!((joints[i + 2].y - 0.105).abs() < 1e-5);
                 }
                 endpoints.insert(joints[7].to_array().map(f32::to_bits));

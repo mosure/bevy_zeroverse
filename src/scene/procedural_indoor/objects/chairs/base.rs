@@ -1,7 +1,24 @@
 //! Mechanically distinct supports. All meet the same under-seat mounting datum.
 use super::*;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ChairProgram, width: f32, depth: f32) {
+pub(super) fn build(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &ChairProgram,
+    width: f32,
+    depth: f32,
+    pan_bottom: f32,
+    version: u32,
+) {
+    if let Some(stock) = p.runner_stock(o, version) {
+        let mounting = if p.formed_seat.is_some() {
+            formed::carrier_underside(p.base_style)
+        } else {
+            pan_bottom
+        };
+        stock.build(a, p, width, depth, mounting, o.seed);
+        return;
+    }
     let frame = p.frame_surface;
     let label = "chair";
     if p.base_style < 4 {
