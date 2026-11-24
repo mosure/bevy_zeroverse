@@ -62,9 +62,11 @@ Git index before committing assets.
 
 For development, `git clone --filter=blob:none --single-branch --branch main`
 with the repository URL fetches historical file contents on demand. Historical
-branch-based website deployments are available through
-`git ls-remote origin 'refs/archive/pages/*'`. Normal clones and pulls skip
-these archival references.
+branch-based website deployments are available in the
+[Pages history archive](https://github.com/mosure/bevy_zeroverse/releases/tag/pages-history-2026-11-24).
+Its recovery instructions and SHA-256 manifest restore the original website
+commits on top of the preserved 0.72.0 source history. Normal Git fetches skip
+these release assets.
 
 ## Additional measurements
 
