@@ -130,8 +130,8 @@ fn validate_samples(samples: &[Value], kind: &str) -> Result<()> {
     Ok(())
 }
 
-fn parameters(samples: &[Value]) -> Value {
-    let mut result = BTreeMap::new();
+fn parameters(samples: &[Value]) -> serde_json::Map<String, Value> {
+    let mut result = serde_json::Map::new();
     let keys: std::collections::BTreeSet<_> = samples
         .iter()
         .flat_map(|s| s["program"].as_object().unwrap().keys())
@@ -172,7 +172,23 @@ fn parameters(samples: &[Value]) -> Value {
             result.insert(key.clone(), json!({"type":"categorical", "present":present, "total":samples.len(), "counts":counts}));
         }
     }
-    json!(result)
+    result
+}
+
+fn verify_parameters(kind: &str, recorded: &Value, samples: &[Value]) -> Result<()> {
+    let recorded = recorded.as_object().context("missing object parameters")?;
+    let measured = parameters(samples);
+    ensure!(
+        recorded.len() == measured.len(),
+        "parameter count differs for {kind}"
+    );
+    for (name, marginal) in &measured {
+        ensure!(
+            recorded.get(name) == Some(marginal),
+            "parameter marginal differs for {kind}/{name}"
+        );
+    }
+    Ok(())
 }
 
 /// Explicit local entry point; both inputs must come from the current renderer.
@@ -260,7 +276,7 @@ pub fn prepare(root: &Path, audit: &Path, renders: &Path, output: &Path) -> Resu
                 .map(|s| s["build_ms"].as_f64().unwrap())
                 .collect(),
         );
-        category["parameters"] = parameters;
+        category["parameters"] = Value::Object(parameters);
         category["mesh_summary"] = json!(mesh);
         category["build_ms_summary"] = cost;
         category["selected_seeds"] = json!(selected_seeds);
@@ -345,10 +361,7 @@ pub fn verify(directory: &Path, identity: &GeneratorIdentity) -> Result<Value> {
         let sample_data: Value = io::read(&directory.join(sample_file))?;
         let samples = sample_data.as_array().context("missing samples")?;
         validate_samples(samples, kind)?;
-        ensure!(
-            category["parameters"] == parameters(samples),
-            "parameter marginals do not match samples"
-        );
+        verify_parameters(kind, &category["parameters"], samples)?;
         ensure!(
             category["build_ms_summary"]
                 == summary(
@@ -541,5 +554,29 @@ mod tests {
             3
         );
         assert_eq!(p["size"]["observed"]["median"], 1.);
+    }
+
+    #[test]
+    fn serialized_sofa_supports_keep_exact_marginals_and_detect_changes() -> Result<()> {
+        let folder = tempfile::tempdir()?;
+        let samples_path = folder.path().join("Sofa-samples.json");
+        let parameters_path = folder.path().join("parameters.json");
+        // A center leveler can be one f32 rounding step from the origin.
+        let offset = -f64::from(f32::EPSILON) / 2.0;
+        let row = json!({"program":{"foundation":{"sections":[{"support_x_m":[offset]}]}}});
+        // The audit is read once to build the atlas. Its samples and statistics
+        // are then written to separate files and read by the deployment verifier.
+        let audit: Vec<Value> = serde_json::from_slice(&serde_json::to_vec(&[row])?)?;
+        io::write(&samples_path, &audit)?;
+        io::write(&parameters_path, &parameters(&audit))?;
+        let mut samples: Vec<Value> = io::read(&samples_path)?;
+        let recorded: Value = io::read(&parameters_path)?;
+        verify_parameters("Sofa", &recorded, &samples)?;
+        let support = &mut samples[0]["program"]["foundation"]["sections"][0]["support_x_m"][0];
+        assert_eq!(support.as_f64(), Some(offset));
+        *support = json!(offset.next_up());
+        let error = verify_parameters("Sofa", &recorded, &samples).unwrap_err();
+        assert!(error.to_string().contains("Sofa/foundation"));
+        Ok(())
     }
 }
