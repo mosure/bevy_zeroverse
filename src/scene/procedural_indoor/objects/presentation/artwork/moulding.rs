@@ -46,13 +46,14 @@ pub(super) fn build(
     section: Moulding,
     outer: Rect,
     landing: f32,
+    stock_seed: u64,
 ) {
     let surface = match p.style {
         1 | 4 => Surface::Wood,
         2 => Surface::Plastic,
         _ => Surface::Metal,
     };
-    let mut cuts = TimberCuts::new(o.seed, 0x4652_414d_4501);
+    let mut cuts = TimberCuts::new(stock_seed, 0x4652_414d_4501);
     let origins = std::array::from_fn(|_| cuts.origin());
     let half = 0.5 * o.size.z;
     let width = p.border_width;

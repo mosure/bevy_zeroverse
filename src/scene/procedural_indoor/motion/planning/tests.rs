@@ -65,13 +65,12 @@ fn crossing_mechanisms_shorten_without_overlapping_reservations() {
     let report = scene.indoor_motion.unwrap();
     assert!(report.mechanisms.iter().all(|m| m.rejection.is_none()));
     assert!(report.mechanisms.iter().any(|m| m.adaptation.is_some()));
-    assert!(report.mechanisms[0]
-        .swept_bounds
-        .iter()
-        .all(|&a| report.mechanisms[1]
+    assert!(report.mechanisms[0].swept_bounds.iter().all(|&a| {
+        report.mechanisms[1]
             .swept_bounds
             .iter()
-            .all(|&b| !overlaps(a, b))));
+            .all(|&b| !overlaps(a, b))
+    }));
 }
 
 #[test]
@@ -398,7 +397,12 @@ fn collapsed_mid_morph_is_rejected_even_when_endpoints_are_valid() {
 #[test]
 fn track_coverings_can_use_their_own_head_but_still_collide_with_other_hardware() {
     use crate::scene::procedural_indoor::architecture::facade::{treatments, Shade};
-    for (kind, seed) in [(Shade::Roller, 44210), (Shade::Curtain, 75110)] {
+    for (kind, seed) in [
+        (Shade::Roller, 44210),
+        (Shade::Curtain, 75110),
+        (Shade::Vertical, 470),
+        (Shade::Pleated, 426),
+    ] {
         let source = IndoorManifest::generate_with_humans(seed, default(), 0.65, 2, 0.25).unwrap();
         let mut facade = source
             .envelope
@@ -411,6 +415,10 @@ fn track_coverings_can_use_their_own_head_but_still_collide_with_other_hardware(
             .unwrap()
             .clone();
         facade.shade_coverage = 0.85;
+        if kind == Shade::Vertical {
+            facade.shade_tilt = 0.16;
+            facade.shade_coverage = 0.98;
+        }
         facade.treatment.as_mut().unwrap().tieback = 0.;
         let opening = &facade.openings[0];
         for obstructed in [false, true] {

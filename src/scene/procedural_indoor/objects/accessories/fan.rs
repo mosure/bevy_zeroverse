@@ -1,5 +1,10 @@
 //! Desk fans vary head pose, pedestal/yoke construction and physical guard/blades.
 use super::*;
+mod grille;
+mod legacy;
+mod product;
+pub use product::FanHead;
+pub(crate) const FORMED_ROTOR_VERSION: u32 = 243;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FanProgram {
@@ -19,8 +24,13 @@ pub struct FanProgram {
     pub yoke: bool,
     pub finish: Surface,
     pub blade_finish: Surface,
+    pub guard_finish: Surface,
 }
 pub fn parameters(o: &IndoorObject) -> FanProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+fn parameters_at(o: &IndoorObject, version: u32) -> FanProgram {
     let mut r = stream(o.seed, 0x4445534b46414e50);
     let s = o.size;
     let pitch = r.random_range(-0.32_f32..0.48);
@@ -40,7 +50,7 @@ pub fn parameters(o: &IndoorObject) -> FanProgram {
     let ey = ext.y * scale + wire;
     let cy = s.y * r.random_range(0.61..0.72);
     let center = Vec3::new(0., cy.min(s.y - ey - 0.002), 0.);
-    FanProgram {
+    let mut p = FanProgram {
         radius,
         depth,
         center,
@@ -61,7 +71,29 @@ pub fn parameters(o: &IndoorObject) -> FanProgram {
         yoke: r.random_bool(0.42),
         finish: [Surface::Metal, Surface::Plastic, Surface::Chrome][r.random_range(0..3)],
         blade_finish: [Surface::Plastic, Surface::Metal][r.random_range(0..2)],
+        guard_finish: Surface::Metal,
+    };
+    if version >= FORMED_ROTOR_VERSION {
+        let mut finish = stream(
+            o.finish_seed.unwrap_or(o.seed),
+            u64::from_le_bytes(*b"FanCoats"),
+        );
+        p.finish = if finish.random_bool(0.31) {
+            Surface::Metal
+        } else {
+            Surface::Plastic
+        };
+        p.guard_finish =
+            [Surface::Metal, Surface::Chrome, Surface::Plastic][finish.random_range(0..3)];
+        p.blade_finish = if finish.random_bool(0.67) {
+            Surface::Plastic
+        } else {
+            Surface::Metal
+        };
+    } else {
+        p.guard_finish = p.finish;
     }
+    p
 }
 impl FanProgram {
     pub(crate) fn head_transform(&self) -> Transform {
@@ -69,75 +101,14 @@ impl FanProgram {
             .with_rotation(Quat::from_rotation_y(self.yaw) * Quat::from_rotation_x(self.pitch))
     }
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    if version < FORMED_ROTOR_VERSION {
+        legacy::build(a, o);
+        return;
+    }
     let p = parameters(o);
-    let l = o.kind.class_name();
-    a.part(p.finish, l).housing(
-        &[(0., p.base.xz() * 0.5), (p.base.y, p.base.xz() * 0.39)],
-        if p.yoke { 3.5 } else { 2.2 },
-        Transform::IDENTITY,
-    );
-    let tf = p.head_transform();
-    let top = if p.yoke {
-        p.center.y - p.radius * 0.48
-    } else {
-        p.center.y
-    };
-    a.part(p.finish, l)
-        .rod(Vec3::Y * p.base.y, Vec3::Y * top, o.size.x * 0.027);
-    if p.yoke {
-        // Side arms terminate on the actual tilted housing, not a world-axis copy.
-        for side in [-1., 1.] {
-            let attach = tf.transform_point(Vec3::new(side * p.radius * 0.92, 0., 0.));
-            let elbow = Vec3::new(attach.x, top, attach.z);
-            a.part(p.finish, l)
-                .rod(Vec3::Y * top, elbow, o.size.x * 0.020);
-            a.part(p.finish, l).rod(elbow, attach, o.size.x * 0.020);
-        }
-    }
-    let mut head = Assembly::default();
-    for sign in [-1., 1.] {
-        for ring in 1..=p.rings {
-            let r = p.radius * ring as f32 / p.rings as f32;
-            let points: Vec<_> = (0..=32)
-                .map(|i| {
-                    let t = i as f32 * TAU / 32.;
-                    Vec3::new(r * t.cos(), r * t.sin(), sign * p.depth * 0.5)
-                })
-                .collect();
-            head.part(p.finish, l).tube(&points, p.wire, 6);
-        }
-        for i in 0..p.spokes {
-            let t = i as f32 * TAU / p.spokes as f32;
-            head.part(p.finish, l).rod(
-                Vec3::Z * (sign * p.depth * 0.5),
-                Vec3::new(t.cos() * p.radius, t.sin() * p.radius, sign * p.depth * 0.5),
-                p.wire * 0.58,
-            );
-        }
-    }
-    for i in 0..8 {
-        let t = i as f32 * TAU / 8.;
-        let at = Vec3::new(t.cos() * p.radius, t.sin() * p.radius, 0.);
-        head.part(p.finish, l).rod(
-            at - Vec3::Z * p.depth * 0.5,
-            at + Vec3::Z * p.depth * 0.5,
-            p.wire,
-        );
-    }
-    head.part(p.finish, l).cylinder(
-        p.radius * 0.21,
-        p.depth * 0.97,
-        Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-    );
-    for i in 0..p.blades {
-        let t = p.blade_phase + i as f32 * TAU / p.blades as f32;
-        // Blade roots embed in the hub; tip clearance is independent of head pose.
-        head.part(p.blade_finish, l).ellipsoid(
-            Vec3::new(p.radius * 0.38, p.radius * p.blade_chord, p.depth * 0.055),
-            Transform::from_xyz(t.cos() * p.radius * 0.48, t.sin() * p.radius * 0.48, 0.)
-                .with_rotation(Quat::from_rotation_z(t + p.blade_sweep)),
-        );
-    }
-    public::append_at(a, head, tf);
+    FanHead::sample(o, &p).build(a, o, &p);
 }
+#[cfg(test)]
+mod tests;

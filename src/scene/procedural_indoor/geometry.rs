@@ -5,6 +5,7 @@ pub(crate) use housing::{housing_front_z, housing_outline};
 pub(crate) mod preview;
 mod primitives;
 mod revolution;
+pub(crate) mod rotor;
 pub(crate) use revolution::{ProfileJoints, RevolvedOutline};
 mod slab;
 pub(crate) mod stock;

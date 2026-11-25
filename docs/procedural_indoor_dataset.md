@@ -101,6 +101,14 @@ both the visible material and the lighting model. The metrics export records
 the installed optic, suspension, emitting area, canopy diameter and drop.
 Diffuser dimensions contribute to the distributions only for fixtures with a physical diffuser.
 
+Linear ceiling lights can share a product across a room or vary between its zones.
+Exposed strips and wing reflectors fit one to four tubes to the available width.
+Wraparound fixtures have one continuous opal lens. The visible mesh and reflection
+probes use the same emitting faces. In the metrics export,
+`linear_luminaire_construction` counts installed fixtures by type.
+Strip width and illuminated length are measured in metres. Pitch is recorded
+only for fixtures with multiple strips.
+
 Ceiling fans sample paddle, carved, swept and commercial multi-blade rotors.
 Blades on one hub share a balanced cross-section and pitch. Wood blades have
 separate grain cuts along their span. Two fans can share a stocked model while

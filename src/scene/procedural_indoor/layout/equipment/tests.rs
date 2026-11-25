@@ -774,3 +774,35 @@ fn installed_wall_bank_accepts_two_independent_routes_and_rejects_swapped_target
     let error = crate::scene::procedural_indoor::validation::validate_layout(&invalid).unwrap_err();
     assert!(error.contains("only cables may carry routed-wire metadata"));
 }
+
+#[test]
+fn desk_screen_service_gap_passes_cables_between_the_mounts_only() {
+    use crate::scene::procedural_indoor::objects::{audit, services::divider::desktop};
+    let mut panel = audit::fixture(ObjectKind::RoomDivider, 912);
+    panel.variant = desktop::VARIANT;
+    panel.support = Some(0);
+    panel.size = Vec3::new(1.3, 0.42, 0.13);
+    panel.yaw = 1.21;
+    panel.position = Vec3::new(3.2, 0.79, -2.1);
+    let p = desktop::parameters(&panel);
+    let hits = cable_prop_intersector(&panel, 0.006);
+    let across = |x, y| {
+        hits(
+            panel.transform().transform_point(Vec3::new(x, y, -0.24)),
+            panel.transform().transform_point(Vec3::new(x, y, 0.24)),
+        )
+    };
+    assert!(!across(0., p.cable_gap_m * 0.5));
+    assert!(across(0., p.cable_gap_m - 0.004));
+    for x in p.post_x_m {
+        assert!(across(x, 0.012));
+    }
+    let mut notebook = audit::fixture(ObjectKind::Notebook, 815);
+    notebook.size = Vec3::new(0.12, 0.014, 0.10);
+    notebook.position = panel.position;
+    assert!(!desktop::overlaps_peer(&panel, &notebook, 0.012));
+    notebook.position = panel
+        .transform()
+        .transform_point(Vec3::new(p.post_x_m[0], 0., 0.));
+    assert!(desktop::overlaps_peer(&panel, &notebook, 0.012));
+}

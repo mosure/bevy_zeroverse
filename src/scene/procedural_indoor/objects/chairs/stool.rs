@@ -4,8 +4,8 @@ mod base;
 mod fit;
 #[cfg(test)]
 mod tests;
-pub(super) use fit::clearance_boxes;
 pub use fit::SeatedSupport;
+pub(super) use fit::{clearance_boxes, seat};
 pub(crate) use fit::{fitted_envelope, same_floor, FIT_VERSION};
 
 #[derive(Debug, Clone, serde::Serialize)]

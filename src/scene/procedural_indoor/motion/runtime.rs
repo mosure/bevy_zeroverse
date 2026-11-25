@@ -76,9 +76,7 @@ impl AnimatedPart {
             interval: joint.interval,
             pivot: joint.pivot,
             frame: joint.frame,
-            roller_feed: joint
-                .roller_feed
-                .filter(|_| key.1.split('#').any(|s| s == "roller")),
+            cloth_motion: joint.cloth_motion.filter(|law| law.applies(&key.1)),
             axis: joint.axis,
             angle: joint.angle,
             translation: joint.translation,
@@ -122,9 +120,9 @@ fn animate(
                 .iter()
                 .zip(&end.positions)
                 .map(|(a, b)| (Vec3::from_array(*a), Vec3::from_array(*b)));
-            let p: Vec<_> = if let Some(feed) = part.joint.roller_feed {
+            let p: Vec<_> = if let Some(sample) = part.joint.cloth_motion.map(|law| law.at(t)) {
                 positions
-                    .map(|(a, b)| feed.interpolate(a, b, t).to_array())
+                    .map(|(a, b)| sample.interpolate(a, b, t).to_array())
                     .collect()
             } else {
                 positions.map(|(a, b)| a.lerp(b, t).to_array()).collect()
@@ -145,7 +143,8 @@ fn animate(
             {
                 for (i, n) in normals.iter_mut().enumerate() {
                     let normal = Vec3::from_array(*n);
-                    if start.positions[i] == end.positions[i] {
+                    if start.positions[i] == end.positions[i] && start.normals[i] == end.normals[i]
+                    {
                         *n = start.normals[i];
                     } else if !normal.is_finite() || normal.length_squared() < 1e-8 {
                         *n = Vec3::from_array(start.normals[i])

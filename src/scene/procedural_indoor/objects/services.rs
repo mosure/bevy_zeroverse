@@ -113,6 +113,10 @@ pub fn construction(o: &IndoorObject) -> String {
                 p.cap_fraction > 0.
             )
         }
+        ObjectKind::RoomDivider if divider::desktop::is_desktop(o) => {
+            let p = divider::desktop::parameters(o);
+            format!("divider/desk/{:?}/{:?}/{:?}", p.mount, p.face, p.hardware)
+        }
         ObjectKind::RoomDivider => {
             let p = divider::parameters(o);
             format!(

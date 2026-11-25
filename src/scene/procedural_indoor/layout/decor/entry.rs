@@ -10,7 +10,7 @@ use crate::scene::procedural_indoor::{
     objects::wall,
 };
 
-fn on_entry_face(door: &DoorInstallation, o: &IndoorObject) -> bool {
+pub(super) fn on_entry_face(door: &DoorInstallation, o: &IndoorObject) -> bool {
     wall::mount_offset(o).is_some_and(|offset| {
         (o.position.z - (door.center.z - offset)).abs() < 0.001
             && (o.transform().rotation * Vec3::Z).dot(Vec3::NEG_Z) > 0.99999

@@ -80,7 +80,7 @@ pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> EquipmentProgram 
         p.housing = strip.housing;
         p.corner_m = o.size.y * strip.height_fraction * strip.bevel_fraction;
     } else if o.kind == ObjectKind::WallShelf {
-        let shelf = wall_shelf::parameters(o);
+        let shelf = wall_shelf::parameters_at(o, version);
         p.housing = shelf.board;
         p.shelf_brackets = shelf.bracket_x_m.len();
         p.shelf_span = shelf
@@ -115,7 +115,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         ObjectKind::Projector => return projector::build(a, o),
         ObjectKind::PowerStrip => return power_strip::build(a, o),
         ObjectKind::Cable => return wires::build(a, o),
-        ObjectKind::WallShelf => return wall_shelf::build(a, o),
+        ObjectKind::WallShelf => return wall_shelf::build(a, o, version),
         ObjectKind::CeilingPendant => return pendant::build(a, o),
         ObjectKind::WallSconce => return sconce::build(a, o),
         ObjectKind::ProjectionScreen => return super::presentation::screen(a, o),

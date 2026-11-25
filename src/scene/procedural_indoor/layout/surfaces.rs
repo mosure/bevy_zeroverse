@@ -1,6 +1,7 @@
 //! Seeded work-area transforms and mixed clustered/uniform surface proposals.
 //! All proposals still pass the same true-outline and peer-overlap checks.
 use super::*;
+mod desk_fans;
 mod workstations;
 pub(super) use workstations::OfficeFitout;
 

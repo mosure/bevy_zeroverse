@@ -1,6 +1,7 @@
 use super::*;
 use crate::scene::procedural_indoor::placement::{rotated_half, Footprint};
 use std::collections::BTreeSet;
+mod canvas_sets;
 mod picture_mounts;
 mod qualification;
 
@@ -125,16 +126,18 @@ fn tray_accessories_are_supported_separated_and_not_equal_spaced_rows() {
 }
 
 #[test]
-fn shelves_keep_full_top_support_and_vary_mounting_construction() {
+fn archived_wall_shelves_keep_full_top_support_and_vary_mounting_construction() {
     let mut styles = BTreeSet::new();
     let mut positions = BTreeSet::new();
     for seed in 0..128 {
         let mut o = audit::fixture(ObjectKind::WallShelf, seed);
         // Include long shelves to exercise three/four-support fields.
         o.size.x = if seed % 2 == 0 { 1.6 } else { 0.6 };
-        let p = equipment::wall_shelf::parameters(&o);
+        let version = equipment::wall_shelf::DECK_VERSION - 1;
+        let p = equipment::wall_shelf::parameters_at(&o, version);
         styles.insert(p.style);
-        let a = build_object(&o);
+        let a =
+            crate::scene::procedural_indoor::objects::build_object_at_version(&o, None, version);
         for x in [-0.48, 0., 0.48] {
             for z in [-0.48, 0., 0.48] {
                 let origin = Vec3::new(x * o.size.x, o.size.y + 0.05, z * o.size.z);

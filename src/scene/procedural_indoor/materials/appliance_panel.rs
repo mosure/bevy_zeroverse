@@ -225,6 +225,8 @@ pub(super) fn install(
             if let Some(p) = controls::for_object(o) {
                 films.insert(p.key_film);
                 films.extend(p.readout.map(|d| d.film));
+            } else if o.kind == ObjectKind::Thermostat {
+                films.insert(super::super::objects::wall::thermostat::parameters(o).film);
             } else if scene.generator_version >= elevator::LANDING_VERSION
                 && o.kind == ObjectKind::Elevator
             {
@@ -325,5 +327,61 @@ mod tests {
             assert!(unused.is_empty());
             assert_eq!(images.len(), 5);
         }
+    }
+}
+
+#[cfg(test)]
+mod thermostat_tests {
+    use super::*;
+    use crate::scene::procedural_indoor::{
+        layout::ObjectKind,
+        objects::{audit, build_object},
+    };
+    #[test]
+    fn thermostat_both_preparation_paths_install_exactly_the_print_and_case_stocks_in_the_mesh() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(409, Default::default(), 0.65, 0, 0.).unwrap();
+        let mut seen = BTreeSet::new();
+        for seed in 0..96 {
+            let mut o = audit::fixture(ObjectKind::Thermostat, seed);
+            o.finish_seed = None;
+            let expected = build_object(&o)
+                .parts
+                .into_keys()
+                .map(|(s, l)| (s, finish_slot(s, &l).unwrap()))
+                .collect::<BTreeSet<_>>();
+            if !seen.insert(expected.clone()) {
+                continue;
+            }
+            scene.objects = vec![o];
+            let selection = MaterialSelection {
+                surfaces: default(),
+                direct_surfaces: default(),
+                finishes: expected.clone(),
+            };
+            for demand in [None, Some(&selection)] {
+                let mut images = Assets::<Image>::default();
+                let mut materials = Assets::<StandardMaterial>::default();
+                let mut variants = BTreeMap::new();
+                install(&scene, &mut images, &mut materials, demand, &mut variants);
+                super::super::input_housing::install(&scene, &mut materials, demand, &mut variants);
+                assert_eq!(variants.keys().copied().collect::<BTreeSet<_>>(), expected);
+                let (&(_, slot), handle) = variants
+                    .iter()
+                    .find(|((s, _), _)| *s == Surface::Ink)
+                    .unwrap();
+                let mat = materials.get(handle).unwrap();
+                assert_eq!(images.len(), if slot == Film::Led.slot() { 2 } else { 1 });
+                assert!(
+                    images
+                        .get(mat.base_color_texture.as_ref().unwrap())
+                        .unwrap()
+                        .texture_descriptor
+                        .mip_level_count
+                        > 1
+                );
+            }
+        }
+        assert!(seen.len() > 9);
     }
 }

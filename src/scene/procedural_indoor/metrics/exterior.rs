@@ -136,6 +136,16 @@ pub(super) fn record(
                 numeric.push(key, value as f64)?;
             }
         }
+        let vertical = f
+            .treatment
+            .as_ref()
+            .filter(|_| f.shade == Shade::Vertical)
+            .and_then(|p| p.vertical.map(|stock| (p, stock)));
+        let pleated = f
+            .treatment
+            .as_ref()
+            .filter(|_| f.shade == Shade::Pleated)
+            .and_then(|p| p.pleated.map(|stock| (p, stock)));
         if let Some(p) = f.treatment.as_ref().filter(|_| f.shade != Shade::None) {
             category("window_treatment_finish_slot", p.finish_slot.to_string());
             if let Some(stock) = p.textile {
@@ -158,7 +168,11 @@ pub(super) fn record(
             } else {
                 category("window_treatment_fabric", format!("{:?}", p.fabric));
             }
-            if matches!(f.shade, Shade::Venetian | Shade::Vertical) {
+            if let Some((_, vane)) = vertical {
+                numeric.push("window_vane_stock_width_m", vane.width_m as f64)?;
+                numeric.push("window_vane_stock_crown_m", vane.crown_m as f64)?;
+                numeric.push("window_vane_hem_depth_m", vane.hem_m as f64)?;
+            } else if matches!(f.shade, Shade::Venetian | Shade::Vertical) {
                 numeric.push("window_treatment_slat_pitch_m", p.slat_pitch as f64)?;
             }
             if matches!(f.shade, Shade::Curtain | Shade::Roman | Shade::Pleated) {
@@ -195,6 +209,33 @@ pub(super) fn record(
                 }
             }
             let draw = f.shade_coverage_at(o);
+            if let Some((p, stock)) = pleated {
+                let l = stock.layout(p, o, draw);
+                category(
+                    "window_pleat_construction",
+                    format!("{:?}", stock.construction),
+                );
+                category(
+                    "window_pleat_lift",
+                    if stock.cordless {
+                        "Cordless"
+                    } else {
+                        "CordLoop"
+                    }
+                    .into(),
+                );
+                numeric.push("window_pleat_count", l.count as f64)?;
+                numeric.push("window_pleat_face_length_m", l.face_m as f64)?;
+                numeric.push("window_pleat_installed_pitch_m", (2. * l.rise) as f64)?;
+                numeric.push("window_pleat_crest_depth_m", l.depth as f64)?;
+            }
+            if let Some((p, stock)) = vertical {
+                let vanes = stock.layout(p, o, f.shade_tilt, draw);
+                numeric.push("window_treatment_slat_pitch_m", vanes.pitch as f64)?;
+                numeric.push("window_vane_packed_pitch_m", vanes.packed as f64)?;
+                numeric.push("window_vane_count", vanes.count as f64)?;
+                numeric.push("window_vane_tilt_degrees", vanes.angle.to_degrees() as f64)?;
+            }
             if f.shade != Shade::None {
                 min_draw = min_draw.min(draw);
                 max_draw = max_draw.max(draw);
@@ -258,7 +299,11 @@ pub(super) fn record(
                     .collect::<Vec<_>>()
                     .join(";"),
                 f.shade_coverage,
-                panes.iter().map(|p| format!("{:?}",p.hinge)).collect::<Vec<_>>().join(";")
+                panes
+                    .iter()
+                    .map(|p| format!("{:?}", p.hinge))
+                    .collect::<Vec<_>>()
+                    .join(";")
             )?;
         }
         if f.shade != Shade::None && f.openings.len() > 1 {

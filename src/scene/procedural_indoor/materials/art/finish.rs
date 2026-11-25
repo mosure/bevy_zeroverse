@@ -43,21 +43,32 @@ impl ArtFinish {
         let tooth = field::PreparedPeriodic::new([137, 151], seed.wrapping_add(401), &mut budget);
         let stroke =
             field::PreparedPeriodic::new(self.stroke_counts, seed.wrapping_add(409), &mut budget);
+        let tooth = tooth.raster::<256>();
+        let stroke = stroke.raster::<256>();
+        // Yarn crowns repeat by row/column. Their height and parity have no
+        // dependence on the perpendicular coordinate or on pigment.
+        let yarn = |count: u32| -> [(f32, u32); 256] {
+            std::array::from_fn(|pixel| {
+                let phase = pixel as f32 / 256. * count as f32;
+                let crown = (1. - (phase.fract() * 2. - 1.).powi(2)).max(0.).sqrt();
+                (crown, phase as u32 % 2)
+            })
+        };
+        let warp = yarn(self.canvas_counts[0]);
+        let weft = yarn(self.canvas_counts[1]);
         let mut heights = vec![0.; 256 * 256];
         let mut data = Vec::with_capacity(256 * 256 * 4);
-        for y in 0..256 {
-            for x in 0..256 {
-                let uv = [x as f32 / 256., y as f32 / 256.];
-                let tooth = tooth.sample(uv[0], uv[1]) - 0.5;
-                let stroke = stroke.sample(uv[0], uv[1]) - 0.5;
-                // Interlaced yarn crowns, gently irregular, below a millimetre.
-                let [nx, ny] = self.canvas_counts;
-                let u = (uv[0] * nx as f32).fract();
-                let v = (uv[1] * ny as f32).fract();
-                let checker =
-                    (((uv[0] * nx as f32) as u32 + (uv[1] * ny as f32) as u32) % 2) as f32;
-                let crown = |t: f32| (1. - (t * 2. - 1.).powi(2)).max(0.).sqrt();
-                let weave = crown(u) * (1. - checker) + crown(v) * checker;
+        for (y, &(weft_height, weft_parity)) in weft.iter().enumerate() {
+            let tooth_row = tooth.row(y);
+            let stroke_row = stroke.row(y);
+            for (x, &(warp_height, warp_parity)) in warp.iter().enumerate() {
+                let tooth = tooth_row[x] - 0.5;
+                let stroke = stroke_row[x] - 0.5;
+                let weave = if warp_parity == weft_parity {
+                    warp_height
+                } else {
+                    weft_height
+                };
                 heights[y * 256 + x] = tooth * self.paper_tooth_m
                     + stroke * self.paint_body_m
                     + (weave - 0.5) * self.canvas * 0.00005;

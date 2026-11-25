@@ -41,7 +41,7 @@ fn field(g: &mut Geometry, inside: &[Vec2], size: Vec3, rings: u32) {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: RugProgram) {
-    let outside = cut_outline(o.size.xz(), p.cut, p.corner_m, p.taper);
+    let outside = p.outline(o.size.xz());
     let inset: Vec<_> = (0..outside.len())
         .map(|i| polygon::inset_direction(&outside, i))
         .collect();

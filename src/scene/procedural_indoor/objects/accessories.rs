@@ -45,7 +45,7 @@ pub fn parameters(o: &IndoorObject) -> AccessoryProgram {
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::DeskFan {
-        return fan::build(a, o);
+        return fan::build(a, o, version);
     }
     match o.kind {
         ObjectKind::DeskLamp => lamps::build(a, o, &parameters(o)),

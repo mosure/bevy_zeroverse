@@ -161,6 +161,14 @@ fn validate_layout_integrity(
             }
             continue;
         }
+        if object.kind == super::layout::ObjectKind::Thermostat
+            && !scene.thermostat_accessible(
+                object,
+                service_structure.get_or_init(|| scene.camera_obstacles()),
+            )
+        {
+            return fail("thermostat lacks solid backing or a clear operating position");
+        }
         let wall_service = super::layout::equipment::services::is_wall_service(object);
         if wall_service
             && !super::layout::equipment::services::mounted_clear_against(
@@ -239,10 +247,14 @@ fn validate_layout_integrity(
                     && object.position.distance(other.position) < object.size.x + 0.25
                     && other.interaction_target.is_none()
             } else {
-                matches!(
+                (matches!(
                     object.kind,
                     super::layout::ObjectKind::Laptop | super::layout::ObjectKind::Monitor
-                ) && other.kind == super::layout::ObjectKind::Chair
+                ) || (object.kind == super::layout::ObjectKind::DeskFan
+                    && object.support.is_some()
+                    && scene.generator_version
+                        >= super::objects::accessories::fan::FORMED_ROTOR_VERSION))
+                    && other.kind == super::layout::ObjectKind::Chair
                     && other.interaction_target == object.support
             };
             if !valid || other.neighbor != object.neighbor {

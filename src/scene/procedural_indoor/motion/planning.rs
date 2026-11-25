@@ -254,9 +254,12 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
     }
     let local_from_assembly = joint.frame.compute_affine().inverse();
     for key in &joint.parts {
-        let roller_feed = joint
-            .roller_feed
-            .filter(|_| key.1.split('#').any(|s| s == "roller"));
+        // Both projections of a pleat facet are monotone in the opening's
+        // frame. Its endpoint bounds contain even a partially admitted draw.
+        let cloth = joint
+            .cloth_motion
+            .filter(|law| law.applies(&key.1))
+            .map(|law| law.at(joint.adjustment.morph));
         let g = &a.parts[key];
         // Local triangle blocks keep handles, hinge barrels and separate slats
         // from turning into a fictitious solid slab around the whole mechanism.
@@ -285,8 +288,8 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                             let start = Vec3::from_array(g.positions[i as usize]);
                             [
                                 start,
-                                if let Some(feed) = roller_feed {
-                                    feed.interpolate(
+                                if let Some(sample) = cloth {
+                                    sample.interpolate(
                                         start,
                                         Vec3::from_array(end.positions[i as usize]),
                                         joint.adjustment.morph,

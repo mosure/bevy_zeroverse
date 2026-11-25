@@ -15,6 +15,16 @@ struct Args {
     /// Restrict this qualification to the new public-space catalog.
     #[arg(long)]
     public_only: bool,
+    /// Audit one catalog entry, for example --category Rug.
+    #[arg(long, value_parser = parse_category, conflicts_with = "public_only")]
+    category: Option<ObjectKind>,
+}
+
+fn parse_category(name: &str) -> Result<ObjectKind, String> {
+    ObjectKind::ALL
+        .into_iter()
+        .find(|kind| format!("{kind:?}").eq_ignore_ascii_case(name))
+        .ok_or_else(|| format!("unknown object category {name:?}"))
 }
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -25,7 +35,9 @@ fn main() -> anyhow::Result<()> {
     fs::create_dir_all(&args.output)?;
     let mut categories = Vec::new();
     for kind in ObjectKind::ALL {
-        if args.public_only && !kind.is_program_item() {
+        if args.category.is_some_and(|selected| selected != kind)
+            || (args.public_only && !kind.is_program_item())
+        {
             continue;
         }
         let mut maps = Vec::new();
@@ -80,10 +92,17 @@ fn main() -> anyhow::Result<()> {
         );
         categories.push(json!({"kind":kind,"samples":samples,"coverage":coverage,"nearest_shape_distances":nearest,"failures":failures,"depth_descriptors":maps}));
     }
+    let scope = if args.category.is_some() {
+        "single_category"
+    } else if args.public_only {
+        "public_program_items"
+    } else {
+        "all_object_kinds"
+    };
     fs::write(
         args.output.join("audit.json"),
         serde_json::to_vec(
-            &json!({"schema_version":1,"audit_scope":if args.public_only {"public_program_items"} else {"all_object_kinds"},"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"method":"six fixed-envelope orthographic depth maps; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
+            &json!({"schema_version":1,"audit_scope":scope,"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"method":"six fixed-envelope orthographic depth maps; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
         )?,
     )?;
     anyhow::ensure!(

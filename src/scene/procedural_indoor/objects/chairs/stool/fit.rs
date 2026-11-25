@@ -37,7 +37,7 @@ fn allowance(o: &IndoorObject) -> f32 {
     }
 }
 
-pub(super) fn seat(o: &IndoorObject) -> f32 {
+pub(in crate::scene::procedural_indoor::objects::chairs) fn seat(o: &IndoorObject) -> f32 {
     (o.size.y - allowance(o)).clamp(0.36, 0.835)
 }
 

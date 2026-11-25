@@ -7,6 +7,7 @@ mod electrical;
 pub(super) use electrical::electrical_standard;
 pub use electrical::{electrical_parameters, ElectricalProgram};
 mod entry;
+mod thermostat;
 
 pub(super) fn drink(rng: &mut ChaCha8Rng) -> (ObjectKind, Vec3) {
     let kind = [
@@ -119,7 +120,14 @@ impl IndoorManifest {
 
     /// Same mounted-wall contract for generation and archived-manifest audits.
     pub(crate) fn wall_attachment_clear(&self, obj: &IndoorObject) -> bool {
-        if obj.kind == ObjectKind::Display {
+        if obj.kind == ObjectKind::Thermostat
+            && self
+                .entry_door
+                .as_ref()
+                .is_some_and(|d| entry::on_entry_face(d, obj))
+        {
+            self.entry_wall_attachment_clear(obj)
+        } else if obj.kind == ObjectKind::Display {
             self.television_mount(obj).is_some()
         } else {
             (obj.kind == ObjectKind::LightSwitch && self.entry_wall_attachment_clear(obj))

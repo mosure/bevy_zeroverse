@@ -56,6 +56,35 @@ impl RugSupport {
             .is_none_or(|ceiling| ceiling.admits_floor_support(self.min, self.max, self.top))
     }
 }
+
+/// A tight seating group may need the corners of a rectangular rug. Try the
+/// chosen cut first, then at most one square-cornered alternative at the same
+/// size and transform. Check every foot against the cut that will be rendered.
+fn fit_group(
+    scene: &IndoorManifest,
+    rug: &mut IndoorObject,
+    group: &std::collections::BTreeSet<usize>,
+) -> Option<RugSupport> {
+    let fits = |support: &RugSupport| {
+        support.ceiling_clear(scene)
+            && group.iter().all(|&id| {
+                let (lo, hi) = scene.objects[id].bounds();
+                support.supports(lo, hi)
+            })
+    };
+    let support = RugSupport::from_object(rug);
+    if fits(&support) {
+        return Some(support);
+    }
+    let straight = objects::floor::rug::Cut::Straight as u32;
+    if rug.variant == straight {
+        return None;
+    }
+    rug.variant = straight;
+    let support = RugSupport::from_object(rug);
+    fits(&support).then_some(support)
+}
+
 impl IndoorManifest {
     pub(in super::super) fn furnish_area_rugs(&mut self) {
         // Functional platforms/cabinet runs retain their original architectural
@@ -119,12 +148,10 @@ impl IndoorManifest {
                 let mut rug = self.floor_candidate(ObjectKind::Rug, center, size, yaw, &mut r);
                 rug.solid = false;
                 let (lo, hi) = rug.bounds();
-                let support = RugSupport::from_object(&rug);
                 // Reuse the complete architectural/portal/structure validator,
                 // but furniture may occupy this rug when fully supported.
                 if !self.placement_clear_internal(&rug, 0.025, true)
                     || !self.floor_support_clear(lo, hi)
-                    || !support.ceiling_clear(self)
                 {
                     continue;
                 }
@@ -142,7 +169,7 @@ impl IndoorManifest {
                         && a.y < hi.y
                         && b.y > lo.y
                     {
-                        if !other.solid || !support.supports(a, b) || (a.y - lo.y).abs() > 0.001 {
+                        if !other.solid || (a.y - lo.y).abs() > 0.001 {
                             valid = false;
                             break;
                         }
@@ -152,6 +179,9 @@ impl IndoorManifest {
                 if !valid || !moved.contains(&anchor.id) {
                     continue;
                 }
+                let Some(support) = fit_group(self, &mut rug, &moved) else {
+                    continue;
+                };
                 // Furniture just outside the rug's bounds is not lifted, but
                 // its placement clearance still applies to the new rug. Testing
                 // only the lifted group missed nearby plants/island circulation.
@@ -223,19 +253,8 @@ impl IndoorManifest {
                     r.random_range(0.004..MAX_THICKNESS_M),
                     r.random_range(1.6..2.8),
                 );
-                let side = if r.random_bool(0.5) { 1. } else { -1. };
-                let p = anchor.transform().transform_point(Vec3::new(
-                    r.random_range(-0.3..0.3) * anchor.size.x,
-                    0.,
-                    side * ((anchor.size.z + size.z) * 0.5 + 0.08),
-                ));
-                let mut rug = self.floor_candidate(
-                    ObjectKind::Rug,
-                    p,
-                    size,
-                    anchor.yaw + r.random_range(-0.22..0.22),
-                    r,
-                );
+                let (p, yaw) = super::accent::beside(&anchor, size.xz(), r);
+                let mut rug = self.floor_candidate(ObjectKind::Rug, p, size, yaw, r);
                 rug.solid = false;
                 if !self.placement_clear(&rug, 0.03) {
                     continue;
@@ -286,6 +305,30 @@ impl IndoorManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_narrowly_fitted_group_uses_real_corners_and_still_rejects_overhang() {
+        use crate::scene::procedural_indoor::objects::{audit, floor::rug::Cut};
+        let mut scene = IndoorManifest::generate(3, IndoorLayout::Lounge, 0.5, 0).unwrap();
+        scene.ceiling_installation = None;
+        let mut foot = audit::fixture(ObjectKind::Ottoman, 6);
+        foot.id = 0;
+        foot.size = Vec3::new(0.22, 0.38, 0.22);
+        foot.position = Vec3::new(0.77, 0., 0.77);
+        scene.objects = vec![foot];
+        let mut rug = audit::fixture(ObjectKind::Rug, 14);
+        rug.size = Vec3::new(2., 0.008, 2.);
+        rug.variant = Cut::Oval as u32;
+        let group = std::collections::BTreeSet::from([0]);
+        let (lo, hi) = scene.objects[0].bounds();
+        assert!(!RugSupport::from_object(&rug).supports(lo, hi));
+        let installed = fit_group(&scene, &mut rug, &group).unwrap();
+        assert_eq!(rug.variant, Cut::Straight as u32);
+        assert_eq!(installed, RugSupport::from_object(&rug));
+        assert!(installed.supports(lo, hi));
+        scene.objects[0].position.x = 0.94;
+        assert!(fit_group(&scene, &mut rug, &group).is_none());
+    }
 
     #[test]
     fn area_rugs_preserve_clearance_of_unmoved_neighbouring_plants() {

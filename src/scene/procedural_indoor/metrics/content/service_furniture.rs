@@ -10,6 +10,47 @@ pub(super) fn record(
 ) -> io::Result<()> {
     use ObjectKind::*;
     let finishes = match o.kind {
+        Bag => {
+            use crate::scene::procedural_indoor::objects::bags;
+            let p = bags::parameters(o);
+            category(categories, "bag_style", format!("{:?}", p.style));
+            let beside = version >= bags::OPEN_TOTE_VERSION && o.variant & bags::BESIDE_SEAT != 0;
+            category(
+                categories,
+                "bag_initial_placement",
+                if o.support.is_some() {
+                    "on_furniture"
+                } else if beside {
+                    "beside_seat"
+                } else {
+                    "floor"
+                },
+            );
+            numeric.push("bag_yaw_rad", f64::from(o.yaw))?;
+            if p.style == bags::BagStyle::Tote {
+                let cut = (version >= bags::OPEN_TOTE_VERSION)
+                    .then(|| bags::ToteCut::sample(o, &p))
+                    .flatten();
+                category(
+                    categories,
+                    "tote_mouth",
+                    if cut.is_some() { "open" } else { "closed" },
+                );
+                if let Some(c) = cut {
+                    numeric.push(
+                        "tote_clear_mouth_depth_m",
+                        f64::from(c.clear_mouth_depth_m()),
+                    )?;
+                    category(categories, "tote_slip_pocket", c.slip_pocket);
+                    numeric.push(
+                        "tote_draped_handles",
+                        c.draped_handles.into_iter().filter(|&v| v).count() as f64,
+                    )?;
+                    category(categories, "tote_lining", format!("{:?}", c.lining));
+                }
+            }
+            return Ok(());
+        }
         CoatRack => {
             use crate::scene::procedural_indoor::objects::utilities::racks;
             let rack = racks::parameters(o);
@@ -220,7 +261,22 @@ pub(super) fn record(
             let p = services::bench::parameters(o);
             [p.frame, p.seat]
         }
+        RoomDivider if services::divider::desktop::is_desktop(o) => {
+            let p = services::divider::desktop::parameters(o);
+            category(categories, "divider_location", "desk");
+            category(categories, "desk_screen_mount", format!("{:?}", p.mount));
+            for (key, value) in [
+                ("desk_screen_width_m", o.size.x),
+                ("desk_screen_height_m", o.size.y),
+                ("desk_screen_thickness_m", p.thickness_m),
+                ("desk_screen_cable_gap_m", p.cable_gap_m),
+            ] {
+                numeric.push(key, f64::from(value))?;
+            }
+            [p.hardware, p.face]
+        }
         RoomDivider => {
+            category(categories, "divider_location", "floor");
             let p = services::divider::parameters(o);
             category(
                 categories,

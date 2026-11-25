@@ -13,7 +13,14 @@ fn quad(g: &mut Geometry, p: [Vec3; 4], uv: [Vec2; 4]) {
 }
 
 /// Flat webbing, with real thickness and capped ends. No cylindrical rope handles.
-pub(super) fn strap(g: &mut Geometry, points: &[Vec3], width: f32, thickness: f32, normal: Vec3) {
+pub(super) fn strap(
+    g: &mut Geometry,
+    points: &[Vec3],
+    width: f32,
+    thickness: f32,
+    normal: Vec3,
+    chart_ends: bool,
+) {
     let ring = |i: usize| {
         let tangent = points[(i + 1).min(points.len() - 1)] - points[i.saturating_sub(1)];
         let lateral = normal.cross(tangent).normalize() * width * 0.5;
@@ -26,8 +33,9 @@ pub(super) fn strap(g: &mut Geometry, points: &[Vec3], width: f32, thickness: f3
         ]
     };
     let mut along = 0.;
+    let first = ring(0);
+    let mut a = first;
     for i in 0..points.len() - 1 {
-        let a = ring(i);
         let b = ring(i + 1);
         let end = along + points[i].distance(points[i + 1]);
         for j in 0..4 {
@@ -45,11 +53,20 @@ pub(super) fn strap(g: &mut Geometry, points: &[Vec3], width: f32, thickness: f3
             );
         }
         along = end;
+        a = b;
     }
-    let a = ring(0);
-    let b = ring(points.len() - 1);
-    quad(g, [a[3], a[2], a[1], a[0]], [Vec2::ZERO; 4]);
-    quad(g, b, [Vec2::ZERO; 4]);
+    let uv = if chart_ends {
+        [
+            Vec2::ZERO,
+            Vec2::X * width,
+            Vec2::new(width, thickness),
+            Vec2::Y * thickness,
+        ]
+    } else {
+        [Vec2::ZERO; 4]
+    };
+    quad(g, [first[3], first[2], first[1], first[0]], uv);
+    quad(g, a, uv);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -81,6 +98,7 @@ pub(super) fn handle(
         p.strap_width.min(s.x * 0.075).min(curvature_radius),
         0.0025,
         Vec3::Z,
+        false,
     );
 }
 

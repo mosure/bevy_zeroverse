@@ -83,6 +83,7 @@ impl IndoorManifest {
     /// ceiling reservations already exist. Unrelated wall installations get a
     /// seedable priority; none is always a leftover of a different category.
     pub(super) fn furnish_wall_installations(&mut self) {
+        let first = self.objects.len();
         // Architecture and fixture positions are fixed throughout these passes.
         // Each proposal still checks the current furniture and service instances.
         let structure = self.camera_obstacles();
@@ -100,6 +101,16 @@ impl IndoorManifest {
                 WallPass::Detectors => self.furnish_detectors(&structure),
                 WallPass::Strings => self.furnish_string_lights(&structure),
                 WallPass::PullStations => self.furnish_pull_station(&structure),
+            }
+        }
+        // Group styling and all wall reservations are final. Changing the
+        // canvas format consumes no placement draws and adds no room searches.
+        use super::super::objects::presentation::artwork;
+        if self.generator_version >= artwork::INTRODUCED {
+            for o in &mut self.objects[first..] {
+                if o.kind == ObjectKind::WallArt {
+                    artwork::select_installation(o);
+                }
             }
         }
     }

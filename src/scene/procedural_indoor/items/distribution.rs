@@ -90,7 +90,8 @@ impl IndoorManifest {
     pub(crate) fn permits_table_item(&self, support: &IndoorObject, kind: ObjectKind) -> bool {
         // Installed workstation equipment is functional, not loose clutter.
         !is_table(support.kind)
-            || (support.kind == ObjectKind::Desk && kind == ObjectKind::Laptop)
+            || (support.kind == ObjectKind::Desk
+                && matches!(kind, ObjectKind::Laptop | ObjectKind::RoomDivider))
             || matches!(
                 kind,
                 ObjectKind::Monitor

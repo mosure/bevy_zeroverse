@@ -139,27 +139,16 @@ impl Contour {
     }
 }
 
-fn triangle(g: &mut Geometry, a: u32, b: u32, c: u32, side: f32) {
-    g.indices
-        .extend(if side > 0. { [a, b, c] } else { [a, c, b] });
-}
-
-fn flat_vertex(g: &mut Geometry, tf: Transform, xy: Vec2, z: f32, side: f32) {
-    g.positions
-        .push(tf.transform_point(xy.extend(z)).to_array());
-    g.normals.push((tf.rotation * (Vec3::Z * side)).to_array());
-    g.uvs.push([xy.x * side, xy.y]);
-}
-
 pub(super) fn build(
     a: &mut Assembly,
     leaf: Leaf,
-    hole: Rect,
+    fit: &Fit,
     v: VisionLight,
     finish: Surface,
     j: &Joinery,
     labels: &Labels,
 ) {
+    let Some(hole) = fit.opening else { return };
     let radius = v.radius(hole);
     let rim = Contour::new(hole, radius);
     let tf = leaf.transform;
@@ -171,7 +160,10 @@ pub(super) fn build(
     for side in [-1., 1.] {
         let z = j.inset + side * glass_half;
         let rebate = Vec2::new(bead, z + side * 0.0025);
-        rim.shoulders(a.part(finish, &labels.leaf), tf, half * side, side);
+        let g = a.part(finish, &labels.leaf);
+        let first = g.uvs.len();
+        rim.shoulders(g, tf, half * side, side);
+        fit.face_chart(&mut g.uvs[first..], side);
         let bead_finish = if v.metal_bead { Surface::Metal } else { finish };
         rim.strip(
             a.part(bead_finish, &labels.leaf),

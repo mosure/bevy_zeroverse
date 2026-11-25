@@ -15,19 +15,12 @@ impl ReflectionEmitters {
         let mut emission = Vec::new();
         let positions = architecture::fixture_positions(scene);
         for (i, position) in positions.iter().copied().enumerate() {
-            let area = architecture::fixtures::emitting_area_at(scene, position);
+            let (area, aperture) = architecture::fixtures::reflection_aperture(scene, position);
             let (color, lumens) = architecture::fixture_photometry_at(scene, i, &positions);
             let luminance = lumens / (PI * area);
             let color = linear(source_color(scene, color));
             emission.push(color * luminance);
-            for ((surface, _), geometry) in
-                architecture::fixtures::geometry(scene, i, position).parts
-            {
-                if surface != Surface::Light {
-                    continue;
-                }
-                append_face_triangles(&mut triangles, &geometry, i, None);
-            }
+            append_face_triangles(&mut triangles, &aperture, i, None);
         }
         for o in scene
             .objects

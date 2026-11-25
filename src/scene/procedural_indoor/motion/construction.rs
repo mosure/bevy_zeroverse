@@ -111,7 +111,7 @@ pub(crate) fn morph(
     mut end: Assembly,
     seed: u64,
     frame: Transform,
-    roller_feed: Option<RollerFeed>,
+    cloth_motion: Option<ClothMotion>,
     head_contact: Option<String>,
 ) {
     // A topology mismatch is never converted into an invalid flow correspondence.
@@ -141,7 +141,7 @@ pub(crate) fn morph(
     }
     let mut joint = Joint::new(MotionKind::Covering, seed);
     joint.frame = frame;
-    joint.roller_feed = roller_feed;
+    joint.cloth_motion = cloth_motion;
     joint.attachment = head_contact;
     joint.morph = end.parts;
     a.articulated(start, joint);

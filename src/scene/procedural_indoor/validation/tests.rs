@@ -557,12 +557,18 @@ fn geometry_qualification_catches_hidden_mesh_overruns_and_records_coverage() {
         assert!(stats.object_envelope_max_overrun_metres <= 0.003);
         // A bad reservation must fail even if the mesh is finite and its
         // topology/normals are valid. Do not resize geometry to conceal it.
-        scene.objects[0].kind = ObjectKind::FloorLamp;
-        // Narrower than the actual bulb and foot hardware, independent of the
-        // procedurally fitted shade diameter.
-        scene.objects[0].size = Vec3::new(0.045, 1.65, 0.045);
+        // An archived cable has an explicit metric centreline independent of
+        // its reservation. A 40 cm run cannot fit an 8 cm envelope.
+        let cable = &mut scene.objects[0];
+        cable.kind = ObjectKind::Cable;
+        cable.size = Vec3::new(0.08, 0.04, 0.04);
+        cable.cable_target_socket = None;
+        cable.cable_path = Some(vec![Vec3::new(-0.20, 0.02, 0.), Vec3::new(0.20, 0.02, 0.)]);
         let error = validate_geometry(&scene).unwrap_err();
-        assert!(error.contains("escapes its reserved envelope"), "{error}");
+        assert!(
+            error.contains("Cable instance 0 mesh escapes its reserved envelope"),
+            "{error}"
+        );
         scene.objects[0].size.y = f32::NAN;
         assert!(validate_geometry(&scene)
             .unwrap_err()

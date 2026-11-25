@@ -73,10 +73,14 @@ pub(super) fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facad
     );
     program.slats =
         (kind == Shade::Venetian).then(|| SlatStock::sample(&mut rng, program.slat_material));
+    program.vertical = (kind == Shade::Vertical).then(|| VerticalStock::sample(&mut rng));
     if let Some(stock) = program.slats {
         program.slat_pitch = stock.depth_m * 0.91;
     }
     program.pleat_crease = (kind == Shade::Pleated).then_some(0.2);
+    program.pleated = program
+        .pleat_crease
+        .map(|crease| PleatedStock::sample(&mut rng, crease));
     program.track = (kind == Shade::PanelTrack).then(|| PanelTrack::sample(&mut rng));
     program.textile =
         (kind != Shade::Venetian).then(|| WindowTextile::sample(&mut rng, kind == Shade::Curtain));
@@ -240,8 +244,15 @@ fn coverings_stay_inside_aperture_and_reserved_depth_at_extreme_openings() {
                     let mut a = Assembly::default();
                     build(&mut a, Transform::IDENTITY, &f, o);
                     let (lo, hi) = a.bounds();
-                    assert!(lo.x>=o.min.x-1e-5 && hi.x<=o.max.x+1e-5 && lo.y>=o.min.y-1e-5 && hi.y<=o.max.y+1e-5 && lo.z>=0. && hi.z<=0.20,
-                        "seed {seed}, {kind:?}, {size:?}, coverage={coverage}, bounds={lo:?}..{hi:?}");
+                    assert!(
+                        lo.x >= o.min.x - 1e-5
+                            && hi.x <= o.max.x + 1e-5
+                            && lo.y >= o.min.y - 1e-5
+                            && hi.y <= o.max.y + 1e-5
+                            && lo.z >= 0.
+                            && hi.z <= 0.20,
+                        "seed {seed}, {kind:?}, {size:?}, coverage={coverage}, bounds={lo:?}..{hi:?}"
+                    );
                     let mut tris = 0;
                     for ((surface, label), g) in &a.parts {
                         assert!(variants::supports(*surface));
@@ -267,7 +278,9 @@ fn coverings_stay_inside_aperture_and_reserved_depth_at_extreme_openings() {
                                 t.iter().map(|&i| Vec3::from(g.normals[i as usize])).sum();
                             assert!(
                                 cross.length_squared() > 1e-20 && cross.dot(n) >= -1e-9,
-                                "{seed}/{kind:?}, size={size:?}, coverage={coverage}, {label}/{surface:?}: invalid triangle, p={p:?}, n={n:?}, dot={}, area={}", cross.dot(n), cross.length_squared()
+                                "{seed}/{kind:?}, size={size:?}, coverage={coverage}, {label}/{surface:?}: invalid triangle, p={p:?}, n={n:?}, dot={}, area={}",
+                                cross.dot(n),
+                                cross.length_squared()
                             );
                             let mut vertices =
                                 p.map(|v| v.to_array().map(|x| (x * 1e6).round() as i64));
@@ -649,3 +662,8 @@ fn archived_horizontal_blinds_replay_their_original_uniform_ladder() {
 
 #[path = "curtain_tests.rs"]
 mod curtain_checks;
+#[path = "pleated_tests.rs"]
+mod pleat_checks;
+
+#[path = "vertical_tests.rs"]
+mod vertical_vanes;

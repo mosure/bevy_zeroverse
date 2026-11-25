@@ -874,7 +874,7 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
-fn point_triangle_distance_squared(point: Vec3, a: Vec3, b: Vec3, c: Vec3) -> f32 {
+pub(super) fn point_triangle_distance_squared(point: Vec3, a: Vec3, b: Vec3, c: Vec3) -> f32 {
     let ab = b - a;
     let ac = c - a;
     let n = ab.cross(ac);
@@ -1009,17 +1009,34 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, density)
                     .unwrap();
-            // Cable routes and loose floor details are fitted after occupied
-            // chairs/screens settle. Their acceptance can change with people;
-            // earlier furniture programs retain independent random streams.
+            // The fixed furnishing stream precedes occupancy. Routes, loose
+            // details and service installations must fit the final occupants.
             let furniture = |s: &IndoorManifest| {
+                let printer_stand = s.objects.windows(2).find(|pair| {
+                    matches!(
+                        pair[0].kind,
+                        ObjectKind::DrawerUnit | ObjectKind::MobileCart
+                    ) && pair[1].kind == ObjectKind::Printer
+                        && pair[1].support == Some(pair[0].id)
+                });
                 s.objects
                     .iter()
                     .filter(|o| {
-                        !matches!(
-                            o.kind,
-                            ObjectKind::Cable | ObjectKind::Rug | ObjectKind::FloorOutlet
-                        )
+                        if printer_stand
+                            .is_some_and(|pair| o.id == pair[0].id || o.id == pair[1].id)
+                        {
+                            return false;
+                        }
+                        match o.kind {
+                            ObjectKind::Cable
+                            | ObjectKind::FloorOutlet
+                            | ObjectKind::Thermostat => false,
+                            ObjectKind::Rug => s.rug_supports.iter().any(|rug| rug.object == o.id),
+                            ObjectKind::Flatware => o
+                                .support
+                                .is_none_or(|id| s.objects[id].kind != ObjectKind::KitchenCounter),
+                            _ => true,
+                        }
                     })
                     .cloned()
                     .collect::<Vec<_>>()
@@ -1036,11 +1053,28 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
                     actual.yaw = original.yaw;
                 } else if matches!(actual.kind, ObjectKind::Laptop | ObjectKind::Monitor) {
                     actual.yaw = original.yaw;
+                } else if actual.kind == ObjectKind::DeskFan
+                    && (actual.interaction_target.is_some()
+                        || original.interaction_target.is_some())
+                {
+                    actual.yaw = original.yaw;
+                    actual.interaction_target = original.interaction_target;
                 }
                 assert_eq!(
                     &actual, original,
-                    "occupancy perturbed unrelated furnishings"
+                    "seed {seed}, people {density}: occupancy perturbed unrelated furnishings"
                 );
+            }
+            // A wall controller can move or lose its mounting site when the
+            // operating position is occupied. Its sampled product stays fixed.
+            let thermostat = |s: &IndoorManifest| {
+                s.objects
+                    .iter()
+                    .find(|o| o.kind == ObjectKind::Thermostat)
+                    .map(|o| (o.seed, o.variant, o.size, o.finish_seed))
+            };
+            if let (Some(actual), Some(expected)) = (thermostat(&scene), thermostat(&empty)) {
+                assert_eq!(actual, expected, "seed {seed}, people {density}");
             }
             for (i, human) in scene.humans.iter().enumerate() {
                 assert_eq!(human.id, scene.objects.len() + i);

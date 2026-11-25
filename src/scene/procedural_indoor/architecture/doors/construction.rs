@@ -8,6 +8,24 @@ mod panel;
 use joinery::{Fit, Joinery};
 
 impl DoorInstallation {
+    /// Installed sheets in moving-leaf coordinates, including cutout and frame clearances.
+    pub fn kick_plates(&self) -> Vec<FittedKickPlate> {
+        if self.program.kick_plate.is_none() {
+            return Vec::new();
+        }
+        let j = Joinery::sample(&self.program);
+        let mut plates = Vec::new();
+        for (index, leaf) in self.leaves().into_iter().enumerate() {
+            let fit = Fit::new(self, leaf, index, &j);
+            plates.extend(
+                [-1., 1.]
+                    .into_iter()
+                    .filter_map(|side| fit.protective_face(&self.program, leaf, index, side, &j)),
+            );
+        }
+        plates
+    }
+
     /// Realized cutout bounds (leaf X, height above floor) and corner radius in metres.
     pub(crate) fn vision_apertures(&self) -> Vec<(Rect, f32)> {
         if self.program.panel != DoorPanel::VisionLite {

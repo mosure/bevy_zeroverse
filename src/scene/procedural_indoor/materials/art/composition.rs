@@ -85,7 +85,7 @@ fn bezier(c: &mut Canvas, points: [[f32; 2]; 3], width: i32, color: [u8; 3]) {
         })
     };
     for i in 0..24 {
-        c.line(at(i as f32 / 24.), at((i + 1) as f32 / 24.), width, color);
+        c.ink_stroke(at(i as f32 / 24.), at((i + 1) as f32 / 24.), width, color);
     }
 }
 
@@ -154,7 +154,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                             [radius * w as f32, radius * h as f32 * 1.1],
                             palette[1 + i as usize % 4],
                         );
-                        c.line(
+                        c.ink_stroke(
                             point(u, v - radius * 1.3),
                             point(u + 0.012, v - radius * 1.7),
                             1,
@@ -190,7 +190,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                             ],
                             palette[1 + j as usize % 4],
                         );
-                        c.line(at, [at[0] + dx, at[1] + dy], 1, palette[0]);
+                        c.ink_stroke(at, [at[0] + dx, at[1] + dy], 1, palette[0]);
                     }
                     if rng.random_bool(0.55) {
                         let r = w.min(h) as f32 * rng.random_range(0.025..0.055);
@@ -226,7 +226,7 @@ pub(super) fn paint(p: &ArtProgram) -> Canvas {
                     c.polygon(&[d, e, rear, [d[0] + rear[0] - e[0], rear[1]]], palette[0]);
                     for row in 1..rng.random_range(3..=7) {
                         let v = top + (0.95 - top) * row as f32 / 7.;
-                        c.line(
+                        c.ink_stroke(
                             point(left + 0.015, v),
                             point(left + width - 0.015, v),
                             1,

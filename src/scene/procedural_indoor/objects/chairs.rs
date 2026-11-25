@@ -42,6 +42,17 @@ pub(crate) fn footprint(family: u32, collection: u64, instance: u64) -> Vec2 {
     compact + (large - compact) * proportions
 }
 
+const UPRIGHT_SEAT_HEIGHT: f32 = 0.47;
+
+/// Cushion height above the floor used by the upright occupant rig.
+pub(crate) fn seat_surface_height(o: &IndoorObject) -> f32 {
+    if matches!(o.variant, 6 | 7) {
+        stool::seat(o)
+    } else {
+        UPRIGHT_SEAT_HEIGHT
+    }
+}
+
 /// The existing human pelvis/back support contract is an upright seated pose.
 /// Extended recliners need a reclined leg/torso fit and must not receive that pose.
 pub(crate) fn supports_upright_occupant(o: &IndoorObject) -> bool {

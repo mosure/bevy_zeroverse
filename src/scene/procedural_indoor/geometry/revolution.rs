@@ -64,6 +64,15 @@ impl RevolvedOutline {
             })
     }
 
+    /// A point on the actual mesh edge, including between the corners of flat stock.
+    pub(crate) fn perimeter_point(&self, turn: f32) -> Vec2 {
+        let t = turn.rem_euclid(1.) * self.sides as f32;
+        let i = (t as usize % self.sides) * self.stride;
+        self.columns[i]
+            .point
+            .lerp(self.columns[i + 1].point, t.fract())
+    }
+
     pub(crate) fn round(sides: u32, depth: f32, lobes: u32) -> Self {
         let mut columns = Vec::with_capacity(sides as usize + 1);
         let mut previous = Vec2::ZERO;

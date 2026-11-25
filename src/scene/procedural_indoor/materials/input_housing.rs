@@ -70,11 +70,21 @@ impl Housing {
             9 => 2,
             _ => 3,
         };
+        // Wall control housings favor pearl polymer and warm gray. Reuse the
+        // same stock lots without changing the distribution of desk equipment.
+        let lot = if o.kind == ObjectKind::Thermostat {
+            [2, 1, 3, 0][lot]
+        } else {
+            lot
+        };
         let plastic = if o.kind == ObjectKind::Laptop {
             o.variant % 2 == 1
         } else {
             r.random_bool(
-                if matches!(o.kind, ObjectKind::Mouse | ObjectKind::Printer) {
+                if matches!(
+                    o.kind,
+                    ObjectKind::Mouse | ObjectKind::Printer | ObjectKind::Thermostat
+                ) {
                     0.94
                 } else {
                     0.65
@@ -89,6 +99,9 @@ impl Housing {
             },
             case_slot: CASE + lot,
         }
+    }
+    pub(crate) fn tone(&self) -> &'static str {
+        ["graphite", "gray", "pearl", "tinted"][self.case_slot - CASE]
     }
     pub(crate) fn case_label(&self, o: &IndoorObject) -> String {
         format!("{}#finish{}", o.kind.class_name(), self.case_slot)
@@ -126,7 +139,11 @@ pub(super) fn install(
         for o in scene.objects.iter().filter(|o| {
             matches!(
                 o.kind,
-                ObjectKind::Laptop | ObjectKind::Keyboard | ObjectKind::PcTower | ObjectKind::Mouse
+                ObjectKind::Laptop
+                    | ObjectKind::Keyboard
+                    | ObjectKind::PcTower
+                    | ObjectKind::Mouse
+                    | ObjectKind::Thermostat
             ) || (o.kind == ObjectKind::Printer
                 && scene.generator_version
                     >= crate::scene::procedural_indoor::objects::utilities::printer::OUTPUT_VERSION)
@@ -144,7 +161,7 @@ pub(super) fn install(
                 {
                     keys.insert((Surface::Plastic, BALL + finish as usize));
                 }
-            } else if o.kind == ObjectKind::Printer
+            } else if matches!(o.kind, ObjectKind::Printer | ObjectKind::Thermostat)
                 || (o.kind == ObjectKind::PcTower
                     && scene.generator_version >= desktop::tower::INTRODUCED
                     && desktop::tower::installed(o))

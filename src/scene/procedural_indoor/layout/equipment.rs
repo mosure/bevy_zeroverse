@@ -8,6 +8,7 @@ mod pendants;
 pub(crate) use mounting::canopy_support_height;
 mod power_strips;
 mod projectors;
+mod shelves;
 #[cfg(test)]
 pub(crate) use projectors::rendered_projector_axis_clear;
 #[cfg(test)]
@@ -74,15 +75,28 @@ impl IndoorManifest {
                 }
                 let x =
                     rng.random_range((-span + size.x) * 0.5 + 0.10..(span - size.x) * 0.5 - 0.10);
-                let y = match kind {
-                    ObjectKind::WallShelf => rng.random_range(1.12..1.65),
-                    ObjectKind::WallSconce => rng.random_range(1.65..2.15),
-                    _ => rng.random_range(0.90..1.35),
+                let (y, shelf_height_draw) = if kind == ObjectKind::WallShelf
+                    && self.generator_version >= equipment::wall_shelf::DECK_VERSION
+                {
+                    (0., Some(rng.random::<f32>()))
+                } else {
+                    let y = match kind {
+                        ObjectKind::WallShelf => rng.random_range(1.12..1.65),
+                        ObjectKind::WallSconce => rng.random_range(1.65..2.15),
+                        _ => rng.random_range(0.90..1.35),
+                    };
+                    (y, None)
                 };
                 let position = tf.transform_point(Vec3::new(x, y, size.z * 0.5 + 0.001));
                 let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
                 let mut object = self.candidate(kind, position, size, yaw, &mut rng);
                 object.solid = false;
+                if let Some(draw) = shelf_height_draw {
+                    let Some(base) = self.wall_shelf_base(&object, draw) else {
+                        continue;
+                    };
+                    object.position.y = base;
+                }
                 let (lo, hi) = object.bounds();
                 if !self.wall_attachment_clear(&object)
                     || self
@@ -430,7 +444,12 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
             }
         }
     }
-    let floor_box = std::cell::OnceCell::new();
+    use super::super::objects::{floor, services::divider::desktop};
+    enum CableClearance {
+        Floor(Option<floor::service::FloorBox>),
+        DeskScreen(desktop::Clearance),
+    }
+    let cutout = std::cell::OnceCell::new();
     move |start, end| {
         if start.min(end).cmpgt(world_hi).any() || start.max(end).cmplt(world_lo).any() {
             return false;
@@ -447,12 +466,22 @@ fn cable_prop_intersector(prop: &IndoorObject, radius: f32) -> impl Fn(Vec3, Vec
                 );
             }
         }
-        if prop.kind == ObjectKind::FloorOutlet {
-            use super::super::objects::floor;
-            if let Some(p) = floor_box.get_or_init(|| floor::service::parameters(prop)) {
-                p.cable_hits(floor::service_size(prop), start, end, radius)
-            } else {
-                floor::legacy_cable_hits(prop, start, end, radius)
+        if prop.kind == ObjectKind::FloorOutlet || desktop::is_desktop(prop) {
+            match cutout.get_or_init(|| {
+                if desktop::is_desktop(prop) {
+                    CableClearance::DeskScreen(desktop::Clearance::new(prop))
+                } else {
+                    CableClearance::Floor(floor::service::parameters(prop))
+                }
+            }) {
+                CableClearance::DeskScreen(board) => board
+                    .bounds(prop.size)
+                    .into_iter()
+                    .any(|(a, b)| segment_hits_box(start, end, a - padding, b + padding)),
+                CableClearance::Floor(Some(p)) => {
+                    p.cable_hits(floor::service_size(prop), start, end, radius)
+                }
+                CableClearance::Floor(None) => floor::legacy_cable_hits(prop, start, end, radius),
             }
         } else {
             segment_hits_box(start, end, lo, hi)

@@ -1,7 +1,9 @@
 //! Optional deterministic articulated motion. Construction, clearance and mesh
 //! splitting run only for an explicitly supplied policy. All-time reservations
 //! deliberately trade some motion acceptance for safe, reversible playback.
+mod cloth;
 pub(crate) mod construction;
+pub(crate) use cloth::ClothMotion;
 mod mobility;
 mod planning;
 mod proposals;
@@ -218,7 +220,7 @@ pub(crate) struct Joint {
     pub pivot: Vec3,
     /// Construction-aligned frame used only for tight swept collision bounds.
     pub frame: Transform,
-    pub roller_feed: Option<RollerFeed>,
+    pub cloth_motion: Option<ClothMotion>,
     pub axis: Vec3,
     pub angle: f32,
     pub translation: Vec3,
@@ -243,7 +245,7 @@ impl Joint {
             interval: [start, r.random_range(0.7..1.0)],
             pivot: Vec3::ZERO,
             frame: Transform::IDENTITY,
-            roller_feed: None,
+            cloth_motion: None,
             axis: Vec3::Y,
             angle: 0.,
             translation: Vec3::ZERO,
@@ -262,7 +264,7 @@ impl Joint {
             interval: self.interval,
             pivot: self.pivot,
             frame: self.frame,
-            roller_feed: self.roller_feed,
+            cloth_motion: self.cloth_motion,
             axis: self.axis,
             angle: self.angle,
             translation: self.translation,

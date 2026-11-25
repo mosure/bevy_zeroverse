@@ -26,7 +26,11 @@ pub(super) fn rotation(scene: &IndoorManifest, position: Vec3) -> Quat {
     rotation_for(scene, position, fixtures::parameters(scene).shape)
 }
 
-fn rotation_for(scene: &IndoorManifest, position: Vec3, shape: fixtures::FixtureShape) -> Quat {
+pub(super) fn rotation_for(
+    scene: &IndoorManifest,
+    position: Vec3,
+    shape: fixtures::FixtureShape,
+) -> Quat {
     let yaw = Quat::from_rotation_y(yaw(scene, position));
     if scene.program.is_none() {
         return yaw;
