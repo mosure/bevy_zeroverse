@@ -18,7 +18,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 regex = "1"
 resvg = "0.45"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# Measurements and nested categorical keys must survive independent JSON reads exactly.
+serde_json = { version = "1", features = ["float_roundtrip"] }
 tempfile = "3"
 toml = "0.9"
 zip = { version = "4.6", default-features = false, features = ["deflate"] }
