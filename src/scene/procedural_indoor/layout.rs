@@ -170,7 +170,7 @@ pub struct IndoorObject {
     /// Stable instance id of a supporting table/desk/cabinet.
     pub support: Option<usize>,
     pub neighbor: bool,
-    /// Chair -> work surface; display/laptop -> intended seated user (chair id).
+    /// Chair -> work surface; display/laptop or aimed desk fan -> work chair.
     /// Recycling bin -> its coordinated general-waste partner.
     #[serde(default)]
     pub interaction_target: Option<usize>,
@@ -631,6 +631,9 @@ impl IndoorManifest {
         scene.furnish_botany();
         scene.furnish_equipment();
         scene.furnish_waste_stations();
+        // Install fixed desk fittings first. Computers face their own operator,
+        // and later poses, loose belongings and cable routes clear the installation.
+        scene.furnish_desk_screens();
         scene.decorate_surfaces();
         if scene.layout.is_public() {
             scene.dress_public_programs();
@@ -655,9 +658,11 @@ impl IndoorManifest {
         if let Some(printer) = pending_printer {
             scene.furnish_print_stand(printer);
         }
+        scene.orient_desk_fans();
         scene.connect_equipment();
         scene.finish_floor_outlets();
         scene.finish_counter_flatware();
+        scene.furnish_thermostat();
         scene.record_program_services();
         scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
@@ -1133,6 +1138,83 @@ impl IndoorManifest {
             return object.support == Some(support.id)
                 && equipment::cable_route_clear(self, object);
         }
+        let inverse = support.transform().compute_affine().inverse();
+        let local_bounds = |o: &IndoorObject| {
+            let centre = inverse.transform_point3(o.position);
+            let yaw = o.yaw - support.yaw;
+            let half = Vec2::new(
+                yaw.cos().abs() * o.size.x + yaw.sin().abs() * o.size.z,
+                yaw.sin().abs() * o.size.x + yaw.cos().abs() * o.size.z,
+            ) * 0.5;
+            let centre = Vec2::new(centre.x, centre.z);
+            (centre - half, centre + half)
+        };
+        let (lo, hi) = local_bounds(object);
+        let half = Vec2::new(support.size.x, support.size.z) * 0.5;
+        if lo.cmplt(-half + Vec2::splat(margin)).any() || hi.cmpgt(half - Vec2::splat(margin)).any()
+        {
+            return false;
+        }
+        if support.kind == ObjectKind::KitchenCounter {
+            let (top_lo, top_hi) = super::objects::kitchen::counter_top_bounds(support);
+            if lo.cmplt(top_lo + Vec2::splat(margin)).any()
+                || hi.cmpgt(top_hi - Vec2::splat(margin)).any()
+            {
+                return false;
+            }
+        }
+        if support.kind == ObjectKind::WallShelf
+            && self.generator_version >= super::objects::equipment::wall_shelf::DECK_VERSION
+        {
+            let deck = super::objects::equipment::wall_shelf::ShelfDeck::sample(support);
+            if !deck.supports(
+                support,
+                (lo + hi) * 0.5,
+                object.size.xz(),
+                object.yaw - support.yaw,
+                margin,
+            ) {
+                return false;
+            }
+        }
+        if support.kind == ObjectKind::CuttingBoard
+            && !super::objects::kitchen::supplies::board_supports(support, lo, hi, margin)
+        {
+            return false;
+        }
+        if support.kind.has_table_outline()
+            && !super::objects::tables::supports(support, lo, hi, margin)
+        {
+            return false;
+        }
+        // Most rejected proposals already overhang the worktop or intersect a
+        // neighbour. Only the survivors need room-wide fixture and cable checks.
+        if self
+            .objects
+            .iter()
+            .filter(|o| {
+                o.support == Some(support.id) && o.id != object.id && o.kind != ObjectKind::Cable
+            })
+            .any(|o| {
+                use super::objects::services::divider::desktop;
+                let (a, b) = local_bounds(o);
+                let overlap = lo.x < b.x + margin
+                    && hi.x + margin > a.x
+                    && lo.y < b.y + margin
+                    && hi.y + margin > a.y;
+                if desktop::is_desktop(object) {
+                    desktop::obscures_display(self, object, o)
+                        || (overlap && desktop::overlaps_peer(object, o, margin))
+                } else if desktop::is_desktop(o) {
+                    desktop::obscures_display(self, o, object)
+                        || (overlap && desktop::overlaps_peer(o, object, margin))
+                } else {
+                    overlap
+                }
+            })
+        {
+            return false;
+        }
         // Surface containment alone does not protect a tall prop from sloping
         // roofs or narrow soffits. Check its complete transformed footprint.
         let (world_lo, world_hi) = object.bounds();
@@ -1165,59 +1247,7 @@ impl IndoorManifest {
         {
             return false;
         }
-        let inverse = support.transform().compute_affine().inverse();
-        let local_bounds = |o: &IndoorObject| {
-            let centre = inverse.transform_point3(o.position);
-            let yaw = o.yaw - support.yaw;
-            let half = Vec2::new(
-                yaw.cos().abs() * o.size.x + yaw.sin().abs() * o.size.z,
-                yaw.sin().abs() * o.size.x + yaw.cos().abs() * o.size.z,
-            ) * 0.5;
-            let centre = Vec2::new(centre.x, centre.z);
-            (centre - half, centre + half)
-        };
-        let (lo, hi) = local_bounds(object);
-        let half = Vec2::new(support.size.x, support.size.z) * 0.5;
-        if lo.cmplt(-half + Vec2::splat(margin)).any() || hi.cmpgt(half - Vec2::splat(margin)).any()
-        {
-            return false;
-        }
-        if support.kind == ObjectKind::KitchenCounter {
-            let (top_lo, top_hi) = super::objects::kitchen::counter_top_bounds(support);
-            if lo.cmplt(top_lo + Vec2::splat(margin)).any()
-                || hi.cmpgt(top_hi - Vec2::splat(margin)).any()
-            {
-                return false;
-            }
-        }
-        if support.kind == ObjectKind::CuttingBoard
-            && !super::objects::kitchen::supplies::board_supports(support, lo, hi, margin)
-        {
-            return false;
-        }
-        if support.kind.has_table_outline()
-            && !super::objects::tables::supports(support, lo, hi, margin)
-        {
-            return false;
-        }
         equipment::cables_clear_proposed_prop(self, object)
-            && !self
-                .objects
-                .iter()
-                // Cables reserve their actual segments above, rather than their
-                // enclosing rectangle, while ordinary props retain footprint gaps.
-                .filter(|o| {
-                    o.support == Some(support.id)
-                        && o.id != object.id
-                        && o.kind != ObjectKind::Cable
-                })
-                .any(|o| {
-                    let (a, b) = local_bounds(o);
-                    lo.x < b.x + margin
-                        && hi.x + margin > a.x
-                        && lo.y < b.y + margin
-                        && hi.y + margin > a.y
-                })
     }
 
     pub fn camera_clear(&self, p: Vec3) -> bool {

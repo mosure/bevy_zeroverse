@@ -1,5 +1,6 @@
 //! Compose sized furniture groups into the leaves of the spatial program.
 use super::*;
+mod belongings;
 #[cfg(test)]
 mod diversity_tests;
 mod lounge;
@@ -222,7 +223,14 @@ impl IndoorManifest {
                     };
                     base + transform_rng.random_range(-0.20..0.20)
                 };
-                self.add(kind, Vec3::new(edge.x, 0.0, edge.y), size, yaw, rng);
+                let position = Vec3::new(edge.x, 0., edge.y);
+                if kind == ObjectKind::Bag
+                    && self.generator_version >= super::super::objects::bags::OPEN_TOTE_VERSION
+                {
+                    self.place_floor_bag(&zone, size, position, yaw, rng);
+                } else {
+                    self.add(kind, position, size, yaw, rng);
+                }
             }
         }
         // A usable upper floor gets its own work area; base-floor proposals do

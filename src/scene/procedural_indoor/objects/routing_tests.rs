@@ -85,6 +85,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Cabinet | ObjectKind::Bookcase => {
             storage::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
+        ObjectKind::Thermostat => wall::thermostat::build(a, o),
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => wall::fixture(a, o),
         ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => {
             desktop::build(a, o, super::super::layout::GENERATOR_VERSION)
@@ -105,7 +106,9 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(a, o),
         ObjectKind::Notebook | ObjectKind::Books => literature::build(a, o),
         ObjectKind::Clock => clocks::build(a, o),
-        ObjectKind::FloorLamp => standing_lamp::build(a, o),
+        ObjectKind::FloorLamp => {
+            standing_lamp::build(a, o, super::super::layout::GENERATOR_VERSION)
+        }
         ObjectKind::Rug | ObjectKind::FloorOutlet => floor::build(a, o),
     }
 }

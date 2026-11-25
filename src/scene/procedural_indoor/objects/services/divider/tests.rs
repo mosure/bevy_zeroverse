@@ -175,3 +175,79 @@ fn timber_and_infill_keep_metric_grain_after_folding() {
         assert!((b - a).perp_dot(c - a).abs() > 1e-8);
     }
 }
+
+#[test]
+fn desk_screens_have_grounded_mounts_metric_faces_and_a_real_cable_gap() {
+    let mut mounts = [0; 2];
+    let mut finishes = std::collections::BTreeSet::new();
+    let mut slopes = [0; 3];
+    for seed in 0..192 {
+        let mut o = audit::fixture(ObjectKind::RoomDivider, seed);
+        o.variant = desktop::VARIANT;
+        o.finish_seed = None;
+        assert!(!desktop::is_desktop(&o));
+        o.support = Some(8);
+        o.size = match seed % 3 {
+            0 => Vec3::new(0.39, 0.29, 0.067),
+            1 => Vec3::new(1.7, 0.57, 0.22),
+            _ => Vec3::new(0.98, 0.42, 0.16),
+        };
+        let p = desktop::parameters(&o);
+        let a = build_object(&o);
+        let check = audit::check(&o, &a).unwrap();
+        assert!(check.min_y_m.abs() < 1e-6);
+        assert_eq!(check.batches, 2);
+        assert!(check.triangles < 900);
+        for (_, label) in a.parts.keys() {
+            assert_eq!(part_label(label), o.kind.class_name());
+        }
+        let tf = Transform::IDENTITY;
+        assert!(hits(&a, tf, 0.01, p.cable_gap_m * 0.52).is_empty());
+        for x in p.post_x_m {
+            assert!(hits(&a, tf, x, p.cable_gap_m * 0.65)
+                .iter()
+                .any(|h| h.1 == p.hardware));
+        }
+        let board = hits(&a, tf, 0.013, o.size.y * 0.62);
+        assert_eq!(board.len(), 2);
+        assert!(board.iter().all(|h| h.1 == p.face));
+        assert!((board[1].0 - board[0].0 - p.thickness_m).abs() < 1e-5);
+        let face = a
+            .parts
+            .iter()
+            .find(|((surface, _), _)| *surface == p.face)
+            .unwrap()
+            .1;
+        // On each wide face a metre in either direction is a metre in its UV chart.
+        let mut phases = face
+            .positions
+            .iter()
+            .zip(&face.uvs)
+            .zip(&face.normals)
+            .filter(|(_, normal)| normal[2].abs() > 0.999)
+            .map(|((position, uv), _)| {
+                Vec2::from_array(*uv) - Vec2::new(position[0], -position[1])
+            });
+        let phase = phases.next().unwrap();
+        assert!(phases.all(|sample| sample.abs_diff_eq(phase, 1e-5)));
+        mounts[usize::from(p.mount == desktop::Mount::ScrewPlate)] += 1;
+        finishes.insert(p.face);
+        slopes[if p.top_drop_m[0] > 0. {
+            0
+        } else if p.top_drop_m[1] > 0. {
+            1
+        } else {
+            2
+        }] += 1;
+        o.finish_seed = Some(seed.wrapping_mul(51));
+        let other = desktop::parameters(&o);
+        assert_eq!(other.top_drop_m, p.top_drop_m);
+        assert_eq!(other.upper_corner_m, p.upper_corner_m);
+        assert_eq!(other.post_x_m, p.post_x_m);
+        assert_eq!(other.mount, p.mount);
+        assert_eq!(other.thickness_m, p.thickness_m);
+    }
+    assert!(mounts.iter().all(|n| *n > 60));
+    assert!(slopes.iter().all(|n| *n > 20));
+    assert_eq!(finishes.len(), 3);
+}

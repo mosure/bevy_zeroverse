@@ -1,4 +1,6 @@
 //! Small asset-free raster primitives shared by screens and printed paper.
+mod ink;
+
 pub(super) const N: i32 = 256;
 pub(super) struct Canvas(pub Vec<u8>, [i32; 4]);
 impl Canvas {

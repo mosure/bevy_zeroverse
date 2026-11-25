@@ -12,7 +12,8 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
         | ObjectKind::WallShelf
         | ObjectKind::NoticeBoard
         | ObjectKind::WallSconce
-        | ObjectKind::FirePullStation => 0.5,
+        | ObjectKind::FirePullStation
+        | ObjectKind::Thermostat => 0.5,
         ObjectKind::ExitSign
             if equipment::signals::exit::mount(o) == equipment::signals::exit::ExitMount::Wall =>
         {
@@ -41,7 +42,14 @@ mod receptacles;
 pub mod switches;
 pub(crate) use super::electrical::installed_variant;
 pub use super::electrical::OutletFace;
-pub(super) use fixtures::build as fixture;
+pub mod thermostat;
+pub(super) fn fixture(a: &mut Assembly, o: &IndoorObject) {
+    if o.kind == ObjectKind::Thermostat {
+        thermostat::build(a, o);
+    } else {
+        fixtures::build(a, o);
+    }
+}
 pub(crate) use fixtures::outlet_port_local;
 pub use fixtures::{parameters, FixtureProgram};
 pub use receptacles::OutletBank;

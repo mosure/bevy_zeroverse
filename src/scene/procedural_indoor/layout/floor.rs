@@ -1,6 +1,7 @@
 //! Floor detail is placed after people and furniture settle, before cable routing.
 //! Low fixtures have explicit floor support, portal and occupied-volume checks.
 use super::*;
+mod accent;
 pub mod area;
 
 fn outlet_yaw(furniture_yaw: f32, r: &mut impl Rng) -> f32 {
@@ -129,16 +130,7 @@ impl IndoorManifest {
                     .random_range((0.45 / width).max(0.28).ln()..(2.8 / width).min(1.35).ln())
                     .exp();
                 let size = Vec3::new(width, rng.random_range(0.004..0.011), width * aspect);
-                let side = if rng.random_bool(0.5) { 1. } else { -1. };
-                let p = anchor
-                    .transform()
-                    .transform_point(Vec3::new(
-                        rng.random_range(-0.45..0.45) * anchor.size.x,
-                        0.,
-                        side * ((anchor.size.z + size.z) * 0.5 + rng.random_range(0.05..0.35)),
-                    ))
-                    .with_y(0.);
-                let yaw = anchor.yaw + rng.random_range(-0.25..0.25);
+                let (p, yaw) = accent::beside(anchor, size.xz(), &mut rng);
                 let mut rug = self.floor_candidate(ObjectKind::Rug, p, size, yaw, &mut rng);
                 rug.solid = false;
                 if detail_clear(self, &rug) {
@@ -169,6 +161,8 @@ impl IndoorManifest {
             return;
         }
         let standard = super::decor::electrical_standard(self.seed);
+        // Changing a loose mat's admission attempts must not resample socket proposals.
+        let mut rng = stream(self.seed, 0x464c_4f52_504f_5752);
         let mut installed = 0;
         for id in powered {
             if installed >= 4 || !rng.random_bool(0.66) {

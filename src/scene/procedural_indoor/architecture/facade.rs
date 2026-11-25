@@ -253,6 +253,9 @@ impl ExteriorProgram {
             };
             let phase = articulation.random_range(-1.0..1.0_f32);
             let (shade, program) = treatments::ShadeProgram::sample(identity);
+            if program.vertical.is_some() {
+                facade.shade_tilt = treatments::VerticalStock::sample_tilt(identity);
+            }
             facade.shade = shade;
             facade.treatment = Some(program);
             for (index, opening) in facade.openings.iter_mut().enumerate() {
@@ -315,6 +318,16 @@ impl ExteriorProgram {
 impl Facade {
     /// Check one installation against the wall it actually occupies.
     pub(crate) fn validate_span(&self, span: f32, height: f32) -> Result<(), String> {
+        let tilt_limit = if self.shade == Shade::Vertical
+            && self
+                .treatment
+                .as_ref()
+                .is_some_and(|p| p.vertical.is_some())
+        {
+            treatments::VerticalStock::MAX_TILT
+        } else {
+            1.2
+        };
         if self.openings.is_empty()
             || self.openings.len() > 16
             || !matches!(
@@ -326,7 +339,7 @@ impl Facade {
             || !(0.03..=0.70).contains(&self.recess)
             || !(0.0..=0.20).contains(&self.sill_projection)
             || !(0.0..=1.0).contains(&self.shade_coverage)
-            || !(-1.2..=1.2).contains(&self.shade_tilt)
+            || !(-tilt_limit..=tilt_limit).contains(&self.shade_tilt)
         {
             return Err("invalid exterior frame".into());
         }

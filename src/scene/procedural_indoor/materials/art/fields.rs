@@ -58,29 +58,50 @@ impl Field {
         Self { values }
     }
     fn at(&self, u: f32, v: f32) -> f32 {
-        let x = u.clamp(0., 0.99999) * (SIDE - 1) as f32;
-        let y = v.clamp(0., 0.99999) * (SIDE - 1) as f32;
-        let i = x as usize;
-        let j = y as usize;
-        // Cubic interpolation keeps contour tangents continuous across the
-        // lattice. Bilinear derivatives left a visible rectangular patchwork.
-        let cubic = |v: [f32; 4], t: f32| {
-            v[1] + 0.5
-                * t
-                * (v[2] - v[0]
-                    + t * (2. * v[0] - 5. * v[1] + 4. * v[2] - v[3]
-                        + t * (3. * (v[1] - v[2]) + v[3] - v[0])))
-        };
-        let rows = std::array::from_fn(|row| {
-            let yy = (j as isize + row as isize - 1).clamp(0, (SIDE - 1) as isize) as usize;
-            let values = std::array::from_fn(|col| {
-                let xx = (i as isize + col as isize - 1).clamp(0, (SIDE - 1) as isize) as usize;
-                self.values[yy][xx]
-            });
-            cubic(values, x.fract())
-        });
-        cubic(rows, y.fract())
+        let (cols, tx) = knots(u);
+        let (rows, ty) = knots(v);
+        cubic(rows.map(|y| cubic(cols.map(|x| self.values[y][x]), tx)), ty)
     }
+
+    /// Horizontal interpolation is identical down a column. Cache its 17
+    /// lattice values, then evaluate just one cubic per destination texel.
+    fn paint_grid(&self, width: i32, height: i32, mut pixel: impl FnMut(i32, i32, f32)) {
+        let columns: Vec<[f32; SIDE]> = (0..width)
+            .map(|x| {
+                let (cols, tx) = knots(x as f32 / width as f32);
+                std::array::from_fn(|y| cubic(cols.map(|col| self.values[y][col]), tx))
+            })
+            .collect();
+        for y in 0..height {
+            let (rows, ty) = knots(y as f32 / height as f32);
+            for (x, column) in columns.iter().enumerate() {
+                pixel(x as i32, y, cubic(rows.map(|row| column[row]), ty));
+            }
+        }
+    }
+}
+
+fn knots(unit: f32) -> ([usize; 4], f32) {
+    let p = unit.clamp(0., 0.99999) * (SIDE - 1) as f32;
+    let i = p as usize;
+    (
+        [
+            i.saturating_sub(1),
+            i,
+            (i + 1).min(SIDE - 1),
+            (i + 2).min(SIDE - 1),
+        ],
+        p.fract(),
+    )
+}
+
+// Cubic interpolation preserves contour tangents across lattice cells.
+fn cubic(v: [f32; 4], t: f32) -> f32 {
+    v[1] + 0.5
+        * t
+        * (v[2] - v[0]
+            + t * (2. * v[0] - 5. * v[1] + 4. * v[2] - v[3]
+                + t * (3. * (v[1] - v[2]) + v[3] - v[0])))
 }
 
 pub(super) fn paint(c: &mut Canvas, bounds: [i32; 4], seed: u64, p: &ArtComposition, style: u32) {
@@ -95,30 +116,25 @@ pub(super) fn paint(c: &mut Canvas, bounds: [i32; 4], seed: u64, p: &ArtComposit
         })
     };
     if style != 3 {
-        for yy in 0..h {
-            for xx in 0..w {
-                let u = xx as f32 / w as f32;
-                let v = yy as f32 / h as f32;
-                let value = field.at(u, v);
-                let q = value * p.field.bands as f32;
-                let rgb = if style == 1 {
-                    color(q.floor() / p.field.bands as f32)
+        field.paint_grid(w, h, |xx, yy, value| {
+            let q = value * p.field.bands as f32;
+            if style == 2 {
+                let edge = q.fract().min(1. - q.fract());
+                c.blend(
+                    x + xx,
+                    y + yy,
+                    p.palette[1],
+                    ((0.09 - edge) * 12.).clamp(0., 1.),
+                );
+            } else {
+                let pigment = if style == 1 {
+                    q.floor() / p.field.bands as f32
                 } else {
-                    color(value)
+                    value
                 };
-                if style == 2 {
-                    let edge = q.fract().min(1. - q.fract());
-                    c.blend(
-                        x + xx,
-                        y + yy,
-                        p.palette[1],
-                        ((0.09 - edge) * 12.).clamp(0., 1.),
-                    );
-                } else {
-                    c.rect(x + xx, y + yy, 1, 1, rgb);
-                }
+                c.rect(x + xx, y + yy, 1, 1, color(pigment));
             }
-        }
+        });
     } else {
         // Streamlines follow the field gradient. They share the underlying
         // composition but have unequal starts, lengths and pen pressures.
@@ -139,13 +155,30 @@ pub(super) fn paint(c: &mut Canvas, bounds: [i32; 4], seed: u64, p: &ArtComposit
                 if !(0.01..0.99).contains(&u) || !(0.01..0.99).contains(&v) {
                     break;
                 }
-                c.line(
+                c.ink_stroke(
                     a,
                     [x as f32 + u * w as f32, y as f32 + v * h as f32],
                     1,
                     ink,
                 );
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn raster_columns_replay_the_continuous_field_at_every_texel() {
+        let field = Field::new(310, &FieldProgram::sample(992));
+        for (w, h) in [(1, 1), (1, 53), (31, 97), (256, 256)] {
+            field.paint_grid(w, h, |x, y, value| {
+                assert_eq!(
+                    value.to_bits(),
+                    field.at(x as f32 / w as f32, y as f32 / h as f32).to_bits()
+                );
+            });
         }
     }
 }

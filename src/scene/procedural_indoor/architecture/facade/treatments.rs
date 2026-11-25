@@ -4,11 +4,15 @@ mod cloth;
 pub(crate) mod drapery;
 pub use drapery::CurtainHeading;
 mod mesh;
+pub(crate) mod pleated;
+pub use pleated::{PleatConstruction, PleatedStock};
 pub(crate) mod minification;
 pub(crate) mod slats;
 pub use slats::SlatStock;
 mod track;
 pub use track::PanelTrack;
+pub(crate) mod vertical;
+pub use vertical::VerticalStock;
 #[cfg(test)]
 mod tests;
 
@@ -31,10 +35,17 @@ pub struct ShadeProgram {
     pub slat_pitch: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slats: Option<SlatStock>,
+    /// Installed vertical vane and carrier dimensions. Older manifests use
+    /// their original slat mesh when this stock is absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vertical: Option<VerticalStock>,
     pub fold_pitch: f32,
     /// Fraction of a folded face occupied by the rounded pressed crease.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pleat_crease: Option<f32>,
+    /// Physical fold stock. Older shades replay their original corrugated surface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pleated: Option<PleatedStock>,
     pub fold_depth: f32,
     pub fullness: f32,
     pub hem_sag: f32,
@@ -88,8 +99,10 @@ impl ShadeProgram {
             identity: r.random(),
             slat_pitch: r.random_range(0.028..0.082),
             slats: None,
+            vertical: None,
             fold_pitch: r.random_range(0.10..0.25),
             pleat_crease: None,
+            pleated: None,
             fold_depth: r.random_range(0.012..0.034),
             fullness: r.random_range(1.4..2.4),
             hem_sag: r.random_range(0.001..0.018),
@@ -125,8 +138,13 @@ impl ShadeProgram {
             program.slat_pitch = slats.depth_m * stock.random_range(0.86..0.96);
             program.slats = Some(slats);
         }
+        if metric_stock && shade == Shade::Vertical {
+            program.vertical = Some(VerticalStock::sample(&mut stock));
+        }
         if metric_stock && shade == Shade::Pleated {
-            program.pleat_crease = Some(stock.random_range(0.12..0.26));
+            let crease = stock.random_range(0.12..0.26);
+            program.pleat_crease = Some(crease);
+            program.pleated = Some(PleatedStock::sample(&mut stock, crease));
         }
         if let Some(track) = &mut program.track {
             track.reed_variation = Some(stock.random_range(0.10..0.24));
@@ -144,6 +162,8 @@ impl ShadeProgram {
             || self
                 .slats
                 .is_some_and(|slats| !slats.valid(self.slat_pitch))
+            || self.vertical.is_some_and(|v| !v.valid())
+            || self.pleated.is_some_and(|v| !v.valid())
             || self
                 .pleat_crease
                 .is_some_and(|r| !(0.10..=0.28).contains(&r))
@@ -202,7 +222,9 @@ impl Facade {
 
 fn head_contact(kind: Shade, p: &ShadeProgram, o: &WindowOpening, tf: Transform) -> Option<String> {
     let tracked = matches!(kind, Shade::Roller | Shade::PanelTrack) && p.textile.is_some()
-        || kind == Shade::Curtain && p.curtain_heading.is_some();
+        || kind == Shade::Curtain && p.curtain_heading.is_some()
+        || kind == Shade::Vertical && p.vertical.is_some()
+        || kind == Shade::Pleated && p.pleated.is_some();
     tracked.then(|| {
         // Separate even repeated aperture templates on different wall segments.
         let center = tf.transform_point(((o.min + o.max) * 0.5).extend(0.11));
@@ -231,7 +253,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
         fallback.track = None;
         &fallback
     };
-    use super::super::super::motion::{construction as motion, MotionKind};
+    use super::super::super::motion::{construction as motion, ClothMotion, MotionKind};
     let seed = installation_seed(p, o);
     let coverage = f.shade_coverage_at(o);
     if a.motion_selected(MotionKind::Covering, seed)
@@ -257,7 +279,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
         let tilt = f.shade_tilt.clamp(-1.2, 1.2);
         let angle = match f.shade {
             Shade::Venetian => Some(tilt * coverage.sqrt()),
-            Shade::Vertical => Some(
+            Shade::Vertical if p.vertical.is_none() => Some(
                 if tilt < 0. { -1. } else { 1. }
                     * (tilt.abs().max(0.12) * coverage + 1.50 * (1. - coverage)),
             ),
@@ -285,15 +307,26 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
                 moving: true,
             },
         );
-        let feed =
-            (f.shade == Shade::Roller && p.textile.is_some()).then(|| mesh::feed_plane(tf, o));
+        let cloth_motion = match f.shade {
+            Shade::Roller if p.textile.is_some() => {
+                Some(ClothMotion::Roller(mesh::feed_plane(tf, o)))
+            }
+            Shade::Pleated => p.pleated.map(|stock| ClothMotion::Pleat {
+                forward: tf.rotation * Vec3::Z,
+                rise: [coverage, end].map(|draw| {
+                    let layout = stock.layout(p, o, draw);
+                    layout.rise / layout.face_m
+                }),
+            }),
+            _ => None,
+        };
         motion::morph(
             a,
             first,
             last,
             seed,
             tf,
-            feed,
+            cloth_motion,
             head_contact(f.shade, p, o, tf),
         );
     } else {

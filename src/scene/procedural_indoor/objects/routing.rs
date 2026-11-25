@@ -26,7 +26,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         ObjectFamily::WallPanels => wall_panel(a, o),
         ObjectFamily::Literature => literature::build(a, o),
         ObjectFamily::Clocks => clocks::build(a, o),
-        ObjectFamily::FloorLamps => standing_lamp::build(a, o),
+        ObjectFamily::FloorLamps => standing_lamp::build(a, o, version),
         ObjectFamily::Floor => floor::build(a, o),
     }
 }

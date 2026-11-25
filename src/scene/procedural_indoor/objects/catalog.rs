@@ -175,4 +175,5 @@ object_catalog! {
     BaseboardHeater => ("appliance", Services, false, false),
     Flatware => ("kitchen_utensil", Kitchen, false, false),
     PcTower => ("pc_tower", Desktop, false, false),
+    Thermostat => ("thermostat", WallFixtures, false, false),
 }

@@ -1,6 +1,6 @@
 //! Mounted presentation surfaces share physical construction and optical targets.
 use super::*;
-pub(super) mod artwork;
+pub mod artwork;
 mod board;
 mod contents;
 pub mod projection;

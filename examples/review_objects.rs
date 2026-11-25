@@ -134,7 +134,12 @@ fn install(
         } else {
             0.90
         };
-        let from = target + Vec3::new(scale * 0.85, scale * vertical, scale * 1.55 * forward);
+        // Show a floor covering's cut and bound perimeter at a useful scale.
+        let from = if o.kind == ObjectKind::Rug {
+            target + scale * Vec3::new(0.44, 1.42, 0.70 * forward)
+        } else {
+            target + Vec3::new(scale * 0.85, scale * vertical, scale * 1.55 * forward)
+        };
         commands.spawn((
             CaptureCameraIndex(i),
             ZeroverseCamera {

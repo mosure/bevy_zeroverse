@@ -36,11 +36,35 @@ impl Footprint {
     pub fn overlaps(self, other: Self, margin: f32) -> bool {
         let delta = other.center - self.center;
         self.axes.into_iter().chain(other.axes).all(|axis| {
-            let radius = |p: Self| {
-                p.half.x * p.axes[0].dot(axis).abs() + p.half.y * p.axes[1].dot(axis).abs()
-            };
-            delta.dot(axis).abs() < radius(self) + radius(other) + margin
+            delta.dot(axis).abs() < self.radius_on(axis) + other.radius_on(axis) + margin
         })
+    }
+
+    fn radius_on(self, axis: Vec2) -> f32 {
+        self.half.x * self.axes[0].dot(axis).abs() + self.half.y * self.axes[1].dot(axis).abs()
+    }
+
+    /// In plan view the sightlines to an extended object fill the convex hull
+    /// of its footprint and the observer. Test both rectangles' normals and
+    /// the possible tangents from the observer to the target corners.
+    pub fn obstructs_view(self, observer: Vec2, target: Self) -> bool {
+        let dx = target.axes[0] * target.half.x;
+        let dy = target.axes[1] * target.half.y;
+        let to_center = target.center - self.center;
+        let to_eye = observer - self.center;
+        let tangents = [dx + dy, dx - dy, -dx + dy, -dx - dy]
+            .map(|corner| (to_center + corner - to_eye).perp());
+        self.axes
+            .into_iter()
+            .chain(target.axes)
+            .chain(tangents)
+            .all(|axis| {
+                let panel = self.radius_on(axis);
+                let center = to_center.dot(axis);
+                let reach = target.radius_on(axis);
+                let eye = to_eye.dot(axis);
+                (center - reach).min(eye) <= panel && (center + reach).max(eye) >= -panel
+            })
     }
 }
 

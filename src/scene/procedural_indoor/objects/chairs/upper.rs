@@ -8,7 +8,7 @@ pub(super) fn seat(a: &mut Assembly, p: &ChairProgram, width: f32, depth: f32, p
         crown: p.seat_crown,
         dish: p.seat_dish_m,
     };
-    let center = Vec3::new(0., 0.47 - padding * 0.5, -0.015);
+    let center = Vec3::new(0., UPRIGHT_SEAT_HEIGHT - padding * 0.5, -0.015);
     let g = a.part(p.seat_surface, "chair");
     if p.seat_style == 2 {
         // Replaceable front bolster, with a real seam and a common support pan.

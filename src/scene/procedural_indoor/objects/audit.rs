@@ -93,6 +93,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         }
         FloorOutlet => [0.18, 0.13, 0.16],
         BaseboardHeater => services::heater::dimensions(seed).to_array(),
+        Thermostat => [0.13, 0.096, 0.031],
         PcTower => [0.17, 0.37, 0.31],
     };
     let mut o = IndoorObject {
@@ -118,8 +119,15 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         cable_target: None,
         cable_target_socket: None,
     };
+    if kind == Thermostat {
+        wall::thermostat::fit(&mut o);
+        o.solid = false;
+    }
     if kind == Clock {
         clocks::install(&mut o, seed, super::super::layout::LightingMood::Daylight);
+    }
+    if kind == WallArt {
+        presentation::artwork::select_installation(&mut o);
     }
     if kind == ProjectionScreen {
         o.variant |= presentation::projection::INSTALLED;
@@ -210,9 +218,17 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             value["casters"] = serde_json::json!(casters);
             return value;
         }
+        RoomDivider if services::divider::desktop::is_desktop(o) => {
+            return serde_json::json!(services::divider::desktop::parameters(o))
+        }
         RoomDivider => return serde_json::json!(services::divider::parameters(o)),
         Kettle => return serde_json::json!(hospitality::kettle::parameters(o)),
-        DeskFan => return serde_json::json!(accessories::fan::parameters(o)),
+        DeskFan => {
+            let p = accessories::fan::parameters(o);
+            let mut report = serde_json::json!(p);
+            report["head"] = serde_json::json!(accessories::fan::FanHead::sample(o, &p));
+            return report;
+        }
         Printer => {
             let p = utilities::printer::parameters(o);
             let mut report = serde_json::json!(p);
@@ -396,10 +412,22 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             return serde_json::json!({"trackball":input.trackball,"pointer":desktop::pointer::PointerProgram::sample(o,&input)});
         }
         PcTower => desktop::tower::metadata(o),
+        Thermostat => serde_json::json!(wall::thermostat::parameters(o)),
         Books | Notebook => serde_json::json!(literature::parameters(o)),
-        FloorLamp => serde_json::json!(standing_lamp::parameters(o)),
+        FloorLamp => {
+            let p = standing_lamp::parameters(o);
+            let mut product = serde_json::json!(p);
+            product["shade_cut"] = serde_json::json!(standing_lamp::ShadeCut::sample(o, &p));
+            product["pedestal"] = serde_json::json!(p.pedestal(o.seed));
+            product
+        }
         Printer | StorageBox | CoatRack => serde_json::json!(utilities::parameters(o)),
-        Bag => serde_json::json!(bags::parameters(o)),
+        Bag => {
+            let p = bags::parameters(o);
+            let mut data = serde_json::json!(&p);
+            data["open_tote"] = serde_json::json!(bags::ToteCut::sample(o, &p));
+            data
+        }
         Whiteboard => serde_json::json!(presentation::parameters(o)),
         CoffeeMaker | Kettle | Vase | Bowl => serde_json::json!(hospitality::parameters(o)),
         Mug | CoffeeCup | WaterBottle | SodaCan => {
@@ -438,7 +466,13 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Projector | ProjectionScreen | WallShelf | NoticeBoard | WallSconce => {
             serde_json::json!(equipment::parameters(o))
         }
-        WallArt => serde_json::json!(super::super::materials::art::frame_parameters(o)),
+        WallArt => {
+            let mut program = serde_json::json!(super::super::materials::art::frame_parameters(o));
+            if let Some(set) = presentation::artwork::canvas_set(o) {
+                program["canvas_set"] = serde_json::json!(set);
+            }
+            program
+        }
         Rug if let Some(program) = floor::rug::parameters(o) => return serde_json::json!(program),
         FloorOutlet if let Some(p) = floor::service::parameters(o) => return serde_json::json!(p),
         Rug | FloorOutlet => serde_json::json!(floor::parameters(o)),
@@ -499,6 +533,16 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             "size_variation",
             "binding",
             "strap",
+        ],
+        Thermostat => &[
+            "style",
+            "setpoint_c",
+            "fahrenheit",
+            "film",
+            "casing",
+            "shoulder",
+            "vent_gap_m",
+            "vents",
         ],
         PcTower => &[
             "feet_m",
@@ -619,6 +663,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         ],
         Printer => &["construction", "roundness", "split", "lid_fraction"],
         Bag => &[
+            "open_tote",
             "style",
             "body_height",
             "taper",

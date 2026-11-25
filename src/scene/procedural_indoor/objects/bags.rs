@@ -1,7 +1,12 @@
-//! Closed, dimensioned personal luggage. Body profiles, closure, carrying straps
+//! Dimensioned personal luggage. Body profiles, closure, carrying straps
 //! and pockets vary together; all parts retain the Bag semantic/instance owner.
 use super::*;
 mod details;
+mod tote;
+pub(crate) use tote::ToteCut;
+pub(crate) const OPEN_TOTE_VERSION: u32 = 246;
+/// The original floor placement was admitted beside a seating unit.
+pub(crate) const BESIDE_SEAT: u32 = 1 << 8;
 #[cfg(test)]
 mod tests;
 
@@ -179,8 +184,14 @@ impl BagProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
+    if version >= OPEN_TOTE_VERSION {
+        if let Some(cut) = ToteCut::sample(o, &p) {
+            cut.build(a, o, &p);
+            return;
+        }
+    }
     let s = o.size;
     let l = o.kind.class_name();
     let h = s.y * p.body_height;
@@ -237,6 +248,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
                     p.strap_width.min(s.x * 0.12) * 1.25,
                     0.003,
                     Vec3::Z,
+                    false,
                 );
             }
             details::handle(

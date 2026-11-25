@@ -1,5 +1,6 @@
 //! Shared, bounded lamp components. Hollow shades, sockets and light sources
 //! remain separate material roles; profiles use metres, not stretched textures.
+use super::super::geometry::{ProfileJoints, RevolvedOutline};
 use super::*;
 mod pleats;
 
@@ -78,91 +79,128 @@ pub(super) fn shade(
     height: f32,
     taper: f32,
 ) {
-    let upper = upper_radius(p, radius, taper);
-    let wall = wall_thickness(radius);
-    let mut profile = if p.shape == 2 {
-        vec![
-            (radius, 0.),
-            (radius * 0.80, height * 0.18),
-            ((upper * 1.05).min(radius.max(upper)), height * p.shoulder),
-            (upper, height),
-        ]
-    } else {
-        vec![(radius, 0.), (upper, height)]
-    };
-    for (_, y) in &mut profile {
-        *y = wall + *y / height * (height - 2. * wall);
-    }
-    if p.shape == 4 {
-        for i in 0..12 {
-            let v = Vec3::new(
-                (TAU * i as f32 / 12.).cos(),
-                0.,
-                (TAU * i as f32 / 12.).sin(),
-            );
-            let points = [
-                center + v * (radius - wall) + Vec3::Y * wall,
-                center + v * radius * 0.91 + Vec3::Y * height * 0.35,
-                center + v * (upper - wall) + Vec3::Y * (height - wall),
-            ];
-            a.part(p.trim, label).tube(&points, wall * 0.5, 6);
-        }
-    } else if p.shape == 3 {
-        pleats::build(
-            a.part(Surface::FabricAlt, label),
-            center,
-            radius,
-            upper,
-            height,
-            wall,
-            p.pleats,
-        );
-    } else {
-        let skin = a.part(p.finish, label);
-        skin.lathe(&profile, 32, Transform::from_translation(center));
-        profile.reverse();
-        for (r, _) in &mut profile {
-            *r -= wall;
-        }
-        skin.lathe(&profile, 32, Transform::from_translation(center));
-    }
-    for (r, y) in [(radius, 0.), (upper, height)] {
-        // Rolled rims sit inside the declared shade extent.
-        let low = if y == 0. { y } else { y - wall };
-        let inner = shade_opening(p, radius, r);
-        let trim = a.part(p.trim, label);
+    ShadeStock::Round.build(a, label, p, center, radius, height, taper);
+}
+
+/// One cutting pattern for the outer skin, lining and both rolled hems.
+pub(super) enum ShadeStock<'a> {
+    Round,
+    Cut {
+        outline: &'a RevolvedOutline,
+        rotation: Quat,
+        lining: Surface,
+    },
+}
+
+impl ShadeStock<'_> {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn build(
+        &self,
+        a: &mut Assembly,
+        label: &str,
+        p: &ShadeProgram,
+        center: Vec3,
+        radius: f32,
+        height: f32,
+        taper: f32,
+    ) {
         let frame = Transform::from_translation(center);
-        if p.shape < 3 {
-            // The solid shade skins terminate on the trim. Exclude the buried
-            // annulus from its bearing face; otherwise both parts own that face.
-            let edge = r - wall;
-            if y == 0. {
-                trim.lathe(&[(inner, low), (r, low), (r, low + wall)], 32, frame);
-                trim.lathe(
-                    &[(edge, low + wall), (inner, low + wall), (inner, low)],
-                    32,
-                    frame,
+        let cut = |g: &mut Geometry, profile: &[(f32, f32)]| match self {
+            Self::Round => g.lathe(profile, 32, frame),
+            Self::Cut {
+                outline, rotation, ..
+            } => outline.sweep(
+                g,
+                profile,
+                ProfileJoints::Creased,
+                frame.with_rotation(*rotation),
+            ),
+        };
+        let upper = upper_radius(p, radius, taper);
+        let wall = wall_thickness(radius);
+        let mut profile = if p.shape == 2 {
+            vec![
+                (radius, 0.),
+                (radius * 0.80, height * 0.18),
+                ((upper * 1.05).min(radius.max(upper)), height * p.shoulder),
+                (upper, height),
+            ]
+        } else {
+            vec![(radius, 0.), (upper, height)]
+        };
+        for (_, y) in &mut profile {
+            *y = wall + *y / height * (height - 2. * wall);
+        }
+        if p.shape == 4 {
+            for i in 0..12 {
+                let v = Vec3::new(
+                    (TAU * i as f32 / 12.).cos(),
+                    0.,
+                    (TAU * i as f32 / 12.).sin(),
                 );
+                let points = [
+                    center + v * (radius - wall) + Vec3::Y * wall,
+                    center + v * radius * 0.91 + Vec3::Y * height * 0.35,
+                    center + v * (upper - wall) + Vec3::Y * (height - wall),
+                ];
+                a.part(p.trim, label).tube(&points, wall * 0.5, 6);
+            }
+        } else if p.shape == 3 {
+            pleats::build(
+                a.part(Surface::FabricAlt, label),
+                center,
+                radius,
+                upper,
+                height,
+                wall,
+                p.pleats,
+            );
+        } else {
+            cut(a.part(p.finish, label), &profile);
+            profile.reverse();
+            for (r, _) in &mut profile {
+                *r -= wall;
+            }
+            let lining = match self {
+                Self::Cut { lining, .. } => *lining,
+                Self::Round => p.finish,
+            };
+            cut(a.part(lining, label), &profile);
+        }
+        for (r, y) in [(radius, 0.), (upper, height)] {
+            // Rolled rims sit inside the declared shade extent.
+            let low = if y == 0. { y } else { y - wall };
+            let inner = shade_opening(p, radius, r);
+            let trim = a.part(p.trim, label);
+            if p.shape < 3 {
+                // The solid shade skins terminate on the trim. Exclude the buried
+                // annulus from its bearing face; otherwise both parts own that face.
+                let edge = r - wall;
+                if y == 0. {
+                    cut(trim, &[(inner, low), (r, low), (r, low + wall)]);
+                    cut(
+                        trim,
+                        &[(edge, low + wall), (inner, low + wall), (inner, low)],
+                    );
+                } else {
+                    cut(trim, &[(inner, low), (edge, low)]);
+                    cut(
+                        trim,
+                        &[(r, low), (r, low + wall), (inner, low + wall), (inner, low)],
+                    );
+                }
             } else {
-                trim.lathe(&[(inner, low), (edge, low)], 32, frame);
-                trim.lathe(
-                    &[(r, low), (r, low + wall), (inner, low + wall), (inner, low)],
-                    32,
-                    frame,
+                cut(
+                    trim,
+                    &[
+                        (inner, low),
+                        (r, low),
+                        (r, low + wall),
+                        (inner, low + wall),
+                        (inner, low),
+                    ],
                 );
             }
-        } else {
-            trim.lathe(
-                &[
-                    (inner, low),
-                    (r, low),
-                    (r, low + wall),
-                    (inner, low + wall),
-                    (inner, low),
-                ],
-                32,
-                frame,
-            );
         }
     }
 }

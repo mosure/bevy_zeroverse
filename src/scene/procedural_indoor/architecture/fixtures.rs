@@ -1,6 +1,11 @@
 //! Coordinated luminaire construction, placement envelope and emitting area.
 //! Room circuits share a construction language, with individual metric sizes.
 use super::*;
+use crate::scene::procedural_indoor::geometry::Geometry;
+mod aperture;
+mod linear;
+use aperture::Fitting;
+pub use linear::{LinearFixture, LinearForm};
 mod optics;
 pub(crate) use optics::beam_angles;
 pub use optics::{optical_insert, OpticalInsert};
@@ -92,13 +97,27 @@ fn cells(size: Vec3) -> (usize, f32, f32) {
 
 /// Area of the downward emitting face, including the faceted circular meshes.
 pub fn emitting_area(scene: &IndoorManifest) -> f32 {
-    let p = parameters(scene);
-    area(&p, super::fixture_size(scene), optical_insert(scene, &p))
+    Fitting::new(scene, None).area()
 }
 
 pub fn emitting_area_at(scene: &IndoorManifest, position: Vec3) -> f32 {
-    let p = parameters_at(scene, position);
-    area(&p, size(scene, position), optical_insert(scene, &p))
+    Fitting::new(scene, Some(position)).area()
+}
+
+/// Actual linear product fitted at this mount, if it uses the dimensioned stock.
+pub fn linear_at(scene: &IndoorManifest, position: Vec3) -> Option<LinearFixture> {
+    fitted_linear_at(scene, position, parameters(scene).shape)
+}
+
+fn fitted_linear_at(
+    scene: &IndoorManifest,
+    position: Vec3,
+    shape: FixtureShape,
+) -> Option<LinearFixture> {
+    if shape != FixtureShape::Tube || scene.generator_version < 247 || scene.program.is_none() {
+        return None;
+    }
+    LinearFixture::fit(scene, shape, Some(position), size(scene, position))
 }
 
 pub fn size(scene: &IndoorManifest, position: Vec3) -> Vec3 {
@@ -148,20 +167,22 @@ pub fn direction(scene: &IndoorManifest, position: Vec3) -> Vec3 {
 
 pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembly {
     let mut a = Assembly::default();
-    let p = parameters_at(scene, position);
-    let insert = optical_insert(scene, &p);
-    let s = size(scene, position);
+    let fitting = Fitting::new(scene, Some(position));
+    let p = &fitting.program;
+    let s = fitting.size;
     let label = format!("lamp#{index}");
-    let trim = if super::super::materials::variants::supports(p.trim) {
+    let housing = fitting.linear.map_or(p.trim, |v| v.housing);
+    let trim = if super::super::materials::variants::supports(housing) {
         format!("{label}#finish{}", p.finish)
     } else {
         label.clone()
     };
+    fitting.emit(a.part(Surface::Light, &label), position);
     let y = -s.y * 0.5;
     let tf = |v| Transform::from_translation(position + v);
     let inner = 1. - p.border_fraction * 2.;
-    match p.shape {
-        FixtureShape::Panel | FixtureShape::Louver => {
+    match (p.shape, fitting.linear) {
+        (FixtureShape::Panel | FixtureShape::Louver, _) => {
             // Four rails leave a real opening. The backing is above the diffuser.
             for axis in [0, 2] {
                 for sign in [-1., 1.] {
@@ -175,32 +196,17 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                     a.part(p.trim, &trim).cuboid(size, 0.002, tf(c));
                 }
             }
-            let light_y = y + if p.shape == FixtureShape::Louver {
-                s.y * 0.72
-            } else {
-                0.004
-            };
             if let OpticalInsert::Basket {
                 width,
                 recess,
                 reflector,
-            } = insert
+            } = fitting.insert
             {
-                optics::basket(
-                    &mut a,
-                    &label,
-                    position,
-                    s * Vec3::new(inner, 1., inner),
-                    width,
-                    recess,
-                    reflector,
-                );
-            } else {
-                a.part(Surface::Light, &label).cuboid(
-                    Vec3::new(s.x * inner, 0.002, s.z * inner),
-                    0.,
-                    tf(Vec3::Y * light_y),
-                );
+                let basket =
+                    optics::Basket::new(position, s * Vec3::new(inner, 1., inner), width, recess);
+                let g = a.part(reflector, &label);
+                basket.strip(g, 0);
+                basket.strip(g, 2);
             }
             a.part(p.trim, &trim).cuboid(
                 Vec3::new(s.x * inner, 0.003, s.z * inner),
@@ -227,7 +233,8 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                 }
             }
         }
-        FixtureShape::Tube => {
+        (FixtureShape::Tube, Some(linear)) => linear.body(&mut a, &label, &trim, position),
+        (FixtureShape::Tube, None) => {
             let along = if s.x >= s.z { Vec3::X } else { Vec3::Z };
             let across = Vec3::new(along.z, 0., along.x);
             let length = s.x.max(s.z) * 0.92;
@@ -236,11 +243,6 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                 .cuboid(s.with_y(s.y * 0.18), 0.002, tf(Vec3::Y * s.y * 0.36));
             for sign in [-1., 1.] {
                 let c = position + across * sign * s.x.min(s.z) * 0.22 + Vec3::Y * (y + radius);
-                a.part(Surface::Light, &label).rod(
-                    c - along * length * 0.5,
-                    c + along * length * 0.5,
-                    radius,
-                );
                 for end in [-1., 1.] {
                     let q = c + along * end * (length * 0.5 + 0.003);
                     a.part(Surface::Ceramic, &label).rod(
@@ -270,28 +272,8 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                         32,
                         tf(c),
                     );
-                    a.part(Surface::Light, &label).lathe(
-                        &[(hole, y + 0.003), (r, y + 0.003)],
-                        32,
-                        tf(c),
-                    );
                 } else {
-                    let (inset, throat, rim, reflector) = match insert {
-                        OpticalInsert::Cup {
-                            throat,
-                            recess,
-                            reflector,
-                        } => (
-                            optics::cup_depth(s.y, hole, recess),
-                            hole * throat,
-                            y,
-                            reflector,
-                        ),
-                        _ if p.shape == FixtureShape::Downlight => {
-                            (s.y * 0.70, hole, y + 0.001, Surface::Chrome)
-                        }
-                        _ => (0.005, hole, y + 0.001, Surface::Chrome),
-                    };
+                    let (inset, throat, rim, reflector) = fitting.reflector(hole);
                     a.part(p.trim, &trim).lathe(
                         &[(hole, y), (r, y), (r, s.y * 0.48), (0., s.y * 0.48)],
                         32,
@@ -299,11 +281,6 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
                     );
                     a.part(reflector, &label)
                         .lathe(&[(throat, y + inset), (hole, rim)], 32, tf(c));
-                    a.part(Surface::Light, &label).lathe(
-                        &[(0., y + inset), (throat, y + inset)],
-                        32,
-                        tf(c),
-                    );
                 }
                 // A carrier connects round arrays instead of floating heads.
                 if n > 1 {
@@ -323,16 +300,13 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
     if super::ceiling::CeilingGrid::lamp_at(scene, position).is_some() {
         return a;
     }
-    let rotation = rotation(scene, position);
+    let rotation = super::fixture_layout::rotation_for(scene, position, p.shape);
     for g in a.parts.values_mut() {
-        for v in &mut g.positions {
-            *v = (position + rotation * (Vec3::from_array(*v) - position)).to_array();
-        }
-        for n in &mut g.normals {
-            *n = (rotation * Vec3::from_array(*n)).to_array();
-        }
+        aperture::rotate(g, position, rotation);
     }
-    let anchors = if matches!(
+    let anchors = if let Some(linear) = fitting.linear {
+        linear.anchors()
+    } else if matches!(
         p.shape,
         FixtureShape::Downlight | FixtureShape::Drum | FixtureShape::Ring
     ) {
@@ -373,4 +347,20 @@ pub fn geometry(scene: &IndoorManifest, index: usize, position: Vec3) -> Assembl
         );
     }
     a
+}
+
+/// Probe extraction needs only the emitting faces. Use the same surface, order
+/// and transform as the visible assembly without meshing the pan or suspension.
+pub(crate) fn reflection_aperture(scene: &IndoorManifest, position: Vec3) -> (f32, Geometry) {
+    let fitting = Fitting::new(scene, Some(position));
+    let mut g = Geometry::default();
+    fitting.emit(&mut g, position);
+    if super::ceiling::CeilingGrid::lamp_at(scene, position).is_none() {
+        aperture::rotate(
+            &mut g,
+            position,
+            super::fixture_layout::rotation_for(scene, position, fitting.program.shape),
+        );
+    }
+    (fitting.area(), g)
 }

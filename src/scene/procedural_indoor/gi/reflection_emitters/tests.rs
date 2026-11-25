@@ -140,9 +140,12 @@ fn all_fixture_reflections_match_emissive_meshes_and_photometry() {
 }
 
 #[test]
-fn ring_hole_and_tube_gap_do_not_become_rectangular_lights() {
+fn ring_hole_and_legacy_twin_tube_gap_stay_dark() {
     for shape in [FixtureShape::Ring, FixtureShape::Tube] {
-        let scene = scene(shape);
+        let mut scene = scene(shape);
+        if shape == FixtureShape::Tube {
+            scene.generator_version = 246;
+        }
         let p = architecture::fixture_positions(&scene)[0];
         let emitters = ReflectionEmitters::new(&scene);
         assert!(
@@ -169,6 +172,51 @@ fn ring_hole_and_tube_gap_do_not_become_rectangular_lights() {
             );
         }
     }
+}
+
+#[test]
+fn linear_reflections_resolve_each_emitting_strip_and_each_gap() {
+    let mut room = scene(FixtureShape::Tube);
+    let mut forms = [false; 3];
+    let mut saw_gap = false;
+    for seed in 0..128 {
+        room.seed = seed;
+        if parameters(&room).shape != FixtureShape::Tube {
+            continue;
+        }
+        let p = architecture::fixture_positions(&room)[0];
+        let f = architecture::fixtures::linear_at(&room, p).unwrap();
+        let s = architecture::fixtures::size(&room, p);
+        let rotation = architecture::fixtures::rotation(&room, p);
+        let along = if s.x >= s.z { Vec3::X } else { Vec3::Z };
+        let across = Vec3::new(along.z, 0., along.x);
+        let emitters = ReflectionEmitters::new(&room);
+        let visible = |offset| {
+            let origin = p + rotation
+                * (along * (f.lit_length_m * 0.07) + across * offset - Vec3::Y * (s.y + 0.08));
+            emitters
+                .radiance(origin, rotation * Vec3::Y, 2. * s.y + 0.09)
+                .is_some()
+        };
+        for i in 0..f.strips {
+            let center = (i as f32 - (f.strips - 1) as f32 * 0.5) * f.pitch_m;
+            for offset in [-0.42, 0., 0.42] {
+                assert!(visible(center + offset * f.strip_width_m));
+            }
+            if i + 1 < f.strips {
+                assert!(!visible(center + f.pitch_m * 0.5));
+                saw_gap = true;
+            }
+        }
+        assert!(!visible(
+            ((f.strips - 1) as f32 * f.pitch_m + f.strip_width_m) * 0.5 + 0.002
+        ));
+        forms[f.form as usize] = true;
+        if saw_gap && forms.iter().all(|v| *v) {
+            return;
+        }
+    }
+    panic!("insufficient optical coverage: {forms:?}, gap={saw_gap}");
 }
 
 #[test]

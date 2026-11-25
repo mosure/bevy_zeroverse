@@ -2,6 +2,7 @@
 //! admitted against the real worktop outline and installed peers in order.
 use super::*;
 use crate::scene::procedural_indoor::{items::sizing, objects::desktop::tower};
+mod privacy;
 #[cfg(test)]
 mod tests;
 
@@ -301,6 +302,25 @@ impl IndoorManifest {
             .map(|o| o.id)
             .collect();
         let shared = seats.len() > 1 && desk.size.z >= 1.17;
+        // Find the physical strip occupied by a shared screen. Move both sets of
+        // display bases and inputs towards their own operators by the required depth.
+        let center_strip = shared
+            .then(|| {
+                self.objects.iter().find_map(|o| {
+                    use crate::scene::procedural_indoor::objects::services::divider::desktop;
+                    if o.support != Some(desk.id) || !desktop::is_desktop(o) {
+                        return None;
+                    }
+                    let (s, c) = (o.yaw - desk.yaw).sin_cos();
+                    let center = (desk.transform().rotation.inverse()
+                        * (o.position - desk.position))
+                        .z
+                        .abs();
+                    (c.abs() > 0.9 && center < 0.08)
+                        .then_some(center + 0.5 * (s.abs() * o.size.x + c.abs() * o.size.z))
+                })
+            })
+            .flatten();
         let count = if shared { 2 } else { 1 };
         for i in 0..count {
             let seat = seats.get(i).copied();
@@ -316,7 +336,7 @@ impl IndoorManifest {
             } else {
                 1.
             };
-            let pos = Station {
+            let mut pos = Station {
                 desk,
                 seat,
                 sign,
@@ -334,6 +354,10 @@ impl IndoorManifest {
                         r.random_range(0.12..0.25)
                     },
             };
+            if let Some(edge) = center_strip {
+                pos.rear = pos.rear.max(edge + 0.133);
+                pos.front = pos.front.max(pos.rear + 0.197);
+            }
             if r.random_bool(
                 (0.49 + 0.27 * p.monitor_affinity + 0.24 * office.fixed_computers) as f64,
             ) {

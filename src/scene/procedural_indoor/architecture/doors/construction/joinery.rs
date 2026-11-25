@@ -75,6 +75,7 @@ pub(super) struct Fit {
     pub(super) bar_anchors: [f32; 2],
     pub(super) opening: Option<Rect>,
     pub(super) pocket: Rect,
+    veneer: Option<[bevy::math::Affine2; 2]>,
 }
 
 impl Fit {
@@ -141,6 +142,74 @@ impl Fit {
             bar_anchors,
             opening,
             pocket,
+            veneer: p
+                .veneer
+                .filter(|_| {
+                    p.finish.is_cut_timber()
+                        && matches!(p.panel, DoorPanel::Flush | DoorPanel::VisionLite)
+                })
+                .map(|v| v.charts(p, leaf, index)),
+        }
+    }
+
+    pub(super) fn protective_face(
+        &self,
+        p: &DoorProgram,
+        leaf: Leaf,
+        index: usize,
+        side: f32,
+        j: &Joinery,
+    ) -> Option<FittedKickPlate> {
+        let stock = p.kick_plate?;
+        if !KickPlateStock::eligible(p) {
+            return None;
+        }
+        let push = side == -p.swing_side;
+        if matches!(
+            (stock.faces, push),
+            (ProtectedFaces::Push, false) | (ProtectedFaces::Pull, true)
+        ) {
+            return None;
+        }
+        let half = leaf.size.truncate() * 0.5;
+        let inset = if push {
+            stock
+                .edge_inset_m
+                .max(p.swing_hanging.map_or(0., |h| h.stop_projection_m + 0.003))
+        } else {
+            stock.edge_inset_m
+        };
+        let bottom = -half.y + stock.bottom_inset_m;
+        // The pull has the longest vertical reach of this hardware set.
+        let pull_foot = j.pull + 0.014_f32.min(self.stile * 0.36);
+        let limit = (bottom + stock.height_m).min(self.mount.y - pull_foot - 0.008);
+        let top = self
+            .opening
+            .map_or(limit, |hole| limit.min(hole.min.y - 0.012));
+        if top - bottom < 0.065 || half.x - inset < 0.045 {
+            return None;
+        }
+        Some(FittedKickPlate {
+            leaf_index: index,
+            leaf_transform: leaf.transform,
+            side,
+            bounds: Rect::from_corners(
+                Vec2::new(-half.x + inset, bottom),
+                Vec2::new(half.x - inset, top),
+            ),
+            base_z: side * leaf.size.z * 0.5,
+            gauge_m: stock.gauge_m,
+            corner_clip_m: stock.corner_clip_m,
+            finish: stock.finish,
+        })
+    }
+
+    pub(super) fn face_chart(&self, uvs: &mut [[f32; 2]], side: f32) {
+        if let Some(charts) = &self.veneer {
+            let chart = charts[usize::from(side > 0.)];
+            for uv in uvs {
+                *uv = chart.transform_point2(Vec2::from(*uv)).to_array();
+            }
         }
     }
 

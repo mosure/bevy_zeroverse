@@ -3,6 +3,7 @@
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
 mod curved;
+mod protection;
 
 fn corners(r: Rect, z: f32) -> [Vec3; 4] {
     [
@@ -32,6 +33,18 @@ fn quad(g: &mut Geometry, tf: Transform, local: [Vec3; 4], outward: Vec3) {
         g.positions[i] = tf.transform_point(p).to_array();
         g.normals[i] = (tf.rotation * n).to_array();
     }
+}
+
+fn triangle(g: &mut Geometry, a: u32, b: u32, c: u32, side: f32) {
+    g.indices
+        .extend(if side > 0. { [a, b, c] } else { [a, c, b] });
+}
+
+fn flat_vertex(g: &mut Geometry, tf: Transform, xy: Vec2, z: f32, side: f32) {
+    g.positions
+        .push(tf.transform_point(xy.extend(z)).to_array());
+    g.normals.push((tf.rotation * (Vec3::Z * side)).to_array());
+    g.uvs.push([xy.x * side, xy.y]);
 }
 
 fn face(g: &mut Geometry, tf: Transform, r: Rect, z: f32, side: f32) {
@@ -116,6 +129,10 @@ pub(super) fn build(
     let outer = Rect::from_center_size(Vec2::ZERO, leaf.size.truncate());
     let bevel = 0.0014;
     let face_rect = inset(outer, bevel);
+    let plates = [-1., 1.].map(|side| fit.protective_face(p, leaf, index, side, j));
+    for plate in plates.into_iter().flatten() {
+        protection::sheet(a.part(plate.finish, &labels.hardware), plate);
+    }
     let g = a.part(p.finish, &labels.leaf);
     ring(
         g,
@@ -125,7 +142,7 @@ pub(super) fn build(
         1.,
         false,
     );
-    for side in [-1., 1.] {
+    for (side, plate) in [-1., 1.].into_iter().zip(plates) {
         let z = side * half;
         ring(
             g,
@@ -136,12 +153,25 @@ pub(super) fn build(
             false,
         );
         let cup = (Fit::handle(p, index, side) == DoorHandle::Recessed).then_some(fit.pocket);
-        blank_face(g, tf, face_rect, [fit.opening, cup], z, side);
+        let first = g.uvs.len();
+        if let Some(plate) = plate {
+            // The protected footprint replaces the veneer. Partition at its
+            // head so full-width plates can lie below a lite or finger pocket.
+            let y = plate.bounds.max.y;
+            let lower = Rect::from_corners(face_rect.min, Vec2::new(face_rect.max.x, y));
+            let upper = Rect::from_corners(Vec2::new(face_rect.min.x, y), face_rect.max);
+            blank_face(g, tf, lower, [Some(plate.bounds), None], z, side);
+            protection::shoulders(g, plate);
+            blank_face(g, tf, upper, [fit.opening, cup], z, side);
+        } else {
+            blank_face(g, tf, face_rect, [fit.opening, cup], z, side);
+        }
+        fit.face_chart(&mut g.uvs[first..], side);
     }
     let Some(hole) = fit.opening else { return };
     if p.panel == DoorPanel::VisionLite {
         if let Some(v) = p.vision_light {
-            curved::build(a, leaf, hole, v, p.finish, j, labels);
+            curved::build(a, leaf, fit, v, p.finish, j, labels);
             return;
         }
     }

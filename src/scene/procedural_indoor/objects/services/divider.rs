@@ -1,5 +1,6 @@
 //! Unequal acoustic, glazed and slatted panels with dimensioned stable supports.
 use super::*;
+pub mod desktop;
 mod hardware;
 mod plan;
 mod stock;
@@ -91,6 +92,9 @@ struct SlatField {
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+    if desktop::is_desktop(o) {
+        return desktop::build(a, o);
+    }
     let p = parameters(o);
     let label = o.kind.class_name();
     let mut cuts = TimberCuts::new(o.seed, u64::from_le_bytes(*b"DivStock"));

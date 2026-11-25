@@ -44,7 +44,7 @@ fn assembled_mounts_have_one_closed_surface_across_materials_and_mitres() {
             );
             assert_eq!(
                 vertices.len() as isize - edges.len() as isize + triangles,
-                2
+                2 * artwork::canvas_set(&o).map_or(1, |set| set.panels.len()) as isize
             );
         }
     }
@@ -55,7 +55,8 @@ fn print_mat_bevel_and_float_channel_have_measurable_depth() {
     let mut mats = 0;
     let mut floats = 0;
     for seed in 0..192 {
-        let o = audit::fixture(ObjectKind::WallArt, seed);
+        let mut o = audit::fixture(ObjectKind::WallArt, seed);
+        o.variant = (seed % 6) as u32;
         let p = frame_parameters(&o);
         let a = build_object(&o);
         let probe = |point: Vec2| {
@@ -95,7 +96,8 @@ fn mitred_timber_charts_follow_each_rail_and_wraps_contain_the_image_border() {
     let mut wrapped = 0;
     let mut raw = 0;
     for seed in 0..96 {
-        let o = audit::fixture(ObjectKind::WallArt, seed);
+        let mut o = audit::fixture(ObjectKind::WallArt, seed);
+        o.variant = (seed % 6) as u32;
         let p = frame_parameters(&o);
         let a = build_object(&o);
         if let Some((_, g)) = a.parts.iter().find(|((s, _), _)| *s == Surface::Wood) {

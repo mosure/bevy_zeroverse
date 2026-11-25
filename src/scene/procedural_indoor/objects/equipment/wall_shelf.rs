@@ -1,5 +1,12 @@
-//! Full rectangular support with sampled, connected mounting hardware.
+//! Wall-mounted timber, laminate and folded-steel shelves with fitted brackets.
 use super::*;
+mod deck;
+mod legacy;
+mod mesh;
+pub use deck::{EndCut, ShelfDeck, ShelfEnd, ShelfStock};
+pub(crate) const DECK_VERSION: u32 = 244;
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ShelfProgram {
@@ -14,9 +21,17 @@ pub struct ShelfProgram {
     pub brace_bend: f32,
     pub board: Surface,
     pub hardware: Surface,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deck: Option<ShelfDeck>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edging: Option<Surface>,
 }
 
 pub fn parameters(o: &IndoorObject) -> ShelfProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> ShelfProgram {
     let mut r = stream(o.seed, 0x57414c4c5348454c);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x5348454c46494e49);
     let style = r.random_range(0..4);
@@ -46,7 +61,7 @@ pub fn parameters(o: &IndoorObject) -> ShelfProgram {
         bracket_x.push(offset + span * (t + jitter - 0.5));
     }
     let strap_thickness = r.random_range(0.006_f32..0.014).min(o.size.y * 0.09);
-    ShelfProgram {
+    let mut p = ShelfProgram {
         style,
         thickness_m: thickness,
         bracket_x_m: bracket_x,
@@ -59,57 +74,41 @@ pub fn parameters(o: &IndoorObject) -> ShelfProgram {
         brace_bend: r.random_range(0.18..0.72),
         board: [Surface::Wood, Surface::Plastic, Surface::Metal][f.random_range(0..3)],
         hardware: [Surface::Metal, Surface::Chrome, Surface::WoodEdge][f.random_range(0..3)],
+        deck: None,
+        edging: None,
+    };
+    if version >= DECK_VERSION {
+        let deck = ShelfDeck::sample(o);
+        p.thickness_m = deck.depth_m;
+        p.hardware = if f.random_bool(0.23) {
+            Surface::Chrome
+        } else {
+            Surface::Metal
+        };
+        p.board = match deck.stock {
+            ShelfStock::RoutedTimber => Surface::Wood,
+            ShelfStock::BandedPanel => {
+                if f.random_bool(0.47) {
+                    Surface::Wood
+                } else {
+                    Surface::Plastic
+                }
+            }
+            ShelfStock::FoldedSteel => Surface::Metal,
+        };
+        if deck.stock == ShelfStock::BandedPanel && f.random_bool(0.60) {
+            p.edging = Some(Surface::WoodEdge);
+        }
+        p.deck = Some(deck);
     }
+    p
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
-    let s = o.size;
-    let l = o.kind.class_name();
-    let under = s.y - p.thickness_m;
-    a.box_part(
-        p.board,
-        l,
-        Vec3::new(0., s.y - p.thickness_m * 0.5, 0.),
-        Vec3::new(s.x, p.thickness_m, s.z),
-        0.001,
-    );
-    let t = p.strap_thickness_m;
-    let rear = -s.z * 0.5;
-    let end = rear + s.z * p.reach_fraction;
-    for &x in &p.bracket_x_m {
-        a.box_part(
-            p.hardware,
-            l,
-            Vec3::new(x, under * 0.5, rear + t * 0.5),
-            Vec3::new(p.strap_width_m, under, t),
-            0.001,
-        );
-        // The load strap meets the shelf underside and rear plate; braces
-        // terminate inside these members, rather than floating below the shelf.
-        a.box_part(
-            p.hardware,
-            l,
-            Vec3::new(x, under - t * 0.5, (rear + t + end) * 0.5),
-            Vec3::new(p.strap_width_m, t, end - rear - t),
-            0.001,
-        );
-        if p.style == 1 {
-            continue;
-        }
-        let from = Vec3::new(x, p.brace_radius_m * 1.2, rear + t * 0.5);
-        let to = Vec3::new(x, under - t * 0.5, end - p.brace_radius_m * 1.5);
-        if p.style == 0 {
-            a.part(p.hardware, l).rod(from, to, p.brace_radius_m);
-        } else {
-            let points: Vec<_> = (0..=8)
-                .map(|i| {
-                    let u = i as f32 / 8.;
-                    let q = from.lerp(to, u);
-                    q + Vec3::Y * (under * p.brace_bend * u * (1. - u))
-                })
-                .collect();
-            a.part(p.hardware, l).tube(&points, p.brace_radius_m, 6);
-        }
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
+    if let Some(deck) = &p.deck {
+        mesh::build(a, o, &p, deck);
+    } else {
+        legacy::build(a, o, &p);
     }
 }

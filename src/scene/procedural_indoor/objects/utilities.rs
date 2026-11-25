@@ -34,7 +34,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         ObjectKind::Printer => printer::build(a, o, version),
         ObjectKind::StorageBox => boxes::build(a, o),
         ObjectKind::CoatRack => racks::build(a, o, version),
-        ObjectKind::Bag => super::bags::build(a, o),
+        ObjectKind::Bag => super::bags::build(a, o, version),
         _ => unreachable!(),
     }
 }

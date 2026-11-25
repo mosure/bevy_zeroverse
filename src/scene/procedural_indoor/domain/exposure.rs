@@ -55,6 +55,12 @@ fn transmitted_apertures(facade: &Facade, sun_cosine: f32) -> Vec2 {
 fn transmitted_opening(facade: &Facade, opening: &WindowOpening, sun_cosine: f32) -> Vec2 {
     let coverage = facade.shade_coverage_at(opening);
     let area = architecture::facade::treatments::drapery::visible_area(facade, opening, coverage)
+        .or_else(|| {
+            architecture::facade::treatments::vertical::visible_area(facade, opening, coverage)
+        })
+        .or_else(|| {
+            architecture::facade::treatments::pleated::visible_area(facade, opening, coverage)
+        })
         .unwrap_or_else(|| other_covering_area(facade, opening, coverage));
     let transmission = opening
         .glazing

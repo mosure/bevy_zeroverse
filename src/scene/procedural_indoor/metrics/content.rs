@@ -523,6 +523,11 @@ fn record_equipment(
             category(categories, "rug_cut", format!("{:?}", p.cut));
             category(categories, "rug_binding", format!("{:?}", p.binding));
             numeric.push("rug_binding_width_m", f64::from(p.binding_width_m))?;
+            let area = super::super::envelope::polygon::area(&p.outline(o.size.xz()));
+            numeric.push(
+                "rug_footprint_fill_fraction",
+                f64::from(area / (o.size.x * o.size.z)),
+            )?;
         }
         return Ok(());
     }
@@ -747,7 +752,21 @@ fn record_equipment(
             numeric.push("equipment_socket_count", strip.socket_count as f64)?;
         }
         ObjectKind::WallShelf => {
-            let shelf = equipment::wall_shelf::parameters(o);
+            let shelf = equipment::wall_shelf::parameters_at(o, scene.generator_version);
+            if let Some(deck) = &shelf.deck {
+                numeric.push(
+                    "wall_shelf_top_above_floor_m",
+                    f64::from(o.position.y + o.size.y - scene.floor_height(o.position.xz())),
+                )?;
+                category(categories, "wall_shelf_stock", format!("{:?}", deck.stock));
+                for end in deck.ends {
+                    category(categories, "wall_shelf_end_cut", format!("{:?}", end.cut));
+                    numeric.push("wall_shelf_end_setback_m", f64::from(end.setback_m))?;
+                }
+                if deck.stock == equipment::wall_shelf::ShelfStock::FoldedSteel {
+                    numeric.push("wall_shelf_sheet_gauge_m", f64::from(deck.gauge_m))?;
+                }
+            }
             category(
                 categories,
                 "wall_shelf_surface",
@@ -1525,6 +1544,24 @@ pub(super) fn record_object(
             category(categories, "cutting_board_feet", p.feet_fraction > 0.);
             numeric.push("cutting_board_handle_offset", p.handle_offset as f64)?;
         }
+        ObjectKind::Thermostat => {
+            use super::super::objects::wall::thermostat;
+            let p = thermostat::parameters(o);
+            category(categories, "thermostat_style", format!("{:?}", p.style));
+            category(categories, "thermostat_case_tone", p.case_tone);
+            category(categories, "thermostat_face", format!("{:?}", p.film));
+            category(
+                categories,
+                "thermostat_unit",
+                if p.fahrenheit { "F" } else { "C" },
+            );
+            numeric.push("thermostat_setpoint_c", p.setpoint_c as f64)?;
+            numeric.push("thermostat_width_m", o.size.x as f64)?;
+            numeric.push(
+                "thermostat_center_above_floor_m",
+                thermostat::height_above_floor(scene, o) as f64,
+            )?;
+        }
         ObjectKind::WallOutlet | ObjectKind::LightSwitch => {
             let p = super::super::objects::wall::parameters(o);
             let name = if o.kind == ObjectKind::WallOutlet {
@@ -1757,6 +1794,15 @@ pub(super) fn record_object(
     if o.kind == ObjectKind::WallArt {
         let p = materials::art::parameters(finish_seed(scene, o));
         let frame = materials::art::frame_parameters(o);
+        let set = super::super::objects::presentation::artwork::canvas_set(o);
+        numeric.push(
+            "art_panel_count",
+            set.as_ref().map_or(1, |s| s.panels.len()) as f64,
+        )?;
+        if let Some(set) = set {
+            category(categories, "art_panel_axis", format!("{:?}", set.axis));
+            numeric.push("art_panel_gap_m", f64::from(set.gap_m))?;
+        }
         category(categories, "art_subject", p.subject);
         category(categories, "art_frame", frame.style);
         if let Some(section) = frame.moulding {
@@ -2140,9 +2186,35 @@ mod tests {
                 hinges.push((b.y.atan2(b.x) - a.y.atan2(a.x)).to_degrees());
             }
         }
+        let mut desktop = audit::fixture(ObjectKind::RoomDivider, 37);
+        desktop.variant = divider::desktop::VARIANT;
+        desktop.support = Some(4);
+        desktop.size = bevy::prelude::Vec3::new(1.14, 0.49, 0.15);
+        let desk_program = divider::desktop::parameters(&desktop);
+        service_furniture::record(
+            &desktop,
+            divider::desktop::INTRODUCED,
+            &mut categories,
+            &mut numeric,
+        )
+        .unwrap();
+        assert_eq!(categories["divider_location"]["floor"], 96);
+        assert_eq!(categories["divider_location"]["desk"], 1);
+        assert_eq!(
+            categories["desk_screen_mount"][&format!("{:?}", desk_program.mount)],
+            1
+        );
         assert_eq!(categories["divider_arrangement"], types);
         assert_eq!(categories["divider_bay_count"].values().sum::<usize>(), 96);
         let values = numeric.finish().unwrap();
+        assert_eq!(
+            values["desk_screen_width_m"].mean,
+            f64::from(desktop.size.x)
+        );
+        assert_eq!(
+            values["desk_screen_cable_gap_m"].mean,
+            f64::from(desk_program.cable_gap_m)
+        );
         let turns = &values["divider_hinge_turn_deg"];
         assert_eq!(turns.count, hinges.len());
         assert!((turns.mean - hinges.iter().sum::<f64>() / hinges.len() as f64).abs() < 1e-4);
@@ -2356,6 +2428,39 @@ mod tests {
         }
         std::fs::remove_dir_all(directory).unwrap();
     }
+    #[test]
+    fn art_panel_metrics_measure_the_installed_mounts() {
+        use super::super::super::objects::presentation::artwork;
+        let directory = scratch();
+        let scene = IndoorManifest::generate_with_humans(
+            26,
+            super::super::IndoorLayout::Mixed,
+            0.65,
+            0,
+            0.,
+        )
+        .unwrap();
+        let mut categories = Categories::new();
+        let mut numeric = NumericCollector::new(&directory).unwrap();
+        let mut art = object(ObjectKind::WallArt);
+        art.size = Vec3::new(1.8, 0.85, 0.042);
+        art.variant = 4;
+        record_object(&scene, &art, &mut categories, &mut numeric).unwrap();
+        art.variant = 10;
+        record_object(&scene, &art, &mut categories, &mut numeric).unwrap();
+        let set = artwork::canvas_set(&art).unwrap();
+        let values = numeric.finish().unwrap();
+        assert_eq!(values["art_panel_count"].count, 2);
+        assert_eq!(
+            values["art_panel_count"].mean,
+            (1 + set.panels.len()) as f64 / 2.
+        );
+        assert_eq!(values["art_panel_gap_m"].count, 1);
+        assert_eq!(values["art_panel_gap_m"].mean, f64::from(set.gap_m));
+        assert_eq!(categories["art_panel_axis"][&format!("{:?}", set.axis)], 1);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn content_metrics_replay_renderer_material_seed_and_camera_priors() {
         let directory = scratch();

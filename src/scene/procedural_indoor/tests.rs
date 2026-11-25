@@ -874,7 +874,7 @@ fn dataset_metrics_preserve_denominators_heatmap_mass_and_camera_calibration() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
-fn point_triangle_distance_squared(point: Vec3, a: Vec3, b: Vec3, c: Vec3) -> f32 {
+pub(super) fn point_triangle_distance_squared(point: Vec3, a: Vec3, b: Vec3, c: Vec3) -> f32 {
     let ab = b - a;
     let ac = c - a;
     let n = ab.cross(ac);

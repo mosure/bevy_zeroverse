@@ -10,7 +10,49 @@ pub(in super::super) struct PreparedPeriodic {
     seed: u64,
     values: Option<Vec<f32>>,
 }
+
+/// A regular square texture uses the same horizontal cell and blend weight on
+/// every scanline. Keep only one axis of coordinates in addition to the lattice.
+pub(in super::super) struct PeriodicRaster<'a, const N: usize> {
+    field: &'a PreparedPeriodic,
+    columns: [(usize, f32); N],
+}
+
+fn grid_coordinate<const N: usize>(pixel: usize, count: u32) -> (usize, f32) {
+    let value = (pixel as f32 / N as f32) * count as f32;
+    let cell = value as usize;
+    let t = value - cell as f32;
+    (cell, t * t * (3.0 - 2.0 * t))
+}
+
+impl<const N: usize> PeriodicRaster<'_, N> {
+    pub(in super::super) fn row(&self, y: usize) -> [f32; N] {
+        let [nx, ny] = self.field.count;
+        let Some(values) = &self.field.values else {
+            return std::array::from_fn(|x| {
+                self.field.sample(x as f32 / N as f32, y as f32 / N as f32)
+            });
+        };
+        let stride = nx as usize + 1;
+        let (iy, ty) = grid_coordinate::<N>(y, ny);
+        let top = &values[iy * stride..(iy + 1) * stride];
+        let bottom = &values[(iy + 1) * stride..(iy + 2) * stride];
+        std::array::from_fn(|x| {
+            let (i, tx) = self.columns[x];
+            let a = top[i] + (top[i + 1] - top[i]) * tx;
+            let b = bottom[i] + (bottom[i + 1] - bottom[i]) * tx;
+            a * (1. - ty) + b * ty
+        })
+    }
+}
+
 impl PreparedPeriodic {
+    pub(in super::super) fn raster<const N: usize>(&self) -> PeriodicRaster<'_, N> {
+        PeriodicRaster {
+            field: self,
+            columns: std::array::from_fn(|x| grid_coordinate::<N>(x, self.count[0])),
+        }
+    }
     pub(in super::super) fn new(count: [u32; 2], seed: u64, remaining: &mut usize) -> Self {
         let cells = count[0].checked_mul(count[1]);
         let padded = count[0]
@@ -85,6 +127,22 @@ impl PreparedPeriodic {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn regular_scanlines_are_bitwise_equal_to_individual_texels() {
+        for mut budget in [0, 96 * 1024] {
+            let field = PreparedPeriodic::new([137, 151], 6161, &mut budget);
+            let raster = field.raster::<256>();
+            for y in 0..256 {
+                for (x, value) in raster.row(y).into_iter().enumerate() {
+                    assert_eq!(
+                        value.to_bits(),
+                        field.sample(x as f32 / 256., y as f32 / 256.).to_bits(),
+                    );
+                }
+            }
+        }
+    }
 
     // Copied original expression. Keep this independent of prepared lookup and
     // the production scalar helper to test arithmetic and wrapped hash identity.

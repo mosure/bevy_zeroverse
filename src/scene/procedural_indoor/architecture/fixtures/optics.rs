@@ -103,6 +103,10 @@ pub(crate) fn beam_angles(scene: &IndoorManifest, index: usize, position: Vec3) 
                 let cutoff = spacing.atan2(0.60 * s.y);
                 0.57 * cutoff + 0.43 * r.random_range(1.29..1.49)
             }
+            FixtureShape::Tube => {
+                let broad = r.random_range(1.28..1.49);
+                fitted_linear_at(scene, position, p.shape).map_or(broad, |l| l.beam(broad))
+            }
             FixtureShape::Ring | FixtureShape::Drum => r.random_range(1.19..1.46),
             _ => r.random_range(1.28..1.49),
         },
@@ -119,31 +123,45 @@ pub(crate) fn beam_angles(scene: &IndoorManifest, index: usize, position: Vec3) 
 
 /// The diffuser and two splayed return faces exactly tile the aperture.
 /// The surrounding four rails close the end cheeks up to the back pan.
-pub(super) fn basket(
-    a: &mut Assembly,
-    label: &str,
+pub(super) struct Basket {
     center: Vec3,
-    s: Vec3,
-    width: f32,
-    recess: f32,
-    reflector: Surface,
-) {
-    let half = s.x.min(s.z) * 0.5;
-    let end = s.x.max(s.z) * 0.5;
-    let across = if s.x >= s.z { Vec3::Z } else { Vec3::X };
-    let along = Vec3::new(across.z, 0., across.x);
-    let rim = -s.y * 0.5 + 0.002;
-    let glass = -s.y * 0.5 + recess * s.y;
-    let shape = [
-        (-half, rim),
-        (-half * width, glass),
-        (half * width, glass),
-        (half, rim),
-    ];
-    for (side, material) in shape.windows(2).zip([reflector, Surface::Light, reflector]) {
-        let xy = |i: usize, z| center + across * side[i].0 + Vec3::Y * side[i].1 + along * z;
-        let g = a.part(material, label);
-        let [p, q, r, s] = [xy(0, -end), xy(1, -end), xy(1, end), xy(0, end)];
+    along: Vec3,
+    across: Vec3,
+    end: f32,
+    section: [(f32, f32); 4],
+}
+impl Basket {
+    pub(super) fn new(center: Vec3, s: Vec3, width: f32, recess: f32) -> Self {
+        let half = s.x.min(s.z) * 0.5;
+        let across = if s.x >= s.z { Vec3::Z } else { Vec3::X };
+        let rim = -s.y * 0.5 + 0.002;
+        let glass = -s.y * 0.5 + recess * s.y;
+        Self {
+            center,
+            across,
+            along: Vec3::new(across.z, 0., across.x),
+            end: s.x.max(s.z) * 0.5,
+            section: [
+                (-half, rim),
+                (-half * width, glass),
+                (half * width, glass),
+                (half, rim),
+            ],
+        }
+    }
+    pub(super) fn strip(&self, g: &mut Geometry, i: usize) {
+        let xy = |i: usize, z| {
+            self.center
+                + self.across * self.section[i].0
+                + Vec3::Y * self.section[i].1
+                + self.along * z
+        };
+        let [p, q, r, s] = [
+            xy(i, -self.end),
+            xy(i + 1, -self.end),
+            xy(i + 1, self.end),
+            xy(i, self.end),
+        ];
         triangle(g, [p, q, r], Vec3::NEG_Y);
         triangle(g, [p, r, s], Vec3::NEG_Y);
     }

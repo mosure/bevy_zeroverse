@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 mod legacy;
 mod mesh;
+mod radii;
 #[cfg(test)]
 mod tests;
 
@@ -14,6 +15,8 @@ pub enum Cut {
     Rounded,
     Chamfered,
     Oval,
+    Capsule,
+    Asymmetric,
 }
 
 impl Cut {
@@ -22,14 +25,18 @@ impl Cut {
         let sides = size.xz();
         let runner = ((sides.max_element() / sides.min_element() - 1.) / 3.).clamp(0., 1.);
         let draw = stream(seed, 0x5255_4743_5554).random::<f32>();
-        if draw < 0.38 + 0.18 * runner {
+        if draw < 0.36 + 0.10 * runner {
             Self::Straight
-        } else if draw < 0.67 + 0.13 * runner {
+        } else if draw < 0.57 + 0.09 * runner {
             Self::Rounded
-        } else if draw < 0.79 + 0.10 * runner {
+        } else if draw < 0.67 + 0.07 * runner {
             Self::Chamfered
-        } else {
+        } else if draw < 0.81 - 0.01 * runner {
             Self::Oval
+        } else if draw < 0.88 + 0.09 * runner {
+            Self::Capsule
+        } else {
+            Self::Asymmetric
         }
     }
 
@@ -39,6 +46,8 @@ impl Cut {
             5 => Some(Self::Rounded),
             6 => Some(Self::Chamfered),
             7 => Some(Self::Oval),
+            8 => Some(Self::Capsule),
+            9 => Some(Self::Asymmetric),
             _ => None,
         }
     }
@@ -56,12 +65,18 @@ pub struct RugProgram {
     pub cut: Cut,
     pub corner_m: f32,
     pub taper: f32,
+    /// Ellipse radii at each corner, starting at (+X,+Z) and proceeding towards -X.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub corner_radii_xz_m: Option<[Vec2; 4]>,
     pub binding: Binding,
     pub binding_width_m: f32,
     pub turn_under_m: f32,
 }
 
 fn cut_dimensions(o: &IndoorObject, cut: Cut) -> (f32, f32) {
+    if !matches!(cut, Cut::Straight | Cut::Chamfered | Cut::Rounded) {
+        return (0., 0.);
+    }
     let mut r = stream(o.seed, 0x5255_4743_4f52_4e52);
     let half = o.size.x.min(o.size.z) * 0.5;
     let corner = half
@@ -82,6 +97,7 @@ fn cut_dimensions(o: &IndoorObject, cut: Cut) -> (f32, f32) {
 pub fn parameters(o: &IndoorObject) -> Option<RugProgram> {
     let cut = Cut::from_variant(o.variant)?;
     let (corner_m, taper) = cut_dimensions(o, cut);
+    let corner_radii_xz_m = radii::sample(o, cut);
     let mut r = stream(o.seed, 0x5255_4742_494e_4447);
     let (binding, width) = match r.random_range(0..10) {
         0..=3 => (Binding::Serged, r.random_range(0.004_f32..0.014)),
@@ -91,16 +107,24 @@ pub fn parameters(o: &IndoorObject) -> Option<RugProgram> {
     let half = o.size.xz() * 0.5;
     // Keep the parallel inner contour inside the tightest bend of the product.
     // An ellipse has its smallest radius of curvature at the end of its major axis.
-    let bend = match cut {
-        Cut::Rounded | Cut::Chamfered => corner_m,
-        Cut::Oval => half.min_element().powi(2) / half.max_element(),
-        Cut::Straight => half.min_element(),
+    let bend = if let Some(radii) = corner_radii_xz_m {
+        radii
+            .into_iter()
+            .map(radii::tightest_bend)
+            .fold(f32::INFINITY, f32::min)
+    } else if cut == Cut::Oval {
+        radii::tightest_bend(half)
+    } else if corner_m > 0. {
+        corner_m
+    } else {
+        half.min_element()
     };
     let binding_width_m = width.min(bend * 0.55);
     Some(RugProgram {
         cut,
         corner_m,
         taper,
+        corner_radii_xz_m,
         binding,
         binding_width_m,
         turn_under_m: (o.size.y * r.random_range(0.20..0.63)).min(binding_width_m * 0.45),
@@ -125,7 +149,13 @@ fn quadrant(p: Vec2, quarter: usize) -> Vec2 {
     }
 }
 
-fn cut_outline(size: Vec2, cut: Cut, corner: f32, taper: f32) -> Vec<Vec2> {
+fn cut_outline(
+    size: Vec2,
+    cut: Cut,
+    corner: f32,
+    taper: f32,
+    radii: Option<[Vec2; 4]>,
+) -> Vec<Vec2> {
     let half = size * 0.5;
     let mut points = Vec::with_capacity(match cut {
         Cut::Straight => 4,
@@ -141,11 +171,12 @@ fn cut_outline(size: Vec2, cut: Cut, corner: f32, taper: f32) -> Vec<Vec2> {
                     .iter()
                     .map(|&p| quadrant(p, i) * half),
             ),
-            Cut::Rounded | Cut::Chamfered => {
-                let center = sign * (half - corner);
+            Cut::Rounded | Cut::Chamfered | Cut::Capsule | Cut::Asymmetric => {
+                let radius = radii.map_or(Vec2::splat(corner), |r| r[i]);
+                let center = sign * (half - radius);
                 let stride = if cut == Cut::Chamfered {
                     QUARTER_STEPS
-                } else if corner < 0.15 {
+                } else if radius.max_element() < 0.15 {
                     3
                 } else {
                     1
@@ -154,9 +185,16 @@ fn cut_outline(size: Vec2, cut: Cut, corner: f32, taper: f32) -> Vec<Vec2> {
                     QUARTER
                         .iter()
                         .step_by(stride)
-                        .map(|&p| center + quadrant(p, i) * corner),
+                        .map(|&p| center + quadrant(p, i) * radius),
                 );
             }
+        }
+    }
+    // The adjoining quarters of a half-elliptical end share its tip.
+    if cut == Cut::Capsule {
+        points.dedup();
+        if points.first() == points.last() {
+            points.pop();
         }
     }
     if taper != 0. {
@@ -172,7 +210,19 @@ pub(crate) fn outline(o: &IndoorObject) -> Vec<Vec2> {
         return legacy::outline(o);
     };
     let (corner, taper) = cut_dimensions(o, cut);
-    cut_outline(o.size.xz(), cut, corner, taper)
+    cut_outline(o.size.xz(), cut, corner, taper, radii::sample(o, cut))
+}
+
+impl RugProgram {
+    pub(crate) fn outline(&self, size: Vec2) -> Vec<Vec2> {
+        cut_outline(
+            size,
+            self.cut,
+            self.corner_m,
+            self.taper,
+            self.corner_radii_xz_m,
+        )
+    }
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {

@@ -228,16 +228,71 @@ pub(super) fn record(
     )?;
     for position in positions {
         let size = super::super::architecture::fixtures::size(scene, position);
+        let linear = super::super::architecture::fixtures::LinearFixture::fit(
+            scene,
+            fixture.shape,
+            Some(position),
+            size,
+        );
+        if let Some(linear) = linear {
+            *report
+                .categories
+                .entry("linear_luminaire_construction".into())
+                .or_default()
+                .entry(format!("{:?}", linear.form))
+                .or_default() += 1;
+            numeric.push("linear_luminaire_visible_strips", linear.strips as f64)?;
+            numeric.push(
+                "linear_luminaire_strip_width_m",
+                linear.strip_width_m as f64,
+            )?;
+            numeric.push("linear_luminaire_lit_length_m", linear.lit_length_m as f64)?;
+            if linear.strips > 1 {
+                numeric.push("linear_luminaire_pitch_m", linear.pitch_m as f64)?;
+            }
+        }
         numeric.push("luminaire_body_width_m", size.x as f64)?;
         numeric.push("luminaire_body_depth_m", size.y as f64)?;
         numeric.push("luminaire_body_length_m", size.z as f64)?;
         numeric.push(
             "luminaire_emitting_area_m2",
-            super::super::architecture::fixtures::emitting_area_at(scene, position) as f64,
+            linear.map_or_else(
+                || super::super::architecture::fixtures::emitting_area_at(scene, position),
+                |f| f.projected_area_m2(),
+            ) as f64,
         )?;
     }
     numeric.push("door_count", doors.len() as f64)?;
     for d in &doors {
+        if let Some(veneer) = d.program.veneer {
+            *report
+                .categories
+                .entry("door_veneer_matching".into())
+                .or_default()
+                .entry(format!("{:?}", veneer.matching))
+                .or_default() += 1;
+            numeric.push(
+                "door_veneer_grain_angle_deg",
+                veneer.grain_angle_radians.to_degrees() as f64,
+            )?;
+        }
+        let plates = d.kick_plates();
+        numeric.push("door_kick_plate_count", plates.len() as f64)?;
+        for plate in plates {
+            *report
+                .categories
+                .entry("door_kick_plate_material".into())
+                .or_default()
+                .entry(format!("{:?}", plate.finish))
+                .or_default() += 1;
+            for (key, value) in [
+                ("door_kick_plate_height_m", plate.bounds.height()),
+                ("door_kick_plate_width_m", plate.bounds.width()),
+                ("door_kick_plate_gauge_m", plate.gauge_m),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         for (hole, radius) in d.vision_apertures() {
             let shape = match d.program.vision_light.map(|v| v.shape) {
                 None => "Rectangular",

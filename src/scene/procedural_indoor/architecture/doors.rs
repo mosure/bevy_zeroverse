@@ -1,6 +1,8 @@
 //! One metric door program drives rendering, clearance, annotations and audits.
 //! Programs describe rest states; optional room motion supplies kinematic joints.
 mod construction;
+mod facing;
+pub use facing::{DoorVeneer, FittedKickPlate, KickPlateStock, ProtectedFaces, VeneerMatch};
 mod sliding;
 mod swing;
 mod vision;
@@ -80,6 +82,11 @@ pub struct DoorProgram {
     /// Shaped vision glazing. An absent specification uses the original rectangular cut.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vision_light: Option<VisionLight>,
+    /// Cut of the face veneer. Absence preserves the original leaf coordinates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub veneer: Option<DoorVeneer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kick_plate: Option<KickPlateStock>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DoorInstallation {
@@ -142,7 +149,7 @@ impl DoorProgram {
                 DoorHandle::PanicBar,
             ][r.random_range(0..4)],
         };
-        Self {
+        let mut program = Self {
             mechanism,
             panel,
             handle,
@@ -169,7 +176,15 @@ impl DoorProgram {
             finish_variant: r.random_range(0..super::super::materials::variants::COUNT) as u8,
             swing_hanging: SwingHanging::sample(seed, mechanism),
             vision_light: VisionLight::sample(seed, panel),
-        }
+            veneer: None,
+            kick_plate: None,
+        };
+        program.sample_faces(seed);
+        program
+    }
+    fn sample_faces(&mut self, seed: u64) {
+        self.veneer = DoorVeneer::sample(seed, self);
+        self.kick_plate = KickPlateStock::sample(seed, self);
     }
     pub fn validate(&self) -> bool {
         [
@@ -190,6 +205,8 @@ impl DoorProgram {
             && (0.03..=0.12).contains(&self.stile)
             && (0.85..=1.2).contains(&self.handle_height)
             && (self.finish_variant as usize) < super::super::materials::variants::COUNT
+            && self.veneer.is_none_or(|v| v.valid(self))
+            && self.kick_plate.is_none_or(|k| k.valid(self))
             && self
                 .vision_light
                 .is_none_or(|v| self.panel == DoorPanel::VisionLite && v.valid())
@@ -589,6 +606,7 @@ pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
         if door.mechanism != mechanism {
             door.mechanism = mechanism;
             door.swing_hanging = SwingHanging::sample(stock_seed, mechanism);
+            door.sample_faces(stock_seed);
         }
         p.door = Some(door);
     }

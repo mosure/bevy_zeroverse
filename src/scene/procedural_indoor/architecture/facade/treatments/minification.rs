@@ -66,6 +66,11 @@ fn covers(f: &Facade, wall: Transform) -> impl Iterator<Item = Cover> + '_ {
                     pitch * if p.slats.is_some() { 1. } else { coverage },
                 )
             }
+            Shade::Pleated => {
+                let cloth = p.pleated?.layout(p, o, coverage);
+                center.y = 0.5 * (cloth.top + cloth.bottom);
+                (cloth.width, cloth.top - cloth.bottom, 2. * cloth.rise)
+            }
             Shade::PanelTrack => {
                 let t = p.track?;
                 let (n, panel, step) = t.panels(span.x);
@@ -142,6 +147,29 @@ pub(crate) fn rgb_factor(scene: &IndoorManifest, size: UVec2, count: usize, limi
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pleated_raster_budget_uses_the_installed_cloth_and_actual_draw() {
+        let mut f = super::super::tests::facade(3, Shade::Pleated, Vec2::new(1.8, 3.5), 0.);
+        let mut pitch = 0.;
+        for draw in [0., 0.36, 1.] {
+            f.shade_coverage = draw;
+            let cover = covers(&f, Transform::IDENTITY).next().unwrap();
+            let o = &f.openings[0];
+            let p = f.treatment.as_ref().unwrap();
+            let cloth = p.pleated.unwrap().layout(p, o, draw);
+            assert_eq!(cover.height, cloth.top - cloth.bottom);
+            assert_eq!(cover.center.y, (cloth.top + cloth.bottom) * 0.5);
+            assert!((cover.height / cover.pitch - cloth.count as f32).abs() < 0.001);
+            assert!(cover.pitch > pitch);
+            pitch = cover.pitch;
+            if draw == 0. {
+                assert!(cover.height < 0.18);
+            }
+        }
+        f.treatment.as_mut().unwrap().pleated = None;
+        assert!(covers(&f, Transform::IDENTITY).next().is_none());
+    }
+
     #[test]
     fn projected_blades_must_cross_the_sensor_and_be_large_enough_to_matter() {
         let k = CameraCalibration::centered_pinhole(256, 256, 1., 1.).unwrap();

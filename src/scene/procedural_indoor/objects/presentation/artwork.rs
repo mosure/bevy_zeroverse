@@ -3,6 +3,9 @@
 use super::*;
 use crate::scene::procedural_indoor::materials::art::{frame_parameters, FrameProgram};
 mod moulding;
+mod panels;
+pub use panels::{canvas_set, CanvasPanel, CanvasSet, PanelAxis};
+pub(crate) use panels::{select_installation, INTRODUCED};
 
 #[derive(Clone, Copy)]
 struct Rect {
@@ -53,9 +56,24 @@ fn sheet_band(g: &mut Geometry, outer: [Vec3; 4], inner: [Vec3; 4]) {
     }
 }
 
+fn image_bounds(opening: Rect, p: &FrameProgram) -> Rect {
+    let mat = p.mat_scale * p.mat_width;
+    opening
+        .inset(mat + Vec2::splat(p.shadow_gap))
+        .shifted(mat * p.picture_bias)
+}
+
 /// Gallery-wrapped edges reflect the adjacent strip of the same image at its
 /// physical scale. Normalized front UVs continue exactly at all four folds.
-fn canvas_edges(a: &mut Assembly, label: &str, rect: Rect, back: f32, front: f32, printed: bool) {
+fn canvas_edges(
+    a: &mut Assembly,
+    label: &str,
+    rect: Rect,
+    chart: Rect,
+    back: f32,
+    front: f32,
+    printed: bool,
+) {
     let near = rect.ring(front);
     let far = rect.ring(back);
     let size = rect.hi - rect.lo;
@@ -79,7 +97,8 @@ fn canvas_edges(a: &mut Assembly, label: &str, rect: Rect, back: f32, front: f32
                 } else {
                     Vec2::ZERO
                 };
-                rect.image_uv(v.xy() + offset)
+                chart
+                    .image_uv(v.xy() + offset)
                     .clamp(Vec2::ZERO, Vec2::ONE)
                     .to_array()
             })
@@ -92,19 +111,43 @@ fn canvas_edges(a: &mut Assembly, label: &str, rect: Rect, back: f32, front: f32
 
 pub(in crate::scene::procedural_indoor::objects) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = frame_parameters(o);
-    let label = o.kind.class_name();
-    let rear = -0.5 * o.size.z;
-    let front = 0.5 * o.size.z;
-    let picture_z = front - p.picture_inset;
     let outside = Rect {
         lo: Vec2::new(-0.5 * o.size.x, 0.),
         hi: Vec2::new(0.5 * o.size.x, o.size.y),
     };
+    if let Some(set) = canvas_set(o) {
+        // Register all apertures and printed returns to one full-size master.
+        let chart = image_bounds(outside.inset(Vec2::splat(p.border_width)), &p);
+        for (i, panel) in set.panels.iter().enumerate() {
+            let bounds = Rect {
+                lo: panel.min_m,
+                hi: panel.max_m,
+            };
+            let stock_seed = o
+                .seed
+                .wrapping_add((i as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15));
+            build_panel(a, o, &p, bounds, Some(chart), stock_seed);
+        }
+    } else {
+        build_panel(a, o, &p, outside, None, o.seed);
+    }
+}
+
+fn build_panel(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &FrameProgram,
+    outside: Rect,
+    master: Option<Rect>,
+    stock_seed: u64,
+) {
+    let label = o.kind.class_name();
+    let rear = -0.5 * o.size.z;
+    let front = 0.5 * o.size.z;
+    let picture_z = front - p.picture_inset;
     let opening = outside.inset(Vec2::splat(p.border_width));
-    let mat = p.mat_scale * p.mat_width;
-    let image = opening
-        .inset(mat + Vec2::splat(p.shadow_gap))
-        .shifted(mat * p.picture_bias);
+    let image = image_bounds(opening, p);
+    let chart = master.unwrap_or(image);
     let backing = if p.style == 4 {
         Surface::Plastic
     } else {
@@ -116,7 +159,7 @@ pub(in crate::scene::procedural_indoor::objects) fn build(a: &mut Assembly, o: &
         .metric_quad(opening.ring(rear), Vec3::NEG_Z);
     if let Some(section) = p.moulding {
         let landing = picture_z + p.mat_thickness_m - p.float_depth_m;
-        moulding::build(a, o, &p, section, outside, landing);
+        moulding::build(a, o, p, section, outside, landing, stock_seed);
         if p.mat_thickness_m > 0. {
             let bevel = image.inset(Vec2::splat(-p.mat_bevel_m)).ring(landing);
             let board = a.part(Surface::Paper, label);
@@ -128,17 +171,16 @@ pub(in crate::scene::procedural_indoor::objects) fn build(a: &mut Assembly, o: &
                 opening.ring(landing),
                 image.ring(landing),
             );
-            canvas_edges(a, label, image, landing, picture_z, p.image_wrap);
+            canvas_edges(a, label, image, chart, landing, picture_z, p.image_wrap);
         }
     } else {
-        canvas_edges(a, label, image, rear, picture_z, p.image_wrap);
+        canvas_edges(a, label, image, chart, rear, picture_z, p.image_wrap);
     }
     // Use the unmodified front image domain even on a printed wrap.
-    face(
-        a,
-        Surface::Art,
-        label,
-        image.lo.extend(picture_z),
-        image.hi.extend(picture_z),
+    let points = image.ring(picture_z);
+    a.part(Surface::Art, label).vertex_quad(
+        points,
+        [Vec3::Z; 4],
+        points.map(|v| chart.image_uv(v.xy()).to_array()),
     );
 }

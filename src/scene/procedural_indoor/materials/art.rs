@@ -144,7 +144,7 @@ pub(super) fn landscape(seed: u64, p: &ArtProgram, coast: bool) -> Canvas {
             let x = rng.random_range(-5.0..261.0);
             let y = rng.random_range(176.0..260.0);
             let h = rng.random_range(18.0..52.0) * ((y - 150.) / 100.);
-            c.line([x, y], [x, y - h], 2, color(p, [58, 59, 46], 0.));
+            c.ink_stroke([x, y], [x, y - h], 2, color(p, [58, 59, 46], 0.));
             for b in 0..5 {
                 let t = b as f32 / 5.;
                 c.ellipse(
@@ -179,7 +179,7 @@ pub fn pixels(seed: u64) -> Vec<u8> {
                     for i in 1..18 {
                         let t = i as f32 / 17.;
                         let point = [base + bend * t * t, 242. + (top - 242.) * t];
-                        c.line(previous, point, 2, color(&p, [58, 85, 54], 0.));
+                        c.ink_stroke(previous, point, 2, color(&p, [58, 85, 54], 0.));
                         if i % 2 == 0 {
                             let side = if i % 4 == 0 { -1. } else { 1. };
                             let tip = [
@@ -195,7 +195,7 @@ pub fn pixels(seed: u64) -> Vec<u8> {
                                 ],
                                 color(&p, [67, 105, 63], 0.),
                             );
-                            c.line(point, tip, 1, color(&p, [128, 148, 99], 0.));
+                            c.ink_stroke(point, tip, 1, color(&p, [128, 148, 99], 0.));
                         }
                         previous = point;
                     }
@@ -264,7 +264,7 @@ pub fn pixels(seed: u64) -> Vec<u8> {
                                 126. + r * 1.18 * t.sin(),
                             ]
                         };
-                        c.line(
+                        c.ink_stroke(
                             point(t),
                             point(t + std::f32::consts::TAU / 80.),
                             1,
@@ -278,13 +278,14 @@ pub fn pixels(seed: u64) -> Vec<u8> {
     }
     // Brush pigment is subtle correlated variation, never a noisy subject mask.
     let noise = field::PreparedPeriodic::new([13, 17], seed ^ 3093, &mut 2048);
-    for y in 0..N {
-        for x in 0..N {
-            let variation = noise.sample(x as f32 / 256., y as f32 / 256.) - 0.5;
-            let i = ((y * N + x) * 4) as usize;
-            for channel in 0..3 {
-                c.0[i + channel] =
-                    (c.0[i + channel] as f32 * (1. + variation * p.brush)).clamp(0., 255.) as u8;
+    let raster = noise.raster::<{ N as usize }>();
+    let (rows, _) = c.0.as_chunks_mut::<{ N as usize * 4 }>();
+    for (y, row) in rows.iter_mut().enumerate() {
+        let (pixels, _) = row.as_chunks_mut::<4>();
+        for (pixel, value) in pixels.iter_mut().zip(raster.row(y)) {
+            let gain = 1. + (value - 0.5) * p.brush;
+            for channel in &mut pixel[..3] {
+                *channel = (f32::from(*channel) * gain).clamp(0., 255.) as u8;
             }
         }
     }

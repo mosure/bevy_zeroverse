@@ -1,5 +1,7 @@
 use super::*;
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
+#[path = "accordions.rs"]
+mod accordions;
 #[path = "roller.rs"]
 mod roller;
 pub(super) use roller::feed_plane;
@@ -7,6 +9,8 @@ pub(super) use roller::feed_plane;
 mod curtain;
 #[path = "sliding.rs"]
 mod sliding;
+#[path = "vanes.rs"]
+mod vanes;
 
 const RAIL_DROP: f32 = 0.058;
 
@@ -57,10 +61,21 @@ impl Builder<'_> {
             6,
         );
     }
-    fn header(&mut self, kind: Shade) {
+    fn header(&mut self, kind: Shade, o: &WindowOpening, accordion: Option<pleated::PleatLayout>) {
+        if kind == Shade::Vertical && self.p.vertical.is_some() {
+            self.vane_track(o);
+            return;
+        }
         let y = self.hi.y - 0.026;
         let curtain_track = kind == Shade::Curtain && self.p.curtain_heading.is_some();
-        if curtain_track {
+        if let Some(l) = accordion {
+            self.block(
+                self.p.slat_material,
+                Vec3::new(self.center(), y, l.rail_z),
+                Vec3::new(self.width(), 0.042, l.packed_depth + 0.006),
+                0.002,
+            );
+        } else if curtain_track {
             self.block(
                 Surface::Metal,
                 Vec3::new(self.center(), y, drapery::TRACK_Z),
@@ -110,15 +125,20 @@ impl Builder<'_> {
             } else {
                 self.lo.x + 0.01 + (self.width() - 0.02) * (i as f32 / bays as f32)
             };
-            let depth = if curtain_track {
-                drapery::TRACK_Z
+            let (depth, center_z, height) = if let Some(l) = accordion {
+                // Recess the bracket into the back of the rail. Its mounting
+                // plates must not share the track's top or bottom face.
+                let d = l.rail_z - 0.5 * (l.packed_depth + 0.006) + 0.002;
+                (d, d * 0.5, 0.027)
+            } else if curtain_track {
+                (drapery::TRACK_Z, drapery::TRACK_Z * 0.5, 0.042)
             } else {
-                0.13
+                (0.13, 0.075, 0.042)
             };
             self.block(
                 Surface::Metal,
-                Vec3::new(x, y, if curtain_track { depth * 0.5 } else { 0.075 }),
-                Vec3::new(0.016, 0.042, depth),
+                Vec3::new(x, y, center_z),
+                Vec3::new(0.016, height, depth),
                 0.002,
             );
         }
@@ -239,7 +259,7 @@ impl Builder<'_> {
             }
         }
     }
-    fn vertical(&mut self) {
+    fn legacy_vertical(&mut self) {
         let width = self.width() - 0.04;
         let count = (width / (self.p.slat_pitch * 1.9).min(0.13))
             .ceil()
@@ -534,7 +554,11 @@ pub(super) fn build(
         label,
         cloth_label,
         coverage,
-        tilt: f.shade_tilt.clamp(-1.2, 1.2),
+        tilt: if p.vertical.is_some() && f.shade == Shade::Vertical {
+            f.shade_tilt
+        } else {
+            f.shade_tilt.clamp(-1.2, 1.2)
+        },
         fixed_angle,
     };
     let labels = (b.label.len(), b.cloth_label.len());
@@ -546,12 +570,19 @@ pub(super) fn build(
             label.push_str(&contact);
         }
     }
-    b.header(f.shade);
+    let accordion = p
+        .pleated
+        .filter(|_| f.shade == Shade::Pleated)
+        .map(|stock| (stock, stock.layout(p, o, coverage)));
+    b.header(f.shade, o, accordion.map(|(_, layout)| layout));
     b.label.truncate(labels.0);
     b.cloth_label.truncate(labels.1);
     match f.shade {
         Shade::Venetian => b.venetian(),
-        Shade::Vertical => b.vertical(),
+        Shade::Vertical => match p.vertical {
+            Some(stock) => b.vanes(stock, o),
+            None => b.legacy_vertical(),
+        },
         Shade::Curtain => match p.curtain_heading {
             Some(heading) => b.drapery(heading, o, moving),
             None => b.legacy_curtain(),
@@ -562,7 +593,11 @@ pub(super) fn build(
                 b.sliding(track);
             }
         }
-        Shade::Roller | Shade::Roman | Shade::Pleated => b.shade(f.shade),
+        Shade::Pleated => match accordion {
+            Some((stock, layout)) => return b.accordion(stock, layout, o, moving),
+            None => b.shade(f.shade),
+        },
+        Shade::Roller | Shade::Roman => b.shade(f.shade),
         Shade::None => return,
     }
     if !matches!(f.shade, Shade::Curtain | Shade::PanelTrack) {

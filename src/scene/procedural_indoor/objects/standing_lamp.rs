@@ -1,5 +1,9 @@
 //! Floor lamp supports, shades and emitter share one metric program.
+use super::super::geometry::{ProfileJoints, RevolvedOutline};
 use super::*;
+mod shade;
+pub use shade::{Fitter, ShadeCut, ShadeSection};
+pub(super) const CUT_SHADE_VERSION: u32 = 242;
 
 /// Round base and shade proportions remain coupled, but not to one catalog size.
 pub fn dimensions(seed: u64) -> Vec3 {
@@ -20,6 +24,39 @@ pub struct LampProgram {
     pub bulb_radius: f32,
     pub shade_sides: usize,
     pub shade: luminaires::ShadeProgram,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub struct Pedestal {
+    pub sides: u32,
+    pub rotation_rad: f32,
+}
+
+impl LampProgram {
+    /// The foot is separate stock. A polygonal shade can sit on a round base
+    /// and a round shade on a faceted base, including on the same stem design.
+    pub fn pedestal(&self, seed: u64) -> Option<Pedestal> {
+        matches!(self.support, 0 | 3).then(|| Pedestal::sample(seed))
+    }
+}
+
+impl Pedestal {
+    fn sample(seed: u64) -> Self {
+        let mut r = stream(seed, u64::from_le_bytes(*b"LampFoot"));
+        let sides = if r.random_bool(0.28) {
+            r.random_range(5..=10)
+        } else {
+            32
+        };
+        Self {
+            sides,
+            rotation_rad: if sides == 32 {
+                0.
+            } else {
+                r.random_range(-PI..PI)
+            },
+        }
+    }
 }
 pub fn parameters(o: &IndoorObject) -> LampProgram {
     let mut r = stream(o.seed, 7420);
@@ -58,7 +95,7 @@ pub(crate) fn emitting_area(o: &IndoorObject) -> f32 {
     let q = (Vec3::new(r.x * r.y, r.x * r.z, r.y * r.z)).powf(1.6075);
     4. * PI * (q.element_sum() / 3.).powf(1. / 1.6075)
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let x = s.x * p.stem_offset;
@@ -70,16 +107,28 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let root =
         bulb - Vec3::Y * (luminaires::bulb_radii(&p.shade, p.bulb_radius).y + p.bulb_radius * 0.42);
     if p.support == 0 || p.support == 3 {
-        a.part(p.shade.trim, "lamp").lathe(
-            &[
-                (0., 0.),
-                (s.x.min(s.z) * p.base_fraction, 0.),
-                (s.x.min(s.z) * p.base_fraction * 0.94, 0.024),
-                (0., 0.024),
-            ],
-            p.shade_sides as u32,
-            Transform::IDENTITY,
-        );
+        let profile = [
+            (0., 0.),
+            (s.x.min(s.z) * p.base_fraction, 0.),
+            (s.x.min(s.z) * p.base_fraction * 0.94, 0.024),
+            (0., 0.024),
+        ];
+        let base = a.part(p.shade.trim, "lamp");
+        if version >= CUT_SHADE_VERSION {
+            let foot = Pedestal::sample(o.seed);
+            if foot.sides == 32 {
+                base.lathe(&profile, 32, Transform::IDENTITY);
+            } else {
+                RevolvedOutline::polygon(foot.sides).sweep(
+                    base,
+                    &profile,
+                    ProfileJoints::Creased,
+                    Transform::from_rotation(Quat::from_rotation_y(foot.rotation_rad)),
+                );
+            }
+        } else {
+            base.lathe(&profile, p.shade_sides as u32, Transform::IDENTITY);
+        }
         if p.support == 3 {
             let points: Vec<_> = (0..=16)
                 .map(|i| {
@@ -114,6 +163,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     let bottom = s.y - p.shade_height;
+    if version >= CUT_SHADE_VERSION {
+        let cut = ShadeCut::sample(o, &p);
+        cut.build(a, o, &p, r, bulb, root);
+        luminaires::bulb(a, "lamp", &p.shade, bulb, p.bulb_radius);
+        return;
+    }
     let upper = r * if matches!(p.shade.shape, 1 | 3) {
         p.shade_taper.clamp(0.88, 1.)
     } else {
