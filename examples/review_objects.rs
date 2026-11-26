@@ -125,9 +125,11 @@ fn install(
         } else {
             1.
         };
-        // Ceiling detectors are reviewed from their visible underside, not
-        // from the hidden mounting face. Keep that camera above the studio floor.
-        let vertical = if o.kind == ObjectKind::FireDetector {
+        // Show the room-facing side of overhead fittings.
+        let vertical = if matches!(
+            o.kind,
+            ObjectKind::FireDetector | ObjectKind::ExtractionHood
+        ) {
             -0.90
         } else if matches!(o.kind, ObjectKind::ExitSign | ObjectKind::WallSconce) {
             0.18
@@ -262,7 +264,10 @@ fn main() -> Result<()> {
                     audit::check(&o, &objects::build_object(&o)).unwrap();
                 }
                 o.position = Vec3::X * i as f32 * 8.;
-                if o.kind == ObjectKind::FireDetector {
+                if matches!(
+                    o.kind,
+                    ObjectKind::FireDetector | ObjectKind::ExtractionHood
+                ) {
                     o.position.y = o.size.max_element() * 2.;
                 }
                 o

@@ -7,6 +7,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 pub mod display;
 pub(crate) mod door;
+pub(crate) mod mirror;
 mod sheet;
 pub use sheet::SheetGauge;
 

@@ -62,6 +62,12 @@ impl Builder<'_> {
         );
     }
     fn header(&mut self, kind: Shade, o: &WindowOpening, accordion: Option<pleated::PleatLayout>) {
+        if kind == Shade::Roller && self.p.textile.is_some() {
+            if let Some(stock) = self.p.roller {
+                self.fitted_roller_head(stock);
+                return;
+            }
+        }
         if kind == Shade::Vertical && self.p.vertical.is_some() {
             self.vane_track(o);
             return;
@@ -345,7 +351,7 @@ impl Builder<'_> {
         let stock = self.p.textile.is_some();
         let crease = self.p.pleat_crease.filter(|_| kind == Shade::Pleated);
         let lift_lines = (width / 0.64).round().clamp(2., 6.);
-        cloth::sheet_rows(
+        cloth::sheet_rows::<false>(
             self.a.part(self.p.fabric, &self.cloth_label),
             self.tf,
             [
@@ -511,6 +517,7 @@ pub(super) struct Draw {
     pub coverage: f32,
     pub fixed_angle: Option<f32>,
     pub moving: bool,
+    pub other_coverage: Option<f32>,
 }
 pub(super) fn build(
     a: &mut Assembly,
@@ -524,6 +531,7 @@ pub(super) fn build(
         coverage,
         fixed_angle,
         moving,
+        other_coverage,
     } = draw;
     let label = format!(
         "{}#finish{}",
@@ -587,7 +595,7 @@ pub(super) fn build(
             Some(heading) => b.drapery(heading, o, moving),
             None => b.legacy_curtain(),
         },
-        Shade::Roller if p.textile.is_some() => b.roller(moving),
+        Shade::Roller if p.textile.is_some() => b.roller(moving, other_coverage),
         Shade::PanelTrack => {
             if let Some(track) = p.track {
                 b.sliding(track);
@@ -600,7 +608,12 @@ pub(super) fn build(
         Shade::Roller | Shade::Roman => b.shade(f.shade),
         Shade::None => return,
     }
-    if !matches!(f.shade, Shade::Curtain | Shade::PanelTrack) {
+    if let Some(stock) = p
+        .roller
+        .filter(|_| f.shade == Shade::Roller && p.textile.is_some())
+    {
+        b.roller_loop(stock, moving);
+    } else if !matches!(f.shade, Shade::Curtain | Shade::PanelTrack) {
         b.control(f.shade == Shade::Vertical);
     }
 }

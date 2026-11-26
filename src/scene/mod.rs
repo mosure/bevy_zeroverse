@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 
 use crate::{app::BevyZeroverseConfig, camera::EditorCameraGizmoConfigGroup, ovoxel::OvoxelRegion};
 
+pub mod capture_ready;
 // TODO: cornell box room scene
 pub mod cornell_cube;
 pub mod human;

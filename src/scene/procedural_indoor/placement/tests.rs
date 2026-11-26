@@ -60,8 +60,25 @@ fn shelf_contents_replay_and_break_rows_without_clipping_shelves_or_each_other()
             let bounds = (Vec2::new(-0.40, -0.14), Vec2::new(0.40, 0.14));
             for level in 0..3 {
                 let y = level as f32 * 0.25;
-                let items = contents::shelf_contents(&o, level, bounds, y, 0.23);
-                assert_eq!(items, contents::shelf_contents(&o, level, bounds, y, 0.23));
+                let items = contents::shelf_contents(
+                    &o,
+                    level,
+                    bounds,
+                    y,
+                    0.23,
+                    bevy_zeroverse_capture::GENERATOR_VERSION,
+                );
+                assert_eq!(
+                    items,
+                    contents::shelf_contents(
+                        &o,
+                        level,
+                        bounds,
+                        y,
+                        0.23,
+                        bevy_zeroverse_capture::GENERATOR_VERSION
+                    )
+                );
                 counts.insert(items.len());
                 if let (Some(lo), Some(hi)) = (
                     items.iter().map(|i| i.size.x).min_by(f32::total_cmp),

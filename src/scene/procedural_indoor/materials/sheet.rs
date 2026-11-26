@@ -11,30 +11,7 @@ pub(super) fn sheet_material<const SIDE: usize>(
     coat_roughness: f32,
     sample: impl Fn(Vec2) -> (Vec3, f32, f32),
 ) -> StandardMaterial {
-    let mut color = Vec::with_capacity(SIDE * SIDE * 4);
-    let mut orm = Vec::with_capacity(SIDE * SIDE * 4);
-    let mut heights = Vec::with_capacity(SIDE * SIDE);
-    let encode = |v: f32| (v.clamp(0., 1.) * 255.).round() as u8;
-    for y in 0..SIDE {
-        for x in 0..SIDE {
-            let (pigment, h, r) = sample((Vec2::new(x as f32, y as f32) + 0.5) / SIDE as f32);
-            color.extend(pigment.to_array().map(encode));
-            color.push(255);
-            heights.push(h);
-            orm.extend([255, encode(r), 0, 255]);
-        }
-    }
-    let scale = Vec2::splat(SIDE as f32 * 0.5) / period;
-    let mut normals = Vec::with_capacity(SIDE * SIDE * 4);
-    for y in 0..SIDE {
-        for x in 0..SIDE {
-            let dx = heights[y * SIDE + (x + 1) % SIDE] - heights[y * SIDE + (x + SIDE - 1) % SIDE];
-            let dy = heights[(y + 1) % SIDE * SIDE + x] - heights[(y + SIDE - 1) % SIDE * SIDE + x];
-            let n = Vec3::new(-dx * scale.x, -dy * scale.y, 1.).normalize();
-            normals.extend((n * 0.5 + 0.5).to_array().map(encode));
-            normals.push(255);
-        }
-    }
+    let (color, normals, orm) = metric_maps::<SIDE>(period, sample);
     let mut mat = StandardMaterial {
         base_color_texture: Some(images.add(mip_image(color, SIDE as u32, MapType::Color))),
         normal_map_texture: Some(images.add(mip_image(normals, SIDE as u32, MapType::Normal))),
@@ -48,4 +25,43 @@ pub(super) fn sheet_material<const SIDE: usize>(
     };
     response::conformal_coat(&mut mat);
     mat
+}
+
+/// Sample a seamless physical height field once. Its consumer selects the
+/// mip filter appropriate to the finish's optical response.
+pub(super) fn metric_maps<const SIDE: usize>(
+    period: Vec2,
+    sample: impl Fn(Vec2) -> (Vec3, f32, f32),
+) -> TextureMaps {
+    let mut color = Vec::with_capacity(SIDE * SIDE * 4);
+    let mut orm = Vec::with_capacity(SIDE * SIDE * 4);
+    let mut heights = Vec::with_capacity(SIDE * SIDE);
+    let encode = |v: f32| (v.clamp(0., 1.) * 255.).round() as u8;
+    for y in 0..SIDE {
+        for x in 0..SIDE {
+            let (pigment, h, r) = sample((Vec2::new(x as f32, y as f32) + 0.5) / SIDE as f32);
+            color.extend(pigment.to_array().map(encode));
+            color.push(255);
+            heights.push(h);
+            orm.extend([255, encode(r), 0, 255]);
+        }
+    }
+    let normals = metric_normals::<SIDE>(&heights, period);
+    (color, normals, orm)
+}
+
+/// Central metric differences wrap on both axes of a seamless height field.
+pub(super) fn metric_normals<const SIDE: usize>(heights: &[f32], period: Vec2) -> Vec<u8> {
+    let scale = Vec2::splat(SIDE as f32 * 0.5) / period;
+    let mut normals = Vec::with_capacity(SIDE * SIDE * 4);
+    for y in 0..SIDE {
+        for x in 0..SIDE {
+            let dx = heights[y * SIDE + (x + 1) % SIDE] - heights[y * SIDE + (x + SIDE - 1) % SIDE];
+            let dy = heights[(y + 1) % SIDE * SIDE + x] - heights[(y + SIDE - 1) % SIDE * SIDE + x];
+            normals.extend(filter::encode(
+                Vec3::new(-dx * scale.x, -dy * scale.y, 1.).normalize(),
+            ));
+        }
+    }
+    normals
 }

@@ -3,6 +3,7 @@
 //! A fixed slot FOV must participate in clearance and content screening. Applying
 //! it only after this search would preferentially return invalid wide-lens poses
 //! for narrow slots, repeatedly exhausting the outer rig's placement budget.
+use super::super::viewpoint::MAX_EYE_HEIGHT_M;
 use super::*;
 use crate::scene::procedural_indoor::{
     cameras::{coverage::Coverage, multiview},
@@ -75,7 +76,7 @@ fn propose_inner(
                 - scene.program.as_ref().map_or(0.5, |p| p.light_drop)
                 - 0.04
                 - CAMERA_CLEARANCE)
-                .min(support + 3.25);
+                .min(support + MAX_EYE_HEIGHT_M);
             let local = multiview::MultiViewSettings {
                 min_reference_baseline: 0.,
                 ..policy.clone()

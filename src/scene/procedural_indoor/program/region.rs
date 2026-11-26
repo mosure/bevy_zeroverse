@@ -49,6 +49,11 @@ impl IndoorManifest {
     pub(crate) fn select_primary_room(&mut self) {
         let Some(program) = &self.program else { return };
         use super::super::layout::{IndoorLayout, ObjectKind};
+        // A hallway is the requested capture subject even when a neighboring
+        // office has more furniture or a larger clipped floor area.
+        if self.layout == IndoorLayout::Hallway {
+            return;
+        }
         let office = matches!(
             self.layout,
             IndoorLayout::OpenOffice | IndoorLayout::Coworking
@@ -234,9 +239,7 @@ mod tests {
 
     #[test]
     fn furnished_subroom_wins_over_larger_empty_region() {
-        let mut scene =
-            IndoorManifest::generate_with_humans(65574761, IndoorLayout::Mixed, 0.65, 0, 0.)
-                .unwrap();
+        let mut scene = IndoorManifest::initial_mixed_fixture(65574761, 0.65, 0, 0.).unwrap();
         let program = scene.program.as_mut().unwrap();
         program.primary_zone = None;
         let larger = (program.zones[0].min, program.zones[0].max);
@@ -355,14 +358,19 @@ mod tests {
 
     #[test]
     fn empty_scenes_keep_the_clipped_area_fallback() {
-        let mut scene =
-            IndoorManifest::generate_with_humans(65575086, IndoorLayout::Mixed, 0.65, 0, 0.)
-                .unwrap();
+        let mut scene = IndoorManifest::initial_mixed_fixture(65575086, 0.65, 0, 0.).unwrap();
         for object in &mut scene.objects {
             object.neighbor = true;
         }
+        let regions = scene.room_topology().regions;
+        assert!(regions.len() > 1);
+        let largest = regions
+            .iter()
+            .max_by(|a, b| a.area_m2.total_cmp(&b.area_m2))
+            .unwrap()
+            .zone;
         scene.select_primary_room();
-        assert_eq!(scene.program.as_ref().unwrap().primary_zone, Some(3));
+        assert_eq!(scene.program.as_ref().unwrap().primary_zone, Some(largest));
     }
     #[test]
     fn primary_room_uses_clipped_floor_area_and_matches_topology() {

@@ -226,6 +226,12 @@ fn fast_fan_reserves_every_blade_angle_and_never_accepts_partial_rotations_when_
 #[test]
 fn coupled_rotor_leaves_are_admitted_atomically() {
     let (mut scene, mut geometry) = empty();
+    scene
+        .indoor_motion
+        .as_mut()
+        .unwrap()
+        .policy
+        .operation_return_fraction = 1.;
     for i in 0..4 {
         let p = Quat::from_rotation_y(i as f32 * std::f32::consts::FRAC_PI_2) * Vec3::X + Vec3::Y;
         let mut joint = construction::rigid(MotionKind::Door, 5, Vec3::Y, Vec3::Y, 2.0, Vec3::ZERO);
@@ -236,7 +242,9 @@ fn coupled_rotor_leaves_are_admitted_atomically() {
             .articulated(block(p, Vec3::splat(0.05)), joint);
     }
     prepare(&mut scene, &mut geometry);
-    assert_eq!(scene.indoor_motion.unwrap().mechanisms.len(), 1);
+    let records = scene.indoor_motion.unwrap().mechanisms;
+    assert_eq!(records.len(), 1);
+    assert!(records[0].operation_cycle.is_none());
     assert!(geometry.architecture.joints.iter().all(|j| j.accepted));
 }
 
@@ -293,6 +301,39 @@ fn an_obstruction_in_one_telescoping_track_stops_both_leaves() {
     );
     assert!(legacy.rigid_transform_for_joint_at(1, 0.5).is_none());
 
+    let one_way = record.clone();
+    assert!(one_way.operation_cycle.is_none());
+    assert_eq!(one_way.stroke_fraction_at(1.), 1.);
+    scene
+        .indoor_motion
+        .as_mut()
+        .unwrap()
+        .policy
+        .operation_return_fraction = 1.;
+    let version = scene.generator_version;
+    scene.generator_version = OPERATION_CYCLE_VERSION - 1;
+    prepare(&mut scene, &mut geometry);
+    assert_eq!(scene.indoor_motion.as_ref().unwrap().mechanisms[0], one_way);
+    scene.generator_version = version;
+    prepare(&mut scene, &mut geometry);
+    let cyclic = &scene.indoor_motion.as_ref().unwrap().mechanisms[0];
+    let cycle = cyclic.operation_cycle.unwrap();
+    assert_eq!(cyclic.swept_bounds, one_way.swept_bounds);
+    assert_eq!(cyclic.attempts, one_way.attempts);
+    assert_eq!(cyclic.linked_slides, one_way.linked_slides);
+    for (id, joint) in geometry.architecture.joints.iter().enumerate() {
+        assert_eq!(joint.operation_cycle, Some(cycle));
+        for t in [cycle.leaves_stop_at, 1., cycle.reaches_stop_at, 0.] {
+            let delta = cyclic.rigid_transform_for_joint_at(id, t).unwrap();
+            assert_eq!(delta, joint.transform(joint.amount(t)));
+            if t == 0. || t == 1. {
+                assert_eq!(delta, Transform::IDENTITY);
+            } else {
+                assert_eq!(Some(delta), one_way.rigid_transform_for_joint_at(id, 1.));
+            }
+        }
+    }
+
     let leaf = door.leaves()[0];
     let edge = leaf.transform.translation.x + leaf.size.x * 0.5;
     geometry.architecture.append_assembly(block(
@@ -303,7 +344,7 @@ fn an_obstruction_in_one_telescoping_track_stops_both_leaves() {
     assert!(geometry.architecture.joints.iter().all(|j| !j.accepted));
     let reports = &scene.indoor_motion.as_ref().unwrap().mechanisms;
     assert_eq!(reports.len(), 1);
-    assert!(reports[0].rejection.is_some());
+    assert!(reports[0].rejection.is_some() && reports[0].operation_cycle.is_none());
     assert!((0..2).all(|i| reports[0].rigid_transform_for_joint_at(i, 1.).is_none()));
 }
 
@@ -403,7 +444,7 @@ fn track_coverings_can_use_their_own_head_but_still_collide_with_other_hardware(
         (Shade::Vertical, 470),
         (Shade::Pleated, 426),
     ] {
-        let source = IndoorManifest::generate_with_humans(seed, default(), 0.65, 2, 0.25).unwrap();
+        let source = IndoorManifest::initial_mixed_fixture(seed, 0.65, 2, 0.25).unwrap();
         let mut facade = source
             .envelope
             .as_ref()

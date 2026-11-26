@@ -2,9 +2,14 @@
 use super::*;
 mod clearance;
 mod conference;
+mod linen;
+pub use linen::{dining_linen, DiningLinen, LinenWeave};
+pub(crate) use linen::{DiningService, INTRODUCED as LINEN_VERSION};
+mod lounge;
 mod outline;
 mod rows;
 mod sheet;
+pub use lounge::{LoungeShelf, ShelfDeck};
 pub(crate) use sheet::REGISTERED_SHEET_VERSION;
 pub use sheet::{sheet_cut, SheetCut, SheetEdge};
 mod structure;
@@ -144,7 +149,7 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         pedestal_waist: shape.random_range(0.28..0.92),
         pedestal_shoulder: shape.random_range(0.25..0.78),
         pedestal_facets: [6, 8, 12, 32][shape.random_range(0..4)],
-        frame_surface: if o.variant == 1 {
+        frame_surface: if linen::frame_variant(o) == 1 {
             Surface::WoodEdge
         } else {
             [
@@ -211,25 +216,44 @@ pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
     outline::sample(o.size.xz() * 0.5, &parameters(o))
 }
 
+pub(crate) fn perimeter(outline: &[Vec2]) -> f32 {
+    outline
+        .iter()
+        .zip(outline.iter().cycle().skip(1))
+        .map(|(a, b)| a.distance(*b))
+        .sum()
+}
+
 pub fn supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
     supports_outline(&outline(o), lo, hi, margin)
 }
 pub(crate) fn supports_outline(outline: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
-    [lo, hi, Vec2::new(lo.x, hi.y), Vec2::new(hi.x, lo.y)]
-        .iter()
-        .all(|p| {
-            (0..outline.len()).all(|i| {
-                let a = outline[i];
-                let edge = outline[(i + 1) % outline.len()] - a;
-                edge.perp_dot(*p - a) >= (margin + 0.012) * edge.length()
-            })
-        })
+    if !lo.is_finite() || !hi.is_finite() {
+        return false;
+    }
+    let (lo, hi) = (lo.min(hi), lo.max(hi));
+    // Each edge is a half-plane. Only the rectangle corner furthest towards
+    // its exterior can reject the footprint. Keep the original distance math.
+    (0..outline.len()).all(|i| {
+        let a = outline[i];
+        let edge = outline[(i + 1) % outline.len()] - a;
+        let corner = Vec2::new(
+            if edge.y > 0. { hi.x } else { lo.x },
+            if edge.x < 0. { hi.y } else { lo.y },
+        );
+        edge.perp_dot(corner - a) >= (margin + 0.012) * edge.length()
+    })
 }
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let s = o.size;
     let p = parameters(o);
     let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
+    if let Some(linen) = dining_linen(o) {
+        linen.build(a, o, &p, &outline);
+        build_structure(a, o, &p, &outline, version);
+        return;
+    }
     let stock = top::TopStock::sample(o, &p, version);
     if o.variant == SHARED_ROW_VARIANT {
         rows::top(a, o, &p, &outline, &stock);
@@ -241,7 +265,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     }
     let edge: Vec<_> = outline.iter().map(|p| *p * 0.985).collect();
     stock.backing(a, o, &edge, underside, p.top_surface, version);
-    build_structure(a, o, &p, &outline);
+    build_structure(a, o, &p, &outline, version);
 }
 
 // Rendering and clearance consume the same structural primitive program.
@@ -250,6 +274,7 @@ fn build_structure(
     o: &IndoorObject,
     p: &TableProgram,
     outline: &[Vec2],
+    version: u32,
 ) {
     let s = o.size;
     let label = o.kind.class_name();
@@ -263,6 +288,10 @@ fn build_structure(
         conference::build(a, o, p, outline, underside);
         return;
     }
+    if let Some(shelf) = LoungeShelf::fit(o, p, version, || outline) {
+        shelf.build(a, o, underside);
+        return;
+    }
     let half = Vec2::new(s.x, s.z) * 0.5;
     let mut anchor = Vec2::new(
         (half.x - p.leg_inset).max(0.12),
@@ -270,13 +299,8 @@ fn build_structure(
     ) * 0.68;
     // Mounts must fit the true convex top, including its tapered narrow end.
     for _ in 0..24 {
-        if [-1., 1.].into_iter().all(|x| {
-            [-1., 1.].into_iter().all(|z| {
-                let mount = anchor * Vec2::new(x, z);
-                let pad = Vec2::splat(if p.support == 8 { 0.10 } else { 0.05 });
-                supports_outline(outline, mount - pad, mount + pad, 0.)
-            })
-        }) {
+        let reach = anchor + Vec2::splat(if p.support == 8 { 0.10 } else { 0.05 });
+        if supports_outline(outline, -reach, reach, 0.) {
             break;
         }
         anchor *= 0.92;
@@ -530,7 +554,9 @@ fn build_structure(
         Vec3::new(anchor.x, underside - 0.035, 0.0),
         0.024,
     );
-    if o.kind == ObjectKind::Desk || (o.kind == ObjectKind::Table && p.outline_exponent > 4.0) {
+    if linen::permits_power_module(o)
+        && (o.kind == ObjectKind::Desk || (o.kind == ObjectKind::Table && p.outline_exponent > 4.0))
+    {
         a.box_part(
             Surface::Plastic,
             label,

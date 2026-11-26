@@ -73,9 +73,9 @@ mod evaluation;
 mod palette;
 mod sampling;
 pub use palette::PaletteProgram;
-pub(crate) use sampling::floor_finish;
+pub(crate) use sampling::room_floor_finish;
 #[cfg(test)]
-pub(super) use sampling::{floor_finish_base, sample_base};
+pub(super) use sampling::{floor_finish, floor_finish_base, sample_base};
 pub use sampling::{sample, sample_with_floor};
 #[cfg(test)]
 mod tests;

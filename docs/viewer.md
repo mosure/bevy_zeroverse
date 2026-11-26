@@ -33,13 +33,13 @@ a pose. A paused Studio link preserves that pose, curve and travel direction.
 The quintic curve is also available as `--playback-mode smootherstep` or
 `?playback_mode=smootherstep`.
 
-**Mixed · all room types** samples every concrete room program uniformly: the ten
-office/lounge profiles, Kitchenette, Kitchen, ElevatorLanding, Cafe, Cafeteria,
-Classroom, LectureHall, Showroom, Gallery and PublicSuite (5% each before any
-construction failure). `indoor_layout=all` and `indoor_layout=mixed` select the
+**Mixed · all room types** draws uniformly from 29 concrete programs, including
+the ten office/lounge profiles and the dining, teaching, fitness, sports, retail,
+kitchen, courtyard, transit and exhibition programs. Each has a 1-in-29 probability
+before construction and camera admission. `indoor_layout=all` and `indoor_layout=mixed` select the
 same sampler. Selecting a specific program restricts generation to that program.
 The selected concrete program is stored in each manifest. Public suites can
-contain several functional zones; they are one top-level draw, not extra samples.
+contain several functional zones within a single top-level draw.
 
 On WebGPU, the address bar is updated with `history.replaceState` after valid edits
 and scene generation. It records the current seed, complete nested policies,

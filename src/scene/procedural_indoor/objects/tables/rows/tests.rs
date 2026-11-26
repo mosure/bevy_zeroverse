@@ -91,7 +91,13 @@ fn splices_land_on_real_crossrails_and_the_whole_frame_reaches_the_floor() {
             styles.insert(p.bay_style);
             let outline = outline(&o);
             let mut frame = Assembly::default();
-            build_structure(&mut frame, &o, &p, &outline);
+            build_structure(
+                &mut frame,
+                &o,
+                &p,
+                &outline,
+                bevy_zeroverse_capture::GENERATOR_VERSION,
+            );
             let bottom = o.size.y - p.top_thickness - 0.012;
             assert!(frame.bounds().0.y.abs() < 1e-5);
             let (axis, across) = if x > z {

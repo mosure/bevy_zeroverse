@@ -18,6 +18,8 @@ impl EnvelopeProgram {
     pub fn sample(scene: &mut IndoorManifest) -> Self {
         let mut r = stream(scene.seed, 4101);
         let size = scene.room_size;
+        let courtyard = scene.layout == super::super::layout::IndoorLayout::Courtyard;
+        let stair_hall = scene.layout == super::super::layout::IndoorLayout::StairHall;
         let half = size.xz() * 0.5;
         let boardroom = scene.program.as_ref().and_then(|p| p.executive_boardroom);
         let facade_allowance = boardroom.map(|p| p.facade_allowance());
@@ -80,14 +82,24 @@ impl EnvelopeProgram {
         );
         let wall_thickness = super::super::architecture::facade::reveal::wall_thickness(scene.seed);
         let mut result = Self {
+            courtyard: courtyard.then(|| courtyard::CourtyardRoof::sample(scene.seed, size)),
             wall_thickness_m: Some(wall_thickness),
-            footprint: ceilings::articulate(scene.seed, footprint, size, boardroom),
+            footprint: if courtyard || scene.layout == super::super::layout::IndoorLayout::Gymnasium
+            {
+                courtyard::corners(-half, half).to_vec()
+            } else if scene.layout == super::super::layout::IndoorLayout::Hallway {
+                super::super::program::hallway::outline(scene, size, &mut r)
+            } else if stair_hall {
+                mezzanine::stair_hall::outline(size.xz(), &mut r)
+            } else {
+                ceilings::articulate(scene.seed, footprint, size, boardroom)
+            },
             soffits: vec![],
             step_installation: None,
             tier_guard: Some(guardrail::GuardProgram::sample(
                 scene.seed.wrapping_add(4133),
             )),
-            ceiling_drop,
+            ceiling_drop: if courtyard { Vec2::ZERO } else { ceiling_drop },
             floor_patches: vec![],
             pillars: vec![],
             mezzanine: None,
@@ -98,6 +110,8 @@ impl EnvelopeProgram {
         // Zones remain proposal domains; their accepted contents are clipped by
         // this envelope. Every retained partition still has a usable portal.
         if let Some(program) = &mut scene.program {
+            let hall = (scene.layout == super::super::layout::IndoorLayout::Hallway)
+                .then(|| &program.zones[0]);
             program.partitions.retain_mut(|p| {
                 let intervals = polygon::line_intervals(&result.footprint, p.axis, p.coordinate);
                 let (lo, hi) = intervals
@@ -117,7 +131,11 @@ impl EnvelopeProgram {
                 );
                 let top = result.ceiling_height(size, p.position(p.door_center, 0.).xz());
                 p.door_height = p.door_height.min(top - 0.15);
-                if r.random_bool(0.20) {
+                if r.random_bool(0.20)
+                    && hall.is_none_or(|z| {
+                        super::super::program::hallway::front_normal(z, p).is_none()
+                    })
+                {
                     p.door_height = (2.05_f32 + r.random_range(0.30..0.65)).min(top - 0.15);
                     p.arch_rise = (p.door_height - 2.05).max(0.);
                 }
@@ -128,7 +146,12 @@ impl EnvelopeProgram {
         let zone = zone_hi - zone_lo;
         // Floor offsets are shallow enough for a short stair, with every tread
         // serialized separately. Keep the room's portals at the base level.
-        if boardroom.is_none() && zone.min_element() > 4.6 && r.random_bool(0.43) {
+        if !courtyard
+            && !stair_hall
+            && boardroom.is_none()
+            && zone.min_element() > 4.6
+            && r.random_bool(0.43)
+        {
             for _ in 0..24 {
                 let width = r.random_range(1.8..(zone.x * 0.55).max(1.81));
                 let depth = r.random_range(2.0..(zone.y * 0.55).max(2.01));
@@ -147,10 +170,20 @@ impl EnvelopeProgram {
                 }
             }
         }
-        result.mezzanine = Mezzanine::sample(scene, &result);
-        let count = (polygon::area(&result.footprint) / 65. * r.random_range(0.0..2.2))
-            .round()
-            .min(5.) as usize;
+        result.mezzanine = if courtyard {
+            None
+        } else if stair_hall {
+            Some(mezzanine::stair_hall::Section::sample(scene.seed).flight(scene.seed))
+        } else {
+            Mezzanine::sample(scene, &result)
+        };
+        let count = if courtyard {
+            0
+        } else {
+            (polygon::area(&result.footprint) / 65. * r.random_range(0.0..2.2))
+                .round()
+                .min(5.) as usize
+        };
         for _ in 0..count {
             for _ in 0..24 {
                 let center = Vec2::new(
@@ -203,7 +236,11 @@ impl EnvelopeProgram {
                 break;
             }
         }
-        result.sample_soffits(scene);
+        if let Some(roof) = &result.courtyard {
+            result.pillars = roof.columns(scene.seed);
+        } else {
+            result.sample_soffits(scene);
+        }
         let exposure = r.random_range(0.40..0.88);
         for (edge, (a, b)) in polygon::edges(&result.footprint).enumerate() {
             if result.shared_edge(edge, size) {
@@ -213,7 +250,15 @@ impl EnvelopeProgram {
             let height = result
                 .ceiling_height(size, a)
                 .min(result.ceiling_height(size, b));
-            let facade = if span > (2. * wall_thickness + 1.2).max(1.5) && r.random_bool(exposure) {
+            let abutment = stair_hall
+                && result
+                    .mezzanine
+                    .as_ref()
+                    .is_some_and(|m| m.abuts_wall_segment(a, b));
+            let facade = if !abutment
+                && span > (2. * wall_thickness + 1.2).max(1.5)
+                && r.random_bool(exposure)
+            {
                 let mut sampled = ExteriorProgram::sample_for_wall(
                     scene.seed.wrapping_add(edge as u64 * 7919),
                     Vec3::new(span, height, span),
@@ -225,6 +270,14 @@ impl EnvelopeProgram {
                 );
                 let mut f = sampled.facades.remove(0);
                 f.side = FacadeSide::Rear;
+                if courtyard {
+                    // This face is outdoors. A shade on the far side of a window
+                    // belongs to the room behind it, outside this assembly.
+                    f.shade = crate::scene::procedural_indoor::architecture::facade::Shade::None;
+                    f.treatment = None;
+                    f.shade_coverage = 0.;
+                    f.shade_tilt = 0.;
+                }
                 Some(f)
             } else {
                 None

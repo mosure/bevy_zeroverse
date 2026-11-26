@@ -9,6 +9,10 @@ pub(in super::super) struct SeatPath {
 impl SeatPath {
     pub fn new(table: &IndoorObject, setback: f32) -> Self {
         let top = crate::scene::procedural_indoor::objects::tables::outline(table);
+        Self::from_outline(&top, setback)
+    }
+
+    pub fn from_outline(top: &[Vec2], setback: f32) -> Self {
         let points: Vec<_> = (0..top.len())
             .map(|i| {
                 let before = (top[i] - top[(i + top.len() - 1) % top.len()]).normalize();

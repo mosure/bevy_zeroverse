@@ -119,6 +119,7 @@ impl IndoorManifest {
                 o.id == anchor.id
                     || o.interaction_target == Some(anchor.id)
                     || (o.kind == ObjectKind::Banquette
+                        && o.interaction_target.is_none()
                         && o.position.distance(anchor.position) < 2.)
             }) {
                 let (a, b) = o.bounds();
@@ -200,7 +201,7 @@ impl IndoorManifest {
                 // A seated workstation moves as a group; supported props follow
                 // their parent, preserving hands/table contacts and port heights.
                 if self.objects.iter().any(|o| {
-                    o.kind == ObjectKind::Chair
+                    matches!(o.kind, ObjectKind::Chair | ObjectKind::Banquette)
                         && o.interaction_target
                             .is_some_and(|id| moved.contains(&id) != moved.contains(&o.id))
                 }) {
@@ -330,48 +331,49 @@ mod tests {
         assert!(fit_group(&scene, &mut rug, &group).is_none());
     }
 
+    fn planted_rug_scenarios(cameras: usize) -> impl Iterator<Item = IndoorManifest> {
+        let generate = move |(seed, layout, people)| {
+            IndoorManifest::generate_with_humans(seed, layout, 0.7, cameras, people).unwrap()
+        };
+        let reported = [(5, 0.), (5, 0.7), (924, 0.), (924, 0.7)]
+            .map(|(s, p)| (s, IndoorLayout::Mixed, p))
+            .into_iter()
+            .map(generate);
+        // The reported rooms can legitimately reject every optional rug. Find
+        // two distinct planted lounges with actual supported furniture as controls.
+        let controls = (0..64)
+            .map(|s| (s, IndoorLayout::Lounge, if s % 2 == 0 { 0.7 } else { 0. }))
+            .map(generate)
+            .filter(|s| {
+                !s.rug_supports.is_empty() && s.objects.iter().any(|o| o.kind == ObjectKind::Plant)
+            })
+            .take(2);
+        reported.chain(controls)
+    }
+
     #[test]
     fn area_rugs_preserve_clearance_of_unmoved_neighbouring_plants() {
         use crate::scene::procedural_indoor::validation;
-        let mut supported_rooms = 0;
-        for (seed, human_density) in [(5, 0.), (5, 0.7), (924, 0.), (924, 0.7)] {
-            let scene = IndoorManifest::generate_with_humans(
-                seed,
-                IndoorLayout::Mixed,
-                0.7,
-                3,
-                human_density,
-            )
-            .unwrap();
+        let mut supported_seeds = std::collections::BTreeSet::new();
+        for scene in planted_rug_scenarios(3) {
             assert!(scene.objects.iter().any(|o| o.kind == ObjectKind::Plant));
-            // A tightly constrained seed may reject every optional rug; other
-            // rooms must still admit furniture-bearing rugs through this path.
-            supported_rooms += usize::from(!scene.rug_supports.is_empty());
+            if !scene.rug_supports.is_empty() {
+                supported_seeds.insert(scene.seed);
+            }
             validation::validate_layout(&scene).unwrap();
             validation::validate_geometry(&scene).unwrap();
         }
-        assert!(supported_rooms >= 2);
+        assert!(supported_seeds.len() >= 2);
     }
 
     #[test]
     fn rug_support_replays_and_rejects_edge_overhang_and_tampered_contours() {
-        let mut qualified = 0;
-        // Rugs are optional and admission changes with furnishings. Exercise
-        // every admitted rug in this fixed cohort without assuming one seed
-        // must contain a rug at every human-density setting.
-        for (seed, human_density) in [(5, 0.), (5, 0.7), (924, 0.), (924, 0.7)] {
-            let scene = IndoorManifest::generate_with_humans(
-                seed,
-                IndoorLayout::Mixed,
-                0.7,
-                0,
-                human_density,
-            )
-            .unwrap();
+        let mut qualified = std::collections::BTreeSet::new();
+        for scene in planted_rug_scenarios(0) {
             let Some(rug) = scene.rug_supports.first() else {
                 continue;
             };
-            qualified += 1;
+            qualified.insert(scene.seed);
             let object = scene
                 .objects
                 .iter()
@@ -394,6 +396,9 @@ mod tests {
                 crate::scene::procedural_indoor::validation::validate_layout(&restored).is_err()
             );
         }
-        assert!(qualified >= 2, "fixture cohort lost furniture-bearing rugs");
+        assert!(
+            qualified.len() >= 2,
+            "fixture cohort lost furniture-bearing rugs"
+        );
     }
 }

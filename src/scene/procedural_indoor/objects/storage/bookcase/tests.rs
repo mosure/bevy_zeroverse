@@ -50,30 +50,24 @@ fn bookcase_contents_fit_real_shelf_compartments_and_replay() {
                 for level in 0..b.levels.len() - 1 {
                     let base = b.levels[level] + p.panel_m * 0.5;
                     let ceiling = b.levels[level + 1] - p.panel_m * 0.5;
-                    let rear = -size.z * 0.5 + if p.closed_back { p.panel_m } else { 0. };
+                    let (rear, front) = p.deck_limits(size.z);
                     let children = contents::placements(&o, &p, index, level);
-                    check_separation(
-                        &children,
-                        b,
-                        base,
-                        ceiling,
-                        rear,
-                        size.z * 0.5,
-                        p.open_frame,
-                    );
+                    check_separation(&children, b, base, ceiling, rear, front, p.open_frame);
                     for child in children {
                         let mut mesh = Assembly::default();
-                        contents::build(&mut mesh, &o, &child);
+                        contents::build(
+                            &mut mesh,
+                            &o,
+                            &child,
+                            crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                        );
                         let (lo, hi) = mesh.bounds();
                         assert!(
                             lo.y >= base - 1e-5 && hi.y <= ceiling,
                             "{seed}: child clips shelf"
                         );
                         assert!(
-                            lo.x >= b.left
-                                && hi.x <= b.right
-                                && lo.z >= rear
-                                && hi.z <= size.z * 0.5,
+                            lo.x >= b.left && hi.x <= b.right && lo.z >= rear && hi.z <= front,
                             "{seed}: child escapes bay: {lo:?}/{hi:?}"
                         );
                         assert!((lo.y - base).abs() < 0.001, "{seed}: floating child");
@@ -87,6 +81,85 @@ fn bookcase_contents_fit_real_shelf_compartments_and_replay() {
             }
         }
     }
+}
+
+#[test]
+fn open_rack_rails_bear_every_deck_and_braces_meet_the_rear_uprights() {
+    let mut patterns = [0; 3];
+    for seed in 0..256 {
+        let mut o = audit::fixture(ObjectKind::Bookcase, seed);
+        o.size = if seed % 2 == 0 {
+            Vec3::new(0.64, 1.84, 0.26)
+        } else {
+            Vec3::new(1.76, 1.32, 0.5)
+        };
+        let p = parameters(&o);
+        let archived = parameters_at(&o, 256);
+        assert!(archived.rack.is_none());
+        assert_eq!(p.open_frame, archived.open_frame);
+        let Some(rack) = &p.rack else {
+            assert_eq!(
+                serde_json::to_value(&p).unwrap(),
+                serde_json::to_value(&archived).unwrap()
+            );
+            continue;
+        };
+        patterns[rack.bracing as usize] += 1;
+        let (rear, front) = p.deck_limits(o.size.z);
+        let mut supports = Assembly::default();
+        rack.build_supports(&mut supports, &o, &p);
+        assert_eq!(supports.parts.len(), 1);
+        let g = supports.parts.values().next().unwrap();
+        let mut members = g.positions.as_chunks::<24>().0.iter().map(|vertices| {
+            vertices.iter().map(|&v| Vec3::from(v)).fold(
+                (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+                |(lo, hi), v| (lo.min(v), hi.max(v)),
+            )
+        });
+        let deck_count: usize = p.bays.iter().map(|b| b.levels.len()).sum();
+        for b in &p.bays {
+            for &level in &b.levels {
+                for (x0, x1) in [
+                    (b.left - rack.bearing_m, b.left),
+                    (b.right, b.right + rack.bearing_m),
+                ] {
+                    let (lo, hi) = members.next().unwrap();
+                    // Rail top meets the underside, underneath its projecting end.
+                    assert!((hi.y - (level - p.panel_m * 0.5)).abs() < 1e-5 && lo.y > 0.);
+                    assert!((lo.x - x0).abs() < 1e-5 && (hi.x - x1).abs() < 1e-5);
+                    assert!(lo.z < rear && hi.z > front);
+                    assert!(
+                        (lo.z - (-o.size.z * 0.5 + rack.brace_depth_m + rack.post_depth_m)).abs()
+                            < 1e-5
+                    );
+                    assert!((hi.z - (o.size.z * 0.5 - rack.post_depth_m)).abs() < 1e-5);
+                }
+            }
+        }
+        let mut braces = 0;
+        let rear_post = -o.size.z * 0.5 + rack.brace_depth_m;
+        for (lo, hi) in members {
+            assert!((hi.z - rear_post).abs() < 1e-5 && (lo.z + o.size.z * 0.5).abs() < 1e-5);
+            assert!(lo.y > 0. && hi.y < o.size.y && hi.z < rear);
+            // Each end overlaps the width of a post with a real bearing area.
+            for x in [lo.x, hi.x] {
+                assert!(std::iter::once(-o.size.x * 0.5)
+                    .chain(p.bays.iter().map(|b| b.right))
+                    .any(|left| x >= left - 1e-5 && x <= left + rack.post_width_m + 1e-5));
+            }
+            braces += 1;
+        }
+        assert_eq!(
+            braces,
+            match rack.bracing {
+                RackBracing::Diagonal => 1,
+                RackBracing::Alternating => p.bays.len(),
+                RackBracing::Stretchers => 2,
+            }
+        );
+        assert_eq!(g.indices.len() / 3, 12 * (deck_count * 2 + braces));
+    }
+    assert!(patterns.iter().all(|&n| n > 8), "{patterns:?}");
 }
 
 /// Independent separating-axis oracle for the thickness/height section. A
@@ -282,7 +355,14 @@ fn binding_fits_both_orientations_with_metric_uvs_and_a_bounded_mesh() {
         let mut o = audit::fixture(ObjectKind::Books, seed);
         o.size = Vec3::new(0.022 + seed as f32 * 0.00023, 0.235, 0.183);
         let mut a = Assembly::default();
-        binding::volume(&mut a, seed, None, o.size, Transform::IDENTITY);
+        binding::volume(
+            &mut a,
+            seed,
+            None,
+            o.size,
+            Transform::IDENTITY,
+            crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+        );
         let n = audit::check(&o, &a).unwrap().triangles;
         min = min.min(n);
         max = max.max(n);
@@ -295,7 +375,14 @@ fn binding_fits_both_orientations_with_metric_uvs_and_a_bounded_mesh() {
         let tf = Transform::from_xyz(-size.y * 0.5, size.x * 0.5, 0.)
             .with_rotation(Quat::from_rotation_z(-FRAC_PI_2));
         let mut flat = Assembly::default();
-        binding::volume(&mut flat, seed, None, size, tf);
+        binding::volume(
+            &mut flat,
+            seed,
+            None,
+            size,
+            tf,
+            crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+        );
         assert_eq!(audit::check(&o, &flat).unwrap().triangles, n);
         assert!(flat.bounds().0.y.abs() < 1e-6);
     }
@@ -304,4 +391,57 @@ fn binding_fits_both_orientations_with_metric_uvs_and_a_bounded_mesh() {
         finishes.len()
     );
     assert!(min >= 24 && max <= 180 && finishes.len() >= 5);
+}
+
+#[test]
+fn shelf_jacket_is_one_outward_chart_across_both_boards_and_rounded_spine() {
+    use crate::scene::procedural_indoor::materials::paper::jacket;
+    let version = jacket::INTRODUCED;
+    let (edition, slot) = (0..100)
+        .find_map(|seed| jacket::slot(version, seed, false).map(|s| (seed, s)))
+        .unwrap();
+    let label = format!("books#finish{slot}#uv_local");
+    for seed in [3, 15] {
+        let size = Vec3::new(0.032, 0.26, 0.18);
+        let mut shelf = Assembly::default();
+        binding::volume(
+            &mut shelf,
+            seed,
+            Some(edition),
+            size,
+            Transform::IDENTITY,
+            version,
+        );
+        let g = &shelf.parts[&(Surface::PrintedPaper, label.clone())];
+        assert_eq!(g.indices.len(), 7 * 6);
+        assert!(g.normals[0][0] < -0.99 && g.normals[24][0] > 0.99);
+        let mut u = 0.;
+        for (i, uv) in g.uvs.as_chunks::<4>().0.iter().enumerate() {
+            assert_eq!(uv[0], [u, 1.]);
+            assert_eq!(uv[3], [u, 0.]);
+            u = uv[1][0];
+            assert!(u > uv[0][0]);
+            assert_eq!(uv[2], [u, 0.]);
+            match i {
+                0 => assert_eq!(u, jacket::SPINE[0]),
+                5 => assert_eq!(u, jacket::SPINE[1]),
+                6 => assert_eq!(u, 1.),
+                _ => {}
+            }
+        }
+        let mut archive = Assembly::default();
+        binding::volume(
+            &mut archive,
+            seed,
+            Some(edition),
+            size,
+            Transform::IDENTITY,
+            version - 1,
+        );
+        assert!(!archive
+            .parts
+            .keys()
+            .any(|(surface, _)| *surface == Surface::PrintedPaper));
+        assert_eq!(shelf.bounds(), archive.bounds());
+    }
 }

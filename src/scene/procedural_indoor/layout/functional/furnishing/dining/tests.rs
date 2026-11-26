@@ -108,3 +108,161 @@ fn dining_seats_cover_ends_counts_and_both_bench_sides_without_clipping() {
         "bench placement must not prefer a fixed side"
     );
 }
+
+#[test]
+fn dining_groups_follow_the_actual_service_frontage_and_cross_aisle() {
+    let scene = IndoorManifest::generate_with_humans(9, IndoorLayout::Cafe, 0.65, 0, 0.).unwrap();
+    let mut p = scene.functional_programs()[0].clone();
+    p.min = Vec2::new(-7.0, -6.0);
+    p.max = Vec2::new(9.0, 8.0);
+    let route = |role, min, max| Reservation { role, min, max };
+    // The order and positions differ from a centred standalone café.
+    p.reservations = vec![
+        route(
+            ReservationRole::Queue,
+            Vec2::new(-5., -4.),
+            Vec2::new(-2., -1.),
+        ),
+        route(ReservationRole::Circulation, Vec2::new(-7., 6.4), p.max),
+        route(
+            ReservationRole::Circulation,
+            Vec2::new(-0.4, -3.),
+            Vec2::new(1.2, 8.),
+        ),
+    ];
+    let mut counter = objects::audit::fixture(ObjectKind::ServiceCounter, 2);
+    counter.position = Vec3::new(3., 0., -4.5);
+    counter.size = Vec3::new(2.8, 1., 1.);
+    counter.yaw = 0.;
+    let bounds = bays::dining_bays(&p, std::slice::from_ref(&counter)).unwrap();
+    assert_eq!(bounds[0], Rect::new(-7., -1., -0.4, 6.4));
+    assert_eq!(bounds[1], Rect::new(1.2, -4., 9., 6.4));
+    let mut across = [false; 3];
+    let mut headings = [0; 2];
+    let mut benches = [0; 2];
+    let mut both_banks = 0;
+    let mut table_counts = BTreeSet::new();
+    for seed in 0..96 {
+        let plan = bays::DiningPlan::sample(&p, std::slice::from_ref(&counter), seed, false);
+        let mut matched_rows = [Vec::new(), Vec::new()];
+        assert!(!plan.tables.is_empty() && plan.tables.len() <= 32);
+        for site in &plan.tables {
+            let side = usize::from(site.position.x > 0.);
+            let bay = bounds[side];
+            let uv = (site.position.xz() - bay.min) / bay.size();
+            assert!(uv.cmpgt(Vec2::ZERO).all() && uv.cmplt(Vec2::ONE).all());
+            across[(uv.x * 3.) as usize] = true;
+            headings[usize::from(site.yaw.sin().abs() > 0.8)] += 1;
+            matched_rows[side].push(site.position.z);
+        }
+        table_counts.insert(plan.tables.len());
+        if matched_rows.iter().all(|v| !v.is_empty()) {
+            both_banks += 1;
+            assert!(matched_rows[0]
+                .iter()
+                .any(|z| matched_rows[1].iter().all(|w| (z - w).abs() > 0.001)));
+        }
+        let bench = plan.perimeter_bench.unwrap();
+        let side = usize::from(bench.position.x > 0.);
+        let footprint = Vec2::new(bench.size.z, bench.size.x) * 0.5;
+        assert!(bounds[side].contains(bench.position.xz() - footprint));
+        assert!(bounds[side].contains(bench.position.xz() + footprint));
+        // Banquette local +Z faces away from its backrest, into the room.
+        assert!(bench.yaw.sin() * bench.position.x < 0.);
+        benches[side] += 1;
+    }
+    assert!(both_banks > 60 && table_counts.len() >= 4);
+    assert!(across.into_iter().all(|v| v));
+    assert!(headings.into_iter().all(|n| n > 50));
+    assert!(benches.into_iter().all(|n| n > 20));
+    // A cross aisle that consumes both banks must produce no forced stations.
+    p.reservations[1].min.y = p.min.y;
+    let empty = bays::DiningPlan::sample(&p, &[counter], 0, false);
+    assert!(empty.tables.is_empty() && empty.perimeter_bench.is_none());
+}
+
+#[test]
+fn dining_linen_venues_keep_stock_and_real_seat_and_dish_supports() {
+    let mut covered_tables = 0;
+    let mut supported_items = 0;
+    for (profile, rooms) in [
+        (IndoorLayout::Restaurant, 12),
+        (IndoorLayout::Cafe, 12),
+        (IndoorLayout::Cafeteria, 3),
+    ] {
+        for seed in 55100..55100 + rooms {
+            let scene = IndoorManifest::generate_with_humans(seed, profile, 0.65, 3, 0.25).unwrap();
+            let program = &scene.functional_programs()[0];
+            let mut stock = None;
+            for table in program.members.iter().map(|&i| &scene.objects[i]) {
+                let Some(cloth) = tables::dining_linen(table) else {
+                    continue;
+                };
+                assert_ne!(profile, IndoorLayout::Cafeteria);
+                assert_eq!(*stock.get_or_insert(cloth.weave), cloth.weave);
+                covered_tables += 1;
+                for o in scene.objects.iter().filter(|o| o.support == Some(table.id)) {
+                    assert!(
+                        (o.position.y - table.position.y - table.size.y).abs() < 0.002,
+                        "{seed} {:?}",
+                        o.kind
+                    );
+                    supported_items += 1;
+                }
+            }
+            validation::validate_layout(&scene).unwrap();
+        }
+    }
+    assert!(covered_tables > 0 && supported_items > 0);
+}
+
+#[test]
+fn hot_service_admits_accessible_counters_and_rejects_reversed_installations() {
+    let mut installed = 0;
+    let mut left = 0;
+    let mut right = 0;
+    for seed in 72300..72348 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Cafeteria, 0.65, 0, 0.)
+                .unwrap();
+        scene.validate_public_programs().unwrap();
+        for station in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::HotFoodWell)
+        {
+            let counter = &scene.objects[station.support.unwrap()];
+            assert!(scene.functional_programs()[0].members.contains(&station.id));
+            assert!(scene.hot_food_access(station, counter));
+            assert!(scene
+                .objects
+                .iter()
+                .any(|o| o.kind == ObjectKind::DrinkDispenser && o.support == station.support));
+            let mut plate = objects::audit::fixture(ObjectKind::Dishware, 9);
+            plate.id = scene.objects.len();
+            plate.size = Vec3::new(0.05, 0.01, 0.05);
+            plate.position = station.position
+                + station.transform().rotation * Vec3::Z * (station.size.z * 0.5 + 0.058);
+            plate.support = station.support;
+            plate.yaw = station.yaw;
+            assert!(
+                !scene.prop_clear(&plate, counter, 0.004),
+                "reserved handoff must stay clear"
+            );
+            let mut invalid = station.clone();
+            invalid.yaw += PI;
+            assert!(!scene.hot_food_access(&invalid, counter));
+            invalid = station.clone();
+            invalid.position = counter.position;
+            assert!(!scene.hot_food_access(&invalid, counter));
+            let angle = station.yaw - counter.yaw;
+            left += usize::from(angle < -0.02);
+            right += usize::from(angle > 0.02);
+            installed += 1;
+        }
+    }
+    assert!(
+        (8..48).contains(&installed) && left >= 2 && right >= 2,
+        "installed={installed} left={left} right={right}"
+    );
+}

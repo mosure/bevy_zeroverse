@@ -48,16 +48,9 @@ impl GiGpuReadiness {
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct GpuTriangle {
-    // The fourth lanes carry the three full-precision geometric normal components.
-    a: [f32; 4],
-    ab: [f32; 4],
-    ac: [f32; 4],
-    uv01: [f32; 4],
-    uv2_material: [f32; 4],
-}
+// One binding has two contiguous regions. Intersection rays fetch three vec4s
+// per triangle. Only the accepted surface fetches its two UV/material vec4s.
+type PackedTriangle = [[f32; 4]; 5];
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct GpuMaterial {
@@ -79,6 +72,7 @@ struct GpuLight {
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Params {
     resolution: [u32; 4],
+    table_offsets: [u32; 4],
     budget: [u32; 4],
     sun_direction: [f32; 4],
     sun: [f32; 4],
@@ -88,7 +82,7 @@ struct Params {
 
 struct Input {
     params: Params,
-    triangles: Vec<GpuTriangle>,
+    triangles: Vec<[f32; 4]>,
     nodes: Arc<Vec<TransportNode>>,
     materials: Vec<GpuMaterial>,
     texels: Vec<[f32; 4]>,
@@ -107,7 +101,7 @@ pub struct GpuBakeRequest {
 /// when its logical count is zero. For nonempty arrays this borrows the
 /// original bytes without allocating or copying them.
 fn storage_bytes<T: bytemuck::Pod>(values: &[T]) -> &[u8] {
-    const ZERO: [u8; size_of::<GpuTriangle>()] = [0; size_of::<GpuTriangle>()];
+    const ZERO: [u8; size_of::<PackedTriangle>()] = [0; size_of::<PackedTriangle>()];
     const { assert!(size_of::<T>() <= ZERO.len()) };
     if values.is_empty() {
         &ZERO[..size_of::<T>()]
@@ -148,6 +142,15 @@ impl GpuBakeRequest {
         self.input.buffers().iter().map(|b| b.len() as u64).sum()
     }
 
+    fn moment_bytes(&self) -> u64 {
+        // One float4 (RGB and variance) per cardinal lobe, released after resolve.
+        (u64::from(self.input.params.resolution[3]) * 6 * 16).max(16)
+    }
+
+    pub(crate) fn resident_buffer_bytes(&self) -> u64 {
+        self.gpu_buffer_bytes() + self.moment_bytes()
+    }
+
     pub(crate) fn probe_texture_bytes(&self) -> u64 {
         u64::from(self.input.params.resolution[3]) * 48
     }
@@ -164,7 +167,7 @@ pub(crate) fn test_request(image: Handle<Image>) -> GpuBakeRequest {
             materials: Vec::new(),
             texels: Vec::new(),
             lights: Vec::new(),
-            origins: probes::ProbeDispatch::new(&[], &[]),
+            origins: probes::ProbeDispatch::new(&[], &[], &[]),
         }),
         readiness: default(),
     }
@@ -188,7 +191,7 @@ pub(in crate::scene::procedural_indoor) fn fits_portable_bindings(scene: &BakeSc
         .sum::<u64>()
         + scene.sky_field.0.len() as u64;
     let limit = wgpu::Limits::default().max_storage_buffer_binding_size;
-    fits_records::<GpuTriangle>(scene.triangles.len() as u64, limit)
+    fits_records::<PackedTriangle>(scene.triangles.len() as u64, limit)
         && fits_records::<TransportNode>(scene.gpu_transport().nodes.len() as u64, limit)
         && fits_records::<GpuLight>(scene.lights.len() as u64, limit)
         && fits_records::<GpuMaterial>(scene.materials.len() as u64, limit)
@@ -221,22 +224,28 @@ pub fn prepare(
         "GPU GI probe budget exceeds a dispatch dimension"
     );
     let (points, valid) = scene.probe_grid(resolution);
-    let origins = probes::ProbeDispatch::new(&points, &valid);
+    let links = scene.probe_links(resolution, &points, &valid);
+    let origins = probes::ProbeDispatch::new(&points, &valid, &links);
     // Closest hits, solid classification and the independent CPU oracle retain
     // their original traversal order. Boolean shadows and GPU transport share
     // the same tighter spatial tree without exposing its reordered indices.
     let cached_transport = scene.transport_tree.get().is_some();
     let transport = scene.gpu_transport();
-    let triangles = transport
-        .surfaces(scene)
-        .map(|t| GpuTriangle {
-            a: t.a.extend(t.normal.x).to_array(),
-            ab: t.ab.extend(t.normal.y).to_array(),
-            ac: t.ac.extend(t.normal.z).to_array(),
-            uv01: [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
-            uv2_material: [t.uv[2].x, t.uv[2].y, t.material as f32, 0.0],
-        })
-        .collect();
+    let mut triangles = Vec::with_capacity(5 * transport.triangles.len());
+    for t in transport.surfaces(scene) {
+        triangles.extend([
+            t.a.extend(t.normal.x).to_array(),
+            t.ab.extend(t.normal.y).to_array(),
+            t.ac.extend(t.normal.z).to_array(),
+        ]);
+    }
+    let shading_offset = triangles.len() as u32;
+    for t in transport.surfaces(scene) {
+        triangles.extend([
+            [t.uv[0].x, t.uv[0].y, t.uv[1].x, t.uv[1].y],
+            [t.uv[2].x, t.uv[2].y, t.material as f32, 0.],
+        ]);
+    }
     let nodes = Arc::clone(&transport.nodes);
     // Sky samples lead the existing radiance buffer. Diffuse material offsets
     // below naturally follow them; isotropic rooms need no extra records.
@@ -300,6 +309,7 @@ pub fn prepare(
     let input = Input {
         params: Params {
             resolution: [resolution.x, resolution.y, resolution.z, count as u32],
+            table_offsets: [shading_offset, 0, 0, 0],
             budget: [
                 settings.rays_per_probe,
                 settings.diffuse_bounces,
@@ -413,7 +423,8 @@ struct FuturePrepared([Prepared; 2]);
 #[derive(Resource)]
 struct Pipeline {
     layout: BindGroupLayout,
-    pipeline: CachedComputePipelineId,
+    bake: CachedComputePipelineId,
+    resolve: CachedComputePipelineId,
 }
 impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
@@ -449,21 +460,36 @@ impl FromWorld for Pipeline {
             },
             count: None,
         });
+        entries.push(BindGroupLayoutEntry {
+            binding: 8,
+            visibility: ShaderStages::COMPUTE,
+            ty: BindingType::Buffer {
+                ty: BufferBindingType::Storage { read_only: false },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
         let layout_descriptor = BindGroupLayoutDescriptor::new("indoor_gi_layout", &entries);
         let layout = world
             .resource::<PipelineCache>()
             .get_bind_group_layout(&layout_descriptor);
-        let pipeline =
+        let queue = |entry: &'static str| {
             world
                 .resource::<PipelineCache>()
                 .queue_compute_pipeline(ComputePipelineDescriptor {
-                    label: Some("indoor_diffuse_gi".into()),
-                    layout: vec![layout_descriptor],
+                    label: Some(format!("indoor_gi_{entry}").into()),
+                    layout: vec![layout_descriptor.clone()],
                     shader: SHADER,
-                    entry_point: Some("bake".into()),
+                    entry_point: Some(entry.into()),
                     ..default()
-                });
-        Self { layout, pipeline }
+                })
+        };
+        Self {
+            layout,
+            bake: queue("bake"),
+            resolve: queue("resolve"),
+        }
     }
 }
 
@@ -493,7 +519,9 @@ fn upload(
     future: (Res<FutureRequest>, ResMut<FuturePrepared>),
 ) {
     let (next, mut next_prepared) = future;
-    let failure = pipeline_failure(cache.get_compute_pipeline_state(pipeline.pipeline));
+    let failure = [pipeline.bake, pipeline.resolve]
+        .into_iter()
+        .find_map(|id| pipeline_failure(cache.get_compute_pipeline_state(id)));
     if let Some(request) = request.as_deref() {
         // Promotion reuses independently uploaded bindings, including when the
         // future dispatch has not yet encoded. Never overwrite its probe data.
@@ -560,13 +588,17 @@ fn upload_request(
     };
     let bytes = request.input.buffers();
     let limits = device.limits();
-    if let Some((binding, length, limit)) = bytes.iter().enumerate().find_map(|(binding, data)| {
+    let mut sizes = bytes
+        .iter()
+        .enumerate()
+        .map(|(i, data)| (i, data.len() as u64))
+        .chain(std::iter::once((8, request.moment_bytes())));
+    if let Some((binding, length, limit)) = sizes.find_map(|(binding, length)| {
         let limit = limits.max_buffer_size.min(if binding == 0 {
             limits.max_uniform_buffer_binding_size
         } else {
             limits.max_storage_buffer_binding_size
         });
-        let length = data.len() as u64;
         (length > limit).then_some((binding, length, limit))
     }) {
         *request.readiness.0.failure.lock().unwrap() = Some(format!(
@@ -578,7 +610,7 @@ fn upload_request(
         return;
     }
     *request.readiness.0.failure.lock().unwrap() = None;
-    let buffers: Vec<_> = bytes
+    let mut buffers: Vec<_> = bytes
         .iter()
         .enumerate()
         .map(|(i, data)| {
@@ -597,6 +629,13 @@ fn upload_request(
             )
         })
         .collect();
+    // GPU-only scratch, bounded by the 65,535-slot dispatch limit (< 6 MiB).
+    let moments = device.create_buffer(&BufferDescriptor {
+        label: Some("indoor_gi_lobe_moments"),
+        size: request.moment_bytes(),
+        usage: BufferUsages::STORAGE,
+        mapped_at_creation: false,
+    });
     let mut entries: Vec<_> = buffers
         .iter()
         .enumerate()
@@ -609,7 +648,12 @@ fn upload_request(
         binding: 7,
         resource: BindingResource::TextureView(&image.texture_view),
     });
+    entries.push(BindGroupEntry {
+        binding: 8,
+        resource: moments.as_entire_binding(),
+    });
     let bind_group = device.create_bind_group("indoor_gi_bindings", &pipeline.layout, &entries);
+    buffers.push(moments);
     *prepared = Prepared {
         image: Some(request.image.id()),
         bind_group: Some(bind_group),
@@ -630,14 +674,17 @@ fn pipeline_failure(state: &CachedPipelineState) -> Option<String> {
 fn bake_gpu(world: &World, mut context: RenderContext) {
     let pipeline = world.resource::<Pipeline>();
     let cache = world.resource::<PipelineCache>();
-    let Some(pipeline) = cache.get_compute_pipeline(pipeline.pipeline) else {
+    let (Some(bake), Some(resolve)) = (
+        cache.get_compute_pipeline(pipeline.bake),
+        cache.get_compute_pipeline(pipeline.resolve),
+    ) else {
         return;
     };
     if let Some(request) = world.get_resource::<GpuBakeRequest>() {
         encode_request(
             request,
             world.resource::<Prepared>(),
-            pipeline,
+            [bake, resolve],
             &mut context,
             "indoor_diffuse_bake",
         );
@@ -658,7 +705,7 @@ fn bake_gpu(world: &World, mut context: RenderContext) {
         encode_request(
             &next.request,
             prepared,
-            pipeline,
+            [bake, resolve],
             &mut context,
             if index == 0 {
                 "indoor_diffuse_bake_future"
@@ -672,7 +719,7 @@ fn bake_gpu(world: &World, mut context: RenderContext) {
 fn encode_request(
     request: &GpuBakeRequest,
     prepared: &Prepared,
-    pipeline: &ComputePipeline,
+    pipelines: [&ComputePipeline; 2],
     context: &mut RenderContext,
     diagnostic_label: &'static str,
 ) {
@@ -688,16 +735,20 @@ fn encode_request(
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
     let span = diagnostics.time_span(context.command_encoder(), diagnostic_label);
-    {
+    let sources = request.input.origins.sources;
+    for (pipeline, groups, label) in [
+        (pipelines[0], sources, "indoor_gi_bake_once"),
+        (pipelines[1], sources.div_ceil(8), "indoor_gi_resolve_once"),
+    ] {
         let mut pass = context
             .command_encoder()
             .begin_compute_pass(&ComputePassDescriptor {
-                label: Some("indoor_gi_bake_once"),
+                label: Some(label),
                 timestamp_writes: None,
             });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, bind_group, &[]);
-        pass.dispatch_workgroups(request.input.origins.sources, 1, 1);
+        pass.dispatch_workgroups(groups, 1, 1);
     }
     span.end(context.command_encoder());
     request.readiness.0.encoded.store(true, Ordering::Release);
@@ -759,7 +810,7 @@ mod tests {
     fn empty_shader_arrays_bind_a_complete_element_and_preserve_logical_counts() {
         let request = test_request(Handle::default());
         let lengths = request.input.buffers().map(<[u8]>::len);
-        assert_eq!(lengths, [size_of::<Params>(), 80, 32, 64, 16, 64, 16]);
+        assert_eq!(lengths, [size_of::<Params>(), 16, 32, 64, 16, 64, 16]);
         assert_eq!(
             request.gpu_buffer_bytes(),
             lengths.iter().sum::<usize>() as u64
@@ -803,19 +854,25 @@ mod tests {
             &request.input.nodes,
             &transport.gpu_transport().nodes
         ));
-        assert_eq!(request.input.triangles.len(), reference.len());
-        for (packed, original) in request.input.triangles.iter().zip(&reference) {
-            assert_eq!(&packed.a[..3], &original.a.to_array());
-            assert_eq!(&packed.ab[..3], &original.ab.to_array());
-            assert_eq!(&packed.ac[..3], &original.ac.to_array());
-            assert_eq!(
-                [packed.a[3], packed.ab[3], packed.ac[3]],
-                original.normal.to_array()
-            );
-            assert_eq!(&packed.uv01[..2], &original.uv[0].to_array());
-            assert_eq!(&packed.uv01[2..], &original.uv[1].to_array());
-            assert_eq!(&packed.uv2_material[..2], &original.uv[2].to_array());
-            assert_eq!(packed.uv2_material[2] as usize, original.material);
+        assert_eq!(request.input.triangles.len(), reference.len() * 5);
+        let offset = request.input.params.table_offsets[0] as usize;
+        assert_eq!(offset, reference.len() * 3);
+        let (geometry, shading) = request.input.triangles.split_at(offset);
+        for (([a, ab, ac], [uv01, uv2_material]), original) in geometry
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(shading.as_chunks::<2>().0)
+            .zip(&reference)
+        {
+            assert_eq!(&a[..3], &original.a.to_array());
+            assert_eq!(&ab[..3], &original.ab.to_array());
+            assert_eq!(&ac[..3], &original.ac.to_array());
+            assert_eq!([a[3], ab[3], ac[3]], original.normal.to_array());
+            assert_eq!(&uv01[..2], &original.uv[0].to_array());
+            assert_eq!(&uv01[2..], &original.uv[1].to_array());
+            assert_eq!(&uv2_material[..2], &original.uv[2].to_array());
+            assert_eq!(uv2_material[2] as usize, original.material);
         }
         // Check every packed trace origin against the two floor polygons and
         // the full six-ray solid test, independent of the dispatch planner.
@@ -860,14 +917,14 @@ mod tests {
     fn full_precision_transport_fits_the_previous_oversize_room() {
         let limit = 128 * 1024 * 1024;
         let triangles = 136_205_184 / 96; // Captured on llvmpipe, seed 90108.
-        assert_eq!(std::mem::size_of::<GpuTriangle>(), 80);
+        assert_eq!(std::mem::size_of::<PackedTriangle>(), 80);
         assert_eq!(std::mem::size_of::<TransportNode>(), 32);
         assert_eq!(std::mem::offset_of!(TransportNode, index), 12);
         assert_eq!(std::mem::offset_of!(TransportNode, hi), 16);
         assert_eq!(std::mem::offset_of!(TransportNode, tag), 28);
-        assert!(fits_records::<GpuTriangle>(triangles, limit));
-        assert!(fits_records::<GpuTriangle>(limit / 80, limit));
-        assert!(!fits_records::<GpuTriangle>(limit / 80 + 1, limit));
+        assert!(fits_records::<PackedTriangle>(triangles, limit));
+        assert!(fits_records::<PackedTriangle>(limit / 80, limit));
+        assert!(!fits_records::<PackedTriangle>(limit / 80 + 1, limit));
         assert!(!fits_records::<TransportNode>(u64::MAX, limit));
     }
 

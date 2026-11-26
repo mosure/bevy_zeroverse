@@ -199,9 +199,7 @@ fn reported_fan_headroom_survives_later_rug_placement() {
 fn reported_mezzanine_fan_seed_reserves_upper_storey_headroom() {
     use crate::scene::procedural_indoor::layout::equipment::fan_clear;
     for people in [0., 0.5, 1.] {
-        let scene =
-            IndoorManifest::generate_with_humans(65_412_811, IndoorLayout::Mixed, 0.65, 0, people)
-                .unwrap();
+        let scene = IndoorManifest::initial_mixed_fixture(65_412_811, 0.65, 0, people).unwrap();
         validation::validate_layout(&scene).unwrap();
         let deck = &scene
             .envelope

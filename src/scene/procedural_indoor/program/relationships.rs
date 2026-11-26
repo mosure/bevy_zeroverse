@@ -64,9 +64,13 @@ impl IndoorManifest {
             if let Some(s) = o.support {
                 add(Object(s), Supports, Object(o.id));
             }
-            if o.kind == ObjectKind::Chair {
-                if let Some(s) = o.interaction_target {
-                    add(Object(o.id), SeatsAt, Object(s));
+            if let Some(target) = o.interaction_target {
+                match o.kind {
+                    ObjectKind::Chair | ObjectKind::Banquette => {
+                        add(Object(o.id), SeatsAt, Object(target))
+                    }
+                    ObjectKind::Dishware => add(Object(o.id), Serves, Object(target)),
+                    _ => {}
                 }
             }
             if o.kind == ObjectKind::Cable {

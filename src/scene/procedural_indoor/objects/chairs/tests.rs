@@ -79,7 +79,7 @@ fn rounded_arm_carriers_keep_valid_bend_radii_at_short_pad_extremes() {
                     p.arm_height = height;
                     p.arm_pad_length = length;
                     let mut a = Assembly::default();
-                    upper::arms(&mut a, &p, width, 2);
+                    upper::arms(&mut a, &p, width, 2, None);
                     audit::check(&o, &a).unwrap_or_else(|e| {
                         panic!(
                             "style={style}, height={height}, length={length}, width={width}: {e}"
@@ -201,10 +201,11 @@ fn base_and_seat_choices_change_actual_surfaces() {
             &mut a,
             &o,
             &p,
-            0.48,
-            0.46,
+            Vec2::new(0.48, 0.46),
             0.39,
             super::super::super::layout::GENERATOR_VERSION,
+            p.swivel_pedestal(&o, super::super::super::layout::GENERATOR_VERSION)
+                .as_ref(),
         );
         audit::check(&o, &a).unwrap();
         bases.push(audit::descriptor(&o, &a));
@@ -277,7 +278,9 @@ fn swivel_controls_move_with_the_pan_while_casters_stay_on_the_base() {
     let _ = r.random_range(0.42..0.49_f32);
     let padding = r.random_range(0.044..0.075);
     let mut lever = Assembly::default();
-    base::tilt_control(&mut lever, width, depth, 0.47 - padding - 0.023);
+    p.swivel_pedestal(&o, super::super::super::layout::GENERATOR_VERSION)
+        .unwrap()
+        .upper(&mut lever, Vec2::new(width, depth), 0.47 - padding - 0.023);
     for ((surface, _), geometry) in lever.parts {
         assert!(upper
             .parts
@@ -290,6 +293,23 @@ fn swivel_controls_move_with_the_pan_while_casters_stay_on_the_base() {
                     .any(|v| v == geometry.positions)
             }));
     }
+    let mut column = Assembly::default();
+    p.swivel_pedestal(&o, super::super::super::layout::GENERATOR_VERSION)
+        .unwrap()
+        .column(&mut column, 0.47 - padding - 0.023);
+    for ((surface, _), geometry) in column.parts {
+        assert!(base.parts.iter().filter(|(s, _)| *s == surface).any(|key| {
+            a.parts[key]
+                .positions
+                .windows(geometry.positions.len())
+                .any(|v| v == geometry.positions)
+        }));
+    }
     assert!(base.parts.iter().any(|(s, _)| *s == Surface::Rubber));
-    assert!(!upper.parts.iter().any(|(s, _)| *s == Surface::Rubber));
+    // A soft-touch arm pad moves with the seat. The rubber wheels stay on the rolling base.
+    assert!(upper
+        .parts
+        .iter()
+        .filter(|(s, _)| *s == Surface::Rubber)
+        .all(|key| a.parts[key].positions.iter().all(|p| p[1] > 0.50)));
 }

@@ -91,7 +91,12 @@ fn open_cabinet_contents_fit_and_rest_on_actual_shelves() {
                 );
                 for c in children {
                     let mut mesh = Assembly::default();
-                    bookcase::contents::build(&mut mesh, &inside, &c);
+                    bookcase::contents::build(
+                        &mut mesh,
+                        &inside,
+                        &c,
+                        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                    );
                     let (lo, hi) = mesh.bounds();
                     assert!((lo.y - base).abs() < 0.001 && hi.y <= ceiling);
                     assert!(lo.x >= bay.left && hi.x <= bay.right && lo.z >= rear && hi.z <= front);

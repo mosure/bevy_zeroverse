@@ -13,13 +13,13 @@
     #status strong { font-size:26px;letter-spacing:.08em; }
     #status small { color:#6bd4bf;letter-spacing:.2em; }
     #message { color:#a5b5c7;max-width:560px;line-height:1.6; }
+    #reset { color:#6bd4bf;pointer-events:auto;justify-self:start; }
   </style>
 </head>
 <body>
   <canvas id="bevy" aria-label="Zeroverse procedural scene editor"></canvas>
-  <div id="status" role="status"><small>SCENE STUDIO</small><strong>ZERO / VERSE</strong><span id="message">Starting WebGPU…</span></div>
+  <div id="status" role="status"><small>SCENE STUDIO</small><strong>ZERO / VERSE</strong><span id="message">Starting WebGPU…</span><a id="reset" href="?" hidden>Open Studio with default settings</a></div>
   <script type="module">
-    import init from './out/viewer.js';
     // Share the compiled binary and its matching glue with the CPU worker.
     globalThis.zeroverseViewerModule = new URL('./out/viewer.js', import.meta.url).href;
     document.addEventListener('keydown', event => {
@@ -39,11 +39,13 @@
         if (!adapter) await new Promise(resolve => setTimeout(resolve, 200));
       }
       if (!adapter) throw new Error('No WebGPU adapter is available. Check browser graphics settings.');
+      const { default: init } = await import(globalThis.zeroverseViewerModule);
       status.hidden = true;
       await init();
     } catch (error) {
       status.hidden = false;
       message.textContent = error.message ?? String(error);
+      document.getElementById('reset').hidden = !location.search;
       console.error(error);
     }
     document.addEventListener('contextmenu', event => event.preventDefault());

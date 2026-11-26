@@ -3,7 +3,7 @@
 use bevy::prelude::Vec3;
 
 pub(super) struct ProbeDispatch {
-    /// One xyz-bit/next-slot record per grid slot, then four source indices per
+    /// One xyz-bit/link record per slot (low 16 bits next slot, upper 6 visibility), then four source indices per
     /// record. Both tables share the existing read-only shader binding.
     pub records: Vec<[u32; 4]>,
     pub sources: u32,
@@ -11,33 +11,26 @@ pub(super) struct ProbeDispatch {
 }
 
 impl ProbeDispatch {
-    pub(super) fn new(points: &[Vec3], valid: &[bool]) -> Self {
+    pub(super) fn new(points: &[Vec3], valid: &[bool], links: &[u8]) -> Self {
         debug_assert_eq!(points.len(), valid.len());
+        debug_assert_eq!(points.len(), links.len());
+        assert!(points.len() <= u16::MAX as usize);
         let mut sources: Vec<_> = (0..points.len()).filter(|&i| valid[i]).collect();
         let relocated = points.len() - sources.len();
         let mut records = Vec::with_capacity(points.len() + points.len().div_ceil(4));
-        records.extend(
-            points
-                .iter()
-                .map(|p| [p.x.to_bits(), p.y.to_bits(), p.z.to_bits(), u32::MAX]),
-        );
+        records.extend(points.iter().map(|p| {
+            [
+                p.x.to_bits(),
+                p.y.to_bits(),
+                p.z.to_bits(),
+                u32::from(u16::MAX),
+            ]
+        }));
         if sources.is_empty() {
             // The original fallback traces each slot in place if all are solid.
             sources.extend(0..points.len());
-        } else if relocated != 0 {
-            for (i, p) in points.iter().enumerate().filter(|(i, _)| !valid[*i]) {
-                let source = *sources
-                    .iter()
-                    .min_by(|&&a, &&b| {
-                        points[a]
-                            .distance_squared(*p)
-                            .total_cmp(&points[b].distance_squared(*p))
-                    })
-                    .expect("at least one valid source");
-                records[i][3] = records[source][3];
-                records[source][3] = i as u32;
-            }
         }
+        let source_count = sources.len() as u32;
         for group in sources.chunks(4) {
             let mut indices = [u32::MAX; 4];
             for (dst, &i) in indices.iter_mut().zip(group) {
@@ -45,9 +38,21 @@ impl ProbeDispatch {
             }
             records.push(indices);
         }
+        if relocated != 0 && relocated != points.len() {
+            let nearest =
+                super::super::relocation::ProbeSources::from_indices(points, sources, relocated);
+            for (i, p) in points.iter().enumerate().filter(|(i, _)| !valid[*i]) {
+                let source = nearest.nearest(*p).expect("at least one valid source");
+                records[i][3] = records[source][3];
+                records[source][3] = i as u32;
+            }
+        }
+        for (record, &link) in records.iter_mut().zip(links) {
+            record[3] |= u32::from(link) << 16;
+        }
         Self {
             records,
-            sources: sources.len() as u32,
+            sources: source_count,
             relocated,
         }
     }
@@ -64,7 +69,7 @@ mod tests {
             .collect();
         for mask in 0..256 {
             let valid: Vec<_> = (0..8).map(|i| mask & (1 << i) != 0).collect();
-            let plan = ProbeDispatch::new(&points, &valid);
+            let plan = ProbeDispatch::new(&points, &valid, &[0; 8]);
             let mut owners = vec![None; points.len()];
             for group in 0..plan.sources as usize {
                 let source = plan.records[points.len() + group / 4][group % 4] as usize;
@@ -73,7 +78,7 @@ mod tests {
                     points[source].to_array().map(f32::to_bits)
                 );
                 let mut slot = source as u32;
-                while slot != u32::MAX {
+                while slot != u32::from(u16::MAX) {
                     assert!(owners[slot as usize].replace(source).is_none());
                     slot = plan.records[slot as usize][3];
                 }

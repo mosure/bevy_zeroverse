@@ -50,6 +50,24 @@ fn dye(seed: u64, surface: Surface, slot: usize) -> Color {
     Color::hsl(h, s, l)
 }
 
+/// A store's coordinated colorways include undyed cotton, deep neutrals and
+/// brighter seasonal stock, on the same filtered weave and leather maps.
+fn shop_dye(seed: u64, surface: Surface, slot: usize) -> Color {
+    if surface == Surface::Leather {
+        return dye(seed, surface, slot);
+    }
+    let mut r = stream(seed, u64::from_le_bytes(*b"ShopDyes") ^ slot as u64);
+    let family = stream(seed, u64::from_le_bytes(*b"Seasonal")).random_range(0.0_f32..360.);
+    let hue =
+        (family + ((slot - FIRST) % 3) as f32 * 109. + r.random_range(-32.0..32.)).rem_euclid(360.);
+    let (sat, light) = match (slot - FIRST) % 6 {
+        0 => (r.random_range(0.07..0.20), r.random_range(0.73..0.91)),
+        1 => (r.random_range(0.06..0.27), r.random_range(0.16..0.37)),
+        _ => (r.random_range(0.34..0.73), r.random_range(0.43..0.72)),
+    };
+    Color::hsl(hue, sat, light)
+}
+
 pub(super) fn install(
     scene: &IndoorManifest,
     materials: &mut impl AssetStore<StandardMaterial>,
@@ -67,7 +85,13 @@ pub(super) fn install(
                 .get(stock)
                 .expect("prepared garment stock")
                 .clone();
-            m.base_color = dye(scene.material_seed(), surface, slot);
+            m.base_color = if scene.layout
+                == crate::scene::procedural_indoor::layout::IndoorLayout::ClothingStore
+            {
+                shop_dye(scene.material_seed(), surface, slot)
+            } else {
+                dye(scene.material_seed(), surface, slot)
+            };
             // All rack garments have a separate physical inner surface and
             // turned edges, including the scarves. Shade each cut face once.
             m.double_sided = false;

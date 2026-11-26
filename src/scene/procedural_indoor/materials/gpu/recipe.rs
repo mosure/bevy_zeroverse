@@ -39,6 +39,9 @@ pub(super) struct Recipe {
     pub rug1: [f32; 4],
     pub rug2: [f32; 4],
     pub rug3: [f32; 4],
+    pub rug_row: [f32; 4],
+    pub rug_shape: [f32; 4],
+    pub rug_guards: [f32; 4],
     pub wall_weights: [f32; 4],
     pub wall_counts: [u32; 4],
     pub wall0: [f32; 4],
@@ -170,6 +173,23 @@ impl Recipe {
                 ];
                 p.rug2 = [d.abrash, d.quiet, d.phase[0], d.phase[1]];
                 p.rug3 = [d.direction[0], d.direction[1], d.patchwork, 0.];
+                if let Some(w) = &d.weave {
+                    p.carpet_meta[3] = 2;
+                    p.rug3[3] = w.pile_contrast;
+                    p.rug_row = [
+                        w.first_center[0],
+                        w.first_center[1],
+                        w.pitch,
+                        f32::from(w.count),
+                    ];
+                    p.rug_shape = [w.inverse_radii[0], w.inverse_radii[1], w.fill, w.outline];
+                    p.rug_guards = [
+                        w.guard_offsets[0],
+                        w.guard_half_widths[0],
+                        w.guard_offsets[1],
+                        w.guard_half_widths[1],
+                    ];
+                }
             }
             if let Some(f) = &r.flooring {
                 if let Some(stock) = &f.stock {

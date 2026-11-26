@@ -168,10 +168,14 @@ fn furnishings(state: &EditorState, v: &mut Vec<Item>) {
         ("door_fraction", "Moving doors"),
         ("cabinet_fraction", "Moving cabinets"),
         ("covering_fraction", "Moving blinds & curtains"),
-        ("fan_fraction", "Spinning fans"),
+        ("teaching_board_fraction", "Folding teaching-board wings"),
+        ("projection_screen_fraction", "Operating projection screens"),
+        ("fan_fraction", "Spinning ceiling fans"),
+        ("desk_fan_fraction", "Spinning desk fans"),
         ("appliance_fraction", "Opening appliances"),
         ("prop_fraction", "Moving portable items"),
         ("cart_fraction", "Moving carts"),
+        ("prop_pickup_fraction", "Pick up eligible moving items"),
     ] {
         v.push(num(
             &format!("/indoor_motion/{key}"),
@@ -182,6 +186,10 @@ fn furnishings(state: &EditorState, v: &mut Vec<Item>) {
             "Selection probability; constrained motions shorten or swivel.",
         ));
     }
+    v.push(num(
+        "/indoor_motion/operation_return_fraction", "Pause and return", 0., 1., 0.01,
+        "Fraction of moving doors, drawers, appliance doors, laptop lids and board wings that hold at their stop and return during the clip.",
+    ));
     v.push(section(
         "people.motion-travel",
         "Travel & rotation limits",
@@ -190,6 +198,7 @@ fn furnishings(state: &EditorState, v: &mut Vec<Item>) {
     for (key, label, max, step) in [
         ("chair_travel_m", "Chair travel (m)", 1.5, 0.05),
         ("chair_swivel_degrees", "Chair swivel (degrees)", 120., 5.),
+        ("prop_lift_m", "Pickup height (m)", 0.45, 0.01),
         ("prop_travel_m", "Portable item travel (m)", 0.75, 0.01),
         (
             "prop_rotation_degrees",
@@ -203,8 +212,29 @@ fn furnishings(state: &EditorState, v: &mut Vec<Item>) {
             "Shorter paths and other headings are tried when blocked. Connected cables stay attached."));
     }
     v.push(section(
+        "people.appearance-motion",
+        "Screens & lighting",
+        "Seeded changes shared by all views at the same instant.",
+    ));
+    v.push(num(
+        "/indoor_motion/screen_change_fraction",
+        "Screens changing content",
+        0.,
+        1.,
+        0.01,
+        "Probability per active laptop, monitor, phone or TV.",
+    ));
+    v.push(num(
+        "/indoor_motion/light_change_fraction",
+        "Dimming circuits & lamps",
+        0.,
+        1.,
+        0.01,
+        "Probability per ceiling circuit or powered task light.",
+    ));
+    v.push(section(
         "people.fans",
-        "Ceiling-fan speed",
+        "Fan speed",
         "Revolutions across the shared timeline; playback speed determines real-time speed.",
     ));
     for (index, label) in [(0, "Minimum turns"), (1, "Maximum turns")] {

@@ -152,6 +152,7 @@ fn sample_masonry(scene: &IndoorManifest) -> Option<WallLining> {
     use IndoorLayout::*;
     let mut r = stream(scene.seed, u64::from_le_bytes(*b"WallKiln"));
     let (chance, clay) = match scene.layout {
+        Courtyard => (0.80, 0.56),
         Cafe | Gallery | Studio | Coworking => (0.48, 0.78),
         Workshop | ElevatorLanding | LectureHall | Classroom => (0.46, 0.25),
         Kitchen | Kitchenette | Breakroom => (0.10, 0.67),
@@ -229,9 +230,10 @@ pub(super) fn install(e: &mut EnvelopeProgram, scene: &IndoorManifest) {
         0.0015..0.004,
     );
     let (stock, height, pitch, width, depth) = match (scene.layout, r.random_range(0..10)) {
+        (Courtyard, _) => slab,
         (Kitchen | Kitchenette | Cafeteria | Breakroom, 0..=7) => slab,
         (Training | LectureHall | Classroom | OpenOffice, 0..=6) => fabric,
-        (Lounge | Conference | Reception | Library, 0..=6) => veneer,
+        (Lounge | Conference | Reception | Library | Restaurant, 0..=6) => veneer,
         (_, 0..=3) => fabric,
         (_, 4..=6) => slab,
         _ => veneer,

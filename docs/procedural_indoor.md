@@ -43,11 +43,12 @@ Native headless capture uses image targets and needs a working graphics adapter,
 but no window or display server. The CPU audit does not require a graphics adapter.
 
 The viewer starts inside the generated room. The existing regeneration control
-advances the scene seed. `--indoor-layout mixed` (alias `all`) samples all 20
+advances the scene seed. `--indoor-layout mixed` (alias `all`) samples all 29
 concrete programs uniformly. Explicit choices are `conference`, `open-office`,
 `lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
 `studio`, `kitchenette`, `kitchen`, `elevator-landing`, `cafe`, `cafeteria`,
-`classroom`, `lecture-hall`, `showroom`, `gallery`, and `public-suite`.
+`classroom`, `lecture-hall`, `showroom`, `gallery`, `public-suite`, `restaurant`,
+`fitness-room`, `cycling-studio` (alias `spin-studio`), `gymnasium` (alias `sports-hall` or `volleyball-hall`), `grocery-store`, `clothing-store`, `hallway` (alias `corridor`), `stair-hall` (aliases `stairway` and `stairwell`), and `courtyard`.
 
 Within `conference`, 55% of seeds draw an executive boardroom. General
 meeting and suite layouts also support small, nearly round tables. The same
@@ -101,7 +102,17 @@ support relationships, camera paths and optional world rotation.
   either side. The geometry audit records the seat and tablet dimensions.
   Dataset metrics include tablet handedness, seat depth and installed fold angle.
   Office caster chairs have paired tyres on offset swivel axles. The adjustment
-  lever follows the seat pan during swivel motion.
+  mechanism fits the underside of the actual pan. Fixed-height swivel pedestals
+  have a plain column. Gas lifts have an exposed piston, a sealing collar and a
+  left- or right-hand paddle or sleeve that rotates with the seat. Cast spokes
+  taper from the hub to their wheel or glide in a shared radial cross-section.
+  Dataset metrics record the mechanism, control side and hub height.
+- On upholstered chairs, the backrest connects to the seat pan with paired
+  tubes, bent steel straps, laminated wood stays or a forked swivel spine.
+  The bend clears the cushion and meets the lower edge of the actual back,
+  including individual spindles and open frames. Chairs at the same table can
+  share mounting hardware. The geometry audit describes each mount, and dataset
+  metrics report its style, stock width, section depth and nominal bend radius.
 - Office workstations can form rear-to-rear desk banks with outward seating.
   The available depth determines whether both desks and chairs fit. Other zones
   retain separate rows, and teaching rows share a forward direction. Desks
@@ -172,7 +183,11 @@ support relationships, camera paths and optional world rotation.
   An internal glazed partition connects the furnished neighboring room.
 - Arched portals, pillars, acoustic treatments, trim and ventilation add structural
   detail. Raised and sunken floors have treads and risers; mezzanines include
-  supports, stairs, guards and furnishings. Opaque perimeter walls can carry
+  supports, stairs, guards and furnishings. Glass and solid guard panels fit
+  between post-mounted edge clips or continuous channels. Metal jaws and rubber
+  gaskets grip both faces. Channel ends follow the stair rake. Each installation
+  records the hardware dimensions, finish and clip heights or channel setback.
+  Opaque perimeter walls can carry
   veneer, acoustic fabric or ceramic slab linings. The manifest records their
   installed height, module pitch, recessed joints and finish. Panels end at the
   actual openings and share the wall semantic class.
@@ -220,6 +235,12 @@ support relationships, camera paths and optional world rotation.
   The irradiance bake samples the air inside the primary room and adjoining bay.
   Grid cells above sloping ceilings and outside cutouts inherit nearby indoor
   samples, keeping sunlit rooftop probes out of the interior interpolation.
+  CPU and native GPU bakes reconstruct each of the six directional irradiance
+  lobes from the probe and its visible grid neighbours. The weight uses linear
+  RGB sampling variance. A partition blocks the connection and a resolved light
+  or colour edge suppresses blending. Each connection exchanges equal amounts in
+  opposite directions to conserve the total of each RGB lobe. Relocated slots copy the completed source
+  estimate. This runs once per bake and only affects indirect diffuse lighting.
   RGB postprocessing is removed from annotation passes.
 - Solid furniture uses rotated footprint rejection, wall margins and a clear
   doorway approach. Props have explicit supporting surfaces. Cameras use continuous
@@ -233,9 +254,18 @@ support relationships, camera paths and optional world rotation.
   their openings into that zone. Leaning books rest on the shelf and bear against the next
   volume, a solid divider or a weighted bookend. A short series may share a
   trim size and jacket design while individual volumes vary in thickness.
-  Paper and case bindings, exposed page edges and printed spine marks use the
-  same geometry in RGB and surface annotations. Books retain the books semantic
-  label, and bookends belong to the shelving that supports them.
+  Loose and shelved books can carry an unfolded front, spine and back print.
+  Reading copies favor paperbacks and hardbacks. Field notebooks retain wire
+  bindings, elastic closures and their own covers. Closed copies may rest back
+  cover up, and stacks can alternate binding thickness and spine direction. Matte, satin and laminated stocks
+  vary by edition, and some prints have spot varnish registered to the ink.
+  The artwork uses the binding surface in RGB and surface annotations. Dataset
+  metrics count binding types, back covers facing up, and head-to-tail placement
+  within loose stacks. Books retain the books semantic label, and bookends belong
+  to the shelving that supports them. Open-frame
+  bookcases have recessed decks bearing on side rails, with a diagonal brace,
+  alternating bay braces or horizontal stretchers behind the rear posts.
+  Usable shelf depth accounts for the frame when placing books and loose objects.
 - Cameras cover seated, low, standing and elevated viewpoints, roughly 0.7–3.25 m
   above the local floor, with both near-horizontal and content-directed gaze,
   varied intrinsics and configurable travel lengths. The independent
@@ -550,4 +580,4 @@ Door leaves, hardware, opening states and cabinetry use shared construction/coll
 
 ### Optional room motion
 
-`indoor_motion` enables seeded chair travel/swivel, door and cabinet articulation, and window-covering movement. Full-travel clearance reservations are shared with human navigation and continuous dressed-pose admission. Disabled scenes retain static batching. See [articulated motion configuration and annotation contract](indoor_motion.md).
+`indoor_motion` can animate chairs, loaded carts, doors, appliance and cabinet hardware, window coverings, retractable projection screens, folding teaching-board wings, ceiling and desk fans, and tabletop pickups. A separate probability lets doors, drawers, appliance and laptop lids, and board wings pause at their stop and return within a forward clip. Loose cargo on a parked cart can move on its shelf. Independent appearance controls change electronic screen content and dim powered lighting on the shared capture clock. Full-travel clearance reservations are shared with human navigation and continuous dressed-pose admission. Disabled scenes retain static batching. See [articulated motion configuration and annotation contract](indoor_motion.md).

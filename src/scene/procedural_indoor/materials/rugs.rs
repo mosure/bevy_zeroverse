@@ -27,9 +27,19 @@ pub fn key(label: &str) -> Option<(usize, bool)> {
 pub(crate) fn finish_slot(slot: usize, binding: bool) -> usize {
     variants::COUNT + slot * 2 + usize::from(binding)
 }
+pub(crate) fn dye_seed(parent_seed: u64, slot: usize) -> u64 {
+    stream(parent_seed, 0x525547445945 + slot as u64).random()
+}
 pub fn recipe(parent: &program::MaterialRecipe, slot: usize) -> program::MaterialRecipe {
+    recipe_at_version(parent, slot, super::super::layout::GENERATOR_VERSION)
+}
+pub(crate) fn recipe_at_version(
+    parent: &program::MaterialRecipe,
+    slot: usize,
+    version: u32,
+) -> program::MaterialRecipe {
     let mut r = parent.clone();
-    r.seed = stream(parent.seed, 0x525547445945 + slot as u64).random();
+    r.seed = dye_seed(parent.seed, slot);
     let mut rng = stream(r.seed, 0x50494c45);
     let tone = rng.random_range(0.16..0.68);
     let warm = rng.random_range(-0.025..0.09);
@@ -45,7 +55,9 @@ pub fn recipe(parent: &program::MaterialRecipe, slot: usize) -> program::Materia
     // that control (including flat-detail ablations) on the derived rug too.
     r.relief_m = parent.relief_m * rng.random_range(1.0..3.0);
     r.roughness = rng.random_range(0.86..0.98);
-    r.carpet = Some(carpet::CarpetDesign::sample(r.seed, r.color, true));
+    r.carpet = Some(carpet::CarpetDesign::sample_at_version(
+        r.seed, r.color, true, version,
+    ));
     // Center/border coordinates must not inherit upholstery rotations/phases.
     r.phase = [0.; 2];
     r.layers = None;
@@ -116,7 +128,11 @@ pub(super) async fn build(
         .map(|o| slot(o.finish_seed.unwrap_or(o.seed)))
         .collect();
     for slot in slots {
-        let r = recipe(&program.materials[Surface::FabricAlt as usize], slot);
+        let r = recipe_at_version(
+            &program.materials[Surface::FabricAlt as usize],
+            slot,
+            scene.generator_version,
+        );
         let [color, normal, data] = gpu::Maps::scheduled(&r, scene.floor_style, gpu, cooperative)
             .await
             .insert(images, requests);

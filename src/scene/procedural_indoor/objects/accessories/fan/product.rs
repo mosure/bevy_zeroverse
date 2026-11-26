@@ -72,7 +72,13 @@ impl FanHead {
         }
     }
 
-    pub(super) fn build(&self, a: &mut Assembly, o: &IndoorObject, p: &FanProgram) {
+    pub(super) fn build(
+        &self,
+        a: &mut Assembly,
+        o: &IndoorObject,
+        p: &FanProgram,
+        turns: Option<[f32; 2]>,
+    ) {
         let label = o.kind.class_name();
         a.part(self.housing, label).housing(
             &[(0., p.base.xz() * 0.5), (p.base.y, p.base.xz() * 0.39)],
@@ -86,19 +92,32 @@ impl FanHead {
         let half = p.depth * 0.5;
         // Independent spinning cap and fixed motor with one shaft between them.
         // The emboss and rear case close the otherwise exposed wire roots.
-        head.part(self.housing, label).lathe(
-            &[
-                (0., -half * 0.98),
-                (self.motor_radius * 0.72, -half * 0.98),
-                (self.motor_radius, -self.rear_crown),
-                (self.motor_radius * 0.93, -half * 0.32),
-                (hub * 0.29, -half * 0.32),
-                (hub * 0.29, -half * 0.17),
-            ],
-            24,
-            axial,
-        );
-        head.part(self.blades, label).lathe(
+        let motor = [
+            (0., -half * 0.98),
+            (self.motor_radius * 0.72, -half * 0.98),
+            (self.motor_radius, -self.rear_crown),
+            (self.motor_radius * 0.93, -half * 0.32),
+            (hub * 0.29, -half * 0.32),
+            (hub * 0.29, -half * 0.17),
+        ];
+        const AXLE: &str = "contact_desk_fan_shaft";
+        if turns.is_some() {
+            let mut shaft = Geometry::default();
+            head.part(self.housing, label)
+                .split_lathe(&mut shaft, &motor, 4, 24, axial);
+            head.part(self.housing, &format!("{label}#{AXLE}"))
+                .append(shaft);
+        } else {
+            head.part(self.housing, label).lathe(&motor, 24, axial);
+        }
+        let mut rotor = Assembly::default();
+        let blades = if turns.is_some() {
+            &mut rotor
+        } else {
+            &mut head
+        }
+        .part(self.blades, label);
+        blades.lathe(
             &[
                 (0., -half * 0.17),
                 (hub * 0.94, -half * 0.17),
@@ -110,10 +129,7 @@ impl FanHead {
             24,
             axial,
         );
-        self.rotor
-            .append(head.part(self.blades, label), o.seed, |[x, y, z]| {
-                [x, -z, y]
-            });
+        self.rotor.append(blades, o.seed, |[x, y, z]| [x, -z, y]);
         head.part(self.housing, label).lathe(
             &[
                 (0., self.front_crown - p.wire),
@@ -140,6 +156,18 @@ impl FanHead {
             Transform::from_translation(base).with_rotation(Quat::from_rotation_arc(Vec3::Y, neck)),
         );
         public::append_at(a, head, tf);
+        if let Some(turns) = turns {
+            let mut oriented = Assembly::default();
+            public::append_at(&mut oriented, rotor, tf);
+            let mut joint = crate::scene::procedural_indoor::motion::construction::fan_rotor(
+                o.seed,
+                tf.translation,
+                tf.rotation * Vec3::Z,
+                turns,
+            );
+            joint.attachment = Some(AXLE.into());
+            a.articulated(oriented, joint);
+        }
     }
 
     fn joint_radius(p: &FanProgram) -> f32 {

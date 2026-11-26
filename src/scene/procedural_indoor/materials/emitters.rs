@@ -29,6 +29,9 @@ pub(crate) fn area(object: &super::super::layout::IndoorObject) -> f32 {
     match object.kind {
         ObjectKind::FloorLamp => objects::standing_lamp::emitting_area(object),
         ObjectKind::DeskLamp => objects::accessories::lamps::emitting_area(object),
+        ObjectKind::ExtractionHood => {
+            objects::public::service::hood::FilterDeck::installed(object).emitting_area_m2()
+        }
         ObjectKind::CeilingPendant => objects::equipment::pendant::parameters(object)
             .lens
             .emitting_area_m2(),
@@ -50,7 +53,7 @@ pub(super) fn build(
     for o in scene
         .objects
         .iter()
-        .filter(|o| photometry::is_emitter(o.kind))
+        .filter(|o| photometry::is_emitter_at(o.kind, scene.generator_version))
     {
         if o.kind == ObjectKind::StringLights {
             let p = objects::equipment::signals::string_program(o);
@@ -73,6 +76,10 @@ pub(super) fn build(
                         .expect("valid exit emission channel")
                         .0;
                 }
+            } else if o.kind == ObjectKind::ExtractionHood {
+                let deck = objects::public::service::hood::FilterDeck::installed(o);
+                material.emissive =
+                    photometry::lamp_emission(scene, deck.power(scene, o), deck.emitting_area_m2());
             } else {
                 let power = photometry::lamp(scene, o);
                 material.emissive = photometry::lamp_emission(scene, power, area(o));
@@ -183,6 +190,7 @@ mod tests {
             ObjectKind::DeskLamp,
             ObjectKind::CeilingPendant,
             ObjectKind::WallSconce,
+            ObjectKind::ExtractionHood,
         ] {
             for seed in 0..32 {
                 let mut o = objects::audit::fixture(kind, seed);

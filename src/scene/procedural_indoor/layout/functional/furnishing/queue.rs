@@ -63,7 +63,7 @@ impl IndoorManifest {
                     .push(queue);
                 let mut size = geometry::dimensions(ObjectKind::QueueBarrier, r.random());
                 size.x = length * r.random_range(0.76..0.96);
-                self.public_fit(
+                let admitted = self.public_fit(
                     index,
                     ObjectKind::QueueBarrier,
                     Vec3::new(x, 0., max.y + size.z * 0.5 + 0.045),
@@ -71,7 +71,49 @@ impl IndoorManifest {
                     0.,
                     r,
                 );
+                if let Some(id) = admitted {
+                    if self.generator_version >= geometry::barrier::FITTED_VERSION {
+                        self.align_queue_barrier(index, id, min, max);
+                    }
+                }
                 break;
+            }
+        }
+    }
+
+    fn align_queue_barrier(&mut self, zone: usize, id: usize, lane_min: Vec2, lane_max: Vec2) {
+        let original = &self.objects[id];
+        let mut rng = stream(original.seed, u64::from_le_bytes(*b"QueueYaw"));
+        // Deliberately straight installations coexist with hand-set stanchions.
+        if rng.random_bool(0.16) {
+            return;
+        }
+        let angle = (rng.random::<f32>() - rng.random::<f32>()) * 0.32;
+        let slide =
+            (lane_max.x - lane_min.x - original.size.x).max(0.) * rng.random_range(-0.46..0.46);
+        let gap = rng.random_range(0.018..0.090);
+        let domain = &self.assembly_diagnostics.programs[zone];
+        let mut candidate = original.clone();
+        for fraction in [1., 0.45] {
+            candidate.yaw = fraction * angle;
+            let half = crate::scene::procedural_indoor::placement::rotated_half(
+                candidate.size.xz(),
+                candidate.yaw,
+            );
+            let (left, right) = (lane_min.x + half.x, lane_max.x - half.x);
+            if right < left {
+                continue;
+            }
+            candidate.position.x = (original.position.x + fraction * slide).clamp(left, right);
+            candidate.position.z = original.position.z.max(lane_max.y + half.y + gap);
+            candidate.position.y = self.floor_height(candidate.position.xz());
+            let (lo, hi) = candidate.bounds();
+            if lo.xz().cmpge(domain.min).all()
+                && hi.xz().cmple(domain.max).all()
+                && self.placement_clear(&candidate, 0.035)
+            {
+                self.objects[id] = candidate;
+                return;
             }
         }
     }
@@ -85,6 +127,7 @@ mod tests {
     fn service_queues_admit_multiple_barrier_constructions_before_seating() {
         let mut count = 0;
         let mut styles = std::collections::BTreeSet::new();
+        let mut angles = [0; 3];
         for seed in 0..32 {
             let s =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Cafeteria, 0.65, 0, 0.)
@@ -96,6 +139,24 @@ mod tests {
                 .filter(|o| o.kind == ObjectKind::QueueBarrier)
             {
                 count += 1;
+                angles[if o.yaw < -0.02 {
+                    0
+                } else if o.yaw > 0.02 {
+                    2
+                } else {
+                    1
+                }] += 1;
+                if o.yaw != 0. {
+                    let (lo, hi) = o.bounds();
+                    assert!(s
+                        .functional_programs()
+                        .iter()
+                        .flat_map(|p| &p.reservations)
+                        .any(|q| q.role == ReservationRole::Queue
+                            && lo.x >= q.min.x - 1e-5
+                            && hi.x <= q.max.x + 1e-5
+                            && lo.z >= q.max.y));
+                }
                 styles.insert(geometry::barrier::parameters(o).construction);
                 let mesh = crate::scene::procedural_indoor::objects::build_object(o);
                 crate::scene::procedural_indoor::objects::audit::check(o, &mesh).unwrap();
@@ -110,5 +171,6 @@ mod tests {
             "only {count}/32 service layouts admitted a queue barrier"
         );
         assert!(styles.len() >= 3, "{styles:?}");
+        assert!(angles.iter().all(|&n| n >= 2), "{angles:?}");
     }
 }

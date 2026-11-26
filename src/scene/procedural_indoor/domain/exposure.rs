@@ -159,14 +159,22 @@ impl IndoorManifest {
         }
         // A vertical opening receives half an isotropic sky hemisphere. These
         // utilization factors estimate distribution from the pane into the room.
-        meter.diffuse_daylight_lux = diffuse_lux * (0.5 * 0.56) * apertures.x / floor;
-        meter.direct_daylight_lux = photometry.sun_lux * 0.38 * apertures.y / floor;
+        let court_lux = envelope.courtyard.map_or(Vec2::ZERO, |roof| {
+            roof.daylight_factors(self.room_size, sun) * Vec2::new(diffuse_lux, photometry.sun_lux)
+        });
+        meter.diffuse_daylight_lux = diffuse_lux * (0.5 * 0.56) * apertures.x / floor + court_lux.x;
+        meter.direct_daylight_lux = photometry.sun_lux * 0.38 * apertures.y / floor + court_lux.y;
         let kelvin = solar_kelvin(
             self.sun_elevation,
             super::super::photometry::lighting_seed(self),
         );
         if install {
-            let circuits = CeilingCircuits::sample(self, &positions, &windows, borrowed_lux);
+            let circuits = CeilingCircuits::sample(
+                self,
+                &positions,
+                &windows,
+                borrowed_lux + court_lux.element_sum(),
+            );
             self.program
                 .as_mut()
                 .unwrap()

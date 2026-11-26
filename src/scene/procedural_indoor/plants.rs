@@ -1,6 +1,7 @@
 //! Potted botanical forms with real leaf silhouettes, petioles and tapered stems.
 //! The curved lamina/branch approach follows the review of bevy_ftb; geometry is
 //! generated here independently, without its assets, shaders or runtime dependency.
+pub(super) mod bed;
 mod broadleaf;
 mod cane;
 pub(crate) use cane::CaneHabit;
@@ -8,6 +9,7 @@ mod leaf;
 use leaf::{blade, incline};
 mod habits;
 mod palm;
+pub(super) mod pinnate;
 mod pots;
 mod rosette;
 pub(crate) use rosette::RosetteHabit;
@@ -161,75 +163,110 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
 }
 
 pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
-    build_plant(a, o, version, true);
+    if o.kind == super::layout::ObjectKind::PlantingBed {
+        bed::build(a, o, version);
+    } else {
+        build_plant(a, o, version, Roots::Container);
+    }
 }
 
 pub(super) fn build_in_ground(a: &mut Assembly, o: &IndoorObject, version: u32) {
-    build_plant(a, o, version, false);
+    build_plant(a, o, version, Roots::Landscape);
 }
 
-fn build_plant(a: &mut Assembly, o: &IndoorObject, version: u32, potted: bool) {
+enum Roots {
+    Container,
+    Landscape,
+    Bed,
+}
+
+fn build_plant(a: &mut Assembly, o: &IndoorObject, version: u32, roots: Roots) {
     let h = o.size.y;
     let growth = Growth::sample(o.seed);
     // The foliage envelope includes maximum leaf-width modulation and droop.
     let spread = o.size.x.min(o.size.z) * 0.40;
-    let pot_program = PotProfile::sample(o.seed);
-    let (r, ph) = pot_program.dimensions(o, &growth);
-    let fill = if potted {
-        let pot = match stream(o.seed, 6441).random_range(0..5) {
-            0 => Surface::Terracotta,
-            1 => Surface::Concrete,
-            2 => Surface::Plastic,
-            3 => Surface::Metal,
-            _ => Surface::Ceramic,
-        };
-        let medium = if version >= soil::INTRODUCED {
-            soil::Medium::sample(o)
-        } else {
-            soil::Medium::Loam
-        };
-        let fill = pots::build(
-            a,
-            pot,
-            r,
-            ph,
-            growth.pot_taper,
-            &pot_program,
-            &medium.label(soil::Layer::Bed),
-        );
-        if version >= soil::INTRODUCED {
-            soil::build(a, o.seed, medium, fill);
-        } else {
-            soil::legacy::dressing(
-                a.part(Surface::Soil, "other_prop"),
-                o.seed,
-                fill.level,
-                fill.roots,
-                &mut stream(o.seed, 5),
-            );
-        }
-        fill
+    let (soil, soil_radius, rim, outer) = if matches!(roots, Roots::Bed) {
+        // In continuous earth the crown meets grade. Pot height would leave the
+        // lower rosette leaves hovering over an imaginary lip.
+        (
+            0.,
+            spread * (0.34 + 0.25 * growth.maturity),
+            0.,
+            spread * 0.55,
+        )
     } else {
-        // The planting height still determines branch positions in a garden bed.
-        // Constructing a hidden planter and aggregates there wastes mesh work.
-        pots::Fill::new(r, ph, &pot_program)
+        let pot_program = PotProfile::sample(o.seed);
+        let (r, ph) = pot_program.dimensions(o, &growth);
+        let fill = if matches!(roots, Roots::Container) {
+            let pot = match stream(o.seed, 6441).random_range(0..5) {
+                0 => Surface::Terracotta,
+                1 => Surface::Concrete,
+                2 => Surface::Plastic,
+                3 => Surface::Metal,
+                _ => Surface::Ceramic,
+            };
+            let medium = if version >= soil::INTRODUCED {
+                soil::Medium::sample(o)
+            } else {
+                soil::Medium::Loam
+            };
+            let fill = pots::build(
+                a,
+                pot,
+                r,
+                ph,
+                growth.pot_taper,
+                &pot_program,
+                &medium.label(soil::Layer::Bed),
+            );
+            if version >= soil::INTRODUCED {
+                soil::build(a, o.seed, medium, fill);
+            } else {
+                soil::legacy::dressing(
+                    a.part(Surface::Soil, "other_prop"),
+                    o.seed,
+                    fill.level,
+                    fill.roots,
+                    &mut stream(o.seed, 5),
+                );
+            }
+            fill
+        } else {
+            // The planting height still determines branch positions in a garden bed.
+            // Constructing a hidden planter and aggregates there wastes mesh work.
+            pots::Fill::new(r, ph, &pot_program)
+        };
+        (
+            fill.level,
+            fill.roots,
+            ph,
+            if o.variant % SPECIES == 11 {
+                r * pot_program.outer_radius_factor().max(1.10)
+            } else {
+                0.
+            },
+        )
     };
-    let (soil, soil_radius) = (fill.level, fill.roots);
     let base = Vec3::Y * soil;
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
     let spread = spread.min((h - soil) * 0.80) * growth.crown_spread;
+    if version >= pinnate::INTRODUCED {
+        if let Some(habit) = pinnate::Habit::sample(o, &growth) {
+            habit.build(a, o, &growth, base, spread, soil_radius);
+            return;
+        }
+    }
     if matches!(o.variant % SPECIES, 0 | 6 | 12 | 13) {
         woody::build(a, o, &growth, base, spread);
         return;
     }
     if o.variant % SPECIES == 7 {
-        rosette::build(a, o, &growth, base, spread, soil_radius, ph);
+        rosette::build(a, o, &growth, base, spread, soil_radius, rim);
         return;
     }
     if o.variant % SPECIES == 11 {
-        let outer = r * pot_program.outer_radius_factor().max(1.10);
-        vines::build(a, o, &growth, base, spread, soil_radius, (outer, ph));
+        vines::build(a, o, &growth, base, spread, soil_radius, (outer, rim));
         return;
     }
     if o.variant % SPECIES >= 14 {

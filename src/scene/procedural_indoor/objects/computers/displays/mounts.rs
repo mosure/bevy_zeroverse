@@ -1,6 +1,7 @@
 //! Connected monitor bases/risers and wall brackets. Dimensions are resolved
 //! inside the same support envelope before any vertices are emitted.
 use super::*;
+mod riser;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MountProgram {
@@ -83,7 +84,13 @@ pub(super) fn wall_bracket(
     );
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &DisplayProgram, d: &DisplayGeometry) {
+pub(super) fn build(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &DisplayProgram,
+    d: &DisplayGeometry,
+    section: Option<&enclosure::PanelSection>,
+) {
     let m = &p.mount;
     let label = o.kind.class_name();
     let span = Vec2::new(d.width_m * p.stand_width, o.size.z * p.stand_depth);
@@ -153,45 +160,34 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &DisplayProgram, d: &
             );
         }
     }
-    let x = d.width_m * p.mount_offset;
-    let sag = if d.curvature_radius_m > 0. {
-        d.curvature_radius_m - (d.curvature_radius_m.powi(2) - x * x).sqrt()
-    } else {
-        0.
-    };
-    let attachment = d.panel_transform.transform_point(Vec3::new(
-        x,
-        -d.height_m * 0.22,
-        sag - d.panel_m * 0.5 + 0.0006,
-    ));
     let radius = m.riser_radius.min(h * 0.46);
-    let elbow = Vec3::new(
-        foot.x,
-        attachment.y * m.elbow_fraction,
-        d.panel_transform
-            .translation
-            .z
-            .clamp(-o.size.z * 0.5 + radius * 2., o.size.z * 0.5 - radius * 2.),
-    );
+    let path = riser::fit(o, p, d, section, foot, radius);
     let mut strut = |from: Vec3, to: Vec3, scale: f32| {
         if m.riser_style == 0 {
-            a.part(m.finish, label).rod(from, to, radius * scale);
+            a.part(m.finish, label)
+                .rod(from, to, path.depth_radius * scale);
         } else {
             let delta = to - from;
             a.part(m.finish, label).cuboid(
-                Vec3::new(radius * 2. * scale, delta.length(), radius * 1.5 * scale),
-                radius * 0.15,
+                Vec3::new(
+                    radius * 2. * scale,
+                    delta.length(),
+                    path.depth_radius * 1.5 * scale,
+                ),
+                path.depth_radius * 0.15,
                 Transform::from_translation((from + to) * 0.5)
                     .with_rotation(Quat::from_rotation_arc(Vec3::Y, delta.normalize())),
             );
         }
     };
-    strut(foot, elbow, 1.);
-    strut(
-        elbow,
-        attachment,
-        if m.riser_style == 2 { 0.68 } else { 1. },
-    );
+    strut(path.start, path.elbow, 1.);
+    let top_scale = if m.riser_style == 2 { 0.68 } else { 1. };
+    if let Some(hinge) = path.hinge {
+        strut(path.elbow, hinge, top_scale);
+        strut(hinge, path.attachment, top_scale);
+    } else {
+        strut(path.elbow, path.attachment, top_scale);
+    }
 }
 
 #[cfg(test)]

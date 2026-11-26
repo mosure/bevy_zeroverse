@@ -203,6 +203,16 @@ impl Mezzanine {
         let mut segments = Vec::new();
         for axis in 0..2 {
             for high in [false, true] {
+                if axis != self.stair_axis
+                    && self.construction.as_ref().and_then(|c| c.wall_abutment)
+                        == Some(if high {
+                            DeckAbutment::High
+                        } else {
+                            DeckAbutment::Low
+                        })
+                {
+                    continue;
+                }
                 let other = 1 - axis;
                 let coordinate = if high {
                     self.deck.max[axis]

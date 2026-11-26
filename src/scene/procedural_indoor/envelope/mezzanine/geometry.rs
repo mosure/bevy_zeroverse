@@ -5,7 +5,7 @@ fn box_bounds(a: &mut Assembly, surface: Surface, label: &str, lo: Vec3, hi: Vec
     a.box_part(surface, label, (lo + hi) * 0.5, hi - lo, 0.);
 }
 
-pub(in super::super) fn build(a: &mut Assembly, m: &Mezzanine) {
+pub(in crate::scene::procedural_indoor) fn build(a: &mut Assembly, m: &Mezzanine) {
     let Some(c) = &m.construction else {
         legacy::build(a, m);
         return;

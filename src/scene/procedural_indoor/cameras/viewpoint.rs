@@ -10,6 +10,9 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::Serialize;
 
+/// Highest sampled room-camera origin above its supporting floor or deck.
+pub(super) const MAX_EYE_HEIGHT_M: f32 = 3.25;
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ViewpointProgram {
     /// Continuous mixture weights, ordered low/seated/standing/elevated.
@@ -61,7 +64,7 @@ impl ViewpointProgram {
             return None;
         }
         let low = floor + 0.78;
-        let upper = upper.min(floor + 3.25);
+        let upper = upper.min(floor + MAX_EYE_HEIGHT_M);
         if upper <= low {
             return None;
         }

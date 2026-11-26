@@ -2,14 +2,21 @@
 use super::*;
 
 pub const FAMILIES: u32 = 10;
+mod armrests;
+pub use armrests::{ArmPad, ArmPadStock};
 mod audience;
 mod back;
+mod back_mount;
+mod laminate;
+pub use back_mount::{BackMount, BackMountStyle};
 mod base;
 mod casters;
 mod fit;
 mod formed;
 mod runners;
 pub mod stool;
+mod swivel;
+pub use swivel::{CastSpoke, DiscFoot, GasLift, Grip, ReleaseLever, SwivelPedestal};
 mod tension;
 pub use tension::{TensionBack, TensionInfill, WebbingDirection};
 #[cfg(test)]
@@ -417,6 +424,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let back = Transform::from_xyz(0.0, back_bottom, back_depth)
         .with_rotation(Quat::from_rotation_x(recline));
     let cover = program.back_surface;
+    let back_mount = program.back_mount(o, version);
     let back_sockets = if let Some(stock) = program.tension_back(o, version) {
         tension::build(a, &program, Vec2::new(back_width, back_height), back, stock)
     } else if program.back_construction == 1 {
@@ -440,7 +448,14 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
             a.part(frame, label)
                 .rod(foot(-back_width * 0.5), foot(back_width * 0.5), 0.014);
         }
-        [-1., 1.].map(|side| back.transform_point(Vec3::X * (side * back_width / 3.)))
+        // An upholstered spindle chair has no lower crossbar. Seat its stays
+        // in a real spindle rather than in the air between two spindle feet.
+        let half_span = if back_mount.is_some() {
+            back_width * (0.5 - (count as f32 / 6.).round() / count as f32)
+        } else {
+            back_width / 3.
+        };
+        [-1., 1.].map(|side| back.transform_point(Vec3::X * (side * half_span)))
     } else if program.back_construction >= 6 {
         back::constructed(a, &program, back_width, back_height, back)
     } else if matches!(program.back_construction, 3..=5) {
@@ -477,6 +492,16 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     }
     if program.formed_seat.is_some() {
         formed::back_stays(a.part(frame, label), width, depth, back_sockets);
+    } else if let Some(mount) = back_mount {
+        let inset = back.rotation * Vec3::Y * 0.003;
+        mount.build(
+            a,
+            o,
+            frame,
+            depth,
+            pan_bottom,
+            back_sockets.map(|p| p + inset),
+        );
     } else {
         for side in [-1.0, 1.0] {
             a.part(frame, label).rod(
@@ -488,7 +513,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     }
     use super::super::motion::{construction as motion, MotionKind};
     let moving = matches!(family, 0 | 1 | 5 | 9) && a.motion_selected(MotionKind::Chair, o.seed);
-    if program.base_style < 4 {
+    let pan = Vec2::new(width, depth);
+    let swivel = program.swivel_pedestal(o, version);
+    if let Some(fit) = &swivel {
+        fit.upper(a, pan, pan_bottom);
+    } else if program.base_style < 4 {
         base::tilt_control(a, width, depth, pan_bottom);
     }
     let mut upper = if moving {
@@ -496,13 +525,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     } else {
         default()
     };
-    base::build(a, o, &program, width, depth, pan_bottom, version);
+    base::build(a, o, &program, pan, pan_bottom, version, swivel.as_ref());
     let base = if moving {
         std::mem::replace(&mut a.parts, std::mem::take(&mut upper))
     } else {
         default()
     };
-    upper::arms(a, &program, width, family);
+    upper::arms(a, &program, width, family, program.arm_pad(o, version));
     if moving {
         let policy = a.motion_policy.as_ref().unwrap();
         let mut r = stream(o.seed, 0x4348414952);

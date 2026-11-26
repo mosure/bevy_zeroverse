@@ -65,13 +65,16 @@ fn viewer_launch_defaults_and_kiosk_share_the_same_policy_on_both_platforms() {
 
 #[test]
 fn kiosk_links_are_sparse_and_preserve_edits_including_revealed_controls() {
-    for flag in ["", "true"] {
-        let config = url(&[("kiosk", flag)]).unwrap();
-        assert_eq!(query::encode(&config, &view(&config)), "kiosk=true");
+    for name in ["kiosk", "--kiosk"] {
+        for flag in ["", "true"] {
+            let config = url(&[(name, flag)]).unwrap();
+            assert_eq!(query::encode(&config, &view(&config)), "kiosk=true");
+        }
     }
     assert!(!url(&[("kiosk", "false")]).unwrap().kiosk);
     assert!(url(&[("kiosk", "yes")]).is_err());
     assert!(url(&[("kiosk", ""), ("kiosk", "false")]).is_err());
+    assert!(url(&[("--kiosk", "false"), ("kiosk", "")]).is_err());
     let pairs = [
         ("fullscreen", "false"),
         ("preview_aa", "off"),

@@ -107,8 +107,19 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         legacy::build(a, o);
         return;
     }
-    let p = parameters(o);
-    FanHead::sample(o, &p).build(a, o, &p);
+    let p = parameters_at(o, version);
+    let turns = a
+        .motion_policy
+        .as_ref()
+        .filter(|policy| {
+            version >= crate::scene::procedural_indoor::motion::ROTOR_CARGO_VERSION
+                && policy.desk_fan_fraction > 0.
+                && policy.fan_turns[1] > 0.
+                && stream(o.seed, u64::from_le_bytes(*b"DeskSpin"))
+                    .random_bool(f64::from(policy.desk_fan_fraction))
+        })
+        .map(|policy| policy.fan_turns);
+    FanHead::sample(o, &p).build(a, o, &p, turns);
 }
 #[cfg(test)]
 mod tests;

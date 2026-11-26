@@ -52,7 +52,7 @@ impl Partition {
             }
             let length = hi - lo;
             let center = (lo + hi) * 0.5;
-            let glazed = (height - self.sill - 0.16) * self.glazing_fraction;
+            let glazed = self.glazing_height(height);
             let top = self.sill + glazed;
             // Metal rails replace this strip of plaster. Identical thickness
             // plus overlapping extents made both surfaces compete in depth.

@@ -10,5 +10,7 @@ fn main() {
     if web_sys::window().is_none() {
         return;
     }
-    bevy_zeroverse::app::viewer_app(None, None).run();
+    if let Err(error) = bevy_zeroverse::app::run_web_viewer() {
+        wasm_bindgen::throw_str(&error);
+    }
 }

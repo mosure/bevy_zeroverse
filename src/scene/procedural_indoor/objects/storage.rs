@@ -9,7 +9,7 @@ pub use program::{parameters, CabinetBay, ShelfProgram};
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::Bookcase {
-        bookcase::build(a, o);
+        bookcase::build(a, o, version);
     } else {
         cabinet::build(a, o, version);
     }

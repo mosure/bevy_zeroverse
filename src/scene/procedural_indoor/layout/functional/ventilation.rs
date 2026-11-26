@@ -81,7 +81,7 @@ impl IndoorManifest {
             return None;
         }
         let (lo, hi) = hood.bounds();
-        let canopy_top = bottom + product.canopy_top(hood.size.y);
+        let canopy_top = bottom + product.canopy_top(hood.size.y, self.generator_version);
         if self.minimum_ceiling_height(lo.xz(), hi.xz()) < canopy_top + 0.012
             || self
                 .envelope

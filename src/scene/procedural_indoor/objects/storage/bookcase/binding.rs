@@ -1,7 +1,7 @@
 //! A continuous wrapped cover, exposed page block, and optionally printed spine.
 //! The print replaces faces of the jacket so close views cannot reveal floating labels.
 use super::*;
-use crate::scene::procedural_indoor::materials::{letter_rows, variants};
+use crate::scene::procedural_indoor::materials::{letter_rows, paper::jacket, variants};
 
 struct Frame(Transform);
 impl Frame {
@@ -30,7 +30,15 @@ fn point(v: Vec2, y: f32) -> Vec3 {
 }
 
 /// Work in binding-local coordinates, with a shelf contact at y=0 and the spine at +z.
-pub(super) fn volume(a: &mut Assembly, seed: u64, edition: Option<u64>, s: Vec3, tf: Transform) {
+pub(super) fn volume(
+    a: &mut Assembly,
+    seed: u64,
+    edition: Option<u64>,
+    s: Vec3,
+    tf: Transform,
+    version: u32,
+) {
+    let print = jacket::slot(version, edition.unwrap_or(seed), false);
     let mut r = stream(edition.unwrap_or(seed), 0x424f_4f4b_4249_4e44);
     let paperback = r.random_bool(0.37);
     let cover = if paperback {
@@ -80,16 +88,46 @@ pub(super) fn volume(a: &mut Assembly, seed: u64, edition: Option<u64>, s: Vec3,
     };
     let outer = track(half, spine);
     let inner = track(half - gauge, spine - gauge);
+    if let Some(slot) = print {
+        let g = a.part(
+            Surface::PrintedPaper,
+            &format!("books#finish{slot}#uv_local"),
+        );
+        let arc: f32 = outer[1..7].windows(2).map(|w| w[1].distance(w[0])).sum();
+        let [left, right] = jacket::SPINE;
+        let mut u = 0.;
+        for (i, face) in outer.windows(2).enumerate() {
+            let (v, w) = (face[0], face[1]);
+            let edge = w - v;
+            let next = match i {
+                0 => left,
+                5 => right,
+                6 => 1.,
+                _ => u + (right - left) * edge.length() / arc,
+            };
+            let corners = [point(v, 0.), point(w, 0.), point(w, s.y), point(v, s.y)]
+                .map(|p| tf.transform_point(p));
+            let normal = (corners[1] - corners[0])
+                .cross(corners[2] - corners[0])
+                .normalize();
+            g.vertex_quad(
+                corners,
+                [normal; 4],
+                [[u, 1.], [next, 1.], [next, 0.], [u, 0.]],
+            );
+            u = next;
+        }
+    }
     let g = a.part(cover, &label);
     for (i, (outside, inside)) in outer.windows(2).zip(inner.windows(2)).enumerate() {
         let (v, w) = (outside[0], outside[1]);
         let (u, t) = (inside[0], inside[1]);
         let edge = w - v;
         let normal = Vec3::new(-edge.y, 0., edge.x);
-        if i == 3 && mark {
+        if print.is_none() && i == 3 && mark {
             frame.spine_panel(g, spine, xs, [0., ys[0]]);
             frame.spine_panel(g, spine, xs, [ys[1], s.y]);
-        } else {
+        } else if print.is_none() {
             frame.face(
                 g,
                 [point(v, 0.), point(w, 0.), point(w, s.y), point(v, s.y)],
@@ -127,7 +165,7 @@ pub(super) fn volume(a: &mut Assembly, seed: u64, edition: Option<u64>, s: Vec3,
         0.,
         tf.with_translation(tf.transform_point(Vec3::new(0., s.y * 0.5, (back + front) * 0.5))),
     );
-    if mark {
+    if print.is_none() && mark {
         let stock = if r.random_bool(0.52) {
             Surface::Paper
         } else {

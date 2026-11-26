@@ -12,10 +12,10 @@ use super::{
 use bevy::prelude::*;
 use rand::Rng;
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
         ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan => {
-            beverages::build(a, o)
+            beverages::build(a, o, version)
         }
         ObjectKind::Notepad | ObjectKind::Pencil | ObjectKind::Microphone | ObjectKind::Phone => {
             tabletop::build(a, o)

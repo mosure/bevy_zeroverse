@@ -4,6 +4,19 @@ use super::super::{
 };
 use super::*;
 
+// Keep the historical distribution column order in qualification receipts.
+const MOTION_KINDS: &[MotionKind] = &[
+    MotionKind::Chair,
+    MotionKind::Door,
+    MotionKind::Cabinet,
+    MotionKind::Covering,
+    MotionKind::Fan,
+    MotionKind::Appliance,
+    MotionKind::Prop,
+    MotionKind::Cart,
+    MotionKind::TeachingBoard,
+];
+
 fn policy() -> IndoorMotionConfig {
     IndoorMotionConfig {
         chair_fraction: 1.,
@@ -38,6 +51,10 @@ fn policy_is_explicit_bounded_and_roundtrips_through_config() {
         r#"{"chair_travel_m":3}"#,
         r#"{"unrecognized":true}"#,
         r#"{"fan_fraction":-0.1}"#,
+        r#"{"desk_fan_fraction":1.01}"#,
+        r#"{"projection_screen_fraction":1.01}"#,
+        r#"{"teaching_board_fraction":1.01}"#,
+        r#"{"operation_return_fraction":-0.1}"#,
         r#"{"max_mechanisms":129}"#,
         r#"{"prop_fraction":1.1}"#,
         r#"{"appliance_fraction":-0.1}"#,
@@ -45,11 +62,27 @@ fn policy_is_explicit_bounded_and_roundtrips_through_config() {
         r#"{"prop_travel_m":0.76}"#,
         r#"{"prop_rotation_degrees":181}"#,
         r#"{"cart_travel_m":2.1}"#,
+        r#"{"prop_lift_m":0.46}"#,
+        r#"{"prop_pickup_fraction":1.01}"#,
+        r#"{"screen_change_fraction":-0.1}"#,
+        r#"{"light_change_fraction":1.1}"#,
         r#"{"fan_turns":[8,2]}"#,
         r#"{"fan_turns":[0,121]}"#,
     ] {
         assert!(IndoorMotionConfig::parse(bad).is_err());
     }
+    let archived: IndoorMotionReport = serde_json::from_value(
+        serde_json::json!({"version":4,"policy":{"prop_fraction":1.0},"mechanisms":[]}),
+    )
+    .unwrap();
+    assert!(archived.appearance.is_empty());
+    assert_eq!(archived.policy.prop_pickup_fraction, 0.);
+    assert_eq!(archived.policy.screen_change_fraction, 0.);
+    assert_eq!(archived.policy.light_change_fraction, 0.);
+    assert_eq!(archived.policy.desk_fan_fraction, 0.);
+    assert_eq!(archived.policy.projection_screen_fraction, 0.);
+    assert_eq!(archived.policy.teaching_board_fraction, 0.);
+    assert_eq!(archived.policy.operation_return_fraction, 0.);
     let mut c = decoded;
     c.ovoxel_mode = crate::app::OvoxelMode::CpuAsync;
     assert!(c.validate_ovoxel().unwrap_err().contains("static"));
@@ -141,6 +174,10 @@ fn fractions_select_nested_seeded_sets_and_zero_policy_has_no_mechanisms() {
 #[test]
 fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
     use std::collections::BTreeMap;
+    assert!(MOTION_KINDS
+        .iter()
+        .enumerate()
+        .all(|(i, &k)| i == k as usize));
     let mut summary = vec![];
     for (name, policy) in [
         ("default", IndoorMotionConfig::default()),
@@ -158,8 +195,8 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
         ),
     ] {
         let mut row = serde_json::json!({"policy":name});
-        let mut accepted = [0usize; 8];
-        let mut selected = [0usize; 8];
+        let mut accepted = [0usize; MOTION_KINDS.len()];
+        let mut selected = [0usize; MOTION_KINDS.len()];
         let mut rejected = BTreeMap::<String, usize>::new();
         let mut adapted = BTreeMap::<String, usize>::new();
         let mut seconds = vec![];
@@ -231,7 +268,7 @@ fn motion_configuration_matrix_reports_real_admission_and_bounded_cost() {
         "out/object_motion_review/configuration-matrix.json",
         serde_json::to_vec_pretty(&serde_json::json!({"rooms_per_policy":12,"cameras":3,
             "densities":[0.25,0.65,1.],"human_density":0.25,"cpu_only":true,
-            "kinds":["chair","door","cabinet","covering","fan","appliance","prop","cart"],"results":summary}))
+            "kinds": MOTION_KINDS,"results":summary}))
         .unwrap(),
     )
     .unwrap();
@@ -262,7 +299,7 @@ fn disabled_builds_preserve_parts_and_have_no_motion_work() {
 
 #[test]
 fn rooms_admit_motion_and_export_shared_navigation_reservations() {
-    let mut counts = [0; 8];
+    let mut counts = [0; MOTION_KINDS.len()];
     let mut reasons = std::collections::BTreeMap::new();
     for seed in 0..12 {
         let layout = if seed % 2 == 0 {

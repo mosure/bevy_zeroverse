@@ -1,5 +1,8 @@
 //! Camera proposals are restricted to one primary room unless explicitly disabled.
+mod court_view;
+mod stair_view;
 use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
+use super::viewpoint::MAX_EYE_HEIGHT_M;
 use bevy::prelude::*;
 use rand::Rng;
 mod fallback;
@@ -17,6 +20,69 @@ pub(super) fn requires_person(scene: &IndoorManifest, index: usize) -> bool {
             !h.neighbor
                 && (!scene.camera_settings.primary_room || scene.in_primary_room(h.position, 0.))
         })
+}
+
+/// Exercise apparatus is often below eye level. Vary the admitted station and
+/// point on its body while retaining the general room and person proposals.
+fn program_focus(
+    scene: &IndoorManifest,
+    program: &super::super::layout::functional::ProgramAssembly,
+    origin: Vec3,
+    require_person: bool,
+    rng: &mut impl Rng,
+) -> Vec3 {
+    use super::super::layout::ObjectKind;
+    use rand::seq::IndexedRandom;
+    if program.activity.is_exercise() && !require_person {
+        for _ in 0..3 {
+            let Some(&id) = program.members.choose(rng) else {
+                break;
+            };
+            let o = &scene.objects[id];
+            if matches!(
+                o.kind,
+                ObjectKind::StationaryBike
+                    | ObjectKind::Treadmill
+                    | ObjectKind::PowerRack
+                    | ObjectKind::WeightBench
+                    | ObjectKind::DumbbellRack
+            ) && origin.xz().distance_squared(o.position.xz()) > 2.25
+            {
+                return o.transform().transform_point(Vec3::new(
+                    rng.random_range(-0.15..0.15) * o.size.x,
+                    rng.random_range(0.40..0.80) * o.size.y,
+                    rng.random_range(-0.20..0.20) * o.size.z,
+                ));
+            }
+        }
+    }
+    let mut focus = program.focus
+        + Vec3::new(
+            rng.random_range(-0.65..0.65),
+            rng.random_range(-0.20..0.35),
+            rng.random_range(-0.25..0.60),
+        );
+    focus.y += scene.floor_height(focus.xz());
+    focus
+}
+
+/// Keep the visitor in frame while including some of their surroundings. Bound
+/// the change in optical direction, including for narrow preassigned lenses.
+fn frame_person(eye: Vec3, subject: Vec3, surroundings: Vec3, frame_scale: f32) -> Vec3 {
+    let delta = subject - eye;
+    let Some(axis) = delta.try_normalize() else {
+        return subject;
+    };
+    let Some(direction) = (surroundings - eye).try_normalize() else {
+        return subject;
+    };
+    let projected = direction - axis * direction.dot(axis);
+    let Some(side) = projected.try_normalize() else {
+        return subject;
+    };
+    let offset =
+        (axis.dot(direction).clamp(-1., 1.).acos() * 0.44).min(12.0_f32.to_radians() * frame_scale);
+    subject + side * (delta.length() * offset.tan())
 }
 
 impl IndoorManifest {
@@ -56,6 +122,15 @@ impl IndoorManifest {
         self.camera_settings.validate()?;
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
         let (primary_lo, primary_hi) = self.primary_room_bounds();
+        let stairs = self
+            .envelope
+            .as_ref()
+            .and_then(|e| e.mezzanine.as_ref())
+            .filter(|_| self.layout == super::super::layout::IndoorLayout::StairHall);
+        let court = self.program.as_ref().and_then(|p| p.volleyball);
+        let stands = court
+            .map(|_| court_view::sidelines(&self.objects))
+            .unwrap_or_default();
         let people: Vec<_> = self
             .humans
             .iter()
@@ -127,13 +202,33 @@ impl IndoorManifest {
                     p.x = pair.eye.x;
                     p.z = pair.eye.y;
                 }
+                let stair_view = stairs
+                    .filter(|_| rng.random_bool(if require_person { 0.62 } else { 0.68 }))
+                    .map(|m| stair_view::propose(m, rng));
+                if let Some((eye, _, _)) = stair_view {
+                    p.x = eye.x;
+                    p.z = eye.y;
+                }
+                let court_view = court.filter(|_| rng.random_bool(0.68)).map(|court| {
+                    let person = require_person.then(|| {
+                        let h = people[rng.random_range(0..people.len())];
+                        h.transform().transform_point(h.joints[2])
+                    });
+                    court_view::propose(court, stands, person, rng)
+                });
+                if let Some(view) = court_view {
+                    p.x = view.eye.x;
+                    p.z = view.eye.y;
+                }
                 // Propose relative to the actual local floor and slanted roof.
                 // A room-seeded continuous mixture replaces seed%5 height bands.
                 let mut floor = self.floor_height(p.xz());
                 // A joint rig may need an upper-level corridor. The world-space
                 // 3.25 m cap otherwise excludes every eye position on a mezzanine.
                 // Keep both supporting levels in the proposal distribution.
-                if attempts < 2048 {
+                if let Some((_, support, _)) = stair_view {
+                    floor = support;
+                } else if attempts < 2048 || stairs.is_some() {
                     if let Some(deck) = self
                         .envelope
                         .as_ref()
@@ -153,8 +248,12 @@ impl IndoorManifest {
                     - 0.04
                     - CAMERA_CLEARANCE
                     - 0.04)
-                    .min(if attempts < 2048 { floor + 3.25 } else { 3.25 })
-                    .min(floor + 3.25);
+                    .min(if attempts < 2048 || stairs.is_some() {
+                        floor + MAX_EYE_HEIGHT_M
+                    } else {
+                        MAX_EYE_HEIGHT_M
+                    })
+                    .min(floor + MAX_EYE_HEIGHT_M);
                 let Some(height) = viewpoint.height(floor, upper, rng) else {
                     rejected[0] += 1;
                     continue;
@@ -178,20 +277,6 @@ impl IndoorManifest {
                     })
                 });
                 let zone = zone_index.and_then(|i| self.program.as_ref()?.zones.get(i));
-                let candidates: Vec<_> = self
-                    .objects
-                    .iter()
-                    .filter(|o| {
-                        o.solid
-                            && !o.neighbor
-                            && zone.is_none_or(|z| {
-                                o.position.x > z.min.x
-                                    && o.position.x < z.max.x
-                                    && o.position.z > z.min.y
-                                    && o.position.z < z.max.y
-                            })
-                    })
-                    .collect();
                 let purpose = self.functional_programs().iter().find(|program| {
                     self.program
                         .as_ref()
@@ -200,23 +285,42 @@ impl IndoorManifest {
                             p.x > z.min.x && p.x < z.max.x && p.z > z.min.y && p.z < z.max.y
                         })
                 });
-                let purpose_target = purpose.filter(|_| rng.random_bool(0.28)).map(|program| {
-                    let mut focus = program.focus
-                        + Vec3::new(
-                            rng.random_range(-0.65..0.65),
-                            rng.random_range(-0.20..0.35),
-                            rng.random_range(-0.25..0.60),
-                        );
-                    focus.y += self.floor_height(focus.xz());
-                    focus
-                });
-                let target = if require_person {
+                let purpose_target = purpose
+                    .filter(|p| rng.random_bool(if p.activity.is_exercise() { 0.58 } else { 0.28 }))
+                    .map(|program| program_focus(self, program, p, require_person, rng));
+                let target = if let Some(view) = court_view {
+                    view.person.map_or(view.target, |subject| {
+                        frame_person(p, subject, view.target, frame_scale)
+                    })
+                } else if require_person {
                     let human = people[rng.random_range(0..people.len())];
-                    human.transform().transform_point(human.joints[2])
+                    let subject = human.transform().transform_point(human.joints[2]);
+                    stair_view.map_or(subject, |(_, _, tread)| {
+                        frame_person(p, subject, tread, frame_scale)
+                    })
+                } else if let Some((_, _, target)) = stair_view {
+                    target
+                } else if let Some(hall) = zone.filter(|z| {
+                    z.activity == super::super::layout::IndoorLayout::Hallway
+                        && rng.random_bool(0.68)
+                }) {
+                    // A long passage can lie entirely to one side of the building.
+                    // Draw an aim point down its actual run, with continuous
+                    // lateral offset; retain near-side details and human views.
+                    let a = super::super::program::hallway::across(hall);
+                    let along = 1 - a;
+                    let mut at = p.xz();
+                    let left = at[along] - hall.min[along] - 0.35;
+                    let right = hall.max[along] - at[along] - 0.35;
+                    let positive = left < 2.0 || (right >= 2.0 && rng.random_bool(0.5));
+                    let span = if positive { right } else { left };
+                    let travel = rng.random_range((span * 0.28).max(1.65)..=span.max(1.65));
+                    at[along] += if positive { travel } else { -travel };
+                    at[a] = rng.random_range(hall.min[a] + 0.25..hall.max[a] - 0.25);
+                    Vec3::new(at.x, rng.random_range(0.78..1.64), at.y)
                 } else if let Some(focus) = purpose_target {
                     focus
-                } else if !candidates.is_empty() && rng.random_bool(0.72) {
-                    let object = candidates[rng.random_range(0..candidates.len())];
+                } else if let Some(object) = coverage.sample_subject(self, zone_index, rng) {
                     object.position
                         + Vec3::new(
                             rng.random_range(-0.18..0.18),
@@ -422,7 +526,7 @@ impl IndoorManifest {
                 - 0.04
                 - CAMERA_CLEARANCE
                 - 0.04)
-                .min(3.25);
+                .min(MAX_EYE_HEIGHT_M);
             if low > high {
                 continue;
             }

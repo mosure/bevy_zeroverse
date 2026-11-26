@@ -10,6 +10,50 @@ pub(super) fn record(
 ) -> io::Result<()> {
     use ObjectKind::*;
     let finishes = match o.kind {
+        QueueBarrier
+            if version
+                >= crate::scene::procedural_indoor::objects::public::barrier::FITTED_VERSION =>
+        {
+            use crate::scene::procedural_indoor::objects::public::barrier::{self, Infill};
+            let p = barrier::Installation::sample(o, &barrier::parameters(o));
+            let kind = match p.infill {
+                Infill::Webbing { width_m, .. } => {
+                    numeric.push("queue_webbing_width_m", width_m.into())?;
+                    "retractable_belt"
+                }
+                Infill::Rope { radius_m, .. } => {
+                    numeric.push("queue_rope_diameter_m", (radius_m * 2.).into())?;
+                    "socketed_rope"
+                }
+                Infill::Pickets {
+                    pickets, square, ..
+                } => {
+                    numeric.push("queue_pickets", pickets as f64)?;
+                    if square {
+                        "square_rails"
+                    } else {
+                        "round_rails"
+                    }
+                }
+                Infill::Panel {
+                    bottom_m,
+                    thickness_m,
+                    ..
+                } => {
+                    numeric.push("queue_panel_height_m", (p.connection_y_m - bottom_m).into())?;
+                    numeric.push("queue_panel_thickness_m", thickness_m.into())?;
+                    "clamped_panel"
+                }
+            };
+            category(categories, "queue_barrier_construction", kind);
+            numeric.push("queue_post_spacing_m", (2. * p.post_half_span_m).into())?;
+            numeric.push("queue_connection_height_m", p.connection_y_m.into())?;
+            numeric.push("queue_barrier_yaw_rad", o.yaw.into())?;
+            if let Some(sag) = p.sag_m() {
+                numeric.push("queue_span_sag_m", sag.into())?;
+            }
+            return Ok(());
+        }
         Bag => {
             use crate::scene::procedural_indoor::objects::bags;
             let p = bags::parameters(o);
@@ -227,6 +271,39 @@ pub(super) fn record(
                 p.wheel_radius
             };
             numeric.push("cart_wheel_radius_m", f64::from(radius))?;
+            use services::cart::stock::{CartJob, ShelfLoad, INTRODUCED};
+            if version >= INTRODUCED {
+                category(
+                    categories,
+                    "cart_shelf_use",
+                    CartJob::read(o, version).name(),
+                );
+                for level in 0..p.shelf_tops.len() - 1 {
+                    let count = match ShelfLoad::sample(o, &p, level, version) {
+                        ShelfLoad::Utility(items) => {
+                            for item in &items {
+                                category(categories, "cart_shelf_stock", item.kind.class_name());
+                            }
+                            items.len()
+                        }
+                        ShelfLoad::Service(items) => {
+                            for item in &items {
+                                category(
+                                    categories,
+                                    "cart_shelf_stock",
+                                    if item.pantry {
+                                        "pantry_package"
+                                    } else {
+                                        "dishware"
+                                    },
+                                );
+                            }
+                            items.len()
+                        }
+                    };
+                    numeric.push("cart_lower_bay_items", count as f64)?;
+                }
+            }
             [p.frame, p.trays]
         }
         Banquette => {
@@ -331,4 +408,67 @@ fn caster_usage(
         "service_caster_swivel_trail_m",
         f64::from(set.swivel_trail_m),
     )
+}
+
+/// Positions of admitted independent dining groups alongside the public aisle.
+pub(super) fn record_dining_tables(
+    scene: &IndoorManifest,
+    program: &crate::scene::procedural_indoor::layout::functional::ProgramAssembly,
+    numeric: &mut NumericCollector,
+) -> io::Result<()> {
+    let Some(aisle) = program.dining_aisle() else {
+        return Ok(());
+    };
+    for &id in &program.members {
+        let Some(table) = scene.objects.get(id) else {
+            continue;
+        };
+        if table.kind == ObjectKind::Banquette {
+            let bench = table;
+            if let Some(top) = bench.interaction_target.and_then(|i| scene.objects.get(i)) {
+                use crate::scene::procedural_indoor::{layout::dining_places, objects::tables};
+                let places = dining_places::booth_places(top, bench, &tables::outline(top)).count();
+                let dishes = scene
+                    .objects
+                    .iter()
+                    .filter(|dish| {
+                        dish.kind == ObjectKind::Dishware
+                            && dish.interaction_target == Some(bench.id)
+                    })
+                    .count();
+                numeric.push("dining_banquette_places", places as f64)?;
+                numeric.push("dining_banquette_served_dishes", dishes as f64)?;
+            }
+            continue;
+        }
+        if table.kind != ObjectKind::Table
+            || table.variant == crate::scene::procedural_indoor::objects::tables::SHARED_ROW_VARIANT
+            || table.position.z < aisle.min.y
+            || table.position.z > aisle.max.y
+        {
+            continue;
+        }
+        let (lo, hi) = table.bounds();
+        let (width, center, gap) = if hi.x <= aisle.min.x {
+            (
+                aisle.min.x - program.min.x,
+                aisle.min.x - table.position.x,
+                aisle.min.x - hi.x,
+            )
+        } else if lo.x >= aisle.max.x {
+            (
+                program.max.x - aisle.max.x,
+                table.position.x - aisle.max.x,
+                lo.x - aisle.max.x,
+            )
+        } else {
+            continue;
+        };
+        numeric.push(
+            "dining_table_across_bay_fraction",
+            f64::from(center / width),
+        )?;
+        numeric.push("dining_table_aisle_gap_m", f64::from(gap))?;
+    }
+    Ok(())
 }

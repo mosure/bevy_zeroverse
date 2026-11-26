@@ -44,11 +44,11 @@ fn refreshment_geometry_and_assembly_receipt() {
             if name == "RefreshmentStation" {
                 scene.dress_refreshment_counter(
                     &o,
-                    Some(if seed % 2 == 0 {
+                    CounterService::Drinks(Some(if seed % 2 == 0 {
                         ObjectKind::CoffeeMaker
                     } else {
                         ObjectKind::DrinkDispenser
-                    }),
+                    })),
                 );
             }
             let mut mesh = Assembly::default();

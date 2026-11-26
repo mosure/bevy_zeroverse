@@ -5,6 +5,8 @@ use crate::scene::procedural_indoor::layout::{IndoorCamera, IndoorManifest};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
 mod index;
+mod partitions;
+mod subjects;
 mod triangles;
 
 const MAX_DOMINANT_CONTENT_RAYS: usize = 28;
@@ -38,6 +40,7 @@ struct Collider {
 
 pub(crate) struct Coverage {
     seed: u64,
+    subjects: std::sync::OnceLock<Vec<Vec<usize>>>,
     jitter: Vec2,
     aspect: f32,
     colliders: Vec<Collider>,
@@ -244,7 +247,23 @@ impl Coverage {
         // Sparse exposed framing also needs exact optical surfaces for room
         // views. Its conservative I-section/truss boxes are valid collision
         // reserves, but treating their empty space as walls biases view overlap.
-        for (lo, hi) in scene.structural_obstacles_with_ceiling(!detailed_ceiling) {
+        let corridor =
+            scene.layout == super::super::layout::IndoorLayout::Hallway && scene.program.is_some();
+        let stair_envelope = scene.envelope.as_ref().filter(|e| {
+            scene.layout == super::super::layout::IndoorLayout::StairHall && e.mezzanine.is_some()
+        });
+        let structure = if let Some(e) = stair_envelope {
+            // Retain the support prisms for motion, but gaps between open
+            // risers and individual balusters transmit optical rays.
+            let mut boxes = e.fixed_structure_boxes(scene.room_size);
+            scene.append_installed_obstacles(&mut boxes, !detailed_ceiling, false);
+            boxes
+        } else if corridor {
+            scene.column_obstacles(!detailed_ceiling, false)
+        } else {
+            scene.structural_obstacles_with_ceiling(!detailed_ceiling)
+        };
+        for (lo, hi) in structure {
             bounds(lo, hi, "wall");
         }
         // Ceiling installation reservations include empty suspension volume.
@@ -278,6 +297,12 @@ impl Coverage {
             let (lo, hi) = h.bounds();
             bounds(lo, hi, "person");
         }
+        if let Some(stair) = stair_envelope.and_then(|e| e.mezzanine.as_ref()) {
+            triangles::append_stair(stair, &mut colliders);
+        }
+        if corridor || (stair_envelope.is_some() && scene.program.is_some()) {
+            partitions::append(scene, &mut colliders);
+        }
         for o in scene.objects.iter().filter(|o| !o.neighbor) {
             if matches!(
                 o.kind,
@@ -296,6 +321,38 @@ impl Coverage {
                         inverse: Quat::IDENTITY,
                         label: o.kind.class_name(),
                     });
+                }
+                continue;
+            }
+            let till = super::super::objects::public::checkout_station(o);
+            if matches!(
+                o.kind,
+                super::super::layout::ObjectKind::VolleyballNet
+                    | super::super::layout::ObjectKind::BleacherBank
+                    | super::super::layout::ObjectKind::PowerRack
+            ) || till.is_some()
+            {
+                use super::super::objects::public::{bleachers::BleacherBank, volleyball::Net};
+                let tf = o.transform();
+                let inverse = tf.rotation.inverse();
+                let emit = |center, half| {
+                    colliders.push(Collider {
+                        triangle: None,
+                        center: tf.transform_point(center),
+                        half,
+                        inverse,
+                        label: o.kind.class_name(),
+                    });
+                };
+                if let Some(till) = till {
+                    till.view_boxes(o.size, emit);
+                } else if o.kind == super::super::layout::ObjectKind::PowerRack {
+                    super::super::objects::public::strength::PowerRack::for_object(o)
+                        .view_boxes(emit);
+                } else if o.kind == super::super::layout::ObjectKind::VolleyballNet {
+                    Net::for_object(o).view_boxes(emit);
+                } else {
+                    BleacherBank::for_object(o).view_boxes(emit);
                 }
                 continue;
             }
@@ -380,6 +437,7 @@ impl Coverage {
             .collect();
         Self {
             seed: scene.seed,
+            subjects: Default::default(),
             jitter: scene.camera_settings.principal_point_jitter,
             aspect: scene.camera_aspect_ratio,
             index: Some(index::Index::new(&colliders)),
@@ -566,6 +624,7 @@ mod tests {
         use crate::calibration::{Fisheye, FisheyeFit};
         let coverage = super::Coverage {
             seed: 0,
+            subjects: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,
@@ -618,6 +677,7 @@ mod tests {
         };
         let mut coverage = Coverage {
             seed: 0,
+            subjects: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,
@@ -660,6 +720,7 @@ mod tests {
     fn body_points_behind_annotation_opaque_glazing_are_hidden() {
         let mut coverage = Coverage {
             seed: 0,
+            subjects: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,

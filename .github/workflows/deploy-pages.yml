@@ -75,6 +75,10 @@ jobs:
         run: |
           cargo run --locked -p bevy_zeroverse_publication -- plan > publication-plan.json
           echo "key=$(jq -r .cache_key publication-plan.json)" >> "$GITHUB_OUTPUT"
+      - name: Check cold paper assembly before capturing rooms
+        env:
+          CARGO_PROFILE_TEST_DEBUG: 0
+        run: cargo test --locked -p bevy_zeroverse_publication --lib pipeline::paper_tests::cold_stage_binds_current_architecture_and_lens_pages -- --ignored --exact
       # Only a fully verified bundle is cached. Partial render stages are never
       # deployed, and a cache hit is still checked against the live source.
       - uses: actions/cache@v4
@@ -174,6 +178,13 @@ jobs:
         run: |
           git diff --exit-code
           cargo run --locked -p bevy_zeroverse_publication -- verify-current
+      - name: Open the packaged kiosk in Chrome and verify a presented room
+        timeout-minutes: 6
+        run: |
+          node --test tests/browser_fullscreen.mjs
+          python3 -m venv "$RUNNER_TEMP/kiosk-smoke"
+          "$RUNNER_TEMP/kiosk-smoke/bin/pip" install playwright==1.65.2
+          "$RUNNER_TEMP/kiosk-smoke/bin/python" scripts/smoke_kiosk_browser.py --site www --seed 70 --resolution 320
       - name: Record the source and fingerprints of the public entry points
         id: receipt
         run: |

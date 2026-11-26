@@ -563,6 +563,9 @@ fn regenerate(
         pending.studio.presented(time.elapsed());
         generation.skipped_seed = None;
         generation.consecutive_timeouts = 0;
+    }
+    // Live texture consumers can also drive a headless renderer without the sampler.
+    if !sampler.as_ref().is_some_and(|s| s.enabled) && (!args.headless || !args.image_copiers) {
         commands.insert_resource(crate::sample::CaptureFailure::default());
         commands.insert_resource(crate::sample::failure::SceneCaptureError::default());
     }

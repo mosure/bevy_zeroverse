@@ -1,10 +1,19 @@
 use super::*;
+use crate::scene::procedural_indoor::layout::PlacementStructure;
+pub(super) mod courtyard;
+mod cycling;
 mod dining;
 mod exhibition;
+pub(super) mod fitness;
+pub(super) mod fitting;
+pub(super) mod gymnasium;
+pub(super) mod hallway;
 mod lecture;
 mod lockers;
 mod queue;
 mod recovery;
+pub(super) mod retail;
+pub(super) mod stair_hall;
 mod table_rows;
 mod teaching;
 mod transit;
@@ -61,6 +70,22 @@ impl IndoorManifest {
         true
     }
     pub(in crate::scene::procedural_indoor::layout) fn furnish_public_programs(&mut self) {
+        if self.layout == IndoorLayout::Courtyard {
+            self.furnish_courtyard();
+            return;
+        }
+        if self.layout == IndoorLayout::Hallway {
+            self.furnish_hallway();
+            return;
+        }
+        if self.layout == IndoorLayout::Gymnasium {
+            self.furnish_gymnasium();
+            return;
+        }
+        if self.layout == IndoorLayout::StairHall {
+            self.furnish_stair_hall();
+            return;
+        }
         let zones = self.program.as_ref().unwrap().zones.clone();
         for (zone_index, zone) in zones.into_iter().enumerate() {
             let (min, max) = usable_region(self, &zone);
@@ -76,6 +101,12 @@ impl IndoorManifest {
                     SpaceRole::Dining,
                     vec![ObjectKind::ServiceCounter, ObjectKind::TrayReturn],
                 ),
+                IndoorLayout::Restaurant => (SpaceRole::Dining, vec![ObjectKind::ServiceCounter]),
+                IndoorLayout::GroceryStore | IndoorLayout::ClothingStore => {
+                    (SpaceRole::Retail, vec![ObjectKind::CheckoutCounter])
+                }
+                IndoorLayout::CyclingStudio => (SpaceRole::Exercise, vec![]),
+                IndoorLayout::FitnessRoom => (SpaceRole::Exercise, vec![ObjectKind::DumbbellRack]),
                 IndoorLayout::Classroom | IndoorLayout::LectureHall => (
                     SpaceRole::Teaching,
                     vec![ObjectKind::TeachingBoard, ObjectKind::Lectern],
@@ -91,11 +122,52 @@ impl IndoorManifest {
                 _ => unreachable!("public zone is explicitly typed"),
             };
             let aisle = parameters.aisle_metres * 0.5;
+            let venue = matches!(
+                zone.activity,
+                IndoorLayout::Restaurant
+                    | IndoorLayout::FitnessRoom
+                    | IndoorLayout::CyclingStudio
+                    | IndoorLayout::GroceryStore
+                    | IndoorLayout::ClothingStore
+            );
+            let mut venue_rng = venue.then(|| {
+                stream(
+                    self.seed,
+                    u64::from_le_bytes(*b"VenueWay") + zone_index as u64,
+                )
+            });
+            let axis = venue_rng.as_mut().map_or(center.x, |r| {
+                center.x + (max.x - min.x) * r.random_range(-0.115..0.115)
+            });
+            let axis = if zone.activity.is_retail() {
+                retail::aisle_coordinate(self, min, max, 0, axis, aisle)
+            } else {
+                axis
+            };
             let mut reservations = vec![Reservation {
                 role: ReservationRole::Circulation,
-                min: Vec2::new(center.x - aisle, min.y + 2.7),
-                max: Vec2::new(center.x + aisle, max.y),
+                min: Vec2::new(axis - aisle, if venue { min.y } else { min.y + 2.7 }),
+                max: Vec2::new(axis + aisle, max.y),
             }];
+            if let Some(r) = venue_rng
+                .as_mut()
+                .filter(|_| zone.activity == IndoorLayout::Restaurant)
+            {
+                reservations.push(Reservation {
+                    role: ReservationRole::Circulation,
+                    min,
+                    max: Vec2::new(max.x, min.y + r.random_range(0.9..1.14)),
+                });
+            }
+            if let Some(r) = venue_rng.as_mut().filter(|_| zone.activity.is_retail()) {
+                let mid = min.y + (max.y - min.y) * r.random_range(0.34..0.66);
+                let mid = retail::aisle_coordinate(self, min, max, 1, mid, aisle);
+                reservations.push(Reservation {
+                    role: ReservationRole::Circulation,
+                    min: Vec2::new(min.x, mid - aisle),
+                    max: Vec2::new(max.x, mid + aisle),
+                });
+            }
             if self.layout == IndoorLayout::PublicSuite {
                 reservations.push(Reservation {
                     role: ReservationRole::Circulation,
@@ -110,10 +182,16 @@ impl IndoorManifest {
                 role,
                 capacity_unit: match role {
                     SpaceRole::Transit => CapacityUnit::ElevatorCars,
+                    SpaceRole::Retail => CapacityUnit::MerchandisingFixtures,
+                    SpaceRole::Exercise => CapacityUnit::ExerciseStations,
                     SpaceRole::Exhibition | SpaceRole::Demonstration => {
                         CapacityUnit::DisplayStations
                     }
-                    _ if matches!(zone.activity, IndoorLayout::Cafe | IndoorLayout::Cafeteria) => {
+                    _ if matches!(
+                        zone.activity,
+                        IndoorLayout::Cafe | IndoorLayout::Cafeteria | IndoorLayout::Restaurant
+                    ) =>
+                    {
                         CapacityUnit::SeatingStations
                     }
                     _ => CapacityUnit::ChairStations,
@@ -144,13 +222,29 @@ impl IndoorManifest {
                     size
                 })
                 .collect();
-            let total = sizes.iter().map(|s| s.x).sum::<f32>() + 0.30 * (sizes.len() - 1) as f32;
+            let total = sizes.iter().map(|s| s.x).sum::<f32>()
+                + 0.30 * sizes.len().saturating_sub(1) as f32;
             let mut cursor = center.x - total * 0.5;
             for (i, &kind) in required.iter().enumerate() {
                 let mut size = sizes[i];
+                if (zone.activity == IndoorLayout::Restaurant && kind == ObjectKind::ServiceCounter)
+                    || kind == ObjectKind::CheckoutCounter
+                {
+                    self.install_staffed_counter(index, kind, size, &mut r);
+                    continue;
+                }
                 let mut x = cursor + size.x * 0.5;
                 cursor += size.x + 0.30;
                 let yaw = variation::anchor_yaw(kind, &mut r);
+                if let Some(venue_rng) = &mut venue_rng {
+                    let (left, right) = if venue_rng.random_bool(0.5) {
+                        (min.x, axis - aisle)
+                    } else {
+                        (axis + aisle, max.x)
+                    };
+                    let slack = (right - left - size.x).max(0.);
+                    x = (left + right) * 0.5 + slack * venue_rng.random_range(-0.40..0.40);
+                }
                 if kind == ObjectKind::TeachingBoard {
                     x = center.x + (max.x - min.x) * r.random_range(-0.08..0.08);
                     size.x = size.x.min((max.x - min.x) * r.random_range(0.27..0.46));
@@ -198,11 +292,24 @@ impl IndoorManifest {
                     {
                         self.recover_display_anchor(index, size, &mut r);
                     }
+                    if kind == ObjectKind::DumbbellRack
+                        && self.generator_version >= geometry::strength::VERSION
+                        && !self.objects[first..].iter().any(|o| o.kind == kind)
+                    {
+                        self.recover_dumbbell_anchor(index, size, &mut r);
+                    }
                 }
             }
             match zone.activity {
                 IndoorLayout::ElevatorLanding => self.transit_program(index, &mut r),
-                IndoorLayout::Cafe | IndoorLayout::Cafeteria => self.dining_program(index, &mut r),
+                IndoorLayout::Cafe | IndoorLayout::Cafeteria | IndoorLayout::Restaurant => {
+                    self.dining_program(index, &mut r)
+                }
+                IndoorLayout::GroceryStore | IndoorLayout::ClothingStore => {
+                    self.retail_program(index, &mut r)
+                }
+                IndoorLayout::CyclingStudio => self.cycling_program(index, &mut r),
+                IndoorLayout::FitnessRoom => self.fitness_program(index, &mut r),
                 IndoorLayout::Classroom | IndoorLayout::LectureHall => {
                     self.teaching_program(index, &mut r)
                 }
@@ -224,6 +331,7 @@ impl IndoorManifest {
                 zone.activity,
                 IndoorLayout::Cafe
                     | IndoorLayout::Cafeteria
+                    | IndoorLayout::Restaurant
                     | IndoorLayout::Classroom
                     | IndoorLayout::LectureHall
             ) && self.objects[first..]
@@ -233,6 +341,7 @@ impl IndoorManifest {
                 < 2
             {
                 let collection = variation::Collection::sample(self.seed, zone_index);
+                let linens = self.dining_linens(index);
                 for uv in variation::recovery_points(8, &mut r) {
                     if self.objects[first..]
                         .iter()
@@ -267,7 +376,14 @@ impl IndoorManifest {
                             };
                         }
                     } else {
-                        self.dining_table(index, Vec3::new(q.x, 0., q.y), 0.90, 0., &mut r);
+                        self.dining_table(
+                            index,
+                            Vec3::new(q.x, 0., q.y),
+                            0.90,
+                            0.,
+                            linens.as_ref(),
+                            &mut r,
+                        );
                     }
                 }
             }
@@ -306,6 +422,17 @@ impl IndoorManifest {
         index: usize,
         proposal: FloorProposal,
         rng: &mut ChaCha8Rng,
+        prepare: impl Fn(&mut IndoorObject) -> bool,
+    ) -> Option<usize> {
+        self.public_fit_with_structure(index, proposal, rng, &PlacementStructure::new(), prepare)
+    }
+
+    fn public_fit_with_structure(
+        &mut self,
+        index: usize,
+        proposal: FloorProposal,
+        rng: &mut ChaCha8Rng,
+        structure: &PlacementStructure,
         prepare: impl Fn(&mut IndoorObject) -> bool,
     ) -> Option<usize> {
         let FloorProposal {
@@ -348,19 +475,14 @@ impl IndoorManifest {
                     || b.x > program.max.x
                     || a.z < program.min.y
                     || b.z > program.max.y
-                    || b.y > self.minimum_ceiling_height(a.xz(), b.xz()) - o.overhead_clearance()
-                    || !self.placement_clear(&o, 0.035)
+                    || !self.placement_clear_with_structure(&o, 0.035, false, structure)
                 {
                     self.assembly_diagnostics.programs[index].rejected_candidates += 1;
                     continue;
                 }
                 let id = o.id;
                 let operational = match kind {
-                    ObjectKind::ServiceCounter => Some(Reservation {
-                        role: ReservationRole::StaffAccess,
-                        min: Vec2::new(a.x, a.z - 1.05),
-                        max: Vec2::new(b.x, a.z - 0.05),
-                    }),
+                    ObjectKind::ServiceCounter => Some(dining::staff_access(&o)),
                     ObjectKind::Elevator => Some(transit::door_approach(&o)),
                     _ => None,
                 };
@@ -380,6 +502,37 @@ impl IndoorManifest {
                     && self.generator_version >= geometry::elevator::LANDING_VERSION
                 {
                     o.variant = geometry::elevator::Levels::sample(self.seed).core_variant();
+                }
+                if matches!(
+                    kind,
+                    ObjectKind::DumbbellRack
+                        | ObjectKind::PowerRack
+                        | ObjectKind::WeightBench
+                        | ObjectKind::ExerciseMat
+                        | ObjectKind::StationaryBike
+                        | ObjectKind::Treadmill
+                ) {
+                    let Some(access) = fitness::equipment_access(self, index, &o, structure) else {
+                        self.assembly_diagnostics.programs[index].rejected_candidates += 1;
+                        continue;
+                    };
+                    self.assembly_diagnostics.programs[index]
+                        .reservations
+                        .extend(access);
+                }
+                if let Some(depth) = retail::access_depth(kind) {
+                    let Some(route) = self.retail_access(
+                        index,
+                        &o,
+                        depth,
+                        structure.get_or_init(|| self.columns()),
+                    ) else {
+                        self.assembly_diagnostics.programs[index].rejected_candidates += 1;
+                        continue;
+                    };
+                    self.assembly_diagnostics.programs[index]
+                        .reservations
+                        .extend(route);
                 }
                 self.objects.push(o);
                 if let Some(route) = operational {

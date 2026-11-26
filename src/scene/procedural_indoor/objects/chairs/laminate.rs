@@ -2,9 +2,9 @@
 //! direction through the bends. Section rings stay normal to the centreline.
 use super::*;
 
-pub(super) fn build(
+pub(super) fn build<const N: usize>(
     a: &mut Assembly,
-    path: &[Vec3; PATH_NODES],
+    path: &[Vec3; N],
     width: f32,
     thickness: f32,
     origin: Vec2,
@@ -21,13 +21,13 @@ pub(super) fn build(
         Vec2::new(-w, h - bevel),
         Vec2::new(-w, -h + bevel),
     ];
-    let mut along = [0.; PATH_NODES];
-    for i in 1..PATH_NODES {
+    let mut along = [0.; N];
+    for i in 1..N {
         along[i] = along[i - 1] + path[i].distance(path[i - 1]);
     }
-    let tangents: [Vec3; PATH_NODES] = std::array::from_fn(|i| {
+    let tangents: [Vec3; N] = std::array::from_fn(|i| {
         let incoming = path[i] - path[i.saturating_sub(1)];
-        let outgoing = path[(i + 1).min(PATH_NODES - 1)] - path[i];
+        let outgoing = path[(i + 1).min(N - 1)] - path[i];
         (incoming.normalize_or_zero() + outgoing.normalize_or_zero()).normalize()
     });
     let normals = tangents.map(|t| t.cross(Vec3::X));
@@ -45,7 +45,7 @@ pub(super) fn build(
         };
         let g = a.part(surface, "chair");
         let base = g.positions.len() as u32;
-        for i in 0..PATH_NODES {
+        for i in 0..N {
             let normal = Vec3::X * side_normal.x + normals[i] * side_normal.y;
             for (p, u) in [(left, across), (right, next)] {
                 g.positions
@@ -61,7 +61,7 @@ pub(super) fn build(
         across = next;
     }
     let g = a.part(Surface::WoodEdge, "chair");
-    for i in [0, PATH_NODES - 1] {
+    for i in [0, N - 1] {
         let base = g.positions.len() as u32;
         let normal = if i == 0 { -tangents[i] } else { tangents[i] };
         for p in outline {

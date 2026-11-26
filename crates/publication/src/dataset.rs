@@ -371,7 +371,7 @@ impl Dataset {
             .as_u64()
             .context("missing metrics schema")? as u32;
         ensure!(
-            [15, 16, 17, 18, 24, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
+            [15, 16, 17, 18, 24, 25, INDOOR_METRICS_SCHEMA_VERSION].contains(&schema)
                 && identity.schema_version == 1
                 && identity.source_sha256.len() == 64
                 && identity

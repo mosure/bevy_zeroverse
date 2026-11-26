@@ -24,11 +24,31 @@ fn mixed_profile_catalog_covers_every_concrete_room_and_all_aliases() {
 }
 
 #[test]
+fn mixed_catalog_extensions_are_uniform_and_preserve_existing_room_draws() {
+    let mut counts = [0; IndoorLayout::PROFILES.len()];
+    for seed in 0..(1000 * IndoorLayout::PROFILES.len() as u64) {
+        let mut rng = stream(seed, 0);
+        let mut old = rng.clone();
+        let previous = IndoorLayout::PROFILES[old.random_range(0..20)];
+        let selected = IndoorLayout::sample_profile(seed, &IndoorLayout::PROFILES, &mut rng);
+        counts[selected as usize - 1] += 1;
+        if IndoorLayout::PROFILES[..IndoorLayout::INITIAL_MIXED_COUNT].contains(&selected) {
+            assert_eq!(selected, previous);
+        }
+        assert_eq!(rng.random::<u64>(), old.random::<u64>());
+    }
+    assert!(
+        counts.iter().all(|n| (855..=1145).contains(n)),
+        "{counts:?}"
+    );
+}
+
+#[test]
 fn mixed_constructs_every_program_with_default_cameras_and_valid_meshes() {
     let mut covered = std::collections::BTreeSet::new();
     for seed in 0..512 {
         let selected =
-            IndoorLayout::PROFILES[stream(seed, 0).random_range(0..IndoorLayout::PROFILES.len())];
+            IndoorLayout::sample_profile(seed, &IndoorLayout::PROFILES, &mut stream(seed, 0));
         if !covered.insert(format!("{selected:?}")) {
             continue;
         }
@@ -317,6 +337,44 @@ fn tucked_seating_and_surface_programs_cover_occupied_and_empty_cases() {
 }
 
 #[test]
+fn validation_outline_cache_preserves_admission_for_rotated_props_across_supports() {
+    let mut reused = 0;
+    let mut outcomes = [0; 2];
+    for seed in 0..6 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Conference, 0.8, 0, 0.)
+                .unwrap();
+        let mut cache = std::collections::HashMap::new();
+        let mut children = 0;
+        for prop in &scene.objects {
+            let Some(parent) = prop.support.and_then(|id| scene.objects.get(id)) else {
+                continue;
+            };
+            if !parent.kind.has_table_outline()
+                || scene.support_plane(prop) != Some(SupportPlane::Top)
+            {
+                continue;
+            }
+            children += 1;
+            for fraction in [0., 0.35, 0.68] {
+                let mut candidate = prop.clone();
+                candidate.yaw += fraction * 1.7;
+                candidate.position +=
+                    parent.transform().rotation * Vec3::X * (fraction * parent.size.x);
+                let accepted = scene.prop_clear(&candidate, parent, 0.004);
+                assert_eq!(
+                    scene.prop_clear_cached(&candidate, parent, 0.004, Some(&mut cache)),
+                    accepted
+                );
+                outcomes[usize::from(accepted)] += 1;
+            }
+        }
+        reused += children - cache.len();
+    }
+    assert!(reused > 0 && outcomes.iter().all(|&n| n > 0));
+}
+
+#[test]
 fn reported_sunken_room_props_remain_on_their_supports() {
     for seed in [47_586_113, 47_359_576, 47_062_729] {
         let scene =
@@ -337,8 +395,17 @@ fn reported_sunken_room_props_remain_on_their_supports() {
                 }
                 continue;
             }
+            let height = match scene.support_plane(prop).unwrap() {
+                SupportPlane::Top => support.size.y,
+                SupportPlane::LowerShelf => {
+                    super::super::objects::tables::parameters(support)
+                        .lounge_shelf(support, scene.generator_version)
+                        .unwrap()
+                        .top_y_m
+                }
+            };
             assert!(
-                (prop.position.y - support.position.y - support.size.y).abs() < 1e-5,
+                (prop.position.y - support.position.y - height).abs() < 1e-5,
                 "seed {seed}: {:?} {} at {} on {:?} {} at {} + {}",
                 prop.kind,
                 prop.id,
@@ -346,7 +413,7 @@ fn reported_sunken_room_props_remain_on_their_supports() {
                 support.kind,
                 support.id,
                 support.position.y,
-                support.size.y
+                height
             );
         }
         validate_layout(&scene).unwrap();

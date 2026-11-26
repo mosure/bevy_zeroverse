@@ -2,7 +2,9 @@
 //! then populate each leaf with dimensioned functional groups. All units are metres.
 pub mod activity;
 pub mod boardroom;
+pub mod court;
 pub mod furnishing;
+pub(crate) mod hallway;
 mod partition;
 pub mod region;
 pub mod relationships;
@@ -55,6 +57,9 @@ fn default_mullion_pitch() -> f32 {
     1.35
 }
 impl Partition {
+    pub(crate) fn glazing_height(&self, height: f32) -> f32 {
+        (height - self.sill - 0.16) * self.glazing_fraction
+    }
     pub fn opening_height(&self, along: f32) -> f32 {
         let x = ((along - self.door_center) / (self.door_width * 0.5)).clamp(-1., 1.);
         self.door_height - self.arch_rise + self.arch_rise * (1. - x * x).max(0.).sqrt()
@@ -116,6 +121,8 @@ impl Partition {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndoorProgram {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volleyball: Option<court::VolleyballCourt>,
     /// An executive meeting reserves its central table and perimeter seating before subdivision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub executive_boardroom: Option<boardroom::BoardroomPlan>,
@@ -262,7 +269,10 @@ impl IndoorProgram {
                 }
             })
             .collect();
-        Self {
+        let mut program = Self {
+            volleyball: (activity == IndoorLayout::Gymnasium)
+                .then(|| court::VolleyballCourt::fit(seed, size))
+                .flatten(),
             executive_boardroom: boardroom,
             primary_zone: None,
             zones,
@@ -274,7 +284,21 @@ impl IndoorProgram {
             materials: super::materials::program::sample(seed),
             finishes: Some(super::architecture::details::FinishParameters::sample(seed)),
             domain: Some(domain),
+        };
+        if activity == IndoorLayout::Gymnasium {
+            let mut lights = stream(seed, u64::from_le_bytes(*b"HighBays"));
+            program.light_spacing =
+                Vec2::new(lights.random_range(4.8..6.6), lights.random_range(4.8..6.6));
+            program.fixture_size = Vec2::new(
+                lights.random_range(0.85..1.65),
+                lights.random_range(0.30..0.59),
+            );
+            program.light_drop = lights.random_range(0.20..0.62);
         }
+        if activity == IndoorLayout::Hallway {
+            hallway::Section::sample(seed).subdivide(seed, size.xz(), &mut program);
+        }
+        program
     }
     pub fn portal_clear(&self, lo: Vec3, hi: Vec3) -> bool {
         !self.partitions.iter().any(|p| {
@@ -285,24 +309,35 @@ impl IndoorProgram {
 }
 
 pub fn primary_zone(scene: &IndoorManifest) -> Option<(Vec3, Vec2)> {
-    scene
-        .program
-        .as_ref()?
-        .zones
-        .iter()
-        .max_by(|a, b| {
+    let program = scene.program.as_ref()?;
+    let zone = if scene.layout == IndoorLayout::Hallway {
+        program.primary_zone.and_then(|i| program.zones.get(i))
+    } else {
+        program.zones.iter().max_by(|a, b| {
             let x = a.max - a.min;
             let y = b.max - b.min;
             (x.x * x.y).total_cmp(&(y.x * y.y))
         })
-        .map(|z| {
-            let c = (z.min + z.max) * 0.5;
-            (Vec3::new(c.x, 0.0, c.y), z.max - z.min)
-        })
+    };
+    zone.map(|z| {
+        let c = (z.min + z.max) * 0.5;
+        (Vec3::new(c.x, 0.0, c.y), z.max - z.min)
+    })
 }
 
 impl IndoorProgram {
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if scene.layout == IndoorLayout::Gymnasium {
+            if self.volleyball.is_none()
+                || self.volleyball != court::VolleyballCourt::fit(scene.seed, scene.room_size)
+                || self.zones.len() != 1
+                || !self.partitions.is_empty()
+            {
+                return Err("invalid gymnasium court dimensions or spatial program".into());
+            }
+        } else if self.volleyball.is_some() {
+            return Err("volleyball court outside a gymnasium".into());
+        }
         if self.executive_boardroom.is_some_and(|p| {
             scene.layout != IndoorLayout::Conference
                 || self.zones.len() != 1
@@ -336,7 +371,9 @@ impl IndoorProgram {
             .is_some_and(|index| index >= self.zones.len())
             || self.zones.is_empty()
             || self.zones.len() > 16
-            || if scene.envelope.is_some() {
+            || if scene.layout == IndoorLayout::Hallway {
+                !hallway::connected(self)
+            } else if scene.envelope.is_some() {
                 self.partitions.len() >= self.zones.len()
             } else {
                 self.partitions.len() + 1 != self.zones.len()

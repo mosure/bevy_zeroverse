@@ -6,29 +6,9 @@ fn hsl(h: f32, s: f32, l: f32) -> [u8; 3] {
     [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
 }
 
-// Labels are longer physically than vertically. Use independent pixel scales
-// for lettering on this normalized cylindrical chart.
-fn lettering(c: &mut raster::Canvas, word: &str, x: i32, y: i32, sx: i32, sy: i32, ink: [u8; 3]) {
-    for (i, ch) in word.bytes().enumerate() {
-        if let Some(rows) = raster::letter_rows(ch) {
-            for (row, bits) in rows.into_iter().enumerate() {
-                for col in 0..3 {
-                    if bits & (1 << (2 - col)) != 0 {
-                        c.rect(
-                            x + (4 * i as i32 + col) * sx,
-                            y + row as i32 * sy,
-                            sx,
-                            sy,
-                            ink,
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
-pub(super) fn label_pixels(r: &mut impl Rng, bottle: bool) -> Vec<u8> {
+pub(super) fn label_pixels(r: &mut impl Rng, surface: Surface) -> Vec<u8> {
     use raster::Canvas;
+    let bottle = surface == Surface::Plastic;
     let hue = if bottle && r.random_bool(0.66) {
         r.random_range(152.0..237.)
     } else {
@@ -116,19 +96,19 @@ pub(super) fn label_pixels(r: &mut impl Rng, bottle: bool) -> Vec<u8> {
             base,
         );
     }
-    lettering(&mut c, &name, start, y, sx, sy, ink);
-    let sub = if bottle {
+    c.lettering(&name, start, y, [sx, sy], ink);
+    let sub = if surface == Surface::Paper {
+        ["OATS", "RICE", "CEREAL", "TEA", "PASTA"][r.random_range(0..5)]
+    } else if bottle {
         ["WATER", "SPRING", "MINERAL"][r.random_range(0..3)]
     } else {
         ["SODA", "FIZZ", "TONIC", "POP"][r.random_range(0..4)]
     };
-    lettering(
-        &mut c,
+    c.lettering(
         sub,
         front - 2 * sub.len() as i32,
         y + sy * 5 + 8,
-        1,
-        3,
+        [1, 3],
         ink,
     );
     let x = r.random_range(176..195);

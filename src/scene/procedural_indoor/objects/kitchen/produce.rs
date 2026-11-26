@@ -83,6 +83,23 @@ impl Arrangement {
     }
 }
 
+/// Several real pieces from the same cultivar, shared by facings in one retail
+/// crate. Each shape retains its own lean, lobing, filtered peel and stem.
+pub(in crate::scene::procedural_indoor::objects) fn crate_lot(
+    r: &mut impl Rng,
+) -> [(f32, Assembly); 3] {
+    let kind = Variety::draw(r);
+    let mut finish = stream(r.random(), u64::from_le_bytes(*b"ShopPeel"));
+    let mut cultivar = None;
+    std::array::from_fn(|_| {
+        let mut piece = Fruit::sample(kind, r, &mut finish);
+        piece.skin = *cultivar.get_or_insert(piece.skin);
+        let mut mesh = Assembly::default();
+        piece.build(&mut mesh, 0.);
+        (piece.clearance_radius() + 0.001, mesh)
+    })
+}
+
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if version < INTRODUCED {
         return legacy::build(a, o);

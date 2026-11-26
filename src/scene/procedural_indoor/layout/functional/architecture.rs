@@ -4,8 +4,28 @@ pub fn size_room(seed: u64, activity: IndoorLayout, size: &mut Vec3) {
     if !activity.is_public() {
         return;
     }
+    if activity == IndoorLayout::Gymnasium {
+        *size = crate::scene::procedural_indoor::program::court::room_size(seed);
+        return;
+    }
+    if activity == IndoorLayout::StairHall {
+        *size =
+            crate::scene::procedural_indoor::envelope::mezzanine::stair_hall::Section::sample(seed)
+                .room_size;
+        return;
+    }
+    if activity == IndoorLayout::Hallway {
+        *size = super::super::super::program::hallway::Section::sample(seed).size();
+        return;
+    }
     let mut r = stream(seed, 8220);
     let (w, d) = match activity {
+        IndoorLayout::Courtyard => ((10.5, 16.0), (11.5, 17.5)),
+        IndoorLayout::Restaurant => ((9.0, 15.5), (10.0, 18.0)),
+        IndoorLayout::CyclingStudio => ((10.4, 14.6), (11.0, 16.5)),
+        IndoorLayout::FitnessRoom => ((8.2, 13.6), (9.5, 16.8)),
+        IndoorLayout::GroceryStore => ((10.8, 16.2), (12.0, 18.7)),
+        IndoorLayout::ClothingStore => ((9.8, 15.3), (11.0, 17.6)),
         IndoorLayout::LectureHall => ((10.0, 16.0), (12.0, 18.0)),
         IndoorLayout::PublicSuite => ((17.0, 22.0), (16.0, 21.0)),
         IndoorLayout::Cafeteria => ((10.0, 15.0), (10.0, 15.0)),
@@ -14,7 +34,9 @@ pub fn size_room(seed: u64, activity: IndoorLayout, size: &mut Vec3) {
     };
     *size = Vec3::new(
         r.random_range(w.0..w.1),
-        if activity == IndoorLayout::LectureHall {
+        if activity == IndoorLayout::Courtyard {
+            r.random_range(3.15..4.35)
+        } else if activity == IndoorLayout::LectureHall {
             r.random_range(5.5..6.2)
         } else {
             r.random_range(3.6..4.8)
@@ -26,6 +48,32 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
     if !scene.layout.is_public() {
         return;
     }
+    if scene.layout == IndoorLayout::Gymnasium {
+        // Keep the playing volume continuous from the floor to the high roof.
+        let e = scene.envelope.as_mut().unwrap();
+        e.floor_patches.clear();
+        e.step_installation = None;
+        e.mezzanine = None;
+        e.pillars.clear();
+        e.soffits.clear();
+        e.ceiling_drop = e.ceiling_drop.clamp(Vec2::splat(-0.48), Vec2::splat(0.48));
+        return;
+    }
+    if scene.layout == IndoorLayout::Courtyard {
+        // Its load-bearing colonnade and open roof are designed as one envelope.
+        return;
+    }
+    if scene.layout == IndoorLayout::StairHall {
+        let routes = furnishing::stair_hall::routes(scene);
+        let e = scene.envelope.as_mut().unwrap();
+        e.pillars.retain(|p| {
+            let pad = Vec2::splat(p.radius + 0.12);
+            routes
+                .iter()
+                .all(|r| (p.center + pad).cmple(r.min).any() || (p.center - pad).cmpge(r.max).any())
+        });
+        return;
+    }
     // Service and audience programs choose their levels before any objects. Random
     // depressions cannot bisect a service run, audience row or elevator threshold.
     if let Some(e) = scene.envelope.as_mut() {
@@ -34,7 +82,7 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
         e.mezzanine = None;
         if matches!(
             scene.layout,
-            IndoorLayout::ElevatorLanding | IndoorLayout::PublicSuite
+            IndoorLayout::ElevatorLanding | IndoorLayout::PublicSuite | IndoorLayout::Hallway
         ) {
             e.ceiling_drop = e.ceiling_drop.clamp(Vec2::splat(-0.35), Vec2::splat(0.35));
             for soffit in &mut e.soffits {
@@ -42,8 +90,16 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
             }
         }
         // Peripheral columns remain; a central column cannot occupy a required aisle.
-        e.pillars
-            .retain(|p| p.center.x.abs() > scene.room_size.x * 0.32);
+        if scene.layout == IndoorLayout::Hallway {
+            let hall = &scene.program.as_ref().unwrap().zones[0];
+            e.pillars.retain(|p| {
+                let pad = Vec2::splat(p.radius + 0.35);
+                p.center.cmplt(hall.min - pad).any() || p.center.cmpgt(hall.max + pad).any()
+            });
+        } else {
+            e.pillars
+                .retain(|p| p.center.x.abs() > scene.room_size.x * 0.32);
+        }
     }
     if scene.layout == IndoorLayout::PublicSuite {
         let p = scene.program.as_mut().unwrap();
@@ -203,19 +259,25 @@ pub fn support_regions(scene: &IndoorManifest) -> Vec<SupportRegion> {
         }
     }
     if let Some(m) = scene.envelope.as_ref().and_then(|e| e.mezzanine.as_ref()) {
-        let lo = m.deck.min;
-        let hi = m.deck.max;
-        result.push(SupportRegion {
-            name: "mezzanine".into(),
-            min: lo,
-            max: hi,
-            elevation_metres: m.deck.height,
-            triangles: vec![
-                [lo, Vec2::new(hi.x, lo.y), hi],
-                [lo, hi, Vec2::new(lo.x, hi.y)],
-            ],
-            overhead: true,
-        });
+        let mut upper = |name, lo: Vec2, hi: Vec2, elevation_metres| {
+            result.push(SupportRegion {
+                name,
+                min: lo,
+                max: hi,
+                elevation_metres,
+                triangles: vec![
+                    [lo, Vec2::new(hi.x, lo.y), hi],
+                    [lo, hi, Vec2::new(lo.x, hi.y)],
+                ],
+                overhead: true,
+            });
+        };
+        upper("mezzanine".into(), m.deck.min, m.deck.max, m.deck.height);
+        if scene.layout == IndoorLayout::StairHall {
+            for (i, (lo, hi)) in m.treads().enumerate() {
+                upper(format!("stair_tread_{i}"), lo.xz(), hi.xz(), hi.y);
+            }
+        }
     }
     result
 }

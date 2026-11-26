@@ -1,4 +1,5 @@
 //! Small procedural mesh vocabulary. UVs are measured in metres, not object extents.
+mod clipping;
 mod housing;
 pub(crate) use housing::{housing_front_z, housing_outline};
 #[cfg(test)]
@@ -87,7 +88,7 @@ impl Geometry {
         });
     }
 
-    fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
+    pub(crate) fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
     where
         F: Fn(Vec3, Vec3, Vec3, f32, f32, f32) -> Chart,
         Chart: Fn(f32, f32) -> Vec2,
@@ -201,14 +202,39 @@ impl Geometry {
 
     /// A surface of revolution; profile goes from bottom outside to top, then inside.
     pub fn lathe(&mut self, profile: &[(f32, f32)], segments: u32, tf: Transform) {
-        if profile.len() < 2 || segments < 3 {
-            return;
-        }
-        let angles = primitives::lathe_angles(segments);
         // One cylindrical chart for the sides. Changing the circumference at
         // each profile knot creates a horizontal texture seam on every shoulder.
         let radius = profile.iter().map(|p| p.0).fold(0., f32::max);
-        let mut distance = 0.;
+        self.lathe_strip(profile, segments, tf, radius, 0.);
+    }
+
+    /// Give two stretches of a continuous profile distinct part identities
+    /// while preserving its original vertices, normals and metric UV chart.
+    pub(crate) fn split_lathe(
+        &mut self,
+        tail: &mut Self,
+        profile: &[(f32, f32)],
+        joint: usize,
+        segments: u32,
+        tf: Transform,
+    ) {
+        let radius = profile.iter().map(|p| p.0).fold(0., f32::max);
+        let distance = self.lathe_strip(&profile[..=joint], segments, tf, radius, 0.);
+        tail.lathe_strip(&profile[joint..], segments, tf, radius, distance);
+    }
+
+    fn lathe_strip(
+        &mut self,
+        profile: &[(f32, f32)],
+        segments: u32,
+        tf: Transform,
+        radius: f32,
+        mut distance: f32,
+    ) -> f32 {
+        if profile.len() < 2 || segments < 3 {
+            return distance;
+        }
+        let angles = primitives::lathe_angles(segments);
         // Duplicate rings at profile creases: a pot rim must not average its outer
         // normal with the inward-facing inner wall or invert the lighting normal.
         for pair in profile.windows(2) {
@@ -247,6 +273,7 @@ impl Geometry {
             }
             distance += length;
         }
+        distance
     }
 
     pub fn cylinder(&mut self, radius: f32, height: f32, tf: Transform) {

@@ -36,8 +36,7 @@ fn add(
     mut o: super::super::super::layout::IndoorObject,
 ) {
     o.id = scene.objects.len();
-    g.objects
-        .push(objects::build_object_with_motion(&o, Some(&policy())));
+    g.objects.push(objects::build_manifest_object(scene, &o));
     scene.objects.push(o);
 }
 fn rest_vertices(a: &Assembly) -> Vec<[u32; 8]> {
@@ -56,6 +55,71 @@ fn rest_vertices(a: &Assembly) -> Vec<[u32; 8]> {
         .collect();
     values.sort_unstable();
     values
+}
+
+mod desk_fan;
+mod projection_screen;
+mod teaching_board;
+
+#[test]
+fn lounge_storage_motion_stays_on_the_lower_deck_and_inside_its_rim() {
+    let mut accepted = std::collections::BTreeSet::new();
+    let (blank, mut g) = room();
+    let mut rejections = std::collections::BTreeMap::new();
+    for seed in 0..144 {
+        let mut table = fixture(ObjectKind::CoffeeTable, seed);
+        table.size = Vec3::new(1.72, 0.53, 0.82);
+        table.yaw = 1.19;
+        let Some(deck) =
+            objects::tables::parameters(&table).lounge_shelf(&table, blank.generator_version)
+        else {
+            continue;
+        };
+        if accepted.contains(deck.deck.name()) {
+            continue;
+        }
+        let mut s = blank.clone();
+        g.objects.clear();
+        let mut item = fixture(ObjectKind::Notepad, seed + 123);
+        item.support = Some(0);
+        item.solid = false;
+        item.size = Vec3::new(0.12, 0.015, 0.16);
+        item.position = table.transform().transform_point(Vec3::new(
+            deck.center_xz_m.x,
+            deck.top_y_m,
+            deck.center_xz_m.y,
+        ));
+        let local = table.transform().compute_affine().inverse();
+        add(&mut s, &mut g, table);
+        add(&mut s, &mut g, item);
+        prepare(&mut s, &mut g);
+        let movement = &s.indoor_motion.as_ref().unwrap().mechanisms[0];
+        if let Some(reason) = &movement.rejection {
+            *rejections
+                .entry((deck.deck.name(), reason.clone()))
+                .or_insert(0) += 1;
+            continue;
+        }
+        assert!(movement.translation_m.length() > 0.001 || movement.angle_radians.abs() > 0.01);
+        let (lo, hi) = deck.storage_bounds();
+        for step in 0..=32 {
+            let tf = movement
+                .rigid_transform_at(step as f32 / 32.)
+                .unwrap()
+                .compute_affine()
+                * s.objects[1].transform().compute_affine();
+            for v in g.objects[1].parts.values().flat_map(|g| &g.positions) {
+                let p = local.transform_point3(tf.transform_point3(Vec3::from_array(*v)));
+                assert!(p.xz().cmpge(lo).all() && p.xz().cmple(hi).all());
+                assert!(p.y >= deck.top_y_m - 1e-5 && p.y < deck.underside_y_m);
+            }
+        }
+        accepted.insert(deck.deck.name());
+        if accepted.len() == 3 {
+            break;
+        }
+    }
+    assert_eq!(accepted.len(), 3, "{accepted:?} {rejections:?}");
 }
 
 #[test]
@@ -160,6 +224,12 @@ fn operated_appliances_and_laptops_keep_rest_meshes_and_admit_real_motion() {
 fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping() {
     use ObjectKind::*;
     let (mut scene, mut g) = room();
+    scene
+        .indoor_motion
+        .as_mut()
+        .unwrap()
+        .policy
+        .prop_pickup_fraction = 1.0;
     let mut table = fixture(Cabinet, 0);
     table.size = Vec3::new(9., 0.75, 9.);
     // A rectangular test support with exact contact plane; no legs needed here.
@@ -225,6 +295,19 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
     prepare(&mut scene, &mut g);
     let report = scene.indoor_motion.as_ref().unwrap();
     assert_eq!(report.mechanisms.len(), kinds.len());
+    assert!(
+        report
+            .mechanisms
+            .iter()
+            .filter(|m| m.rejection.is_none()
+                && m.lift_m > 0.
+                && m.translation_m.length() > 0.
+                && m.angle_radians.abs() > 0.)
+            .count()
+            >= 10,
+        "combined lift, slide and turn should survive on an open tabletop"
+    );
+
     assert!(
         report
             .mechanisms
@@ -302,10 +385,43 @@ fn loaded_cart_carries_annotation_instances_and_rejects_connected_wires() {
             .as_deref(),
         Some("connected_cable")
     );
-    assert!(
-        g.objects[1].joints.is_empty(),
-        "rejected cargo must not keep a stale animation"
+    let wired = scene.indoor_motion.as_ref().unwrap();
+    assert!(wired.mechanisms[0].carried_object_ids.is_empty());
+    assert!(g.objects[1].joints.iter().all(|j| !j.accepted));
+    assert_eq!(
+        wired.mechanisms[1].rejection.as_deref(),
+        Some("connected_cable")
     );
+
+    // Tether just the cart. The loose phone can move across its shelf.
+    scene.objects[2].cable_target = Some(0);
+    prepare(&mut scene, &mut g);
+    let parked = scene.indoor_motion.clone().unwrap();
+    assert_eq!(
+        parked.mechanisms[0].rejection.as_deref(),
+        Some("connected_cable")
+    );
+    let loose = parked
+        .mechanism_for_object(1)
+        .expect("loose phone on a stationary cart");
+    assert_eq!((loose.object_id, loose.kind), (Some(1), MotionKind::Prop));
+    assert!(loose.translation_m.length() > 0. || loose.angle_radians != 0.);
+    assert!(support_clear(
+        &scene,
+        &scene.objects[1],
+        &sweeps(
+            &g.objects[1],
+            &g.objects[1].joints[0],
+            scene.objects[1].transform()
+        )
+    ));
+    prepare(&mut scene, &mut g);
+    assert_eq!(scene.indoor_motion.as_ref(), Some(&parked));
+
+    scene.objects.pop();
+    g.objects.pop();
+    prepare(&mut scene, &mut g);
+    assert_eq!(scene.indoor_motion.as_ref(), Some(&report));
 }
 
 #[test]
@@ -500,4 +616,95 @@ fn motion_geometry_gallery_uses_the_actual_admitted_mesh_transforms() {
         .unwrap(),
     )
     .unwrap();
+}
+
+#[test]
+fn pickups_set_down_on_the_support_and_shorten_under_an_overhead_obstruction() {
+    fn trial(version: u32, clearance: Option<f32>) -> (IndoorManifest, SceneGeometry) {
+        let (mut s, mut g) = room();
+        s.generator_version = version;
+        s.indoor_motion = Some(IndoorMotionReport::new(IndoorMotionConfig {
+            prop_fraction: 1.,
+            prop_pickup_fraction: 1.,
+            prop_travel_m: 0.,
+            prop_rotation_degrees: 0.,
+            prop_lift_m: 0.42,
+            ..policy()
+        }));
+        let mut shelf = fixture(ObjectKind::Cabinet, 0);
+        shelf.size = Vec3::new(1.4, 0.75, 1.4);
+        s.objects.push(shelf);
+        let mut deck = Assembly::default();
+        deck.box_part(
+            Surface::Wood,
+            "cabinet",
+            Vec3::Y * 0.725,
+            Vec3::new(1.4, 0.05, 1.4),
+            0.,
+        );
+        g.objects.push(deck);
+        let mut o = fixture(ObjectKind::Notepad, 12);
+        o.support = Some(0);
+        o.position.y = 0.75;
+        o.yaw = 0.32;
+        add(&mut s, &mut g, o);
+        if let Some(space) = clearance {
+            let height = 0.75 + g.objects[1].bounds().1.y + space;
+            g.architecture.box_part(
+                Surface::Wood,
+                "shelf",
+                Vec3::Y * (height + 0.01),
+                Vec3::new(1.4, 0.02, 1.4),
+                0.,
+            );
+        }
+        prepare(&mut s, &mut g);
+        (s, g)
+    }
+    let current = super::super::super::layout::GENERATOR_VERSION;
+    let (s, g) = trial(current, None);
+    let movement = &s.indoor_motion.as_ref().unwrap().mechanisms[0];
+    assert!(movement.rejection.is_none(), "{movement:?}");
+    assert!(movement.lift_m > 0.1 && movement.lift_m <= 0.42);
+    assert_eq!(movement.lift_m, movement.requested_lift_m);
+    let (tight, geometry) = trial(current, Some(movement.lift_m * 0.7));
+    let fitted = &tight.indoor_motion.as_ref().unwrap().mechanisms[0];
+    assert!(
+        fitted.rejection.is_none() && fitted.lift_m < movement.lift_m && fitted.lift_m > 0.01,
+        "{fitted:?}"
+    );
+    for (motion, scene, geo) in [(movement, &s, &g), (fitted, &tight, &geometry)] {
+        let pose = scene.objects[1].transform();
+        assert_eq!(motion.rigid_transform_at(0.).unwrap(), Transform::IDENTITY);
+        assert_eq!(motion.rigid_transform_at(1.).unwrap(), Transform::IDENTITY);
+        let peak = (motion.interval[0] + motion.interval[1]) * 0.5;
+        assert!(
+            (motion.rigid_transform_at(peak).unwrap().translation.y - motion.lift_m).abs() < 1e-5
+        );
+        for n in 0..101 {
+            let t = n as f32 / 100.;
+            let tf = motion.rigid_transform_at(t).unwrap().mul_transform(pose);
+            let joint = &geo.objects[1].joints[0];
+            assert!(
+                tf.translation.distance(
+                    pose.mul_transform(joint.transform(joint.amount(t)))
+                        .translation
+                ) < 1e-5
+            );
+            for v in geo.objects[1].parts.values().flat_map(|g| &g.positions) {
+                let p = tf.transform_point(Vec3::from_array(*v));
+                assert!(motion
+                    .swept_bounds
+                    .iter()
+                    .any(|&(lo, hi)| p.cmpge(lo - 1e-5).all() && p.cmple(hi + 1e-5).all()));
+            }
+        }
+    }
+    assert_eq!(s.indoor_motion, trial(current, None).0.indoor_motion);
+    assert!(trial(TEMPORAL_PROGRAM_VERSION - 1, None)
+        .0
+        .indoor_motion
+        .unwrap()
+        .mechanisms
+        .is_empty());
 }

@@ -40,7 +40,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
             );
         }
         ObjectKind::Dishware => {
-            let program = dishware::for_object(o, &program(o));
+            let program = dishware::object_parameters(o, version);
             dishware::build(
                 a,
                 Transform::IDENTITY,
@@ -48,10 +48,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
                 o.finish_seed.unwrap_or(o.seed),
             );
             if let Some(meal) = serving::sample(o) {
-                serving::build(a, o, &program, meal);
+                serving::build(a, o, &program, meal, version);
             }
         }
-        ObjectKind::Flatware => flatware::build(a, o),
+        ObjectKind::Flatware => flatware::build(a, o, version),
         ObjectKind::CuttingBoard => super::supplies::board(a, o),
         ObjectKind::KitchenTowel => super::supplies::towel(a, o),
         ObjectKind::KnifeBlock => super::supplies::knives::build(a, o),

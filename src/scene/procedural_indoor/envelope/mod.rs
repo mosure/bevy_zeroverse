@@ -3,6 +3,7 @@
 mod ceilings;
 pub mod columns;
 pub mod construction;
+pub mod courtyard;
 pub mod guardrail;
 pub mod lining;
 pub mod mezzanine;
@@ -96,6 +97,9 @@ pub struct EnvelopeWall {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeProgram {
+    /// Metric roof opening and covered walks of an open-air courtyard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub courtyard: Option<courtyard::CourtyardRoof>,
     /// Exterior structural wall section; old manifests retain 18 cm shells.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wall_thickness_m: Option<f32>,

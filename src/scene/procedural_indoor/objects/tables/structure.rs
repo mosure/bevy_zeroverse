@@ -15,11 +15,33 @@ pub(super) trait StructureSink {
         self.part(surface, label)
             .cuboid(size, bevel, Transform::from_translation(pos));
     }
+    fn cut_board(
+        &mut self,
+        _cuts: &mut TimberCuts,
+        part: (Surface, &str),
+        pos: Vec3,
+        size: Vec3,
+        bevel: f32,
+        _grain: GrainAxis,
+    ) {
+        self.box_part(part.0, part.1, pos, size, bevel);
+    }
 }
 impl StructureSink for Assembly {
     type Part = Geometry;
     fn part(&mut self, surface: Surface, label: &str) -> &mut Geometry {
         Assembly::part(self, surface, label)
+    }
+    fn cut_board(
+        &mut self,
+        cuts: &mut TimberCuts,
+        part: (Surface, &str),
+        pos: Vec3,
+        size: Vec3,
+        bevel: f32,
+        grain: GrainAxis,
+    ) {
+        self.board(cuts, part, pos, size, bevel, grain);
     }
 }
 impl PartSink for Geometry {

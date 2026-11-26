@@ -40,8 +40,15 @@ pub(crate) fn placements(
 ) -> Vec<Content> {
     let mut r = stream(o.seed, 0x424f_4f4b_434f_4e54 + (bay * 16 + level) as u64);
     let b = &p.bays[bay];
-    let rear = -o.size.z * 0.5 + if p.closed_back { p.panel_m } else { 0. };
-    let bounds = (Vec2::new(b.left, rear), Vec2::new(b.right, o.size.z * 0.5));
+    let (rear, front) = p.deck_limits(o.size.z);
+    let bounds = (Vec2::new(b.left, rear), Vec2::new(b.right, front));
+    let stock_depth = if p.rack.is_some() {
+        // Preserve ordinary book/box stock on deeper cases. Even the deepest
+        // upright volume gets some fore-aft play on a shallow recessed deck.
+        o.size.z.min((front - rear) * 1.10)
+    } else {
+        o.size.z
+    };
     let base = b.levels[level] + p.panel_m * 0.5;
     let headroom = b.levels[level + 1] - p.panel_m * 0.5 - base - 0.006;
     let mut result = Vec::new();
@@ -56,14 +63,18 @@ pub(crate) fn placements(
             let size = Vec3::new(
                 r.random_range(0.022..0.055),
                 (headroom * r.random_range(0.60..0.94)).min(0.37),
-                (o.size.z * r.random_range(0.48..0.80)).min(0.31),
+                (stock_depth * r.random_range(0.48..0.80)).min(0.31),
             );
             let yaw = r.random_range(-0.10..0.10);
             let half = rotated_half(size.xz(), yaw);
             if x + half.x * 2. > b.right - 0.012 {
                 break;
             }
-            let z = r.random_range(rear + half.y + 0.006..o.size.z * 0.5 - half.y - 0.006);
+            let space = rear + half.y + 0.006..front - half.y - 0.006;
+            if space.is_empty() {
+                continue;
+            }
+            let z = r.random_range(space);
             result.push(Content::upright_book(
                 r.random(),
                 size,
@@ -114,7 +125,7 @@ pub(crate) fn placements(
             ObjectKind::StorageBox => Vec3::new(
                 r.random_range(0.16..0.34),
                 headroom * r.random_range(0.42..0.78),
-                o.size.z * r.random_range(0.52..0.76),
+                stock_depth * r.random_range(0.52..0.76),
             ),
             _ => {
                 let d = r.random_range(0.075..0.16);
@@ -147,7 +158,7 @@ pub(crate) fn placements(
     result
 }
 
-pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
+pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content, version: u32) {
     let tf = Transform::from_translation(c.position)
         .with_rotation(Quat::from_rotation_y(c.yaw) * Quat::from_rotation_z(c.lean));
     if c.kind == ObjectKind::Books && !c.upright {
@@ -176,6 +187,7 @@ pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
                 Vec3::new(h, w, depth * fit),
                 Transform::from_translation(tf.transform_point(local))
                     .with_rotation(tf.rotation * q * Quat::from_rotation_z(-FRAC_PI_2)),
+                version,
             );
             y += h;
         }
@@ -190,7 +202,7 @@ pub(crate) fn build(a: &mut Assembly, parent: &IndoorObject, c: &Content) {
         super::super::super::public::append_at(a, build_object(&child), tf);
         return;
     }
-    binding::volume(a, c.seed, c.edition, c.size, tf);
+    binding::volume(a, c.seed, c.edition, c.size, tf, version);
     if let Some(bookend) = &c.bookend {
         bookend.build(a, parent, c);
     }

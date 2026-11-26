@@ -4,6 +4,8 @@
 use super::*;
 use crate::scene::procedural_indoor::{layout::stream, materials::Surface, objects::Assembly};
 use rand::Rng;
+mod mounting;
+pub use mounting::{PanelMount, Retainer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Infill {
@@ -31,6 +33,9 @@ pub struct GuardSection {
     pub infill_gap: f32,
     pub panel_thickness: f32,
     pub bottom_gap: f32,
+    /// Missing in archived guards built with butt-ended spacers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_mount: Option<PanelMount>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -42,7 +47,7 @@ pub struct GuardProgram {
 impl GuardSection {
     pub fn sample(seed: u64) -> Self {
         let mut r = stream(seed, 0x4755415244534543);
-        Self {
+        let mut section = Self {
             seed,
             infill: [Infill::Glass, Infill::Pickets, Infill::Slats, Infill::Solid]
                 [r.random_range(0..4)],
@@ -60,7 +65,10 @@ impl GuardSection {
             infill_gap: r.random_range(0.045..0.095),
             panel_thickness: r.random_range(0.008..0.022),
             bottom_gap: r.random_range(0.035..0.085),
-        }
+            panel_mount: None,
+        };
+        section.panel_mount = PanelMount::sample(&section);
+        section
     }
     pub fn validate(&self) -> Result<(), String> {
         for (v, lo, hi) in [
@@ -88,6 +96,9 @@ impl GuardSection {
             })
         {
             return Err("guard section requires structural finish surfaces".into());
+        }
+        if let Some(mount) = &self.panel_mount {
+            mount.validate(self)?;
         }
         Ok(())
     }
@@ -202,24 +213,22 @@ pub(super) fn build(
             ^ (q.z.to_bits() as u64).rotate_left(41),
         0x4755415244424159,
     );
-    let positions: Vec<_> = (0..=count)
-        .map(|i| {
-            let jitter = if i == 0 || i == count {
-                0.
-            } else {
-                bays.random_range(-s.bay_jitter..=s.bay_jitter)
-            };
-            p.lerp(q, (i as f32 + jitter) / count as f32)
-        })
-        .collect();
-    let at = |i: u32| positions[i as usize];
-    for i in 0..=count {
-        let c = at(i);
+    // Retain the last bay endpoint while walking the run. Archive geometry
+    // keeps its original emission order for byte-identical mesh replay.
+    let station = |i, bays: &mut rand_chacha::ChaCha8Rng| {
+        let jitter = if i == 0 || i == count {
+            0.
+        } else {
+            bays.random_range(-s.bay_jitter..=s.bay_jitter)
+        };
+        p.lerp(q, (i as f32 + jitter) / count as f32)
+    };
+    let mut post = |a: &mut Assembly, c: Vec3| {
         let base = c.with_y(support(c));
         // Connected bays share their corner/landing post. Duplicate cylinders
         // and foot plates cause coplanar flicker and unnecessary triangles.
         if posts.iter().any(|p| p.distance_squared(c) < 1e-8) {
-            continue;
+            return;
         }
         posts.push(c);
         member(
@@ -238,10 +247,24 @@ pub(super) fn build(
             Vec3::new(s.post_width * 1.6, 0.012, s.post_width * 1.6),
             0.,
         );
+    };
+    if let Some(mount) = &s.panel_mount {
+        let mut start = station(0, &mut bays);
+        post(a, start);
+        for i in 1..=count {
+            let end = station(i, &mut bays);
+            post(a, end);
+            mount.bay(a, s, start, end, stair_rise, height);
+            start = end;
+        }
+        return;
     }
-    for i in 0..count {
-        let start = at(i);
-        let end = at(i + 1);
+    let positions: Vec<_> = (0..=count).map(|i| station(i, &mut bays)).collect();
+    for &c in &positions {
+        post(a, c);
+    }
+    for section in positions.windows(2) {
+        let (start, end) = (section[0], section[1]);
         let length = start.xz().distance(end.xz());
         let inset = (s.post_width * 0.5 + 0.012) / length;
         if inset >= 0.45 {

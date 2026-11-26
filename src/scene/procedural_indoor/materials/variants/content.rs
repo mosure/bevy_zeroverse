@@ -7,6 +7,7 @@ enum Prepared {
     Board(Box<boards::PreparedBoard>),
     Art(u64, Box<[Image; 3]>),
     Paper(u64, Box<Image>),
+    Jacket(Box<paper::jacket::Prepared>),
 }
 
 impl Prepared {
@@ -22,6 +23,9 @@ impl Prepared {
             }
             Surface::Whiteboard => Self::Board(Box::new(boards::prepare(seed))),
             Surface::Art => Self::Art(seed, Box::new(art::maps(seed))),
+            Surface::PrintedPaper if slot >= paper::jacket::FIRST => {
+                Self::Jacket(Box::new(paper::jacket::prepare(seed, slot)))
+            }
             Surface::PrintedPaper => Self::Paper(seed, Box::new(paper::prepare_slot(seed, slot))),
             _ => unreachable!("content jobs only synthesize supported surfaces"),
         }
@@ -32,6 +36,7 @@ impl Prepared {
             Self::Screen(prepared) => prepared.apply(mat, images),
             Self::Board(prepared) => prepared.apply(mat, images),
             Self::Art(seed, maps) => art::apply_prepared(seed, *maps, mat, images),
+            Self::Jacket(prepared) => prepared.apply(mat, images),
             Self::Paper(seed, map) => paper::apply_prepared(seed, *map, mat, images),
         }
     }
@@ -165,7 +170,10 @@ mod tests {
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1, COUNT - 1][i]))
-                .chain([(Surface::PrintedPaper, paper::spread_slot(seed))])
+                .chain([
+                    (Surface::PrintedPaper, paper::spread_slot(seed)),
+                    (Surface::PrintedPaper, paper::jacket::FIRST + 2),
+                ])
                 .collect();
             let mut jobs = queue(seed, Some(&used));
             assert_eq!(jobs.len(), used.len());
@@ -186,6 +194,9 @@ mod tests {
                     Surface::Television => screens::apply_tv(content_seed, &mut a, &mut ia),
                     Surface::Whiteboard => boards::apply(content_seed, &mut a, &mut ia),
                     Surface::Art => art::apply(content_seed, &mut a, &mut ia),
+                    Surface::PrintedPaper if slot >= paper::jacket::FIRST => {
+                        paper::jacket::prepare(content_seed, slot).apply(&mut a, &mut ia)
+                    }
                     Surface::PrintedPaper if slot >= COUNT => paper::apply_prepared(
                         content_seed,
                         paper::prepare_slot(content_seed, slot),

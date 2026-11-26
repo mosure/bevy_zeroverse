@@ -184,6 +184,13 @@ impl MountSpace {
             || (mount.rotation.length_squared() - 1.).abs() > 1e-5
             || !(policy.standoff_m[0]..=policy.standoff_m[1]).contains(&mount.standoff_m)
             || mount.body_radius_m != policy.body_radius_m
+            || scene
+                .envelope
+                .as_ref()
+                .and_then(|e| e.courtyard)
+                .is_some_and(|roof| {
+                    !roof.supports_rail(mount.surface.xz(), mount.surface.xz(), mount.body_radius_m)
+                })
         {
             return false;
         }

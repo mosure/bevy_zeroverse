@@ -205,6 +205,20 @@ impl PendantLens {
         })
     }
 
+    pub(crate) fn write_aperture(
+        &self,
+        geometry: &mut crate::scene::procedural_indoor::geometry::Geometry,
+    ) {
+        self.with_profile(|section| {
+            OUTLINE.sweep(
+                geometry,
+                section,
+                ProfileJoints::Smooth,
+                Transform::IDENTITY,
+            );
+        });
+    }
+
     pub(super) fn build(
         &self,
         a: &mut Assembly,
@@ -214,14 +228,7 @@ impl PendantLens {
         lip: f32,
         top: f32,
     ) -> f32 {
-        self.with_profile(|section| {
-            OUTLINE.sweep(
-                a.part(Surface::Light, label),
-                section,
-                ProfileJoints::Smooth,
-                Transform::IDENTITY,
-            );
-        });
+        self.write_aperture(a.part(Surface::Light, label));
         let r = self.radius_m;
         let y = self.bottom_y_m + self.rise_m;
         if matches!(self.optic, Optic::OpenBulb(_)) {

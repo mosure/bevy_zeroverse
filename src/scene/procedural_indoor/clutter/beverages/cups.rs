@@ -3,6 +3,7 @@ use super::*;
 use crate::scene::procedural_indoor::materials::{drinkware::Brew, variants};
 
 mod handle;
+mod jacket;
 mod lid;
 mod mesh;
 #[cfg(test)]
@@ -26,6 +27,8 @@ pub(crate) struct Sleeve {
     pub high_fraction: f32,
     pub thickness_m: f32,
     pub printed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cut: Option<jacket::SleeveCut>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -50,6 +53,10 @@ pub(crate) struct CupForm {
 
 impl CupForm {
     pub(crate) fn sample(o: &IndoorObject, p: &BeverageProgram) -> Self {
+        Self::sample_at(o, p, bevy_zeroverse_capture::GENERATOR_VERSION)
+    }
+
+    pub(crate) fn sample_at(o: &IndoorObject, p: &BeverageProgram, version: u32) -> Self {
         let paper = o.kind == ObjectKind::CoffeeCup;
         let s = o.size;
         let mut r = stream(o.seed, u64::from_le_bytes(*b"CupBuild"));
@@ -93,11 +100,15 @@ impl CupForm {
         let height_m = s.y - base_y_m - lid.as_ref().map_or(0., |l| l.rise_m);
         let sleeve = (paper && p.style % 3 != 2).then(|| {
             let low = r.random_range(0.17..0.37);
+            let cut = (version
+                >= crate::scene::procedural_indoor::materials::cup_board::INTRODUCED)
+                .then(|| jacket::SleeveCut::sample(o));
             Sleeve {
                 low_fraction: low,
                 high_fraction: low + r.random_range(0.26..0.45),
                 thickness_m: r.random_range(0.0006..0.0017),
-                printed: p.style % 3 == 1,
+                printed: cut.as_ref().map_or(p.style % 3 == 1, |c| c.stock.printed),
+                cut,
             }
         });
         let wall_m = if paper {
@@ -173,8 +184,8 @@ impl CupForm {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram) {
-    let form = CupForm::sample(o, p);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &BeverageProgram, version: u32) {
+    let form = CupForm::sample_at(o, p, version);
     let section = mesh::Section::new(&form, p);
     let label = o.kind.class_name();
     if let Some(saucer) = &form.saucer {

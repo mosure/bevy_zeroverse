@@ -75,7 +75,7 @@ fn material_shader_parses_and_validates_without_a_gpu() {
 
 #[test]
 fn recipe_abi_and_bounded_mip_layout() {
-    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 56 * 16);
+    assert_eq!(std::mem::size_of::<recipe::Recipe>(), 59 * 16);
     assert_eq!(std::mem::size_of::<kernel::Dispatch>(), 3 * 16);
     assert!(kernel::SHADER.contains("fn paint_map"));
     for size in [256, 512] {
@@ -419,8 +419,16 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                     recipes.push(r);
                 }
                 let parent = recipes[Surface::FabricAlt as usize].clone();
-                recipes.extend((0..6).map(|pattern| {
-                    let mut r = super::super::rugs::recipe(&parent, pattern % 4);
+                recipes.extend((0..7).map(|pattern| {
+                    let mut r = if pattern == 6 {
+                        super::super::rugs::recipe_at_version(
+                            &parent,
+                            0,
+                            super::super::rug_design::WOVEN_LAYOUT_VERSION - 1,
+                        )
+                    } else {
+                        super::super::rugs::recipe(&parent, pattern % 4)
+                    };
                     let design = r.carpet.as_mut().unwrap().rug.as_mut().unwrap();
                     if pattern < 4 {
                         design.weights = [0.; 4];
@@ -429,7 +437,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                         design.quiet = 0.98;
                         design.border_width = 0.;
                         design.center = 0.;
-                    } else {
+                    } else if pattern == 5 {
                         design.patchwork = 1.;
                     }
                     r

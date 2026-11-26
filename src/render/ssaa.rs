@@ -483,6 +483,9 @@ fn resolve(world: &World, mut context: RenderContext) {
             pass.draw(0..3, 0..1);
         }
         // Copies run later in this same render graph/queue. No host fence.
+        if let Some(frame) = world.get_resource::<crate::scene::capture_ready::render::Frame>() {
+            frame.resolve(job.camera.output.id());
+        }
         job.camera.completed.store(job.request, Ordering::Release);
     }
     if let Some(span) = span {

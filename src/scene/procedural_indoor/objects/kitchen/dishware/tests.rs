@@ -5,6 +5,95 @@ use crate::scene::procedural_indoor::{
 };
 use std::collections::BTreeMap;
 
+#[test]
+fn curved_bowls_rest_on_their_foot_and_keep_a_hollow_supported_well() {
+    let mut counts = [0; 4];
+    let mut ratio = (f32::INFINITY, 0_f32);
+    for seed in 0..96 {
+        let size = [
+            Vec3::new(0.20, 0.062, 0.21),
+            Vec3::new(0.32, 0.14, 0.29),
+            Vec3::new(0.16, 0.23, 0.14),
+        ][seed as usize % 3];
+        let mut o = audit::fixture(ObjectKind::Dishware, seed);
+        o.size = size;
+        let p = parameters(size, 1, 1, seed);
+        let f = p.bowl.as_ref().unwrap();
+        let mut mesh = Assembly::default();
+        build(&mut mesh, Transform::IDENTITY, &p, seed);
+        audit::check(&o, &mesh).unwrap();
+        let (lo, hi) = mesh.bounds();
+        assert!(lo.y.abs() < 1e-6 && (hi.y - p.height).abs() < 1e-6);
+        assert!((hi.x - lo.x - f.width_m(&p)).abs() < 1e-6);
+        let (base, floor) = vertical_hits(&mesh, Vec2::ZERO).unwrap();
+        assert!((base - f.foot_height_m).abs() < 1e-6 && (floor - base - p.wall).abs() < 1e-6);
+        let foot = Vec2::X * f.foot_radius_m * f.outline_scale();
+        assert!(vertical_hits(&mesh, foot).unwrap().0.abs() < 1e-6);
+        let well = Vec2::X * p.serving_floor_radius() * 0.93;
+        assert!((vertical_hits(&mesh, well).unwrap().1 - floor).abs() < 1e-6);
+        let edge = Vec3::new(p.serving_floor_radius(), floor, 0.);
+        let mut seam_vertices = 0;
+        for g in mesh.parts.values() {
+            for (position, normal) in g.positions.iter().zip(&g.normals) {
+                if Vec3::from(*position).distance_squared(edge) < 1e-12 {
+                    assert!(normal[1] > 0.98, "sharp interior heel in bowl {seed}");
+                    seam_vertices += 1;
+                }
+            }
+        }
+        assert!(seam_vertices >= 2);
+        counts[usize::from(f.foot_height_m > 0.)] += 1;
+        counts[2 + usize::from(f.outline_exponent > 2.)] += 1;
+        let height_to_width = p.height / (hi.x - lo.x);
+        ratio.0 = ratio.0.min(height_to_width);
+        ratio.1 = ratio.1.max(height_to_width);
+
+        let old = parameters_at(size, 1, 1, seed, bowl::INTRODUCED - 1);
+        assert!(old.bowl.is_none() && old.profile().len() == 8);
+    }
+    assert!(counts.iter().all(|&n| n >= 10), "{counts:?}");
+    assert!(ratio.0 < 0.34 && ratio.1 > 0.48, "{ratio:?}");
+}
+
+#[test]
+fn bowl_glaze_shares_geometry_shading_and_texture_coordinates_across_the_dip() {
+    use crate::scene::procedural_indoor::geometry::ProfileJoints;
+    let mut patched = 0;
+    for seed in 0..48 {
+        let mut p = parameters(Vec3::new(0.23, 0.10, 0.20), 1, 1, seed);
+        p.surface = Surface::Ceramic;
+        let Some(accent) = PlateForm::rim_slot(p.surface, seed) else {
+            continue;
+        };
+        let base = variants::object_slot(p.surface, seed, None);
+        let mut mesh = Assembly::default();
+        build(&mut mesh, Transform::IDENTITY, &p, seed);
+        let mut reference = Geometry::default();
+        p.outline().sweep(
+            &mut reference,
+            &p.profile(),
+            ProfileJoints::Smooth,
+            Transform::IDENTITY,
+        );
+        let mut index = 0;
+        for slot in [base, accent] {
+            let g = &mesh.parts[&(p.surface, format!("dishware#finish{slot}"))];
+            for &i in &g.indices {
+                let j = reference.indices[index] as usize;
+                assert_eq!(reference.positions[j], g.positions[i as usize]);
+                assert_eq!(reference.uvs[j], g.uvs[i as usize]);
+                assert!(
+                    Vec3::from(reference.normals[j]).distance(g.normals[i as usize].into()) < 1e-6
+                );
+                index += 1;
+            }
+        }
+        assert_eq!(index, reference.indices.len());
+        patched += 1;
+    }
+    assert!(patched >= 8);
+}
+
 /// Ray intervals of the emitted shell, including the foot and the rolled lip.
 fn vertical_hits(a: &Assembly, at: Vec2) -> Option<(f32, f32)> {
     let mut lo = f32::INFINITY;

@@ -66,7 +66,9 @@ impl IndoorManifest {
             };
             prop.position = tf.transform_point(Vec3::new(center.x, support.size.y, center.y));
             prop.yaw = support.yaw + yaw;
-            if self.prop_clear(&prop, support, 0.012) {
+            if self.prop_clear(&prop, support, 0.012)
+                && crate::scene::procedural_indoor::humans::supported_prop_clear(self, &prop)
+            {
                 return Some(prop);
             }
         }
@@ -77,6 +79,35 @@ impl IndoorManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn counter_flatware_clears_an_occupied_preparation_station() {
+        use crate::scene::procedural_indoor::{humans, validation};
+        let scene = IndoorManifest::generate_with_humans(56633, IndoorLayout::Mixed, 0.65, 3, 0.25)
+            .unwrap();
+        let worker = scene
+            .humans
+            .iter()
+            .find(|h| h.workstation.is_some())
+            .unwrap();
+        let support = worker.workstation.unwrap();
+        let unoccupied =
+            IndoorManifest::generate_with_humans(56633, IndoorLayout::Mixed, 0.65, 3, 0.).unwrap();
+        let original = unoccupied
+            .objects
+            .iter()
+            .find(|o| o.kind == ObjectKind::Flatware && o.support == Some(support))
+            .unwrap();
+        assert!(humans::supported_prop_clear(&unoccupied, original));
+        assert!(!humans::supported_prop_clear(&scene, original));
+        assert!(scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::Flatware)
+            .all(|o| humans::supported_prop_clear(&scene, o)));
+        validation::validate_layout(&scene).unwrap();
+        validation::validate_geometry(&scene).unwrap();
+    }
+
     #[test]
     fn loose_spoons_and_forks_fit_counters_at_varied_headings() {
         let mut counters = 0;

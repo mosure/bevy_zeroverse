@@ -45,8 +45,9 @@ bevy_zeroverse --scene-type object --num-cameras 4 --camera-grid
 
 ## Procedural interiors
 
-Room programs range from shared offices and boardrooms to kitchens, cafés,
-classrooms and galleries. Each thumbnail opens the full native capture.
+Room programs include shared offices, boardrooms, kitchens, cafés, table-service
+restaurants, fitness rooms, cycling studios, volleyball gyms, grocery stores, clothing stores, hallways, stair halls, courtyards, classrooms and
+galleries. Each thumbnail opens the full native capture.
 
 <table>
   <tr>

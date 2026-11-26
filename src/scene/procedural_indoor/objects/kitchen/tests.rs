@@ -522,7 +522,7 @@ fn fitted_upper_cabinet_leaves_share_installed_hinges_and_rest_geometry() {
             continue;
         }
         let mut rest = Assembly::default();
-        cabinet::build(&mut rest, &o, &p);
+        cabinet::build(&mut rest, &o, &p, bevy_zeroverse_capture::GENERATOR_VERSION);
         let mut moving = Assembly {
             motion_policy: Some(IndoorMotionConfig {
                 cabinet_fraction: 1.,
@@ -530,7 +530,12 @@ fn fitted_upper_cabinet_leaves_share_installed_hinges_and_rest_geometry() {
             }),
             ..default()
         };
-        cabinet::build(&mut moving, &o, &p);
+        cabinet::build(
+            &mut moving,
+            &o,
+            &p,
+            bevy_zeroverse_capture::GENERATOR_VERSION,
+        );
         assert!(rest.joints.is_empty());
         let height = o.size.y * p.upper_bottom_fraction;
         let width = o.size.x - 0.012;

@@ -133,6 +133,14 @@ impl RevolvedOutline {
         }
     }
 
+    /// Interpolate on the actual straight mesh edge, including on faceted sections.
+    pub(crate) fn facet_point(&self, side: usize, fraction: f32) -> Vec2 {
+        let start = (side % self.sides) * self.stride;
+        self.columns[start]
+            .point
+            .lerp(self.columns[start + 1].point, fraction)
+    }
+
     /// Unit outlines and their gradients in metric section coordinates, with
     /// the final seam repeated for the cylindrical edge chart.
     pub(crate) fn meridians(&self) -> impl ExactSizeIterator<Item = (Vec2, Vec2, f32)> + '_ {
@@ -145,6 +153,18 @@ impl RevolvedOutline {
         &self,
         g: &mut Geometry,
         profile: &[(f32, f32)],
+        joints: ProfileJoints,
+        tf: Transform,
+    ) {
+        self.sweep_range(g, profile, 0..profile.len().saturating_sub(1), joints, tf);
+    }
+
+    /// Emit a material patch with the normals and metric UVs of the complete shell.
+    pub(crate) fn sweep_range(
+        &self,
+        g: &mut Geometry,
+        profile: &[(f32, f32)],
+        edges: std::ops::Range<usize>,
         joints: ProfileJoints,
         tf: Transform,
     ) {
@@ -179,9 +199,11 @@ impl RevolvedOutline {
             first
         };
 
-        let mut v = 0.;
+        let first = edges.start;
+        let mut v = (0..first).fold(0., |distance, i| distance + edge(i).length());
         let mut last_upper = None;
-        for (i, pair) in profile.windows(2).enumerate() {
+        for i in edges {
+            let pair = &profile[i..=i + 1];
             let step = edge(i);
             let length = step.length();
             if length == 0. || pair[0].0.max(pair[1].0) <= 0. {
@@ -190,9 +212,14 @@ impl RevolvedOutline {
             }
             let tangent = step / length;
             let planar = step.y == 0.;
-            let lower = last_upper
-                .take()
-                .unwrap_or_else(|| ring(g, pair[0], tangent, v, planar));
+            let lower = last_upper.take().unwrap_or_else(|| {
+                let normal = if i == first && first > 0 {
+                    join(edge(i - 1).normalize_or_zero(), tangent).unwrap_or(tangent)
+                } else {
+                    tangent
+                };
+                ring(g, pair[0], normal, v, planar)
+            });
             let next = (i + 2 < profile.len())
                 .then(|| edge(i + 1).normalize_or_zero())
                 .and_then(|next| join(tangent, next));

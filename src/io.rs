@@ -624,16 +624,13 @@ pub mod image_copy {
 
     impl Plugin for ImageCopyPlugin {
         fn build(&self, app: &mut App) {
-            let readiness = CapturePipelineReadiness::default();
-            app.insert_resource(readiness.clone());
+            readiness::install(app);
             #[cfg(not(target_arch = "wasm32"))]
             app.add_systems(Last, stamp_ground_truth);
             let render_app = app.sub_app_mut(RenderApp);
             render_app
-                .insert_resource(readiness)
                 .init_resource::<PendingMaps>()
-                .init_resource::<ImageCopiers>()
-                .init_resource::<readiness::ExpectedAssets>();
+                .init_resource::<ImageCopiers>();
             render_app.add_systems(Render, readiness::update.in_set(RenderSystems::Cleanup));
             // Capture intent can consume the first qualified render. Check
             // dependencies discovered by this render before accepting any copy.
@@ -650,7 +647,7 @@ pub mod image_copy {
                     .after(render_system)
                     .in_set(RenderSystems::Render),
             );
-            render_app.add_systems(ExtractSchedule, (image_copy_extract, readiness::extract));
+            render_app.add_systems(ExtractSchedule, image_copy_extract);
             let copy = copy_images
                 .after(bevy::core_pipeline::schedule::camera_driver)
                 .after(crate::render::ssaa::SsaaResolveLabel)

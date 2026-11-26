@@ -4,8 +4,10 @@ use crate::scene::procedural_indoor::{
         self,
         kitchen::{dishware, flatware},
     },
+    program::relationships::{Participant, Relationship},
     validation,
 };
+use std::cell::OnceCell;
 use std::collections::BTreeSet;
 
 #[test]
@@ -15,11 +17,7 @@ fn public_suite_serves_diners_without_turning_every_spare_slot_into_a_cup() {
     let mut seated_tables = 0;
     let mut settings = 0;
     for table in scene.objects.iter().filter(|o| scene.is_dining_table(o)) {
-        let seats = scene
-            .objects
-            .iter()
-            .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(table.id))
-            .count();
+        let seats = scene.dining_places(table, &OnceCell::new()).len();
         if seats == 0 {
             continue;
         }
@@ -41,6 +39,7 @@ fn dining_service_uses_actual_seats_supports_and_semantic_meshes() {
     let mut bowls = 0;
     let mut utensils = [0; 3];
     let mut headings = BTreeSet::new();
+    let (mut booths, mut waiting_benches, mut meals_at_booths) = (0, 0, 0);
     for layout in [
         IndoorLayout::Cafe,
         IndoorLayout::Cafeteria,
@@ -49,16 +48,28 @@ fn dining_service_uses_actual_seats_supports_and_semantic_meshes() {
         for seed in 400..440 {
             let scene = IndoorManifest::generate_with_humans(seed, layout, 0.72, 0, 0.).unwrap();
             validation::validate_layout(&scene).unwrap();
+            let graph = scene.functional_graph().unwrap();
+            for bench in scene
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Banquette)
+            {
+                let table = graph
+                    .edges
+                    .iter()
+                    .find(|e| {
+                        e.source == Participant::Object(bench.id)
+                            && e.relation == Relationship::SeatsAt
+                    })
+                    .map(|e| e.target);
+                assert_eq!(table, bench.interaction_target.map(Participant::Object));
+                booths += usize::from(table.is_some());
+                waiting_benches += usize::from(table.is_none());
+            }
             for table in scene.objects.iter().filter(|o| o.kind == ObjectKind::Table) {
                 let mut meals = 0;
                 let mut drinks = 0;
-                let seats: Vec<_> = scene
-                    .objects
-                    .iter()
-                    .filter(|o| {
-                        o.kind == ObjectKind::Chair && o.interaction_target == Some(table.id)
-                    })
-                    .collect();
+                let seats = scene.dining_places(table, &OnceCell::new());
                 for o in scene.objects.iter().filter(|o| o.support == Some(table.id)) {
                     drinks += usize::from(is_drink(o.kind));
                     let served_dish = dishware::served_style(o);
@@ -75,9 +86,29 @@ fn dining_service_uses_actual_seats_supports_and_semantic_meshes() {
                     objects::audit::check(o, &mesh).unwrap();
                     let data = objects::kitchen::metadata(o);
                     if let Some(style) = served_dish {
-                        assert!(seats
+                        let seat = &scene.objects[o.interaction_target.unwrap()];
+                        assert_eq!(seat.interaction_target, Some(table.id));
+                        assert!(graph
+                            .edges
                             .iter()
-                            .any(|s| s.position.xz().distance(o.position.xz()) <= 0.901));
+                            .any(|e| e.source == Participant::Object(o.id)
+                                && e.relation == Relationship::Serves
+                                && e.target == Participant::Object(seat.id)));
+                        let dish = seat
+                            .transform()
+                            .compute_affine()
+                            .inverse()
+                            .transform_point3(o.position);
+                        if seat.kind == ObjectKind::Banquette {
+                            meals_at_booths += 1;
+                            // Independent physical check in the real cushion frame.
+                            assert!(
+                                dish.z > 0.44 * seat.size.z && dish.z < 0.10 * seat.size.z + 0.901
+                            );
+                            assert!(dish.x.abs() <= seat.size.x * 0.48);
+                        } else {
+                            assert!(seat.position.xz().distance(o.position.xz()) <= 0.901);
+                        }
                         assert_eq!(data["count"], 1);
                         assert_eq!(data["style"], style);
                         meals += 1;
@@ -115,4 +146,5 @@ fn dining_service_uses_actual_seats_supports_and_semantic_meshes() {
     eprintln!("seated dining tables served={served} unserved={unserved} plates={plates} bowls={bowls} spoons/3-/4-tine forks={utensils:?}");
     assert!(served > 12 && unserved > 12 && plates > 8 && bowls > 8);
     assert!(utensils.into_iter().all(|n| n > 0) && headings.len() >= 10);
+    assert!(booths > 0 && waiting_benches > 0 && meals_at_booths > 0);
 }

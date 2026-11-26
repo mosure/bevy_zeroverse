@@ -244,9 +244,7 @@ mod tests {
 
     #[test]
     fn impossible_elevator_recovery_restores_the_aisle_and_retains_obstacles() {
-        let mut scene =
-            IndoorManifest::generate_with_humans(69_608_412, IndoorLayout::Mixed, 0.65, 0, 0.)
-                .unwrap();
+        let mut scene = IndoorManifest::initial_mixed_fixture(69_608_412, 0.65, 0, 0.).unwrap();
         scene.objects.clear();
         let p = scene.assembly_diagnostics.programs[0].clone();
         // A completely occupied overhead volume is deliberately infeasible.

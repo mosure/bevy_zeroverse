@@ -135,9 +135,9 @@ fn actual_side_rays_hit_the_housing_contact_and_well_at_different_depths() {
             &o,
             &p,
             &stock,
-            deck.depth,
-            deck.rear + deck.depth * 0.5,
+            deck,
             Some(&bank),
+            crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
         );
         audit::check(&o, &a).unwrap();
         for port in bank.ports {

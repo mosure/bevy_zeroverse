@@ -21,10 +21,10 @@ pub(super) fn sheet_with_thickness(
     thickness: f32,
     shape: impl Fn(f32, f32) -> Vec3,
 ) {
-    sheet_rows(g, tf, cells, uv_size, thickness, |v| v, shape);
+    sheet_rows::<false>(g, tf, cells, uv_size, thickness, |v| v, shape);
 }
 
-pub(super) fn sheet_rows(
+pub(super) fn sheet_rows<const MATERIAL_EDGES: bool>(
     g: &mut Geometry,
     tf: Transform,
     cells: [usize; 2],
@@ -44,7 +44,7 @@ pub(super) fn sheet_rows(
             })
         })
         .collect();
-    append_sheet::<true>(
+    append_sheet::<true, MATERIAL_EDGES>(
         g,
         tf,
         nx,
@@ -65,7 +65,7 @@ pub(super) fn smooth_sheet(
     cut: Rect,
     p: &[Vec3],
 ) {
-    append_sheet::<false>(g, tf, nx, rows, cut, 0.0012, p);
+    append_sheet::<false, true>(g, tf, nx, rows, cut, 0.0012, p);
 }
 
 fn grid_normal(p: &[Vec3], nx: usize, ny: usize, i: usize, j: usize) -> Vec3 {
@@ -110,7 +110,7 @@ fn draped_normals(p: &[Vec3], nx: usize, ny: usize) -> Vec<Vec3> {
     normals
 }
 
-fn append_sheet<const SPLIT_CREASES: bool>(
+fn append_sheet<const SPLIT_CREASES: bool, const MATERIAL_EDGES: bool>(
     g: &mut Geometry,
     tf: Transform,
     nx: usize,
@@ -183,7 +183,7 @@ fn append_sheet<const SPLIT_CREASES: bool>(
             .cross(points[2] - points[0])
             .normalize();
         let start = g.positions.len() as u32;
-        let length = if SPLIT_CREASES {
+        let length = if !MATERIAL_EDGES {
             (p[b] - p[a]).length()
         } else if a / stride == b / stride {
             uv_size.x / nx as f32

@@ -1005,10 +1005,36 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
         let empty =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, 0.0).unwrap();
         assert!(empty.humans.is_empty());
+        let shelf_products = |s: &IndoorManifest| {
+            s.objects
+                .iter()
+                .filter(|o| s.support_plane(o) == Some(SupportPlane::LowerShelf))
+                .map(|o| {
+                    let table = &s.objects[o.support.unwrap()];
+                    assert!(
+                        s.prop_clear(o, table, 0.01),
+                        "seed {seed}, shelf item {}",
+                        o.id
+                    );
+                    (
+                        (table.seed, o.seed),
+                        (o.kind, o.variant, o.size, o.finish_seed),
+                    )
+                })
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+        let original_stock = shelf_products(&empty);
         for (index, density) in [0.0, 0.25, 1.0].into_iter().enumerate() {
             let scene =
                 IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 2, density)
                     .unwrap();
+            // Lower bays are stocked after chairs and occupants settle. An
+            // admitted item can change position while retaining its product.
+            for (key, product) in shelf_products(&scene) {
+                if let Some(original) = original_stock.get(&key) {
+                    assert_eq!(&product, original, "seed {seed}, shelf product {key:?}");
+                }
+            }
             // The fixed furnishing stream precedes occupancy. Routes, loose
             // details and service installations must fit the final occupants.
             let furniture = |s: &IndoorManifest| {
@@ -1022,6 +1048,9 @@ fn people_are_deterministic_diverse_supported_and_inside_collision_envelopes() {
                 s.objects
                     .iter()
                     .filter(|o| {
+                        if s.support_plane(o) == Some(SupportPlane::LowerShelf) {
+                            return false;
+                        }
                         if printer_stand
                             .is_some_and(|pair| o.id == pair[0].id || o.id == pair[1].id)
                         {

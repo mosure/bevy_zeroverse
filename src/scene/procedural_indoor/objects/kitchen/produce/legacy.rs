@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let s = o.size;
     let p = props::program(o);
-    let mut bowl = dishware::parameters(Vec3::new(s.x, s.y * 0.52, s.z), 1, 1, o.seed);
+    let mut bowl = dishware::parameters_at(Vec3::new(s.x, s.y * 0.52, s.z), 1, 1, o.seed, 229);
     // A broad, flat interior floor supports the fruit arrangement.
     bowl.foot = 0.78;
     bowl.aspect = Vec2::ONE;

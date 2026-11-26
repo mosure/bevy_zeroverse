@@ -15,6 +15,9 @@ pub(crate) fn feature_edges(
     let Some(envelope) = &scene.envelope else {
         return Vec::new();
     };
+    if envelope.courtyard.is_some() {
+        return Vec::new();
+    }
     if scene
         .program
         .as_ref()

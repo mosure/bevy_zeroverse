@@ -59,7 +59,8 @@ pub fn parameters(scene: &IndoorManifest, support: &IndoorObject) -> SurfaceProg
         | IndoorLayout::Kitchen
         | IndoorLayout::Kitchenette
         | IndoorLayout::Cafe
-        | IndoorLayout::Cafeteria => 2,
+        | IndoorLayout::Cafeteria
+        | IndoorLayout::Restaurant => 2,
         IndoorLayout::Library | IndoorLayout::Lounge => 1,
         IndoorLayout::Workshop | IndoorLayout::Studio => 3,
         IndoorLayout::Reception | IndoorLayout::ElevatorLanding => 4,

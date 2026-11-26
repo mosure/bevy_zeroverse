@@ -87,7 +87,7 @@ fn tray_accessories_are_supported_separated_and_not_equal_spaced_rows() {
             assert!(!occupied.iter().any(|&a| a.overlaps(q, 0.0039)));
             occupied.push(q);
             let mut mesh = Assembly::default();
-            contents::build_item(&mut mesh, &o, &p, item);
+            contents::build_wall_item(&mut mesh, p.tray_base_top_m, item);
             let (lo, hi) = mesh.bounds();
             assert!(lo.x >= p.tray_lo.x + 0.004 && hi.x <= p.tray_hi.x - 0.004);
             assert!(lo.z >= p.tray_lo.y + 0.004 && hi.z <= p.tray_hi.y - 0.004);

@@ -69,8 +69,12 @@ fn legacy_port(o: &IndoorObject) -> Vec3 {
 }
 
 pub fn build(a: &mut Assembly, o: &IndoorObject) {
+    build_at_version(a, o, super::super::layout::GENERATOR_VERSION);
+}
+
+pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::Rug {
-        rug::build(a, o);
+        rug::build(a, o, version);
     } else if let Some(p) = service::parameters(o) {
         service::build(a, o, &p);
     } else {

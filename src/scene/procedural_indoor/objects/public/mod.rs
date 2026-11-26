@@ -2,6 +2,8 @@
 //! admission; construction, collision envelopes and catalog receipts share them.
 pub mod banquette;
 pub mod barrier;
+pub mod bleachers;
+pub(crate) mod cardio;
 pub mod casework;
 pub mod dispenser;
 #[cfg(test)]
@@ -9,13 +11,22 @@ mod diversity_tests;
 pub mod education;
 pub mod elevator;
 mod exhibits;
+pub(crate) mod fitness;
+mod fitting;
+pub mod volleyball;
+pub use fitting::{fitting_room, CurtainBay, FittingRoomSpec};
 pub mod furnishing;
 mod hospitality;
+pub mod hot_food;
 #[cfg(test)]
 mod repetition_tests;
+pub(crate) mod retail;
+pub use retail::checkout::{checkout_station, CheckoutForm, CheckoutStation};
+pub use retail::{refrigerated_case, CaseStock, RefrigeratedCase};
 pub mod sculpture;
 pub mod service;
 pub mod signage;
+pub mod strength;
 mod supports;
 #[cfg(test)]
 mod tests;
@@ -59,6 +70,9 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
     // Metric product ranges, not one XYZ multiplier for unrelated categories.
     // Sample before admission: support areas, navigation and labels see these sizes.
     let (x, y, z) = match kind {
+        BleacherBank => return bleachers::catalog_dimensions(&mut r),
+        VolleyballNet => return volleyball::dimensions(seed),
+        FittingRoom => return fitting::dimensions(&mut r),
         Elevator => (
             (elevator::MIN_FOOTPRINT.x, 2.90),
             (2.50, 2.95),
@@ -77,6 +91,16 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         InformationStand => ((0.32, 0.72), (0.84, 1.55), (0.30, 0.58)),
         ExhibitionPanel => ((0.90, 2.35), (1.42, 2.40), (0.38, 0.70)),
         ExtractionHood => ((0.70, 1.85), (0.34, 0.85), (0.48, 0.78)),
+        StationaryBike => ((0.55, 0.74), (1.08, 1.39), (1.16, 1.48)),
+        Treadmill => ((0.78, 1.02), (1.21, 1.55), (1.78, 2.24)),
+        PowerRack => return strength::dimensions(&mut r),
+        HotFoodWell => return hot_food::dimensions(&mut r),
+        WeightBench => return fitness::bench_dimensions(&mut r),
+        DumbbellRack => ((1.05, 2.25), (0.69, 1.04), (0.48, 0.73)),
+        GroceryDisplay | ApparelDisplay | CheckoutCounter => {
+            return retail::dimensions(kind, &mut r)
+        }
+        ExerciseMat => ((0.59, 0.83), (0.008, 0.022), (1.58, 2.02)),
         Banquette => ((1.30, 3.0), (0.88, 1.25), (0.60, 0.85)),
         _ => unreachable!("public program item"),
     };
@@ -92,17 +116,29 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
 
 pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
+        ObjectKind::VolleyballNet => volleyball::build(a, o),
+        ObjectKind::BleacherBank => bleachers::build(a, o),
+        ObjectKind::PowerRack => strength::build(a, o),
+        ObjectKind::HotFoodWell => hot_food::build(a, o),
+        ObjectKind::FittingRoom => fitting::build(a, o),
         ObjectKind::Elevator => elevator::build(a, o, version),
-        ObjectKind::QueueBarrier => barrier::build(a, o),
+        ObjectKind::QueueBarrier => barrier::build(a, o, version),
         ObjectKind::DisplayCase | ObjectKind::TrayReturn | ObjectKind::ExhibitPlinth => {
-            casework::build(a, o)
+            casework::build(a, o, version)
         }
         ObjectKind::DrinkDispenser => dispenser::build(a, o),
         ObjectKind::ServiceCounter => service::counter(a, o),
-        ObjectKind::ExtractionHood => service::hood(a, o),
+        ObjectKind::ExtractionHood => service::hood::build(a, o, version),
+        ObjectKind::StationaryBike | ObjectKind::Treadmill => cardio::build(a, o),
+        ObjectKind::WeightBench | ObjectKind::DumbbellRack | ObjectKind::ExerciseMat => {
+            fitness::build(a, o)
+        }
+        ObjectKind::GroceryDisplay | ObjectKind::ApparelDisplay | ObjectKind::CheckoutCounter => {
+            retail::build(a, o)
+        }
         ObjectKind::Banquette => banquette::build(a, o, version),
         ObjectKind::Locker => education::build(a, o, version),
-        ObjectKind::Lectern | ObjectKind::TeachingBoard => furnishing::build(a, o),
+        ObjectKind::Lectern | ObjectKind::TeachingBoard => furnishing::build(a, o, version),
         ObjectKind::Sculpture | ObjectKind::InformationStand | ObjectKind::ExhibitionPanel => {
             exhibits::build(a, o)
         }
@@ -141,14 +177,4 @@ fn rod(
         radius,
     );
 }
-pub(super) fn append_at(a: &mut Assembly, child: Assembly, tf: Transform) {
-    for ((surface, label), mut g) in child.parts {
-        for p in &mut g.positions {
-            *p = tf.transform_point(Vec3::from_array(*p)).to_array();
-        }
-        for n in &mut g.normals {
-            *n = (tf.rotation * Vec3::from_array(*n)).to_array();
-        }
-        a.part(surface, &label).append(g);
-    }
-}
+pub(super) use super::append_at;

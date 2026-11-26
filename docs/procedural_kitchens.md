@@ -94,6 +94,15 @@ Refreshment counters sample a required activity appliance and independently
 optional coffee machines, dispensers, kettles and serving supplies. Café and
 cafeteria programs retain their required coffee machine or dispenser, but do
 not require the same pair. Kitchen worktops can also become beverage stations.
+
+Kettles sample a drawn pouring lip, a tapered spout or a curved gooseneck.
+The lip opens beside the lid. Tubular spouts connect through the vessel wall.
+Counter placement varies the handle direction around the working aisle and
+checks the rotated footprint against the worktop and nearby equipment.
+Lids can have a press button, a lift knob or a bridge grip. The object report
+records the construction and materials. Dataset metrics include outlet and grip
+counts, lid rise and vessel wall thickness.
+
 Counter-local proposals vary position, orientation, occupied area and accessory
 count; barista controls face the staff aisle and self-service taps face guests.
 Every item retains its support relationship and the ordinary clearance gate.
@@ -108,6 +117,12 @@ Worktop items use the normal support and peer-clearance checks. Bread on a board
 has a nested support relationship. Internal contents use shelf/basin/holder
 coordinates; cabinet fronts and glass panes contain actual apertures. A
 triangle-level sink ray test detects a concealed panel closing the bowl.
+
+Serving bowls, cupboard stock and microwave dishes share a hollow bowl
+construction. Shape varies from shallow, flared dishes to deep bowls with a
+returning lip. The base can be flat or raised on a foot ring. Soup follows the
+actual inner facets at its fill height, and fruit rests on the flat well.
+Ceramic interiors can use a second glaze that continues over the lip.
 
 ## API, semantics and metrics
 

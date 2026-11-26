@@ -1,5 +1,6 @@
 //! Prepare immutable render assets away from the ECS schedule. Handles are reserved
 //! from the live stores, so cancellation and scene replacement retain Bevy ownership.
+mod appearance;
 mod cooperative;
 pub(crate) use cooperative::cooperate;
 mod geometry;
@@ -169,6 +170,7 @@ pub struct PreparedIndoor {
     pub materials: StagedAssets<StandardMaterial>,
     pub meshes: StagedAssets<Mesh>,
     groups: Vec<Group>,
+    appearance: Option<super::motion::AppearancePlayback>,
     pub probes: Option<(Handle<Image>, Transform, gi::BakeStatistics)>,
     #[cfg(not(target_arch = "wasm32"))]
     pub gpu_request: Option<gi::gpu::GpuBakeRequest>,
@@ -468,10 +470,18 @@ impl PreparedIndoor {
         // Material identities resolve only after map synthesis; preserve the
         // original fixture/shell/object/human ordering and human material calls.
         let started = bevy::platform::time::Instant::now();
-        let groups = group_plans
+        let mut groups: Vec<_> = group_plans
             .into_iter()
             .map(|plan| plan.bind(&manifest, &material_set, &mut materials))
             .collect();
+        let appearance = appearance::bind(
+            &manifest,
+            &mut groups,
+            &material_set,
+            &mut images,
+            &mut materials,
+        )
+        .await;
         wall.group_binding_seconds = started.elapsed().as_secs_f64();
         geometry_seconds += wall.group_binding_seconds;
         #[cfg(target_arch = "wasm32")]
@@ -510,6 +520,7 @@ impl PreparedIndoor {
             materials,
             meshes,
             groups,
+            appearance,
             probes,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_request,
@@ -518,6 +529,9 @@ impl PreparedIndoor {
         }
     }
     pub fn spawn_groups(&mut self, parent: Entity, commands: &mut Commands) {
+        if let Some(playback) = self.appearance.take() {
+            commands.entity(parent).insert(playback);
+        }
         self.material_set.spawn_reflections(parent, commands);
         let mut annotation_order = 0u64;
         for group in self.groups.drain(..) {

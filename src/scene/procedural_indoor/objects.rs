@@ -70,6 +70,19 @@ pub(super) fn part_label(label: &str) -> &str {
     label.split('#').next().unwrap_or(label)
 }
 
+/// Merge material batches under a rigid local transform.
+pub(super) fn append_at(a: &mut Assembly, child: Assembly, tf: Transform) {
+    for ((surface, label), mut g) in child.parts {
+        for p in &mut g.positions {
+            *p = tf.transform_point(Vec3::from_array(*p)).to_array();
+        }
+        for n in &mut g.normals {
+            *n = (tf.rotation * Vec3::from_array(*n)).to_array();
+        }
+        a.part(surface, &label).append(g);
+    }
+}
+
 impl Assembly {
     pub fn part(&mut self, surface: Surface, label: &str) -> &mut Geometry {
         self.parts.entry((surface, label.to_owned())).or_default()
@@ -315,6 +328,10 @@ pub(super) fn build_object_at_version(
     a.parts = labeled;
     // Keep a bounded finish palette, shared maps and separate semantic labels.
     // Independent object seeds avoid uniform mug/chassis/cover colors in a room.
+    use super::materials::input_housing::{Housing, FINISH_VERSION};
+    let display_case = (version >= FINISH_VERSION
+        && matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display))
+    .then(|| Housing::for_object(o));
     a.parts = a
         .parts
         .into_iter()
@@ -325,16 +342,24 @@ pub(super) fn build_object_at_version(
             {
                 format!(
                     "{label}#finish{}",
-                    super::materials::variants::object_slot(surface, o.seed, o.finish_seed)
+                    display_case
+                        .as_ref()
+                        .and_then(|h| h.case_slot_for(surface))
+                        .unwrap_or_else(|| super::materials::variants::object_slot(
+                            surface,
+                            o.seed,
+                            o.finish_seed
+                        ))
                 )
             } else {
                 label
             };
-            let label = if surface == Surface::Light && super::photometry::is_emitter(o.kind) {
-                format!("{label}#source{}", o.id)
-            } else {
-                label
-            };
+            let label =
+                if surface == Surface::Light && super::photometry::is_emitter_at(o.kind, version) {
+                    format!("{label}#source{}", o.id)
+                } else {
+                    label
+                };
             ((surface, label), geometry)
         })
         .fold(BTreeMap::new(), |mut parts, (key, geometry)| {
@@ -351,7 +376,7 @@ pub(super) fn build_object_at_version(
             }
             parts
         });
-    super::motion::construction::movable(&mut a, o);
+    super::motion::construction::movable(&mut a, o, version);
     // Finish relabeling must keep articulation references aligned with meshes.
     for (id, joint) in a.joints.iter_mut().enumerate() {
         joint.parts = a

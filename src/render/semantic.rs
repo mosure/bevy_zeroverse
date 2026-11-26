@@ -121,11 +121,15 @@ pub enum SemanticLabel {
     FirePullStation,
     PcTower,
     Thermostat,
+    FitnessEquipment,
+    RetailFixture,
+    SportsEquipment,
+    Bleacher,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 12;
+    pub const TAXONOMY_VERSION: u32 = 15;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -231,6 +235,10 @@ impl SemanticLabel {
         Self::FirePullStation,
         Self::PcTower,
         Self::Thermostat,
+        Self::FitnessEquipment,
+        Self::RetailFixture,
+        Self::SportsEquipment,
+        Self::Bleacher,
     ];
 
     pub fn color(&self) -> Color {
@@ -238,6 +246,10 @@ impl SemanticLabel {
         match self {
             SemanticLabel::CeilingFan => Color::srgb_u8(92, 164, 211),
             SemanticLabel::ExitSign => Color::srgb_u8(48, 218, 173),
+            SemanticLabel::Bleacher => Color::srgb_u8(152, 119, 207),
+            SemanticLabel::SportsEquipment => Color::srgb_u8(223, 95, 137),
+            SemanticLabel::RetailFixture => Color::srgb_u8(82, 169, 148),
+            SemanticLabel::FitnessEquipment => Color::srgb_u8(182, 79, 128),
             SemanticLabel::Thermostat => Color::srgb_u8(24, 190, 143),
             SemanticLabel::PcTower => Color::srgb_u8(56, 96, 154),
             SemanticLabel::FireAlarm => Color::srgb_u8(241, 67, 82),
@@ -347,6 +359,10 @@ impl SemanticLabel {
         match name {
             "ceiling_fan" => Some(SemanticLabel::CeilingFan),
             "exit_sign" => Some(SemanticLabel::ExitSign),
+            "bleacher" => Some(SemanticLabel::Bleacher),
+            "sports_equipment" => Some(SemanticLabel::SportsEquipment),
+            "retail_fixture" => Some(SemanticLabel::RetailFixture),
+            "fitness_equipment" => Some(SemanticLabel::FitnessEquipment),
             "thermostat" => Some(SemanticLabel::Thermostat),
             "pc_tower" => Some(SemanticLabel::PcTower),
             "fire_alarm" => Some(SemanticLabel::FireAlarm),
@@ -487,6 +503,10 @@ impl SemanticLabel {
             SemanticLabel::ExitSign => "exit_sign",
             SemanticLabel::PcTower => "pc_tower",
             SemanticLabel::Thermostat => "thermostat",
+            SemanticLabel::FitnessEquipment => "fitness_equipment",
+            SemanticLabel::RetailFixture => "retail_fixture",
+            SemanticLabel::SportsEquipment => "sports_equipment",
+            SemanticLabel::Bleacher => "bleacher",
             SemanticLabel::FireAlarm => "fire_alarm",
             SemanticLabel::StringLights => "string_lights",
             SemanticLabel::FireDetector => "fire_detector",

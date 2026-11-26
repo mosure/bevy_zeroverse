@@ -1,6 +1,9 @@
 //! Rolling carts keep an unobstructed top and pack real products in lower bays.
 use super::*;
 use crate::scene::procedural_indoor::placement::{Footprint, SurfacePattern};
+pub(crate) mod stock;
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CartProgram {
@@ -112,6 +115,7 @@ pub(crate) fn cargo(o: &IndoorObject, p: &CartProgram, level: usize) -> Vec<Indo
             }
             let mut child = o.clone();
             child.kind = kind;
+            child.variant &= !stock::JOB_MASK;
             child.seed = r.random();
             child.finish_seed = None;
             child.size = size;
@@ -176,9 +180,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
                 0.001,
             );
         }
-        for child in cargo(o, &p, level) {
-            public::append_at(a, build_object(&child), child.transform());
-        }
+        stock::ShelfLoad::sample(o, &p, level, version).build(a, version);
     }
     // Push rails stay below the top plane, outside the reserved cargo cavity.
     for side in [-1., 1.].into_iter().take(p.handles as usize) {

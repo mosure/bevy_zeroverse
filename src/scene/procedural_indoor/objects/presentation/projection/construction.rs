@@ -4,7 +4,7 @@ use crate::scene::procedural_indoor::materials::projection_cloth;
 
 const CLASS: &str = "projection_screen";
 
-fn corners(lo: Vec3, hi: Vec3) -> [Vec3; 4] {
+pub(super) fn corners(lo: Vec3, hi: Vec3) -> [Vec3; 4] {
     [
         lo,
         Vec3::new(hi.x, lo.y, lo.z),
@@ -13,7 +13,7 @@ fn corners(lo: Vec3, hi: Vec3) -> [Vec3; 4] {
     ]
 }
 
-fn front(g: &mut Geometry, lo: Vec3, hi: Vec3) {
+pub(super) fn front(g: &mut Geometry, lo: Vec3, hi: Vec3) {
     if hi.x <= lo.x || hi.y <= lo.y {
         return;
     }
@@ -89,6 +89,11 @@ fn roll(a: &mut Assembly, p: &ScreenProgram, i: &Installation) {
     } else {
         front(g, lo, hi);
     }
+    hem(a, p, i);
+}
+
+pub(super) fn hem(a: &mut Assembly, p: &ScreenProgram, i: &Installation) {
+    let z = p.sheet_front_m;
     a.part(p.trim, CLASS).cylinder(
         p.bar_radius_m,
         p.bar_width_m,
@@ -185,11 +190,19 @@ fn cassette(a: &mut Assembly, o: &IndoorObject, p: &ScreenProgram, i: &Installat
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &ScreenProgram, i: &Installation) {
+pub(super) fn build(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &ScreenProgram,
+    i: &Installation,
+    version: u32,
+) {
     if p.framed {
         frame(a, o, p, i);
     } else {
         cassette(a, o, p, i);
-        roll(a, p, i);
+        if !deployment::build_if_selected(a, o, p, i, version) {
+            roll(a, p, i);
+        }
     }
 }

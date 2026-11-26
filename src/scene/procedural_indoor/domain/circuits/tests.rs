@@ -50,8 +50,7 @@ fn whole_circuits_switch_together_and_the_adjoining_bay_is_independent() {
 
 #[test]
 fn partitions_and_mezzanine_levels_do_not_share_switches_across_the_wall_or_deck() {
-    let scene =
-        IndoorManifest::generate_with_humans(72917, IndoorLayout::Mixed, 0.65, 0, 0.25).unwrap();
+    let scene = IndoorManifest::initial_mixed_fixture(72917, 0.65, 0, 0.25).unwrap();
     let deck = &scene
         .envelope
         .as_ref()

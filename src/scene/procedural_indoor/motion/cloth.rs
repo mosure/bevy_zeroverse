@@ -5,6 +5,10 @@ use bevy::prelude::*;
 #[derive(Clone, Copy)]
 pub(crate) enum ClothMotion {
     Roller(RollerFeed),
+    ProjectionScreen {
+        feed: RollerFeed,
+        start_drop_m: f32,
+    },
     Pleat {
         forward: Vec3,
         /// Vertical projection of a unit facet in the two endpoint poses.
@@ -15,7 +19,7 @@ pub(crate) enum ClothMotion {
 impl ClothMotion {
     pub fn applies(self, label: &str) -> bool {
         let tag = match self {
-            Self::Roller(_) => "roller",
+            Self::Roller(_) | Self::ProjectionScreen { .. } => "roller",
             Self::Pleat { .. } => "pleat",
         };
         label.split('#').any(|s| s == tag)
@@ -23,7 +27,7 @@ impl ClothMotion {
 
     pub fn at(self, t: f32) -> ClothSample {
         match self {
-            Self::Roller(feed) => ClothSample::Roller(feed),
+            Self::Roller(feed) | Self::ProjectionScreen { feed, .. } => ClothSample::Roller(feed),
             Self::Pleat {
                 forward,
                 rise: [a, b],

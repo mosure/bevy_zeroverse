@@ -1,6 +1,9 @@
 //! Stamped table cutlery. The hollow spoon and separated fork tines share a
 //! tapered handle that actually rests on the supporting surface.
 use super::*;
+mod handle;
+pub use handle::FittedGrip;
+const FITTED_GRIP_VERSION: u32 = 264;
 
 #[derive(Debug, Serialize)]
 pub struct FlatwareProgram {
@@ -8,11 +11,20 @@ pub struct FlatwareProgram {
     pub head_length_fraction: f32,
     pub handle_width_fraction: f32,
     pub metal: Surface,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fitted_grip: Option<FittedGrip>,
 }
 
 pub fn parameters(o: &IndoorObject) -> FlatwareProgram {
+    parameters_at(
+        o,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    )
+}
+
+pub(super) fn parameters_at(o: &IndoorObject, version: u32) -> FlatwareProgram {
     let mut r = stream(o.seed, 0x4355544c455259);
-    FlatwareProgram {
+    let mut p = FlatwareProgram {
         tines: if r.random_bool(0.54) {
             r.random_range(3..=4)
         } else {
@@ -25,18 +37,32 @@ pub fn parameters(o: &IndoorObject) -> FlatwareProgram {
         } else {
             Surface::Metal
         },
+        fitted_grip: None,
+    };
+    if version >= FITTED_GRIP_VERSION {
+        let mut stock = stream(
+            o.finish_seed.unwrap_or(o.seed),
+            u64::from_le_bytes(*b"CutStock"),
+        );
+        p.metal = if stock.random_bool(0.73) {
+            Surface::Chrome
+        } else {
+            Surface::Metal
+        };
+        p.handle_width_fraction = stock.random_range(0.31..0.55);
+        p.fitted_grip = FittedGrip::sample(&mut stock);
     }
+    p
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
     let s = o.size;
     let slot = super::super::super::materials::variants::object_slot(
         p.metal,
         o.finish_seed.unwrap_or(o.seed),
         None,
     );
-    let g = a.part(p.metal, &format!("kitchen_utensil#finish{slot}"));
     let head_len = s.z * p.head_length_fraction;
     let nose = 0.485 * s.z;
     let tail = -0.485 * s.z;
@@ -54,22 +80,35 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     } else {
         (neck - tail + head_len * 0.16, 0., 0.54)
     };
-    let reach = run.hypot(rise);
-    g.lathe(
-        &[
-            (0., 0.),
-            (radius * 0.64, 0.),
-            (radius, reach * 0.08),
-            (radius * 0.80, reach * 0.42),
-            (radius * 0.45, reach * 0.83),
-            (radius * tip, reach),
-            (0., reach),
-        ],
-        12,
-        Transform::from_xyz(0., half_height - rise * 0.08, tail)
-            .with_rotation(Quat::from_rotation_x(run.atan2(rise)))
-            .with_scale(Vec3::new(1., 1., half_height / radius)),
-    );
+    let metal_label = format!("kitchen_utensil#finish{slot}");
+    if let Some(grip) = &p.fitted_grip {
+        grip.build(
+            a,
+            o,
+            &p,
+            &metal_label,
+            tail..tail + run,
+            half_height + rise * 0.92,
+        );
+    } else {
+        let reach = run.hypot(rise);
+        a.part(p.metal, &metal_label).lathe(
+            &[
+                (0., 0.),
+                (radius * 0.64, 0.),
+                (radius, reach * 0.08),
+                (radius * 0.80, reach * 0.42),
+                (radius * 0.45, reach * 0.83),
+                (radius * tip, reach),
+                (0., reach),
+            ],
+            12,
+            Transform::from_xyz(0., half_height - rise * 0.08, tail)
+                .with_rotation(Quat::from_rotation_x(run.atan2(rise)))
+                .with_scale(Vec3::new(1., 1., half_height / radius)),
+        );
+    }
+    let g = a.part(p.metal, &metal_label);
     let w = s.x * 0.47;
     if p.tines == 0 {
         // Exterior and interior profiles meet at a rolled rim. Normal direction

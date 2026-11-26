@@ -8,12 +8,15 @@ pub mod assemblies;
 pub(crate) mod botany;
 mod clutter;
 mod decor;
+pub(crate) mod dining_places;
 pub use decor::{electrical_parameters, ElectricalProgram, TelevisionMount};
 pub(crate) mod equipment;
 pub(crate) mod floor;
 pub mod functional;
 mod furnishing;
 pub mod kitchen;
+mod lounge_storage;
+pub use lounge_storage::SupportPlane;
 mod printers;
 mod programs;
 pub(crate) mod refreshments;
@@ -33,8 +36,16 @@ use serde::{Deserialize, Serialize};
 
 pub use bevy_zeroverse_capture::GENERATOR_VERSION;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
+enum PropSurface<'a> {
+    Top(Option<&'a [Vec2]>),
+    Shelf(super::objects::tables::LoungeShelf),
+}
 /// Depth used by manifests predating metric adjoining floor plans.
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
+
+/// Architecture is immutable while admitting a group of fixtures. Furniture
+/// and walkway occupancy still come from the current manifest on every trial.
+type PlacementStructure = std::cell::OnceCell<Vec<(Vec3, Vec3)>>;
 
 #[cfg_attr(feature = "python", pyo3::pyclass(eq, eq_int))]
 #[derive(
@@ -67,11 +78,38 @@ pub enum IndoorLayout {
     Showroom,
     Gallery,
     PublicSuite,
+    /// Table-service dining with a waiter station, paired seating and clear service aisles.
+    Restaurant,
+    /// Free weights, floor exercise and independently sampled cardio equipment.
+    #[value(alias = "workout-room", alias = "gym")]
+    FitnessRoom,
+    /// Staffed checkout, packaged groceries and open produce islands.
+    GroceryStore,
+    /// Apparel sales floor with hanging collections and folded stock.
+    ClothingStore,
+    /// Public passage with one or two banks of connected, furnished rooms.
+    #[value(alias = "corridor")]
+    #[serde(alias = "Corridor")]
+    Hallway,
+    /// A double-height circulation hall with a guarded flight and upper gallery.
+    #[value(alias = "stairwell", alias = "stairway")]
+    #[serde(alias = "Stairwell", alias = "Stairway")]
+    StairHall,
+    /// An open-air planted court surrounded by covered walks.
+    Courtyard,
+    /// Instructor-led indoor cycling with front-facing riders and a through aisle.
+    #[value(alias = "spin-studio")]
+    #[serde(alias = "SpinStudio")]
+    CyclingStudio,
+    /// Clear-span indoor volleyball court with sideline seating.
+    #[value(alias = "sports-hall", alias = "volleyball-hall")]
+    Gymnasium,
 }
 
 impl IndoorLayout {
+    const INITIAL_MIXED_COUNT: usize = 20;
     /// Every concrete whole-room program eligible for `Mixed` (`all`).
-    pub const PROFILES: [Self; 20] = [
+    pub const PROFILES: [Self; 29] = [
         Self::Conference,
         Self::OpenOffice,
         Self::Lounge,
@@ -92,6 +130,15 @@ impl IndoorLayout {
         Self::Showroom,
         Self::Gallery,
         Self::PublicSuite,
+        Self::Restaurant,
+        Self::FitnessRoom,
+        Self::GroceryStore,
+        Self::ClothingStore,
+        Self::Hallway,
+        Self::StairHall,
+        Self::Courtyard,
+        Self::CyclingStudio,
+        Self::Gymnasium,
     ];
     /// Compatible secondary activities inside an office's partitioned zones.
     /// Service/teaching/exhibition programs need their whole-room reservations.
@@ -107,8 +154,8 @@ impl IndoorLayout {
         Self::Workshop,
         Self::Studio,
     ];
-    /// Single functional programs available to public-suite composition.
-    pub const PUBLIC_PROFILES: [Self; 9] = [
+    /// Individual service, teaching, exhibition and other public room programs.
+    pub const PUBLIC_PROFILES: [Self; 18] = [
         Self::Kitchenette,
         Self::Kitchen,
         Self::Cafe,
@@ -118,7 +165,29 @@ impl IndoorLayout {
         Self::ElevatorLanding,
         Self::Showroom,
         Self::Gallery,
+        Self::Restaurant,
+        Self::FitnessRoom,
+        Self::GroceryStore,
+        Self::ClothingStore,
+        Self::Hallway,
+        Self::StairHall,
+        Self::Courtyard,
+        Self::CyclingStudio,
+        Self::Gymnasium,
     ];
+    fn sample_profile(seed: u64, profiles: &[Self], rng: &mut ChaCha8Rng) -> Self {
+        // Keep the original draw (and downstream RNG position) for established
+        // rooms. Each appended program replaces 1/n of the existing assignments,
+        // which leaves every program equally probable after each extension.
+        let original = profiles.len().min(Self::INITIAL_MIXED_COUNT);
+        let mut selected = profiles[rng.random_range(0..original)];
+        for (i, &profile) in profiles.iter().enumerate().skip(original) {
+            if stream(seed, 0x5645_4e55_4500 + i as u64).random_range(0..=i) == 0 {
+                selected = profile;
+            }
+        }
+        selected
+    }
     pub fn is_public(self) -> bool {
         matches!(
             self,
@@ -130,7 +199,22 @@ impl IndoorLayout {
                 | Self::Showroom
                 | Self::Gallery
                 | Self::PublicSuite
+                | Self::Restaurant
+                | Self::FitnessRoom
+                | Self::GroceryStore
+                | Self::ClothingStore
+                | Self::Hallway
+                | Self::StairHall
+                | Self::Courtyard
+                | Self::CyclingStudio
+                | Self::Gymnasium
         )
+    }
+    pub fn is_exercise(self) -> bool {
+        matches!(self, Self::FitnessRoom | Self::CyclingStudio)
+    }
+    pub fn is_retail(self) -> bool {
+        matches!(self, Self::GroceryStore | Self::ClothingStore)
     }
     pub fn is_kitchen(self) -> bool {
         matches!(self, Self::Kitchen | Self::Kitchenette)
@@ -170,7 +254,8 @@ pub struct IndoorObject {
     /// Stable instance id of a supporting table/desk/cabinet.
     pub support: Option<usize>,
     pub neighbor: bool,
-    /// Chair -> work surface; display/laptop or aimed desk fan -> work chair.
+    /// Chair or dining banquette -> table/work surface. Served dish -> its seat.
+    /// Display/laptop or aimed desk fan -> work chair.
     /// Recycling bin -> its coordinated general-waste partner.
     #[serde(default)]
     pub interaction_target: Option<usize>,
@@ -483,6 +568,25 @@ impl IndoorManifest {
         )
     }
 
+    /// Reproduce fixtures recorded when Mixed first included public venues.
+    #[cfg(test)]
+    pub(super) fn initial_mixed_fixture(
+        seed: u64,
+        density: f32,
+        cameras: usize,
+        humans: f32,
+    ) -> Result<Self, String> {
+        Self::generate_with_profiles(
+            seed,
+            IndoorLayout::Mixed,
+            density,
+            cameras,
+            humans,
+            &IndoorLayout::PROFILES[..IndoorLayout::INITIAL_MIXED_COUNT],
+            Default::default(),
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn generate_with_profiles(
         seed: u64,
@@ -504,7 +608,7 @@ impl IndoorManifest {
         }
         let mut rng = stream(seed, 0);
         let layout = if layout == IndoorLayout::Mixed {
-            profiles[rng.random_range(0..profiles.len())]
+            IndoorLayout::sample_profile(seed, profiles, &mut rng)
         } else {
             layout
         };
@@ -590,18 +694,43 @@ impl IndoorManifest {
             cameras: Vec::new(),
             rejected_placements: 0,
         };
-        // Wet/preparation areas use hard flooring. Textile variation belongs to
-        // removable kitchen mats, not wall-to-wall office carpet.
-        if layout.is_kitchen() {
-            scene.floor_style = if stream(seed, 8061).random_bool(0.38) {
+        // Choose the installed floor before sampling its finish and metric scale.
+        if layout == IndoorLayout::Courtyard {
+            scene.floor_style = 2;
+        } else if layout == IndoorLayout::Gymnasium {
+            scene.floor_style = 0;
+        } else if layout.is_retail() {
+            // Washable hard stock in food retail. Apparel shops also use carpet.
+            let roll = stream(seed, u64::from_le_bytes(*b"ShopFlrs")).random::<f32>();
+            scene.floor_style = match layout {
+                IndoorLayout::GroceryStore if roll < 0.18 => 0,
+                IndoorLayout::ClothingStore if roll < 0.42 => 0,
+                IndoorLayout::ClothingStore if roll < 0.60 => 1,
+                _ => 2,
+            };
+        } else if layout.is_exercise() {
+            scene.floor_style = if stream(seed, u64::from_le_bytes(*b"GymCover")).random_bool(0.35)
+            {
                 0
             } else {
                 2
             };
+        } else if layout.is_kitchen() || layout == IndoorLayout::Restaurant {
+            scene.floor_style =
+                if stream(seed, 8061).random_bool(if layout == IndoorLayout::Restaurant {
+                    0.61
+                } else {
+                    0.38
+                }) {
+                    0
+                } else {
+                    2
+                };
         }
-        super::materials::program::floor_finish(
+        super::materials::program::room_floor_finish(
             &mut scene.program.as_mut().unwrap().materials,
             scene.floor_style,
+            layout,
         );
         let domain = scene.domain().unwrap().clone();
         scene.target_lux = domain.target_lux;
@@ -624,45 +753,18 @@ impl IndoorManifest {
         );
         scene.furnish(&mut rng);
         scene.furnish_neighbor();
-        scene.assign_work_surfaces();
-        if !scene.layout.is_public() {
-            scene.furnish_amenities();
-        }
-        scene.furnish_botany();
-        scene.furnish_equipment();
-        scene.furnish_waste_stations();
-        // Install fixed desk fittings first. Computers face their own operator,
-        // and later poses, loose belongings and cable routes clear the installation.
-        scene.furnish_desk_screens();
-        scene.decorate_surfaces();
-        if scene.layout.is_public() {
-            scene.dress_public_programs();
-        }
-        let pending_printer = scene.furnish_worktop_printer();
-        scene.furnish_supported_botany();
-        scene.scatter_clutter();
-        scene.finish_program_equipment();
-        // Ceiling fixtures belong to the static furnishing stream. Place them
-        // before occupancy-dependent seating, floor details and cable routes so
-        // toggling people cannot renumber or resample an unrelated fixture.
-        // Pin the reconstruction room before its fixtures and occupants use it.
-        scene.add_baseboard_heaters();
-        scene.select_primary_room();
-        scene.furnish_entry_coat_rack();
-        scene.furnish_ceiling_fans();
-        scene.furnish_wall_installations();
-        scene.furnish_area_rugs();
+        let open_floor = matches!(layout, IndoorLayout::Courtyard | IndoorLayout::Gymnasium);
+        let printer = if open_floor {
+            scene.select_primary_room();
+            None
+        } else {
+            scene.furnish_interior_details()
+        };
         super::humans::populate(&mut scene, human_density);
         scene.settle_seating();
-        scene.furnish_floor_details();
-        if let Some(printer) = pending_printer {
-            scene.furnish_print_stand(printer);
+        if !open_floor {
+            scene.finish_interior_details(printer);
         }
-        scene.orient_desk_fans();
-        scene.connect_equipment();
-        scene.finish_floor_outlets();
-        scene.finish_counter_flatware();
-        scene.furnish_thermostat();
         scene.record_program_services();
         scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
@@ -673,6 +775,56 @@ impl IndoorManifest {
         scene.meter_indoor_lighting();
         scene.sample_cameras(cameras)?;
         Ok(scene)
+    }
+
+    fn furnish_interior_details(&mut self) -> Option<IndoorObject> {
+        self.assign_work_surfaces();
+        if !self.layout.is_public() {
+            self.furnish_amenities();
+        }
+        self.furnish_botany();
+        self.furnish_equipment();
+        self.furnish_waste_stations();
+        // Install fixed desk fittings first. Computers face their own operator,
+        // and later poses, loose belongings and cable routes clear the installation.
+        self.furnish_desk_screens();
+        self.decorate_surfaces();
+        if self.layout.is_public() {
+            self.dress_public_programs();
+        }
+        let printer = self.furnish_worktop_printer();
+        self.furnish_supported_botany();
+        self.scatter_clutter();
+        self.finish_program_equipment();
+        // Ceiling fixtures belong to the static furnishing stream. Place them
+        // before occupancy-dependent seating, floor details and cable routes so
+        // toggling people cannot renumber or resample an unrelated fixture.
+        // Pin the reconstruction room before its fixtures and occupants use it.
+        self.add_baseboard_heaters();
+        self.select_primary_room();
+        self.furnish_entry_coat_rack();
+        self.furnish_ceiling_fans();
+        self.furnish_wall_installations();
+        self.furnish_area_rugs();
+        printer
+    }
+
+    fn finish_interior_details(&mut self, printer: Option<IndoorObject>) {
+        self.furnish_floor_details();
+        if let Some(printer) = printer {
+            self.furnish_print_stand(printer);
+        }
+        self.orient_desk_fans();
+        self.connect_equipment();
+        self.finish_floor_outlets();
+        self.finish_counter_flatware();
+        self.furnish_thermostat();
+        super::objects::services::cart::stock::dress_carts(
+            &mut self.objects,
+            self.layout,
+            self.program.as_ref(),
+        );
+        self.furnish_lounge_shelves();
     }
 
     fn candidate(
@@ -769,10 +921,7 @@ impl IndoorManifest {
             obj.variant = self.furniture_style;
         }
         if kind == ObjectKind::Bench {
-            let p = super::objects::services::bench::parameters(&obj);
-            if !p.backed && !p.arms {
-                obj.size.y = p.seat_height;
-            }
+            super::objects::services::bench::fit_height(&mut obj);
         }
         if !self.placement_clear(&obj, 0.06) {
             self.rejected_placements += 1;
@@ -798,6 +947,21 @@ impl IndoorManifest {
         object: &IndoorObject,
         margin: f32,
         allow_furniture: bool,
+    ) -> bool {
+        self.placement_clear_with_structure(
+            object,
+            margin,
+            allow_furniture,
+            &PlacementStructure::new(),
+        )
+    }
+
+    fn placement_clear_with_structure(
+        &self,
+        object: &IndoorObject,
+        margin: f32,
+        allow_furniture: bool,
+        structure: &PlacementStructure,
     ) -> bool {
         use super::footprint::Footprint;
         let footprint = Footprint::object(object);
@@ -831,7 +995,11 @@ impl IndoorManifest {
         {
             return false;
         }
-        if !self.program_space_clear(lo, hi) {
+        if !self
+            .functional_programs()
+            .iter()
+            .all(|p| p.space_clear_for(self, object, lo, hi))
+        {
             return false;
         }
         if self.functional_programs().iter().any(|p| {
@@ -865,11 +1033,15 @@ impl IndoorManifest {
         if self.entry_approach_overlaps(lo, hi) {
             return false;
         }
-        if self.columns().iter().any(|(a, b)| {
-            lo.y < b.y - 0.001
-                && hi.y > a.y + 0.001
-                && footprint.overlaps(Footprint::bounds(*a, *b), margin)
-        }) {
+        if structure
+            .get_or_init(|| self.columns())
+            .iter()
+            .any(|(a, b)| {
+                lo.y < b.y - 0.001
+                    && hi.y > a.y + 0.001
+                    && footprint.overlaps(Footprint::bounds(*a, *b), margin)
+            })
+        {
             return false;
         }
         !self
@@ -1134,20 +1306,51 @@ impl IndoorManifest {
 
     /// Check actual rotated prop footprints in the supporting surface's frame.
     pub fn prop_clear(&self, object: &IndoorObject, support: &IndoorObject, margin: f32) -> bool {
+        self.prop_clear_cached(object, support, margin, None)
+    }
+
+    /// A validation pass sees the same immutable tabletop once per child. Reuse
+    /// its sampled convex outline for the duration of that pass only.
+    pub(super) fn prop_clear_cached(
+        &self,
+        object: &IndoorObject,
+        support: &IndoorObject,
+        margin: f32,
+        tops: Option<&mut std::collections::HashMap<usize, Vec<Vec2>>>,
+    ) -> bool {
         if object.kind == ObjectKind::Cable {
             return object.support == Some(support.id)
                 && equipment::cable_route_clear(self, object);
         }
+        if self.has_lower_contact_candidate(object, support) {
+            let Some(deck) = self.lower_shelf_contact(object, support) else {
+                return false;
+            };
+            return self.prop_clear_on(object, support, margin, PropSurface::Shelf(deck));
+        }
+        let outline = tops
+            .filter(|_| support.kind.has_table_outline())
+            .map(|cache| {
+                cache
+                    .entry(support.id)
+                    .or_insert_with(|| super::objects::tables::outline(support))
+                    .as_slice()
+            });
+        self.prop_clear_on(object, support, margin, PropSurface::Top(outline))
+    }
+
+    fn prop_clear_on(
+        &self,
+        object: &IndoorObject,
+        support: &IndoorObject,
+        margin: f32,
+        surface: PropSurface<'_>,
+    ) -> bool {
         let inverse = support.transform().compute_affine().inverse();
         let local_bounds = |o: &IndoorObject| {
             let centre = inverse.transform_point3(o.position);
-            let yaw = o.yaw - support.yaw;
-            let half = Vec2::new(
-                yaw.cos().abs() * o.size.x + yaw.sin().abs() * o.size.z,
-                yaw.sin().abs() * o.size.x + yaw.cos().abs() * o.size.z,
-            ) * 0.5;
-            let centre = Vec2::new(centre.x, centre.z);
-            (centre - half, centre + half)
+            let half = super::placement::rotated_half(o.size.xz(), o.yaw - support.yaw);
+            (centre.xz() - half, centre.xz() + half)
         };
         let (lo, hi) = local_bounds(object);
         let half = Vec2::new(support.size.x, support.size.z) * 0.5;
@@ -1182,10 +1385,27 @@ impl IndoorManifest {
         {
             return false;
         }
-        if support.kind.has_table_outline()
-            && !super::objects::tables::supports(support, lo, hi, margin)
-        {
-            return false;
+        match surface {
+            PropSurface::Shelf(deck) => {
+                let (min, max) = deck.storage_bounds();
+                if !deck.carries(object.kind, object.size, margin)
+                    || lo.cmplt(min + Vec2::splat(margin)).any()
+                    || hi.cmpgt(max - Vec2::splat(margin)).any()
+                    || !self.shelf_access_clear(object, support, margin)
+                {
+                    return false;
+                }
+            }
+            PropSurface::Top(outline) if support.kind.has_table_outline() => {
+                use super::objects::tables;
+                if !outline.map_or_else(
+                    || tables::supports(support, lo, hi, margin),
+                    |poly| tables::supports_outline(poly, lo, hi, margin),
+                ) {
+                    return false;
+                }
+            }
+            _ => {}
         }
         // Most rejected proposals already overhang the worktop or intersect a
         // neighbour. Only the survivors need room-wide fixture and cable checks.
@@ -1197,7 +1417,19 @@ impl IndoorManifest {
             })
             .any(|o| {
                 use super::objects::services::divider::desktop;
-                let (a, b) = local_bounds(o);
+                // Belongings on two different levels may share a plan footprint.
+                if (o.position.y + o.size.y + margin <= object.position.y
+                    || object.position.y + object.size.y + margin <= o.position.y)
+                    && (matches!(surface, PropSurface::Shelf(_))
+                        || self.has_lower_contact_candidate(o, support))
+                {
+                    return false;
+                }
+                let (a, b) = if o.kind == ObjectKind::HotFoodWell {
+                    local_bounds(&refreshments::serving_envelope(o))
+                } else {
+                    local_bounds(o)
+                };
                 let overlap = lo.x < b.x + margin
                     && hi.x + margin > a.x
                     && lo.y < b.y + margin
@@ -1372,7 +1604,7 @@ impl IndoorManifest {
     /// Visibility may replace ceiling-installation reserves with their actual
     /// triangles. Collision queries always include the full reserves.
     pub(crate) fn structural_obstacles_with_ceiling(&self, ceiling: bool) -> Vec<(Vec3, Vec3)> {
-        let mut obstacles = self.column_obstacles(ceiling);
+        let mut obstacles = self.column_obstacles(ceiling, true);
         if let Some(program) = &self.program {
             for p in &program.partitions {
                 obstacles.extend(p.portal_obstacles(self.room_size.y));
@@ -1382,27 +1614,38 @@ impl IndoorManifest {
     }
 
     pub(super) fn columns(&self) -> Vec<(Vec3, Vec3)> {
-        self.column_obstacles(true)
+        self.column_obstacles(true, true)
     }
 
-    fn column_obstacles(&self, ceiling: bool) -> Vec<(Vec3, Vec3)> {
+    pub(super) fn append_installed_obstacles(
+        &self,
+        boxes: &mut Vec<(Vec3, Vec3)>,
+        ceiling: bool,
+        partitions: bool,
+    ) {
+        boxes.extend(
+            super::architecture::under_mezzanine_fixtures(self)
+                .into_iter()
+                .map(|p| {
+                    let half = super::architecture::fixture_half_extents(self, p);
+                    (p - half - Vec3::Y * 0.008, p + half + Vec3::Y * 0.075)
+                }),
+        );
+        if partitions {
+            boxes.extend(super::floorplan::obstacles(self));
+        }
+        if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
+            boxes.extend(installation.obstacles());
+            if let Some(grid) = &installation.room_grid {
+                boxes.extend(grid.air_reservations(self.room_size.y));
+            }
+        }
+    }
+
+    pub(super) fn column_obstacles(&self, ceiling: bool, partitions: bool) -> Vec<(Vec3, Vec3)> {
         if let Some(envelope) = &self.envelope {
             let mut boxes = envelope.structural_boxes(self.room_size);
-            boxes.extend(
-                super::architecture::under_mezzanine_fixtures(self)
-                    .into_iter()
-                    .map(|p| {
-                        let half = super::architecture::fixture_half_extents(self, p);
-                        (p - half - Vec3::Y * 0.008, p + half + Vec3::Y * 0.075)
-                    }),
-            );
-            boxes.extend(super::floorplan::obstacles(self));
-            if let Some(installation) = self.ceiling_installation.as_ref().filter(|_| ceiling) {
-                boxes.extend(installation.obstacles());
-                if let Some(grid) = &installation.room_grid {
-                    boxes.extend(grid.air_reservations(self.room_size.y));
-                }
-            }
+            self.append_installed_obstacles(&mut boxes, ceiling, partitions);
             return boxes;
         }
         let half = self.room_size * 0.5;
@@ -1418,7 +1661,9 @@ impl IndoorManifest {
                 boxes.push((c - r, c + r));
             }
         }
-        boxes.extend(super::floorplan::obstacles(self));
+        if partitions {
+            boxes.extend(super::floorplan::obstacles(self));
+        }
         boxes
     }
 }

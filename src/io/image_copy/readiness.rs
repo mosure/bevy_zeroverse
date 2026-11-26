@@ -47,6 +47,31 @@ impl CapturePipelineReadiness {
     }
 }
 
+/// Share the exact render-asset residency barrier with optical texture clients.
+pub(crate) fn install(app: &mut App) {
+    use bevy::render::{ExtractSchedule, RenderApp};
+    app.init_resource::<CapturePipelineReadiness>();
+    let readiness = app.world().resource::<CapturePipelineReadiness>().clone();
+    if let Some(render) = app.get_sub_app_mut(RenderApp) {
+        if !render.world().contains_resource::<ExpectedAssets>() {
+            render
+                .insert_resource(readiness)
+                .init_resource::<ExpectedAssets>()
+                .add_systems(ExtractSchedule, extract.run_if(tracking_needed));
+        }
+    }
+}
+
+fn tracking_needed(
+    copiers: Option<Res<super::ImageCopiers>>,
+    optical: Extract<Option<Res<crate::scene::capture_ready::SceneCaptureState>>>,
+) -> bool {
+    copiers.is_some()
+        || optical
+            .as_ref()
+            .is_some_and(|state| state.needs_residency())
+}
+
 #[derive(Resource, Default)]
 pub(crate) struct ExpectedAssets {
     key: Option<ExpectedAssetsKey>,

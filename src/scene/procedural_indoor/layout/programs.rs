@@ -316,7 +316,7 @@ impl IndoorManifest {
 
     /// A workstation is transactional: failed seating must not leave another
     /// unusable desk that consumes the space needed to repair the room.
-    fn workstation(
+    pub(super) fn workstation(
         &mut self,
         kind: ObjectKind,
         position: Vec3,

@@ -74,11 +74,17 @@ fn export_webgpu_material_fixtures() {
         }
         // Complete-design rugs exercise the same GPU kernel as production,
         // including isolated motif components and quiet/borderless endpoints.
-        for variant in 0..6 {
-            let mut rug = super::super::super::rugs::recipe(
-                &recipes[Surface::FabricAlt as usize],
-                variant % 4,
-            );
+        for variant in 0..7 {
+            let parent = &recipes[Surface::FabricAlt as usize];
+            let mut rug = if variant == 6 {
+                super::super::super::rugs::recipe_at_version(
+                    parent,
+                    0,
+                    super::super::super::rug_design::WOVEN_LAYOUT_VERSION - 1,
+                )
+            } else {
+                super::super::super::rugs::recipe(parent, variant % 4)
+            };
             let d = rug.carpet.as_mut().unwrap().rug.as_mut().unwrap();
             if variant < 4 {
                 d.weights = [0.; 4];

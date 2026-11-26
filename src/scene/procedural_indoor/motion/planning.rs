@@ -3,8 +3,12 @@
 //! capture jumps do not weaken clearance or require runtime collision work.
 use super::super::{layout::IndoorManifest, preparation::SceneGeometry};
 use super::*;
+mod board;
 mod hull;
+mod rotor;
 use hull::TriangleHull;
+
+const ROTATION_STEP_RADIANS: f32 = 0.04;
 
 #[derive(Clone)]
 struct Triangle {
@@ -21,14 +25,38 @@ struct Node {
 }
 
 #[derive(Clone, Copy)]
+struct RestingContact {
+    support: usize,
+    height: f32,
+    slides_on_shelf: bool,
+}
+
+#[derive(Clone, Copy)]
 struct Sweep {
     local: Bounds,
     frame: Transform,
-    hull: Option<TriangleHull>,
+    shape: SweepShape,
+}
+#[derive(Clone, Copy)]
+enum SweepShape {
+    Box,
+    Hull(TriangleHull),
+    Rotor,
 }
 impl Sweep {
     fn world(self) -> Bounds {
-        transformed(self.local, self.frame)
+        if matches!(self.shape, SweepShape::Rotor) {
+            rotor::world_bounds(self.local, self.frame)
+        } else {
+            transformed(self.local, self.frame)
+        }
+    }
+    fn intersects(self, triangle: [Vec3; 3]) -> bool {
+        match self.shape {
+            SweepShape::Box => triangle_box(triangle, self.local),
+            SweepShape::Hull(h) => triangle_box(triangle, self.local) && h.intersects(triangle),
+            SweepShape::Rotor => rotor::intersects(triangle, self.local),
+        }
     }
 }
 struct Tree {
@@ -61,6 +89,48 @@ fn corners((lo, hi): Bounds) -> [Vec3; 8] {
 }
 impl Tree {
     fn new(scene: &IndoorManifest, g: &SceneGeometry) -> Self {
+        Self::with_region(scene, g, None)
+    }
+    fn for_admission(scene: &IndoorManifest, g: &SceneGeometry) -> Self {
+        if scene.generator_version < ROTOR_CARGO_VERSION
+            || std::iter::once(&g.architecture)
+                .chain(&g.objects)
+                .flat_map(|a| &a.joints)
+                .any(|j| {
+                    !matches!(j.kind, MotionKind::Fan | MotionKind::TeachingBoard)
+                        && !matches!(j.cloth_motion, Some(ClothMotion::ProjectionScreen { .. }))
+                })
+        {
+            return Self::new(scene, g);
+        }
+        let assemblies = std::iter::once((Transform::IDENTITY, &g.architecture)).chain(
+            scene
+                .objects
+                .iter()
+                .zip(&g.objects)
+                .filter(|(_, a)| !a.joints.is_empty())
+                .map(|(o, a)| (o.transform(), a)),
+        );
+        // Bound all retries, including re-admission of a shortened operation.
+        let region = assemblies
+            .flat_map(|(tf, a)| {
+                a.joints.iter().filter_map(move |j| {
+                    if j.kind == MotionKind::TeachingBoard {
+                        return board::search_bounds(a, j, tf);
+                    }
+                    let shapes = match j.cloth_motion {
+                        Some(ClothMotion::ProjectionScreen { feed, .. }) => {
+                            screen_sweeps(a, j, tf, feed, 1.)
+                        }
+                        _ => sweeps(a, j, tf),
+                    };
+                    shapes.into_iter().map(Sweep::world).reduce(union)
+                })
+            })
+            .reduce(union);
+        Self::with_region(scene, g, region)
+    }
+    fn with_region(scene: &IndoorManifest, g: &SceneGeometry, region: Option<Bounds>) -> Self {
         let mut triangles = vec![];
         for (owner, tf, a) in std::iter::once((None, Transform::IDENTITY, &g.architecture)).chain(
             scene
@@ -69,6 +139,13 @@ impl Tree {
                 .zip(&g.objects)
                 .map(|(o, a)| (Some(o.id), o.transform(), a)),
         ) {
+            let region = region.map(|bb| {
+                let inverse = tf.compute_affine().inverse();
+                let (lo, hi) = bounds(corners(bb).into_iter().map(|p| inverse.transform_point3(p)));
+                // Leave room for roundoff between the local broad phase and
+                // the world-to-sweep transform in the triangle narrow phase.
+                (lo - 0.0001, hi + 0.0001)
+            });
             for ((_, label), g) in &a.parts {
                 let joint = tag(label);
                 let attachment = label
@@ -80,10 +157,14 @@ impl Tree {
                     "floor" | "floormat"
                 );
                 for tri in g.indices.as_chunks::<3>().0 {
+                    let p = tri.map(|i| Vec3::from_array(g.positions[i as usize]));
+                    if region.is_some_and(|bb| {
+                        !overlaps((p[0].min(p[1]).min(p[2]), p[0].max(p[1]).max(p[2])), bb)
+                    }) {
+                        continue;
+                    }
                     triangles.push(Triangle {
-                        p: std::array::from_fn(|i| {
-                            tf.transform_point(Vec3::from_array(g.positions[tri[i] as usize]))
-                        }),
+                        p: p.map(|p| tf.transform_point(p)),
                         owner,
                         joint,
                         attachment: attachment.clone(),
@@ -148,7 +229,7 @@ impl Tree {
         ids: &[usize],
         attachment: Option<&str>,
         floor: Option<f32>,
-        support: Option<(usize, f32)>,
+        support: Option<RestingContact>,
         carried: &[usize],
     ) -> bool {
         if self.nodes.is_empty() {
@@ -175,8 +256,15 @@ impl Tree {
             }
             for t in &self.triangles[node.range.clone()] {
                 if t.owner.is_some_and(|o| carried.contains(&o))
-                    || support.is_some_and(|(id, height)| {
-                        t.owner == Some(id) && t.p.iter().all(|p| (p.y - height).abs() < 0.0002)
+                    || support.is_some_and(|contact| {
+                        // Slats have exposed edges under an object. A horizontal
+                        // slide can touch their bevels without crossing them.
+                        // Tray lips, posts and the tabletop still obstruct it.
+                        t.owner == Some(contact.support)
+                            && t.p.iter().all(|p| {
+                                (p.y - contact.height).abs() < 0.0002
+                                    || (contact.slides_on_shelf && p.y <= contact.height)
+                            })
                     })
                     || (t.owner == owner && t.joint.is_some_and(|j| ids.contains(&j)))
                     || (floor.is_some_and(|height| {
@@ -190,8 +278,7 @@ impl Tree {
                     continue;
                 }
                 let p = t.p.map(|p| local_from_world.transform_point3(p));
-                if triangle_box(p, sweep.local) && sweep.hull.is_none_or(|hull| hull.intersects(p))
-                {
+                if sweep.intersects(p) {
                     return true;
                 }
             }
@@ -222,9 +309,52 @@ fn triangle_box(p: [Vec3; 3], (lo, hi): Bounds) -> bool {
         .any(separated)
 }
 
+/// Fabric points move monotonically on vertical lines. The stock, weighted bar
+/// and pull each get their own swept box so the narrow loop does not reserve
+/// empty space under the whole rail.
+fn screen_sweeps(
+    a: &Assembly,
+    joint: &Joint,
+    tf: Transform,
+    feed: RollerFeed,
+    fraction: f32,
+) -> Vec<Sweep> {
+    joint
+        .parts
+        .iter()
+        .map(|key| {
+            let extent = |g: &Geometry| bounds(g.positions.iter().map(|p| Vec3::from_array(*p)));
+            let (lo, hi) = extent(&a.parts[key]);
+            let (end_lo, end_hi) = if let Some(g) = joint.morph.get(key) {
+                let (a, b) = extent(g);
+                (
+                    feed.interpolate(lo, a, fraction),
+                    feed.interpolate(hi, b, fraction),
+                )
+            } else {
+                (
+                    lo + joint.translation * fraction,
+                    hi + joint.translation * fraction,
+                )
+            };
+            Sweep {
+                local: (lo.min(end_lo) - 0.0001, hi.max(end_hi) + 0.0001),
+                frame: tf,
+                shape: SweepShape::Box,
+            }
+        })
+        .collect()
+}
+
 fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
+    if let Some(ClothMotion::ProjectionScreen { feed, .. }) = joint.cloth_motion {
+        return screen_sweeps(a, joint, tf, feed, joint.adjustment.morph);
+    }
     let mut result = vec![];
     if joint.kind == MotionKind::Fan {
+        if joint.axis != Vec3::Y {
+            return rotor::sweep(a, joint, tf).into_iter().collect();
+        }
         // Bound the complete rotor at any speed, including many revolutions.
         // AABB vertices at finitely sampled angles cannot certify a fast rotor.
         let mut radius_squared = 0.0_f32;
@@ -249,7 +379,7 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                 Vec3::new(joint.pivot.x + radius, top + 0.0001, joint.pivot.z + radius),
             ),
             frame: tf,
-            hull: None,
+            shape: SweepShape::Box,
         }];
     }
     let local_from_assembly = joint.frame.compute_affine().inverse();
@@ -266,8 +396,10 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
         // Thin articulated frames have nearby stationary carcasses. Large
         // triangle batches can enclose empty space and falsely reject every
         // possible angle. Bound each face for these compact mechanisms.
-        let block = if matches!(joint.kind, MotionKind::Cabinet | MotionKind::Appliance)
-            || (joint.kind == MotionKind::Prop && joint.contact == Contact::Free)
+        let block = if matches!(
+            joint.kind,
+            MotionKind::Cabinet | MotionKind::Appliance | MotionKind::TeachingBoard
+        ) || (joint.kind == MotionKind::Prop && joint.contact == Contact::Free)
         {
             3
         } else {
@@ -307,20 +439,44 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                 result.push(Sweep {
                     local: b,
                     frame: tf.mul_transform(joint.frame),
-                    hull: None,
+                    shape: SweepShape::Box,
                 });
             } else {
-                if joint.effective_translation() == Vec3::ZERO && joint.effective_angle() == 0. {
+                let lift = joint.effective_lift();
+                if joint.effective_translation() == Vec3::ZERO
+                    && joint.effective_angle() == 0.
+                    && lift == 0.
+                {
                     continue;
                 }
                 let b = bounds(indices.iter().map(|&i| {
                     local_from_assembly.transform_point3(Vec3::from_array(g.positions[i as usize]))
                 }));
+                if lift > 0.
+                    && joint.effective_angle() == 0.
+                    && joint.effective_translation() == Vec3::ZERO
+                {
+                    // A vertical pickup retraces the same segment. Its entire swept box
+                    // is the rest box extruded to the apex, independent of easing.
+                    let delta = local_from_assembly.transform_vector3(Vec3::Y * lift);
+                    result.push(Sweep {
+                        local: (
+                            b.0 + delta.min(Vec3::ZERO) - 0.0001,
+                            b.1 + delta.max(Vec3::ZERO) + 0.0001,
+                        ),
+                        frame: tf.mul_transform(joint.frame),
+                        shape: SweepShape::Box,
+                    });
+                    continue;
+                }
                 let radius = corners(b)
                     .iter()
                     .map(|&p| joint.frame.transform_point(p).distance(joint.pivot))
                     .fold(0., f32::max);
-                let steps = (joint.effective_angle().abs() / 0.04).ceil().clamp(1., 96.) as usize;
+                let steps = (joint.effective_angle().abs() / ROTATION_STEP_RADIANS)
+                    .ceil()
+                    .clamp(if lift > 0. { 6. } else { 1. }, 96.)
+                    as usize;
                 let step = 1. / steps as f32;
                 let pad = Vec3::splat(
                     radius * (1. - (joint.effective_angle().abs() * step * 0.5).cos()) + 0.0001,
@@ -330,6 +486,13 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                         .mul_transform(joint.transform((i as f32 + 0.5) * step))
                         .mul_transform(joint.frame);
                     let inverse = frame.compute_affine().inverse();
+                    // Maximum rise of 4 h t(1-t) above its endpoint chord on
+                    // this subinterval, expressed in the local sweep frame.
+                    let rise = if lift > 0. {
+                        inverse.transform_vector3(tf.rotation * Vec3::Y * (lift * step * step))
+                    } else {
+                        Vec3::ZERO
+                    };
                     let local = bounds(
                         [i as f32 * step, (i + 1) as f32 * step]
                             .into_iter()
@@ -342,18 +505,25 @@ fn sweeps(a: &Assembly, joint: &Joint, tf: Transform) -> Vec<Sweep> {
                             }),
                     );
                     result.push(Sweep {
-                        local: (local.0 - pad, local.1 + pad),
+                        local: (
+                            local.0 - pad + rise.min(Vec3::ZERO),
+                            local.1 + pad + rise.max(Vec3::ZERO),
+                        ),
                         frame,
-                        hull: (block == 3).then(|| TriangleHull {
-                            points: std::array::from_fn(|k| {
-                                let amount = (i + k / 3) as f32 * step;
-                                let pose = tf.mul_transform(joint.transform(amount));
-                                inverse.transform_point3(pose.transform_point(Vec3::from_array(
-                                    g.positions[indices[k % 3] as usize],
-                                )))
-                            }),
-                            error: pad.x,
-                        }),
+                        shape: if block == 3 {
+                            SweepShape::Hull(TriangleHull {
+                                points: std::array::from_fn(|k| {
+                                    let amount = (i + k / 3) as f32 * step;
+                                    let pose = tf.mul_transform(joint.transform(amount));
+                                    inverse.transform_point3(pose.transform_point(
+                                        Vec3::from_array(g.positions[indices[k % 3] as usize]),
+                                    ))
+                                }),
+                                error: pad.x + lift * step * step,
+                            })
+                        } else {
+                            SweepShape::Box
+                        },
                     });
                 }
             }
@@ -438,16 +608,21 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
     let Some(report) = &scene.indoor_motion else {
         return;
     };
+    let limit = report.policy.max_mechanisms;
+    let return_fraction = report.policy.operation_return_fraction;
+    let independent_cargo = scene.generator_version >= ROTOR_CARGO_VERSION;
+    let appearance = AppearanceTimeline::sample(scene, geometry, &report.policy);
+    scene.indoor_motion.as_mut().unwrap().appearance = appearance;
     if geometry.architecture.joints.is_empty()
         && geometry.objects.iter().all(|a| a.joints.is_empty())
     {
+        scene.indoor_motion.as_mut().unwrap().mechanisms.clear();
         return;
     }
-    let limit = report.policy.max_mechanisms;
     let cargo = mobility::cargo(scene, geometry);
-    let carried: std::collections::HashSet<_> = cargo.iter().flatten().copied().collect();
     // Cargo proxies are constructed once, not once per fallback or mesh part.
     let cargo_geometry: Vec<_> = cargo
+        .children
         .iter()
         .enumerate()
         .map(|(id, children)| {
@@ -470,7 +645,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             a
         })
         .collect();
-    let tree = Tree::new(scene, geometry);
+    let tree = Tree::for_admission(scene, geometry);
     let people: Vec<_> = scene.humans.iter().map(|p| p.bounds()).collect();
     let camera_bounds = camera_reservations(scene);
     let mut reports = vec![];
@@ -484,7 +659,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             .enumerate()
             .map(|(i, a)| (Some(i), a)),
     ) {
-        if owner.is_some_and(|id| carried.contains(&id)) {
+        if !independent_cargo && owner.and_then(|id| cargo.cart_for[id]).is_some() {
             continue;
         }
         let mut index = 0;
@@ -513,8 +688,25 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             index += count;
         }
     }
-    order.sort_by_key(|&(priority, owner, index, _)| (priority, owner, index));
+    // Resolve cart travel with all ordinary candidates first, preserving their
+    // seeded relative priority. A parked cart then behaves like any other shelf.
+    order.sort_by_key(|&(priority, owner, index, _)| {
+        (
+            owner.and_then(|id| cargo.cart_for[id]).is_some(),
+            priority,
+            owner,
+            index,
+        )
+    });
     for (_, owner, index, count) in order {
+        if owner.and_then(|id| cargo.cart_for[id]).is_some_and(|cart| {
+            geometry.objects[cart]
+                .joints
+                .iter()
+                .any(|j| j.kind == MotionKind::Cart && j.accepted)
+        }) {
+            continue;
+        }
         let tf = owner.map_or(Transform::IDENTITY, |i| scene.objects[i].transform());
         let a = match owner {
             None => &mut geometry.architecture,
@@ -526,7 +718,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             a.joints[id].accepted = false;
         }
         let j = &a.joints[index];
-        let children = owner.map_or(&[][..], |id| cargo[id].as_slice());
+        let children = owner.map_or(&[][..], |id| cargo.children[id].as_slice());
         let grounded = j.contact != Contact::Free || j.kind == MotionKind::Chair;
         let connected = grounded
             && owner.is_some_and(|id| {
@@ -557,7 +749,22 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         let mut adaptation = None;
         let mut compact = vec![];
         if reason.is_none() {
-            for (adjustment, name) in proposals::candidates(&a.joints[index..index + count]) {
+            let resting = owner
+                .filter(|_| j.contact == Contact::Surface)
+                .and_then(|id| {
+                    let o = &scene.objects[id];
+                    Some(RestingContact {
+                        support: o.support?,
+                        height: tf.translation.y,
+                        slides_on_shelf: j.translation.y == 0.
+                            && j.axis.xz() == Vec2::ZERO
+                            && scene.support_plane(o)
+                                == Some(super::super::layout::SupportPlane::LowerShelf),
+                    })
+                });
+            let choices =
+                proposals::candidates(&a.joints[index..index + count], scene.generator_version);
+            for (adjustment, name) in choices {
                 attempts += 1;
                 for &id in &ids {
                     a.joints[id].adjustment = adjustment;
@@ -606,11 +813,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                         joint.attachment.as_deref(),
                         (joint.kind == MotionKind::Chair || joint.contact == Contact::Floor)
                             .then_some(tf.translation.y),
-                        owner
-                            .filter(|_| joint.contact == Contact::Surface)
-                            .and_then(|id| {
-                                scene.objects[id].support.map(|s| (s, tf.translation.y))
-                            }),
+                        resting,
                         children,
                     )
                 }) {
@@ -649,13 +852,27 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                 compact.clone(),
             ));
         }
+        let cycle = if reason.is_none()
+            && scene.generator_version >= OPERATION_CYCLE_VERSION
+            && return_fraction > 0.
+        {
+            OperationCycle::sample(&a.joints[index], return_fraction)
+        } else {
+            None
+        };
         for &id in &ids {
             a.joints[id].accepted = reason.is_none();
+            a.joints[id].operation_cycle = cycle;
         }
         let j = &a.joints[index];
         reports.push(MechanismReport {
+            operation_cycle: cycle,
             object_id: owner,
-            carried_object_ids: children.to_vec(),
+            carried_object_ids: if reason.is_none() || !independent_cargo {
+                children.to_vec()
+            } else {
+                vec![]
+            },
             semantic_labels: ids
                 .iter()
                 .flat_map(|&i| a.joints[i].parts.iter())
@@ -681,7 +898,9 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                 Vec::new()
             },
             kind: j.kind,
-            interval: if j.kind == MotionKind::Fan {
+            interval: if let Some(cycle) = cycle {
+                [cycle.starts_at, cycle.returns_at]
+            } else if j.kind == MotionKind::Fan {
                 [0., 1.]
             } else {
                 j.interval
@@ -696,6 +915,22 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
             adaptation,
             requested_translation_m: tf.rotation * j.translation,
             requested_angle_radians: j.angle,
+            lift_m: if j.accepted { j.effective_lift() } else { 0. },
+            requested_lift_m: j.lift_m,
+            projection_screen_travel: match j.cloth_motion {
+                Some(ClothMotion::ProjectionScreen { start_drop_m, .. }) => {
+                    Some(ProjectionScreenTravel {
+                        start_drop_m,
+                        requested_end_drop_m: start_drop_m - j.translation.y,
+                        end_drop_m: if j.accepted {
+                            start_drop_m - j.effective_translation().y
+                        } else {
+                            start_drop_m
+                        },
+                    })
+                }
+                _ => None,
+            },
         });
     }
     for report in &mut reports {
@@ -710,7 +945,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         report.semantic_labels.sort();
         report.semantic_labels.dedup();
     }
-    mobility::carry(scene, geometry, &cargo);
+    mobility::carry(scene, geometry, &cargo.children);
     reports.sort_by_key(|r| (r.object_id, r.joint));
     scene.indoor_motion.as_mut().unwrap().mechanisms = reports;
 }

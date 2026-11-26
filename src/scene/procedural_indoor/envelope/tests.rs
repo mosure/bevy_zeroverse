@@ -259,6 +259,7 @@ fn roof_clipping_keeps_bevel_intersections_inside_the_source_triangle_bounds() {
     for scale in [1. / 64., 1., 32.] {
         let size = Vec3::new(13.436966, 4.199328, 14.30445) * scale;
         let envelope = EnvelopeProgram {
+            courtyard: None,
             wall_thickness_m: None,
             soffits: vec![],
             step_installation: None,
@@ -608,8 +609,15 @@ fn built_surfaces_match_floor_support_roof_and_apertures() {
                         )
                     })
                 })
-                .min_by(|a, b| (a - 0.03).abs().total_cmp(&(b - 0.03).abs()))
-                .unwrap();
+                .min_by(|a, b| (a - 0.03).abs().total_cmp(&(b - 0.03).abs()));
+            if e.courtyard.is_some_and(|roof| roof.contains(p)) {
+                assert!(
+                    hit.is_none(),
+                    "roof filled open courtyard at {p:?} for seed {seed}"
+                );
+                continue;
+            }
+            let hit = hit.expect("covered point must have a roof");
             assert!(
                 (hit - 0.03).abs() < 1e-4,
                 "roof seed {seed}: {hit}, p={p:?}, h={h}"

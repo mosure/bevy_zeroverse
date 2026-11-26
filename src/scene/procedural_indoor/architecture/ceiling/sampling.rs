@@ -94,6 +94,29 @@ pub(crate) fn highest_floor(scene: &IndoorManifest, lo: Vec2, hi: Vec2) -> f32 {
     })
 }
 
+/// Reserve the overhead playing space before choosing beam depths or hanger lengths.
+pub(super) fn available_drop(
+    scene: &IndoorManifest,
+    roof: f32,
+    lo: Vec2,
+    hi: Vec2,
+    headroom: f32,
+) -> f32 {
+    let ordinary = roof - highest_floor(scene, lo, hi) - headroom;
+    crate::scene::procedural_indoor::program::court::clear_height_at(scene, lo, hi)
+        .map_or(ordinary, |h| ordinary.min(roof - h - 0.02))
+}
+
+pub(super) fn clears_underside(scene: &IndoorManifest, lo: Vec3, hi: Vec3) -> bool {
+    let pedestrian = highest_floor(scene, lo.xz(), hi.xz()) + MIN_HEADROOM_M;
+    lo.y >= crate::scene::procedural_indoor::program::court::clear_height_at(
+        scene,
+        lo.xz(),
+        hi.xz(),
+    )
+    .map_or(pedestrian, |h| h.max(pedestrian))
+}
+
 pub(super) fn admissible(
     scene: &IndoorManifest,
     m: &CeilingModule,
@@ -106,7 +129,7 @@ pub(super) fn admissible(
         Vec2::new(lo.x, hi.z),
         Vec2::new(hi.x, lo.z),
     ];
-    if lo.y < highest_floor(scene, lo.xz(), hi.xz()) + MIN_HEADROOM_M
+    if !clears_underside(scene, lo, hi)
         || corners
             .iter()
             .any(|&p| hi.y > scene.ceiling_height(p) - 0.002)
@@ -412,7 +435,7 @@ fn resize(
     // Keep real usable headroom instead of silently dropping all installations
     // in low rooms. Both body depth and plenum remain positive and recorded.
     let available =
-        (roof - highest_floor(scene, center - size * 0.5, center + size * 0.5) - 2.36).max(0.10);
+        available_drop(scene, roof, center - size * 0.5, center + size * 0.5, 2.36).max(0.10);
     let depth = depth.min((available - 0.025).max(0.10));
     let gap = gap.min((available - depth).max(0.008));
     m.suspension = None;

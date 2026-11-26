@@ -154,6 +154,47 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
             );
         }
     }
+    // The same anisotropic sky reaches every probe in empty space. At a low
+    // budget their estimates differ. Resolve must reduce their spatial variance
+    // without transferring light between lobes or changing the total energy.
+    let bounds = (scene.bounds_min, scene.bounds_max);
+    scene.bounds_min = Vec3::new(-0.7, 0.4, -0.7);
+    scene.bounds_max = Vec3::new(0.7, 2.2, 0.7);
+    let raw = bake_lobes(&mut app, &scene, 32);
+    let hall = IndoorManifest::generate_with_humans(
+        58103,
+        crate::scene::procedural_indoor::layout::IndoorLayout::Gymnasium,
+        0.65,
+        0,
+        0.,
+    )
+    .unwrap();
+    scene.probe_domain = ProbeDomain::from_manifest(&hall);
+    let filtered = bake_lobes(&mut app, &scene, 32);
+    let face = |i: usize| i / 16 * 2 + i / 4 % 2;
+    let mut total_spread = [0.; 2];
+    for f in 0..6 {
+        let mut means = [Vec3::ZERO; 2];
+        for (k, source) in [&raw, &filtered].into_iter().enumerate() {
+            let cells = || {
+                source
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| face(*i) == f)
+                    .map(|(_, v)| *v)
+            };
+            means[k] = cells().sum::<Vec3>() / 8.;
+            total_spread[k] += cells().map(|v| v.distance_squared(means[k])).sum::<f32>();
+        }
+        // The texture stores half floats after the conservative exchange.
+        assert!(means[0].abs_diff_eq(means[1], 0.001 * means[0].max_element().max(1.)));
+    }
+    assert!(
+        total_spread[1] < total_spread[0] * 0.9,
+        "raw/filtered sky variance {total_spread:?}"
+    );
+    (scene.bounds_min, scene.bounds_max) = bounds;
+    scene.probe_domain = None;
     scene.sky_field = default();
 
     // A downward-facing receiver sees only light reflected off the floor.

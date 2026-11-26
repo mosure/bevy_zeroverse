@@ -2,7 +2,10 @@
 use super::*;
 mod binding;
 pub(crate) mod contents;
+mod rack;
 mod runs;
+pub use rack::{RackBracing, RackFrame};
+pub(crate) const RACK_VERSION: u32 = 257;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ShelfBay {
@@ -21,9 +24,18 @@ pub struct BookcaseProgram {
     pub bays: Vec<ShelfBay>,
     pub frame: Surface,
     pub shelves: Surface,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rack: Option<RackFrame>,
 }
 
 pub fn parameters(o: &IndoorObject) -> BookcaseProgram {
+    parameters_at(
+        o,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    )
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> BookcaseProgram {
     let mut r = stream(o.seed, 0x424f_4f4b_4341_5345);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x424f_4f4b_4649_4e49);
     let t = r.random_range(0.016..0.029);
@@ -64,6 +76,7 @@ pub fn parameters(o: &IndoorObject) -> BookcaseProgram {
         left = right + t;
     }
     let open_frame = r.random_bool(0.38);
+    let rack = (open_frame && version >= RACK_VERSION).then(|| RackFrame::sample(o, &mut bays, t));
     BookcaseProgram {
         open_frame,
         closed_back: !open_frame && r.random_bool(0.75),
@@ -76,17 +89,34 @@ pub fn parameters(o: &IndoorObject) -> BookcaseProgram {
             [Surface::Wood, Surface::Plastic][f.random_range(0..2)]
         },
         shelves: [Surface::Wood, Surface::Plastic, Surface::Metal][f.random_range(0..3)],
+        rack,
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+impl BookcaseProgram {
+    /// Front and rear edges of the load-bearing deck, in object coordinates.
+    pub(crate) fn deck_limits(&self, depth: f32) -> (f32, f32) {
+        let front = depth * 0.5;
+        if let Some(rack) = &self.rack {
+            return (
+                -front + rack.brace_depth_m + rack.post_depth_m + rack.reveal_m,
+                front - rack.post_depth_m - rack.reveal_m,
+            );
+        }
+        (
+            -front + if self.closed_back { self.panel_m } else { 0. },
+            front,
+        )
+    }
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
     let s = o.size;
     let t = p.panel_m;
     let l = o.kind.class_name();
     let mut cuts = TimberCuts::new(o.seed, 0);
-    let rear = -s.z * 0.5 + if p.closed_back { t } else { 0. };
-    let front = s.z * 0.5;
+    let (rear, front) = p.deck_limits(s.z);
     let z = (rear + front) * 0.5;
     if p.closed_back {
         a.board(
@@ -98,8 +128,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             GrainAxis::Y,
         );
     }
-    for x in std::iter::once(-s.x * 0.5 + t * 0.5).chain(p.bays.iter().map(|b| b.right + t * 0.5)) {
-        if p.open_frame {
+    let post_width = p.rack.as_ref().map_or(t, |rack| rack.post_width_m);
+    for x in std::iter::once(-s.x * 0.5 + post_width * 0.5)
+        .chain(p.bays.iter().map(|b| b.right + post_width * 0.5))
+    {
+        if let Some(rack) = &p.rack {
+            rack.posts(a, o, &p, &mut cuts, x);
+        } else if p.open_frame {
             for z in [rear + t * 0.5, front - t * 0.5] {
                 a.board(
                     &mut cuts,
@@ -121,20 +156,24 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             );
         }
     }
+    if let Some(rack) = &p.rack {
+        rack.build_supports(a, o, &p);
+    }
     for (index, b) in p.bays.iter().enumerate() {
+        let bearing = p.rack.as_ref().map_or(0., |rack| rack.bearing_m);
         for &y in &b.levels {
             a.board(
                 &mut cuts,
                 (p.shelves, l),
                 Vec3::new((b.left + b.right) * 0.5, y, z),
-                Vec3::new(b.right - b.left, t, front - rear),
+                Vec3::new(b.right - b.left + 2. * bearing, t, front - rear),
                 0.002,
                 GrainAxis::X,
             );
         }
         for level in 0..b.levels.len() - 1 {
             for child in contents::placements(o, &p, index, level) {
-                contents::build(a, o, &child);
+                contents::build(a, o, &child, version);
             }
         }
     }

@@ -3,7 +3,7 @@
 Capacity is an explicit, optional audit of the **accepted, captured population**.
 It does not run during normal generation, viewer edits or tensor capture. The
 default observation is a complete multi-view room, not each view independently.
-Mixed/All samples all twenty concrete room programs. Geometry, accepted objects,
+Mixed/All samples every concrete room program uniformly. Geometry, accepted objects,
 people, assigned materials, illumination and scheduled cameras enter one joint
 descriptor; their marginal counts are never multiplied.
 

@@ -205,6 +205,20 @@ pub(super) fn install(
                 keys.insert((Surface::Metal, if pale_pc(o) { PALE } else { DARK }));
             }
         }
+        use super::super::objects::computers;
+        if scene.generator_version >= computers::speakers::INTRODUCED {
+            for o in scene
+                .objects
+                .iter()
+                .filter(|o| o.kind == ObjectKind::Laptop)
+            {
+                if let Some(bank) =
+                    computers::parameters(o).speaker_bank(o, scene.generator_version)
+                {
+                    keys.insert((bank.facing, if bank.light_finish { PALE } else { DARK }));
+                }
+            }
+        }
         keys
     };
     for (s, i) in keys {
@@ -303,6 +317,31 @@ mod tests {
         );
         selection.finishes.clear();
         assert_eq!(install_keys(&scene, Some(&selection)), (BTreeSet::new(), 0));
+
+        // Laptop grilles use the same four opaque sheets. Register exactly
+        // the slots requested by realized geometry, including archive replay.
+        scene.objects.clear();
+        for seed in 0..96 {
+            let mut o = audit::fixture(ObjectKind::Laptop, seed);
+            o.finish_seed = Some(seed);
+            for (surface, label) in build_object(&o).parts.into_keys() {
+                if let Some(slot) = finish_slot(surface, &label).filter(|i| supports(surface, *i)) {
+                    selection.finishes.insert((surface, slot));
+                }
+            }
+            scene.objects.push(o);
+        }
+        assert_eq!(selection.finishes.len(), 4);
+        assert_eq!(install_keys(&scene, None), (selection.finishes.clone(), 12));
+        assert_eq!(
+            install_keys(&scene, Some(&selection)),
+            install_keys(&scene, None)
+        );
+        let current_version = scene.generator_version;
+        scene.generator_version = super::super::super::objects::computers::speakers::INTRODUCED - 1;
+        assert_eq!(install_keys(&scene, None), (BTreeSet::new(), 0));
+        scene.generator_version = current_version;
+        selection.finishes.clear();
 
         // A room with only PCs still installs both perforated coatings, and
         // multiple cases with the same coating share all three texture maps.

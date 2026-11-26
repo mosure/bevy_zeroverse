@@ -66,7 +66,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
             for level in 0..program::open_levels(&p, bay) {
                 for mut child in bookcase::contents::placements(&inside, &shelves, index, level) {
                     child.position.z -= 0.0225;
-                    bookcase::contents::build(a, &inside, &child);
+                    bookcase::contents::build(a, &inside, &child, version);
                 }
             }
         }
@@ -96,6 +96,7 @@ pub(super) fn content_program(
             .collect(),
         frame: p.frame,
         shelves: p.shelves,
+        rack: None,
     };
     (inside, shelves)
 }

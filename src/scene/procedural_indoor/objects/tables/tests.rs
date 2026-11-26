@@ -451,7 +451,13 @@ fn trestle_stretchers_physically_connect_to_end_frames() {
         let mut p = parameters(&o);
         p.support = 6;
         let mut rods = Rods::default();
-        build_structure(&mut rods, &o, &p, &outline(&o));
+        build_structure(
+            &mut rods,
+            &o,
+            &p,
+            &outline(&o),
+            bevy_zeroverse_capture::GENERATOR_VERSION,
+        );
         let rails: Vec<_> = rods
             .0
             .iter()

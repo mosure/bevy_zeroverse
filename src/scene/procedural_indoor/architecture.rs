@@ -384,13 +384,14 @@ pub fn spawn_lights(
     let positions = fixture_positions(scene);
     for (i, p, c, lumens) in powered_ceiling_fixtures(scene, &positions) {
         let (inner, outer) = fixtures::beam_angles(scene, i, p);
-        commands.spawn((
+        let intensity = spot_intensity_for_lumens(lumens, inner, outer);
+        let mut entity = commands.spawn((
             Name::new(format!("indoor_luminaire_{i}")),
             SpotLight {
                 color: source_color(scene, c),
                 // Bevy divides spot intensity by 4π before applying a squared
                 // angular falloff. Normalize that cone so these are fixture lumens.
-                intensity: spot_intensity_for_lumens(lumens, inner, outer),
+                intensity,
                 range: 13.0,
                 // Match the finite highlight footprint to the emitting panel.
                 // This remains Bevy's finite-radius spot approximation.
@@ -412,6 +413,9 @@ pub fn spawn_lights(
             ),
             ChildOf(root),
         ));
+        if let Some(curve) = super::motion::LightSource::Ceiling(i).dimmer(scene) {
+            entity.insert(super::motion::DimmedLight::new(curve, intensity));
+        }
     }
     let direction = sun_direction(scene);
     commands.spawn((
@@ -473,29 +477,35 @@ pub fn spawn_lights(
             rest,
             ChildOf(root),
         ));
+        if let Some(curve) = super::motion::LightSource::Object(lamp.id).dimmer(scene) {
+            entity.insert(super::motion::DimmedLight::new(curve, power.lumens));
+        }
         if let Some(motion) = super::motion::AnimatedLight::for_object(scene, lamp.id, rest) {
             entity.insert(motion);
         }
     }
-    for lamp in scene.objects.iter().filter(|o| {
-        matches!(
-            o.kind,
-            ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
-        )
-    }) {
+    for (lamp, range) in super::photometry::spot_fixtures(scene) {
         let (beam, power) = object_fixture_photometry(scene, lamp);
         if power.lumens == 0. {
             continue;
         }
         let rest = Transform::from_translation(beam.position).looking_to(beam.direction, Vec3::Z);
+        let intensity = spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer);
         let mut entity = commands.spawn((
-            Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
+            Name::new(if lamp.kind == ObjectKind::ExtractionHood {
+                format!("indoor_extraction_hood_{}", lamp.id)
+            } else {
+                format!("indoor_desk_lamp_{}", lamp.id)
+            }),
             SpotLight {
                 color: source_color(scene, power.color),
-                intensity: spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer),
-                range: 3.0,
+                intensity,
+                range,
                 radius: beam.radius,
-                shadow_map_near_z: if lamp.kind == ObjectKind::DeskLamp {
+                shadow_map_near_z: if matches!(
+                    lamp.kind,
+                    ObjectKind::DeskLamp | ObjectKind::ExtractionHood
+                ) {
                     0.012
                 } else {
                     SpotLight::DEFAULT_SHADOW_MAP_NEAR_Z
@@ -509,6 +519,9 @@ pub fn spawn_lights(
             rest,
             ChildOf(root),
         ));
+        if let Some(curve) = super::motion::LightSource::Object(lamp.id).dimmer(scene) {
+            entity.insert(super::motion::DimmedLight::new(curve, intensity));
+        }
         if let Some(motion) = super::motion::AnimatedLight::for_object(scene, lamp.id, rest) {
             entity.insert(motion);
         }
@@ -570,6 +583,10 @@ pub(crate) fn object_fixture_photometry(
     super::photometry::FixtureBeam,
     super::photometry::SourcePower,
 ) {
+    if lamp.kind == ObjectKind::ExtractionHood {
+        let deck = super::objects::public::service::hood::FilterDeck::installed(lamp);
+        return (deck.beam(scene, lamp), deck.power(scene, lamp));
+    }
     let beam = if lamp.kind == ObjectKind::DeskLamp {
         super::objects::accessories::lamps::beam(lamp)
     } else {

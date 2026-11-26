@@ -64,6 +64,9 @@ impl CeilingGrid {
             IndoorLayout::OpenOffice
             | IndoorLayout::Training
             | IndoorLayout::Classroom
+            | IndoorLayout::GroceryStore
+            | IndoorLayout::FitnessRoom
+            | IndoorLayout::CyclingStudio
             | IndoorLayout::Cafeteria
             | IndoorLayout::Conference
             | IndoorLayout::Library => 0.82,

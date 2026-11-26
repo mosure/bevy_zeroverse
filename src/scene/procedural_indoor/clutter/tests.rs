@@ -1,5 +1,5 @@
 use super::super::{
-    layout::{IndoorLayout, IndoorManifest},
+    layout::{IndoorLayout, IndoorManifest, SupportPlane},
     objects::build_object,
     validation,
 };
@@ -72,10 +72,15 @@ fn new_props_are_sampled_on_valid_supports_across_room_programs() {
                     | ObjectKind::Microphone
                     | ObjectKind::Phone
             ) {
-                observed.insert(format!("{:?}", o.kind));
-                let support = &scene.objects[o.support.expect("tabletop support")];
-                assert!(scene.prop_clear(o, support, 0.010));
-                assert!((o.position.y - support.position.y - support.size.y).abs() < 1e-5);
+                let parent = &scene.objects[o.support.expect("missing prop support")];
+                assert!(scene.prop_clear(o, parent, 0.010));
+                match scene.support_plane(o).unwrap() {
+                    SupportPlane::Top => {
+                        observed.insert(format!("{:?}", o.kind));
+                        assert!((o.position.y - parent.position.y - parent.size.y).abs() < 1e-5);
+                    }
+                    SupportPlane::LowerShelf => assert_eq!(o.kind, ObjectKind::Notepad),
+                }
             }
         }
     }

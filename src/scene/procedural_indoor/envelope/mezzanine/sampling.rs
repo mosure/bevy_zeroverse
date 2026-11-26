@@ -87,52 +87,7 @@ impl Mezzanine {
             {
                 continue;
             }
-            let mut detail = stream(scene.seed, 0x4d455a5a44455441);
-            let frame_surface =
-                [Surface::Metal, Surface::Wood, Surface::Concrete][detail.random_range(0..3)];
-            let concrete = frame_surface == Surface::Concrete;
-            let support_width =
-                detail.random_range(if concrete { 0.20..0.26_f32 } else { 0.14..0.23 });
-            let support_depth =
-                detail.random_range(if concrete { 0.20..0.28_f32 } else { 0.14..0.25 });
-            let c = Construction {
-                ascending_positive,
-                landing,
-                stair_structure: if concrete {
-                    StairStructure::Solid
-                } else {
-                    [
-                        StairStructure::Solid,
-                        StairStructure::ClosedStringer,
-                        StairStructure::OpenStringer,
-                    ][detail.random_range(0..3)]
-                },
-                tread_thickness: detail.random_range(0.035..0.075),
-                nosing_depth: detail.random_range(0.018..0.060),
-                frame_surface,
-                deck_surface: [Surface::Wood, Surface::Floor, Surface::Concrete]
-                    [detail.random_range(0..3)],
-                tread_surface: [Surface::Wood, Surface::Concrete, Surface::Metal]
-                    [detail.random_range(0..3)],
-                support_section: if frame_surface == Surface::Metal {
-                    [
-                        SupportSection::Square,
-                        SupportSection::Round,
-                        SupportSection::ISection,
-                    ][detail.random_range(0..3)]
-                } else if detail.random_bool(0.45) {
-                    SupportSection::Round
-                } else {
-                    SupportSection::Square
-                },
-                support_width,
-                support_depth,
-                support_inset: detail
-                    .random_range((support_width.max(support_depth) * 0.5 + 0.02).max(0.15)..0.29),
-                support_pitch: detail.random_range(2.0..3.5),
-                beam_depth,
-                guard: super::super::guardrail::GuardSection::sample(scene.seed.wrapping_add(4129)),
-            };
+            let c = Construction::sample(scene.seed, ascending_positive, landing, beam_depth);
             let m = Self {
                 construction: Some(c),
                 ..m
@@ -141,5 +96,60 @@ impl Mezzanine {
             return Some(m);
         }
         None
+    }
+}
+
+impl Construction {
+    pub(super) fn sample(
+        seed: u64,
+        ascending_positive: bool,
+        landing: Option<Landing>,
+        beam_depth: f32,
+    ) -> Self {
+        let mut detail = stream(seed, 0x4d455a5a44455441);
+        let frame_surface =
+            [Surface::Metal, Surface::Wood, Surface::Concrete][detail.random_range(0..3)];
+        let concrete = frame_surface == Surface::Concrete;
+        let support_width = detail.random_range(if concrete { 0.20..0.26_f32 } else { 0.14..0.23 });
+        let support_depth = detail.random_range(if concrete { 0.20..0.28_f32 } else { 0.14..0.25 });
+        Self {
+            ascending_positive,
+            landing,
+            stair_structure: if concrete {
+                StairStructure::Solid
+            } else {
+                [
+                    StairStructure::Solid,
+                    StairStructure::ClosedStringer,
+                    StairStructure::OpenStringer,
+                ][detail.random_range(0..3)]
+            },
+            tread_thickness: detail.random_range(0.035..0.075),
+            nosing_depth: detail.random_range(0.018..0.060),
+            frame_surface,
+            deck_surface: [Surface::Wood, Surface::Floor, Surface::Concrete]
+                [detail.random_range(0..3)],
+            tread_surface: [Surface::Wood, Surface::Concrete, Surface::Metal]
+                [detail.random_range(0..3)],
+            support_section: if frame_surface == Surface::Metal {
+                [
+                    SupportSection::Square,
+                    SupportSection::Round,
+                    SupportSection::ISection,
+                ][detail.random_range(0..3)]
+            } else if detail.random_bool(0.45) {
+                SupportSection::Round
+            } else {
+                SupportSection::Square
+            },
+            support_width,
+            support_depth,
+            support_inset: detail
+                .random_range((support_width.max(support_depth) * 0.5 + 0.02).max(0.15)..0.29),
+            support_pitch: detail.random_range(2.0..3.5),
+            beam_depth,
+            wall_abutment: None,
+            guard: super::super::guardrail::GuardSection::sample(seed.wrapping_add(4129)),
+        }
     }
 }

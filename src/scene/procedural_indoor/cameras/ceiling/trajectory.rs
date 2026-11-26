@@ -72,6 +72,15 @@ pub(super) fn plane_clear(scene: &IndoorManifest, camera: &IndoorCamera) -> bool
     // and all intervening intervals, where the roof is an affine function.
     let mut times = vec![0., 1.];
     if let Some(envelope) = &scene.envelope {
+        if envelope.courtyard.is_some_and(|roof| {
+            !roof.supports_rail(
+                mount.surface.xz(),
+                (mount.surface + delta).xz(),
+                mount.body_radius_m,
+            )
+        }) {
+            return false;
+        }
         for (patch, origin) in envelope
             .soffits
             .iter()

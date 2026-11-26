@@ -606,6 +606,18 @@ impl SamplerState {
     }
 }
 
+/// Installs the common CPU-side scene and lighting barrier without a sampler.
+pub(crate) fn install_preparation_readiness(app: &mut App) {
+    #[derive(Resource)]
+    struct Installed;
+    if !app.world().contains_resource::<Installed>() {
+        app.insert_resource(Installed)
+            .init_resource::<CaptureFailure>()
+            .init_resource::<CaptureReadiness>()
+            .add_systems(PostUpdate, readiness::update.in_set(CaptureReadinessUpdate));
+    }
+}
+
 pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
     app.init_resource::<Sample>();
     app.insert_resource(initial_state);
@@ -616,10 +628,9 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
         frames: if indoor { 4 } else { 64 },
         done: false,
     });
-    app.init_resource::<CaptureFailure>();
+    install_preparation_readiness(app);
     app.init_resource::<failure::SceneCaptureError>();
     app.init_resource::<CaptureProgress>();
-    app.init_resource::<CaptureReadiness>();
     app.init_resource::<CapturePollBackoff>();
     #[cfg(not(target_arch = "wasm32"))]
     app.add_systems(First, backoff_capture_poll);
@@ -632,6 +643,7 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
     app.add_systems(
         PostUpdate,
         sample_stream
+            .after(CaptureReadinessUpdate)
             .after(bevy::transform::TransformSystems::Propagate)
             .after(crate::scene::create_scene_aabb)
             .after(crate::scene::procedural_indoor::humans::update_human_poses)
@@ -639,12 +651,6 @@ pub fn configure_sampler(app: &mut App, initial_state: SamplerState) {
             .after(crate::annotation::obb::compute_object_obbs),
     );
     app.add_systems(PostUpdate, restore_sampling_motion.after(sample_stream));
-    app.add_systems(
-        PostUpdate,
-        readiness::update
-            .in_set(CaptureReadinessUpdate)
-            .before(sample_stream),
-    );
     camera_activity::configure(app);
     #[cfg(not(target_arch = "wasm32"))]
     render_settling::configure(app);

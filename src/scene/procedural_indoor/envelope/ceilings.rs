@@ -170,6 +170,13 @@ fn raised_fields_have_four_connected_returns_and_match_the_roof_oracle() {
         let scene =
             IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         let mut envelope = scene.envelope.clone().unwrap();
+        if envelope.courtyard.is_some() {
+            assert!(
+                envelope.soffits.is_empty(),
+                "an open courtyard cannot carry an indoor tray"
+            );
+            continue;
+        }
         envelope.soffits.clear();
         envelope.sample_trays(&scene);
         if envelope.soffits.is_empty() {

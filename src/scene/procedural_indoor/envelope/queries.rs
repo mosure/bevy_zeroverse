@@ -26,7 +26,7 @@ impl EnvelopeProgram {
         }
         segments
     }
-    pub fn structural_boxes(&self, size: Vec3) -> Vec<(Vec3, Vec3)> {
+    pub(crate) fn fixed_structure_boxes(&self, size: Vec3) -> Vec<(Vec3, Vec3)> {
         let mut boxes = self
             .tier_guards()
             .into_iter()
@@ -52,6 +52,11 @@ impl EnvelopeProgram {
             // cut by the roof plane, not just the nominal shaft dimensions.
             boxes.push(p.obstacle_bounds(self, size));
         }
+        boxes
+    }
+
+    pub fn structural_boxes(&self, size: Vec3) -> Vec<(Vec3, Vec3)> {
+        let mut boxes = self.fixed_structure_boxes(size);
         if let Some(m) = &self.mezzanine {
             boxes.push((
                 Vec3::new(m.deck.min.x, m.deck.height - m.thickness, m.deck.min.y),
@@ -154,7 +159,11 @@ impl EnvelopeProgram {
         let slope = -self.ceiling_drop / size.xz();
         let h = self.roof_height(size, origin.xz());
         let denominator = ray.y - slope.dot(ray.xz());
-        if denominator.abs() > 1e-8 {
+        if let Some(roof) = &self.courtyard {
+            if let Some(t) = roof.ray_hit(size, origin, ray) {
+                accept(t, "ceiling");
+            }
+        } else if denominator.abs() > 1e-8 {
             let t = (h - origin.y) / denominator;
             if polygon::contains(&self.footprint, (origin + ray * t).xz(), 0.) {
                 accept(t, "ceiling");
@@ -282,6 +291,20 @@ impl EnvelopeProgram {
         }
         polygon::validate(&self.footprint)?;
         let size = scene.room_size;
+        if self.courtyard.is_some()
+            != (scene.layout == super::super::layout::IndoorLayout::Courtyard)
+            || self.courtyard.as_ref().is_some_and(|roof| {
+                !roof.valid(size)
+                    || !roof.supported_corners(&self.pillars)
+                    || self.footprint != courtyard::corners(-size.xz() * 0.5, size.xz() * 0.5)
+                    || self.ceiling_drop != Vec2::ZERO
+                    || !self.soffits.is_empty()
+                    || self.mezzanine.is_some()
+                    || !self.floor_patches.is_empty()
+            })
+        {
+            return Err("invalid courtyard opening or arcade structure".into());
+        }
         if !self.ceiling_drop.is_finite()
             || self.footprint.iter().any(|&p| {
                 self.ceiling_height(size, p) < 2.49

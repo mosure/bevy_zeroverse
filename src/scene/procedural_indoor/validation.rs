@@ -145,6 +145,7 @@ fn validate_layout_integrity(
         return fail("empty scene");
     }
     let service_structure = std::cell::OnceCell::new();
+    let mut tabletop_outlines = std::collections::HashMap::new();
     let mut main_furniture = 0;
     for (i, object) in scene.objects.iter().enumerate() {
         if object.id != i
@@ -225,6 +226,19 @@ fn validate_layout_integrity(
                         | super::layout::ObjectKind::Table
                         | super::layout::ObjectKind::CoffeeTable
                 )
+            } else if object.kind == super::layout::ObjectKind::Banquette {
+                other.kind == super::layout::ObjectKind::Table
+                    && object.support.is_none()
+                    && other.support.is_none()
+                    && super::layout::dining_places::booth_places(
+                        other,
+                        object,
+                        &super::objects::tables::outline(other),
+                    )
+                    .next()
+                    .is_some()
+            } else if object.kind == super::layout::ObjectKind::Dishware {
+                scene.valid_served_dish(object, other)
             } else if object.kind == super::layout::ObjectKind::PcTower {
                 other.kind == super::layout::ObjectKind::Monitor
                     && other.support.is_some()
@@ -380,21 +394,21 @@ fn validate_layout_integrity(
             if parent.neighbor != object.neighbor || parent.id >= object.id {
                 return fail("prop has an inconsistent support relationship");
             }
-            if !scene.prop_clear(object, parent, 0.0) {
+            if scene.support_plane(object).is_none() {
                 return fail(&format!(
-                    "supported prop overlaps a peer or overhangs its support: {:?} instance {} on {:?} support {}",
-                    object.kind, object.id, parent.kind, parent.id
-                ));
-            }
-            if (object.position.y - parent.position.y - parent.size.y).abs() > 0.002 {
-                return fail(&format!(
-                    "prop floats or sinks into support: {:?} instance {} at y={:.6}, {:?} support {} top={:.6}",
+                    "prop does not contact an installed support plane: {:?} instance {} at y={:.6}, {:?} support {} top={:.6}",
                     object.kind,
                     object.id,
                     object.position.y,
                     parent.kind,
                     parent.id,
                     parent.position.y + parent.size.y
+                ));
+            }
+            if !scene.prop_clear_cached(object, parent, 0.0, Some(&mut tabletop_outlines)) {
+                return fail(&format!(
+                    "supported prop overlaps a peer or overhangs its support: {:?} instance {} on {:?} support {}",
+                    object.kind, object.id, parent.kind, parent.id
                 ));
             }
             let local = parent

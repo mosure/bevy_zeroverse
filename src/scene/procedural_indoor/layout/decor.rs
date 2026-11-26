@@ -43,7 +43,7 @@ impl IndoorManifest {
         {
             return;
         }
-        self.dress_refreshment_counter(support, None);
+        self.dress_refreshment_counter(support, super::refreshments::CounterService::Drinks(None));
     }
 
     pub(super) fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {
@@ -81,6 +81,7 @@ impl IndoorManifest {
                 && super::super::architecture::details::overlaps_niche(self, lo, hi))
             && !facade::overlaps_opening(self, lo, hi, 0.05)
             && !self.locker_covers_wall_patch(tf, local.x, obj.size.x, lo.y, hi.y)
+            && !self.covers_cooktop_splashback(obj)
     }
 
     /// A wall fixture can fit in the gap behind a fitted bank yet be completely
@@ -166,7 +167,10 @@ impl IndoorManifest {
                 self.layout,
                 IndoorLayout::Classroom | IndoorLayout::LectureHall
             );
-        let dining = matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Cafeteria);
+        let dining = matches!(
+            self.layout,
+            IndoorLayout::Cafe | IndoorLayout::Cafeteria | IndoorLayout::Restaurant
+        );
         let (domain, probability) = match kind {
             ObjectKind::WallArt => (
                 sampling::Domain::WallArt,

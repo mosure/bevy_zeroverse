@@ -9,8 +9,14 @@ function apply() {
     const transition = desired
         ? document.documentElement.requestFullscreen()
         : document.exitFullscreen();
-    transition.catch(() => { desired = Boolean(document.fullscreenElement); })
-        .finally(() => { pending = false; apply(); });
+    transition.then(() => {
+        pending = false;
+        apply();
+    }, () => {
+        // A rejected startup request can succeed on the next trusted gesture.
+        // Keep the shared URL's intent and wait for that gesture before retrying.
+        pending = false;
+    });
 }
 
 export function sync_fullscreen(request, allowShortcuts) {

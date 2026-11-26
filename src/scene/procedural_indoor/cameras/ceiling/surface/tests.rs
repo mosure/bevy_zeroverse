@@ -54,6 +54,50 @@ fn mounting_faces_match_rendered_structural_undersides() {
 }
 
 #[test]
+fn metric_separation_accounts_for_raised_floors_sloped_roofs_and_mountable_beams() {
+    use crate::scene::procedural_indoor::envelope::FloorPatch;
+    let mut scene =
+        IndoorManifest::generate_with_humans(65_332_518, IndoorLayout::Gymnasium, 0.65, 0, 0.)
+            .unwrap();
+    scene.room_size.y = 11.;
+    scene.ceiling_installation = None;
+    scene.rug_supports.clear();
+    let e = scene.envelope.as_mut().unwrap();
+    e.ceiling_drop = Vec2::ZERO;
+    e.soffits.clear();
+    e.floor_patches.clear();
+    e.mezzanine = None;
+    let bound = |s: &IndoorManifest| impossible_metric_baseline(s, 0.25, 6.);
+    assert_eq!(bound(&scene), Some(7.5));
+    scene
+        .envelope
+        .as_mut()
+        .unwrap()
+        .floor_patches
+        .push(FloorPatch {
+            min: Vec2::splat(-2.),
+            max: Vec2::splat(2.),
+            height: 2.,
+        });
+    assert_eq!(bound(&scene), None);
+    let e = scene.envelope.as_mut().unwrap();
+    e.floor_patches.clear();
+    e.ceiling_drop = Vec2::new(1.2, -0.8);
+    assert_eq!(bound(&scene), None);
+    scene.envelope.as_mut().unwrap().ceiling_drop = Vec2::ZERO;
+    scene.ceiling_installation = Some(CeilingInstallation {
+        room_grid: None,
+        exposed_slab: true,
+        modules: vec![],
+        framing: Some(CeilingFraming {
+            roof_material: Surface::Wood,
+            members: vec![member(FrameSection::Solid)],
+        }),
+    });
+    assert_eq!(bound(&scene), None);
+}
+
+#[test]
 fn moving_mounts_cannot_bridge_even_a_thin_support_gap() {
     let mut s = IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     s.room_size = Vec3::new(10., 5., 10.);
@@ -104,4 +148,37 @@ fn moving_mounts_cannot_bridge_even_a_thin_support_gap() {
         !super::super::trajectory::plane_clear(&s, &camera),
         "2 mm unsupported rail gap between checkpoints"
     );
+}
+
+#[test]
+fn courtyard_camera_base_and_entire_rail_need_a_covered_walk() {
+    let mut s =
+        IndoorManifest::generate_with_humans(19, IndoorLayout::Courtyard, 0.50, 0, 0.).unwrap();
+    s.camera_settings.ceiling_mount = Some(CeilingCameraSettings {
+        probability: 1.,
+        motion_fraction: 0.,
+        ..default()
+    });
+    let roof = s.envelope.as_ref().unwrap().courtyard.unwrap();
+    let mid = (roof.max + roof.min) * 0.5;
+    let proto = super::super::proposal::Prototype::sample(
+        &s,
+        0,
+        s.camera_settings.ceiling_mount.as_ref().unwrap(),
+    );
+    let hole = proto.mounted_at(&s, 0, mid, &mut stream(19, 1));
+    let space = super::super::placement::MountSpace::new(&s);
+    assert!(!space.clear(&s, &hole));
+    let mut rail = proto.mounted_at(
+        &s,
+        0,
+        Vec2::new(roof.min.x - 0.72, mid.y),
+        &mut stream(19, 2),
+    );
+    super::super::trajectory::set_rail(&mut rail, Vec3::Z * 0.70);
+    assert!(super::super::trajectory::plane_clear(&s, &rail));
+    super::super::trajectory::set_rail(&mut rail, Vec3::X * (roof.max.x - roof.min.x + 1.44));
+    assert!(!super::super::trajectory::plane_clear(&s, &rail));
+    let tunnel = Vec2::new(roof.max.x + 0.03, mid.y);
+    assert!(!roof.supports_rail(tunnel, tunnel, 0.06));
 }

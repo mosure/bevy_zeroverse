@@ -12,7 +12,10 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     let size = match kind {
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
         | Lectern | Locker | TeachingBoard | ExhibitPlinth | Sculpture | InformationStand
-        | ExhibitionPanel | ExtractionHood | Banquette => public::dimensions(kind, seed).to_array(),
+        | ExhibitionPanel | ExtractionHood | Banquette | WeightBench | DumbbellRack
+        | ExerciseMat | StationaryBike | Treadmill | GroceryDisplay | ApparelDisplay
+        | VolleyballNet | BleacherBank | FittingRoom | CheckoutCounter | PowerRack
+        | HotFoodWell => public::dimensions(kind, seed).to_array(),
         KitchenCounter | KitchenSink | KitchenCupboard | Pantry | Cooktop | Range | Oven
         | Microwave | Dishwasher | Refrigerator | DryingRack | SoapDispenser | Sponge
         | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
@@ -27,6 +30,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         Cabinet => [0.9, 0.85, 0.45],
         Bookcase => [0.95, 1.8, 0.38],
         Plant => [0.8, 1.2, 0.8],
+        PlantingBed => [2.8, 1.9, 1.35],
         TrashCan => [0.34, 0.48, 0.34],
         Whiteboard => [1.3, 0.85, 0.09],
         WallArt | NoticeBoard => [0.8, 0.6, 0.045],
@@ -129,6 +133,12 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     if kind == WallArt {
         presentation::artwork::select_installation(&mut o);
     }
+    if kind == GroceryDisplay
+        && o.size.y >= 1.15
+        && stream(seed, u64::from_le_bytes(*b"ShopDemo")).random_bool(0.4)
+    {
+        o.variant |= public::retail::REFRIGERATED;
+    }
     if kind == ProjectionScreen {
         o.variant |= presentation::projection::INSTALLED;
     }
@@ -140,6 +150,19 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     }
     if kind == Notebook {
         o.variant |= literature::SPREAD_BINDING;
+    }
+    if kind == CheckoutCounter {
+        use public::CheckoutForm::*;
+        let form = [ConveyorLane, BasketRegister, ApparelWrap, SelfCheckout][(seed % 4) as usize];
+        o.variant = form.tag();
+        o.finish_seed = Some(seed);
+        if form == SelfCheckout {
+            o.variant = public::CheckoutForm::self_service_tag(seed % 8 == 7);
+            o.size = public::retail::checkout::self_checkout_size(&mut stream(seed, 8201));
+        }
+    }
+    if kind == FittingRoom {
+        o.finish_seed = Some(seed);
     }
     if kind == CeilingFan {
         o.variant = fans::installed_variant(seed, o.size.x);
@@ -213,6 +236,11 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         MobileCart => {
             let p = services::cart::parameters(o);
             let mut value = serde_json::json!(p);
+            value["shelf_use"] = serde_json::json!(services::cart::stock::CartJob::read(
+                o,
+                bevy_zeroverse_capture::GENERATOR_VERSION
+            )
+            .name());
             let casters = services::casters::CasterSet::cart(o, &p);
             value["wheel_radius"] = serde_json::json!(casters.radius_m);
             value["casters"] = serde_json::json!(casters);
@@ -262,17 +290,33 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             }
             return value;
         }
-        Bookcase => return serde_json::json!(storage::bookcase::parameters(o)),
         WallShelf => return serde_json::json!(equipment::wall_shelf::parameters(o)),
         ProjectionScreen => return serde_json::json!(presentation::projection::parameters(o)),
         ServiceCounter => return serde_json::json!(public::service::counter_parameters(o)),
-        ExtractionHood => return serde_json::json!(public::service::hood_parameters(o)),
+        ExtractionHood => {
+            let p = public::service::hood_parameters(o);
+            let deck = public::service::hood::FilterDeck::fit(o, &p);
+            let mut report = serde_json::json!(&p);
+            let canopy = p.canopy_top(o.size.y, super::super::layout::GENERATOR_VERSION);
+            report["canopy_height_m"] = canopy.into();
+            report["canopy_fraction"] = (canopy / o.size.y).into();
+            report["filters"] = serde_json::json!(deck.cassettes);
+            report["lights"] = serde_json::json!(deck.lamps);
+            report["intake"] = serde_json::json!(deck);
+            return report;
+        }
         Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),
         ExhibitPlinth => return serde_json::json!(public::casework::plinth::parameters(o)),
         DisplayCase | TrayReturn => return serde_json::json!(public::casework::parameters(o)),
         DrinkDispenser => return serde_json::json!(public::dispenser::parameters(o)),
         CoffeeMaker => return serde_json::json!(hospitality::coffee::parameters(o)),
-        QueueBarrier => return serde_json::json!(public::barrier::parameters(o)),
+        QueueBarrier => {
+            let p = public::barrier::parameters(o);
+            let mut fields = serde_json::json!(p);
+            fields["installation"] =
+                serde_json::json!(public::barrier::Installation::sample(o, &p));
+            return fields;
+        }
         Vase | Bowl => return serde_json::json!(vessels::parameters(o)),
         SodaCan => return serde_json::json!(super::super::clutter::beverages::can::parameters(o)),
         Mug | CoffeeCup => {
@@ -312,6 +356,18 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         return serde_json::json!(public::signage::parameters(o));
     }
     let all = match o.kind {
+        VolleyballNet => return serde_json::json!(public::volleyball::Net::for_object(o)),
+        BleacherBank => return serde_json::json!(public::bleachers::BleacherBank::for_object(o)),
+        PowerRack => return serde_json::json!(public::strength::PowerRack::for_object(o)),
+        HotFoodWell => return serde_json::json!(public::hot_food::HotFoodWell::for_object(o)),
+        FittingRoom => return serde_json::json!(public::fitting_room(o)),
+        GroceryDisplay | ApparelDisplay | CheckoutCounter => {
+            return serde_json::json!(public::retail::parameters(o))
+        }
+        StationaryBike | Treadmill => return serde_json::json!(public::cardio::parameters(o)),
+        WeightBench | DumbbellRack | ExerciseMat => {
+            return serde_json::json!(public::fitness::parameters(o))
+        }
         BaseboardHeater => {
             let stock = services::heater::Installation::for_object(o);
             let mut fields =
@@ -338,6 +394,10 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Table | Desk | CoffeeTable | SideTable => {
             let program = tables::parameters(o);
             let mut data = serde_json::json!(&program);
+            if let Some(shelf) = program.lounge_shelf(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+            {
+                data["lounge_shelf"] = serde_json::json!(shelf);
+            }
             if let Some(cut) = tables::sheet_cut(o, &program) {
                 data["sheet_cut"] = serde_json::json!(cut);
             }
@@ -351,6 +411,15 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         Chair => {
             let p = chairs::parameters(o);
             let mut data = serde_json::json!(p);
+            if let Some(mount) = p.back_mount(o, super::super::layout::GENERATOR_VERSION) {
+                data["back_mount"] = serde_json::json!(mount);
+            }
+            if let Some(stock) = p.swivel_pedestal(o, super::super::layout::GENERATOR_VERSION) {
+                data["swivel"] = serde_json::json!(stock);
+            }
+            if let Some(pad) = p.arm_pad(o, super::super::layout::GENERATOR_VERSION) {
+                data["arm_pad"] = serde_json::json!(pad);
+            }
             if let Some(stock) = p.tension_back(o, super::super::layout::GENERATOR_VERSION) {
                 data["tension_back"] = serde_json::json!(stock);
             }
@@ -369,7 +438,8 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
                 .collect::<Vec<_>>());
             data
         }
-        Bookcase => serde_json::json!(storage::parameters(o)),
+        Bookcase => serde_json::json!(storage::bookcase::parameters(o)),
+        PlantingBed => serde_json::json!(super::super::plants::bed::Bed::sample(o)),
         Plant => {
             let growth = super::super::plants::Growth::sample(o.seed);
             let pot = super::super::plants::PotProfile::sample(o.seed);
@@ -379,6 +449,9 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
                 "pot_radius_height_m":(r,h),
                 "potting_medium":super::super::plants::soil::stats(o,&pot,r,h),
                 "species":super::super::plants::species_name(o.variant)});
+            if let Some(habit) = super::super::plants::pinnate::Habit::sample(o, &growth) {
+                data["pinnate_habit"] = serde_json::json!(habit);
+            }
             if o.variant % super::super::plants::SPECIES == 3 {
                 data["split_leaf_habit"] =
                     serde_json::json!(super::super::plants::split_leaf_stats(o.seed, &growth));
@@ -395,10 +468,22 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         }
         TrashCan => serde_json::json!(containers::bin_parameters(o)),
         TissueBox => serde_json::json!(containers::tissue_parameters(o)),
-        Monitor | Display => serde_json::json!(computers::display_parameters(o)),
+        Monitor | Display => {
+            use computers::displays::{enclosure::PanelSection, geometry_parameters};
+            let p = computers::display_parameters(o);
+            let mut product = serde_json::json!(&p);
+            product["section"] =
+                serde_json::json!(PanelSection::sample(o, &geometry_parameters(o, &p)));
+            product
+        }
         Laptop => {
             let p = computers::parameters(o);
             let mut report = serde_json::json!(p);
+            report["lid_face"] =
+                serde_json::json!(p.lid_face(o, super::super::layout::GENERATOR_VERSION));
+            if let Some(bank) = p.speaker_bank(o, super::super::layout::GENERATOR_VERSION) {
+                report["speaker_bank"] = serde_json::json!(bank);
+            }
             if let Some(bank) = p.io_bank(o) {
                 report["io"] = serde_json::json!(bank);
             }

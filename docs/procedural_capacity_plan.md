@@ -43,7 +43,7 @@ and image statistics there are not silently reused as current measurements.
 ## 2. Work sequence and promotion gates
 
 The first coverage correction is implemented: `Mixed` and its `All`/`all` aliases
-sample all 20 concrete programs uniformly. The ten office profiles are no longer
+sample every concrete program uniformly. The ten office profiles are no longer
 the entire root population. The narrower office list remains only for compatible
 secondary activities inside an office; public/kitchen roots execute their full
 architecture, service reservations and functional placement builders. Tests bind
@@ -163,7 +163,7 @@ passed checks. The following distinction is part of the deliverable:
 | --- | --- | --- |
 | A | Portable typed contracts; pure configuration query; joint accepted/rendered observers; explicit factor activity; exact fixed-partition statistics, confidence bounds and analytical fixtures | Perceptually calibrated partitions, unseen-tail estimator and learned utility model |
 | B | Shared primary polygon/floor/ceiling membership; mesh/layout validation; full-calibration annotation checks; corrected raised-arm/floor-mat false collision; exact replay and nonzero-start capture fixes | Physically complete tinted/frosted transport, new matched radiometric qualification, arbitrary layered supports |
-| C | Auditable accepted functional relationships and capacity accounting; all 20 root programs; 28 compatible directed public-suite program pairings with continuously sampled dimensions | General oblique partitions, holes, stacked support domains and transactional redesign of every functional assembly |
+| C | Auditable accepted functional relationships and capacity accounting; all concrete root programs; 28 compatible directed public-suite program pairings with continuously sampled dimensions | General oblique partitions, holes, stacked support domains and transactional redesign of every functional assembly |
 | D | Context-conditioned continuous working/listening/talking engagement and gaze with clearance checks; construction material/category coverage and whole-image nearest-pair inspection | Photographic garment/hair/skin, new interventions for every object/material category, causal visible-factor attribution |
 | E | Fixed/mixed/moving camera captures, explicit initial progress, source-bound counts/baselines audit and measured rendered co-visibility | Real-model reconstruction benefit, fisheye/rolling-shutter contracts, broad motion-model fidelity study |
 | F | Bounded ordered CPU workers and capture budgets, persistent renderer, opt-in measurement/model cost, stage timings and native/WASM compile checks | Unlimited-process memory plateau, uncontended JIT/concurrent-consumer benchmark, current Chrome/Metal image qualification |
