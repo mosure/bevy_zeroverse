@@ -2,6 +2,7 @@
 mod court_view;
 mod stair_view;
 use super::super::layout::{IndoorCamera, IndoorManifest, CAMERA_CLEARANCE};
+use super::viewpoint::MAX_EYE_HEIGHT_M;
 use bevy::prelude::*;
 use rand::Rng;
 mod fallback;
@@ -248,11 +249,11 @@ impl IndoorManifest {
                     - CAMERA_CLEARANCE
                     - 0.04)
                     .min(if attempts < 2048 || stairs.is_some() {
-                        floor + 3.25
+                        floor + MAX_EYE_HEIGHT_M
                     } else {
-                        3.25
+                        MAX_EYE_HEIGHT_M
                     })
-                    .min(floor + 3.25);
+                    .min(floor + MAX_EYE_HEIGHT_M);
                 let Some(height) = viewpoint.height(floor, upper, rng) else {
                     rejected[0] += 1;
                     continue;
@@ -525,7 +526,7 @@ impl IndoorManifest {
                 - 0.04
                 - CAMERA_CLEARANCE
                 - 0.04)
-                .min(3.25);
+                .min(MAX_EYE_HEIGHT_M);
             if low > high {
                 continue;
             }

@@ -4,9 +4,7 @@ use crate::scene::procedural_indoor::validation::{validate_geometry, validate_la
 #[test]
 fn rejected_mixed_rig_seed_has_a_furnished_primary_room() {
     for density in [0., 0.65, 1.] {
-        let scene =
-            IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, density, 0, 0.)
-                .unwrap();
+        let scene = IndoorManifest::initial_mixed_fixture(65_459_150, density, 0, 0.).unwrap();
         validate_layout(&scene).unwrap();
         validate_geometry(&scene).unwrap();
         // The primary zone may be a seated desk, standing desk, or lounge
@@ -53,9 +51,7 @@ fn rejected_mixed_rig_seed_has_a_furnished_primary_room() {
             recovered, scene,
             "a complete primary group must be untouched"
         );
-        let replay =
-            IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, density, 0, 0.)
-                .unwrap();
+        let replay = IndoorManifest::initial_mixed_fixture(65_459_150, density, 0, 0.).unwrap();
         assert_eq!(scene, replay);
     }
 }
@@ -63,8 +59,7 @@ fn rejected_mixed_rig_seed_has_a_furnished_primary_room() {
 #[test]
 fn impossible_primary_work_area_repair_leaves_no_partial_group() {
     use crate::scene::procedural_indoor::envelope::FloorPatch;
-    let mut scene =
-        IndoorManifest::generate_with_humans(65_459_150, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut scene = IndoorManifest::initial_mixed_fixture(65_459_150, 0.65, 0, 0.).unwrap();
     scene.objects.clear();
     scene.rug_supports.clear();
     scene.assembly_diagnostics = default();

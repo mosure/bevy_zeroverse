@@ -570,7 +570,7 @@ impl IndoorManifest {
 
     /// Reproduce fixtures recorded when Mixed first included public venues.
     #[cfg(test)]
-    fn initial_mixed_fixture(
+    pub(super) fn initial_mixed_fixture(
         seed: u64,
         density: f32,
         cameras: usize,

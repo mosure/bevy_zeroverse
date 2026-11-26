@@ -54,6 +54,50 @@ fn mounting_faces_match_rendered_structural_undersides() {
 }
 
 #[test]
+fn metric_separation_accounts_for_raised_floors_sloped_roofs_and_mountable_beams() {
+    use crate::scene::procedural_indoor::envelope::FloorPatch;
+    let mut scene =
+        IndoorManifest::generate_with_humans(65_332_518, IndoorLayout::Gymnasium, 0.65, 0, 0.)
+            .unwrap();
+    scene.room_size.y = 11.;
+    scene.ceiling_installation = None;
+    scene.rug_supports.clear();
+    let e = scene.envelope.as_mut().unwrap();
+    e.ceiling_drop = Vec2::ZERO;
+    e.soffits.clear();
+    e.floor_patches.clear();
+    e.mezzanine = None;
+    let bound = |s: &IndoorManifest| impossible_metric_baseline(s, 0.25, 6.);
+    assert_eq!(bound(&scene), Some(7.5));
+    scene
+        .envelope
+        .as_mut()
+        .unwrap()
+        .floor_patches
+        .push(FloorPatch {
+            min: Vec2::splat(-2.),
+            max: Vec2::splat(2.),
+            height: 2.,
+        });
+    assert_eq!(bound(&scene), None);
+    let e = scene.envelope.as_mut().unwrap();
+    e.floor_patches.clear();
+    e.ceiling_drop = Vec2::new(1.2, -0.8);
+    assert_eq!(bound(&scene), None);
+    scene.envelope.as_mut().unwrap().ceiling_drop = Vec2::ZERO;
+    scene.ceiling_installation = Some(CeilingInstallation {
+        room_grid: None,
+        exposed_slab: true,
+        modules: vec![],
+        framing: Some(CeilingFraming {
+            roof_material: Surface::Wood,
+            members: vec![member(FrameSection::Solid)],
+        }),
+    });
+    assert_eq!(bound(&scene), None);
+}
+
+#[test]
 fn moving_mounts_cannot_bridge_even_a_thin_support_gap() {
     let mut s = IndoorManifest::generate_with_humans(6, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     s.room_size = Vec3::new(10., 5., 10.);

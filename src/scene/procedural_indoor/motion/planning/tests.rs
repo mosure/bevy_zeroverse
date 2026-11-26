@@ -444,7 +444,7 @@ fn track_coverings_can_use_their_own_head_but_still_collide_with_other_hardware(
         (Shade::Vertical, 470),
         (Shade::Pleated, 426),
     ] {
-        let source = IndoorManifest::generate_with_humans(seed, default(), 0.65, 2, 0.25).unwrap();
+        let source = IndoorManifest::initial_mixed_fixture(seed, 0.65, 2, 0.25).unwrap();
         let mut facade = source
             .envelope
             .as_ref()

@@ -47,6 +47,23 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
         .as_ref()
         .map_or_else(Vec::new, |m| m.targets(scene.seed, count));
     let mounted = (0..count).any(|i| scene.camera_settings.ceiling_mounted(scene.seed, i));
+    // Exact metric rigs constrain every peer's distance to the reference at
+    // t=0. A mixed rig necessarily includes a cross-role reference pair.
+    if let Some(p) = policy.filter(|_| {
+        contract.is_none()
+            && scene.camera_settings.overlap_mixture.is_none()
+            && scene.camera_settings.handheld.is_none()
+            && mounted
+            && (0..count).any(|i| !scene.camera_settings.ceiling_mounted(scene.seed, i))
+    }) {
+        if let Some(gap) = super::surface::impossible_metric_baseline(
+            scene,
+            mounting.standoff_m[1],
+            p.max_baseline,
+        ) {
+            return Err(format!("seed {} needs at least {gap:.4} m of vertical separation between ceiling and room cameras, exceeding the maximum reference baseline of {:.4} m", scene.seed, p.max_baseline));
+        }
+    }
     let coverage = if mounted {
         Coverage::for_ceiling_search(scene)
     } else {

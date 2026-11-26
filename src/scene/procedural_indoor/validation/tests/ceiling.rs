@@ -2,8 +2,7 @@ use super::*;
 use crate::sample::failure::{CaptureError, SceneRejectionKind};
 
 fn overlapping_ceiling(seed: u64) -> IndoorManifest {
-    let mut scene =
-        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    let mut scene = IndoorManifest::initial_mixed_fixture(seed, 0.65, 0, 0.).unwrap();
     // Reported seeds are repaired, valid fixtures. Inject a finite conflict to
     // test recovery without requiring those seeds to stay broken forever.
     validate_prepared_layout(&scene).unwrap();

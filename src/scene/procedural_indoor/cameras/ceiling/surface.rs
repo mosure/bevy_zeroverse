@@ -58,6 +58,45 @@ fn patches(scene: &IndoorManifest) -> impl Iterator<Item = Patch> + '_ {
         .filter_map(Patch::underside)
 }
 
+/// A lower bound on the vertical distance between a ceiling mount and a room
+/// origin. Use the lowest supporting face and highest floor anywhere in the
+/// room, even if those two points could never be used together.
+pub(super) fn impossible_metric_baseline(
+    scene: &IndoorManifest,
+    max_standoff: f32,
+    limit: f32,
+) -> Option<f32> {
+    use super::super::viewpoint::MAX_EYE_HEIGHT_M;
+    if scene.room_size.y - max_standoff - MAX_EYE_HEIGHT_M <= limit {
+        return None;
+    }
+    let half = scene.room_size.xz() * 0.5;
+    let mut face = scene.minimum_ceiling_height(-half, half);
+    if let Some(grid) =
+        crate::scene::procedural_indoor::architecture::ceiling::CeilingGrid::for_scene(scene)
+    {
+        face = face.min(scene.room_size.y - grid.tile.drop_m);
+    } else {
+        for patch in patches(scene) {
+            let low = patch.origin.y + patch.along.y.min(0.) + patch.across.y.min(0.);
+            face = face.min(low);
+        }
+    }
+    let mut floor = scene.rug_supports.iter().map(|r| r.top).fold(0., f32::max);
+    if let Some(e) = &scene.envelope {
+        floor = e
+            .floor_patches
+            .iter()
+            .map(|p| p.height)
+            .fold(floor, f32::max);
+        if let Some(m) = &e.mezzanine {
+            floor = floor.max(m.deck.height);
+        }
+    }
+    let separation = face - max_standoff - (floor + MAX_EYE_HEIGHT_M);
+    (separation > limit + 1e-4).then_some(separation)
+}
+
 pub(super) fn at(scene: &IndoorManifest, p: Vec2) -> (Vec3, Vec3) {
     if let Some(grid) =
         crate::scene::procedural_indoor::architecture::ceiling::CeilingGrid::for_scene(scene)

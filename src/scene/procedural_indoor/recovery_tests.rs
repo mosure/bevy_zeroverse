@@ -24,14 +24,7 @@ fn ceiling_rejections_retire_scene_state_without_resetting_request_counters() {
     world.resource_mut::<CaptureProgress>().completed_requests = 17;
 
     for seed in [2, 65_904_936, 65_991_960] {
-        let mut scene = layout::IndoorManifest::generate_with_humans(
-            seed,
-            layout::IndoorLayout::Mixed,
-            0.65,
-            0,
-            0.,
-        )
-        .unwrap();
+        let mut scene = layout::IndoorManifest::initial_mixed_fixture(seed, 0.65, 0, 0.).unwrap();
         validation::validate_prepared_layout(&scene).unwrap();
         let ceiling = scene.ceiling_installation.as_mut().unwrap();
         ceiling.modules.push(ceiling.modules[0].clone());

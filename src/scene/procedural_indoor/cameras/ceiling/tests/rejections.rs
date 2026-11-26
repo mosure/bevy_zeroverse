@@ -478,11 +478,19 @@ fn difficult_training_rigs_preserve_geometry_and_transactional_rejection() {
 
 // Captured from the production rejection ledger: eight mixed-lens views,
 // moving ceiling rails, no people, density 0.65 and the exact archived policy.
+fn training_metric_policy() -> CameraSettings {
+    CameraSettings::parse(include_str!("training_camera_settings.json")).unwrap()
+}
+
 fn qualify_production_seed(seed: u64) {
-    let policy = CameraSettings::parse(include_str!("training_camera_settings.json")).unwrap();
-    let started = std::time::Instant::now();
-    let mut scene =
+    let scene =
         IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    qualify_metric_rig(scene, training_metric_policy());
+}
+
+fn qualify_metric_rig(mut scene: IndoorManifest, policy: CameraSettings) {
+    let seed = scene.seed;
+    let started = std::time::Instant::now();
     validate_layout(&scene).unwrap();
     let before = scene.clone();
     scene
@@ -528,6 +536,38 @@ fn qualify_production_seed(seed: u64) {
     );
 }
 
+#[test]
+fn production_65332518_checks_the_reported_rig_and_the_high_roof_gym() {
+    use crate::sample::failure::{CaptureError, SceneRejectionKind};
+    let seed = 65_332_518;
+    let policy = training_metric_policy();
+    let historical = IndoorManifest::initial_mixed_fixture(seed, 0.65, 0, 0.).unwrap();
+    qualify_metric_rig(historical, policy.clone());
+
+    let mut gym =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Gymnasium, 0.65, 0, 0.).unwrap();
+    validate_layout(&gym).unwrap();
+    let original = gym.clone();
+    let Err(CaptureError::Rejected { rejection, .. }) =
+        gym.resample_cameras_typed(8, policy.clone(), 1.)
+    else {
+        panic!("a six-metre 3D baseline cannot connect the roof to a floor camera in this gym");
+    };
+    assert_eq!(rejection.seed, seed);
+    assert_eq!(rejection.kind, SceneRejectionKind::CameraPlacement);
+    assert!(
+        rejection.reason.contains("vertical separation"),
+        "{rejection:?}"
+    );
+    assert_eq!(gym, original);
+
+    // The same optics, mounting roles, motion, overlap and geometry form a
+    // complete rig when the configured metric radius reaches the ceiling.
+    let mut feasible = policy;
+    feasible.multiview.as_mut().unwrap().max_baseline = 16.;
+    qualify_metric_rig(gym, feasible);
+}
+
 macro_rules! production_cases {
     ($($name:ident: $seed:literal),* $(,)?) => {
         $(
@@ -570,7 +610,6 @@ production_cases! {
     production_65332066: 65332066,
     production_65332074: 65332074,
     production_65332297: 65332297,
-    production_65332518: 65332518,
     production_65332524: 65332524,
     production_65332852: 65332852,
     production_65333746: 65333746,

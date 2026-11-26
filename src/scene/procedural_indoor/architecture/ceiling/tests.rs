@@ -12,37 +12,41 @@ fn reported_65904936_ceiling_installation_is_valid() {
 }
 
 fn validate_reported_ceiling_seed(seed: u64) {
-    let mut scene =
-        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-    let plan = scene.ceiling_installation.as_ref().unwrap();
-    // Replay the installation on this footprint before rugs were fitted.
-    // Check every module, its pose and its suspension survive furnishing.
-    let mut bare = scene.clone();
+    let reported_room = || IndoorManifest::initial_mixed_fixture(seed, 0.65, 0, 0.).unwrap();
+    let historical = reported_room();
+    let plan = historical.ceiling_installation.as_ref().unwrap();
+    // Replay the reported installation before rugs were fitted. New venues
+    // in Mixed can legitimately have no suspended ceiling at this same seed.
+    let mut bare = historical.clone();
     bare.rug_supports.clear();
     bare.objects.clear();
     bare.ceiling_installation = None;
     assert!(!plan.modules.is_empty());
     assert_eq!(plan, &CeilingInstallation::sample(&bare));
-    plan.validate(&scene).unwrap();
-    crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
-    crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
 
+    let current_room =
+        || IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let policy = crate::scene::procedural_indoor::cameras::CameraSettings::parse(include_str!(
         "../../cameras/ceiling/tests/mixed_training_camera_settings.json"
     ))
     .unwrap();
-    let started = std::time::Instant::now();
-    scene.resample_cameras(8, policy.clone(), 1.).unwrap();
-    crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
-    eprintln!(
-        "seed {}: eight-view placement in {:.4}s",
-        scene.seed,
-        started.elapsed().as_secs_f64()
-    );
-    let mut replay =
-        IndoorManifest::generate_with_humans(scene.seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
-    replay.resample_cameras(8, policy, 1.).unwrap();
-    assert_eq!(scene, replay);
+    for (mut scene, mut replay) in [
+        (historical, reported_room()),
+        (current_room(), current_room()),
+    ] {
+        scene
+            .ceiling_installation
+            .as_ref()
+            .unwrap()
+            .validate(&scene)
+            .unwrap();
+        crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
+        crate::scene::procedural_indoor::validation::validate_geometry(&scene).unwrap();
+        scene.resample_cameras(8, policy.clone(), 1.).unwrap();
+        crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
+        replay.resample_cameras(8, policy.clone(), 1.).unwrap();
+        assert_eq!(scene, replay);
+    }
 }
 
 #[test]
