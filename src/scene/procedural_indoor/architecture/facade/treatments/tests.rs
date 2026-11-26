@@ -672,3 +672,6 @@ mod vertical_vanes;
 
 #[path = "roller_tests.rs"]
 mod roller_hardware;
+
+#[path = "playback_tests.rs"]
+mod playback;

@@ -8,7 +8,8 @@ impl Assembly {
                     || p.chair_swivel_degrees > 0.)
                 && (kind != MotionKind::Prop
                     || p.prop_travel_m > 0.
-                    || p.prop_rotation_degrees > 0.)
+                    || p.prop_rotation_degrees > 0.
+                    || (p.prop_pickup_fraction > 0. && p.prop_lift_m > 0.))
                 && (kind != MotionKind::Cart || p.cart_travel_m > 0.)
                 && (kind != MotionKind::Fan || p.fan_turns[1] > 0.)
                 && stream(seed, 0x4d4f544e).random_bool(p.fraction(kind) as f64)
@@ -87,6 +88,20 @@ pub(crate) fn endpoint(seed: u64, start: f32, max: f32) -> f32 {
     }
 }
 
+pub(crate) fn fan_rotor(seed: u64, pivot: Vec3, axis: Vec3, turns: [f32; 2]) -> Joint {
+    let mut rng = stream(seed, 0x5350494e);
+    let revolutions = rng.random_range(turns[0]..=turns[1]);
+    let direction = if rng.random_bool(0.2) { -1. } else { 1. };
+    rigid(
+        MotionKind::Fan,
+        seed,
+        pivot,
+        axis,
+        revolutions * std::f32::consts::TAU * direction,
+        Vec3::ZERO,
+    )
+}
+
 /// Keep the closed/rest mesh identical; split only the operated leaf. Hardware
 /// and labels built by the closure belong to the same rigid mechanism.
 pub(crate) fn hinged(
@@ -148,6 +163,6 @@ pub(crate) fn morph(
 }
 
 /// Add a single supported body after material/semantic keys are finalized.
-pub(crate) fn movable(a: &mut Assembly, o: &super::super::layout::IndoorObject) {
-    super::mobility::construct(a, o);
+pub(crate) fn movable(a: &mut Assembly, o: &super::super::layout::IndoorObject, version: u32) {
+    super::mobility::construct(a, o, version);
 }

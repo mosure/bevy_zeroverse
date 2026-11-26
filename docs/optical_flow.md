@@ -33,6 +33,9 @@ The source and target cameras use their own captured projections and world
 transforms, including FOV changes. Mesh correspondences include entity motion,
 scene/parent transforms, same-topology vertex deformation, and Bevy four-weight
 skeletal skinning. Indoor actors' clothing, hair and accessories participate.
+The pinhole rasterizer interpolates the homogeneous displacement between the two
+projected endpoints. This keeps valid foreground flow at zero during a stationary
+hold, including on thin triangles seen at grazing angles.
 Both endpoints use the same controlled `Playback` samples as RGB and poses.
 Warm-up, shader compilation, modality switching, paused capture cameras and
 asynchronous readback do not advance or discard correspondence history.

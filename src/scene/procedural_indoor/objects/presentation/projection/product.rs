@@ -53,6 +53,8 @@ pub struct Installation {
     pub deployment: Deployment,
     pub coating: Coating,
     pub full_image_height_m: f32,
+    pub sheet_border_m: f32,
+    pub stock_length_m: f32,
     pub housing_width_m: f32,
     pub pull_length_m: f32,
     pub pull_x_m: f32,
@@ -203,6 +205,12 @@ pub(super) fn parameters(o: &IndoorObject) -> ScreenProgram {
             deployment: product.deployment,
             coating,
             full_image_height_m: h,
+            sheet_border_m: border,
+            stock_length_m: if framed {
+                h + 2. * border
+            } else {
+                border + h + leader
+            },
             housing_width_m: w,
             pull_length_m: w * product.pull,
             pull_x_m: x + w * product.pull_x,

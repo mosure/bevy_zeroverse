@@ -202,6 +202,33 @@ fn active_pixels(seed: u64, kind: DisplayKind, p: &ScreenProgram) -> Vec<u8> {
         DisplayKind::Television => tv::pixels(seed),
     }
 }
+pub(crate) fn next_page(initial_seed: u64, kind: DisplayKind, page_seed: u64) -> Image {
+    let mut p = parameters_for(initial_seed, kind);
+    let seed = device_seed(page_seed, kind);
+    let mut page = stream(seed, u64::from_le_bytes(*b"NextPage"));
+    let next_minute = (p.minutes + 1) % 1440;
+    if p.ambient_clock.is_none() {
+        if page.random_bool(0.45) {
+            // Switch apps or slides while the physical panel and cover stay put.
+            p = device_parameters(seed, kind);
+            p.ambient_clock = None;
+        } else {
+            // Refresh documents within the existing window layout and OS chrome.
+            for region in &mut p.composition.regions {
+                region.seed = page.random();
+            }
+        }
+    }
+    p.minutes = next_minute;
+    content_image(seed, kind, &p)
+}
+
+fn content_image(seed: u64, kind: DisplayKind, p: &ScreenProgram) -> Image {
+    let mut image = mip_image(active_pixels(seed, kind, p), 256, MapType::Color);
+    image.sampler = ImageSampler::linear();
+    image
+}
+
 pub(super) struct PreparedScreen {
     finish: display_finish::DisplayFinish,
     roughness: Option<Image>,
@@ -213,11 +240,7 @@ pub(super) struct PreparedScreen {
 pub(super) fn prepare(seed: u64, kind: DisplayKind) -> PreparedScreen {
     let seed = device_seed(seed, kind);
     let p = device_parameters(seed, kind);
-    let content = (!p.dormant).then(|| {
-        let mut image = mip_image(active_pixels(seed, kind, &p), 256, MapType::Color);
-        image.sampler = ImageSampler::linear();
-        image
-    });
+    let content = (!p.dormant).then(|| content_image(seed, kind, &p));
     let roughness = p.finish.prepare(seed, None);
     PreparedScreen {
         finish: p.finish,

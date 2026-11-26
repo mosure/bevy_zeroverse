@@ -363,7 +363,7 @@ pub(super) fn build_object_at_version(
             }
             parts
         });
-    super::motion::construction::movable(&mut a, o);
+    super::motion::construction::movable(&mut a, o, version);
     // Finish relabeling must keep articulation references aligned with meshes.
     for (id, joint) in a.joints.iter_mut().enumerate() {
         joint.parts = a

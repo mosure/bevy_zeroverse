@@ -33,6 +33,7 @@ pub fn validate(
             }
             // Backward-compatible interpretation of older capture receipts.
             moving_classes.extend(match m.kind {
+                MotionKind::TeachingBoard => vec![SemanticLabel::Whiteboard],
                 MotionKind::Chair => vec![SemanticLabel::Chair],
                 MotionKind::Fan => vec![SemanticLabel::CeilingFan],
                 MotionKind::Door => vec![SemanticLabel::Door, SemanticLabel::DoorHardware],

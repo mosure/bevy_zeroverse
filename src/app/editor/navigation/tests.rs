@@ -84,6 +84,41 @@ fn control_catalog_has_unique_groups_and_task_specific_ownership() {
             "people.motion-selection",
         ),
         (Page::People, "/indoor_motion/fan_turns/1", "people.fans"),
+        (
+            Page::People,
+            "/indoor_motion/teaching_board_fraction",
+            "people.motion-selection",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/operation_return_fraction",
+            "people.motion-selection",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/desk_fan_fraction",
+            "people.motion-selection",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/projection_screen_fraction",
+            "people.motion-selection",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/prop_lift_m",
+            "people.motion-travel",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/screen_change_fraction",
+            "people.appearance-motion",
+        ),
+        (
+            Page::People,
+            "/indoor_motion/light_change_fraction",
+            "people.appearance-motion",
+        ),
         (Page::View, "/annotation_glass", "view.geometry"),
         (Page::View, "/preview_aa", "view.rgb"),
         (Page::View, "/orbit_smoothness", "view.navigation"),

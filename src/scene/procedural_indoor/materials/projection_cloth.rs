@@ -74,7 +74,15 @@ pub(super) fn install(
             let p = projection::parameters(o);
             let i = p.installation.unwrap();
             used[0] = true;
-            if p.surface_hi.y > p.surface_lo.y {
+            if p.surface_hi.y > p.surface_lo.y
+                || scene.indoor_motion.as_ref().is_some_and(|m| {
+                    projection::deployment_selected(
+                        o,
+                        scene.generator_version,
+                        m.policy.projection_screen_fraction,
+                    )
+                })
+            {
                 used[1 + i.coating as usize] = true;
             }
         }

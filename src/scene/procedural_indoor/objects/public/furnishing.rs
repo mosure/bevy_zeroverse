@@ -69,7 +69,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::Lectern {
         lectern(a, o, &p);
     } else {
-        board(a, o, &p);
+        board(a, o, &p, version);
     }
 }
 fn lectern(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
@@ -181,13 +181,13 @@ fn board_section(o: &IndoorObject, p: &TeachingProgram) -> (Vec3, Transform) {
         Transform::from_xyz(0., bottom + h * 0.5, z).with_rotation(Quat::from_rotation_x(tilt));
     (Vec3::new(w, h, d), tf)
 }
-fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
+fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram, version: u32) {
     let (size, pose) = board_section(o, p);
     if let Some(board) = &p.writing_board {
         let carrier = size.with_x(board.carrier_width_m);
         let mount = pose.with_translation(pose.translation + board.carrier_x_m * Vec3::X);
         board_stand(a, o, p, carrier, mount, board.post_center_x_m);
-        board.build(a, p.finish, size, pose);
+        board.build(a, o, p.finish, size, pose, version);
     } else {
         board_stand(a, o, p, size, pose, 0.);
         legacy_leaves(a, o, p, size, pose);

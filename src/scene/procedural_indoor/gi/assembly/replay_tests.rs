@@ -774,6 +774,7 @@ fn rest_pose_irradiance_does_not_leave_a_light_behind_after_the_lamp_moves() {
     assert!(baked(&room));
     let mut report = IndoorMotionReport::new(default());
     report.mechanisms.push(MechanismReport {
+        operation_cycle: None,
         object_id: Some(0),
         carried_object_ids: vec![],
         semantic_labels: vec!["lamp".into()],
@@ -789,6 +790,9 @@ fn rest_pose_irradiance_does_not_leave_a_light_behind_after_the_lamp_moves() {
         axis: Vec3::Y,
         attempts: 1,
         adaptation: None,
+        lift_m: 0.,
+        requested_lift_m: 0.,
+        projection_screen_travel: None,
         requested_translation_m: Vec3::X * 0.12,
         requested_angle_radians: 0.,
     });

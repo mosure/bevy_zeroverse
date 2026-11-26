@@ -394,6 +394,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn temporal_room_controls_share_the_cli_and_sparse_studio_url() {
+        use crate::scene::procedural_indoor::motion;
+        let policy = r#"{"prop_pickup_fraction":0.75,"prop_lift_m":0.21,"screen_change_fraction":0.37,"light_change_fraction":0.5,"desk_fan_fraction":0.63,"projection_screen_fraction":0.78,"teaching_board_fraction":0.42,"operation_return_fraction":0.81}"#;
+        let cli =
+            BevyZeroverseConfig::try_parse_from(["bevy_zeroverse", "--indoor-motion", policy])
+                .unwrap();
+        let base = web_viewer_defaults();
+        let parsed = parse(
+            base.clone(),
+            [
+                ("object_motion.prop_pickup_fraction".into(), "0.75".into()),
+                ("object_motion.prop_lift_m".into(), "0.21".into()),
+                ("object_motion.screen_change_fraction".into(), "0.37".into()),
+                ("object_motion.light_change_fraction".into(), "0.5".into()),
+                (
+                    "object_motion.projection_screen_fraction".into(),
+                    "0.78".into(),
+                ),
+                (
+                    "object_motion.teaching_board_fraction".into(),
+                    "0.42".into(),
+                ),
+                (
+                    "object_motion.operation_return_fraction".into(),
+                    "0.81".into(),
+                ),
+                ("object_motion.desk_fan_fraction".into(), "0.63".into()),
+            ],
+        )
+        .unwrap();
+        let policy_of = |c: &BevyZeroverseConfig| {
+            motion::IndoorMotionConfig::parse(c.indoor_motion.as_ref().unwrap()).unwrap()
+        };
+        assert_eq!(policy_of(&cli), policy_of(&parsed));
+        let url = encode(&parsed, &Default::default());
+        assert!(url.contains("object_motion.screen_change_fraction="));
+        assert!(url.contains("object_motion.desk_fan_fraction="));
+        assert!(url.contains("object_motion.projection_screen_fraction="));
+        assert!(url.contains("object_motion.operation_return_fraction="));
+        assert!(url.contains("object_motion.teaching_board_fraction="));
+        assert_eq!(
+            policy_of(&parse(base, decode(&url)).unwrap()),
+            policy_of(&cli)
+        );
+    }
+
+    #[test]
     fn interval_links_accept_cli_and_saved_playback_modes() {
         for &mode in crate::camera::PlaybackMode::value_variants() {
             let possible = mode.to_possible_value().unwrap();

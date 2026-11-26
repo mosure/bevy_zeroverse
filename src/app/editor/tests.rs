@@ -844,6 +844,25 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     edit(&mut state, "@indoor_motion", json!(true)).unwrap();
     edit(&mut state, "/indoor_motion/chair_fraction", json!(0.8)).unwrap();
     edit(&mut state, "/indoor_motion/fan_fraction", json!(1.0)).unwrap();
+    edit(
+        &mut state,
+        "/indoor_motion/projection_screen_fraction",
+        json!(0.84),
+    )
+    .unwrap();
+    edit(
+        &mut state,
+        "/indoor_motion/teaching_board_fraction",
+        json!(0.52),
+    )
+    .unwrap();
+    edit(
+        &mut state,
+        "/indoor_motion/operation_return_fraction",
+        json!(0.81),
+    )
+    .unwrap();
+    edit(&mut state, "/indoor_motion/desk_fan_fraction", json!(0.45)).unwrap();
     edit(&mut state, "/indoor_motion/appliance_fraction", json!(0.9)).unwrap();
     edit(&mut state, "/indoor_motion/prop_fraction", json!(1.0)).unwrap();
     edit(&mut state, "/indoor_motion/cart_fraction", json!(1.0)).unwrap();
@@ -873,6 +892,10 @@ fn room_motion_controls_roundtrip_without_enabling_human_models() {
     )
     .unwrap();
     assert_eq!(policy.fan_fraction, 1.);
+    assert_eq!(policy.desk_fan_fraction, 0.45);
+    assert_eq!(policy.projection_screen_fraction, 0.84);
+    assert_eq!(policy.teaching_board_fraction, 0.52);
+    assert_eq!(policy.operation_return_fraction, 0.81);
     assert_eq!(policy.appliance_fraction, 0.9);
     assert_eq!(policy.prop_fraction, 1.);
     assert_eq!(policy.cart_fraction, 1.);

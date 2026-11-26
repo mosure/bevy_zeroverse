@@ -31,6 +31,8 @@ pub struct Hinge {
     pub axis_x_m: f32,
     /// Signed yaw about the real pin. Outer edges swing toward the audience.
     pub angle_rad: f32,
+    /// Signed forward travel limit for this fitted leaf, measured from flat.
+    pub stop_rad: f32,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -149,6 +151,7 @@ impl Installation {
                 Hinge {
                     axis_x_m: flat_x_m - side * (width + gap) * 0.5,
                     angle_rad: -side * opened,
+                    stop_rad: -side * limit,
                 }
             });
             let start = chart_x;

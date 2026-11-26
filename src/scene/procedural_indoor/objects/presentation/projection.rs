@@ -1,8 +1,10 @@
 //! Projection screen construction and the exact optical target surface.
 use super::*;
 mod construction;
+mod deployment;
 mod legacy;
 mod product;
+pub(crate) use deployment::selected as deployment_selected;
 pub(crate) use product::dimensions;
 pub use product::{Coating, Deployment, Installation, Mechanism, ScreenFormat};
 pub(crate) const INSTALLED: u32 = 1 << 8;
@@ -62,10 +64,10 @@ pub fn parameters(o: &IndoorObject) -> ScreenProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     if let Some(i) = &p.installation {
-        construction::build(a, o, &p, i);
+        construction::build(a, o, &p, i, version);
     } else {
         legacy::build(a, o, &p);
     }

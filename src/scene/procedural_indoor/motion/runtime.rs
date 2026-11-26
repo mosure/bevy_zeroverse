@@ -1,9 +1,10 @@
 use super::*;
-use bevy::camera::primitives::Aabb;
+use bevy::{camera::primitives::Aabb, mesh::VertexAttributeValues};
 
 pub struct IndoorMotionPlugin;
 impl Plugin for IndoorMotionPlugin {
     fn build(&self, app: &mut App) {
+        super::appearance::install(app);
         app.init_resource::<crate::sample::CaptureFailure>()
             .add_systems(
                 Update,
@@ -42,6 +43,8 @@ impl AnimatedLight {
         let mut joint =
             construction::rigid(m.kind, 0, m.pivot, m.axis, m.angle_radians, m.translation_m);
         joint.interval = m.interval;
+        joint.operation_cycle = m.operation_cycle;
+        joint.lift_m = m.lift_m;
         Some(Self {
             joint,
             rest,
@@ -63,15 +66,24 @@ fn animate_lights(
     }
 }
 
+/// Topology and UVs live on the render mesh. Only retain the endpoint
+/// attributes that can actually change during playback.
+struct MorphVertices {
+    positions: [Vec<[f32; 3]>; 2],
+    normals: Option<[Vec<[f32; 3]>; 2]>,
+}
+
 #[derive(Component)]
 pub(crate) struct AnimatedPart {
     joint: Joint,
-    morph: Option<(Geometry, Geometry)>,
+    morph: Option<MorphVertices>,
     last: Option<f32>,
 }
 impl AnimatedPart {
     pub(crate) fn new(joint: &Joint, key: &(Surface, String), geometry: &Geometry) -> Self {
         let sampler = Joint {
+            program_seed: joint.program_seed,
+            operation_cycle: joint.operation_cycle,
             kind: joint.kind,
             interval: joint.interval,
             pivot: joint.pivot,
@@ -80,6 +92,7 @@ impl AnimatedPart {
             axis: joint.axis,
             angle: joint.angle,
             translation: joint.translation,
+            lift_m: joint.lift_m,
             parts: vec![],
             morph: default(),
             accepted: true,
@@ -88,12 +101,17 @@ impl AnimatedPart {
             attachment: None,
             adjustment: joint.adjustment,
         };
+        let morph = joint.morph.get(key).map(|end| MorphVertices {
+            positions: [geometry.positions.clone(), end.positions.clone()],
+            normals: (!matches!(
+                sampler.cloth_motion,
+                Some(ClothMotion::ProjectionScreen { .. })
+            ))
+            .then(|| [geometry.normals.clone(), end.normals.clone()]),
+        });
         Self {
             joint: sampler,
-            morph: joint
-                .morph
-                .get(key)
-                .map(|end| (geometry.clone(), end.clone())),
+            morph,
             last: Some(0.),
         }
     }
@@ -110,53 +128,47 @@ fn animate(
         if part.last == Some(amount) {
             continue;
         }
-        if let Some((start, end)) = &part.morph {
+        if let Some(morph) = &part.morph {
+            let [start, end] = &morph.positions;
             let Some(mut mesh) = meshes.get_mut(&mesh.0) else {
                 continue;
             };
             let t = amount * part.joint.adjustment.morph;
-            let positions = start
-                .positions
-                .iter()
-                .zip(&end.positions)
-                .map(|(a, b)| (Vec3::from_array(*a), Vec3::from_array(*b)));
-            let p: Vec<_> = if let Some(sample) = part.joint.cloth_motion.map(|law| law.at(t)) {
-                positions
-                    .map(|(a, b)| sample.interpolate(a, b, t).to_array())
-                    .collect()
-            } else {
-                positions.map(|(a, b)| a.lerp(b, t).to_array()).collect()
+            let Some(VertexAttributeValues::Float32x3(positions)) =
+                mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+            else {
+                failure.0 = Some("articulated cloth is missing its position buffer".into());
+                return;
             };
-            let (lo, hi) = p.iter().map(|p| Vec3::from_array(*p)).fold(
-                (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
-                |(a, b), p| (a.min(p), b.max(p)),
-            );
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, p);
-            // Actual deformed surface frames: no stale normals or tangents when
-            // folding cloth. Indices and entity/mesh IDs stay fixed.
-            mesh.compute_smooth_normals();
-            // Rounded mechanical parts contain collapsed bevel triangles with
-            // analytic normals. Preserve stationary vertices and use the
-            // validated endpoint frame when a triangulated normal vanishes.
-            if let Some(bevy::mesh::VertexAttributeValues::Float32x3(normals)) =
-                mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
-            {
-                for (i, n) in normals.iter_mut().enumerate() {
-                    let normal = Vec3::from_array(*n);
-                    if start.positions[i] == end.positions[i] && start.normals[i] == end.normals[i]
-                    {
-                        *n = start.normals[i];
-                    } else if !normal.is_finite() || normal.length_squared() < 1e-8 {
-                        *n = Vec3::from_array(start.normals[i])
-                            .lerp(
-                                Vec3::from_array(end.normals[i]),
-                                amount * part.joint.adjustment.morph,
-                            )
-                            .normalize_or(Vec3::from_array(start.normals[i]))
-                            .to_array();
-                    }
-                }
+            let law = part.joint.cloth_motion.map(|law| law.at(t));
+            let (mut lo, mut hi) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+            if positions.len() != start.len() || positions.len() != end.len() {
+                failure.0 = Some("articulated cloth position buffer changed vertex count".into());
+                return;
             }
+            for ((out, &a), &b) in positions.iter_mut().zip(start).zip(end) {
+                let (a, b) = (Vec3::from_array(a), Vec3::from_array(b));
+                let p = if t == 0. {
+                    a
+                } else if t == 1. {
+                    b
+                } else if let Some(sample) = law {
+                    sample.interpolate(a, b, t)
+                } else {
+                    a.lerp(b, t)
+                };
+                *out = p.to_array();
+                lo = lo.min(p);
+                hi = hi.max(p);
+            }
+            *aabb = Aabb::from_min_max(lo, hi);
+            // A flat screen only feeds along a chart axis. Every face retains
+            // its analytic normal and tangent, including the narrow stock edges.
+            let Some(normals) = &morph.normals else {
+                part.last = Some(amount);
+                continue;
+            };
+            update_normals(&mut mesh, &morph.positions, normals, t);
             if mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_some() {
                 if let Err(error) = mesh.generate_tangents() {
                     failure.0 = Some(format!(
@@ -166,11 +178,46 @@ fn animate(
                 }
                 super::super::geometry::repair_tangent_frames(&mut mesh);
             }
-            *aabb = Aabb::from_min_max(lo, hi);
         } else {
             *transform = part.joint.transform(amount);
         }
         part.last = Some(amount);
+    }
+}
+/// Authored endpoint normals include smooth bevels and cloth creases that a
+/// triangle average cannot recover. Intermediate folds still need a new frame.
+fn update_normals(
+    mesh: &mut Mesh,
+    [start, end]: &[Vec<[f32; 3]>; 2],
+    [a, b]: &[Vec<[f32; 3]>; 2],
+    t: f32,
+) {
+    if t == 0. || t == 1. {
+        let frame = if t == 0. { a } else { b };
+        if let Some(VertexAttributeValues::Float32x3(normals)) =
+            mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
+        {
+            normals.copy_from_slice(frame);
+        } else {
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, frame.clone());
+        }
+        return;
+    }
+    mesh.compute_smooth_normals();
+    if let Some(VertexAttributeValues::Float32x3(normals)) =
+        mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL)
+    {
+        for (i, n) in normals.iter_mut().enumerate() {
+            let normal = Vec3::from_array(*n);
+            if start[i] == end[i] && a[i] == b[i] {
+                *n = a[i];
+            } else if !normal.is_finite() || normal.length_squared() < 1e-8 {
+                *n = Vec3::from_array(a[i])
+                    .lerp(Vec3::from_array(b[i]), t)
+                    .normalize_or(Vec3::from_array(a[i]))
+                    .to_array();
+            }
+        }
     }
 }
 fn bounds(

@@ -118,7 +118,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         ObjectKind::WallShelf => return wall_shelf::build(a, o, version),
         ObjectKind::CeilingPendant => return pendant::build(a, o),
         ObjectKind::WallSconce => return sconce::build(a, o),
-        ObjectKind::ProjectionScreen => return super::presentation::screen(a, o),
+        ObjectKind::ProjectionScreen => return super::presentation::screen(a, o, version),
         _ => {}
     }
     let p = parameters_at(o, version);

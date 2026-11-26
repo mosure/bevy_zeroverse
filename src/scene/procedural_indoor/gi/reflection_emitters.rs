@@ -18,7 +18,8 @@ impl ReflectionEmitters {
         for (i, position) in positions.iter().copied().enumerate() {
             let (area, aperture) = architecture::fixtures::reflection_aperture(scene, position);
             let (color, lumens) = architecture::fixture_photometry_at(scene, i, &positions);
-            let luminance = lumens / (PI * area);
+            let luminance = lumens / (PI * area)
+                * super::super::motion::LightSource::Ceiling(i).baked_multiplier(scene);
             let color = linear(source_color(scene, color));
             emission.push(color * luminance);
             append_face_triangles(&mut triangles, &aperture, i, None);
@@ -63,7 +64,10 @@ impl ReflectionEmitters {
                 emission.len(),
                 Some(o.transform()),
             );
-            emission.push(Vec3::new(c.red, c.green, c.blue));
+            emission.push(
+                Vec3::new(c.red, c.green, c.blue)
+                    * super::super::motion::LightSource::Object(o.id).baked_multiplier(scene),
+            );
         }
         objects::equipment::signals::strings::reflection_apertures(scene, |geometry, tf, c| {
             append_face_triangles(&mut triangles, geometry, emission.len(), Some(tf));

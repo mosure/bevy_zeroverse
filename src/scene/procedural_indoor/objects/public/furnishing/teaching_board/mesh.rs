@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene::procedural_indoor::motion::{self, MotionKind};
 const CLASS: &str = "whiteboard";
 
 fn corners(half: Vec2, z: f32) -> [Vec3; 4] {
@@ -15,18 +16,45 @@ impl Installation {
     pub(in super::super) fn build(
         &self,
         a: &mut Assembly,
+        o: &IndoorObject,
         frame: Surface,
         size: Vec3,
         pose: Transform,
+        version: u32,
     ) {
-        for leaf in &self.leaves {
+        for (index, leaf) in self.leaves.iter().enumerate() {
             let mut sheet = Assembly::default();
             self.sheet(&mut sheet, frame, leaf, size);
             let swing = self.swing(leaf.hinge, size.z);
             let flat = Transform::from_xyz(leaf.flat_x_m, 0., 0.);
-            append_at(a, sheet, pose.mul_transform(swing).mul_transform(flat));
-            if let Some(h) = leaf.hinge {
-                self.mount(a, h, leaf, size, pose);
+            let placed = pose.mul_transform(swing).mul_transform(flat);
+            let seed = o.seed ^ u64::from_le_bytes(*b"BoardArm") ^ index as u64;
+            if let Some(h) = leaf.hinge.filter(|h| {
+                version >= motion::OPERATION_CYCLE_VERSION
+                    && h.stop_rad.abs() > 0.01
+                    && a.motion_selected(MotionKind::TeachingBoard, seed)
+            }) {
+                let pin = pose.transform_point(self.pivot(h, size.z));
+                let target = h.stop_rad.signum()
+                    * motion::construction::endpoint(seed, h.angle_rad.abs(), h.stop_rad.abs());
+                let mut joint = motion::construction::rigid(
+                    MotionKind::TeachingBoard,
+                    seed,
+                    pin,
+                    pose.rotation * Vec3::Y,
+                    target - h.angle_rad,
+                    Vec3::ZERO,
+                );
+                joint.frame = Transform::from_translation(pin).with_rotation(placed.rotation);
+                let contact = format!("contact_board_pin{index}");
+                let mut wing = Assembly::default();
+                append_at(&mut wing, sheet, placed);
+                self.mount(a, Some((&mut wing, &contact)), leaf, size, pose);
+                joint.attachment = Some(contact);
+                a.articulated(wing, joint);
+            } else {
+                append_at(a, sheet, placed);
+                self.mount(a, None, leaf, size, pose);
             }
         }
         if let Some(t) = &self.ledge {
@@ -104,7 +132,15 @@ impl Installation {
         }
     }
 
-    fn mount(&self, a: &mut Assembly, h: Hinge, leaf: &Leaf, size: Vec3, pose: Transform) {
+    fn mount(
+        &self,
+        a: &mut Assembly,
+        mut moving: Option<(&mut Assembly, &str)>,
+        leaf: &Leaf,
+        size: Vec3,
+        pose: Transform,
+    ) {
+        let Some(h) = leaf.hinge else { return };
         let axis = self.pivot(h, size.z);
         let side = (leaf.flat_x_m - h.axis_x_m).signum();
         let reach = (leaf.flat_x_m - h.axis_x_m).abs() - leaf.width_m * 0.5 + self.border_m * 0.65;
@@ -130,25 +166,44 @@ impl Installation {
         let turned = pose.mul_transform(self.swing(Some(h), size.z));
         for y in [-1., 1.].map(|s| s * self.hinge_inset_fraction * size.y) {
             let center = axis.with_y(y);
-            a.part(Surface::Metal, CLASS).lathe(
-                &profile,
-                12,
-                pose.mul_transform(Transform::from_translation(center)),
-            );
+            let spindle = pose.mul_transform(Transform::from_translation(center));
+            if let Some((wing, contact)) = &mut moving {
+                // The bearing gets one continuous fixed axle and a separate
+                // middle sleeve. The bore sits just inside the axle's inradius
+                // so turning its polygonal cross-section never exposes a crack.
+                let mut fixed = profile;
+                fixed[5].0 = pin;
+                fixed[6].0 = pin;
+                a.part(Surface::Metal, &format!("{CLASS}#{contact}"))
+                    .lathe(&fixed, 12, spindle);
+                let sleeve = [
+                    (pin * 0.90, profile[5].1),
+                    profile[5],
+                    profile[6],
+                    (pin * 0.90, profile[6].1),
+                ];
+                wing.part(Surface::Metal, CLASS).lathe(&sleeve, 12, spindle);
+            } else {
+                a.part(Surface::Metal, CLASS).lathe(&profile, 12, spindle);
+            }
             // Outer knuckles fasten to the stationary leaf. The middle strap
             // follows the moving leaf around the same pin.
             for part in [-1, 0, 1] {
-                let moving = part == 0;
-                let dx = if moving { side } else { -side };
+                let on_wing = part == 0;
+                let dx = if on_wing { side } else { -side };
                 let p = Vec3::new(
                     axis.x + dx * reach * 0.5,
                     y + part as f32 * height / 3.,
                     size.z * 0.5 + 0.0007,
                 );
-                a.part(Surface::Metal, CLASS).cuboid(
+                let dst = match &mut moving {
+                    Some((wing, _)) if on_wing => &mut **wing,
+                    _ => &mut *a,
+                };
+                dst.part(Surface::Metal, CLASS).cuboid(
                     Vec3::new(reach, height / 3. - 2. * groove, 0.0014),
                     0.,
-                    (if moving { turned } else { pose })
+                    (if on_wing { turned } else { pose })
                         .mul_transform(Transform::from_translation(p)),
                 );
             }

@@ -60,7 +60,7 @@ fn leaves_swing_within_the_stand_and_their_load_stays_between_its_feet() {
             let side = (leaf.flat_x_m - hinge.axis_x_m).signum();
             for t in 0..=8 {
                 let h = Hinge {
-                    angle_rad: hinge.angle_rad * t as f32 / 8.,
+                    angle_rad: hinge.stop_rad * t as f32 / 8.,
                     ..hinge
                 };
                 let rotation = board.swing(Some(h), size.z);
@@ -95,6 +95,29 @@ fn leaves_swing_within_the_stand_and_their_load_stays_between_its_feet() {
                 && mass_center.z.abs() < o.size.z * p.foot_depth * 0.5,
             "product {seed} is top-heavy"
         );
+        // Each wing can be parked independently at either mechanical stop.
+        for mask in 0..1 << board.leaves.len() {
+            let mut center = Vec3::ZERO;
+            for (index, leaf) in board.leaves.iter().enumerate() {
+                let hinge = leaf.hinge.map(|h| Hinge {
+                    angle_rad: if mask & (1 << index) == 0 {
+                        0.
+                    } else {
+                        h.stop_rad
+                    },
+                    ..h
+                });
+                let c = board
+                    .swing(hinge, size.z)
+                    .transform_point(Vec3::X * leaf.flat_x_m);
+                center += pose.transform_point(c) * (leaf.width_m / mass);
+            }
+            assert!(
+                (center.x - board.post_center_x_m).abs() < feet
+                    && center.z.abs() < o.size.z * p.foot_depth * 0.5,
+                "wing stops destabilize stand {seed}"
+            );
+        }
         let built = build_object(&o);
         audit::check(&o, &built).unwrap();
         if let Some(pad) = board.foot_pads {

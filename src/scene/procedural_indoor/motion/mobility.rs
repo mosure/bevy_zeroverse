@@ -7,14 +7,14 @@ use super::super::{
 };
 use super::*;
 
-pub(super) fn construct(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn construct(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if a.motion_policy.is_none() || !a.joints.is_empty() {
         return;
     }
     use ObjectKind::*;
     let kind = match o.kind {
         Chair if o.variant < 11 && !objects::seating::is_recliner(o) => MotionKind::Chair,
-        MobileCart => MotionKind::Cart,
+        MobileCart if o.support.is_none() || version < ROTOR_CARGO_VERSION => MotionKind::Cart,
         // Fixed/mounted versions are excluded by requiring a surface relationship.
         Laptop | Monitor | Phone | Keyboard | Mouse | Notebook | Notepad | Pencil | Books
         | WaterBottle | Mug | CoffeeCup | SodaCan | PenHolder | Microphone | Headphones
@@ -44,6 +44,41 @@ pub(super) fn construct(a: &mut Assembly, o: &IndoorObject) {
     let angle =
         turn.to_radians() * r.random_range(0.35..1.) * if r.random_bool(0.5) { -1. } else { 1. };
     let mut joint = construction::rigid(kind, o.seed, Vec3::ZERO, Vec3::Y, angle, translation);
+    if version >= TEMPORAL_PROGRAM_VERSION
+        && kind == MotionKind::Prop
+        && o.support.is_some()
+        && p.prop_pickup_fraction > 0.
+        && p.prop_lift_m > 0.
+        && matches!(
+            o.kind,
+            Phone
+                | Pencil
+                | Mouse
+                | Notebook
+                | Notepad
+                | CoffeeCup
+                | Mug
+                | WaterBottle
+                | SodaCan
+                | Flatware
+                | Sponge
+                | Stapler
+                | Headphones
+                | Microphone
+                | Bread
+        )
+    {
+        let mut pick = stream(o.seed, u64::from_le_bytes(*b"PickLift"));
+        if pick.random::<f32>() < p.prop_pickup_fraction {
+            joint.lift_m = p.prop_lift_m * pick.random_range(0.28..=1.);
+            let duration = pick.random_range(0.24..0.65);
+            let start = pick.random_range(0.0..1. - duration);
+            joint.interval = [start, start + duration];
+        }
+    }
+    if translation == Vec3::ZERO && angle == 0. && joint.lift_m == 0. {
+        return;
+    }
     joint.contact = if o.support.is_some() {
         Contact::Surface
     } else {
@@ -56,29 +91,55 @@ pub(super) fn construct(a: &mut Assembly, o: &IndoorObject) {
     a.articulated(body, joint);
 }
 
-/// A cart and everything recursively supported by it form one admission unit.
-/// Cargo keeps its own mesh, semantic and annotation identity at playback.
-pub(super) fn cargo(scene: &IndoorManifest, g: &SceneGeometry) -> Vec<Vec<usize>> {
-    let mut result = vec![vec![]; scene.objects.len()];
-    for (id, a) in g.objects.iter().enumerate() {
-        if scene.objects[id].kind != ObjectKind::MobileCart
-            || !a.joints.iter().any(|j| j.kind == MotionKind::Cart)
-        {
-            continue;
-        }
+pub(super) struct CartLoads {
+    pub children: Vec<Vec<usize>>,
+    pub cart_for: Vec<Option<usize>>,
+}
+
+/// Resolve each supported item's relationship to the moving floor carts.
+pub(super) fn cargo(scene: &IndoorManifest, g: &mut SceneGeometry) -> CartLoads {
+    let mut loads = CartLoads {
+        children: vec![vec![]; scene.objects.len()],
+        cart_for: vec![None; scene.objects.len()],
+    };
+    let carts: std::collections::HashSet<_> = g
+        .objects
+        .iter()
+        .enumerate()
+        .filter(|(id, a)| {
+            scene.objects[*id].kind == ObjectKind::MobileCart
+                && a.joints.iter().any(|j| j.kind == MotionKind::Cart)
+        })
+        .map(|(id, _)| id)
+        .collect();
+    if !carts.is_empty() {
         for o in &scene.objects {
             let mut parent = o.support;
             for _ in 0..scene.objects.len() {
                 let Some(p) = parent else { break };
-                if p == id {
-                    result[id].push(o.id);
-                    break;
+                if carts.contains(&p) {
+                    loads.children[p].push(o.id);
+                    loads.cart_for[o.id] = Some(p);
+                    if scene.generator_version >= ROTOR_CARGO_VERSION {
+                        // Re-admission after a changed obstacle must recover an
+                        // item's original proposal, even if it was previously
+                        // retagged to ride the cart. First preparation has none
+                        // of these inherited joints and never rebuilds cargo.
+                        if g.objects[o.id]
+                            .joints
+                            .iter()
+                            .any(|j| j.kind == MotionKind::Cart)
+                        {
+                            g.objects[o.id] = objects::build_manifest_object(scene, o);
+                        }
+                        break;
+                    }
                 }
                 parent = scene.objects.get(p).and_then(|o| o.support);
             }
         }
     }
-    result
+    loads
 }
 
 /// Remove motion tags before retagging cargo on repeated preparation. No vertex,
@@ -101,6 +162,9 @@ pub(super) fn carry(scene: &IndoorManifest, g: &mut SceneGeometry, cargo: &[Vec<
         let Some(parent) = g.objects[id].joints.first().cloned() else {
             continue;
         };
+        if !parent.accepted && scene.generator_version >= ROTOR_CARGO_VERSION {
+            continue;
+        }
         let parent_tf = scene.objects[id].transform();
         for &child in children {
             let a = &mut g.objects[child];

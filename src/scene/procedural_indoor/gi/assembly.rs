@@ -150,7 +150,8 @@ impl GeometryTransport {
                 direction: architecture::fixtures::direction(scene, p),
                 position: architecture::fixtures::emitter(scene, p),
                 color: linear(source_color(scene, c)),
-                candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI),
+                candela: architecture::spot_intensity_for_lumens(lumens, inner, outer) / (4.0 * PI)
+                    * super::super::motion::LightSource::Ceiling(i).baked_multiplier(scene),
                 range: 13.0,
                 spot: true,
                 inner_cos: inner.cos(),
@@ -173,7 +174,8 @@ impl GeometryTransport {
                 direction: Vec3::NEG_Y,
                 position: crate::scene::procedural_indoor::objects::standing_lamp::emitter(lamp),
                 color: linear(source_color(scene, power.color)),
-                candela: power.lumens / (4.0 * PI),
+                candela: power.lumens / (4.0 * PI)
+                    * super::super::motion::LightSource::Object(lamp.id).baked_multiplier(scene),
                 range: 5.0,
                 spot: false,
                 inner_cos: 1.0,
@@ -196,7 +198,8 @@ impl GeometryTransport {
                     power.lumens,
                     beam.inner,
                     beam.outer,
-                ) / (4.0 * PI),
+                ) / (4.0 * PI)
+                    * super::super::motion::LightSource::Object(lamp.id).baked_multiplier(scene),
                 range,
                 spot: true,
                 inner_cos: beam.inner.cos(),

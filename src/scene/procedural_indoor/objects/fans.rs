@@ -51,17 +51,11 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
         legacy::build(a, &mut rotor, o, &p);
     }
     if moving {
-        let [lo, hi] = a.motion_policy.as_ref().unwrap().fan_turns;
-        let mut r = stream(o.seed, 0x5350494e);
-        let turns = r.random_range(lo..=hi);
-        let direction = if r.random_bool(0.2) { -1. } else { 1. };
-        let mut joint = construction::rigid(
-            MotionKind::Fan,
+        let mut joint = construction::fan_rotor(
             o.seed,
             Vec3::Y * p.rotor_y,
             Vec3::Y,
-            turns * TAU * direction,
-            Vec3::ZERO,
+            a.motion_policy.as_ref().unwrap().fan_turns,
         );
         if p.product.is_some() {
             joint.attachment = Some(product::AXLE_CONTACT.into());

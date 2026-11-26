@@ -105,6 +105,13 @@ impl MaterialSelection {
 }
 
 impl IndoorMaterials {
+    pub(crate) fn ceiling_emitter(&self, index: usize) -> Option<&Handle<StandardMaterial>> {
+        self.light_variants.get(index)
+    }
+    pub(crate) fn object_emitter(&self, id: usize) -> Option<&Handle<StandardMaterial>> {
+        self.object_emitters.get(&(id, 0))
+    }
+
     /// Build just the material programs referenced by `(surface, part label)`.
     /// Useful for object/material studies. Whole-scene generation already uses
     /// the equivalent selection from its prepared geometry, including people.

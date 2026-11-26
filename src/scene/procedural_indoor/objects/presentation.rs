@@ -23,8 +23,8 @@ pub(super) fn face(a: &mut Assembly, surface: Surface, label: &str, lo: Vec3, hi
 pub(super) fn whiteboard(a: &mut Assembly, o: &IndoorObject) {
     board::build(a, o);
 }
-pub(super) fn screen(a: &mut Assembly, o: &IndoorObject) {
-    projection::build(a, o);
+pub(super) fn screen(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    projection::build(a, o, version);
 }
 
 #[cfg(test)]
