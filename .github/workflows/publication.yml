@@ -26,6 +26,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Contract and failure regression tests
         run: cargo test --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication
+      - name: Build the papers from an empty directory before merge
+        if: github.event_name == 'pull_request'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends latexmk texlive-latex-extra poppler-utils
+          cargo test --locked -p bevy_zeroverse_publication --lib pipeline::paper_tests::cold_stage_binds_current_architecture_and_lens_pages -- --ignored --exact
       - name: Lint publication implementation
         run: cargo clippy --locked -p bevy_zeroverse_capture -p bevy_zeroverse_publication --all-targets -- -D warnings
       - name: Validate the current automatic publication recipe

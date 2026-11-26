@@ -38,17 +38,18 @@ impl Builder<'_> {
             }
         }
         for (right, edge, sign) in [(false, self.lo.x, 1.), (true, self.hi.x, -1.)] {
-            // The return reaches the jamb, and the bearing spans the cheek and
-            // housing end. Bury the ends of the shaft to avoid coincident caps.
+            // Center the mounting plate on the cheek. Its outer edge stays
+            // inside the reveal instead of sharing the jamb's vertical face.
+            let cheek_x = edge + sign * 0.0015;
             self.block(
                 Surface::Metal,
-                Vec3::new(edge - sign * 0.005, y, 0.004),
+                Vec3::new(cheek_x, y, 0.004),
                 Vec3::new(0.018, 0.034, 0.008),
                 0.,
             );
             self.block(
                 Surface::Metal,
-                Vec3::new(edge + sign * 0.0015, y, AXLE_Z * 0.54 + 0.002),
+                Vec3::new(cheek_x, y, AXLE_Z * 0.54 + 0.002),
                 Vec3::new(0.003, 0.027, AXLE_Z * 1.08),
                 0.,
             );

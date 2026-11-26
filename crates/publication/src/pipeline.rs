@@ -698,17 +698,15 @@ pub(crate) fn refresh_locked(
     doors::build(&door_cache, stage, &current)?;
     materials::build(&material_cache, stage, &current)?;
     crate::capacity::publication::build(root, stage, &config.capacity_receipts, &current)?;
-    crate::fisheye::build(root, stage)?;
     if root.join(crate::automation::RECEIPT).is_file() {
         let destination = stage.join(crate::automation::PUBLIC_RECEIPT);
         fs::create_dir_all(destination.parent().unwrap())?;
         fs::copy(root.join(crate::automation::RECEIPT), destination)?;
     }
-    media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
     println!("Compile paper and package its exact dependency closure");
-    paper::compile(stage, &config, &gallery)?;
-    crate::fisheye::bind_paper(stage)?;
+    compile_papers(root, stage, &config, &gallery)?;
+    media::page(&gallery, stage, &config.capture)?;
     ensure!(
         identity(root)? == current && publication_inputs(root, &config)? == before,
         "sources changed during build; no artifacts installed"
@@ -794,11 +792,9 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
         &config.capacity_receipts,
         &attestation.generator_identity,
     )?;
-    crate::fisheye::build(&root, stage)?;
-    media::page(&gallery, stage, &config.capture)?;
     paper::write_sources(&dataset, &gallery, stage, &config)?;
-    paper::compile(stage, &config, &gallery)?;
-    crate::fisheye::bind_paper(stage)?;
+    compile_papers(&root, stage, &config, &gallery)?;
+    media::page(&gallery, stage, &config.capture)?;
     ensure!(
         identity(&root)? == attestation.generator_identity
             && publication_inputs(&root, &config)? == before,
@@ -812,6 +808,16 @@ pub fn rebuild(root: &Path, release_version: Option<&str>) -> Result<()> {
     println!("Rebuilt and verified current page/paper from the attested capture bundle");
     Ok(())
 }
+
+/// The combined whitepaper embeds the architecture PDF and records the digest of
+/// its source archive. Generate both in this stage before building the lens bundle.
+fn compile_papers(root: &Path, stage: &Path, config: &Config, gallery: &Value) -> Result<()> {
+    paper::compile(stage, config, gallery)?;
+    crate::fisheye::build(root, stage)
+}
+
+#[cfg(test)]
+mod paper_tests;
 
 fn rebuild_retained_page(
     root: &Path,

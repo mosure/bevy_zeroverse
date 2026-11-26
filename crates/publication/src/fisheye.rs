@@ -352,9 +352,7 @@ fn compile(output: &Path, name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Append the qualified lens chapter to the main paper without rewriting the
-/// provenance of its architectural measurements. Called again after main-paper
-/// compilation in a full refresh, so the combined PDF cannot retain stale pages.
+/// Bind the lens chapter to the staged architecture PDF and its source archive.
 pub fn bind_paper(stage: &Path) -> Result<()> {
     let output = stage.join(DIRECTORY);
     if !output.join("receipt.json").exists() {
