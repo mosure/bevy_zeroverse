@@ -266,11 +266,12 @@ pub(crate) fn parameters_at(o: &IndoorObject, p: &KitchenProgram, version: u32) 
             let half = basin.floor_half();
             let seed = r.random();
             let diameter = half.min_element() * r.random_range(0.80..1.15);
-            let dish = dishware::parameters(
+            let dish = dishware::parameters_at(
                 Vec3::new(diameter, (top - basin.floor_m) * 0.65, diameter),
                 r.random_range(0..=4),
                 p.sink_dishes,
                 seed,
+                version,
             );
             let yaw = r.random_range(-PI..PI);
             let extent = dish.half_extents(yaw);

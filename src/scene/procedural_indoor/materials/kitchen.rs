@@ -45,6 +45,24 @@ pub(super) fn build(
     if !scene.objects.iter().any(|o| o.kind.is_kitchen()) {
         return result;
     }
+    let current_soup = scene.generator_version >= broth::INTRODUCED;
+    let requests = |surface, slot| {
+        used.map_or_else(
+            || {
+                scene.objects.iter().any(|o| {
+                    super::super::objects::kitchen::serving_for_object(o)
+                        == Some(super::super::objects::kitchen::Serving::Soup)
+                })
+            },
+            |u| u.contains(&(surface, slot)),
+        )
+    };
+    if current_soup && requests(Surface::Paper, broth::HERB_SLOT) {
+        result.insert(
+            (Surface::Paper, broth::HERB_SLOT),
+            materials.add(broth::herb(scene.material_seed())),
+        );
+    }
     let mut menu = super::super::layout::stream(scene.material_seed(), 0x534f555050414c);
     let soup =
         [[0.70, 0.24, 0.095], [0.83, 0.47, 0.12], [0.43, 0.48, 0.19]][menu.random_range(0..3)];
@@ -58,6 +76,15 @@ pub(super) fn build(
         (106, Surface::Terracotta, [0.27, 0.14, 0.08]),
     ] {
         if used.is_some_and(|u| !u.contains(&(surface, slot))) {
+            continue;
+        }
+        if current_soup && slot == broth::SLOT {
+            if requests(surface, slot) {
+                result.insert(
+                    (surface, slot),
+                    materials.add(broth::material(scene.material_seed(), images)),
+                );
+            }
             continue;
         }
         let mut mat = materials.get(&base[surface as usize]).unwrap().clone();

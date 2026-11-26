@@ -192,13 +192,13 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
             let hi = top - if row + 1 < b.open.len() { t * 0.5 } else { 0. };
             if let Some(fittings) = &p.fittings {
                 if matches!(p.front, 2 | 3) || b.open[row] {
-                    contents::build(a, o, &p, bay_index, row, lo, hi);
+                    contents::build(a, o, &p, bay_index, row, (lo, hi), version);
                 }
                 if p.front != 3 {
                     fittings.door(a, o, &p, bay_index, row, (lo, hi), l);
                 }
             } else {
-                legacy::cell(a, o, &p, b, row, (lo, hi), &mut r);
+                legacy::cell(a, o, &p, b, row, (lo, hi), &mut r, version);
             }
         }
     }

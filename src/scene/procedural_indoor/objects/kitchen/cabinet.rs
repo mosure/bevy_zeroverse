@@ -438,7 +438,7 @@ pub(crate) fn drawer_tray(
     );
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, version: u32) {
     let (d, z) = body(o, p);
     let w = o.size.x - 0.012;
     let h = o.size.y;
@@ -471,7 +471,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         );
         let front = z + d * 0.5;
         if p.counter_doors {
-            shelves(a, o, p, Vec3::new(w, h - toe - 0.04, d), toe, z);
+            shelves(a, o, p, Vec3::new(w, h - toe - 0.04, d), toe, z, version);
             doors(
                 a,
                 w,
@@ -581,6 +581,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
             Vec3::new(uw, h - upper, ud),
             upper,
             uz,
+            version,
         );
         for ((surface, label), mut g) in upper_assembly.parts {
             for v in &mut g.positions {
@@ -601,7 +602,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram) {
         );
     } else {
         shell(a, Vec3::new(w, h - toe, d), toe, z, p.finish, "cabinet");
-        shelves(a, o, p, Vec3::new(w, h - toe, d), toe, z);
+        shelves(a, o, p, Vec3::new(w, h - toe, d), toe, z, version);
         doors(a, w, toe, h - toe, Vec2::new(0., z + d * 0.5), p, "cabinet");
     }
 }
@@ -612,6 +613,7 @@ fn shelves(
     size: Vec3,
     bottom: f32,
     z: f32,
+    version: u32,
 ) {
     let Vec3 { x: w, y: h, z: d } = size;
     for level in 0..p.shelves {
@@ -635,6 +637,7 @@ fn shelves(
                 ),
                 y,
                 (h - 0.05) / p.shelves as f32 - 0.018,
+                version,
             );
             contents::build(a, &items);
         }

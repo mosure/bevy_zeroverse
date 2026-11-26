@@ -63,6 +63,25 @@ same anchor. Room metrics include `laptop_charge_side` and
 `laptop_fitted_socket_count`. Older archived laptops retain their original
 port markings and cable endpoints on replay.
 
+The laptop object audit's `lid_face` gives the active screen dimensions, side
+and top bezel widths, lower chin height and screen recess in metres. Lids use
+bonded glass, a molded bezel, or a surround that shares the case finish.
+A fitted webcam can have a compact aperture,
+a wider optical window, or an open or closed privacy shutter. Some lids omit
+the camera. These parts move with the screen and share its laptop annotation.
+Room metrics include `laptop_bezel_construction` and `laptop_camera_window`.
+`laptop_bezel_m` records the nominal design width. The fitted widths and
+heights are reported by `laptop_side_bezel_m`, `laptop_top_bezel_m` and
+`laptop_chin_m`.
+
+Laptop deck speakers can flank the keyboard or occupy a long or offset recess
+behind it. Compact decks reserve space for the hinge and keys. Each visible
+insert has a chamfer and an opaque perforated or woven face with filtered color,
+normal and roughness maps. The object audit's `speaker_bank` locates each
+opening in metres from the center of the base in X and Z. Room metrics report
+`laptop_grille_layout` for every laptop and the installed opening dimensions
+and recess depths in metres.
+
 Workstation mice include scroll wheels, finger-operated trackballs and side-mounted thumb balls.
 An asymmetric grip follows the neighboring keyboard's operating side when available.
 Object metrics report the control family, grip, control diameter, exposed fraction and trackball finish.
@@ -77,6 +96,13 @@ intact blades alongside mature leaves with asymmetric edge clefts and enclosed
 openings. RGB, shadows and geometric annotations use the same perforated mesh.
 The object audit records realized counts in `split_leaf_habit`. Room metrics
 report blades, intact blades, clefts and openings per split-leaf plant.
+
+Pinnate palms carry arching fronds on one to three canes with raised leaf scars.
+Ferns spread from low crowns with broader, asymmetric leaflets. Frond age
+affects reach, leaflet count and pigmentation. Dataset metrics record crown
+and frond counts, leading crown height above soil as a fraction of living
+height, and the offset between leaflet ranks in units of one leaflet pitch.
+The object audit exposes these controls in `pinnate_habit`.
 
 Planters sample loam, perlite mix, bark chips, expanded clay or mineral gravel.
 The opening and the sampled grain size determine how many coarse pieces appear
@@ -100,6 +126,40 @@ Their open bulb, recessed lens, or opal bowl supplies the emitting area for
 both the visible material and the lighting model. The metrics export records
 the installed optic, suspension, emitting area, canopy diameter and drop.
 Diffuser dimensions contribute to the distributions only for fixtures with a physical diffuser.
+Static reflection probes resolve the exposed bulb or lens, including occlusion by its shade.
+
+Kitchen extraction hoods fit their flues to the ceiling above each cooktop.
+The canopy carries folded grease baffles or a perimeter intake panel and a
+separate rail of puck or linear work lights. The metrics export records fitted
+cassette counts, canopy and exposed flue heights, and the baffle pitch or
+perimeter gap in metres.
+The hood lights share a switch and dimmer. A powered rail casts one shadowed beam
+onto its own cooktop. Pucks and strips appear individually in reflections. Capture
+metrics include rail flux in lumens, color temperature, tint, dimmer and emitting area.
+Wall art, noticeboards and screens leave the backsplash above the burners clear.
+
+Cafeteria return stations carry molded serving trays or deep bus tubs. On shelves,
+trays can nest in stacks with their feet on the floor of the tray below. In slide
+racks, paired metal guides support each item's rim and constrain its yaw.
+The capture metrics report bay and level counts, occupied fraction, item count,
+ware dimensions and stock. The rack has the `tray_return` semantic label and
+its removable contents have the `dishware` label.
+
+For individually placed bowls, the metrics export records height divided by
+the built major-axis width, outline exponent, foot height, lip radius and
+whether the interior has a contrasting glaze. Flat-bottomed bowls contribute
+zero foot height. The vessel and its serving have separate `dishware` and
+`food` labels.
+
+Freestanding teaching boards have one leaf, a fixed bank, or one or two hinged
+wings. Writing can span adjacent leaves or use a separate layout on each.
+Reverse faces can be writable or finished in wood, metal or plastic. Markers
+and erasers rest on a level ledge and use the `stationery` semantic class.
+Metrics record the installed arrangement, leaf widths, writable face count,
+reverse finishes, and signed wing angles in degrees. A straight hinge
+contributes zero degrees. Tool counts include empty ledges. Stand runners can
+bear directly on the floor or on four rubber pads. Pad height is measured on
+stands with fitted pads.
 
 Linear ceiling lights can share a product across a room or vary between its zones.
 Exposed strips and wing reflectors fit one to four tubes to the available width.
@@ -163,10 +223,14 @@ face design, inlet count, angular opening fraction, diameter and chamber setback
 
 Mugs can sit directly on a table or off-centre in a dished saucer. The cup foot
 rests on the saucer well, and liquid follows the inside of the cup, including
-faceted rims. Takeaway cups can have a paperboard or printed sleeve and a fitted
-lid with an open sip port. These parts share the cup's `drink_container` label
+faceted rims. Takeaway cup sleeves use smooth, fluted or embossed paper stock,
+with optional roaster ink, shaped cut edges and a glued lap. The artwork wraps
+once around the stock. Unsleeved cups and fitted lids with open sip ports also occur. These parts share the cup's `drink_container` label
 and instance ID. Metrics record saucer support height and offset, lid rise and
-port offset, and the beverage and fill fraction for cups that contain a drink.
+port offset, sleeve press, cut and overlap width, and the beverage and fill
+fraction for cups that contain a drink. Bottle fill statistics use the visible
+liquid level in nonempty transparent bottles. Can construction records the
+opening and printed or bare wall of the generated can.
 
 Beverage cans have scored lids or physical pour openings with an attached folded
 panel. The oval score follows the available lid diameter and leaves room for
@@ -303,6 +367,14 @@ The `rug_cut` and `rug_binding` distributions describe installed products.
 `rug_binding_width_m` measures the physical edge band. For sink mats,
 `sink_mat_toe_gap_m` measures the distance from the nearest rotated corner
 to the cabinet front. Lateral offsets and yaw are relative to the sink.
+Whole-rug dye layouts range from open fields to single or repeated medallions.
+Rows can run in either direction on nearly square cuts. On runners at least
+twice as long as they are wide, the row follows the length. Its scale and offset fit inside the
+sampled border and its zero, one or two framing stripes. High/low pile rugs
+carry the motif into the normal and roughness maps. The installed-rug
+histograms `rug_medallion_count`, `rug_guard_stripes` and `rug_pattern_pile`
+count features present in the installed material. Medallion diameters are
+fractions of the rug UV chart along and across the row.
 
 Chair seat construction distinguishes crowned upholstery (0), upholstered waterfall
 edges (1), separate front bolsters (2), pressed plywood (3), carved timber (4)
@@ -324,6 +396,37 @@ supported. A positive `chair_runner_front_rake_depth_fraction` means the
 front upright leans toward the rear as it rises to the seat. Floor glides
 fit the straight portion of each runner. These parts share the chair instance
 and semantic label in every view.
+
+For upholstered seats, `chair_back_mount` counts one backrest mounting assembly
+per chair. `chair_back_mount_stock_width_m`, `chair_back_mount_section_depth_m`
+and `chair_back_mount_nominal_bend_radius_m` describe the stock before fitting
+the bend to the cushion clearance. For paired round tubes, width is the diameter
+of one tube. For a forked spine, width is the central carrier width.
+
+For upright chairs with arms, `chair_arm_pad_stock` counts one pair per chair.
+Soft-touch and upholstered pads have a moulded underside. Rigid polymer and
+timber rests have thinner edges. Pairs can share tooling across a table order,
+while the fore-aft adjustment varies by chair. `chair_arm_pad_gauge_m` measures
+the centre thickness in metres. Positive taper narrows an end, while negative
+taper widens it into a paddle. Positive lateral sweep moves each nose away from the seat.
+
+Desktop monitors and wall televisions sample flush, recessed and slightly raised glass.
+Their front frame, optical face and rear electronics enclosure share edges across the
+entire panel curvature. Each installed unit contributes one sample of its fitted aspect,
+bezel width and panel thickness. `display_glass_fit` counts installations by fit.
+`display_glass_offset_m` measures the signed distance forward
+from the bezel. `display_case_edge_bevel_m` measures the outer edge bevel, and
+`display_rear_shoulder_fraction` records how much of the ledge slopes toward the rear mount.
+Desktop stands connect through an underside socket or a rear standoff. Rear uprights
+fit between the tilted case and the back of the reserved desktop footprint.
+Shallow desktop reservations limit screen curvature before fitting the tilt.
+
+`display_case_finish_process` and `display_case_tone` count each installed display housing
+once, including timber cases. Polymer cases carry a fine molded grain. Metal cases can
+expose brushed or bead-blasted aluminium, or carry a dielectric powder coat.
+`display_case_nominal_roughness` reports the central perceptual roughness of these
+manufactured finishes. The same finishes are available on laptop, keyboard, mouse,
+tower, printer and thermostat housings. Material seed and detail control their relief.
 
 Face-up phones report their camera mount (bezel, display punch or sensor pill),
 its horizontal position and width. Face-down phones report the optical cluster
@@ -374,6 +477,29 @@ Rolling carts and mobile drawer pedestals report their fitted wheel diameter,
 tread width and swivel trail in metres. The wheel and fixed-caster histograms
 count matched sets per furnishing. Solid hubs, pierced spoke wheels and twin
 casters use the same physical surfaces for RGB, depth and semantics.
+The fitted equipment and room use influence a cart's lower-shelf inventory.
+`cart_shelf_use` counts utility, beverage and table-service carts. `cart_shelf_stock`
+counts placed groups and `cart_lower_bay_items` includes empty shelves. A stack
+of plates counts as one placement. Cargo carries its own semantic surface and
+moves with the cart instance.
+
+Coffee and side tables with a lower shelf record its installed construction in
+`table_support`. The height, length and width of the deck are in metres.
+Slatted decks also report the board count and clear gap. The lower deck, end
+rails, legs and tray edges share the table instance and participate in clearance checks.
+Lower shelves can hold individually annotated books, paper pads and storage boxes.
+The room's loose-clutter distribution controls their use. `table_lower_shelf_items`
+counts contents per fitted shelf, including empty shelves. `table_lower_shelf_item`
+counts placed instances by kind. In `objects.csv`, `support` identifies the parent
+and `support_plane` identifies the contact level (`top` or `lower_shelf`).
+The manifest exposes the same level through `IndoorManifest::support_plane`.
+Floor objects and routed cables have an empty contact-level field.
+
+Bookcase metrics count clear compartments per bay (`bookshelf_levels`) and
+installed bays (`bookshelf_columns`). `bookshelf_fill` is the sampled stocking
+parameter. `bookshelf_usable_depth_m` measures the deck between its front and
+rear edges. Rear bracing, post width and deck bearing are recorded for open
+racks equipped with those members.
 
 Classroom tablet chairs report the writing surface's side, outline, yaw in degrees,
 face and edge materials. `teaching_back_carry_opening` counts solid and pierced
@@ -488,6 +614,37 @@ before compression (and before metadata). A chunk size of 16 can therefore
 consume several GiB per batch; smaller chunks reduce peak memory. The bounded CLI
 writer/RSS check is reproducible with `scripts/qualify_indoor_writer.py`.
 
+### Live RGB textures in a Bevy app
+
+Add the optical readiness plugin to a native or WebGPU Zeroverse app when another
+system consumes live RGB textures. By default it waits for every logical room
+camera. A consumer can select a subset before the first update.
+
+```rust
+use bevy_zeroverse::scene::capture_ready::{SceneCaptureReadyPlugin, SceneCaptureViews};
+
+app.add_plugins(SceneCaptureReadyPlugin);
+app.insert_resource(SceneCaptureViews::only([0, 2])?);
+```
+
+A `MessageReader<SceneReadyForCapture>` receives the room root, seed, local
+generation ticket and ordered camera image handles after the GPU completes the
+first qualified draw. Late subscribers can call `SceneCaptureState::ready()`.
+Consumers reading in `PostUpdate` should run after `SceneCaptureReadyUpdate`.
+`SceneCaptureState::stage()` describes pending preparation, invalid selections,
+and waits for RGB rendering. On `Preparing(CaptureBlocker::Failed)`, the
+`CaptureFailure` resource carries the diagnostic. Regeneration invalidates the
+receipt even when the seed repeats. Replacing the requested view set or its
+output textures re-arms it.
+
+The barrier checks room lighting, material baking and render-asset residency.
+It observes the actual Core3d outputs, all required fisheye faces and the final
+RGB resolve. A queue completion callback signals when the selected textures
+are usable on the same device. Hidden editor cameras wake for the initial draw
+and then follow the normal viewport settings. Later frames can overwrite these
+images. Use the regular dataset sampler for a frozen timestep or archive. The
+texture API also works with image copiers disabled and the sampler absent.
+
 ## Python capture and storage
 
 `BevyZeroverseDataset(scene_type="procedural_indoor", indoor_seed=777, ...)`
@@ -533,6 +690,10 @@ odd image dimensions (161 × 119), two cameras, three trajectory steps, and all
 five RGB/geometric/semantic modalities. Temporal and co-visibility exports have
 separate [flow](optical_flow.md) and [membership](co_visibility.md) regressions.
 Pixel equality across GPU drivers or rendering backends is not promised.
+
+Window-opening metrics record the roller housing and drive, housing radius,
+hem height and loop drop in metres. A bank can use left-hand loops, right-hand
+loops or cordless operation with any housing. Cordless openings omit loop drop.
 
 The architecture distributions include the base treatment of each nearby building.
 `exterior_plinth_stock` encodes continuous cladding (0), render (1), precast

@@ -67,7 +67,18 @@ impl Section {
         let mut path = Vec::with_capacity(self.outer.len() * 2 + 10);
         path.extend([(0., recess), (foot * 0.80, recess * 0.84)]);
         path.extend_from_slice(&self.outer);
-        if let Some(sleeve) = &f.sleeve {
+        if let Some((sleeve, cut)) = f
+            .sleeve
+            .as_ref()
+            .and_then(|s| s.cut.as_ref().map(|c| (s, c)))
+        {
+            let band = Vec2::new(sleeve.low_fraction, sleeve.high_fraction) * f.height_m;
+            let upper = path.pop().expect("paper cup has a mouth station");
+            section.sweep(a.part(body, label), &path, ProfileJoints::Smooth, tf);
+            cut.draw(a, self, f, sleeve, band);
+            path.clear();
+            path.push(upper);
+        } else if let Some(sleeve) = &f.sleeve {
             let low = f.height_m * sleeve.low_fraction;
             let high = f.height_m * sleeve.high_fraction;
             let r0 = self.radius_at(low);

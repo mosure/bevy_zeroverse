@@ -59,6 +59,67 @@ fn rest_vertices(a: &Assembly) -> Vec<[u32; 8]> {
 }
 
 #[test]
+fn lounge_storage_motion_stays_on_the_lower_deck_and_inside_its_rim() {
+    let mut accepted = std::collections::BTreeSet::new();
+    let (blank, mut g) = room();
+    let mut rejections = std::collections::BTreeMap::new();
+    for seed in 0..144 {
+        let mut table = fixture(ObjectKind::CoffeeTable, seed);
+        table.size = Vec3::new(1.72, 0.53, 0.82);
+        table.yaw = 1.19;
+        let Some(deck) =
+            objects::tables::parameters(&table).lounge_shelf(&table, blank.generator_version)
+        else {
+            continue;
+        };
+        if accepted.contains(deck.deck.name()) {
+            continue;
+        }
+        let mut s = blank.clone();
+        g.objects.clear();
+        let mut item = fixture(ObjectKind::Notepad, seed + 123);
+        item.support = Some(0);
+        item.solid = false;
+        item.size = Vec3::new(0.12, 0.015, 0.16);
+        item.position = table.transform().transform_point(Vec3::new(
+            deck.center_xz_m.x,
+            deck.top_y_m,
+            deck.center_xz_m.y,
+        ));
+        let local = table.transform().compute_affine().inverse();
+        add(&mut s, &mut g, table);
+        add(&mut s, &mut g, item);
+        prepare(&mut s, &mut g);
+        let movement = &s.indoor_motion.as_ref().unwrap().mechanisms[0];
+        if let Some(reason) = &movement.rejection {
+            *rejections
+                .entry((deck.deck.name(), reason.clone()))
+                .or_insert(0) += 1;
+            continue;
+        }
+        assert!(movement.translation_m.length() > 0.001 || movement.angle_radians.abs() > 0.01);
+        let (lo, hi) = deck.storage_bounds();
+        for step in 0..=32 {
+            let tf = movement
+                .rigid_transform_at(step as f32 / 32.)
+                .unwrap()
+                .compute_affine()
+                * s.objects[1].transform().compute_affine();
+            for v in g.objects[1].parts.values().flat_map(|g| &g.positions) {
+                let p = local.transform_point3(tf.transform_point3(Vec3::from_array(*v)));
+                assert!(p.xz().cmpge(lo).all() && p.xz().cmple(hi).all());
+                assert!(p.y >= deck.top_y_m - 1e-5 && p.y < deck.underside_y_m);
+            }
+        }
+        accepted.insert(deck.deck.name());
+        if accepted.len() == 3 {
+            break;
+        }
+    }
+    assert_eq!(accepted.len(), 3, "{accepted:?} {rejections:?}");
+}
+
+#[test]
 fn all_unoccupied_chair_and_stool_families_move_but_recliners_and_fixed_seats_do_not() {
     for family in 0..=10 {
         for seed in 0..8 {

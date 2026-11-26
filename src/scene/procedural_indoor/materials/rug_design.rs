@@ -8,6 +8,16 @@ use crate::scene::procedural_indoor::layout::stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+mod weave;
+pub use weave::WovenLayout;
+
+pub(crate) const WOVEN_LAYOUT_VERSION: u32 = 267;
+
+fn smooth(t: f32) -> f32 {
+    let t = t.clamp(0., 1.);
+    t * t * (3. - 2. * t)
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RugDesign {
     /// Stripe, stepped diamond, organic field and broken lattice; continuously mixed.
@@ -25,9 +35,14 @@ pub struct RugDesign {
     pub abrash: f32,
     pub wear: f32,
     pub quiet: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weave: Option<WovenLayout>,
 }
 impl RugDesign {
     pub fn sample(seed: u64) -> Self {
+        Self::sample_at_version(seed, super::super::layout::GENERATOR_VERSION)
+    }
+    pub(crate) fn sample_at_version(seed: u64, version: u32) -> Self {
         let mut rng = stream(seed, 0x5255474752414d);
         let mut weights: [f32; 4] = std::array::from_fn(|_| rng.random_range(0.0..1.0_f32).powi(3));
         let sum = weights.iter().sum::<f32>();
@@ -39,7 +54,7 @@ impl RugDesign {
             weights.iter_mut().for_each(|x| *x /= sum);
         }
         let angle = rng.random_range(0.0..std::f32::consts::TAU);
-        Self {
+        let mut design = Self {
             direction: [angle.cos(), angle.sin()],
             patchwork: if rng.random_bool(0.36) {
                 rng.random_range(0.35..0.95)
@@ -69,7 +84,12 @@ impl RugDesign {
             } else {
                 rng.random_range(0.0..0.32)
             },
+            weave: None,
+        };
+        if version >= WOVEN_LAYOUT_VERSION {
+            design.weave = Some(WovenLayout::sample(seed, design.border_width));
         }
+        design
     }
     pub fn validate(&self) -> Result<(), String> {
         if self
@@ -94,6 +114,10 @@ impl RugDesign {
                 .any(|v| !v.is_finite() || !(1.0..=16.).contains(v))
             || (self.weights.iter().sum::<f32>() - 1.).abs() > 0.001
             || self.direction.iter().any(|v| !v.is_finite())
+            || self
+                .weave
+                .as_ref()
+                .is_some_and(|w| !w.valid(self.border_width))
             || (self.direction[0].powi(2) + self.direction[1].powi(2) - 1.).abs() > 0.001
         {
             return Err("invalid whole-rug program".into());
@@ -103,17 +127,14 @@ impl RugDesign {
     pub(super) fn evaluate(&self, c: &CarpetDesign, r: &MaterialRecipe, uv: [f32; 2]) -> Texel {
         let [u, v] = uv;
         let noise = |nx, ny, salt| periodic_noise(u, v, nx, ny, r.seed.wrapping_add(salt));
-        let smooth = |t: f32| {
-            let t = t.clamp(0., 1.);
-            t * t * (3. - 2. * t)
-        };
         let broad = noise(3, 5, 281);
         let warp = (noise(7, 5, 283) - 0.5) * self.warp;
         let du = (u - 0.5) * self.direction[0] - (v - 0.5) * self.direction[1] + 0.5;
         let dv = (u - 0.5) * self.direction[1] + (v - 0.5) * self.direction[0] + 0.5;
         let x = (du * self.scale[0] + self.phase[0] + warp).rem_euclid(1.);
         let y = (dv * self.scale[1] + self.phase[1] + warp * 0.63).rem_euclid(1.);
-        let aa = self.scale[0].max(self.scale[1]) / r.map_size(1) as f32;
+        let pixels = r.map_size(1) as f32;
+        let aa = self.scale[0].max(self.scale[1]) / pixels;
         let a = (x - 0.5).abs();
         let b = (y - 0.5).abs();
         let motifs = [
@@ -128,24 +149,41 @@ impl RugDesign {
             .zip(motifs)
             .map(|(a, b)| a * b)
             .sum::<f32>();
-        let d = [(u - 0.5).abs() * 2., (v - 0.5).abs() * 2.];
-        let radius = (d[0] + d[1]) * (1. - self.center_roundness)
-            + (d[0] * d[0] + d[1] * d[1]).sqrt() * self.center_roundness;
-        let center = smooth((0.53 - radius) / (aa * 2.) + 0.5) * self.center;
-        let center_rule = smooth((0.022 - (radius - 0.59).abs()) / (aa * 2.) + 0.5) * self.center;
         let edge = u.min(v).min(1. - u).min(1. - v);
         let border = if self.border_width > 0. {
-            1. - smooth((edge - self.border_width) * r.map_size(1) as f32 * 0.5 + 0.5)
+            1. - smooth((edge - self.border_width) * pixels * 0.5 + 0.5)
         } else {
             0.
         };
-        let rule = if self.border_width > 0. {
-            smooth(
-                (0.007 - (edge - self.border_width - 0.018).abs()) * r.map_size(1) as f32 * 0.5
-                    + 0.5,
-            )
+        let (center, center_rule, rule, relief) = if let Some(w) = &self.weave {
+            let [fill, outline] = if self.center > 0. {
+                w.center_masks(uv, self.center_roundness, pixels)
+                    .map(|x| x * self.center)
+            } else {
+                [0.; 2]
+            };
+            let rule = if self.border_width > 0. {
+                w.guards(edge - self.border_width, pixels)
+            } else {
+                0.
+            };
+            let relief = fill.max(outline).max(rule) * w.pile_contrast * (1. - self.quiet);
+            (fill, outline, rule, relief)
         } else {
-            0.
+            let d = [(u - 0.5).abs() * 2., (v - 0.5).abs() * 2.];
+            let radius = (d[0] + d[1]) * (1. - self.center_roundness)
+                + (d[0] * d[0] + d[1] * d[1]).sqrt() * self.center_roundness;
+            let rule = if self.border_width > 0. {
+                smooth((0.007 - (edge - self.border_width - 0.018).abs()) * pixels * 0.5 + 0.5)
+            } else {
+                0.
+            };
+            (
+                smooth((0.53 - radius) / (aa * 2.) + 0.5) * self.center,
+                smooth((0.022 - (radius - 0.59).abs()) / (aa * 2.) + 0.5) * self.center,
+                rule,
+                0.,
+            )
         };
         let nap = noise(173, 191, 257) - 0.5;
         let fleck = noise(43, 47, 269) - 0.5;
@@ -173,8 +211,9 @@ impl RugDesign {
         });
         Texel {
             color,
-            height: r.relief_m * (nap * 0.65 + fleck * c.pile * 0.35) * (1. - wear),
-            roughness: (r.roughness + nap * 0.055 + fleck * 0.025 - wear * 0.06).clamp(0.80, 1.),
+            height: r.relief_m * (nap * 0.65 + fleck * c.pile * 0.35 + relief) * (1. - wear),
+            roughness: (r.roughness + nap * 0.055 + fleck * 0.025 - wear * 0.06 + relief * 0.045)
+                .clamp(0.80, 1.),
             occlusion: 0.97 + (nap + 0.5) * 0.03,
         }
     }

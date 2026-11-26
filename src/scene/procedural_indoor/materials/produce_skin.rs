@@ -149,20 +149,6 @@ fn field(skin: Skin, x: usize, y: usize, lot: usize) -> Texel {
     }
 }
 
-fn image(bytes: Vec<u8>, map: MapType) -> Image {
-    let mut image = mip_image(bytes, SIDE as u32, map);
-    let len = (0..MIPS).map(|m| (SIDE >> m).pow(2) * 4).sum();
-    image.data.as_mut().unwrap().truncate(len);
-    image.texture_descriptor.mip_level_count = MIPS;
-    if let ImageSampler::Descriptor(s) = &mut image.sampler {
-        s.lod_max_clamp = (MIPS - 1) as f32;
-        s.anisotropy_clamp = 1;
-        s.address_mode_u = ImageAddressMode::ClampToEdge;
-        s.address_mode_v = ImageAddressMode::ClampToEdge;
-    }
-    image
-}
-
 fn stock(lot: usize) -> &'static [Image; 3] {
     static STOCK: [OnceLock<[Image; 3]>; 4] = [const { OnceLock::new() }; 4];
     STOCK[lot].get_or_init(|| {
@@ -193,9 +179,9 @@ fn stock(lot: usize) -> &'static [Image; 3] {
             }
         }
         [
-            image(color, MapType::Color),
-            image(normal, MapType::Normal),
-            image(orm, MapType::Data),
+            swatch_image(color, SIDE, MIPS, MapType::Color),
+            swatch_image(normal, SIDE, MIPS, MapType::Normal),
+            swatch_image(orm, SIDE, MIPS, MapType::Data),
         ]
     })
 }

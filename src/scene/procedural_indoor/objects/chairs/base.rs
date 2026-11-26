@@ -5,11 +5,12 @@ pub(super) fn build(
     a: &mut Assembly,
     o: &IndoorObject,
     p: &ChairProgram,
-    width: f32,
-    depth: f32,
+    pan: Vec2,
     pan_bottom: f32,
     version: u32,
+    swivel: Option<&SwivelPedestal>,
 ) {
+    let (width, depth) = (pan.x, pan.y);
     if let Some(stock) = p.runner_stock(o, version) {
         let mounting = if p.formed_seat.is_some() {
             formed::carrier_underside(p.base_style)
@@ -22,12 +23,26 @@ pub(super) fn build(
     let frame = p.frame_surface;
     let label = "chair";
     if p.base_style < 4 {
-        a.part(Surface::Chrome, label)
-            .cylinder(0.024, 0.27, Transform::from_xyz(0., 0.285, 0.));
-        a.part(Surface::Plastic, label)
-            .cylinder(0.043, 0.10, Transform::from_xyz(0., 0.385, 0.));
+        if let Some(fit) = swivel {
+            fit.column(a, pan_bottom);
+        } else {
+            a.part(Surface::Chrome, label).cylinder(
+                0.024,
+                0.27,
+                Transform::from_xyz(0., 0.285, 0.),
+            );
+            a.part(Surface::Plastic, label).cylinder(
+                0.043,
+                0.10,
+                Transform::from_xyz(0., 0.385, 0.),
+            );
+        }
         let radius = o.size.x.min(o.size.z) * p.base_radius_fraction;
         if p.base_style == 3 {
+            if let Some((fit, disc)) = swivel.and_then(|f| f.disc.map(|d| (f, d))) {
+                fit.disc_foot(disc, a.part(frame, label), radius);
+                return;
+            }
             a.part(frame, label).lathe(
                 &[
                     (0., 0.0),
@@ -56,21 +71,23 @@ pub(super) fn build(
             for i in 0..p.spoke_count {
                 let angle = phase + i as f32 * TAU / p.spoke_count as f32;
                 let radial = Vec3::new(angle.sin(), 0., angle.cos());
-                let start = Vec3::Y * 0.165;
+                let start = swivel.map_or(Vec3::Y * 0.165, |s| s.spoke_root(radial));
                 let end = radial * reach + Vec3::Y * mount_y;
-                match p.base_style {
-                    0 => a.part(frame, label).rod(start, end, 0.020),
-                    1 => {
-                        let path: Vec<_> = (0..=8)
-                            .map(|i| {
-                                let t = i as f32 / 8.;
-                                start.lerp(end, t) + Vec3::Y * (PI * t).sin() * p.spoke_arch_m
-                            })
-                            .collect();
+                match (
+                    p.base_style,
+                    swivel.and_then(|s| s.cast_spoke.map(|blade| (blade, s.hub_radius()))),
+                ) {
+                    (0, _) => a.part(frame, label).rod(start, end, 0.020),
+                    (1, _) => {
+                        let path: [Vec3; 9] = std::array::from_fn(|i| {
+                            let t = i as f32 / 8.;
+                            start.lerp(end, t) + Vec3::Y * (PI * t).sin() * p.spoke_arch_m
+                        });
                         a.part(frame, label).tube(&path, 0.018, 8);
                     }
+                    (_, Some((blade, hub))) => blade.build(a.part(frame, label), start, end, hub),
                     _ => {
-                        // Tapered cast blade, rather than another round rod.
+                        // Archived tapered cast blade, rather than another round rod.
                         let length = start.distance(end);
                         a.part(frame, label).housing(
                             &[

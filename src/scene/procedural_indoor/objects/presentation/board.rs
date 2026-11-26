@@ -70,7 +70,7 @@ pub fn parameters(o: &IndoorObject) -> BoardProgram {
         magnets: Vec::new(),
     };
     if p.tray {
-        p.contents = contents::tray_items(o, &p);
+        p.contents = contents::tray_items(o, (p.tray_lo, p.tray_hi));
         p.marker_count = p.contents.iter().filter(|v| !v.eraser).count();
     }
     p.magnets = contents::magnets(o, &p);
@@ -147,7 +147,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             }
         }
         for item in &p.contents {
-            contents::build_item(a, o, &p, item);
+            contents::build_wall_item(a, p.tray_base_top_m, item);
         }
     }
     for magnet in &p.magnets {

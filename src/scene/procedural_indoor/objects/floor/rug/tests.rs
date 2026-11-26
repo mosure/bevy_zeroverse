@@ -24,7 +24,11 @@ fn metric_binding_is_watertight_and_has_valid_uvs_on_every_face() {
                 o.size = size;
                 o.variant = cut as u32;
                 let mut a = Assembly::default();
-                build(&mut a, &o);
+                build(
+                    &mut a,
+                    &o,
+                    crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                );
                 let stats = audit::check(&o, &a).unwrap();
                 assert_eq!(stats.batches, 2);
                 let contour = outline(&o);
@@ -163,4 +167,44 @@ fn the_cut_supports_furniture_only_inside_its_rotated_footprint() {
             assert!(area > o.size.x * o.size.z * 0.55 && area < o.size.x * o.size.z);
         }
     }
+}
+
+#[test]
+fn weave_follows_long_runners_and_only_rotates_the_dye_chart() {
+    use crate::scene::procedural_indoor::materials::rug_design::WOVEN_LAYOUT_VERSION;
+    let mut square_z = 0;
+    for seed in 0..128 {
+        let mut o = audit::fixture(ObjectKind::Rug, seed);
+        o.variant = Cut::Straight as u32;
+        for (x, z) in [(0.8, 3.), (3., 0.8), (1.8, 1.8)] {
+            o.size = Vec3::new(x, 0.015, z);
+            let rotate = warp_along_z(&o);
+            if x == z {
+                square_z += usize::from(rotate);
+            } else {
+                assert_eq!(rotate, z > x);
+            }
+            let mut old = Assembly::default();
+            let mut current = Assembly::default();
+            build(&mut old, &o, WOVEN_LAYOUT_VERSION - 1);
+            build(&mut current, &o, WOVEN_LAYOUT_VERSION);
+            for (part, g) in old.parts {
+                let h = &current.parts[&part];
+                assert_eq!(g.positions, h.positions);
+                assert_eq!(g.indices, h.indices);
+                assert_eq!(g.normals, h.normals);
+                for ([u, v], &actual) in g.uvs.into_iter().zip(&h.uvs) {
+                    assert_eq!(
+                        actual,
+                        if rotate && !part.1.contains("#rug_binding") {
+                            [v, 1. - u]
+                        } else {
+                            [u, v]
+                        }
+                    );
+                }
+            }
+        }
+    }
+    assert!((40..90).contains(&square_z));
 }

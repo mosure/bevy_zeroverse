@@ -125,6 +125,7 @@ fn runtime_lamp_lights_match_exportable_power_and_preserve_shadow_budget() {
         ObjectKind::DeskLamp,
         ObjectKind::CeilingPendant,
         ObjectKind::WallSconce,
+        ObjectKind::ExtractionHood,
     ] {
         for powered in [true, false] {
             let mut o = (0..256)
@@ -159,22 +160,31 @@ fn runtime_lamp_lights_match_exportable_power_and_preserve_shadow_budget() {
         spots.len(),
         architecture::powered_ceiling_fixtures(&scene, &architecture::fixture_positions(&scene))
             .count()
-            + 3
+            + 4
     );
     for o in scene
         .objects
         .iter()
         .filter(|o| o.kind != ObjectKind::FloorLamp)
     {
+        let prefix = if o.kind == ObjectKind::ExtractionHood {
+            "indoor_extraction_hood"
+        } else {
+            "indoor_desk_lamp"
+        };
         let source_entity = spots
             .iter()
-            .find(|(name, _, _)| name.as_str() == format!("indoor_desk_lamp_{}", o.id));
+            .find(|(name, _, _)| name.as_str() == format!("{prefix}_{}", o.id));
         let power = lamp(&scene, o);
         if power.lumens == 0. {
             assert!(source_entity.is_none());
             continue;
         }
         let (_, light, pose) = source_entity.unwrap();
+        assert_eq!(
+            light.range,
+            spot_range(o.kind, scene.generator_version).unwrap()
+        );
         let (beam, source) = architecture::object_fixture_photometry(&scene, o);
         assert_eq!((source.color, source.lumens), (power.color, power.lumens));
         assert!(Vec3::from(pose.forward()).abs_diff_eq(beam.direction, 1e-5));

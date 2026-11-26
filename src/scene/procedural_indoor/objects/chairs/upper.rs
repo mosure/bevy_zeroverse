@@ -112,101 +112,22 @@ pub(super) fn headrest(a: &mut Assembly, p: &ChairProgram, width: f32, height: f
     }
 }
 
-pub(super) fn arms(a: &mut Assembly, p: &ChairProgram, width: f32, family: u32) {
+pub(super) fn arms(
+    a: &mut Assembly,
+    p: &ChairProgram,
+    width: f32,
+    family: u32,
+    pad: Option<ArmPad>,
+) {
     if !p.armrests {
         return;
     }
-    let frame = p.frame_surface;
     for side in [-1., 1.] {
         let x = side * (width * 0.5 + 0.037);
-        let top = p.arm_height - 0.013;
-        let half = p.arm_pad_length * 0.38;
-        match p.arm_support {
-            0 => a.part(frame, "chair").rod(
-                Vec3::new(x * 0.79, 0.42, 0.09),
-                Vec3::new(x, top, 0.07),
-                0.012,
-            ),
-            1 => a.part(frame, "chair").tube(
-                &[
-                    Vec3::new(x * 0.79, 0.42, -half),
-                    Vec3::new(x, top - 0.05, -half),
-                    Vec3::new(x, top, -half + 0.045),
-                    Vec3::new(x, top, half - 0.045),
-                    Vec3::new(x, top - 0.05, half),
-                    Vec3::new(x * 0.79, 0.42, half),
-                ],
-                0.010,
-                10,
-            ),
-            2 => {
-                a.box_part(
-                    frame,
-                    "chair",
-                    Vec3::new(x, (0.44 + top) * 0.5, 0.06),
-                    Vec3::new(0.028, top - 0.44, 0.044),
-                    0.006,
-                );
-                a.part(frame, "chair").rod(
-                    Vec3::new(x * 0.79, 0.425, 0.06),
-                    Vec3::new(x, 0.455, 0.06),
-                    0.012,
-                );
-            }
-            3 => {
-                let junction = Vec3::new(x, (0.44 + top) * 0.5, 0.);
-                a.part(frame, "chair")
-                    .rod(Vec3::new(x * 0.8, 0.42, 0.), junction, 0.014);
-                for end in [-1., 1.] {
-                    a.part(frame, "chair")
-                        .rod(junction, Vec3::new(x, top, end * half), 0.011);
-                }
-            }
-            4 => {
-                // Short pads cannot support a tall sine arch with a 30 mm
-                // tube: its crest radius can be smaller than the tube radius.
-                // Two explicit quarter bends keep a physically realizable
-                // radius, a flat pad carrier, and valid inside triangles.
-                let bend = (half * 0.60).min(0.045);
-                let mut path = vec![
-                    Vec3::new(x * 0.80, 0.42, -half),
-                    Vec3::new(x, top - bend, -half),
-                ];
-                for i in 1..=6 {
-                    let t = FRAC_PI_2 * i as f32 / 6.;
-                    path.push(Vec3::new(
-                        x,
-                        top - bend + bend * t.sin(),
-                        -half + bend * (1. - t.cos()),
-                    ));
-                }
-                path.push(Vec3::new(x, top, half - bend));
-                for i in 1..=6 {
-                    let t = FRAC_PI_2 * i as f32 / 6.;
-                    path.push(Vec3::new(
-                        x,
-                        top - bend + bend * t.cos(),
-                        half - bend + bend * t.sin(),
-                    ));
-                }
-                path.push(Vec3::new(x * 0.80, 0.42, half));
-                a.part(frame, "chair").tube(&path, 0.012, 10);
-            }
-            _ => {
-                // Upholstered side panel, recessed inside the arm pad.
-                a.box_part(
-                    p.seat_surface,
-                    "chair",
-                    Vec3::new(x, (0.425 + top) * 0.5, 0.),
-                    Vec3::new(0.030, top - 0.425, p.arm_pad_length * 0.84),
-                    0.012,
-                );
-                a.part(frame, "chair").rod(
-                    Vec3::new(x * 0.80, 0.42, 0.),
-                    Vec3::new(x, 0.435, 0.),
-                    0.013,
-                );
-            }
+        arm_support(a, p, x, pad);
+        if let Some(pad) = pad {
+            pad.build(a, p, x);
+            continue;
         }
         a.part(
             if family == 9 {
@@ -225,5 +146,167 @@ pub(super) fn arms(a: &mut Assembly, p: &ChairProgram, width: f32, family: u32) 
             },
             Transform::from_xyz(x, p.arm_height, 0.),
         );
+    }
+}
+
+pub(super) fn arm_support(a: &mut Assembly, p: &ChairProgram, x: f32, pad: Option<ArmPad>) {
+    let frame = p.frame_surface;
+    // A tube supports the pad at its crest; a post or panel supports it at its end.
+    // A shallow insertion keeps the mounting joint closed with a faceted tube.
+    let radius = |nominal: f32| {
+        if pad.is_some() {
+            nominal.min(0.23 * p.arm_pad_width_m)
+        } else {
+            nominal
+        }
+    };
+    let (top, half, column_width, panel_width, panel_length) = if let Some(pad) = pad {
+        let crest = match p.arm_support {
+            1 => radius(0.010),
+            4 => radius(0.012),
+            _ => 0.,
+        };
+        (
+            pad.underside(p) + 0.0015 - crest,
+            p.arm_pad_length * 0.31,
+            0.028_f32.min(0.46 * p.arm_pad_width_m),
+            0.030_f32.min(0.42 * p.arm_pad_width_m),
+            p.arm_pad_length * 0.63,
+        )
+    } else {
+        (
+            p.arm_height - 0.013,
+            p.arm_pad_length * 0.38,
+            0.028,
+            0.030,
+            p.arm_pad_length * 0.84,
+        )
+    };
+    let bearing_z = |legacy| pad.map_or(legacy, |pad| p.arm_pad_length * 0.18 + pad.offset_z_m);
+    let bearing_x = |z| {
+        pad.map_or(x, |pad| {
+            x + x.signum() * pad.sweep_m * (pad.offset_z_m - z) * 2. / p.arm_pad_length
+        })
+    };
+    match p.arm_support {
+        0 => {
+            let z = bearing_z(0.07);
+            a.part(frame, "chair").rod(
+                Vec3::new(x * 0.79, 0.42, 0.09),
+                Vec3::new(bearing_x(z), top, z),
+                radius(0.012),
+            );
+        }
+        1 => {
+            let bend = if pad.is_some() {
+                0.045_f32.min(half * 0.55)
+            } else {
+                0.045
+            };
+            let path = [
+                Vec3::new(x * 0.79, 0.42, -half),
+                Vec3::new(x, top - 0.05, -half),
+                Vec3::new(x, top, -half + bend),
+                Vec3::new(x, top, half - bend),
+                Vec3::new(x, top - 0.05, half),
+                Vec3::new(x * 0.79, 0.42, half),
+            ];
+            let g = a.part(frame, "chair");
+            if pad.is_some() {
+                // Two straight stations give the swept tube a level bearing between the bends.
+                let [foot, knee, front, rear, far_knee, far_foot] = path;
+                g.tube(
+                    &[
+                        foot,
+                        knee,
+                        front,
+                        front.lerp(rear, 0.3),
+                        front.lerp(rear, 0.7),
+                        rear,
+                        far_knee,
+                        far_foot,
+                    ],
+                    radius(0.010),
+                    10,
+                );
+            } else {
+                g.tube(&path, radius(0.010), 10);
+            }
+        }
+        2 => {
+            a.box_part(
+                frame,
+                "chair",
+                Vec3::new(
+                    bearing_x(bearing_z(0.06)),
+                    (0.44 + top) * 0.5,
+                    bearing_z(0.06),
+                ),
+                Vec3::new(column_width, top - 0.44, 0.044),
+                0.006,
+            );
+            a.part(frame, "chair").rod(
+                Vec3::new(x * 0.79, 0.425, bearing_z(0.06)),
+                Vec3::new(bearing_x(bearing_z(0.06)), 0.455, bearing_z(0.06)),
+                0.012,
+            );
+        }
+        3 => {
+            let junction = Vec3::new(x, (0.44 + top) * 0.5, 0.);
+            a.part(frame, "chair")
+                .rod(Vec3::new(x * 0.8, 0.42, 0.), junction, 0.014);
+            for end in [-1., 1.] {
+                a.part(frame, "chair").rod(
+                    junction,
+                    Vec3::new(bearing_x(end * half), top, end * half),
+                    radius(0.011),
+                );
+            }
+        }
+        4 => {
+            // Short pads cannot support a tall sine arch with a 30 mm
+            // tube: its crest radius can be smaller than the tube radius.
+            // Two explicit quarter bends keep a physically realizable
+            // radius, a flat pad carrier, and valid inside triangles.
+            let bend = (half * 0.60).min(0.045);
+            let mut path = vec![
+                Vec3::new(x * 0.80, 0.42, -half),
+                Vec3::new(x, top - bend, -half),
+            ];
+            for i in 1..=6 {
+                let t = FRAC_PI_2 * i as f32 / 6.;
+                path.push(Vec3::new(
+                    x,
+                    top - bend + bend * t.sin(),
+                    -half + bend * (1. - t.cos()),
+                ));
+            }
+            path.push(Vec3::new(x, top, half - bend));
+            for i in 1..=6 {
+                let t = FRAC_PI_2 * i as f32 / 6.;
+                path.push(Vec3::new(
+                    x,
+                    top - bend + bend * t.cos(),
+                    half - bend + bend * t.sin(),
+                ));
+            }
+            path.push(Vec3::new(x * 0.80, 0.42, half));
+            a.part(frame, "chair").tube(&path, radius(0.012), 10);
+        }
+        _ => {
+            // Upholstered side panel, recessed inside the arm pad.
+            a.box_part(
+                p.seat_surface,
+                "chair",
+                Vec3::new(x, (0.425 + top) * 0.5, 0.),
+                Vec3::new(panel_width, top - 0.425, panel_length),
+                0.012,
+            );
+            a.part(frame, "chair").rod(
+                Vec3::new(x * 0.80, 0.42, 0.),
+                Vec3::new(x, 0.435, 0.),
+                0.013,
+            );
+        }
     }
 }

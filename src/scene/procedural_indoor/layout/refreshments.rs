@@ -130,13 +130,39 @@ impl IndoorManifest {
                     support.size.y,
                     proposal.center.y,
                 ));
-                let mut o = self.candidate(kind, position, size, support.yaw + yaw, &mut r);
+                // +Z is the spout. Start with the handle toward the working aisle.
+                // A half turn preserves the supported rectangular footprint.
+                let park_kettle = kind == ObjectKind::Kettle
+                    && self.generator_version
+                        >= objects::hospitality::kettle::FORMED_KETTLE_VERSION;
+                let facing = support.yaw
+                    + yaw
+                    + if park_kettle {
+                        std::f32::consts::PI
+                    } else {
+                        0.
+                    };
+                let mut o = self.candidate(kind, position, size, facing, &mut r);
                 o.seed = seed;
                 o.support = Some(support.id);
                 o.solid = false;
                 o.neighbor = support.neighbor;
                 if !self.permits_table_item(support, kind) || !self.prop_clear(&o, support, 0.012) {
                     continue;
+                }
+                if park_kettle {
+                    // Right/left-handed parking is independent of the appliance stock
+                    // and of later counter dressing. Keep the admitted pose on tight tops.
+                    let mut grip = stream(seed, 0x4b45_5454_5041_524b);
+                    let spread = if grip.random_bool(0.84) {
+                        1.48
+                    } else {
+                        std::f32::consts::PI
+                    };
+                    o.yaw += grip.random_range(-spread..spread);
+                    if !self.prop_clear(&o, support, 0.018) {
+                        o.yaw = facing;
+                    }
                 }
                 if let Some(program) = self
                     .assembly_diagnostics

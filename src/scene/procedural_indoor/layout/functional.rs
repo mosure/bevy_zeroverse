@@ -146,6 +146,17 @@ pub enum CapacityUnit {
     SeatingStations,
 }
 impl ProgramAssembly {
+    /// The longitudinal public aisle separates the two dining areas. A suite
+    /// can also have a transverse route spanning the full width of the zone.
+    pub(crate) fn dining_aisle(&self) -> Option<&Reservation> {
+        if !matches!(self.activity, IndoorLayout::Cafe | IndoorLayout::Cafeteria) {
+            return None;
+        }
+        self.reservations.iter().find(|r| {
+            r.role == ReservationRole::Circulation && r.min.x > self.min.x && r.max.x < self.max.x
+        })
+    }
+
     fn counts_toward_capacity(&self, object: &IndoorObject) -> bool {
         match self.capacity_unit {
             CapacityUnit::ChairStations => object.kind == ObjectKind::Chair,

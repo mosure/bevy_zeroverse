@@ -59,7 +59,7 @@ pub fn parse(
         if bytes > 262_144 || old.len() + dotted.len() >= 4096 {
             return Err("Viewer URL exceeds size limit".into());
         }
-        let key = key.replace('-', "_");
+        let key = key.strip_prefix("--").unwrap_or(&key).replace('-', "_");
         let (head, tail) = key.split_once('.').unwrap_or((&key, ""));
         let head = root(head);
         let key = if tail.is_empty() {

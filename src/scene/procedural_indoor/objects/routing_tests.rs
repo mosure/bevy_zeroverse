@@ -78,7 +78,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::TissueBox
         | ObjectKind::DeskFan => accessories::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::CoffeeMaker | ObjectKind::Kettle | ObjectKind::Vase | ObjectKind::Bowl => {
-            hospitality::build(a, o)
+            hospitality::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
         ObjectKind::Chair => chairs::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::Sofa => seating::build(a, o, super::super::layout::GENERATOR_VERSION),
@@ -98,13 +98,21 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::Pencil
         | ObjectKind::Microphone
         | ObjectKind::Phone
-        | ObjectKind::PenHolder => super::super::clutter::build(a, o),
+        | ObjectKind::PenHolder => {
+            super::super::clutter::build(a, o, super::super::layout::GENERATOR_VERSION)
+        }
         ObjectKind::Plant => super::super::plants::build(a, o),
         ObjectKind::TrashCan => containers::bin(a, o),
-        ObjectKind::Display | ObjectKind::Monitor => computers::display(a, o),
-        ObjectKind::Laptop => computers::laptop(a, o),
+        ObjectKind::Display | ObjectKind::Monitor => {
+            computers::display(a, o, super::super::layout::GENERATOR_VERSION)
+        }
+        ObjectKind::Laptop => computers::laptop(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::Whiteboard | ObjectKind::WallArt => wall_panel(a, o),
-        ObjectKind::Notebook | ObjectKind::Books => literature::build(a, o),
+        ObjectKind::Notebook | ObjectKind::Books => literature::build(
+            a,
+            o,
+            crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+        ),
         ObjectKind::Clock => clocks::build(a, o),
         ObjectKind::FloorLamp => {
             standing_lamp::build(a, o, super::super::layout::GENERATOR_VERSION)

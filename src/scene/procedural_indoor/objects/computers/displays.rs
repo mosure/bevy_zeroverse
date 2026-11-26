@@ -1,5 +1,6 @@
 //! Screen geometry and physical enclosures share the reserved optical envelope.
 use super::*;
+pub mod enclosure;
 pub mod mounts;
 mod panel;
 pub(crate) use panel::screen_cover;
@@ -106,7 +107,15 @@ pub(crate) fn low_mount_clearance(o: &IndoorObject) -> (f32, f32) {
     )
 }
 
-pub(super) fn geometry_parameters(o: &IndoorObject, p: &DisplayProgram) -> DisplayGeometry {
+pub(crate) fn geometry_parameters(o: &IndoorObject, p: &DisplayProgram) -> DisplayGeometry {
+    geometry_at_version(o, p, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub(crate) fn geometry_at_version(
+    o: &IndoorObject,
+    p: &DisplayProgram,
+    version: u32,
+) -> DisplayGeometry {
     let s = o.size;
     let wall = o.kind == ObjectKind::Display;
     let bottom = if wall { 0. } else { s.y * p.lift_fraction };
@@ -114,16 +123,29 @@ pub(super) fn geometry_parameters(o: &IndoorObject, p: &DisplayProgram) -> Displ
     let width = (height * p.aspect).min(s.x);
     let thickness = p.panel_m.min(s.z * 0.65);
     let radius = p.curvature_radius_m.max(width * 0.55);
-    let radius = if p.curvature_radius_m > 0. {
+    let mut radius = if p.curvature_radius_m > 0. {
         radius
     } else {
         0.
     };
-    let sag = if radius > 0. {
+    let mut sag = if radius > 0. {
         radius - (radius * radius - width * width * 0.25).sqrt()
     } else {
         0.
     };
+    if version >= enclosure::INTRODUCED && sag > 0. {
+        let depth_for_curve = (s.z - thickness - 0.018).max(0.);
+        if sag > depth_for_curve {
+            // Invert the circular sagitta so even an untilted ultrawide fits
+            // its desktop reservation with front and rear mounting clearance.
+            sag = depth_for_curve;
+            radius = if sag > 0. {
+                (width * width * 0.25 + sag * sag) / (2. * sag)
+            } else {
+                0.
+            };
+        }
+    }
     // Reserve the complete rotated panel, not just its centre. The support
     // footprint, collision mask and screen placement therefore remain valid.
     let available_depth = (s.z - sag - thickness - 0.018).max(0.);
@@ -155,9 +177,7 @@ pub(crate) fn monitor_power_port_local(o: &IndoorObject) -> (Vec3, Vec3) {
     (Vec3::new(0., 0.022, -o.size.z * 0.5 - 0.001), Vec3::NEG_Z)
 }
 
-pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
-    let p = display_parameters(o);
-    let d = geometry_parameters(o, &p);
+fn layered_panel(a: &mut Assembly, o: &IndoorObject, p: &DisplayProgram, d: &DisplayGeometry) {
     let label = o.kind.class_name();
     let wall = o.kind == ObjectKind::Display;
     let width = d.width_m;
@@ -209,8 +229,21 @@ pub(crate) fn display(a: &mut Assembly, o: &IndoorObject) {
             thickness * 0.5 + 0.0005,
         ))),
     );
-    if !wall {
-        mounts::build(a, o, &p, &d);
+}
+
+pub(crate) fn display(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = display_parameters(o);
+    let d = geometry_at_version(o, &p, version);
+    let section = if version >= enclosure::INTRODUCED {
+        Some(enclosure::build(a, o, &p, &d))
+    } else {
+        layered_panel(a, o, &p, &d);
+        None
+    };
+    if o.kind == ObjectKind::Monitor {
+        let label = o.kind.class_name();
+        let casing = p.casing;
+        mounts::build(a, o, &p, &d, section.as_ref());
         // Integrated power electronics at the rear of the base allow a real
         // AC connector to leave the housing without crossing the screen body.
         let (port, normal) = monitor_power_port_local(o);
@@ -271,6 +304,16 @@ mod tests {
         validation::validate_geometry,
     };
 
+    #[test]
+    fn a_shallow_ultrawide_reservation_limits_the_bend_even_when_level() {
+        let mut o = audit::fixture(ObjectKind::Monitor, 1929);
+        o.size = Vec3::new(0.91, 0.32, 0.17);
+        let p = display_parameters(&o);
+        let previous = geometry_at_version(&o, &p, enclosure::INTRODUCED - 1);
+        let fitted = display_geometry(&o);
+        assert!(fitted.curvature_radius_m > previous.curvature_radius_m);
+        audit::check(&o, &build_object(&o)).unwrap();
+    }
     #[test]
     fn low_cable_clearance_contains_every_constructed_triangle_below_the_screen() {
         let mut styles = std::collections::BTreeSet::new();

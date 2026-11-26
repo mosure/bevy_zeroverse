@@ -3,6 +3,7 @@ use super::{raster::Canvas, *};
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
+pub(crate) mod jacket;
 mod spread;
 pub(crate) use spread::slot as spread_slot;
 
@@ -166,7 +167,7 @@ pub(super) fn prepare_slot(seed: u64, slot: usize) -> Image {
     } else {
         spread::pixels(seed)
     };
-    let mut texture = mip_image(rgba, 256, MapType::Color);
+    let mut texture = mipmaps::printed_mip_image(rgba, 256);
     texture.sampler = ImageSampler::linear();
     texture
 }

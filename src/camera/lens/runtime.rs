@@ -92,7 +92,9 @@ impl Plugin for FisheyeCameraPlugin {
             PostUpdate,
             sync.after(crate::sample::camera_activity::CaptureCameraGate)
                 .after(super::super::gate_interactive_views)
-                .before(bevy::camera::CameraUpdateSystems),
+                .before(bevy::camera::CameraUpdateSystems)
+                .before(bevy::camera::visibility::VisibilitySystems::CheckVisibility)
+                .before(bevy::light::SimulationLightSystems::UpdateDirectionalLightCascades),
         );
         app.add_systems(
             Last,

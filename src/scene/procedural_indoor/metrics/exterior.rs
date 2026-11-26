@@ -209,6 +209,20 @@ pub(super) fn record(
                 }
             }
             let draw = f.shade_coverage_at(o);
+            if let Some(stock) = f
+                .treatment
+                .as_ref()
+                .and_then(|p| p.roller)
+                .filter(|_| f.shade == Shade::Roller)
+            {
+                category("window_roller_housing", format!("{:?}", stock.head));
+                category("window_roller_drive", format!("{:?}", stock.drive));
+                numeric.push("window_roller_housing_radius_m", stock.radius_m as f64)?;
+                numeric.push("window_roller_hem_height_m", stock.hem_height_m as f64)?;
+                if let Some(drop) = stock.loop_drop(o.max.y - o.min.y - 0.028 - 0.095) {
+                    numeric.push("window_roller_control_drop_m", drop as f64)?;
+                }
+            }
             if let Some((p, stock)) = pleated {
                 let l = stock.layout(p, o, draw);
                 category(

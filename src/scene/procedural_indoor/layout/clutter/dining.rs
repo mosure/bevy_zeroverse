@@ -1,11 +1,13 @@
-//! Service follows the chairs the layout actually admitted, including curved
+//! Service follows the chairs and booth places actually admitted, including curved
 //! tabletops. Clear, drinks-only and work tables remain part of the same room.
 use super::*;
 use crate::scene::procedural_indoor::{
+    layout::dining_places::MAX_DINING_REACH_M,
     objects::{kitchen::dishware, tables},
     placement::rotated_half,
 };
 use rand::seq::SliceRandom;
+use std::cell::OnceCell;
 
 impl IndoorManifest {
     pub(in crate::scene::procedural_indoor::layout) fn is_dining_table(
@@ -40,13 +42,8 @@ impl IndoorManifest {
         if budget.full() {
             return;
         }
-        let inverse = table.transform().compute_affine().inverse();
-        let mut seats: Vec<_> = self
-            .objects
-            .iter()
-            .filter(|o| o.kind == ObjectKind::Chair && o.interaction_target == Some(table.id))
-            .map(|o| inverse.transform_point3(o.position).xz())
-            .collect();
+        let outline = OnceCell::new();
+        let mut seats = self.dining_places(table, &outline);
         if seats.is_empty() {
             return;
         }
@@ -68,7 +65,7 @@ impl IndoorManifest {
         // A cafe set may share its glaze, service style and some place settings,
         // while a shared lunch table can contain several different collections.
         seats.shuffle(&mut r);
-        let outline = tables::outline(table);
+        let outline = outline.get_or_init(|| tables::outline(table));
         let served_fraction = r.random_range(0.32..0.98);
         let bowl_fraction = r.random_range(0.08..0.74);
         let utensil_fraction = r.random_range(0.28..0.92);
@@ -81,7 +78,8 @@ impl IndoorManifest {
             if !r.random_bool(served_fraction) {
                 continue;
             }
-            let Some((edge, tangent)) = station(&outline, seat) else {
+            let Some((edge, tangent)) = seat.booth_edge.or_else(|| station(outline, seat.position))
+            else {
                 continue;
             };
             let inward = tangent.perp();
@@ -93,13 +91,11 @@ impl IndoorManifest {
             let center = edge
                 + inward * (inward.abs().dot(half) + r.random_range(0.032..0.090))
                 + tangent * r.random_range(-0.09..0.09);
-            if seat.distance(center) > 0.90 {
-                continue;
-            }
             let mut place = |kind, size: Vec3, pos: Vec2, yaw, variant, r: &mut ChaCha8Rng| {
                 let area = size.x * size.z;
                 if budget.full()
                     || !budget.permits(kind)
+                    || seat.position.distance_squared(pos) > MAX_DINING_REACH_M.powi(2)
                     || budget.area + area > budget.limit
                     || (pos - plan.clear_center)
                         .abs()
@@ -115,6 +111,9 @@ impl IndoorManifest {
                 let mut object = self.candidate(kind, world, size, table.yaw + yaw, r);
                 if let Some(v) = variant {
                     object.variant = v;
+                }
+                if kind == ObjectKind::Dishware {
+                    object.interaction_target = Some(seat.seat_id);
                 }
                 if shared_stock && matches!(kind, ObjectKind::Dishware | ObjectKind::Flatware) {
                     object.finish_seed = Some(stock);

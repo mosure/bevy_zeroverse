@@ -113,13 +113,24 @@ impl Canvas {
         }
     }
     pub(super) fn text(&mut self, text: &str, x: i32, y: i32, scale: i32, color: [u8; 3]) {
+        self.lettering(text, x, y, [scale, scale], color);
+    }
+    /// Independent glyph axes account for the physical aspect ratio of a UV chart.
+    pub(super) fn lettering(
+        &mut self,
+        text: &str,
+        x: i32,
+        y: i32,
+        [sx, sy]: [i32; 2],
+        color: [u8; 3],
+    ) {
         for (index, letter) in text.bytes().enumerate() {
-            let x = x + index as i32 * 4 * scale;
-            if let Some(glyph) = letter_rows(letter) {
-                for (row, bits) in glyph.into_iter().enumerate() {
+            let start = x + index as i32 * 4 * sx;
+            if let Some(rows) = letter_rows(letter) {
+                for (row, bits) in rows.into_iter().enumerate() {
                     for col in 0..3 {
                         if bits & (1 << (2 - col)) != 0 {
-                            self.rect(x + col * scale, y + row as i32 * scale, scale, scale, color);
+                            self.rect(start + col * sx, y + row as i32 * sy, sx, sy, color);
                         }
                     }
                 }

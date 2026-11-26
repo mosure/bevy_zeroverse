@@ -22,7 +22,7 @@ pub use cabinet::fronts::FrontProgram;
 pub(crate) use cabinet::{drawer_tray, shell as case_shell};
 pub use island::{configure_island, is_island, island_parameters, IslandProgram};
 use serde::Serialize;
-pub(crate) use serving::{biscuit, sample as serving_for_object};
+pub(crate) use serving::{biscuit, sample as serving_for_object, soup::Soup, Serving};
 
 /// Usable slab bounds, shared by prop admission and countertop geometry.
 pub fn counter_top_bounds(o: &IndoorObject) -> (Vec2, Vec2) {
@@ -400,7 +400,7 @@ pub(crate) fn metadata_for_version(o: &IndoorObject, version: u32) -> serde_json
                 CuttingBoard => serde_json::json!(supplies::board_parameters(o)),
                 Sponge => serde_json::json!(supplies::sponge::parameters(o)),
                 Dishware => {
-                    let dish = dishware::for_object(o, &p);
+                    let dish = dishware::for_object(o, &p, version);
                     let mut value = serde_json::json!(dish);
                     if dish.plate.is_some() {
                         value["rim_glaze_slot"] = serde_json::json!(dishware::PlateForm::rim_slot(
@@ -408,12 +408,23 @@ pub(crate) fn metadata_for_version(o: &IndoorObject, version: u32) -> serde_json
                             o.finish_seed.unwrap_or(o.seed)
                         ));
                     }
+                    if dish.bowl.is_some() {
+                        value["interior_glaze_slot"] =
+                            serde_json::json!(dishware::PlateForm::rim_slot(
+                                dish.surface,
+                                o.finish_seed.unwrap_or(o.seed)
+                            ));
+                    }
                     if let Some(meal) = serving::sample(o) {
                         value["serving"] = serde_json::json!(meal);
+                        if meal == serving::Serving::Soup && version >= serving::soup::INTRODUCED {
+                            value["soup"] =
+                                serde_json::json!(serving::soup::Soup::sample(o, &dish));
+                        }
                     }
                     value
                 }
-                Flatware => serde_json::json!(flatware::parameters(o)),
+                Flatware => serde_json::json!(flatware::parameters_at(o, version)),
                 KnifeBlock => serde_json::json!(supplies::knives::parameters(o)),
                 UtensilHolder => serde_json::json!(supplies::utensils::parameters(o)),
                 DryingRack => {
@@ -449,7 +460,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
         ObjectKind::KitchenCounter if is_island(o) => island::build(a, o, &parameters(o)),
         ObjectKind::KitchenCounter | ObjectKind::KitchenCupboard | ObjectKind::Pantry => {
-            cabinet::build(a, o, &parameters(o))
+            cabinet::build(a, o, &parameters(o), version)
         }
         ObjectKind::KitchenSink => sink::build(a, o, &parameters(o), version),
         ObjectKind::Cooktop

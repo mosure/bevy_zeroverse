@@ -142,14 +142,21 @@ fn gate_interactive_views(
     args: Res<BevyZeroverseConfig>,
     mode: Res<RenderMode>,
     sampler: Option<Res<crate::sample::SamplerState>>,
-    mut cameras: Query<&mut Camera, With<ZeroverseCamera>>,
+    capture: Option<Res<crate::scene::capture_ready::SceneCaptureState>>,
+    selection: Option<Res<crate::scene::capture_ready::SceneCaptureViews>>,
+    mut cameras: Query<(&mut Camera, Option<&CaptureCameraIndex>), With<ZeroverseCamera>>,
 ) {
     if args.headless || !args.editor {
         return;
     }
     let active =
         interactive_views_needed(&args, &mode, sampler.as_ref().is_some_and(|s| s.enabled));
-    for mut camera in &mut cameras {
+    let needs_draw =
+        *mode == RenderMode::Color && capture.is_some_and(|state| state.wants_editor_draw());
+    for (mut camera, index) in &mut cameras {
+        let active = active
+            || (needs_draw
+                && index.is_some_and(|i| selection.as_ref().is_some_and(|s| s.includes(i.0))));
         if camera.is_active != active {
             camera.is_active = active;
         }

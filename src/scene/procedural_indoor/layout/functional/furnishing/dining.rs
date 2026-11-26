@@ -1,7 +1,12 @@
 use super::super::super::assemblies::SeatPath;
 use super::*;
-use crate::scene::procedural_indoor::objects::chairs;
+use crate::scene::procedural_indoor::{
+    layout::dining_places::booth_places,
+    objects::{chairs, tables},
+};
 use rand::seq::SliceRandom;
+
+mod bays;
 #[cfg(test)]
 mod tests;
 impl IndoorManifest {
@@ -40,53 +45,17 @@ impl IndoorManifest {
     }
 
     fn dining_clusters(&mut self, index: usize, communal: bool, r: &mut ChaCha8Rng) {
-        let p = self.assembly_diagnostics.programs[index].clone();
-        let center = (p.min + p.max) * 0.5;
-        let pitch = r.random_range(2.55..3.15);
-        let stagger = r.random_range(-0.45..0.45);
-        let setback = r.random_range(3.15..3.65);
-        let disorder = r.random_range(0.04..0.22);
-        let rows = ((p.max.y - p.min.y - 3.2) / pitch).floor().max(1.) as usize;
-        for row in 0..rows {
-            let row_shift = r.random_range(-0.22..0.22);
-            for side in [-1., 1.] {
-                let x = if side < 0. {
-                    (p.min.x + center.x) * 0.5 - 0.18
-                } else {
-                    (p.max.x + center.x) * 0.5 + 0.18
-                } + row_shift
-                    + r.random_range(-disorder..disorder);
-                let z = p.min.y
-                    + setback
-                    + row as f32 * pitch
-                    + side * stagger
-                    + r.random_range(-disorder..disorder);
-                self.dining_table(
-                    index,
-                    Vec3::new(x, 0., z),
-                    if communal {
-                        r.random_range(1.35..1.95)
-                    } else {
-                        r.random_range(0.78..1.2)
-                    },
-                    p.parameters.group_rotation_radians + r.random_range(-0.24..0.24),
-                    r,
-                );
-            }
+        let p = &self.assembly_diagnostics.programs[index];
+        let plan = bays::DiningPlan::sample(p, &self.objects, self.seed, communal);
+        for site in plan.tables {
+            self.dining_table(index, site.position, site.width, site.yaw, r);
         }
-        if !communal {
-            let mut size = geometry::dimensions(ObjectKind::Banquette, r.random());
-            size.x = size.x.min(p.max.y - p.min.y - 3.5);
-            self.public_fit(
-                index,
-                ObjectKind::Banquette,
-                Vec3::new(p.min.x + 0.36, 0., center.y + 1.1),
-                size,
-                FRAC_PI_2,
-                r,
-            );
+        if let Some(bench) = plan.perimeter_bench {
+            let x = bench.position.x;
+            self.public_fit_with(index, bench, r, |o| (o.position.x - x).abs() < 0.16);
         }
     }
+
     pub(super) fn dining_table(
         &mut self,
         index: usize,
@@ -129,6 +98,7 @@ impl IndoorManifest {
                     0.,
                     side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
                 );
+                let outline = tables::outline(&table);
                 self.public_fit_with(
                     index,
                     FloorProposal {
@@ -138,7 +108,11 @@ impl IndoorManifest {
                         yaw: yaw + if side > 0. { PI } else { 0. },
                     },
                     r,
-                    |o| station_clear(&table, o, offset.xz()),
+                    |o| {
+                        o.interaction_target = Some(id);
+                        station_clear(&table, o, offset.xz())
+                            && booth_places(&table, o, &outline).next().is_some()
+                    },
                 )
                 .map(|_| side)
             } else {

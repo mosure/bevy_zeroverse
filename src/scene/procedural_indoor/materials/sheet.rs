@@ -24,17 +24,7 @@ pub(super) fn sheet_material<const SIDE: usize>(
             orm.extend([255, encode(r), 0, 255]);
         }
     }
-    let scale = Vec2::splat(SIDE as f32 * 0.5) / period;
-    let mut normals = Vec::with_capacity(SIDE * SIDE * 4);
-    for y in 0..SIDE {
-        for x in 0..SIDE {
-            let dx = heights[y * SIDE + (x + 1) % SIDE] - heights[y * SIDE + (x + SIDE - 1) % SIDE];
-            let dy = heights[(y + 1) % SIDE * SIDE + x] - heights[(y + SIDE - 1) % SIDE * SIDE + x];
-            let n = Vec3::new(-dx * scale.x, -dy * scale.y, 1.).normalize();
-            normals.extend((n * 0.5 + 0.5).to_array().map(encode));
-            normals.push(255);
-        }
-    }
+    let normals = metric_normals::<SIDE>(&heights, period);
     let mut mat = StandardMaterial {
         base_color_texture: Some(images.add(mip_image(color, SIDE as u32, MapType::Color))),
         normal_map_texture: Some(images.add(mip_image(normals, SIDE as u32, MapType::Normal))),
@@ -48,4 +38,20 @@ pub(super) fn sheet_material<const SIDE: usize>(
     };
     response::conformal_coat(&mut mat);
     mat
+}
+
+/// Central metric differences wrap on both axes of a seamless height field.
+pub(super) fn metric_normals<const SIDE: usize>(heights: &[f32], period: Vec2) -> Vec<u8> {
+    let scale = Vec2::splat(SIDE as f32 * 0.5) / period;
+    let mut normals = Vec::with_capacity(SIDE * SIDE * 4);
+    for y in 0..SIDE {
+        for x in 0..SIDE {
+            let dx = heights[y * SIDE + (x + 1) % SIDE] - heights[y * SIDE + (x + SIDE - 1) % SIDE];
+            let dy = heights[(y + 1) % SIDE * SIDE + x] - heights[(y + SIDE - 1) % SIDE * SIDE + x];
+            normals.extend(filter::encode(
+                Vec3::new(-dx * scale.x, -dy * scale.y, 1.).normalize(),
+            ));
+        }
+    }
+    normals
 }

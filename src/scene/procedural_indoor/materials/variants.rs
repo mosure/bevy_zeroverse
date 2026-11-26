@@ -25,8 +25,8 @@ pub fn count(surface: Surface) -> usize {
     if is_content(surface) {
         CONTENT_COUNT
     } else if surface == Surface::PrintedPaper {
-        // Single-page pads and facing-page charts have distinct resolutions per leaf.
-        2 * COUNT
+        // Pads, facing-page spreads and unfolded binding prints have separate charts.
+        paper::jacket::END
     } else {
         COUNT
     }

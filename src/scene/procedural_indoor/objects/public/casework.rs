@@ -5,6 +5,7 @@ mod service_glazing;
 mod stocking;
 #[cfg(test)]
 mod tests;
+pub mod tray_return;
 pub use service_glazing::{CaseDoor, ServiceGlazing, ShelfEdge};
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -23,8 +24,17 @@ pub struct CaseProgram {
     pub service_glazing: Option<ServiceGlazing>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shelf_edge: Option<ShelfEdge>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tray_station: Option<tray_return::TrayStation>,
 }
 pub fn parameters(o: &IndoorObject) -> CaseProgram {
+    parameters_at(
+        o,
+        crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+    )
+}
+
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> CaseProgram {
     let mut r = stream(o.seed, 0x43415345574f524b);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4341534546494e);
     let base = if o.kind == ObjectKind::DisplayCase {
@@ -37,7 +47,7 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
         .map(|i| base + 0.025 + (0.90 - base) * (i as f32 + r.random_range(0.02..0.24)) / n as f32)
         .collect();
     let structure = r.random_range(0..4);
-    CaseProgram {
+    let mut p = CaseProgram {
         structure,
         base_fraction: base,
         wall_fraction: r.random_range(0.018..0.045),
@@ -59,16 +69,34 @@ pub fn parameters(o: &IndoorObject) -> CaseProgram {
         } else {
             None
         },
+        tray_station: None,
+    };
+    if o.kind == ObjectKind::TrayReturn && version >= tray_return::INTRODUCED {
+        let station = tray_return::TrayStation::fit(o, &p);
+        p.frame = Surface::Metal;
+        p.finish = match f.random_range(0..8) {
+            0 if station.enclosed => Surface::Wood,
+            0..=2 => Surface::Plastic,
+            _ => Surface::Metal,
+        };
+        p.levels = station.bearings_m.iter().map(|y| y / o.size.y).collect();
+        p.contents = !station.loads.is_empty();
+        p.glazed_top = false;
+        p.tray_station = Some(station);
     }
+    p
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::ExhibitPlinth {
         return plinth::build(a, o);
     }
-    let p = parameters(o);
+    let p = parameters_at(o, version);
     match o.kind {
         ObjectKind::DisplayCase => display(a, o, &p),
-        ObjectKind::TrayReturn => trays(a, o, &p),
+        ObjectKind::TrayReturn => match &p.tray_station {
+            Some(station) => station.build(a, o, &p),
+            None => legacy_trays(a, o, &p),
+        },
         _ => unreachable!(),
     }
 }
@@ -197,7 +225,7 @@ fn contents(
         }
     }
 }
-fn trays(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
+fn legacy_trays(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
     let s = o.size;
     let l = o.kind.class_name();
     let t = (s.x.min(s.z) * p.wall_fraction).max(0.008);

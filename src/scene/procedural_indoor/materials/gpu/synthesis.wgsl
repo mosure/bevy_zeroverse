@@ -10,6 +10,7 @@ struct Recipe {
     paint_counts: vec4<u32>, paint_frequencies: vec4<u32>,
     paint0: vec4<f32>, paint1: vec4<f32>, paint2: vec4<f32>, paint_color: vec4<f32>,
     rug_weights: vec4<f32>, rug0: vec4<f32>, rug1: vec4<f32>, rug2: vec4<f32>, rug3: vec4<f32>,
+    rug_row: vec4<f32>, rug_shape: vec4<f32>, rug_guards: vec4<f32>,
     wall_weights: vec4<f32>, wall_counts: vec4<u32>, wall0: vec4<f32>, wall1: vec4<f32>, wall_tint: vec4<f32>,
     manufactured_counts: vec4<u32>, manufactured: vec4<f32>,
     floor_stock: vec4<u32>, floor_cut: vec4<f32>,
@@ -160,6 +161,10 @@ fn domain(id: vec2<u32>) -> vec2<f32> {
     switch r.surface.y {case 1u:{ uv=vec2(uv.y,1.-uv.x); } case 2u:{uv=vec2(1.)-uv;} case 3u:{uv=vec2(1.-uv.y,uv.x);} default:{} }
     return vec2(unit(uv.x+r.phase.x),unit(uv.y+r.phase.y));
 }
+fn rug_band(x: f32, center: f32, half_width: f32, resolution: f32) -> f32 {
+    return smooth_curve((x-center+half_width)*resolution+0.5)
+         - smooth_curve((x-center-half_width)*resolution+0.5);
+}
 fn rug(uv: vec2<f32>) -> Texel {
     let broad=noise(uv,3u,5u,281u);
     let warp=(noise(uv,7u,5u,283u)-0.5)*r.rug0.z;
@@ -172,15 +177,37 @@ fn rug(uv: vec2<f32>) -> Texel {
     let motifs=vec4(smooth_curve((r.carpet.w-a)/aa+0.5),smooth_curve((r.carpet.w*0.65-abs(a+b-0.53))/aa+0.5),smooth_curve((broad-0.32)/0.36),smooth_curve((r.carpet.w*0.38-min(a,b))/aa+0.5));
     let weighted=r.rug_weights*motifs;
     let motif=weighted.x+weighted.y+weighted.z+weighted.w;
-    let d=abs(uv-vec2(0.5))*2.;
-    let radius=(d.x+d.y)*(1.-r.rug1.z)+sqrt(d.x*d.x+d.y*d.y)*r.rug1.z;
-    let center=smooth_curve((0.53-radius)/(aa*2.)+0.5)*r.rug0.w;
-    let center_rule=smooth_curve((0.022-abs(radius-0.59))/(aa*2.)+0.5)*r.rug0.w;
+    let pixels=f32(r.header.y);
     let edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
-    var border=0.;var rule=0.;
+    var border=0.; var rule=0.; var center=0.; var center_rule=0.; var relief=0.;
     if r.rug1.x>0. {
-        border=1.-smooth_curve((edge-r.rug1.x)*f32(r.header.y)*0.5+0.5);
-        rule=smooth_curve((0.007-abs(edge-r.rug1.x-0.018))*f32(r.header.y)*0.5+0.5);
+        border=1.-smooth_curve((edge-r.rug1.x)*pixels*0.5+0.5);
+    }
+    if r.carpet_meta.w>=2u {
+        if r.rug0.w>0. {
+            let offset=uv.x-r.rug_row.x;
+            var i=0.;
+            if r.rug_row.w>1. { i=clamp(floor(offset/r.rug_row.z+0.5),0.,r.rug_row.w-1.); }
+            let d=abs(vec2(offset-i*r.rug_row.z,uv.y-r.rug_row.y))*r.rug_shape.xy;
+            let radius=(d.x+d.y)*(1.-r.rug1.z)+sqrt(d.x*d.x+d.y*d.y)*r.rug1.z;
+            let resolution=pixels/max(r.rug_shape.x,r.rug_shape.y);
+            center=smooth_curve((r.rug_shape.z-radius)*resolution+0.5)*r.rug0.w;
+            center_rule=rug_band(radius,1.-r.rug_shape.w,r.rug_shape.w,resolution)*r.rug0.w;
+        }
+        if r.rug1.x>0. && r.rug_guards.y>0. {
+            let offset=edge-r.rug1.x;
+            rule=rug_band(offset,r.rug_guards.x,r.rug_guards.y,pixels);
+            if r.rug_guards.w>0. { rule+=rug_band(offset,r.rug_guards.z,r.rug_guards.w,pixels); }
+        }
+        relief=max(max(center,center_rule),rule)*r.rug3.w*(1.-r.rug2.y);
+    } else {
+        let d=abs(uv-vec2(0.5))*2.;
+        let radius=(d.x+d.y)*(1.-r.rug1.z)+sqrt(d.x*d.x+d.y*d.y)*r.rug1.z;
+        center=smooth_curve((0.53-radius)/(aa*2.)+0.5)*r.rug0.w;
+        center_rule=smooth_curve((0.022-abs(radius-0.59))/(aa*2.)+0.5)*r.rug0.w;
+        if r.rug1.x>0. {
+            rule=smooth_curve((0.007-abs(edge-r.rug1.x-0.018))*pixels*0.5+0.5);
+        }
     }
     let nap=noise(uv,173u,191u,257u)-0.5;
     let fleck=noise(uv,43u,47u,269u)-0.5;
@@ -198,7 +225,7 @@ fn rug(uv: vec2<f32>) -> Texel {
     let before_rule=center_color*(1.-border_mix)+edge_color*border_mix;
     let value=before_rule*(1.-center_rule*0.5)+r.carpet1.xyz*center_rule*0.5;
     let color=clamp(value*(1.+drift+fleck*r.carpet.y+nap*0.035)*(1.-wear*0.3)+r.carpet1.xyz*wear*0.3,vec3(0.01),vec3(0.95));
-    return Texel(color,r.metric.z*(nap*0.65+fleck*r.carpet.z*0.35)*(1.-wear),clamp(r.metric.w+nap*0.055+fleck*0.025-wear*0.06,0.80,1.),0.97+(nap+0.5)*0.03);
+    return Texel(color,r.metric.z*(nap*0.65+fleck*r.carpet.z*0.35+relief)*(1.-wear),clamp(r.metric.w+nap*0.055+fleck*0.025-wear*0.06+relief*0.045,0.80,1.),0.97+(nap+0.5)*0.03);
 }
 fn carpet(uv: vec2<f32>) -> Texel {
     if r.carpet_meta.w != 0u { return rug(uv); }

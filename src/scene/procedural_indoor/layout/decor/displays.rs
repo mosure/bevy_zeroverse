@@ -126,6 +126,7 @@ impl IndoorManifest {
             && region.max.cmpge(b).all()
             && polygon::box_inside(&e.footprint, a, b, 0.02)
             && hi.y + 0.10 < self.minimum_ceiling_height(a, b)
+            && !self.covers_cooktop_splashback(o)
             && lo.y >= self.floor_height(e.pillars[index].center) + headroom
             && [a, b, Vec2::new(a.x, b.y), Vec2::new(b.x, a.y)]
                 .into_iter()

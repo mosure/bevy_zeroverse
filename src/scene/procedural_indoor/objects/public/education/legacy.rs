@@ -9,6 +9,7 @@ pub(super) fn cell(
     row: usize,
     (lo, hi): (f32, f32),
     r: &mut ChaCha8Rng,
+    version: u32,
 ) {
     let t = p.panel_m;
     let l = o.kind.class_name();
@@ -39,6 +40,7 @@ pub(super) fn cell(
                     ),
                     0.,
                 ),
+                version,
             );
         }
     }

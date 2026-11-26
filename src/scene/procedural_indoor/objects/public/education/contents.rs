@@ -11,8 +11,8 @@ pub(super) fn build(
     p: &LockerProgram,
     bay: usize,
     row: usize,
-    lo: f32,
-    hi: f32,
+    (lo, hi): (f32, f32),
+    version: u32,
 ) {
     let mut rng = stream(
         o.seed,
@@ -68,6 +68,6 @@ pub(super) fn build(
     let offset = b.left + 0.009 + rng.random_range(0.0..=usable - span);
     for mut c in entries {
         c.position.x += offset;
-        contents::build(a, o, &c);
+        contents::build(a, o, &c, version);
     }
 }

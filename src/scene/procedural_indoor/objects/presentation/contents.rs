@@ -18,7 +18,7 @@ pub struct Magnet {
     pub finish_slot: usize,
 }
 
-pub(super) fn tray_items(o: &IndoorObject, p: &BoardProgram) -> Vec<TrayItem> {
+pub(crate) fn tray_items(o: &IndoorObject, bounds: (Vec2, Vec2)) -> Vec<TrayItem> {
     let mut r = stream(o.seed, 0x424f415244545241);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4d41524b46494e49);
     let pattern = SurfacePattern::sample(&mut r);
@@ -29,8 +29,8 @@ pub(super) fn tray_items(o: &IndoorObject, p: &BoardProgram) -> Vec<TrayItem> {
     for i in 0..requested + usize::from(want_eraser) {
         let eraser = i == requested;
         let radius = r.random_range(0.004..0.0065);
-        let width = p.tray_hi.x - p.tray_lo.x;
-        let depth = p.tray_hi.y - p.tray_lo.y;
+        let width = bounds.1.x - bounds.0.x;
+        let depth = bounds.1.y - bounds.0.y;
         let size = if eraser {
             Vec3::new(
                 r.random_range(0.070_f32..0.13).min(width * 0.60),
@@ -51,8 +51,7 @@ pub(super) fn tray_items(o: &IndoorObject, p: &BoardProgram) -> Vec<TrayItem> {
             let max_yaw = ((depth - size.z - 0.012).max(0.) / size.x).min(0.7).asin();
             let yaw =
                 r.random_range(-1.0..1.0) * max_yaw + if r.random_bool(0.5) { PI } else { 0. };
-            let Some(q) = pattern.propose((p.tray_lo, p.tray_hi), size.xz(), yaw, 0.005, &mut r)
-            else {
+            let Some(q) = pattern.propose(bounds, size.xz(), yaw, 0.005, &mut r) else {
                 continue;
             };
             if occupied.iter().any(|&a| a.overlaps(q, 0.004)) {
@@ -116,9 +115,23 @@ pub(super) fn magnets(o: &IndoorObject, p: &BoardProgram) -> Vec<Magnet> {
     result
 }
 
-pub(super) fn build_item(a: &mut Assembly, o: &IndoorObject, p: &BoardProgram, item: &TrayItem) {
-    let label = format!("{}#finish{}", o.kind.class_name(), item.finish_slot);
-    let tf = Transform::from_xyz(item.center.x, p.tray_base_top_m, item.center.y)
+pub(super) fn build_wall_item(a: &mut Assembly, top_m: f32, item: &TrayItem) {
+    build_item(a, "whiteboard", top_m, item, legacy_marker);
+}
+
+pub(crate) fn build_ledge_item(a: &mut Assembly, top_m: f32, item: &TrayItem) {
+    build_item(a, "stationery", top_m, item, capped_marker);
+}
+
+fn build_item(
+    a: &mut Assembly,
+    class: &str,
+    top_m: f32,
+    item: &TrayItem,
+    marker: impl FnOnce(&mut Assembly, &str, Transform, &TrayItem),
+) {
+    let label = format!("{class}#finish{}", item.finish_slot);
+    let tf = Transform::from_xyz(item.center.x, top_m, item.center.y)
         .with_rotation(Quat::from_rotation_y(item.yaw));
     let s = item.size;
     if item.eraser {
@@ -133,19 +146,65 @@ pub(super) fn build_item(a: &mut Assembly, o: &IndoorObject, p: &BoardProgram, i
             tf.with_translation(tf.transform_point(Vec3::Y * (s.y + 0.003) * 0.5)),
         );
     } else {
-        let start = -s.x * 0.5;
-        let end = s.x * 0.5;
-        let cap = s.x * item.cap_fraction;
-        for (surface, left, right, radius) in [
-            (Surface::Plastic, start, start + cap, s.y * 0.5),
-            (Surface::Paper, start + cap, end - cap * 0.30, s.y * 0.45),
-            (Surface::Plastic, end - cap * 0.30, end, s.y * 0.5),
-        ] {
-            a.part(surface, &label).rod(
-                tf.transform_point(Vec3::new(left, s.y * 0.5, 0.)),
-                tf.transform_point(Vec3::new(right, s.y * 0.5, 0.)),
-                radius,
-            );
-        }
+        marker(a, &label, tf, item);
     }
+}
+
+// The wall-mounted board retains its original mesh for seeded replay.
+fn legacy_marker(a: &mut Assembly, label: &str, tf: Transform, item: &TrayItem) {
+    let s = item.size;
+    let start = -s.x * 0.5;
+    let end = s.x * 0.5;
+    let cap = s.x * item.cap_fraction;
+    for (surface, left, right, radius) in [
+        (Surface::Plastic, start, start + cap, s.y * 0.5),
+        (Surface::Paper, start + cap, end - cap * 0.30, s.y * 0.45),
+        (Surface::Plastic, end - cap * 0.30, end, s.y * 0.5),
+    ] {
+        a.part(surface, label).rod(
+            tf.transform_point(Vec3::new(left, s.y * 0.5, 0.)),
+            tf.transform_point(Vec3::new(right, s.y * 0.5, 0.)),
+            radius,
+        );
+    }
+}
+
+// The writing barrel, fitted cap and end plug meet at shared rings. Align a
+// facet vertex on both bearing rings with the level tray for every yaw.
+fn capped_marker(a: &mut Assembly, label: &str, tf: Transform, item: &TrayItem) {
+    let r = item.size.y * 0.5;
+    let barrel = 0.90 * r;
+    let start = -item.size.x * 0.5;
+    let end = -start;
+    let cap = start + item.size.x * item.cap_fraction;
+    let plug = end - item.size.x * item.cap_fraction * 0.30;
+    let bevel = r * 0.17;
+    let axis = Transform::from_translation(tf.translation + r * Vec3::Y)
+        .with_rotation(tf.rotation * Quat::from_rotation_z(-PI * 0.5));
+    let plastic = a.part(Surface::Plastic, label);
+    plastic.lathe(
+        &[
+            (0., start),
+            (r - bevel, start),
+            (r, start + bevel),
+            (r, cap - bevel),
+            (r - 0.5 * bevel, cap),
+            (barrel, cap),
+        ],
+        12,
+        axis,
+    );
+    plastic.lathe(
+        &[
+            (barrel, plug),
+            (r, plug + bevel),
+            (r, end - bevel),
+            (r - bevel, end),
+            (0., end),
+        ],
+        12,
+        axis,
+    );
+    a.part(Surface::Paper, label)
+        .lathe(&[(barrel, cap), (barrel, plug)], 12, axis);
 }

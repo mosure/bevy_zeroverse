@@ -156,7 +156,7 @@ fn all_frames_carry_the_shell_at_four_bearings_without_a_full_width_pan() {
         let center = ordinates(&a, Vec2::ZERO);
         assert_eq!(center.len(), 2, "frame fills the centre of the seat");
         let version = crate::scene::procedural_indoor::layout::GENERATOR_VERSION;
-        base::build(&mut a, &o, &p, width, depth, 0.39, version);
+        base::build(&mut a, &o, &p, Vec2::new(width, depth), 0.39, version, None);
         for side in [-1., 1.] {
             for end in [-1., 1.] {
                 let bearing = Vec2::new(side * width * 0.29, end * depth * 0.25);

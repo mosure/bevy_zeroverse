@@ -477,25 +477,27 @@ pub fn spawn_lights(
             entity.insert(motion);
         }
     }
-    for lamp in scene.objects.iter().filter(|o| {
-        matches!(
-            o.kind,
-            ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
-        )
-    }) {
+    for (lamp, range) in super::photometry::spot_fixtures(scene) {
         let (beam, power) = object_fixture_photometry(scene, lamp);
         if power.lumens == 0. {
             continue;
         }
         let rest = Transform::from_translation(beam.position).looking_to(beam.direction, Vec3::Z);
         let mut entity = commands.spawn((
-            Name::new(format!("indoor_desk_lamp_{}", lamp.id)),
+            Name::new(if lamp.kind == ObjectKind::ExtractionHood {
+                format!("indoor_extraction_hood_{}", lamp.id)
+            } else {
+                format!("indoor_desk_lamp_{}", lamp.id)
+            }),
             SpotLight {
                 color: source_color(scene, power.color),
                 intensity: spot_intensity_for_lumens(power.lumens, beam.inner, beam.outer),
-                range: 3.0,
+                range,
                 radius: beam.radius,
-                shadow_map_near_z: if lamp.kind == ObjectKind::DeskLamp {
+                shadow_map_near_z: if matches!(
+                    lamp.kind,
+                    ObjectKind::DeskLamp | ObjectKind::ExtractionHood
+                ) {
                     0.012
                 } else {
                     SpotLight::DEFAULT_SHADOW_MAP_NEAR_Z
@@ -570,6 +572,10 @@ pub(crate) fn object_fixture_photometry(
     super::photometry::FixtureBeam,
     super::photometry::SourcePower,
 ) {
+    if lamp.kind == ObjectKind::ExtractionHood {
+        let deck = super::objects::public::service::hood::FilterDeck::installed(lamp);
+        return (deck.beam(scene, lamp), deck.power(scene, lamp));
+    }
     let beam = if lamp.kind == ObjectKind::DeskLamp {
         super::objects::accessories::lamps::beam(lamp)
     } else {

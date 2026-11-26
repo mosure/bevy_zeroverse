@@ -364,14 +364,21 @@ mod thermostat_tests {
                 let mut materials = Assets::<StandardMaterial>::default();
                 let mut variants = BTreeMap::new();
                 install(&scene, &mut images, &mut materials, demand, &mut variants);
-                super::super::input_housing::install(&scene, &mut materials, demand, &mut variants);
+                let face_images = images.len();
+                super::super::input_housing::install(
+                    &scene,
+                    &mut images,
+                    &mut materials,
+                    demand,
+                    &mut variants,
+                );
                 assert_eq!(variants.keys().copied().collect::<BTreeSet<_>>(), expected);
                 let (&(_, slot), handle) = variants
                     .iter()
                     .find(|((s, _), _)| *s == Surface::Ink)
                     .unwrap();
                 let mat = materials.get(handle).unwrap();
-                assert_eq!(images.len(), if slot == Film::Led.slot() { 2 } else { 1 });
+                assert_eq!(face_images, if slot == Film::Led.slot() { 2 } else { 1 });
                 assert!(
                     images
                         .get(mat.base_color_texture.as_ref().unwrap())

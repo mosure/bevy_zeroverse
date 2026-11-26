@@ -21,6 +21,13 @@ struct Node {
 }
 
 #[derive(Clone, Copy)]
+struct RestingContact {
+    support: usize,
+    height: f32,
+    slides_on_shelf: bool,
+}
+
+#[derive(Clone, Copy)]
 struct Sweep {
     local: Bounds,
     frame: Transform,
@@ -148,7 +155,7 @@ impl Tree {
         ids: &[usize],
         attachment: Option<&str>,
         floor: Option<f32>,
-        support: Option<(usize, f32)>,
+        support: Option<RestingContact>,
         carried: &[usize],
     ) -> bool {
         if self.nodes.is_empty() {
@@ -175,8 +182,15 @@ impl Tree {
             }
             for t in &self.triangles[node.range.clone()] {
                 if t.owner.is_some_and(|o| carried.contains(&o))
-                    || support.is_some_and(|(id, height)| {
-                        t.owner == Some(id) && t.p.iter().all(|p| (p.y - height).abs() < 0.0002)
+                    || support.is_some_and(|contact| {
+                        // Slats have exposed edges under an object. A horizontal
+                        // slide can touch their bevels without crossing them.
+                        // Tray lips, posts and the tabletop still obstruct it.
+                        t.owner == Some(contact.support)
+                            && t.p.iter().all(|p| {
+                                (p.y - contact.height).abs() < 0.0002
+                                    || (contact.slides_on_shelf && p.y <= contact.height)
+                            })
                     })
                     || (t.owner == owner && t.joint.is_some_and(|j| ids.contains(&j)))
                     || (floor.is_some_and(|height| {
@@ -557,6 +571,19 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
         let mut adaptation = None;
         let mut compact = vec![];
         if reason.is_none() {
+            let resting = owner
+                .filter(|_| j.contact == Contact::Surface)
+                .and_then(|id| {
+                    let o = &scene.objects[id];
+                    Some(RestingContact {
+                        support: o.support?,
+                        height: tf.translation.y,
+                        slides_on_shelf: j.translation.y == 0.
+                            && j.axis.xz() == Vec2::ZERO
+                            && scene.support_plane(o)
+                                == Some(super::super::layout::SupportPlane::LowerShelf),
+                    })
+                });
             for (adjustment, name) in proposals::candidates(&a.joints[index..index + count]) {
                 attempts += 1;
                 for &id in &ids {
@@ -606,11 +633,7 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                         joint.attachment.as_deref(),
                         (joint.kind == MotionKind::Chair || joint.contact == Contact::Floor)
                             .then_some(tf.translation.y),
-                        owner
-                            .filter(|_| joint.contact == Contact::Surface)
-                            .and_then(|id| {
-                                scene.objects[id].support.map(|s| (s, tf.translation.y))
-                            }),
+                        resting,
                         children,
                     )
                 }) {

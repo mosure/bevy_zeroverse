@@ -175,3 +175,29 @@ fn cached_color_mip_cpu_benchmark() {
         );
     }
 }
+
+#[test]
+fn printed_mips_match_scalar_filter_for_uniform_pigments_and_mixed_edges() {
+    let mut pixels = Vec::with_capacity(256 * 256 * 4);
+    for y in 0..256_usize {
+        for x in 0..256_usize {
+            let value = ((x / 4 + y / 4 * 64) % 256) as u8;
+            pixels.extend([
+                value,
+                255 - value,
+                value.rotate_left(3),
+                if x % 17 == 0 { 0 } else { 255 },
+            ]);
+        }
+    }
+    for input in [pixels, paper::pixels(42)] {
+        let expected = mip_image(input.clone(), 256, MapType::Color);
+        let actual = mipmaps::printed_mip_image(input, 256);
+        assert_eq!(expected.data, actual.data);
+        assert_eq!(expected.texture_descriptor, actual.texture_descriptor);
+        assert_eq!(
+            format!("{:?}", expected.sampler),
+            format!("{:?}", actual.sampler)
+        );
+    }
+}

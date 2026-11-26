@@ -4,7 +4,7 @@ use crate::scene::procedural_indoor::{envelope::polygon, materials::rugs};
 
 /// Rings are indexed once. The full-field dye map stays within [0, 1] and the
 /// binding uses a separate cloth chart measured along and across the cut.
-fn field(g: &mut Geometry, inside: &[Vec2], size: Vec3, rings: u32) {
+fn field(g: &mut Geometry, inside: &[Vec2], size: Vec3, rings: u32, rotate: bool) {
     let base = g.positions.len() as u32;
     let sides = inside.len() as u32;
     let extent = inside.iter().fold(Vec2::ZERO, |hi, p| hi.max(p.abs())) * 2.;
@@ -21,8 +21,8 @@ fn field(g: &mut Geometry, inside: &[Vec2], size: Vec3, rings: u32) {
             let border = natural / natural.abs().max_element() * 0.5;
             g.positions.push([p.x * t, size.y, p.y * t]);
             g.normals.push(Vec3::Y.to_array());
-            g.uvs
-                .push((Vec2::splat(0.5) + natural.lerp(border, t * t) * t).to_array());
+            let [u, v] = (Vec2::splat(0.5) + natural.lerp(border, t * t) * t).to_array();
+            g.uvs.push(if rotate { [v, 1. - u] } else { [u, v] });
             if row == 1 {
                 g.indices.extend([base, offset + next, offset + i]);
             } else {
@@ -40,7 +40,7 @@ fn field(g: &mut Geometry, inside: &[Vec2], size: Vec3, rings: u32) {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: RugProgram) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: RugProgram, rotate: bool) {
     let outside = p.outline(o.size.xz());
     let inset: Vec<_> = (0..outside.len())
         .map(|i| polygon::inset_direction(&outside, i))
@@ -61,6 +61,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: RugProgram) {
         &inside,
         o.size,
         rings,
+        rotate,
     );
 
     let g = a.part(Surface::FabricAlt, &format!("floormat#rug_binding{slot}"));

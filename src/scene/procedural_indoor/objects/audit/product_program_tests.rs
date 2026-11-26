@@ -192,11 +192,13 @@ fn rigid_motion_retains_cart_cargo_and_equipment_rest_meshes() {
 }
 
 #[test]
-fn kettle_handle_roots_and_spout_follow_body_profile() {
+fn archived_kettle_handle_roots_and_spout_follow_body_profile() {
     let mut overhead = 0;
     for seed in 0..128 {
         let o = fixture(ObjectKind::Kettle, seed);
-        let p = hospitality::kettle::parameters(&o);
+        let version = hospitality::kettle::FORMED_KETTLE_VERSION - 1;
+        let p = hospitality::kettle::parameters_at(&o, version);
+        assert!(p.hardware.is_none());
         let handle = p.handle(o.size);
         overhead += usize::from(p.overhead_handle);
         for root in [handle[0], *handle.last().unwrap()] {
@@ -211,7 +213,7 @@ fn kettle_handle_roots_and_spout_follow_body_profile() {
         assert!(tip.z > p.radius_at(tip.y - p.base) + p.spout_radius);
         // Check the actual open spout mouth: a ray from just beyond its tip must
         // travel into the bore before hitting any geometry.
-        let a = build_object(&o);
+        let a = build_object_at_version(&o, None, version);
         let axis = (tip - root).normalize();
         let origin = tip + axis * 0.002;
         let mut nearest = f32::INFINITY;
@@ -229,6 +231,127 @@ fn kettle_handle_roots_and_spout_follow_body_profile() {
         );
     }
     assert!((20..70).contains(&overhead));
+}
+
+#[test]
+fn kettle_pouring_openings_connect_and_hardware_fits_the_installed_envelope() {
+    use hospitality::kettle::{parameters, Outlet};
+    let mut variants = std::collections::BTreeSet::new();
+    for seed in 0..384 {
+        let mut o = fixture(ObjectKind::Kettle, seed);
+        // Include tall, short, broad and narrow footprints admitted by placement.
+        o.size = Vec3::new(
+            [0.16, 0.23][seed as usize % 2],
+            [0.19, 0.30][(seed as usize / 2) % 2],
+            [0.23, 0.31][(seed as usize / 4) % 2],
+        );
+        let p = parameters(&o);
+        let hw = p.hardware.unwrap();
+        variants.insert(format!("{:?}/{:?}", hw.outlet, hw.lid_grip));
+        let a = build_object(&o);
+        let check = check(&o, &a).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        assert!(
+            check.max_envelope_overrun_m < 1e-5 && check.min_y_m.abs() < 1e-6,
+            "{seed}: {check:?}"
+        );
+        assert!(a
+            .parts
+            .keys()
+            .all(|(_, tag)| part_label(tag) == o.kind.class_name()));
+        let first_hit = |eye: Vec3, dir: Vec3| {
+            a.parts
+                .values()
+                .flat_map(|g| {
+                    g.indices.as_chunks::<3>().0.iter().filter_map(move |t| {
+                        ray_triangle(
+                            eye,
+                            dir,
+                            t.map(|i| Vec3::from_array(g.positions[i as usize])),
+                        )
+                    })
+                })
+                .fold(f32::INFINITY, f32::min)
+        };
+        let top = p.base + p.height;
+        if hw.outlet == Outlet::FormedLip {
+            let opening = (p.radius * p.neck + p.spout_reach.min(p.radius * 1.37)) * 0.5;
+            let d = first_hit(Vec3::new(0., top + 0.02, opening), Vec3::NEG_Y) - 0.02;
+            assert!(
+                d > p.height * 0.025 && d < p.height,
+                "closed or missing jug cavity {seed}: {d}"
+            );
+        } else {
+            let level = p.height * p.spout_root;
+            let root = p.radius_at(level);
+            let from = Vec3::new(0., p.base + level, root - 0.012);
+            let throat = first_hit(from, Vec3::Z);
+            assert!(
+                throat.is_finite() && throat > 0.013,
+                "blocked spout root {seed}: {throat}"
+            );
+            let tip = Vec3::new(0., p.base + p.height * p.spout_tip, p.spout_reach);
+            let exit = hw.exit_elevation((tip.y - from.y).atan2(tip.z - p.socket_z(hw)));
+            let axis = Vec3::new(0., exit.sin(), exit.cos());
+            let rim_radius = a
+                .parts
+                .values()
+                .flat_map(|g| &g.positions)
+                .map(|&v| Vec3::from(v) - tip)
+                .filter(|v| v.dot(axis).abs() < 1e-6 && v.length() < p.spout_radius * 1.7)
+                .map(|v| v.length())
+                .fold(f32::INFINITY, f32::min);
+            assert!(
+                rim_radius.is_finite() && rim_radius > 0.001,
+                "missing open rim {seed}: {rim_radius}"
+            );
+            let depth = first_hit(tip + axis * 0.002, -axis) - 0.002;
+            assert!(
+                depth.is_finite() && depth > rim_radius,
+                "obstructed lip {seed}: bore {rim_radius}, depth {depth}"
+            );
+        }
+        // The rest of the neck is covered and the lid is seated against the rim.
+        let offcenter = p.radius * p.neck * 0.62;
+        let cover = first_hit(Vec3::new(offcenter, top + 0.05, 0.), Vec3::NEG_Y);
+        assert!(cover < 0.05, "missing lid {seed}");
+    }
+    assert_eq!(variants.len(), 9);
+}
+
+#[test]
+fn kettle_ports_fit_continuous_stock_sizes() {
+    let mut r = stream(574, 0x4b4554544c455141);
+    for _ in 0..4096 {
+        let mut o = fixture(ObjectKind::Kettle, r.random());
+        o.size = Vec3::new(
+            r.random_range(0.16..0.23),
+            r.random_range(0.19..0.30),
+            r.random_range(0.23..0.31),
+        );
+        check(&o, &build_object(&o)).unwrap_or_else(|e| panic!("{:?}: {e}", o.size));
+    }
+}
+
+#[test]
+fn kettle_finish_resampling_preserves_construction_and_archived_meshes() {
+    for seed in 0..16 {
+        let o = fixture(ObjectKind::Kettle, seed);
+        let mut alternate = o.clone();
+        alternate.finish_seed = Some(seed ^ 0xb5ea);
+        let p = |o| serde_json::to_value(hospitality::kettle::parameters(o).hardware).unwrap();
+        assert_eq!(p(&o), p(&alternate));
+        let version = hospitality::kettle::FORMED_KETTLE_VERSION;
+        // Finish registration is shared by all objects and may retag batches.
+        // The archived kettle itself had the same mesh on both earlier versions.
+        let mesh = |v| {
+            let a = build_object_at_version(&o, None, v);
+            a.parts
+                .into_iter()
+                .map(|(k, g)| (k, g.positions, g.indices))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(mesh(version - 1), mesh(version - 2));
+    }
 }
 
 fn ray_triangle(origin: Vec3, direction: Vec3, p: [Vec3; 3]) -> Option<f32> {

@@ -14,6 +14,9 @@ pub(crate) struct Clearance {
 }
 impl Clearance {
     pub(crate) fn new(o: &IndoorObject) -> Self {
+        Self::at_version(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+    }
+    pub(crate) fn at_version(o: &IndoorObject, version: u32) -> Self {
         let p = parameters(o);
         let outline = outline::sample(o.size.xz() * 0.5, &p);
         let mut result = Self {
@@ -21,7 +24,7 @@ impl Clearance {
             top: o.size.y,
             ..default()
         };
-        build_structure(&mut result, o, &p, &outline);
+        build_structure(&mut result, o, &p, &outline, version);
         result.outline = outline;
         result
     }

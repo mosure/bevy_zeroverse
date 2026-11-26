@@ -73,6 +73,7 @@ pub(super) fn facade(seed: u64, kind: Shade, size: Vec2, coverage: f32) -> Facad
     );
     program.slats =
         (kind == Shade::Venetian).then(|| SlatStock::sample(&mut rng, program.slat_material));
+    program.roller = (kind == Shade::Roller).then(|| RollerStock::sample(seed));
     program.vertical = (kind == Shade::Vertical).then(|| VerticalStock::sample(&mut rng));
     if let Some(stock) = program.slats {
         program.slat_pitch = stock.depth_m * 0.91;
@@ -515,6 +516,7 @@ fn visible_roller_yarn_tracks_the_hem_at_intermediate_times_with_fixed_uvs() {
                 coverage: f.shade_coverage_at(&o),
                 fixed_angle: None,
                 moving: true,
+                other_coverage: None,
             },
         );
         endpoints.push(
@@ -667,3 +669,6 @@ mod pleat_checks;
 
 #[path = "vertical_tests.rs"]
 mod vertical_vanes;
+
+#[path = "roller_tests.rs"]
+mod roller_hardware;

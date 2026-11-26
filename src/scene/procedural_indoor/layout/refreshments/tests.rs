@@ -177,3 +177,35 @@ fn optional_cart_assemblies_respect_scene_clutter_thinning() {
     }
     assert!(counts[0] > 0 && counts[0] * 4 < counts[1], "{counts:?}");
 }
+
+#[test]
+fn kettle_parking_varies_handle_reach_and_preserves_worktop_clearance() {
+    let base = empty_workroom();
+    let mut azimuths = BTreeSet::new();
+    let mut aisle = 0;
+    for seed in 0..96 {
+        let mut scene = base.clone();
+        let mut counter = audit::fixture(ObjectKind::ServiceCounter, seed);
+        counter.size = Vec3::new(1.65, 0.93, 0.69);
+        counter.yaw = 0.63;
+        scene.objects.push(counter.clone());
+        scene.dress_refreshment_counter(&counter, Some(ObjectKind::Kettle));
+        let k = scene
+            .objects
+            .iter()
+            .find(|o| o.kind == ObjectKind::Kettle)
+            .unwrap();
+        assert!(scene.prop_clear(k, &counter, 0.0119));
+        // On a barista island, aisle-facing spouts had local heading pi.
+        // A handle faces the aisle when its opposite end rotates toward +Z.
+        let local = k.yaw - counter.yaw;
+        aisle += usize::from(local.cos() > 0.);
+        azimuths.insert((local.rem_euclid(std::f32::consts::TAU) * 8.).floor() as i32);
+        assert!((k.position.y - counter.position.y - counter.size.y).abs() < 1e-5);
+    }
+    assert!(azimuths.len() > 20);
+    assert!(
+        (68..96).contains(&aisle),
+        "{aisle} handles toward the working side"
+    );
+}

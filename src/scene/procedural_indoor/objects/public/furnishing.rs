@@ -1,5 +1,6 @@
 //! Lecterns and teaching stations: independent structure, ergonomics and finish.
 use super::*;
+pub mod teaching_board;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct TeachingProgram {
@@ -21,11 +22,16 @@ pub struct TeachingProgram {
     pub post_splay: f32,
     pub foot_depth: f32,
     pub crossbar_height: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub writing_board: Option<teaching_board::Installation>,
 }
 pub fn parameters(o: &IndoorObject) -> TeachingProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> TeachingProgram {
     let mut r = stream(o.seed, 0x5445414348494e47);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x544541434846494e);
-    TeachingProgram {
+    let mut p = TeachingProgram {
         structure: r.random_range(0..4),
         support: supports::SupportProgram::sample(o.seed),
         desk_angle: r.random_range(0.06..0.32),
@@ -48,10 +54,18 @@ pub fn parameters(o: &IndoorObject) -> TeachingProgram {
         post_splay: r.random_range(-0.035..0.055),
         foot_depth: r.random_range(0.65..0.95),
         crossbar_height: r.random_range(0.20..0.72),
+        writing_board: None,
+    };
+    if o.kind == ObjectKind::TeachingBoard && version >= teaching_board::INTRODUCED {
+        let (size, pose) = board_section(o, &p);
+        let installation = teaching_board::Installation::fit(o, &p, size, pose);
+        p.panels = installation.leaves.len();
+        p.writing_board = Some(installation);
     }
+    p
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
     if o.kind == ObjectKind::Lectern {
         lectern(a, o, &p);
     } else {
@@ -151,9 +165,8 @@ fn lectern(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
         );
     }
 }
-fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
+fn board_section(o: &IndoorObject, p: &TeachingProgram) -> (Vec3, Transform) {
     let s = o.size;
-    let l = o.kind.class_name();
     let bottom = s.y * p.panel_bottom;
     let h = (s.y * p.board_fraction.y).min(s.y * 0.975 - bottom);
     let w = s.x * p.board_fraction.x;
@@ -166,7 +179,35 @@ fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
     };
     let tf =
         Transform::from_xyz(0., bottom + h * 0.5, z).with_rotation(Quat::from_rotation_x(tilt));
+    (Vec3::new(w, h, d), tf)
+}
+fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
+    let (size, pose) = board_section(o, p);
+    if let Some(board) = &p.writing_board {
+        let carrier = size.with_x(board.carrier_width_m);
+        let mount = pose.with_translation(pose.translation + board.carrier_x_m * Vec3::X);
+        board_stand(a, o, p, carrier, mount, board.post_center_x_m);
+        board.build(a, p.finish, size, pose);
+    } else {
+        board_stand(a, o, p, size, pose, 0.);
+        legacy_leaves(a, o, p, size, pose);
+    }
+}
+fn board_stand(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &TeachingProgram,
+    size: Vec3,
+    tf: Transform,
+    post_center_x: f32,
+) {
+    let [w, h, d] = size.to_array();
+    let s = o.size;
+    let l = o.kind.class_name();
     let post = s.x.min(s.z) * 0.022;
+    let pads = p.writing_board.as_ref().and_then(|b| b.foot_pads);
+    let bearing_y = pads.map_or(0., |pad| pad.height_m);
+    let root_y = bearing_y + 0.04;
     let mount = tf.transform_point(Vec3::new(0., -h * 0.5 - post * 0.45, 0.));
     // A carrier below the frame joins split leaves and inset posts without
     // running metal through either writing face.
@@ -176,29 +217,39 @@ fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
         tf.with_translation(mount),
     );
     for sign in [-1., 1.] {
-        let x = sign * w * p.post_span * 0.5;
+        let x = post_center_x + sign * w * p.post_span * 0.5;
         let foot_x = x + sign * w * p.post_splay;
         let support_y = mount.y;
         a.box_part(
             p.finish,
             l,
-            Vec3::new(foot_x, 0.025, 0.),
+            Vec3::new(foot_x, bearing_y + 0.025, 0.),
             Vec3::new(post * 2.8, 0.05, s.z * p.foot_depth),
             0.004,
         );
         a.part(p.finish, l).rod(
-            Vec3::new(foot_x, 0.04, 0.),
+            Vec3::new(foot_x, root_y, 0.),
             Vec3::new(x, support_y, mount.z),
             post,
         );
         if p.structure == 2 {
             a.part(p.finish, l).rod(
-                Vec3::new(foot_x, 0.04, -s.z * p.foot_depth * 0.44),
+                Vec3::new(foot_x, root_y, -s.z * p.foot_depth * 0.44),
                 Vec3::new(x, support_y, mount.z),
                 post * 0.65,
             );
         }
-        if p.structure != 3 {
+        if let Some(pad) = pads {
+            let r = pad.radius_m;
+            let h = pad.height_m;
+            for z in [-pad.center_z_m, pad.center_z_m] {
+                a.part(Surface::Rubber, l).lathe(
+                    &[(0., 0.), (r * 0.90, 0.), (r, h * 0.24), (r, h), (0., h)],
+                    12,
+                    Transform::from_xyz(foot_x, 0., z),
+                );
+            }
+        } else if p.structure != 3 {
             for side in [-1., 1.] {
                 a.part(Surface::Rubber, l).ellipsoid(
                     Vec3::new(post, 0.025, 0.025),
@@ -213,10 +264,29 @@ fn board(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
     let t = p.crossbar_height;
     let x = w * (p.post_span * 0.5 + p.post_splay * (1. - t));
     a.part(p.finish, l).rod(
-        Vec3::new(-x, 0.04 + (support_y - 0.04) * t, mount.z * t),
-        Vec3::new(x, 0.04 + (support_y - 0.04) * t, mount.z * t),
+        Vec3::new(
+            post_center_x - x,
+            root_y + (support_y - root_y) * t,
+            mount.z * t,
+        ),
+        Vec3::new(
+            post_center_x + x,
+            root_y + (support_y - root_y) * t,
+            mount.z * t,
+        ),
         post * 0.7,
     );
+}
+fn legacy_leaves(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    p: &TeachingProgram,
+    size: Vec3,
+    tf: Transform,
+) {
+    let [w, h, d] = size.to_array();
+    let s = o.size;
+    let l = o.kind.class_name();
     let count = if p.structure == 3 { p.panels } else { 1 };
     let gap = (p.leaf_gap * s.x).min(w * 0.04);
     let leaf = (w - (count - 1) as f32 * gap) / count as f32;

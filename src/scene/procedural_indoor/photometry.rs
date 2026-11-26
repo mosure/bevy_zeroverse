@@ -10,6 +10,8 @@ use rand::Rng;
 mod illuminants;
 pub use illuminants::IlluminantModel;
 
+pub(crate) const TASK_APERTURES: u32 = 249;
+
 #[cfg(test)]
 mod tests;
 
@@ -77,7 +79,11 @@ fn photopic_emission(color: Color, luminance: f32) -> LinearRgba {
 }
 
 pub fn is_emitter(kind: ObjectKind) -> bool {
-    is_lamp(kind)
+    is_emitter_at(kind, super::layout::GENERATOR_VERSION)
+}
+
+pub(crate) fn is_emitter_at(kind: ObjectKind, version: u32) -> bool {
+    is_lamp_at(kind, version)
         || matches!(
             kind,
             ObjectKind::ExitSign
@@ -117,13 +123,26 @@ pub fn decorative_emission_channel(o: &IndoorObject, channel: usize) -> Option<L
 }
 
 pub fn is_lamp(kind: ObjectKind) -> bool {
-    matches!(
-        kind,
-        ObjectKind::FloorLamp
-            | ObjectKind::DeskLamp
-            | ObjectKind::CeilingPendant
-            | ObjectKind::WallSconce
-    )
+    is_lamp_at(kind, super::layout::GENERATOR_VERSION)
+}
+
+pub(crate) fn is_lamp_at(kind: ObjectKind, version: u32) -> bool {
+    kind == ObjectKind::FloorLamp || spot_range(kind, version).is_some()
+}
+
+fn spot_range(kind: ObjectKind, version: u32) -> Option<f32> {
+    match kind {
+        ObjectKind::DeskLamp | ObjectKind::CeilingPendant | ObjectKind::WallSconce => Some(3.),
+        ObjectKind::ExtractionHood if version >= TASK_APERTURES => Some(2.5),
+        _ => None,
+    }
+}
+
+pub(crate) fn spot_fixtures(scene: &IndoorManifest) -> impl Iterator<Item = (&IndoorObject, f32)> {
+    scene
+        .objects
+        .iter()
+        .filter_map(|o| spot_range(o.kind, scene.generator_version).map(|range| (o, range)))
 }
 
 /// Static probes represent the whole capture sequence. A lamp moved directly
@@ -139,6 +158,10 @@ pub(crate) fn stationary_source(scene: &IndoorManifest, object: &IndoorObject) -
 /// most fixtures coherent with the room; replacement bulbs and tunable LEDs
 /// fill the interval between warm residential and cool work lighting.
 pub fn lamp(scene: &IndoorManifest, object: &IndoorObject) -> SourcePower {
+    if object.kind == ObjectKind::ExtractionHood && scene.generator_version >= TASK_APERTURES {
+        return super::objects::public::service::hood::FilterDeck::installed(object)
+            .power(scene, object);
+    }
     let mut r = stream(
         object.seed ^ lighting_seed(scene).rotate_left(23),
         0x4c414d50504f5745,

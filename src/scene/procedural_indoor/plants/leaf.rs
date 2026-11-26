@@ -71,8 +71,11 @@ pub(super) fn blade(
     append(a, surface, positions, uvs);
 }
 
-const INDICES: [u32; 84] = {
-    let mut indices = [0; 84];
+/// Pointed ends and a shared midrib. Each three-vertex section adds four triangles.
+pub(super) const fn strip_indices<const N: usize>() -> [u32; N] {
+    assert!(N >= 12 && N.is_multiple_of(12));
+    let rows = N / 12;
+    let mut indices = [0; N];
     indices[0] = 0;
     indices[1] = 2;
     indices[2] = 1;
@@ -80,7 +83,7 @@ const INDICES: [u32; 84] = {
     indices[4] = 3;
     indices[5] = 2;
     let mut row = 0;
-    while row < 6 {
+    while row + 1 < rows {
         let k = 1 + row as u32 * 3;
         let quad = [
             k,
@@ -103,14 +106,15 @@ const INDICES: [u32; 84] = {
         }
         row += 1;
     }
-    indices[78] = 19;
-    indices[79] = 20;
-    indices[80] = 22;
-    indices[81] = 20;
-    indices[82] = 21;
-    indices[83] = 22;
+    let k = 1 + 3 * (rows as u32 - 1);
+    indices[N - 6] = k;
+    indices[N - 5] = k + 1;
+    indices[N - 4] = k + 3;
+    indices[N - 3] = k + 1;
+    indices[N - 2] = k + 2;
+    indices[N - 1] = k + 3;
     indices
-};
+}
 
 // A connected leaf patch has the same fixed topology for simple and palmate blades.
 pub(super) fn append(
@@ -119,10 +123,19 @@ pub(super) fn append(
     positions: [Vec3; 23],
     uvs: [[f32; 2]; 23],
 ) {
-    let g = a.part(surface, "other_prop");
+    const INDICES: [u32; 84] = strip_indices();
+    append_patch(a.part(surface, "other_prop"), positions, uvs, &INDICES);
+}
+
+pub(super) fn append_patch<const V: usize>(
+    g: &mut super::super::geometry::Geometry,
+    positions: [Vec3; V],
+    uvs: [[f32; 2]; V],
+    indices: &[u32],
+) {
     let first = g.positions.len() as u32;
-    let mut normals = [Vec3::ZERO; 23];
-    for tri in INDICES.as_chunks::<3>().0 {
+    let mut normals = [Vec3::ZERO; V];
+    for tri in indices.as_chunks::<3>().0 {
         let [i, j, k] = [tri[0] as usize, tri[1] as usize, tri[2] as usize];
         let n = (positions[j] - positions[i]).cross(positions[k] - positions[i]);
         for index in [i, j, k] {
@@ -134,5 +147,5 @@ pub(super) fn append(
     g.normals
         .extend(normals.into_iter().map(|n| n.normalize().to_array()));
     g.uvs.extend(uvs);
-    g.indices.extend(INDICES.into_iter().map(|i| first + i));
+    g.indices.extend(indices.iter().map(|i| first + i));
 }

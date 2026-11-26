@@ -7,6 +7,11 @@ use crate::scene::procedural_indoor::{
 use rand::Rng;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod finish;
+mod lid;
+pub(crate) use lid::LidStock;
+pub(crate) const FINISH_VERSION: u32 = 256;
+
 const CASE: usize = 126;
 const PAD: usize = 130;
 const LOTS: usize = 4;
@@ -54,7 +59,9 @@ impl BallFinish {
 pub(super) fn supports(s: Surface, slot: usize) -> bool {
     matches!(s, Surface::Metal | Surface::Plastic) && (CASE..CASE + LOTS).contains(&slot)
         || s == Surface::Plastic
-            && ((PAD..PAD + LOTS).contains(&slot) || (BALL..BALL + LOTS).contains(&slot))
+            && ((PAD..PAD + LOTS).contains(&slot)
+                || (BALL..BALL + LOTS).contains(&slot)
+                || LidStock::from_slot(slot).is_some())
 }
 
 pub(crate) struct Housing {
@@ -64,7 +71,8 @@ pub(crate) struct Housing {
 impl Housing {
     pub(crate) fn for_object(o: &IndoorObject) -> Self {
         let mut r = stream(o.finish_seed.unwrap_or(o.seed), 0x434153454c4f5453);
-        let lot = match r.random_range(0..12) {
+        let draw = r.random_range(0..12);
+        let lot = match draw {
             0..=4 => 0,
             5..=8 => 1,
             9 => 2,
@@ -74,6 +82,13 @@ impl Housing {
         // same stock lots without changing the distribution of desk equipment.
         let lot = if o.kind == ObjectKind::Thermostat {
             [2, 1, 3, 0][lot]
+        } else if matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display) {
+            match draw {
+                0..=7 => 0,
+                8 | 9 => 1,
+                10 => 2,
+                _ => 3,
+            }
         } else {
             lot
         };
@@ -106,6 +121,26 @@ impl Housing {
     pub(crate) fn case_label(&self, o: &IndoorObject) -> String {
         format!("{}#finish{}", o.kind.class_name(), self.case_slot)
     }
+    pub(crate) fn case_slot_for(&self, surface: Surface) -> Option<usize> {
+        matches!(surface, Surface::Plastic | Surface::Metal).then_some(self.case_slot)
+    }
+
+    pub(crate) fn display_case_metrics(
+        &self,
+        surface: Surface,
+        seed: u64,
+    ) -> (&'static str, &'static str, Option<f32>) {
+        let Some(slot) = self.case_slot_for(surface) else {
+            return ("timber", "timber", None);
+        };
+        let finish = finish::Finish::sample(seed, surface, slot - CASE);
+        let tone = if finish.process.exposed_alloy() {
+            "silver"
+        } else {
+            self.tone()
+        };
+        (finish.process.name(), tone, Some(finish.roughness))
+    }
     fn trim_slot(&self) -> usize {
         if self.case_slot == CASE {
             CASE + 3
@@ -123,6 +158,7 @@ impl Housing {
 
 pub(super) fn install(
     scene: &IndoorManifest,
+    images: &mut impl AssetStore<Image>,
     materials: &mut impl AssetStore<StandardMaterial>,
     selection: Option<&MaterialSelection>,
     variants: &mut BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
@@ -136,8 +172,26 @@ pub(super) fn install(
             .collect()
     } else {
         let mut keys = BTreeSet::new();
-        for o in scene.objects.iter().filter(|o| {
-            matches!(
+        for o in &scene.objects {
+            if scene.generator_version >= FINISH_VERSION
+                && matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display)
+            {
+                let housing = Housing::for_object(o);
+                let display =
+                    crate::scene::procedural_indoor::objects::computers::display_parameters(o);
+                let mount = if o.kind == ObjectKind::Display {
+                    Surface::Metal
+                } else {
+                    display.mount.finish
+                };
+                for surface in [display.casing, mount] {
+                    if let Some(slot) = housing.case_slot_for(surface) {
+                        keys.insert((surface, slot));
+                    }
+                }
+                continue;
+            }
+            if !(matches!(
                 o.kind,
                 ObjectKind::Laptop
                     | ObjectKind::Keyboard
@@ -146,8 +200,9 @@ pub(super) fn install(
                     | ObjectKind::Thermostat
             ) || (o.kind == ObjectKind::Printer
                 && scene.generator_version
-                    >= crate::scene::procedural_indoor::objects::utilities::printer::OUTPUT_VERSION)
-        }) {
+                    >= crate::scene::procedural_indoor::objects::utilities::printer::OUTPUT_VERSION)) {
+                continue;
+            }
             let p = Housing::for_object(o);
             keys.insert((p.surface, p.case_slot));
             use crate::scene::procedural_indoor::objects::desktop::{self, pointer};
@@ -170,11 +225,25 @@ pub(super) fn install(
             }
             if o.kind == ObjectKind::Laptop {
                 keys.insert((Surface::Plastic, p.case_slot - CASE + PAD));
+                use crate::scene::procedural_indoor::objects::computers;
+                if scene.generator_version >= computers::lid::INTRODUCED {
+                    let face = computers::parameters(o)
+                        .lid_face(o, scene.generator_version)
+                        .unwrap();
+                    keys.extend(face.stocks().map(|stock| (Surface::Plastic, stock.slot())));
+                }
             }
         }
         keys
     };
     for (s, slot) in keys {
+        if let Some(stock) = LidStock::from_slot(slot) {
+            variants.insert(
+                (s, slot),
+                materials.add(stock.material(scene.material_seed())),
+            );
+            continue;
+        }
         if (BALL..BALL + LOTS).contains(&slot) {
             let finish = BallFinish::ALL[slot - BALL];
             variants.insert(
@@ -212,15 +281,21 @@ pub(super) fn install(
             r.random_range(0.37..0.63)
         };
         let color = color * if pad { r.random_range(0.82..0.96) } else { 1. };
-        variants.insert(
-            (s, slot),
-            materials.add(StandardMaterial {
-                base_color: Color::srgb(color.x, color.y, color.z),
-                perceptual_roughness: roughness,
-                metallic: if s == Surface::Metal { 0.88 } else { 0. },
-                ..default()
-            }),
-        );
+        let mut material = StandardMaterial {
+            base_color: Color::srgb(color.x, color.y, color.z),
+            perceptual_roughness: roughness,
+            metallic: if s == Surface::Metal { 0.88 } else { 0. },
+            ..default()
+        };
+        if !pad && scene.generator_version >= FINISH_VERSION {
+            let detail = scene.appearance.as_ref().map_or(1., |s| s.material_detail);
+            finish::Finish::sample(scene.material_seed(), s, lot).apply(
+                &mut material,
+                images,
+                detail,
+            );
+        }
+        variants.insert((s, slot), materials.add(material));
     }
 }
 
@@ -231,6 +306,97 @@ mod tests {
         layout::IndoorLayout,
         objects::{audit, build_manifest_object, desktop},
     };
+
+    #[test]
+    fn displays_share_installed_case_stock_without_changing_triangles_or_semantics() {
+        let mut scene =
+            IndoorManifest::generate_with_humans(42002, IndoorLayout::OpenOffice, 0.65, 0, 0.)
+                .unwrap();
+        scene.objects = (0..96)
+            .flat_map(|seed| {
+                [ObjectKind::Monitor, ObjectKind::Display].map(|kind| audit::fixture(kind, seed))
+            })
+            .collect();
+        let mut demanded = BTreeSet::new();
+        for o in &scene.objects {
+            let current = build_manifest_object(&scene, o);
+            let old = crate::scene::procedural_indoor::objects::build_object_at_version(
+                o,
+                None,
+                FINISH_VERSION - 1,
+            );
+            assert_eq!(old.parts.len(), current.parts.len());
+            for (((surface, label), part), ((previous_surface, previous_label), previous)) in
+                current.parts.iter().zip(&old.parts)
+            {
+                assert_eq!(surface, previous_surface);
+                assert_eq!(label.split('#').next(), previous_label.split('#').next());
+                assert_eq!(part.positions, previous.positions);
+                assert_eq!(part.normals, previous.normals);
+                assert_eq!(part.uvs, previous.uvs);
+                assert_eq!(part.indices, previous.indices);
+                if matches!(surface, Surface::Plastic | Surface::Metal) {
+                    let slot = finish_slot(*surface, label).unwrap();
+                    assert!(supports(*surface, slot));
+                    assert!(!supports(
+                        *surface,
+                        finish_slot(*surface, previous_label).unwrap()
+                    ));
+                    demanded.insert((*surface, slot));
+                } else {
+                    assert_eq!(label, previous_label);
+                }
+            }
+        }
+        let selection = MaterialSelection {
+            surfaces: default(),
+            direct_surfaces: default(),
+            finishes: demanded.clone(),
+        };
+        let (mut images, mut materials) = (
+            Assets::<Image>::default(),
+            Assets::<StandardMaterial>::default(),
+        );
+        let (mut all, mut selected) = (BTreeMap::new(), BTreeMap::new());
+        install(&scene, &mut images, &mut materials, None, &mut all);
+        assert!(all.keys().eq(demanded.iter()));
+        assert_eq!(images.len(), 2 * demanded.len());
+        install(
+            &scene,
+            &mut images,
+            &mut materials,
+            Some(&selection),
+            &mut selected,
+        );
+        assert!(all.keys().eq(selected.keys()));
+        for key in &demanded {
+            let m = materials.get(&all[key]).unwrap();
+            let n = materials.get(&selected[key]).unwrap();
+            assert_eq!(
+                (m.base_color, m.metallic, m.uv_transform),
+                (n.base_color, n.metallic, n.uv_transform)
+            );
+            for (a, b) in [
+                (&m.normal_map_texture, &n.normal_map_texture),
+                (&m.metallic_roughness_texture, &n.metallic_roughness_texture),
+            ] {
+                assert_eq!(
+                    images.get(a.as_ref().unwrap()).unwrap().data,
+                    images.get(b.as_ref().unwrap()).unwrap().data
+                );
+            }
+        }
+        scene.generator_version = FINISH_VERSION - 1;
+        let mut legacy = BTreeMap::new();
+        install(&scene, &mut images, &mut materials, None, &mut legacy);
+        assert!(legacy.is_empty());
+        scene.objects = vec![audit::fixture(ObjectKind::Laptop, 8)];
+        install(&scene, &mut images, &mut materials, None, &mut legacy);
+        assert!(!legacy.is_empty());
+        assert!(legacy
+            .values()
+            .all(|h| materials.get(h).unwrap().normal_map_texture.is_none()));
+    }
 
     #[test]
     fn polished_trackballs_resolve_identically_in_selected_and_full_materials() {
@@ -254,8 +420,15 @@ mod tests {
         }
         let mut assets = Assets::<StandardMaterial>::default();
         let (mut all, mut selected) = (BTreeMap::new(), BTreeMap::new());
-        install(&scene, &mut assets, None, &mut all);
-        install(&scene, &mut assets, Some(&selection), &mut selected);
+        let mut images = Assets::<Image>::default();
+        install(&scene, &mut images, &mut assets, None, &mut all);
+        install(
+            &scene,
+            &mut images,
+            &mut assets,
+            Some(&selection),
+            &mut selected,
+        );
         assert!(all.keys().eq(selected.keys()));
         for slot in BALL..BALL + 4 {
             let key = (Surface::Plastic, slot);
@@ -268,7 +441,7 @@ mod tests {
         }
         scene.generator_version = desktop::pointer::INTRODUCED - 1;
         let mut legacy = BTreeMap::new();
-        install(&scene, &mut assets, None, &mut legacy);
+        install(&scene, &mut images, &mut assets, None, &mut legacy);
         assert!(legacy.keys().all(|&(_, slot)| slot < BALL));
     }
 }

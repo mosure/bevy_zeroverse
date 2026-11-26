@@ -113,5 +113,45 @@ pub(super) fn guard(
     ] {
         category(report, &format!("{prefix}_{key}"), &value);
     }
+    if let Some(mount) = g.panel_mount {
+        use crate::scene::procedural_indoor::envelope::guardrail::Retainer;
+        let style = match mount.retainer {
+            Retainer::EdgeClips {
+                height_m,
+                lower_fraction,
+                upper_fraction,
+            } => {
+                for (key, value) in [
+                    ("clip_height_m", height_m),
+                    ("lower_clip_fraction", lower_fraction),
+                    ("upper_clip_fraction", upper_fraction),
+                ] {
+                    numeric.push(&format!("{prefix}_{key}"), value.into())?;
+                }
+                "EdgeClips"
+            }
+            Retainer::PostChannel { end_setback_m } => {
+                numeric.push(
+                    &format!("{prefix}_channel_end_setback_m"),
+                    end_setback_m.into(),
+                )?;
+                "PostChannel"
+            }
+        };
+        category(report, &format!("{prefix}_panel_mount"), style);
+        category(
+            report,
+            &format!("{prefix}_mount_finish"),
+            &format!("{:?}", mount.finish),
+        );
+        for (key, v) in [
+            ("panel_edge_clearance_m", mount.edge_clearance_m),
+            ("nominal_panel_bite_m", mount.bite_m),
+            ("jaw_wall_m", mount.jaw_wall_m),
+            ("gasket_m", mount.gasket_m),
+        ] {
+            numeric.push(&format!("{prefix}_{key}"), v.into())?;
+        }
+    }
     Ok(())
 }

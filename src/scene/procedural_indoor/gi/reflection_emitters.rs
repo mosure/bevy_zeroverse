@@ -2,6 +2,7 @@
 //! faces remain excluded from diffuse transport to avoid counting lights twice.
 use super::*;
 use crate::scene::procedural_indoor::photometry::source_color;
+use crate::scene::procedural_indoor::{layout::ObjectKind, photometry};
 
 pub(crate) struct ReflectionEmitters {
     triangles: Vec<Triangle>,
@@ -22,20 +23,40 @@ impl ReflectionEmitters {
             emission.push(color * luminance);
             append_face_triangles(&mut triangles, &aperture, i, None);
         }
-        for o in scene
-            .objects
-            .iter()
-            .filter(|o| o.kind == super::super::layout::ObjectKind::DeskLamp)
-        {
-            if !super::super::photometry::stationary_source(scene, o) {
+        for o in scene.objects.iter().filter(|o| {
+            o.kind == ObjectKind::DeskLamp
+                || (scene.generator_version >= photometry::TASK_APERTURES
+                    && matches!(
+                        o.kind,
+                        ObjectKind::ExtractionHood | ObjectKind::CeilingPendant
+                    ))
+        }) {
+            if !photometry::stationary_source(scene, o) {
                 continue;
             }
-            let power = super::super::photometry::lamp(scene, o);
-            if power.lumens == 0. {
-                continue;
-            }
-            let (aperture, area) = objects::accessories::lamps::reflection_aperture(o);
-            let c = super::super::photometry::lamp_emission(scene, power, area);
+            let (aperture, area, power) = if o.kind == ObjectKind::ExtractionHood {
+                let deck = objects::public::service::hood::FilterDeck::installed(o);
+                let power = deck.power(scene, o);
+                if power.lumens == 0. {
+                    continue;
+                }
+                (deck.reflection_aperture(), deck.emitting_area_m2(), power)
+            } else {
+                let power = photometry::lamp(scene, o);
+                if power.lumens == 0. {
+                    continue;
+                }
+                let (aperture, area) = if o.kind == ObjectKind::CeilingPendant {
+                    let lens = objects::equipment::pendant::parameters(o).lens;
+                    let mut aperture = super::super::geometry::Geometry::default();
+                    lens.write_aperture(&mut aperture);
+                    (aperture, lens.emitting_area_m2())
+                } else {
+                    objects::accessories::lamps::reflection_aperture(o)
+                };
+                (aperture, area, power)
+            };
+            let c = photometry::lamp_emission(scene, power, area);
             append_face_triangles(
                 &mut triangles,
                 &aperture,

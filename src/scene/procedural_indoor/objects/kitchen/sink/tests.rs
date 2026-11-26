@@ -221,10 +221,26 @@ fn waste_slots_and_aerators_are_recessed_above_closed_geometry() {
             serde_json::to_value(old.accessories).unwrap(),
             serde_json::to_value(&plan.accessories).unwrap()
         );
+        let fitted = program::parameters_at(&o, &cabinet, FITTED_PLUMBING_VERSION);
         assert_eq!(
-            serde_json::to_value(old.dishes).unwrap(),
-            serde_json::to_value(&plan.dishes).unwrap()
+            serde_json::to_value(&old.dishes).unwrap(),
+            serde_json::to_value(&fitted.dishes).unwrap()
         );
+        // Later dishware revisions can reshape a bowl at the same basin location.
+        let placement = |dish: &program::BasinDish| {
+            (
+                dish.seed,
+                dish.position,
+                dish.yaw,
+                dish.dish.style,
+                dish.dish.count,
+            )
+        };
+        assert!(old
+            .dishes
+            .iter()
+            .map(placement)
+            .eq(plan.dishes.iter().map(placement)));
         for b in &plan.basins {
             let waste = b.waste.as_ref().unwrap();
             inserts.insert(format!("{:?}", waste.strainer));

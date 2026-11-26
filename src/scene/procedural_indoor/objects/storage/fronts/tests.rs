@@ -211,10 +211,20 @@ fn old_cabinet_archives_keep_the_original_front_and_new_materials_preserve_shape
             .any(|(_, l)| l.starts_with("cabinet#uv_local")));
         let mut other = o.clone();
         other.finish_seed = Some(seed + 41);
-        assert_eq!(
-            audit::descriptor(&o, &after),
-            audit::descriptor(&other, &build_object(&other))
-        );
+        // Isolate the finish seed at each version. Shelf contents can acquire
+        // new geometry independently of the cabinet front in a later generator.
+        for (version, mesh) in [
+            (hinged::INTRODUCED, after),
+            (
+                crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                build_object(&o),
+            ),
+        ] {
+            assert_eq!(
+                audit::descriptor(&o, &mesh),
+                audit::descriptor(&other, &build_object_at_version(&other, None, version)),
+            );
+        }
         checked += 1;
     }
     assert!(checked >= 12);

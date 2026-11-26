@@ -148,8 +148,7 @@ pub(super) fn arrange(
     } else {
         bay.right - anchor
     };
-    let rear = -o.size.z * 0.5 + if p.closed_back { p.panel_m } else { 0. };
-    let front = o.size.z * 0.5;
+    let (rear, front) = p.deck_limits(o.size.z);
     let deepest = books.iter().map(|c| c.size.z).fold(0., f32::max);
     let min_spine = rear + deepest + 0.008;
     let max_spine = front - 0.008;

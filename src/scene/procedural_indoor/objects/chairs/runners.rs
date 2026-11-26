@@ -2,7 +2,7 @@
 //! seated on its straight floor run and shares its opposite side's tooling.
 use super::*;
 
-mod laminate;
+use super::laminate;
 #[cfg(test)]
 mod tests;
 

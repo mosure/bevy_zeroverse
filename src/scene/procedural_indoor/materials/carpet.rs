@@ -30,6 +30,9 @@ pub struct CarpetDesign {
 }
 impl CarpetDesign {
     pub fn sample(seed: u64, base: [f32; 3], rug: bool) -> Self {
+        Self::sample_at_version(seed, base, rug, super::super::layout::GENERATOR_VERSION)
+    }
+    pub(super) fn sample_at_version(seed: u64, base: [f32; 3], rug: bool, version: u32) -> Self {
         let mut rng = stream(seed, 0x434152504554);
         let mut palette = [base; 3];
         let pale = rng.random_range(0.48..0.85);
@@ -39,7 +42,7 @@ impl CarpetDesign {
         palette[2] = base.map(|c| c * shade);
         Self {
             dye: None,
-            rug: rug.then(|| super::rug_design::RugDesign::sample(seed)),
+            rug: rug.then(|| super::rug_design::RugDesign::sample_at_version(seed, version)),
             pattern: rng.random_range(0..if rug { 5 } else { 3 }),
             repeats: [rng.random_range(2..=7), rng.random_range(2..=9)],
             palette,

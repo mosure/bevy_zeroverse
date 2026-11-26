@@ -87,7 +87,7 @@ impl Geometry {
         });
     }
 
-    fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
+    pub(crate) fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
     where
         F: Fn(Vec3, Vec3, Vec3, f32, f32, f32) -> Chart,
         Chart: Fn(f32, f32) -> Vec2,

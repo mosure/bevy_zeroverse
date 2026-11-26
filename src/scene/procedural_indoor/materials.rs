@@ -9,6 +9,7 @@ mod atlas;
 pub(crate) mod bin_film;
 pub mod boards;
 pub mod botanical;
+pub(crate) mod broth;
 #[cfg(target_arch = "wasm32")]
 mod browser_maps;
 pub mod carpet;
@@ -21,6 +22,7 @@ pub mod construction;
 mod content;
 pub(crate) mod cooktop;
 pub(crate) mod cork;
+pub(crate) mod cup_board;
 pub mod display_finish;
 pub(crate) mod drinkware;
 pub(crate) mod emitters;

@@ -60,6 +60,11 @@ impl MaterialSelection {
             if coated_stock::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
                 || speaker::supports(surface, slot)
+                || (scene.generator_version >= broth::INTRODUCED
+                    && matches!(
+                        (surface, slot),
+                        (Surface::Ceramic, broth::SLOT) | (Surface::Paper, broth::HERB_SLOT)
+                    ))
                 || (surface == Surface::Ink && slot == produce_skin::SLOT)
                 || cork::supports(surface, slot)
                 || potting::supports(surface, slot)
@@ -70,6 +75,7 @@ impl MaterialSelection {
                 || projection_cloth::supports(surface, slot)
                 || tissue_stock::supports(surface, slot)
                 || masonry::supports(surface, slot)
+                || cup_board::supports(surface, slot)
                 || package_print::supports(surface, slot)
                 || bin_film::supports(surface, slot)
                 || input_housing::supports(surface, slot)
@@ -536,7 +542,7 @@ impl IndoorMaterials {
             selection.map(|s| &s.finishes),
         ));
         handset::install(scene, materials, selection, &mut variants);
-        input_housing::install(scene, materials, selection, &mut variants);
+        input_housing::install(scene, images, materials, selection, &mut variants);
         keycaps::install(scene, images, materials, selection, &mut variants);
         cooktop::install(scene, images, materials, selection, &mut variants);
         worktop_finish::install(scene, images, materials, selection, &mut variants);
@@ -553,6 +559,7 @@ impl IndoorMaterials {
         variants.extend(supplies::build(scene, &handles, materials, selection));
         coated_stock::install(scene, materials, selection, &mut variants);
         package_print::install(scene, images, materials, selection, &mut variants);
+        cup_board::install(scene, images, materials, selection, &mut variants);
         cork::install(scene, images, materials, selection, &mut variants);
         potting::install(scene, images, materials, selection, &mut variants);
         appliance_panel::install(scene, images, materials, selection, &mut variants);
@@ -764,13 +771,14 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || tissue_stock::supports(surface, slot)
         || potting::supports(surface, slot)
         || masonry::supports(surface, slot)
+        || cup_board::supports(surface, slot)
         || package_print::supports(surface, slot)
         || bin_film::supports(surface, slot)
         || matches!(
             (surface, slot),
             (Surface::Ceramic, 100..=102 | 105)
                 | (Surface::Terracotta, 103 | 106)
-                | (Surface::Paper, 104)
+                | (Surface::Paper, 104 | broth::HERB_SLOT)
         )
 }
 /// Shared by raster material resolution and symbolic diffuse-transport binding.

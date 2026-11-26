@@ -32,10 +32,13 @@ pub(super) fn flat_roughness(mut data: Vec<u8>, size: u32) -> Image {
 }
 
 pub(super) fn images((color, normal, data): TextureMaps, size: u32) -> [Image; 3] {
-    let color = mip_image(color, size, MapType::Color);
+    let [normal, data] = relief_images(normal, data, size);
+    [mip_image(color, size, MapType::Color), normal, data]
+}
+
+pub(super) fn relief_images(normal: Vec<u8>, data: Vec<u8>, size: u32) -> [Image; 2] {
     let (normal, data) = filter(normal, data, size as usize);
     [
-        color,
         mip_chain_image(normal, size, MapType::Normal),
         mip_chain_image(data, size, MapType::Data),
     ]

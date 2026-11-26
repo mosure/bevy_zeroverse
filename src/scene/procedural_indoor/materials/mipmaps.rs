@@ -8,6 +8,21 @@ pub(super) enum MapType {
     Data,
 }
 
+/// Limit sampling to the mip levels protected by each atlas swatch's gutter.
+pub(super) fn swatch_image(bytes: Vec<u8>, side: usize, mips: u32, map: MapType) -> Image {
+    let mut image = mip_image(bytes, side as u32, map);
+    let len = (0..mips).map(|m| (side >> m).pow(2) * 4).sum();
+    image.data.as_mut().unwrap().truncate(len);
+    image.texture_descriptor.mip_level_count = mips;
+    if let ImageSampler::Descriptor(s) = &mut image.sampler {
+        s.lod_max_clamp = (mips - 1) as f32;
+        s.anisotropy_clamp = 1;
+        s.address_mode_u = ImageAddressMode::ClampToEdge;
+        s.address_mode_v = ImageAddressMode::ClampToEdge;
+    }
+    image
+}
+
 pub(super) fn mip_image(bytes: Vec<u8>, size: u32, kind: MapType) -> Image {
     let mut transfer = matches!(kind, MapType::Color).then(mip_transfer::ColorTransfer::new);
     mip_image_with_transfer(bytes, size, kind, |value| {
@@ -16,6 +31,22 @@ pub(super) fn mip_image(bytes: Vec<u8>, size: u32, kind: MapType) -> Image {
 }
 
 pub(super) fn mip_image_with_transfer(
+    bytes: Vec<u8>,
+    size: u32,
+    kind: MapType,
+    color_transfer: impl FnMut(f32) -> u8,
+) -> Image {
+    filtered_image::<false>(bytes, size, kind, color_transfer)
+}
+
+/// Flat pigment areas dominate printed artwork. Precompute the exact byte
+/// produced by filtering four equal texels, including sRGB requantization.
+pub(super) fn printed_mip_image(bytes: Vec<u8>, size: u32) -> Image {
+    let mut transfer = mip_transfer::ColorTransfer::new();
+    filtered_image::<true>(bytes, size, MapType::Color, |v| transfer.encode(v))
+}
+
+fn filtered_image<const PRINT: bool>(
     mut bytes: Vec<u8>,
     size: u32,
     kind: MapType,
@@ -25,6 +56,10 @@ pub(super) fn mip_image_with_transfer(
     // per possible input instead of millions of powf calls per room. Filtering
     // and the floating-point accumulation order remain unchanged.
     let linear = srgb8_table();
+    static SOLID: std::sync::OnceLock<[u8; 256]> = std::sync::OnceLock::new();
+    let solid = PRINT.then(|| {
+        SOLID.get_or_init(|| linear.map(|v| (linear_to_srgb((v + v + v + v) * 0.25) * 255.) as u8))
+    });
     // Keep all levels in their final allocation. Reading a completed level and
     // appending its successor avoids cloning the base and allocating each mip.
     let mut n = size as usize;
@@ -41,6 +76,20 @@ pub(super) fn mip_image_with_transfer(
         let next_offset = bytes.len();
         for y in 0..next_n {
             for x in 0..next_n {
+                if let Some(solid) = solid {
+                    let pixels = bytes.as_chunks::<4>().0;
+                    let i = previous / 4 + y * 2 * n + x * 2;
+                    let p = pixels[i];
+                    if p == pixels[i + 1] && p == pixels[i + n] && p == pixels[i + n + 1] {
+                        bytes.extend([
+                            solid[p[0] as usize],
+                            solid[p[1] as usize],
+                            solid[p[2] as usize],
+                            255,
+                        ]);
+                        continue;
+                    }
+                }
                 let mut sum = Vec3::ZERO;
                 for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
                     let i = previous + ((y * 2 + dy) * n + x * 2 + dx) * 4;

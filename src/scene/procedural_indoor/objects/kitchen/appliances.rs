@@ -223,6 +223,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, vers
                         ),
                         y + 0.007,
                         top - y - 0.020,
+                        version,
                     );
                     contents::build(a, &items);
                 }
@@ -276,11 +277,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, vers
                 Transform::from_xyz(cx, tray_y, z),
             );
             if p.contents {
-                let mut bowl = dishware::parameters(
+                let mut bowl = dishware::parameters_at(
                     Vec3::new(w * 0.30, s.y * 0.48, d * 0.38),
                     1,
                     1,
                     o.seed ^ 0x4d4943524f444953,
+                    version,
                 );
                 // Microwave contents use a microwave-safe substrate.
                 bowl.surface = Surface::Ceramic;

@@ -1,9 +1,13 @@
 //! Built beverage equipment fields; omit controls that a construction does not use.
 use super::*;
-use crate::scene::procedural_indoor::objects::{hospitality::coffee, public::dispenser};
+use crate::scene::procedural_indoor::objects::{
+    hospitality::{coffee, kettle},
+    public::dispenser,
+};
 
 pub(super) fn record(
     o: &IndoorObject,
+    version: u32,
     categories: &mut Categories,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
@@ -38,6 +42,14 @@ pub(super) fn record(
             numeric.push("brewer_grille_count", p.grille_count as f64)?;
             numeric.push("brewer_tray_width_m", (o.size.x * p.tray_fraction) as f64)?;
             numeric.push("brewer_tray_depth_m", (o.size.z * p.tray_depth) as f64)?;
+        }
+    } else if o.kind == ObjectKind::Kettle && version >= kettle::FORMED_KETTLE_VERSION {
+        let p = kettle::parameters_at(o, version);
+        if let Some(hw) = p.hardware {
+            category(categories, "kettle_outlet", format!("{:?}", hw.outlet));
+            category(categories, "kettle_lid_grip", format!("{:?}", hw.lid_grip));
+            numeric.push("kettle_lid_rise_m", f64::from(hw.lid_rise_m))?;
+            numeric.push("kettle_wall_m", f64::from(hw.wall_m))?;
         }
     } else if o.kind == ObjectKind::DrinkDispenser {
         let p = dispenser::parameters(o);

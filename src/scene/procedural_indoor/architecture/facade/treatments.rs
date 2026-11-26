@@ -4,6 +4,8 @@ mod cloth;
 pub(crate) mod drapery;
 pub use drapery::CurtainHeading;
 mod mesh;
+mod roller_stock;
+pub use roller_stock::{RollerDrive, RollerHead, RollerStock};
 pub(crate) mod pleated;
 pub use pleated::{PleatConstruction, PleatedStock};
 pub(crate) mod minification;
@@ -46,6 +48,9 @@ pub struct ShadeProgram {
     /// Physical fold stock. Older shades replay their original corrugated surface.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pleated: Option<PleatedStock>,
+    /// Housing, clutch and weighted hem fitted to a roller blind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roller: Option<RollerStock>,
     pub fold_depth: f32,
     pub fullness: f32,
     pub hem_sag: f32,
@@ -103,6 +108,7 @@ impl ShadeProgram {
             fold_pitch: r.random_range(0.10..0.25),
             pleat_crease: None,
             pleated: None,
+            roller: (metric_stock && shade == Shade::Roller).then(|| RollerStock::sample(seed)),
             fold_depth: r.random_range(0.012..0.034),
             fullness: r.random_range(1.4..2.4),
             hem_sag: r.random_range(0.001..0.018),
@@ -164,6 +170,7 @@ impl ShadeProgram {
                 .is_some_and(|slats| !slats.valid(self.slat_pitch))
             || self.vertical.is_some_and(|v| !v.valid())
             || self.pleated.is_some_and(|v| !v.valid())
+            || self.roller.is_some_and(|v| !v.valid())
             || self
                 .pleat_crease
                 .is_some_and(|r| !(0.10..=0.28).contains(&r))
@@ -261,18 +268,6 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
     {
         let mut first = Assembly::default();
         let mut last = Assembly::default();
-        mesh::build(
-            &mut first,
-            tf,
-            f,
-            o,
-            p,
-            mesh::Draw {
-                coverage,
-                fixed_angle: None,
-                moving: true,
-            },
-        );
         let mut end = motion::endpoint(seed, coverage, 1.);
         // Translate rigid slats without shearing or shrinking them. Tilting and
         // lifting are distinct degrees of freedom; this program opens the stack.
@@ -296,6 +291,19 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
             end = end.max(min_coverage);
         }
         mesh::build(
+            &mut first,
+            tf,
+            f,
+            o,
+            p,
+            mesh::Draw {
+                coverage,
+                fixed_angle: None,
+                moving: true,
+                other_coverage: Some(end),
+            },
+        );
+        mesh::build(
             &mut last,
             tf,
             f,
@@ -305,6 +313,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
                 coverage: end,
                 fixed_angle: angle,
                 moving: true,
+                other_coverage: Some(coverage),
             },
         );
         let cloth_motion = match f.shade {
@@ -340,6 +349,7 @@ pub fn build(a: &mut Assembly, tf: Transform, f: &Facade, o: &WindowOpening) {
                 coverage,
                 fixed_angle: None,
                 moving: false,
+                other_coverage: None,
             },
         );
     }

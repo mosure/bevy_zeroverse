@@ -294,7 +294,7 @@ fn assigned_materials(
             .find_map(|s| s.strip_prefix("finish")?.parse::<usize>().ok());
         let base = &program.materials[*role as usize];
         let recipe = if let Some((slot, _)) = materials::rugs::key(label) {
-            materials::rugs::recipe(base, slot)
+            materials::rugs::recipe_at_version(base, slot, scene.generator_version)
         } else {
             slot.map_or_else(|| base.clone(), |i| base.variant(i))
         };

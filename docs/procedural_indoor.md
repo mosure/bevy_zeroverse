@@ -101,7 +101,17 @@ support relationships, camera paths and optional world rotation.
   either side. The geometry audit records the seat and tablet dimensions.
   Dataset metrics include tablet handedness, seat depth and installed fold angle.
   Office caster chairs have paired tyres on offset swivel axles. The adjustment
-  lever follows the seat pan during swivel motion.
+  mechanism fits the underside of the actual pan. Fixed-height swivel pedestals
+  have a plain column. Gas lifts have an exposed piston, a sealing collar and a
+  left- or right-hand paddle or sleeve that rotates with the seat. Cast spokes
+  taper from the hub to their wheel or glide in a shared radial cross-section.
+  Dataset metrics record the mechanism, control side and hub height.
+- On upholstered chairs, the backrest connects to the seat pan with paired
+  tubes, bent steel straps, laminated wood stays or a forked swivel spine.
+  The bend clears the cushion and meets the lower edge of the actual back,
+  including individual spindles and open frames. Chairs at the same table can
+  share mounting hardware. The geometry audit describes each mount, and dataset
+  metrics report its style, stock width, section depth and nominal bend radius.
 - Office workstations can form rear-to-rear desk banks with outward seating.
   The available depth determines whether both desks and chairs fit. Other zones
   retain separate rows, and teaching rows share a forward direction. Desks
@@ -172,7 +182,11 @@ support relationships, camera paths and optional world rotation.
   An internal glazed partition connects the furnished neighboring room.
 - Arched portals, pillars, acoustic treatments, trim and ventilation add structural
   detail. Raised and sunken floors have treads and risers; mezzanines include
-  supports, stairs, guards and furnishings. Opaque perimeter walls can carry
+  supports, stairs, guards and furnishings. Glass and solid guard panels fit
+  between post-mounted edge clips or continuous channels. Metal jaws and rubber
+  gaskets grip both faces. Channel ends follow the stair rake. Each installation
+  records the hardware dimensions, finish and clip heights or channel setback.
+  Opaque perimeter walls can carry
   veneer, acoustic fabric or ceramic slab linings. The manifest records their
   installed height, module pitch, recessed joints and finish. Panels end at the
   actual openings and share the wall semantic class.
@@ -233,9 +247,18 @@ support relationships, camera paths and optional world rotation.
   their openings into that zone. Leaning books rest on the shelf and bear against the next
   volume, a solid divider or a weighted bookend. A short series may share a
   trim size and jacket design while individual volumes vary in thickness.
-  Paper and case bindings, exposed page edges and printed spine marks use the
-  same geometry in RGB and surface annotations. Books retain the books semantic
-  label, and bookends belong to the shelving that supports them.
+  Loose and shelved books can carry an unfolded front, spine and back print.
+  Reading copies favor paperbacks and hardbacks. Field notebooks retain wire
+  bindings, elastic closures and their own covers. Closed copies may rest back
+  cover up, and stacks can alternate binding thickness and spine direction. Matte, satin and laminated stocks
+  vary by edition, and some prints have spot varnish registered to the ink.
+  The artwork uses the binding surface in RGB and surface annotations. Dataset
+  metrics count binding types, back covers facing up, and head-to-tail placement
+  within loose stacks. Books retain the books semantic label, and bookends belong
+  to the shelving that supports them. Open-frame
+  bookcases have recessed decks bearing on side rails, with a diagonal brace,
+  alternating bay braces or horizontal stretchers behind the rear posts.
+  Usable shelf depth accounts for the frame when placing books and loose objects.
 - Cameras cover seated, low, standing and elevated viewpoints, roughly 0.7–3.25 m
   above the local floor, with both near-horizontal and content-directed gaze,
   varied intrinsics and configurable travel lengths. The independent

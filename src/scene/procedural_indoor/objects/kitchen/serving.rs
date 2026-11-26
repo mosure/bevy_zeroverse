@@ -2,6 +2,7 @@
 //! frame. Inventory, appliances and stacked dishes use the bare dish builder.
 use super::{dishware::DishProgram, *};
 mod bakery;
+pub(super) mod soup;
 pub(crate) use bakery::biscuit;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -35,16 +36,17 @@ pub(crate) fn sample(o: &IndoorObject) -> Option<Serving> {
     })
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject, d: &DishProgram, meal: Serving) {
+pub(super) fn build(
+    a: &mut Assembly,
+    o: &IndoorObject,
+    d: &DishProgram,
+    meal: Serving,
+    version: u32,
+) {
     let mut r = stream(o.seed, 0x5345_5256_464f_4f44);
     // Use the inscribed circle of the actual faceted, possibly oval foot.
     // It is a conservative support surface at every yaw, including 10-gons.
-    let inner_foot = if d.style == 0 {
-        d.radius * d.foot
-    } else {
-        d.radius * d.foot - d.wall
-    };
-    let flat = inner_foot * d.aspect.min_element() * (PI / d.segments as f32).cos();
+    let flat = d.serving_floor_radius() * d.aspect.min_element() * (PI / d.segments as f32).cos();
     let floor = d.interior_floor();
     match meal {
         Serving::Empty => {}
@@ -91,18 +93,12 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, d: &DishProgram, meal: S
                 );
             }
         }
+        Serving::Soup if version >= soup::INTRODUCED => soup::Soup::sample(o, d).build(a, d),
         Serving::Soup => {
-            let middle = d.height * d.shoulder_height + d.wall * 0.25;
-            let fill = middle + (d.height - middle) * r.random_range(0.18..0.74);
-            let t = (fill - middle) / (d.height - middle);
-            let radius = d.radius - d.wall + (d.mouth - 1.) * d.radius * t;
-            // The same angles, ellipse and interpolated wall radius close the
-            // liquid to the bowl's inner wall, without a disc through the rim.
-            a.part(Surface::Ceramic, "food#finish105").lathe(
-                &[(radius, fill), (0., fill)],
-                d.segments,
-                Transform::from_scale(Vec3::new(d.aspect.x, 1., d.aspect.y)),
-            );
+            let fill = d.liquid_height(r.random_range(0.18..0.74));
+            let radius = d.liquid_radius(fill);
+            d.liquid_surface(a.part(Surface::Ceramic, "food#finish105"), radius, fill);
+            let radius = d.inscribed_radius(radius);
             let count = r.random_range(0..=4);
             let phase = r.random_range(0.0..TAU);
             for i in 0..count {

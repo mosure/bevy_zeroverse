@@ -428,6 +428,9 @@ fn resolve(
             pass.set_bind_group(0, &binding.group, &[]);
             pass.draw(0..3, 0..1);
         }
+        if let Some(frame) = world.get_resource::<crate::scene::capture_ready::render::Frame>() {
+            frame.lens(job.lens.output.id());
+        }
         job.lens.completed.store(job.request, Ordering::Release);
     }
 }

@@ -315,6 +315,10 @@ pub(super) fn build_object_at_version(
     a.parts = labeled;
     // Keep a bounded finish palette, shared maps and separate semantic labels.
     // Independent object seeds avoid uniform mug/chassis/cover colors in a room.
+    use super::materials::input_housing::{Housing, FINISH_VERSION};
+    let display_case = (version >= FINISH_VERSION
+        && matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display))
+    .then(|| Housing::for_object(o));
     a.parts = a
         .parts
         .into_iter()
@@ -325,16 +329,24 @@ pub(super) fn build_object_at_version(
             {
                 format!(
                     "{label}#finish{}",
-                    super::materials::variants::object_slot(surface, o.seed, o.finish_seed)
+                    display_case
+                        .as_ref()
+                        .and_then(|h| h.case_slot_for(surface))
+                        .unwrap_or_else(|| super::materials::variants::object_slot(
+                            surface,
+                            o.seed,
+                            o.finish_seed
+                        ))
                 )
             } else {
                 label
             };
-            let label = if surface == Surface::Light && super::photometry::is_emitter(o.kind) {
-                format!("{label}#source{}", o.id)
-            } else {
-                label
-            };
+            let label =
+                if surface == Surface::Light && super::photometry::is_emitter_at(o.kind, version) {
+                    format!("{label}#source{}", o.id)
+                } else {
+                    label
+                };
             ((surface, label), geometry)
         })
         .fold(BTreeMap::new(), |mut parts, (key, geometry)| {

@@ -275,6 +275,27 @@ fn broad_crowns_fill_horizontal_space_without_exceeding_geometry_budget() {
 }
 
 #[test]
+fn palm_and_fern_foliage_occupies_both_top_and_side_views() {
+    for variant in [1, 4] {
+        let mut top = 0.;
+        let mut side = 0.;
+        for seed in 0..16 {
+            let plant = fixture(variant, seed);
+            let faces = triangles(&build_object(&plant));
+            top += coverage(&faces, &plant, [0, 2]);
+            side += (coverage(&faces, &plant, [0, 1]) + coverage(&faces, &plant, [2, 1])) / 2.;
+        }
+        assert!(
+            top / 16. > 0.18 && side / 16. > 0.14,
+            "{} foliage coverage, top {:.3}, side {:.3}",
+            species_name(variant),
+            top / 16.,
+            side / 16.
+        );
+    }
+}
+
+#[test]
 #[ignore = "local botanical shape/render qualification; writes out/plant_quality"]
 fn plant_quality_receipt() {
     let dir = std::path::Path::new("out/plant_quality");

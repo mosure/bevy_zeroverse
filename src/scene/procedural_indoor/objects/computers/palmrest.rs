@@ -21,54 +21,97 @@ pub(super) fn rounded_outline(half: Vec2, r: f32, offset: Vec2) -> [Vec2; 12] {
     })
 }
 
+pub(super) struct DeckSkin {
+    outer: [Vec2; 12],
+    lip: [Vec2; 12],
+    pad: [Vec2; 12],
+    center: Vec2,
+    recess: f32,
+    profile: (f32, f32),
+}
+
+impl DeckSkin {
+    pub(super) fn fit(o: &IndoorObject, p: &LaptopProgram, depth: f32) -> Self {
+        let mut r = stream(o.seed, 0x50414c4d52455354);
+        let half = Vec2::new(o.size.x, depth) * 0.5;
+        let outer = outline(half, p.corner_m, Vec2::ZERO);
+        // With a numeric bank, center the pad nearer the typing block.
+        let cx = o.size.x
+            * (if p.keyboard_columns >= 19 {
+                r.random_range(-0.105..-0.045)
+            } else {
+                r.random_range(-0.038..0.024)
+            });
+        let center = Vec2::new(cx, depth * r.random_range(0.27..0.30));
+        let pad_half = Vec2::new(
+            o.size.x * p.trackpad_fraction * 0.5,
+            depth * r.random_range(0.096..0.125),
+        );
+        let gap = r.random_range(0.00050..0.00105);
+        let recess = r.random_range(0.00035..0.00090);
+        let radius = r.random_range(0.0025..0.0065);
+        let lip = outline(pad_half + gap, radius + gap, center);
+        let pad = outline(pad_half, radius, center);
+        let profile = Geometry::slab_profile(&outer, p.chassis_m, p.corner_m.min(0.002));
+        Self {
+            outer,
+            lip,
+            pad,
+            center,
+            recess,
+            profile,
+        }
+    }
+
+    pub(super) fn panel(&self, i: usize) -> [Vec2; 4] {
+        let j = (i + 1) % self.outer.len();
+        [
+            self.outer[i] * self.profile.1,
+            self.outer[j] * self.profile.1,
+            self.lip[j],
+            self.lip[i],
+        ]
+    }
+}
+
 pub(super) fn build(
     a: &mut Assembly,
     o: &IndoorObject,
     p: &LaptopProgram,
     stock: &Housing,
-    depth: f32,
-    base_z: f32,
+    deck: Deck,
     bank: Option<&io::Bank>,
+    version: u32,
 ) {
-    let mut r = stream(o.seed, 0x50414c4d52455354);
+    let skin = DeckSkin::fit(o, p, deck.depth);
+    let speakers = speakers::SpeakerBank::fit(o, p, deck, &skin, stock, version);
+    let DeckSkin {
+        outer,
+        lip,
+        pad,
+        center,
+        recess,
+        profile,
+    } = skin;
     let stock_label = stock.case_label(o);
     let pad_label = stock.pad_label();
     let chassis = a.part(stock.surface, &stock_label);
-    let half = Vec2::new(o.size.x, depth) * 0.5;
-    let outer = outline(half, p.corner_m, Vec2::ZERO);
-    // With a numeric bank, center the pad nearer the typing block.
-    let cx = o.size.x
-        * (if p.keyboard_columns >= 19 {
-            r.random_range(-0.105..-0.045)
-        } else {
-            r.random_range(-0.038..0.024)
-        });
-    let center = Vec2::new(cx, depth * r.random_range(0.27..0.30));
-    let pad_half = Vec2::new(
-        o.size.x * p.trackpad_fraction * 0.5,
-        depth * r.random_range(0.096..0.125),
-    );
-    let gap = r.random_range(0.00050..0.00105);
-    let recess = r.random_range(0.00035..0.00090);
-    let radius = r.random_range(0.0025..0.0065);
-    let lip = outline(pad_half + gap, radius + gap, center);
-    let pad = outline(pad_half, radius, center);
+    let base_z = deck.rear + deck.depth * 0.5;
     let tf = Transform::from_xyz(0., p.chassis_m * 0.5 + 0.003, base_z);
     let y = p.chassis_m * 0.5;
     let pt = |p: Vec2, y: f32| tf.transform_point(Vec3::new(p.x, y, p.y));
-    let profile = Geometry::slab_profile(&outer, p.chassis_m, p.corner_m.min(0.002));
     chassis.slab_cap(&outer, profile.1, Vec2::ZERO, -y, &tf, |v| v);
     for i in 0..outer.len() {
         let j = (i + 1) % outer.len();
-        chassis.metric_quad(
-            [
-                pt(outer[i] * profile.1, y),
-                pt(outer[j] * profile.1, y),
-                pt(lip[j], y),
-                pt(lip[i], y),
-            ],
-            Vec3::Y,
-        );
+        let panel = skin.panel(i);
+        if let Some((opening, design)) = speakers
+            .as_ref()
+            .and_then(|bank| bank.opening_at(i).map(|opening| (opening, bank)))
+        {
+            opening.cut(chassis, panel, design, &tf, y);
+        } else {
+            chassis.metric_quad(panel.map(|v| pt(v, y)), Vec3::Y);
+        }
         chassis.metric_quad(
             [
                 pt(lip[i], y),
@@ -84,6 +127,9 @@ pub(super) fn build(
         bank.pockets(a, o.kind.class_name(), &pad_label);
     } else {
         chassis.slab_edge(&outer, p.chassis_m, profile, &tf);
+    }
+    if let Some(speakers) = speakers {
+        speakers.insert_faces(a, &tf, y);
     }
     a.part(Surface::Plastic, &pad_label)
         .slab_cap(&pad, 1., center, y - recess, &tf, |v| v - center);
@@ -112,9 +158,9 @@ mod tests {
                 &o,
                 &p,
                 &stock,
-                deck.depth,
-                deck.rear + deck.depth * 0.5,
+                deck,
                 bank.as_ref(),
+                crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
             );
             audit::check(&o, &a).unwrap();
             // The same polymer batch also contains the fitted edge inserts.

@@ -2,7 +2,9 @@
 use super::super::materials::input_housing::Housing;
 use super::*;
 pub mod io;
+pub mod lid;
 mod palmrest;
+pub mod speakers;
 
 pub const LAPTOP_FAMILIES: u32 = 4;
 
@@ -82,13 +84,12 @@ impl Deck {
     }
 }
 
-pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let label = o.kind.class_name();
     let program = parameters(o);
     let width = o.size.x;
     let chassis = program.chassis_m;
     let stock = Housing::for_object(o);
-    let metal = stock.surface;
     let angle = program.hinge_radians;
     // Envelope includes the backward lid sweep; base stays fully on its support.
     let tilt = angle - FRAC_PI_2;
@@ -96,12 +97,10 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
     let screen_height = deck.height;
     let base_depth = deck.depth;
     let hinge_z = deck.rear;
-    let base_z = hinge_z + base_depth * 0.5;
     let bank = io::Bank::fit(o, &program, deck);
-    palmrest::build(a, o, &program, &stock, base_depth, base_z, bank.as_ref());
+    palmrest::build(a, o, &program, &stock, deck, bank.as_ref(), version);
     let hinge = Vec3::new(0.0, chassis + 0.004, hinge_z);
     let lid = Transform::from_translation(hinge).with_rotation(Quat::from_rotation_x(-tilt));
-    let bezel = program.bezel_m;
     use super::super::motion::{construction as motion, MotionKind};
     let moving = a.motion_selected(MotionKind::Prop, o.seed)
         && a.motion_policy
@@ -109,32 +108,11 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
             .is_some_and(|p| p.prop_rotation_degrees > 0.);
     let mut leaf = Assembly::default();
     let dest = if moving { &mut leaf } else { &mut *a };
-    dest.part(metal, &stock.case_label(o)).cuboid(
-        Vec3::new(width, screen_height, program.lid_m),
-        program.corner_m.min(program.lid_m * 0.35),
-        lid.with_translation(lid.transform_point(Vec3::Y * screen_height * 0.5)),
-    );
-    displays::screen_cover(
-        dest,
-        metal,
-        Surface::Screen,
-        label,
-        Vec3::new(width - bezel * 2., screen_height - bezel * 2., 0.0016),
-        0.,
-        lid.with_translation(lid.transform_point(Vec3::new(
-            0.,
-            screen_height * 0.5,
-            program.lid_m * 0.5 + 0.0004,
-        ))),
-    );
-    dest.part(Surface::Ink, label).ellipsoid(
-        Vec3::splat(0.0018),
-        Transform::from_translation(lid.transform_point(Vec3::new(
-            0.0,
-            screen_height - bezel * 0.45,
-            program.lid_m * 0.5 + 0.001,
-        ))),
-    );
+    if version >= lid::INTRODUCED {
+        lid::build(dest, o, &program, &stock, deck, lid);
+    } else {
+        legacy_lid(dest, o, &program, &stock, screen_height, lid);
+    }
     if moving {
         let mut r = stream(o.seed, 0x4c49444d);
         let limit = a
@@ -182,7 +160,7 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
         }
     }
     super::keyboard::laptop(a, o, &program, hinge_z, base_depth);
-    if program.speaker_grilles {
+    if program.speaker_grilles && version < speakers::INTRODUCED {
         for side in [-1., 1.] {
             for row in 0..18 {
                 a.box_part(
@@ -199,6 +177,46 @@ pub(super) fn laptop(a: &mut Assembly, o: &IndoorObject) {
             }
         }
     }
+}
+
+fn legacy_lid(
+    dest: &mut Assembly,
+    o: &IndoorObject,
+    program: &LaptopProgram,
+    stock: &Housing,
+    screen_height: f32,
+    lid: Transform,
+) {
+    let label = o.kind.class_name();
+    let bezel = program.bezel_m;
+    let width = o.size.x;
+    let metal = stock.surface;
+    dest.part(metal, &stock.case_label(o)).cuboid(
+        Vec3::new(width, screen_height, program.lid_m),
+        program.corner_m.min(program.lid_m * 0.35),
+        lid.with_translation(lid.transform_point(Vec3::Y * screen_height * 0.5)),
+    );
+    displays::screen_cover(
+        dest,
+        metal,
+        Surface::Screen,
+        label,
+        Vec3::new(width - bezel * 2., screen_height - bezel * 2., 0.0016),
+        0.,
+        lid.with_translation(lid.transform_point(Vec3::new(
+            0.,
+            screen_height * 0.5,
+            program.lid_m * 0.5 + 0.0004,
+        ))),
+    );
+    dest.part(Surface::Ink, label).ellipsoid(
+        Vec3::splat(0.0018),
+        Transform::from_translation(lid.transform_point(Vec3::new(
+            0.0,
+            screen_height - bezel * 0.45,
+            program.lid_m * 0.5 + 0.001,
+        ))),
+    );
 }
 
 pub mod displays;

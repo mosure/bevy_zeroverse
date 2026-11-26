@@ -135,7 +135,15 @@ fn bound_volumes_and_stacks_stay_inside_their_own_shelf() {
                         0.
                     };
                 let mut a = Assembly::default();
-                contents::build(&mut a, &o, &p, bay, row, lo, hi);
+                contents::build(
+                    &mut a,
+                    &o,
+                    &p,
+                    bay,
+                    row,
+                    (lo, hi),
+                    crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
+                );
                 if a.parts.is_empty() {
                     continue;
                 }

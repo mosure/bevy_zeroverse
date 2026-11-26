@@ -7,6 +7,7 @@ use std::f32::consts::{PI, TAU};
 mod diversity_tests;
 mod flatware;
 pub mod sampling;
+mod splashback;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KitchenAssembly {

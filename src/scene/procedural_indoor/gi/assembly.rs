@@ -180,12 +180,7 @@ impl GeometryTransport {
                 outer_cos: 0.0,
             });
         }
-        for lamp in scene.objects.iter().filter(|o| {
-            matches!(
-                o.kind,
-                ObjectKind::DeskLamp | ObjectKind::WallSconce | ObjectKind::CeilingPendant
-            )
-        }) {
+        for (lamp, range) in super::super::photometry::spot_fixtures(scene) {
             if !super::super::photometry::stationary_source(scene, lamp) {
                 continue;
             }
@@ -202,7 +197,7 @@ impl GeometryTransport {
                     beam.inner,
                     beam.outer,
                 ) / (4.0 * PI),
-                range: 3.0,
+                range,
                 spot: true,
                 inner_cos: beam.inner.cos(),
                 outer_cos: beam.outer.cos(),

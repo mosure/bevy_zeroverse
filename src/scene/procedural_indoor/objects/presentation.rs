@@ -2,7 +2,7 @@
 use super::*;
 pub mod artwork;
 mod board;
-mod contents;
+pub(super) mod contents;
 pub mod projection;
 pub use board::{parameters, BoardProgram};
 pub use contents::{Magnet, TrayItem};

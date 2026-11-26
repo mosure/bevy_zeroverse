@@ -28,6 +28,7 @@ fn cloth(f: &Facade, tf: Transform) -> Geometry {
             coverage: f.shade_coverage,
             fixed_angle: None,
             moving: true,
+            other_coverage: None,
         },
     );
     a.parts
@@ -241,6 +242,7 @@ fn cut_stock_includes_fine_and_wide_folds_and_both_rails_cover_the_parked_web() 
                     coverage: 0.,
                     fixed_angle: None,
                     moving: true,
+                    other_coverage: None,
                 },
             );
             let (_, g) = a

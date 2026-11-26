@@ -1093,7 +1093,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             object.kind,
             ObjectKind::Table | ObjectKind::Desk | ObjectKind::CoffeeTable
         )
-        .then(|| super::objects::tables::Clearance::new(object));
+        .then(|| super::objects::tables::Clearance::at_version(object, scene.generator_version));
         if person.pose.seated() && scene.generator_version >= footwear::SOLE_CLEARANCE_VERSION {
             if let Some(table) = &table {
                 let local = inverse * tf.compute_affine();

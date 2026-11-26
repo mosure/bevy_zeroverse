@@ -27,8 +27,8 @@ unchanged until the default-mixture qualification gate is satisfied.
 | --- | --- |
 | Elevator landing | Telescoping door banks, recessed jambs/thresholds, call controls, indicators, bounded illuminated car cavities, handrails, waiting benches and information stands |
 | Cafe | Modular service counter, glazed display case with real shelves/contents, coffee equipment and beverage dispensers, small tables, banquettes and contextual dishware |
-| Cafeteria | Serving counters, tray-return shelving, beverage service, larger dining tables, reserved serving queue and through circulation |
-| Classroom | Teaching board, lectern, lockers, individual writing surfaces, tablet-arm seating and continuously varied seating fields |
+| Cafeteria | Serving counters, shelf or slide-rail tray returns, beverage service, larger dining tables, reserved serving queue and through circulation |
+| Classroom | Single, banked or folding teaching boards, lecterns, lockers, individual writing surfaces, tablet-arm seating and continuously varied seating fields |
 | Lecture hall | Curved audience rows, linked-frame folding seats, explicit floor tiers, intermediate stair treads, teaching platform and guards at exposed drops |
 | Showroom | Product plinths, information stands and vitrines; coordinated content collections and shared finish identity |
 | Gallery | Angled exhibition panels with framed artwork, sculptural plinths and vitrines; separate viewing/circulation space and exhibit lighting |
@@ -54,6 +54,39 @@ Exposed drops have guards in both meshes and collision queries. The current
 ARDY planner excludes unsupported stair traversal; it does not claim to
 synthesize stair-climbing motion. Static people and safe level-floor motion
 remain supported without loading a motion model when motion is disabled.
+
+Dining areas flank the public aisle. The seated area on each side starts beyond
+its service counter, display or queue, and stops at any cross aisle. Separate
+sides can have different spacing and table headings. Broad areas can fit two
+runs of tables. Venue density controls how many of the available places
+receive a table. Cafeterias also sample communal tables in rows. Dataset
+metrics report tabletop-to-aisle clearance in metres and table-centre position
+across each bay (zero at the aisle, one at the outer edge) for independent
+dining groups alongside the aisle.
+
+At café booths, the usable cushion width and the facing edge of the actual
+tabletop determine how many places can be served. Settings fit the tabletop,
+stay within 90 cm of their diner and share the normal clutter budget. A booth
+may be empty or partly served. `SeatsAt` links a dining banquette to its table,
+and `Serves` links each placed dish to its chair or banquette. Perimeter waiting
+benches have no table assignment. The `dining_banquette_places` and
+`dining_banquette_served_dishes` metrics count places and dishes per paired
+banquette. The room's seating-station capacity counts the whole bench once.
+Cutlery sets can share a metal finish and a timber or moulded grip.
+
+Served bowls sample a house soup and individual orders. Stock, tomato, squash and
+pea soups vary in pigment and surface roughness. Herbs, beans, diced vegetables
+and croutons can float in loose clusters or across the bowl, and some servings
+are plain. Object metadata records the recipe, fill elevation and individual
+ingredients. Dataset metrics expose `dining_soup_recipe`, `dining_soup_garnish_count`
+and `dining_soup_fill_height_m`.
+
+Café and cafeteria queue barriers follow the edge of the service lane. Hand-set
+posts can sit at a slight angle when the full base and the public aisle have
+clearance. Retractable webbing runs from a reel to a latch, ropes sag between
+metal end sockets, and rigid dividers use round or square pickets or a panel
+gripped on both faces by four brackets. Dataset metrics record post spacing,
+installed yaw and connection height. Sag applies to flexible spans only.
 
 ## Export contract
 

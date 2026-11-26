@@ -81,6 +81,7 @@ impl IndoorManifest {
                 && super::super::architecture::details::overlaps_niche(self, lo, hi))
             && !facade::overlaps_opening(self, lo, hi, 0.05)
             && !self.locker_covers_wall_patch(tf, local.x, obj.size.x, lo.y, hi.y)
+            && !self.covers_cooktop_splashback(obj)
     }
 
     /// A wall fixture can fit in the gap behind a fitted bank yet be completely

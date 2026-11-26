@@ -297,3 +297,76 @@ fn static_task_lamp_reflects_from_its_real_diffuser_and_honors_occlusion() {
     }
     assert_eq!(seen, [true; 4]);
 }
+
+#[test]
+fn pendant_and_hood_reflections_match_mesh_flux_switch_and_generator_version() {
+    let mut room = scene(FixtureShape::Panel);
+    let mut covered = std::collections::BTreeSet::new();
+    for kind in [ObjectKind::CeilingPendant, ObjectKind::ExtractionHood] {
+        for seed in 0..48 {
+            let mut o = objects::audit::fixture(kind, seed);
+            o.position = Vec3::new(0.25, 1.3, -0.4);
+            o.yaw = 0.67;
+            room.objects = vec![o.clone()];
+            room.generator_version = photometry::TASK_APERTURES;
+            let power = photometry::lamp(&room, &o);
+            let assembly = objects::build_manifest_object(&room, &o);
+            let g = assembly
+                .parts
+                .iter()
+                .find(|((s, _), _)| *s == Surface::Light)
+                .unwrap()
+                .1;
+            let mut area = 0.;
+            let mut ray = None;
+            for t in g.indices.as_chunks::<3>().0 {
+                let [a, b, c] = t.map(|i| Vec3::from_array(g.positions[i as usize]));
+                let cross = (b - a).cross(c - a);
+                area += cross.length() * 0.5;
+                if cross.y < -1e-10 && ray.is_none() {
+                    let normal = o.transform().rotation * cross.normalize();
+                    let p = o.transform().transform_point((a + b + c) / 3.);
+                    ray = Some((p + 0.012 * normal, -normal));
+                }
+            }
+            let (eye, dir) = ray.expect("outward emitting face");
+            let emitters = ReflectionEmitters::new(&room);
+            let actual = emitters.radiance(eye, dir, 0.024);
+            if power.lumens > 0. {
+                let c = photometry::lamp_emission(&room, power, area);
+                let expected = Vec3::new(c.red, c.green, c.blue);
+                assert!(actual
+                    .unwrap()
+                    .abs_diff_eq(expected, expected.max_element() * 2e-5));
+            } else {
+                assert!(actual.is_none());
+            }
+            assert!(emitters.radiance(eye, dir, 0.008).is_none());
+            if kind == ObjectKind::ExtractionHood {
+                let d = objects::public::service::hood::FilterDeck::installed(&o);
+                covered.insert(format!("hood/{:?}/{}", d.lamp, power.lumens > 0.));
+                if d.lamps > 1 {
+                    let gap = o
+                        .transform()
+                        .transform_point((d.lens_center(0) + d.lens_center(1)) * 0.5);
+                    assert!(emitters
+                        .radiance(gap - Vec3::Y * 0.025, Vec3::Y, 0.05)
+                        .is_none());
+                }
+                assert!(emitters.radiance(eye + 0.024 * dir, -dir, 0.024).is_none());
+            } else {
+                let p = objects::equipment::pendant::parameters(&o);
+                covered.insert(format!(
+                    "pendant/{}/{}",
+                    p.lens.optic.name(),
+                    power.lumens > 0.
+                ));
+            }
+            room.generator_version = photometry::TASK_APERTURES - 1;
+            assert!(ReflectionEmitters::new(&room)
+                .radiance(eye, dir, 0.024)
+                .is_none());
+        }
+    }
+    assert!(covered.len() >= 9, "{covered:?}");
+}

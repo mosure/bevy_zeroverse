@@ -8,6 +8,7 @@ mod leaf;
 use leaf::{blade, incline};
 mod habits;
 mod palm;
+pub(super) mod pinnate;
 mod pots;
 mod rosette;
 pub(crate) use rosette::RosetteHabit;
@@ -219,6 +220,12 @@ fn build_plant(a: &mut Assembly, o: &IndoorObject, version: u32, potted: bool) {
     // Broad nursery pots need compact crowns: a horizontal leaf's rise must
     // fit the headroom too. Stem and pot dimensions retain their metric scale.
     let spread = spread.min((h - soil) * 0.80) * growth.crown_spread;
+    if version >= pinnate::INTRODUCED {
+        if let Some(habit) = pinnate::Habit::sample(o, &growth) {
+            habit.build(a, o, &growth, base, spread, soil_radius);
+            return;
+        }
+    }
     if matches!(o.variant % SPECIES, 0 | 6 | 12 | 13) {
         woody::build(a, o, &growth, base, spread);
         return;

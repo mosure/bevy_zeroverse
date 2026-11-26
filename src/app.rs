@@ -1233,6 +1233,20 @@ fn masked_cuda_features(visible_devices: Option<&str>) -> Option<WgpuFeatures> {
 }
 
 pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) -> App {
+    try_viewer_app(app, override_args).unwrap_or_else(|error| panic!("{error}"))
+}
+
+/// Starts the browser Studio and lets its HTML launcher display configuration errors.
+#[cfg(target_arch = "wasm32")]
+pub fn run_web_viewer() -> Result<(), String> {
+    try_viewer_app(None, None)?.run();
+    Ok(())
+}
+
+fn try_viewer_app(
+    app: Option<App>,
+    override_args: Option<BevyZeroverseConfig>,
+) -> Result<App, String> {
     #[cfg(all(target_arch = "wasm32", feature = "human_motion"))]
     burn_human_inference::initialize_browser_runtime();
     let args = match override_args {
@@ -1244,13 +1258,12 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             }
             #[cfg(target_arch = "wasm32")]
             {
-                parse_web_config().expect("invalid viewer URL configuration")
+                parse_web_config().map_err(|error| format!("Invalid viewer URL: {error}"))?
             }
         }
     };
-    args.validate_ovoxel()
-        .expect("invalid O-voxel capture configuration");
-    crate::render::ssaa::validate_factor(args.ssaa_factor).expect("invalid SSAA configuration");
+    args.validate_ovoxel()?;
+    crate::render::ssaa::validate_factor(args.ssaa_factor)?;
     crate::render::co_visibility::validate_config(
         &args
             .render_modes
@@ -1259,14 +1272,12 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
             .cloned()
             .collect::<Vec<_>>(),
         args.num_cameras as usize,
-    )
-    .expect("invalid co-visibility configuration");
+    )?;
 
     #[cfg(target_arch = "wasm32")]
-    assert!(
-        !args.image_copiers,
-        "Browser rendering supports the viewer, not dataset readback. Set image_copiers=false; use the native indoor_validate or zeroverse_gen CLI for dataset capture."
-    );
+    if args.image_copiers {
+        return Err("Browser dataset readback is unavailable. Set image_copiers=false or use a native capture client.".into());
+    }
 
     let mut app = if let Some(original_app) = app {
         original_app
@@ -1482,7 +1493,7 @@ pub fn viewer_app(app: Option<App>, override_args: Option<BevyZeroverseConfig>) 
 
     app.add_systems(PostUpdate, regenerate_scene_system);
 
-    app
+    Ok(app)
 }
 
 fn viewer_window_plugin(primary_window: Option<Window>) -> WindowPlugin {

@@ -205,7 +205,12 @@ fn rugs_resolve_a_distinct_program_without_changing_semantic_or_geometry_bounds(
             }
             if affine {
                 // Linear interpolation reproduces this chart exactly at any tessellation.
-                let expected = Vec2::splat(0.5) + Vec2::new(position[0], position[2]) / extent;
+                let chart = Vec2::splat(0.5) + Vec2::new(position[0], position[2]) / extent;
+                let expected = if rug::warp_along_z(&o) {
+                    Vec2::new(chart.y, 1. - chart.x)
+                } else {
+                    chart
+                };
                 assert!(Vec2::from_array(*uv).distance(expected) < 1e-6);
             }
             if position[0] == 0. && position[2] == 0. {

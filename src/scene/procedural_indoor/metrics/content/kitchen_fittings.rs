@@ -1,7 +1,7 @@
 //! Realized washing/cooking internals; nested construction data also remains in
 //! the object audit. Counts refer to admitted parts rather than requested props.
 use super::*;
-use crate::scene::procedural_indoor::objects::kitchen;
+use crate::scene::procedural_indoor::objects::{kitchen, public::service::hood};
 pub(super) fn record(
     o: &IndoorObject,
     version: u32,
@@ -9,8 +9,63 @@ pub(super) fn record(
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
     match o.kind {
+        ObjectKind::ExtractionHood if version >= hood::FITTED_INTAKE => {
+            let product = hood::hood_parameters(o);
+            let deck = hood::FilterDeck::fit(o, &product);
+            if version >= crate::scene::procedural_indoor::photometry::TASK_APERTURES {
+                numeric.push("hood_emitting_area_m2", deck.emitting_area_m2() as f64)?;
+            }
+            let canopy = product.canopy_top(o.size.y, version);
+            let style = match deck.filter {
+                hood::FilterStyle::FoldedBaffle { pitch_m, .. } => {
+                    numeric.push("hood_baffle_pitch_m", pitch_m as f64)?;
+                    "folded_baffle"
+                }
+                hood::FilterStyle::PerimeterPanel { gap_m } => {
+                    numeric.push("hood_perimeter_gap_m", gap_m as f64)?;
+                    "perimeter_panel"
+                }
+            };
+            category(categories, "hood_filter_style", style);
+            category(
+                categories,
+                "hood_lamp_style",
+                match deck.lamp {
+                    hood::LampStyle::Puck => "puck",
+                    hood::LampStyle::Linear => "linear",
+                },
+            );
+            for (key, value) in [
+                ("hood_canopy_height_m", canopy),
+                ("hood_exposed_flue_m", o.size.y - canopy),
+                ("hood_filter_count", deck.cassettes as f32),
+                ("hood_lamp_count", deck.lamps as f32),
+            ] {
+                numeric.push(key, value as f64)?;
+            }
+        }
         ObjectKind::Dishware => {
-            let p = kitchen::dishware::object_parameters(o);
+            let p = kitchen::dishware::object_parameters(o, version);
+            if let Some(form) = &p.bowl {
+                let glazed = kitchen::dishware::PlateForm::rim_slot(
+                    p.surface,
+                    o.finish_seed.unwrap_or(o.seed),
+                )
+                .is_some();
+                category(
+                    categories,
+                    "bowl_finish",
+                    if glazed { "dipped" } else { "uniform" },
+                );
+                for (name, value) in [
+                    ("bowl_height_to_width", p.height / form.width_m(&p)),
+                    ("bowl_outline_exponent", form.outline_exponent),
+                    ("bowl_foot_height_m", form.foot_height_m),
+                    ("bowl_lip_radius_m", form.lip_radius_m),
+                ] {
+                    numeric.push(name, f64::from(value))?;
+                }
+            }
             if let Some(form) = &p.plate {
                 let slot = kitchen::dishware::PlateForm::rim_slot(
                     p.surface,

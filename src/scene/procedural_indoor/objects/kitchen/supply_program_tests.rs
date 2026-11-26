@@ -40,7 +40,7 @@ fn served_food_contacts_the_inside_of_the_dish_and_inventory_stays_bare() {
             o.variant = variant;
             o.size =
                 crate::scene::procedural_indoor::items::sizing::dish(style, &mut stream(seed, 321));
-            let d = dishware::for_object(&o, &props::program(&o));
+            let d = dishware::object_parameters(&o, bevy_zeroverse_capture::GENERATOR_VERSION);
             let meal = serving::sample(&o).unwrap();
             assert_eq!(meal, serving::sample(&o).unwrap());
             assert_eq!(metadata(&o)["serving"], serde_json::json!(meal));
@@ -62,18 +62,42 @@ fn served_food_contacts_the_inside_of_the_dish_and_inventory_stays_bare() {
                 .flat_map(|(_, g)| &g.positions)
                 .map(|p| Vec3::from_array(*p));
             if meal == Serving::Soup {
-                let liquid = &built.parts[&(Surface::Ceramic, "food#finish105".into())];
+                let liquid = &built.parts[&(
+                    Surface::Ceramic,
+                    crate::scene::procedural_indoor::materials::broth::LABEL.into(),
+                )];
                 let y = liquid.positions[0][1];
                 let middle = d.height * d.shoulder_height + d.wall * 0.25;
                 assert!(y > middle && y < d.height && liquid.normals.iter().all(|n| n[1] > 0.999));
-                let r = d.radius - d.wall
-                    + (d.mouth - 1.) * d.radius * (y - middle) / (d.height - middle);
-                for v in &liquid.positions[..d.segments as usize + 1] {
-                    assert!(((Vec3::from_array(*v).xz() / d.aspect).length() - r).abs() < 1e-6);
+                let origin = Vec3::Y * y;
+                for edge in liquid.positions[..=d.segments as usize]
+                    .windows(2)
+                    .step_by(3)
+                {
+                    let point = Vec3::from_array(edge[0]).midpoint(Vec3::from_array(edge[1]));
+                    let ray = (point - origin).normalize();
+                    let inside = built
+                        .parts
+                        .iter()
+                        .filter(|((_, label), _)| label.starts_with("dishware#"))
+                        .flat_map(|(_, g)| {
+                            g.indices.as_chunks::<3>().0.iter().filter_map(|t| {
+                                crate::scene::procedural_indoor::envelope::ray_triangle(
+                                    origin,
+                                    ray,
+                                    t.map(|i| Vec3::from_array(g.positions[i as usize])),
+                                )
+                            })
+                        })
+                        .fold(f32::INFINITY, f32::min);
+                    assert!(
+                        (point.distance(origin) - inside).abs() < 2e-6,
+                        "liquid edge {seed}"
+                    );
                 }
                 assert!(points.into_iter().all(|v| v.y > d.wall && v.y < o.size.y));
             } else {
-                let foot = d.radius * d.foot - if style == 1 { d.wall } else { 0. };
+                let foot = d.serving_floor_radius();
                 let mut bottom = f32::INFINITY;
                 for v in points {
                     bottom = bottom.min(v.y);
@@ -325,8 +349,25 @@ fn refrigerator_contents_use_the_same_shapes_for_admission_and_rendering() {
     for seed in 0..128 {
         let o = fixture(ObjectKind::Refrigerator, seed);
         for level in 0..3 {
-            let items = contents::shelf_contents(&o, level, bounds, 0., 0.23);
-            assert_eq!(items, contents::shelf_contents(&o, level, bounds, 0., 0.23));
+            let items = contents::shelf_contents(
+                &o,
+                level,
+                bounds,
+                0.,
+                0.23,
+                bevy_zeroverse_capture::GENERATOR_VERSION,
+            );
+            assert_eq!(
+                items,
+                contents::shelf_contents(
+                    &o,
+                    level,
+                    bounds,
+                    0.,
+                    0.23,
+                    bevy_zeroverse_capture::GENERATOR_VERSION
+                )
+            );
             for (i, item) in items.iter().enumerate() {
                 let mut a = Assembly::default();
                 contents::build(&mut a, std::slice::from_ref(item));

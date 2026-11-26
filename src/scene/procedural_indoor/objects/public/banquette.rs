@@ -11,6 +11,10 @@ pub use cover::{SewnBack, Stitch};
 pub(crate) const SEWN_BACK_VERSION: u32 = 209;
 const FRAME_DEPTH: f32 = 0.018;
 
+pub(crate) fn cushion_width(o: &IndoorObject) -> f32 {
+    o.size.x * 0.96
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BanquetteProgram {
     /// Recessed plinth, exposed legs, or continuous sleds.
@@ -81,7 +85,7 @@ impl BackFit {
             .with_rotation(Quat::from_rotation_x(-p.back_lean));
         let seat_rear = z + (h * sin + p.back_thickness_m * cos) * 0.5 + 0.003;
         Self {
-            width: 0.96 * s.x,
+            width: cushion_width(o),
             height: h,
             tf,
             seat_rear,
@@ -136,7 +140,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let l = o.kind.class_name();
     let deck_top = p.seat_height_m - p.cushion_m;
     let deck = 0.026;
-    let width = s.x * 0.96;
+    let width = cushion_width(o);
     let depth = s.z * 0.88;
     let foot_x = width * (0.5 - p.setback);
     let foot_z = depth * (0.5 - p.setback);

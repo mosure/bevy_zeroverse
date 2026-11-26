@@ -66,14 +66,14 @@ pub fn parameters(o: &IndoorObject) -> BeverageProgram {
         lid: rng.random_bool(0.72),
     }
 }
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     if o.kind == ObjectKind::SodaCan {
         can::build(a, o);
         return;
     }
     let p = parameters(o);
     match o.kind {
-        ObjectKind::Mug | ObjectKind::CoffeeCup => cups::build(a, o, &p),
+        ObjectKind::Mug | ObjectKind::CoffeeCup => cups::build(a, o, &p, version),
         ObjectKind::WaterBottle => bottle::build(a, o, &p),
         _ => unreachable!(),
     }

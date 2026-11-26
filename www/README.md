@@ -55,6 +55,11 @@ Materials & light, People & motion, View & playback, and Advanced. Apply keeps t
 room seed; Next / R advances it. Scene edits are staged, so dragging a slider does
 not regenerate. Render and playback controls update live.
 
+Open `?kiosk` for a full-window, single-camera indoor presentation. The first
+click can enter browser fullscreen. F1 restores Studio controls. To verify a
+packaged site locally, run `python scripts/smoke_kiosk_browser.py --site www`
+with Playwright and Chrome installed.
+
 Valid edits and the active room seed update the browser URL automatically, along
 with the editor camera and timeline. Copy the URL to reproduce the configuration.
 The versioned `viewer_state` parameter records display state; `indoor_camera`

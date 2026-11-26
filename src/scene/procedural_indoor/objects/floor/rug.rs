@@ -225,9 +225,23 @@ impl RugProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+/// Map the longitudinal weaving direction to the installed cut. Nearly square
+/// cuts accept either orientation. Beyond 2:1 the row follows the runner.
+pub(crate) fn warp_along_z(o: &IndoorObject) -> bool {
+    let aspect = o.size.x.max(o.size.z) / o.size.x.min(o.size.z);
+    let longitudinal =
+        aspect >= 2. || stream(o.seed, 0x52554757415250).random_bool(f64::from(aspect * 0.5));
+    longitudinal == (o.size.z > o.size.x)
+}
+
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match parameters(o) {
-        Some(p) => mesh::build(a, o, p),
+        Some(p) => {
+            let rotate = version
+                >= crate::scene::procedural_indoor::materials::rug_design::WOVEN_LAYOUT_VERSION
+                && warp_along_z(o);
+            mesh::build(a, o, p, rotate);
+        }
         None => legacy::build(a, o),
     }
 }

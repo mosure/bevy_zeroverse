@@ -8,12 +8,15 @@ pub mod assemblies;
 pub(crate) mod botany;
 mod clutter;
 mod decor;
+pub(crate) mod dining_places;
 pub use decor::{electrical_parameters, ElectricalProgram, TelevisionMount};
 pub(crate) mod equipment;
 pub(crate) mod floor;
 pub mod functional;
 mod furnishing;
 pub mod kitchen;
+mod lounge_storage;
+pub use lounge_storage::SupportPlane;
 mod printers;
 mod programs;
 pub(crate) mod refreshments;
@@ -33,6 +36,10 @@ use serde::{Deserialize, Serialize};
 
 pub use bevy_zeroverse_capture::GENERATOR_VERSION;
 pub const CAMERA_CLEARANCE: f32 = 0.28;
+enum PropSurface<'a> {
+    Top(Option<&'a [Vec2]>),
+    Shelf(super::objects::tables::LoungeShelf),
+}
 /// Depth used by manifests predating metric adjoining floor plans.
 pub const NEIGHBOR_DEPTH: f32 = 3.2;
 
@@ -170,7 +177,8 @@ pub struct IndoorObject {
     /// Stable instance id of a supporting table/desk/cabinet.
     pub support: Option<usize>,
     pub neighbor: bool,
-    /// Chair -> work surface; display/laptop or aimed desk fan -> work chair.
+    /// Chair or dining banquette -> table/work surface. Served dish -> its seat.
+    /// Display/laptop or aimed desk fan -> work chair.
     /// Recycling bin -> its coordinated general-waste partner.
     #[serde(default)]
     pub interaction_target: Option<usize>,
@@ -663,6 +671,12 @@ impl IndoorManifest {
         scene.finish_floor_outlets();
         scene.finish_counter_flatware();
         scene.furnish_thermostat();
+        super::objects::services::cart::stock::dress_carts(
+            &mut scene.objects,
+            scene.layout,
+            scene.program.as_ref(),
+        );
+        scene.furnish_lounge_shelves();
         scene.record_program_services();
         scene.assign_assembly_finishes();
         // Routing depends on settled people, but may append new object instances.
@@ -1134,20 +1148,51 @@ impl IndoorManifest {
 
     /// Check actual rotated prop footprints in the supporting surface's frame.
     pub fn prop_clear(&self, object: &IndoorObject, support: &IndoorObject, margin: f32) -> bool {
+        self.prop_clear_cached(object, support, margin, None)
+    }
+
+    /// A validation pass sees the same immutable tabletop once per child. Reuse
+    /// its sampled convex outline for the duration of that pass only.
+    pub(super) fn prop_clear_cached(
+        &self,
+        object: &IndoorObject,
+        support: &IndoorObject,
+        margin: f32,
+        tops: Option<&mut std::collections::HashMap<usize, Vec<Vec2>>>,
+    ) -> bool {
         if object.kind == ObjectKind::Cable {
             return object.support == Some(support.id)
                 && equipment::cable_route_clear(self, object);
         }
+        if self.has_lower_contact_candidate(object, support) {
+            let Some(deck) = self.lower_shelf_contact(object, support) else {
+                return false;
+            };
+            return self.prop_clear_on(object, support, margin, PropSurface::Shelf(deck));
+        }
+        let outline = tops
+            .filter(|_| support.kind.has_table_outline())
+            .map(|cache| {
+                cache
+                    .entry(support.id)
+                    .or_insert_with(|| super::objects::tables::outline(support))
+                    .as_slice()
+            });
+        self.prop_clear_on(object, support, margin, PropSurface::Top(outline))
+    }
+
+    fn prop_clear_on(
+        &self,
+        object: &IndoorObject,
+        support: &IndoorObject,
+        margin: f32,
+        surface: PropSurface<'_>,
+    ) -> bool {
         let inverse = support.transform().compute_affine().inverse();
         let local_bounds = |o: &IndoorObject| {
             let centre = inverse.transform_point3(o.position);
-            let yaw = o.yaw - support.yaw;
-            let half = Vec2::new(
-                yaw.cos().abs() * o.size.x + yaw.sin().abs() * o.size.z,
-                yaw.sin().abs() * o.size.x + yaw.cos().abs() * o.size.z,
-            ) * 0.5;
-            let centre = Vec2::new(centre.x, centre.z);
-            (centre - half, centre + half)
+            let half = super::placement::rotated_half(o.size.xz(), o.yaw - support.yaw);
+            (centre.xz() - half, centre.xz() + half)
         };
         let (lo, hi) = local_bounds(object);
         let half = Vec2::new(support.size.x, support.size.z) * 0.5;
@@ -1182,10 +1227,27 @@ impl IndoorManifest {
         {
             return false;
         }
-        if support.kind.has_table_outline()
-            && !super::objects::tables::supports(support, lo, hi, margin)
-        {
-            return false;
+        match surface {
+            PropSurface::Shelf(deck) => {
+                let (min, max) = deck.storage_bounds();
+                if !deck.carries(object.kind, object.size, margin)
+                    || lo.cmplt(min + Vec2::splat(margin)).any()
+                    || hi.cmpgt(max - Vec2::splat(margin)).any()
+                    || !self.shelf_access_clear(object, support, margin)
+                {
+                    return false;
+                }
+            }
+            PropSurface::Top(outline) if support.kind.has_table_outline() => {
+                use super::objects::tables;
+                if !outline.map_or_else(
+                    || tables::supports(support, lo, hi, margin),
+                    |poly| tables::supports_outline(poly, lo, hi, margin),
+                ) {
+                    return false;
+                }
+            }
+            _ => {}
         }
         // Most rejected proposals already overhang the worktop or intersect a
         // neighbour. Only the survivors need room-wide fixture and cable checks.
@@ -1197,6 +1259,14 @@ impl IndoorManifest {
             })
             .any(|o| {
                 use super::objects::services::divider::desktop;
+                // Belongings on two different levels may share a plan footprint.
+                if (o.position.y + o.size.y + margin <= object.position.y
+                    || object.position.y + object.size.y + margin <= o.position.y)
+                    && (matches!(surface, PropSurface::Shelf(_))
+                        || self.has_lower_contact_candidate(o, support))
+                {
+                    return false;
+                }
                 let (a, b) = local_bounds(o);
                 let overlap = lo.x < b.x + margin
                     && hi.x + margin > a.x

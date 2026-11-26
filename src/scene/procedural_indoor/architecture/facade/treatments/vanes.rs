@@ -99,7 +99,7 @@ impl Builder<'_> {
         let hem = (stock.hem_m / height).min(0.35);
         // The weight pocket flattens the crown at the foot. Keep the same cut
         // length, yarn direction and mesh topology throughout the traverse.
-        cloth::sheet_rows(
+        cloth::sheet_rows::<false>(
             &mut vane,
             Transform::from_rotation(self.tf.rotation * rotation),
             [3, 2],

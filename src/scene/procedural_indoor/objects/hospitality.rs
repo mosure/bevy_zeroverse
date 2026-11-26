@@ -28,10 +28,10 @@ pub fn parameters(o: &IndoorObject) -> HospitalityProgram {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
         ObjectKind::CoffeeMaker => coffee::build(a, o),
-        ObjectKind::Kettle => kettle::build(a, o),
+        ObjectKind::Kettle => kettle::build(a, o, version),
         ObjectKind::Vase | ObjectKind::Bowl => super::vessels::build(a, o),
         _ => unreachable!("non-hospitality object"),
     }
