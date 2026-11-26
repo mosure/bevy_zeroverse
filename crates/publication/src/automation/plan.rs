@@ -123,9 +123,9 @@ pub fn plan(root: &Path) -> Result<Value> {
     let mut result = json!({"schema_version":1, "generator_identity":identity,
         "publisher_sha256":publisher, "tool_inputs":inputs, "recipe":config.automation,
         "capture":config.capture, "stages":[
-            "build_tools", "gallery_capture", "camera_audit", "camera_render", "camera_report",
+            "build_tools", "object_mesh_audit_and_atlas", "gallery_capture", "camera_audit", "camera_render", "camera_report",
             "room_qualification", "fisheye_capture_and_oracles", "pipeline_timing",
-            "factor_object_door_material_atlases", "page_and_paper", "verify_current"],
+            "factor_door_material_atlases", "page_and_paper", "verify_current"],
         "camera_baselines":[0.,0.5,1.], "camera_counts":(1..=12).collect::<Vec<_>>(),
         "rendered_camera_counts":[2,4,8,12], "camera_image_size":[320,200],
         "camera_rendered_views":config.automation.camera_render_rooms * 3 * (2+4+8+12) * 2,

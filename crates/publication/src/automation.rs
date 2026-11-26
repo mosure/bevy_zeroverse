@@ -196,6 +196,9 @@ pub fn sync(root: &Path, recapture: bool, release_version: Option<&str>) -> Resu
         .join(planned["cache_key"].as_str().unwrap());
     fs::create_dir_all(&cache)?;
     let examples = build(&root)?;
+    // The fixed-envelope mesh audit runs before the object renderer. Qualify
+    // this atlas before spending time on room captures and camera studies.
+    crate::objects::refresh_cache(&root, &cache.join("objects"), &current)?;
     // Capture once, then derive room qualification from exactly this population.
     let dataset = pipeline::capture_dataset(&root, &config, recapture)?;
     let audit = stage(&cache, "camera-audit", recapture, Value::Null, |dir| {

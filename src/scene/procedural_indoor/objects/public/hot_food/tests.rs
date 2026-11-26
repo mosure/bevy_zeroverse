@@ -23,6 +23,44 @@ fn top_at(g: &Geometry, point: Vec2) -> Option<f32> {
 }
 
 #[test]
+fn spooned_gratin_has_front_facing_shading_in_fixed_and_sampled_pans() {
+    use crate::scene::procedural_indoor::geometry::housing_outline;
+    let outline = housing_outline(8.);
+    let fixed_size = audit::fixture(ObjectKind::HotFoodWell, 0).size;
+    let mut checked = 0;
+    for seed in 0..256 {
+        let mut o = audit::fixture(ObjectKind::HotFoodWell, seed);
+        for size in [fixed_size, o.size] {
+            o.size = size;
+            let plan = HotFoodWell::for_object(&o);
+            for pan in plan
+                .pans
+                .iter()
+                .filter(|p| p.contents == Contents::PotatoGratin)
+            {
+                let mut a = Assembly::default();
+                gratin::build(&mut a, pan, plan.deck_height, &outline);
+                let g = a.parts.values().next().unwrap();
+                // The final quad on each rim segment closes the side down to the pan.
+                let top = &g.indices[..g.indices.len() - outline.len() * 6];
+                for tri in top.as_chunks::<3>().0 {
+                    let [a, b, c] = tri.map(|i| Vec3::from_array(g.positions[i as usize]));
+                    let face = (b - a).cross(c - a);
+                    assert!(face.y > 0., "folded top at {seed} {size:?} {tri:?}");
+                    assert!(
+                        tri.iter()
+                            .all(|&i| face.dot(Vec3::from_array(g.normals[i as usize])) > 0.),
+                        "back-facing shading at {seed} {size:?} {tri:?}"
+                    );
+                }
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 100);
+}
+
+#[test]
 fn hot_food_well_has_metric_openings_recessed_pans_and_aligned_contents() {
     let mut dishes = BTreeSet::new();
     let mut formats = BTreeSet::new();
