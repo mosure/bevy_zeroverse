@@ -1,5 +1,12 @@
 use super::*;
 mod capacity;
+mod cardio;
+mod courtyard;
+mod gymnasium;
+mod hallway;
+mod retail;
+mod stair_hall;
+mod venues;
 
 #[test]
 fn mounted_lights_and_hoods_vary_without_losing_their_hosts() {
@@ -264,9 +271,9 @@ fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
                 })
             })
     {
-        let scene =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
-                .unwrap();
+        // Replay the original Mixed draw, including the downstream RNG state
+        // that produced these exact landing envelopes.
+        let scene = IndoorManifest::initial_mixed_fixture(seed, density, 0, people).unwrap();
         assert_eq!(scene.layout, IndoorLayout::ElevatorLanding);
         validate_layout(&scene).unwrap();
         validate_geometry(&scene).unwrap();
@@ -302,9 +309,7 @@ fn rejected_training_elevator_landings_preserve_headroom_and_door_access() {
             program.rejected_candidates < 20_000,
             "bounded recovery budget"
         );
-        let replay =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, people)
-                .unwrap();
+        let replay = IndoorManifest::initial_mixed_fixture(seed, density, 0, people).unwrap();
         assert_eq!(scene, replay);
     }
 }
@@ -314,9 +319,8 @@ fn rejected_cafe_cases_fit_narrow_bays_without_shrinking_products_or_aisles() {
     use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
     for seed in [69_430_992, 69_531_153] {
         for density in [0., 0.65, 1.] {
-            let scene =
-                IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, density, 0, 0.5)
-                    .unwrap();
+            // Replay the catalog that produced the reported café, including its first RNG draw.
+            let scene = IndoorManifest::initial_mixed_fixture(seed, density, 0, 0.5).unwrap();
             validate_layout(&scene).unwrap();
             validate_geometry(&scene).unwrap();
             let program = scene

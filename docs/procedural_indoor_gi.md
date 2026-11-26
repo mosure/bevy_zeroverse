@@ -27,13 +27,17 @@ under rotation augmentation. Texture packing follows the actual Bevy WGSL
 positive/negative-axis ordering rather than the contradictory prose ordering
 in its module documentation.
 
-Native Auto dispatches this transport once per scene on the GPU. One 64-thread
-workgroup traces each probe's rays and reduces its six irradiance lobes into
-the final 3D texture before the camera render graph runs. Capture waits for
-the compiled pipeline and dispatch readiness, with GPU queue ordering ensuring
-the light field is available. Production rendering never reads the volume back
-to the CPU and never waits on a blocking buffer map. Transport buffers and the
-probe image retain only the current scene's data.
+Native Auto bakes the volume once per scene on the GPU. A 64-thread workgroup
+traces each distinct probe and accumulates linear RGB irradiance and sampling
+variance for each of its six lobes. A second compute pass combines estimates
+from adjacent probes with a clear line of sight. A colour or intensity change
+larger than the estimated noise suppresses the exchange. Each exchange preserves
+the total irradiance per colour channel and direction across the valid probes.
+Grid slots inside solids or outside the room inherit their nearest valid result.
+
+Both passes run before camera rendering on the same GPU queue. They share one
+volume across all views and require no host readback. The intermediate estimates
+use 96 transient bytes per grid slot, counted in the scene prefetch budget.
 
 An explicit CPU fallback (`IndoorGiSettings.gpu=false`) prepares the first scene
 before `SceneLoadedEvent`. A bounded background task prepares the next sequential
@@ -57,8 +61,8 @@ preparation worker without a GPU or ECS world. `BakeStatistics` records triangle
 and probe counts, ray and bounce budgets, preparation/bake time, probe texture
 size, mean radiance, prefetch use, and wait time. GPU transport does not pretend
 to know a CPU bake duration or mean radiance: these fields are null. With Bevy
-render diagnostics enabled, `indoor_diffuse_bake` measures the actual compute
-pass using GPU timestamps. The native validation test explicitly reads back
+render diagnostics enabled, `indoor_diffuse_bake` measures both compute
+passes with GPU timestamps. The native validation test explicitly reads back
 the volume and compares it with the separate CPU implementation.
 
 The correctness controls include an analytic hemispherical-sky integral,

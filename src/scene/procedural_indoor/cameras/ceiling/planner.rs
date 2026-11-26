@@ -274,6 +274,13 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                                 ..=policy.max_baseline,
                         );
                         scene.cameras[0].start.xz() + Vec2::new(a.cos(), a.sin()) * d
+                    } else if let Some(roof) = scene.envelope.as_ref().and_then(|e| e.courtyard) {
+                        let Some(point) =
+                            roof.sample_mount(lo, hi, mounting.body_radius_m, &mut rng)
+                        else {
+                            continue;
+                        };
+                        point
                     } else {
                         Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y))
                     };

@@ -198,7 +198,14 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
                 * (size_from(scene, position, nominal) * 0.5);
             let half = body_half.xz();
             if scene.envelope.as_ref().is_some_and(|e| {
-                !super::super::envelope::polygon::box_inside(&e.footprint, p - half, p + half, 0.15)
+                e.courtyard
+                    .is_some_and(|roof| roof.overlaps(p - half, p + half))
+                    || !super::super::envelope::polygon::box_inside(
+                        &e.footprint,
+                        p - half,
+                        p + half,
+                        0.15,
+                    )
             }) {
                 return false;
             }
@@ -233,7 +240,11 @@ pub(super) fn positions(scene: &IndoorManifest) -> Vec<Vec3> {
                             .max(body_half.y + 0.012),
                     )
             };
-            position.y = roof - drop;
+            let clear = super::super::program::court::clear_height_at(scene, p - half, p + half);
+            position.y = roof - clear.map_or(drop, |h| drop.min(roof - h - body_half.y - 0.008));
+            if clear.is_some() && position.y + body_half.y > roof - 0.005 {
+                return false;
+            }
             if obstacles.iter().any(|(lo, hi)| {
                 (position - body_half).cmplt(*hi + Vec3::splat(0.004)).all()
                     && (position + body_half).cmpgt(*lo - Vec3::splat(0.004)).all()

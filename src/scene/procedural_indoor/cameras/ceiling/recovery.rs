@@ -245,7 +245,16 @@ fn mounted(
     let hi = hi - Vec2::splat(mounting.wall_clearance_m);
     let p = reference
         .and_then(|view| super::coherent::mounted_point(scene, *prototype, view, rng))
-        .unwrap_or_else(|| Vec2::new(rng.random_range(lo.x..hi.x), rng.random_range(lo.y..hi.y)));
+        .or_else(|| {
+            if let Some(roof) = scene.envelope.as_ref().and_then(|e| e.courtyard) {
+                roof.sample_mount(lo, hi, mounting.body_radius_m, rng)
+            } else {
+                Some(Vec2::new(
+                    rng.random_range(lo.x..hi.x),
+                    rng.random_range(lo.y..hi.y),
+                ))
+            }
+        })?;
     if p.cmplt(lo).any() || p.cmpgt(hi).any() {
         return None;
     }

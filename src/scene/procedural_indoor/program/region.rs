@@ -49,6 +49,11 @@ impl IndoorManifest {
     pub(crate) fn select_primary_room(&mut self) {
         let Some(program) = &self.program else { return };
         use super::super::layout::{IndoorLayout, ObjectKind};
+        // A hallway is the requested capture subject even when a neighboring
+        // office has more furniture or a larger clipped floor area.
+        if self.layout == IndoorLayout::Hallway {
+            return;
+        }
         let office = matches!(
             self.layout,
             IndoorLayout::OpenOffice | IndoorLayout::Coworking

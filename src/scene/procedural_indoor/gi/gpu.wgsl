@@ -1,5 +1,4 @@
-struct Params { resolution:vec4<u32>, budget:vec4<u32>, sun_direction:vec4<f32>, sun:vec4<f32>, sky:vec4<f32>, rotation:vec4<f32> }
-struct Triangle {a:vec4<f32>,ab:vec4<f32>,ac:vec4<f32>,uv01:vec4<f32>,uv2_material:vec4<f32>}
+struct Params { resolution:vec4<u32>, table_offsets:vec4<u32>, budget:vec4<u32>, sun_direction:vec4<f32>, sun:vec4<f32>, sky:vec4<f32>, rotation:vec4<f32> }
 struct Node {lo:vec3<f32>,index:u32,hi:vec3<f32>,tag:u32}
 const LEAF_BIT: u32 = 0x80000000u;
 struct Material {
@@ -8,13 +7,14 @@ struct Material {
 }
 struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
 @group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> triangles:array<Triangle>;
+@group(0) @binding(1) var<storage,read> triangles:array<vec4<f32>>;
 @group(0) @binding(2) var<storage,read> nodes:array<Node>;
 @group(0) @binding(3) var<storage,read> materials:array<Material>;
 @group(0) @binding(4) var<storage,read> texels:array<vec4<f32>>;
 @group(0) @binding(5) var<storage,read> lights:array<Light>;
 @group(0) @binding(6) var<storage,read> origins:array<vec4<u32>>;
 @group(0) @binding(7) var output:texture_storage_3d<rgba16float,write>;
+@group(0) @binding(8) var<storage,read_write> moments:array<vec4<f32>>;
 const PI:f32=3.141592653589793;
 
 // Same hemispherical texel grid and linear interpolation as SkyField::radiance.
@@ -77,14 +77,14 @@ fn intersect(origin:vec3<f32>,direction:vec3<f32>,limit:f32,any_hit:bool)->Hit {
         } else {
             let end=node.index+(node.tag & ~LEAF_BIT);
             for(var i=node.index;i<end;i+=1u) {
-                let triangle=triangles[i];
-                let p=cross(direction,triangle.ac.xyz); let det=dot(triangle.ab.xyz,p);
+                let base=i*3u;let a=triangles[base].xyz;let ab=triangles[base+1u].xyz;let ac=triangles[base+2u].xyz;
+                let p=cross(direction,ac); let det=dot(ab,p);
                 if abs(det)<1e-9 {continue;}
-                let inv=1.0/det;let t=origin-triangle.a.xyz;
+                let inv=1.0/det;let t=origin-a;
                 let u=dot(t,p)*inv; if u<0.0 || u>1.0 {continue;}
-                let q=cross(t,triangle.ab.xyz);let v=dot(direction,q)*inv;
+                let q=cross(t,ab);let v=dot(direction,q)*inv;
                 if v<0.0 || u+v>1.0 {continue;}
-                let distance=dot(triangle.ac.xyz,q)*inv;
+                let distance=dot(ac,q)*inv;
                 if distance>0.0002 && distance<result.distance {
                     result=Hit(i,distance,u,v);if any_hit {return result;}
                 }
@@ -120,12 +120,14 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
     for(var bounce=0u;bounce<params.budget.y;bounce+=1u) {
         let hit=intersect(origin,direction,1000.0,false);
         if hit.index==0xffffffffu {if direction.y>0.0 {result+=throughput*exterior_sky(direction);}return result;}
-        let triangle=triangles[hit.index];
-        let n=vec3(triangle.a.w,triangle.ab.w,triangle.ac.w);
+        let base=hit.index*3u;
+        let n=vec3(triangles[base].w,triangles[base+1u].w,triangles[base+2u].w);
         let normal=select(n,-n,dot(n,direction)>0.0);
         let position=origin+direction*hit.distance;
-        let material=materials[u32(triangle.uv2_material.z)];
-        let uv=triangle.uv01.xy*(1.0-hit.u-hit.v)+triangle.uv01.zw*hit.u+triangle.uv2_material.xy*hit.v;
+        let attributes=params.table_offsets.x+hit.index*2u;
+        let uv01=triangles[attributes];let uv2_material=triangles[attributes+1u];
+        let material=materials[u32(uv2_material.z)];
+        let uv=uv01.xy*(1.0-hit.u-hit.v)+uv01.zw*hit.u+uv2_material.xy*hit.v;
         var albedo=material.albedo_offset_u.xyz;
         var emission=material.emission_offset_v.xyz;
         if material.base_map.y!=0u || material.emission_map.y!=0u {
@@ -167,10 +169,14 @@ var<workgroup> sums:array<vec4<f32>,384>;
 fn bake(@builtin(workgroup_id) group:vec3<u32>,@builtin(local_invocation_index) lane:u32) {
     let probe=origins[params.resolution.w + group.x / 4u][group.x % 4u];
     let origin=bitcast<vec3<f32>>(origins[probe].xyz);
-    var coefficients:array<vec3<f32>,6>;
+    var coefficients:array<vec4<f32>,6>;
     var phase_state=params.budget.z ^ (probe*7919u) ^ 0x9e3779b9u;
     let phase=random(&phase_state)*2.0*PI;
-    for(var sample=lane;sample<params.budget.x;sample+=64u) {
+    // All lanes reach the shared reduction after the same number of batches,
+    // including at budgets below 64 and at a partially filled final batch.
+    for(var block=0u;block<params.budget.x;block+=64u) {
+        let sample=block+lane;
+        if sample>=params.budget.x {continue;}
         var state=phase_state ^ (sample*0x85ebca6bu);
         let y=1.0-2.0*(f32(sample)+0.5)/f32(params.budget.x);
         let phi=f32(sample)*2.3999631+phase;let r=sqrt(max(1.0-y*y,0.0));
@@ -179,25 +185,61 @@ fn bake(@builtin(workgroup_id) group:vec3<u32>,@builtin(local_invocation_index) 
         let q=params.rotation;let world=direction+2.0*cross(q.xyz,cross(q.xyz,direction)+q.w*direction);
         for(var axis=0u;axis<3u;axis+=1u) {
             let face=axis*2u+select(0u,1u,world[axis]<0.0);
-            coefficients[face]+=light*abs(world[axis]);
+            let value=light*abs(world[axis]);
+            coefficients[face]+=vec4(value,dot(value,value));
         }
     }
-    for(var face=0u;face<6u;face+=1u) {sums[face*64u+lane]=vec4(coefficients[face],0.0);}
+    for(var face=0u;face<6u;face+=1u) {sums[face*64u+lane]=coefficients[face];}
     workgroupBarrier();
     for(var stride=32u;stride>0u;stride/=2u) {
         if lane<stride {for(var face=0u;face<6u;face+=1u) {sums[face*64u+lane]+=sums[face*64u+lane+stride];}}
         workgroupBarrier();
     }
     if lane<6u {
-        let n=params.resolution.xyz;
-        let lobe_offset=vec3(0u,(lane%2u)*n.y,(lane/2u)*n.z);
-        let value=vec4(sums[lane*64u].xyz,1.0);
-        var slot=probe;
-        loop {
-            let p=vec3(slot%n.x,(slot/n.x)%n.y,slot/(n.x*n.y));
-            textureStore(output,vec3<i32>(p+lobe_offset),value);
-            slot=origins[slot].w;
-            if slot==0xffffffffu {break;}
+        let sum = sums[lane * 64u];
+        let n = f32(params.budget.x);
+        let variance = max((n * sum.w - dot(sum.xyz, sum.xyz)) / (n - 1.0), 0.0);
+        moments[probe * 6u + lane] = vec4(sum.xyz, variance);
+    }
+}
+
+// Visibility is precomputed for each positive cardinal edge on the same transport
+// geometry. Keep the raw lobe estimates immutable during this one-ring gather.
+@compute @workgroup_size(8, 6)
+fn resolve(@builtin(global_invocation_id) id:vec3<u32>) {
+    let packed = params.resolution.w + id.x / 4u;
+    if packed >= arrayLength(&origins) { return; }
+    let probe = origins[packed][id.x % 4u];
+    if probe == 0xffffffffu { return; }
+    let n = params.resolution.xyz;
+    let face = id.y;
+    let center = moments[probe * 6u + face];
+    let links = origins[probe].w >> 16u;
+    let strides = vec3(1u, n.x, n.x * n.y);
+    var flux = vec3(0.0);
+    let degree = countOneBits(links);
+    for (var edge = 0u; edge < 6u; edge += 1u) {
+        if (links & (1u << edge)) == 0u { continue; }
+        let stride = strides[edge / 2u];
+        let neighbour = select(probe + stride, probe - stride, (edge & 1u) != 0u);
+        let other = moments[neighbour * 6u + face];
+        let delta = other.xyz - center.xyz;
+        let difference = dot(delta, delta);
+        let threshold = 9.0 * (center.w + other.w);
+        if difference < threshold {
+            let confidence = 1.0 - difference / threshold;
+            let other_degree = countOneBits(origins[neighbour].w >> 16u);
+            let spatial = 0.85 / f32(max(degree, other_degree));
+            flux += delta * (spatial * confidence * confidence);
         }
+    }
+    let value = vec4(center.xyz + flux, 1.0);
+    let lobe_offset = vec3(0u, (face % 2u) * n.y, (face / 2u) * n.z);
+    var slot = probe;
+    loop {
+        let p = vec3(slot % n.x, (slot / n.x) % n.y, slot / (n.x * n.y));
+        textureStore(output, vec3<i32>(p + lobe_offset), value);
+        slot = origins[slot].w & 0xffffu;
+        if slot == 0xffffu { break; }
     }
 }

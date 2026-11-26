@@ -2,6 +2,9 @@
 use super::*;
 mod clearance;
 mod conference;
+mod linen;
+pub use linen::{dining_linen, DiningLinen, LinenWeave};
+pub(crate) use linen::{DiningService, INTRODUCED as LINEN_VERSION};
 mod lounge;
 mod outline;
 mod rows;
@@ -146,7 +149,7 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         pedestal_waist: shape.random_range(0.28..0.92),
         pedestal_shoulder: shape.random_range(0.25..0.78),
         pedestal_facets: [6, 8, 12, 32][shape.random_range(0..4)],
-        frame_surface: if o.variant == 1 {
+        frame_surface: if linen::frame_variant(o) == 1 {
             Surface::WoodEdge
         } else {
             [
@@ -213,6 +216,14 @@ pub fn outline(o: &IndoorObject) -> Vec<Vec2> {
     outline::sample(o.size.xz() * 0.5, &parameters(o))
 }
 
+pub(crate) fn perimeter(outline: &[Vec2]) -> f32 {
+    outline
+        .iter()
+        .zip(outline.iter().cycle().skip(1))
+        .map(|(a, b)| a.distance(*b))
+        .sum()
+}
+
 pub fn supports(o: &IndoorObject, lo: Vec2, hi: Vec2, margin: f32) -> bool {
     supports_outline(&outline(o), lo, hi, margin)
 }
@@ -238,6 +249,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let outline = outline::sample(s.xz() * 0.5, &p);
     let underside = s.y - p.top_thickness;
+    if let Some(linen) = dining_linen(o) {
+        linen.build(a, o, &p, &outline);
+        build_structure(a, o, &p, &outline, version);
+        return;
+    }
     let stock = top::TopStock::sample(o, &p, version);
     if o.variant == SHARED_ROW_VARIANT {
         rows::top(a, o, &p, &outline, &stock);
@@ -538,7 +554,9 @@ fn build_structure(
         Vec3::new(anchor.x, underside - 0.035, 0.0),
         0.024,
     );
-    if o.kind == ObjectKind::Desk || (o.kind == ObjectKind::Table && p.outline_exponent > 4.0) {
+    if linen::permits_power_module(o)
+        && (o.kind == ObjectKind::Desk || (o.kind == ObjectKind::Table && p.outline_exponent > 4.0))
+    {
         a.box_part(
             Surface::Plastic,
             label,

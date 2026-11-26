@@ -32,12 +32,30 @@ pub(crate) fn parameters(
     }
 }
 
+pub(super) enum CounterService {
+    Drinks(Option<ObjectKind>),
+    Cafeteria,
+}
+pub(super) const PLATE_LANDING: f32 = 0.115;
+
+/// Extend towards the guest without moving the staff-side edge or connector.
+pub(super) fn serving_envelope(o: &IndoorObject) -> IndoorObject {
+    let mut e = o.clone();
+    e.position += o.transform().rotation * Vec3::Z * (PLATE_LANDING * 0.5);
+    e.size.z += PLATE_LANDING;
+    e
+}
+
 impl IndoorManifest {
     pub(super) fn dress_refreshment_counter(
         &mut self,
         support: &IndoorObject,
-        required: Option<ObjectKind>,
+        service: CounterService,
     ) {
+        let required = match service {
+            CounterService::Drinks(primary) => primary,
+            CounterService::Cafeteria => Some(ObjectKind::DrinkDispenser),
+        };
         let p = parameters(support, required);
         let mut r = stream(support.seed, 0x5245_4652_4553_4853);
         let pattern = SurfacePattern::sample(&mut r);
@@ -174,6 +192,12 @@ impl IndoorManifest {
                 }
                 occupied += size.x * size.z;
                 self.objects.push(o);
+                if index == 0
+                    && matches!(service, CounterService::Cafeteria)
+                    && self.generator_version >= objects::public::hot_food::VERSION
+                {
+                    occupied += self.fit_hot_food_well(support);
+                }
                 break;
             }
         }

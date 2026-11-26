@@ -11,6 +11,28 @@ pub(super) fn sheet_material<const SIDE: usize>(
     coat_roughness: f32,
     sample: impl Fn(Vec2) -> (Vec3, f32, f32),
 ) -> StandardMaterial {
+    let (color, normals, orm) = metric_maps::<SIDE>(period, sample);
+    let mut mat = StandardMaterial {
+        base_color_texture: Some(images.add(mip_image(color, SIDE as u32, MapType::Color))),
+        normal_map_texture: Some(images.add(mip_image(normals, SIDE as u32, MapType::Normal))),
+        metallic_roughness_texture: Some(images.add(mip_image(orm, SIDE as u32, MapType::Data))),
+        perceptual_roughness: 1.,
+        metallic: 0.,
+        clearcoat,
+        clearcoat_perceptual_roughness: coat_roughness,
+        uv_transform: bevy::math::Affine2::from_scale(period.recip()),
+        ..default()
+    };
+    response::conformal_coat(&mut mat);
+    mat
+}
+
+/// Sample a seamless physical height field once. Its consumer selects the
+/// mip filter appropriate to the finish's optical response.
+pub(super) fn metric_maps<const SIDE: usize>(
+    period: Vec2,
+    sample: impl Fn(Vec2) -> (Vec3, f32, f32),
+) -> TextureMaps {
     let mut color = Vec::with_capacity(SIDE * SIDE * 4);
     let mut orm = Vec::with_capacity(SIDE * SIDE * 4);
     let mut heights = Vec::with_capacity(SIDE * SIDE);
@@ -25,19 +47,7 @@ pub(super) fn sheet_material<const SIDE: usize>(
         }
     }
     let normals = metric_normals::<SIDE>(&heights, period);
-    let mut mat = StandardMaterial {
-        base_color_texture: Some(images.add(mip_image(color, SIDE as u32, MapType::Color))),
-        normal_map_texture: Some(images.add(mip_image(normals, SIDE as u32, MapType::Normal))),
-        metallic_roughness_texture: Some(images.add(mip_image(orm, SIDE as u32, MapType::Data))),
-        perceptual_roughness: 1.,
-        metallic: 0.,
-        clearcoat,
-        clearcoat_perceptual_roughness: coat_roughness,
-        uv_transform: bevy::math::Affine2::from_scale(period.recip()),
-        ..default()
-    };
-    response::conformal_coat(&mut mat);
-    mat
+    (color, normals, orm)
 }
 
 /// Central metric differences wrap on both axes of a seamless height field.

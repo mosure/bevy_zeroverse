@@ -374,7 +374,10 @@ impl IndoorManifest {
         // Some worktops are tea/coffee stations; others retain preparation and
         // washing tasks. Islands use the same supported furnishing contract.
         if stream(support.seed, 8066).random_bool(0.28) {
-            self.dress_refreshment_counter(&support, None);
+            self.dress_refreshment_counter(
+                &support,
+                super::refreshments::CounterService::Drinks(None),
+            );
             return;
         }
         let mut placement_rng = stream(support.seed, 8065);
@@ -662,14 +665,8 @@ mod tests {
         use crate::scene::procedural_indoor::validation::{validate_geometry, validate_layout};
         for density in [0., 0.65, 1.] {
             for people in [0., 0.25, 1.] {
-                let scene = IndoorManifest::generate_with_humans(
-                    1942,
-                    IndoorLayout::Mixed,
-                    density,
-                    3,
-                    people,
-                )
-                .unwrap();
+                let scene =
+                    IndoorManifest::initial_mixed_fixture(1942, density, 3, people).unwrap();
                 validate_layout(&scene).unwrap();
                 validate_geometry(&scene).unwrap();
                 assert_eq!(scene.layout, IndoorLayout::Kitchen);
@@ -677,14 +674,7 @@ mod tests {
                 assert!(!scene.envelope.as_ref().unwrap().floor_patches.is_empty());
                 assert_eq!(
                     scene,
-                    IndoorManifest::generate_with_humans(
-                        1942,
-                        IndoorLayout::Mixed,
-                        density,
-                        3,
-                        people
-                    )
-                    .unwrap(),
+                    IndoorManifest::initial_mixed_fixture(1942, density, 3, people).unwrap(),
                     "recovery must replay without changing the requested seed"
                 );
             }

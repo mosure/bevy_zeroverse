@@ -223,6 +223,9 @@ pub(super) fn wall(
             n,
         );
     });
+    if e.courtyard.is_some() {
+        return; // Masonry plinths run to the paving on these outdoor elevations.
+    }
     if let Some(trim) = trim {
         if let Some(section) = &trim.base {
             let cutouts = e
@@ -282,6 +285,9 @@ fn cornice(
 ) {
     use rand::Rng;
     let e = scene.envelope.as_ref().unwrap();
+    if e.courtyard.is_some() {
+        return;
+    }
     if let Some(trim) = architecture::trim::TrimProgram::for_scene(scene) {
         if let Some(section) = &trim.crown {
             if trim.miter_joint_m.is_some() {
@@ -365,7 +371,12 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         motion_policy: scene.indoor_motion.as_ref().map(|m| m.policy.clone()),
         ..default()
     };
-    floors::build(&mut a, e, size);
+    floors::build(
+        &mut a,
+        e,
+        size,
+        scene.program.as_ref().and_then(|p| p.volleyball),
+    );
     yield_if_due().await;
     let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {
@@ -397,7 +408,9 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         .ceiling_installation
         .as_ref()
         .is_some_and(|c| c.exposed_slab);
-    if let Some(grid) = architecture::ceiling::CeilingGrid::for_scene(scene) {
+    if let Some(roof) = &e.courtyard {
+        roof.build(&mut a, size);
+    } else if let Some(grid) = architecture::ceiling::CeilingGrid::for_scene(scene) {
         architecture::ceiling::build_room_grid(&mut a, scene, grid, &yield_if_due).await;
     } else {
         ceiling_mesh::build(
@@ -418,6 +431,15 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         );
     }
     let feature_edges = super::super::materials::wall::feature_edges(scene);
+    let courtyard_finish = e.courtyard.map(|_| {
+        use rand::Rng;
+        let mut finish = super::super::layout::stream(scene.material_seed(), 0x5941524457414C4C);
+        if finish.random_bool(0.40) {
+            Surface::Concrete
+        } else {
+            Surface::Paint
+        }
+    });
     for entry in &e.walls {
         yield_if_due().await;
         let holes = entry
@@ -430,7 +452,9 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
             entry.edge,
             holes,
             architecture::trim::TrimProgram::for_scene(scene),
-            if feature_edges.contains(&entry.edge) {
+            if let Some(finish) = courtyard_finish {
+                finish
+            } else if feature_edges.contains(&entry.edge) {
                 Surface::Accent
             } else {
                 Surface::Paint
@@ -698,65 +722,9 @@ fn shared_and_neighbor(a: &mut Assembly, scene: &IndoorManifest, e: &EnvelopePro
     adjoining::perimeter(a, scene, e, &poly);
 }
 
-/// Triangle-plane clipping retains interpolated normals/UVs; no vertex collapse.
+/// Cut partition tops to the same analytic roof used for placement and cameras.
 pub fn clip_roof(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
     for g in a.parts.values_mut() {
-        let original = std::mem::take(g);
-        for t in original.indices.as_chunks::<3>().0.iter() {
-            let input: Vec<_> = t
-                .iter()
-                .map(|&i| {
-                    (
-                        Vec3::from(original.positions[i as usize]),
-                        Vec3::from(original.normals[i as usize]),
-                        Vec2::from(original.uvs[i as usize]),
-                    )
-                })
-                .collect();
-            let mut output = Vec::new();
-            for i in 0..3 {
-                let a = input[i];
-                let b = input[(i + 1) % 3];
-                let da = f64::from(e.ceiling_height(size, a.0.xz())) - f64::from(a.0.y);
-                let db = f64::from(e.ceiling_height(size, b.0.xz())) - f64::from(b.0.y);
-                if da >= 0. {
-                    output.push(a);
-                }
-                if (da >= 0.) != (db >= 0.) {
-                    // Always interpolate from the inside endpoint, so shared
-                    // edges produce identical positions in either direction.
-                    let (a, b, da, db) = if da >= 0. {
-                        (a, b, da, db)
-                    } else {
-                        (b, a, db, da)
-                    };
-                    let t = da / (da - db);
-                    // A float32 lerp can move an intersection outside its edge
-                    // by one ULP (seed 1013005), inverting a narrow bevel when
-                    // the clipped quad is triangulated. Widen before arithmetic
-                    // and round only the final vertex, including its attributes.
-                    output.push((
-                        (a.0.as_dvec3() + (b.0.as_dvec3() - a.0.as_dvec3()) * t).as_vec3(),
-                        (a.1.as_dvec3() + (b.1.as_dvec3() - a.1.as_dvec3()) * t)
-                            .as_vec3()
-                            .normalize_or_zero(),
-                        (a.2.as_dvec2() + (b.2.as_dvec2() - a.2.as_dvec2()) * t).as_vec2(),
-                    ));
-                }
-            }
-            for i in 1..output.len().saturating_sub(1) {
-                let v = [output[0], output[i], output[i + 1]];
-                if (v[1].0 - v[0].0).cross(v[2].0 - v[0].0).length_squared() < 1e-14 {
-                    continue;
-                }
-                let base = g.positions.len() as u32;
-                for (p, n, uv) in v {
-                    g.positions.push(p.to_array());
-                    g.normals.push(n.to_array());
-                    g.uvs.push(uv.to_array());
-                }
-                g.indices.extend([base, base + 1, base + 2]);
-            }
-        }
+        g.clip_half_space(|p| f64::from(e.ceiling_height(size, p.xz())) - f64::from(p.y));
     }
 }

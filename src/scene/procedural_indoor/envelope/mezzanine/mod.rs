@@ -9,10 +9,11 @@ mod legacy;
 mod qualification;
 mod queries;
 mod sampling;
+pub(crate) mod stair_hall;
 #[cfg(test)]
 mod tests;
 mod validation;
-pub(super) use geometry::build;
+pub(in crate::scene::procedural_indoor) use geometry::build;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StairStructure {
@@ -33,6 +34,13 @@ pub struct Landing {
     pub after_riser: u32,
     pub extra_run: f32,
 }
+/// Cross-run side supported by a continuous, opaque enclosing wall.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeckAbutment {
+    Low,
+    High,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Construction {
     /// Ascend min -> max rather than the legacy max -> min direction.
@@ -51,6 +59,8 @@ pub struct Construction {
     pub support_pitch: f32,
     pub beam_depth: f32,
     pub guard: super::guardrail::GuardSection,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wall_abutment: Option<DeckAbutment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

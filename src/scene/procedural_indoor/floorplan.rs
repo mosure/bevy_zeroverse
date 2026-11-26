@@ -85,6 +85,9 @@ pub fn obstacles(scene: &IndoorManifest) -> Vec<(Vec3, Vec3)> {
 
 pub fn build(scene: &IndoorManifest, a: &mut Assembly) {
     if let Some(program) = &scene.program {
+        let wall_guard = (scene.layout == super::layout::IndoorLayout::Hallway)
+            .then(|| super::program::hallway::WallGuard::sample(scene.seed))
+            .flatten();
         for partition in &program.partitions {
             // Branches end at the face of the receiving wall. Building them to
             // its center creates intersecting rails/plaster at T junctions.
@@ -104,6 +107,13 @@ pub fn build(scene: &IndoorManifest, a: &mut Assembly) {
                 }
             }
             fitted.build_with_finishes(scene.room_size.y, a, program.finishes.as_ref());
+            if let Some(guard) = &wall_guard {
+                if let Some(inward) =
+                    super::program::hallway::front_normal(&program.zones[0], &fitted)
+                {
+                    guard.build(&fitted, inward, a);
+                }
+            }
         }
         for door in scene.door_installations().into_iter().filter(|d| d.id != 0) {
             door.build(a, true);

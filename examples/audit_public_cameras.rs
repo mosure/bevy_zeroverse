@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write(
             args.output.join("report.json"),
             serde_json::to_vec_pretty(
-                &serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"policy":"All prespecified seeds, camera counts 1..12 and baselines 0,.5,1; no inference or post-selection; overlaps are the placement oracle, not rendered overlap","complete":args.profile.is_some() || family==8,"seconds":started.elapsed().as_secs_f64(),"rows":rows}),
+                &serde_json::json!({"provenance":bevy_zeroverse::provenance::capture_provenance(),"policy":"All prespecified seeds, camera counts 1..12 and baselines 0,.5,1; no inference or post-selection; overlaps are the placement oracle, not rendered overlap","complete":args.profile.is_some() || family+1==IndoorLayout::PUBLIC_PROFILES.len(),"seconds":started.elapsed().as_secs_f64(),"rows":rows}),
             )?,
         )?;
     }

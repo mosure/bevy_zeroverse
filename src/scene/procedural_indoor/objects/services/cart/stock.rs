@@ -85,6 +85,7 @@ pub(crate) fn dress_carts(
             IndoorLayout::Kitchenette
                 | IndoorLayout::Kitchen
                 | IndoorLayout::Cafe
+                | IndoorLayout::Restaurant
                 | IndoorLayout::Cafeteria
                 | IndoorLayout::Breakroom
         ) {

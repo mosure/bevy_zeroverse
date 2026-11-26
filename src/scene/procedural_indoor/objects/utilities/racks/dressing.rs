@@ -10,6 +10,8 @@ pub enum GarmentKind {
     Scarf,
     Jacket,
     Overcoat,
+    Shirt,
+    Dress,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -55,7 +57,7 @@ impl Garment {
         (self.anchor_m.xz() - half, self.anchor_m.xz() + half)
     }
 
-    pub(super) fn build(&self, a: &mut Assembly) {
+    pub(in crate::scene::procedural_indoor::objects) fn build(&self, a: &mut Assembly) {
         let label = format!("clothes#finish{}", self.finish_slot);
         if self.kind == GarmentKind::Scarf {
             super::scarf::build(a.part(self.surface, &label), self);

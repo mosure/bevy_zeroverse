@@ -37,7 +37,33 @@ impl Mezzanine {
                 return Err("stair does not join the guarded deck opening".into());
             }
         }
-        if !polygon::box_inside(&envelope.footprint, self.deck.min, self.deck.max, 0.1)
+        let mut min = self.deck.min;
+        let mut max = self.deck.max;
+        if let Some(side) = self.construction.as_ref().and_then(|c| c.wall_abutment) {
+            let cross = 1 - self.stair_axis;
+            let backed = envelope.walls.iter().any(|wall| {
+                let Some(&p) = envelope.footprint.get(wall.edge) else {
+                    return false;
+                };
+                let q = envelope.footprint[(wall.edge + 1) % envelope.footprint.len()];
+                wall.facade.is_none() && self.abuts_wall_segment(p, q)
+            });
+            if !backed
+                || !polygon::box_inside(
+                    &envelope.footprint,
+                    min,
+                    max,
+                    stair_hall::WALL_JOINT_M * 0.5,
+                )
+            {
+                return Err("upper gallery must abut an uninterrupted wall".into());
+            }
+            match side {
+                DeckAbutment::Low => min[cross] += 0.10,
+                DeckAbutment::High => max[cross] -= 0.10,
+            }
+        }
+        if !polygon::box_inside(&envelope.footprint, min, max, 0.1)
             || !polygon::box_inside(&envelope.footprint, self.stair_min, self.stair_max, 0.1)
             || !(0.12..=0.18).contains(&self.riser_height())
             || !(0.27..=0.36).contains(&self.tread_depth())

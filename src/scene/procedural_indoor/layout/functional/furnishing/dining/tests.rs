@@ -180,3 +180,89 @@ fn dining_groups_follow_the_actual_service_frontage_and_cross_aisle() {
     let empty = bays::DiningPlan::sample(&p, &[counter], 0, false);
     assert!(empty.tables.is_empty() && empty.perimeter_bench.is_none());
 }
+
+#[test]
+fn dining_linen_venues_keep_stock_and_real_seat_and_dish_supports() {
+    let mut covered_tables = 0;
+    let mut supported_items = 0;
+    for (profile, rooms) in [
+        (IndoorLayout::Restaurant, 12),
+        (IndoorLayout::Cafe, 12),
+        (IndoorLayout::Cafeteria, 3),
+    ] {
+        for seed in 55100..55100 + rooms {
+            let scene = IndoorManifest::generate_with_humans(seed, profile, 0.65, 3, 0.25).unwrap();
+            let program = &scene.functional_programs()[0];
+            let mut stock = None;
+            for table in program.members.iter().map(|&i| &scene.objects[i]) {
+                let Some(cloth) = tables::dining_linen(table) else {
+                    continue;
+                };
+                assert_ne!(profile, IndoorLayout::Cafeteria);
+                assert_eq!(*stock.get_or_insert(cloth.weave), cloth.weave);
+                covered_tables += 1;
+                for o in scene.objects.iter().filter(|o| o.support == Some(table.id)) {
+                    assert!(
+                        (o.position.y - table.position.y - table.size.y).abs() < 0.002,
+                        "{seed} {:?}",
+                        o.kind
+                    );
+                    supported_items += 1;
+                }
+            }
+            validation::validate_layout(&scene).unwrap();
+        }
+    }
+    assert!(covered_tables > 0 && supported_items > 0);
+}
+
+#[test]
+fn hot_service_admits_accessible_counters_and_rejects_reversed_installations() {
+    let mut installed = 0;
+    let mut left = 0;
+    let mut right = 0;
+    for seed in 72300..72348 {
+        let scene =
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Cafeteria, 0.65, 0, 0.)
+                .unwrap();
+        scene.validate_public_programs().unwrap();
+        for station in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::HotFoodWell)
+        {
+            let counter = &scene.objects[station.support.unwrap()];
+            assert!(scene.functional_programs()[0].members.contains(&station.id));
+            assert!(scene.hot_food_access(station, counter));
+            assert!(scene
+                .objects
+                .iter()
+                .any(|o| o.kind == ObjectKind::DrinkDispenser && o.support == station.support));
+            let mut plate = objects::audit::fixture(ObjectKind::Dishware, 9);
+            plate.id = scene.objects.len();
+            plate.size = Vec3::new(0.05, 0.01, 0.05);
+            plate.position = station.position
+                + station.transform().rotation * Vec3::Z * (station.size.z * 0.5 + 0.058);
+            plate.support = station.support;
+            plate.yaw = station.yaw;
+            assert!(
+                !scene.prop_clear(&plate, counter, 0.004),
+                "reserved handoff must stay clear"
+            );
+            let mut invalid = station.clone();
+            invalid.yaw += PI;
+            assert!(!scene.hot_food_access(&invalid, counter));
+            invalid = station.clone();
+            invalid.position = counter.position;
+            assert!(!scene.hot_food_access(&invalid, counter));
+            let angle = station.yaw - counter.yaw;
+            left += usize::from(angle < -0.02);
+            right += usize::from(angle > 0.02);
+            installed += 1;
+        }
+    }
+    assert!(
+        (8..48).contains(&installed) && left >= 2 && right >= 2,
+        "installed={installed} left={left} right={right}"
+    );
+}

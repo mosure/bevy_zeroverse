@@ -1,6 +1,10 @@
 //! Front, back and raglan sleeves share a sewn pattern. The garment drops from
 //! the shoulders of the wire hanger and retains open cuffs, neck and hem.
-use super::{cloth, dressing::Garment, *};
+use super::{
+    cloth,
+    dressing::{Garment, GarmentKind},
+    *,
+};
 mod details;
 
 const U: usize = 13;
@@ -19,7 +23,11 @@ impl Pattern<'_> {
         let p = self.0;
         let w = p.shoulder_width_m * 0.5;
         let shoulder = (v - 0.68).max(0.) / 0.32;
-        let width = w * (0.86 - 0.075 * (v * PI).sin() + 0.14 * shoulder);
+        let width = w * match p.kind {
+            GarmentKind::Dress => 0.78 + 0.48 * (1. - v).powi(2) + 0.22 * shoulder,
+            GarmentKind::Shirt => 0.92 + 0.08 * shoulder - 0.035 * (v * PI).sin(),
+            _ => 0.86 - 0.075 * (v * PI).sin() + 0.14 * shoulder,
+        };
         let collar = (1. - (u.abs() * 3.).min(1.)).powi(2);
         let top = -w * 0.51 * u.abs()
             - p.shoulder_width_m * (if face > 0. { 0.21 } else { 0.075 }) * collar;
@@ -37,6 +45,23 @@ impl Pattern<'_> {
         let t = j as f32 / (V.len() - 1 - ARM) as f32;
         let root = self.panel(side, V[ARM + j], face);
         let extent = p.width_m * 0.5;
+        if matches!(p.kind, GarmentKind::Shirt | GarmentKind::Dress) {
+            // A short sleeve projects out from the armhole. Using a coat's
+            // hanging cuff here can pull the underarm back through its seam.
+            // Keep both ends outside the shoulder and preserve shoulder-to-
+            // underarm order around the cuff opening as the sleeve narrows.
+            let shoulder = self.panel(side, 1., face).y;
+            let underarm = self.panel(side, V[ARM], face).y;
+            let center = (shoulder + underarm) * 0.5;
+            let drop = (shoulder - underarm) * p.tail_fraction
+                + (extent - p.shoulder_width_m * 0.5) * 0.55;
+            let cuff = Vec3::new(
+                p.anchor_m.x + face * p.half_depth_m * (0.23 + 0.26 * (t * PI).sin()),
+                center + (root.y - center) * 0.58 - drop,
+                p.anchor_m.z + side * extent,
+            );
+            return root.lerp(cuff, s) + Vec3::X * (face * (s * PI).sin() * p.half_depth_m * 0.065);
+        }
         let cuff_w = (extent - p.shoulder_width_m * 0.43).min(0.084);
         let cuff = p.anchor_m
             + Vec3::new(
@@ -126,6 +151,9 @@ pub(super) fn build(a: &mut Assembly, p: &Garment, label: &str) {
     pattern.skin(g, false);
     pattern.skin(g, true);
     pattern.turn_edges(g);
+    if matches!(p.kind, GarmentKind::Shirt | GarmentKind::Dress) {
+        return;
+    }
     details::sew(g, &pattern);
     if p.closure == 0 {
         // A zipper follows the actual front pattern, including its shallow folds.

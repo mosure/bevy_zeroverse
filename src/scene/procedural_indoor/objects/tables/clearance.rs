@@ -20,7 +20,9 @@ impl Clearance {
         let p = parameters(o);
         let outline = outline::sample(o.size.xz() * 0.5, &p);
         let mut result = Self {
-            bottom: o.size.y - p.top_thickness - 0.012,
+            bottom: o.size.y
+                - (p.top_thickness + 0.012)
+                    .max(dining_linen(o).map_or(0., |linen| linen.max_drop_m)),
             top: o.size.y,
             ..default()
         };

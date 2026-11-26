@@ -26,6 +26,9 @@ pub enum SpaceRole {
     Waiting,
     Exhibition,
     Demonstration,
+    Exercise,
+    Retail,
+    Work,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReservationRole {
@@ -34,6 +37,10 @@ pub enum ReservationRole {
     StaffAccess,
     Viewing,
     DoorApproach,
+    EquipmentAccess,
+    Browsing,
+    FittingAccess,
+    PlayingArea,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reservation {
@@ -144,12 +151,35 @@ pub enum CapacityUnit {
     /// One station per chair or banquette, conservatively counting a shared
     /// bench once instead of estimating how many people fit along its length.
     SeatingStations,
+    /// Each bench, mat, bike or treadmill is one independently usable station.
+    ExerciseStations,
+    /// One stocked fixture accessible from the sales floor.
+    MerchandisingFixtures,
+    PlayingCourts,
 }
 impl ProgramAssembly {
+    /// The accepted instructor bike at the focus of an instructor-led class.
+    /// Its local +Z faces the participants. Capacity includes this station.
+    pub fn cycling_instructor<'a>(&self, objects: &'a [IndoorObject]) -> Option<&'a IndoorObject> {
+        if self.activity != IndoorLayout::CyclingStudio {
+            return None;
+        }
+        self.members
+            .iter()
+            .filter_map(|&id| objects.get(id))
+            .find(|o| {
+                o.kind == ObjectKind::StationaryBike
+                    && o.position.xz().distance_squared(self.focus.xz()) < 1e-6
+            })
+    }
+
     /// The longitudinal public aisle separates the two dining areas. A suite
     /// can also have a transverse route spanning the full width of the zone.
     pub(crate) fn dining_aisle(&self) -> Option<&Reservation> {
-        if !matches!(self.activity, IndoorLayout::Cafe | IndoorLayout::Cafeteria) {
+        if !matches!(
+            self.activity,
+            IndoorLayout::Cafe | IndoorLayout::Cafeteria | IndoorLayout::Restaurant
+        ) {
             return None;
         }
         self.reservations.iter().find(|r| {
@@ -159,15 +189,32 @@ impl ProgramAssembly {
 
     fn counts_toward_capacity(&self, object: &IndoorObject) -> bool {
         match self.capacity_unit {
+            CapacityUnit::PlayingCourts => object.kind == ObjectKind::VolleyballNet,
             CapacityUnit::ChairStations => object.kind == ObjectKind::Chair,
             CapacityUnit::SeatingStations => {
                 matches!(object.kind, ObjectKind::Chair | ObjectKind::Banquette)
+                    || (matches!(
+                        self.activity,
+                        IndoorLayout::StairHall | IndoorLayout::Courtyard
+                    ) && object.kind == ObjectKind::Bench)
             }
             CapacityUnit::DisplayStations => matches!(
                 object.kind,
                 ObjectKind::ExhibitPlinth | ObjectKind::ExhibitionPanel | ObjectKind::DisplayCase
             ),
+            CapacityUnit::MerchandisingFixtures => matches!(
+                object.kind,
+                ObjectKind::GroceryDisplay | ObjectKind::ApparelDisplay
+            ),
             CapacityUnit::ElevatorCars => object.kind == ObjectKind::Elevator,
+            CapacityUnit::ExerciseStations => matches!(
+                object.kind,
+                ObjectKind::WeightBench
+                    | ObjectKind::PowerRack
+                    | ObjectKind::ExerciseMat
+                    | ObjectKind::StationaryBike
+                    | ObjectKind::Treadmill
+            ),
         }
     }
 
@@ -223,16 +270,21 @@ fn usable_region(scene: &IndoorManifest, zone: &Zone) -> (Vec2, Vec2) {
     let mut best = None;
     for a in 0..5 {
         for b in 0..5 {
+            let min = lo + step * Vec2::new(a as f32, b as f32);
             for c in 0..5 {
                 for d in 0..5 {
-                    let min = lo + step * Vec2::new(a as f32, b as f32);
                     let max = hi - step * Vec2::new(c as f32, d as f32);
                     let area = (max - min).x * (max - min).y;
+                    // Increasing d only shortens this rectangle at fixed width.
                     if best.as_ref().is_some_and(|(score, _, _)| *score >= area) {
-                        continue;
+                        break;
                     }
                     if super::super::envelope::polygon::box_inside(&e.footprint, min, max, 0.35) {
+                        if min == lo && max == hi {
+                            return (min, max);
+                        }
                         best = Some((area, min, max));
+                        break;
                     }
                 }
             }
@@ -241,13 +293,31 @@ fn usable_region(scene: &IndoorManifest, zone: &Zone) -> (Vec2, Vec2) {
     best.map_or((lo, hi), |(_, a, b)| (a, b))
 }
 
-impl IndoorManifest {
-    pub(crate) fn program_space_clear(&self, lo: Vec3, hi: Vec3) -> bool {
-        self.assembly_diagnostics
-            .programs
-            .iter()
-            .all(|p| p.reservations.iter().all(|r| !r.overlaps(lo, hi)))
+impl ProgramAssembly {
+    /// The installed net occupies the centreline of its own reserved court.
+    /// Every other object, and every other kind of reservation, uses ordinary clearance.
+    pub(super) fn space_clear_for(
+        &self,
+        scene: &IndoorManifest,
+        o: &IndoorObject,
+        lo: Vec3,
+        hi: Vec3,
+    ) -> bool {
+        self.reservations.iter().all(|r| {
+            !r.overlaps(lo, hi)
+                || (r.role == ReservationRole::PlayingArea
+                    && self.activity == IndoorLayout::Gymnasium
+                    && self.members.contains(&o.id)
+                    && scene
+                        .program
+                        .as_ref()
+                        .and_then(|p| p.volleyball)
+                        .is_some_and(|c| furnishing::gymnasium::matches_net(o, c)))
+        })
     }
+}
+
+impl IndoorManifest {
     pub fn functional_programs(&self) -> &[ProgramAssembly] {
         &self.assembly_diagnostics.programs
     }

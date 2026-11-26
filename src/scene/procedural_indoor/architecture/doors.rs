@@ -507,6 +507,33 @@ pub(crate) fn sample_entry(scene: &mut IndoorManifest) -> Result<(), String> {
             } else {
                 0.
             };
+        let (lo, hi) = if scene.layout == IndoorLayout::Hallway {
+            let hall = &scene.program.as_ref().unwrap().zones[0];
+            // The shared-wall entry must lead into the passage. Its sliding
+            // track also needs real parking space between the adjoining jambs.
+            (
+                lo.max(
+                    hall.min.x
+                        + margin
+                        + if sliding && p.handedness < 0. {
+                            width
+                        } else {
+                            0.
+                        },
+                ),
+                hi.min(
+                    hall.max.x
+                        - margin
+                        - if sliding && p.handedness > 0. {
+                            width
+                        } else {
+                            0.
+                        },
+                ),
+            )
+        } else {
+            (lo, hi)
+        };
         let mut spans = if hi - lo > 0.02 {
             vec![(lo, hi)]
         } else {
@@ -580,7 +607,11 @@ pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
     };
     for (i, p) in program.partitions.iter_mut().enumerate() {
         let mut r = stream(scene.seed, 9220 + i as u64);
-        if p.arch_rise > 0. || r.random_bool(0.12) {
+        let hall_normal = (scene.layout
+            == crate::scene::procedural_indoor::layout::IndoorLayout::Hallway)
+            .then(|| super::super::program::hallway::front_normal(&program.zones[0], p))
+            .flatten();
+        if p.arch_rise > 0. || (r.random_bool(0.12) && hall_normal.is_none()) {
             continue;
         }
         let available = [
@@ -607,6 +638,10 @@ pub(crate) fn sample_partitions(scene: &mut IndoorManifest) {
             door.mechanism = mechanism;
             door.swing_hanging = SwingHanging::sample(stock_seed, mechanism);
             door.sample_faces(stock_seed);
+        }
+        if let Some(inward) = hall_normal {
+            // The leaf and any sliding track belong to the side room.
+            door.swing_side = if p.axis == 0 { inward } else { -inward };
         }
         p.door = Some(door);
     }

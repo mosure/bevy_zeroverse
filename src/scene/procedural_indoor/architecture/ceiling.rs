@@ -96,6 +96,18 @@ pub struct CeilingInstallation {
 }
 impl CeilingInstallation {
     pub fn sample(scene: &IndoorManifest) -> Self {
+        if scene
+            .envelope
+            .as_ref()
+            .is_some_and(|e| e.courtyard.is_some())
+        {
+            return Self {
+                room_grid: None,
+                exposed_slab: true,
+                modules: Vec::new(),
+                framing: None,
+            };
+        }
         sampling::sample(scene)
     }
     /// A floor covering fitted after the ceiling must preserve its headroom.
@@ -120,6 +132,14 @@ impl CeilingInstallation {
         &self,
         scene: &IndoorManifest,
     ) -> Result<Option<String>, String> {
+        if scene
+            .envelope
+            .as_ref()
+            .is_some_and(|e| e.courtyard.is_some())
+            && (self.room_grid.is_some() || self.framing.is_some() || !self.modules.is_empty())
+        {
+            return Err("ceiling installation crosses courtyard sky opening".into());
+        }
         if let Some(grid) = &self.room_grid {
             if self.exposed_slab || self.framing.is_some() || !self.modules.is_empty() {
                 return Err("room ceiling has incompatible installations".into());

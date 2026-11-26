@@ -24,11 +24,31 @@ fn mixed_profile_catalog_covers_every_concrete_room_and_all_aliases() {
 }
 
 #[test]
+fn mixed_catalog_extensions_are_uniform_and_preserve_existing_room_draws() {
+    let mut counts = [0; IndoorLayout::PROFILES.len()];
+    for seed in 0..(1000 * IndoorLayout::PROFILES.len() as u64) {
+        let mut rng = stream(seed, 0);
+        let mut old = rng.clone();
+        let previous = IndoorLayout::PROFILES[old.random_range(0..20)];
+        let selected = IndoorLayout::sample_profile(seed, &IndoorLayout::PROFILES, &mut rng);
+        counts[selected as usize - 1] += 1;
+        if IndoorLayout::PROFILES[..IndoorLayout::INITIAL_MIXED_COUNT].contains(&selected) {
+            assert_eq!(selected, previous);
+        }
+        assert_eq!(rng.random::<u64>(), old.random::<u64>());
+    }
+    assert!(
+        counts.iter().all(|n| (855..=1145).contains(n)),
+        "{counts:?}"
+    );
+}
+
+#[test]
 fn mixed_constructs_every_program_with_default_cameras_and_valid_meshes() {
     let mut covered = std::collections::BTreeSet::new();
     for seed in 0..512 {
         let selected =
-            IndoorLayout::PROFILES[stream(seed, 0).random_range(0..IndoorLayout::PROFILES.len())];
+            IndoorLayout::sample_profile(seed, &IndoorLayout::PROFILES, &mut stream(seed, 0));
         if !covered.insert(format!("{selected:?}")) {
             continue;
         }

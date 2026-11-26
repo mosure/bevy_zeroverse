@@ -70,6 +70,19 @@ pub(super) fn part_label(label: &str) -> &str {
     label.split('#').next().unwrap_or(label)
 }
 
+/// Merge material batches under a rigid local transform.
+pub(super) fn append_at(a: &mut Assembly, child: Assembly, tf: Transform) {
+    for ((surface, label), mut g) in child.parts {
+        for p in &mut g.positions {
+            *p = tf.transform_point(Vec3::from_array(*p)).to_array();
+        }
+        for n in &mut g.normals {
+            *n = (tf.rotation * Vec3::from_array(*n)).to_array();
+        }
+        a.part(surface, &label).append(g);
+    }
+}
+
 impl Assembly {
     pub fn part(&mut self, surface: Surface, label: &str) -> &mut Geometry {
         self.parts.entry((surface, label.to_owned())).or_default()

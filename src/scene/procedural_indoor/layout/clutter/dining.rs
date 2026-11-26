@@ -26,6 +26,7 @@ impl IndoorManifest {
             activity,
             IndoorLayout::Cafe
                 | IndoorLayout::Cafeteria
+                | IndoorLayout::Restaurant
                 | IndoorLayout::Kitchen
                 | IndoorLayout::Kitchenette
                 | IndoorLayout::Breakroom
@@ -59,7 +60,11 @@ impl IndoorManifest {
                 budget.drink_limit += 1 + usize::from(beverages.random_bool(second));
             }
         }
-        if !r.random_bool(0.65) {
+        if !r.random_bool(if self.layout == IndoorLayout::Restaurant {
+            0.88
+        } else {
+            0.65
+        }) {
             return;
         }
         // A cafe set may share its glaze, service style and some place settings,

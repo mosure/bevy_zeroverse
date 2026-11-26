@@ -17,6 +17,25 @@ pub(super) fn record(
     let Some(e) = &scene.envelope else {
         return Ok(());
     };
+    if let Some(roof) = e.courtyard {
+        numeric.push(
+            "courtyard_open_roof_fraction",
+            f64::from(roof.open_area_m2() / (scene.room_size.x * scene.room_size.z)),
+        )?;
+        numeric.push("courtyard_arcade_slab_m", f64::from(roof.slab_m))?;
+        numeric.push("courtyard_column_count", e.pillars.len() as f64)?;
+        for (name, surface) in [
+            ("courtyard_soffit", roof.soffit),
+            ("courtyard_fascia", roof.fascia),
+        ] {
+            *report
+                .categories
+                .entry(name.into())
+                .or_default()
+                .entry(format!("{surface:?}"))
+                .or_default() += 1;
+        }
+    }
     numeric.push("exterior_wall_thickness_m", e.wall_thickness() as f64)?;
     for stock in e
         .pillars

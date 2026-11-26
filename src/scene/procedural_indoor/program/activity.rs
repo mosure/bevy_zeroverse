@@ -25,7 +25,10 @@ impl ActivityMix {
             Workshop => [0.20, 0.35, 0.05, 0.40],
             Studio => [0.40, 0.25, 0.20, 0.15],
             ElevatorLanding | Cafe | Cafeteria | Classroom | LectureHall | Showroom | Gallery
-            | PublicSuite | Kitchen | Kitchenette => [0.0, 0.6, 0.4, 0.0],
+            | PublicSuite | Kitchen | Kitchenette | Restaurant | FitnessRoom | CyclingStudio
+            | GroceryStore | ClothingStore | Hallway | StairHall | Courtyard | Gymnasium => {
+                [0.0, 0.6, 0.4, 0.0]
+            }
             Mixed => [0.25; 4],
         };
         let mut rng = stream(seed, 3010 + zone as u64);

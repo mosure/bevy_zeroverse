@@ -7,7 +7,7 @@ fn mixed_conference_uses_the_same_boardroom_design_and_archives_read_without_it(
     let mut compared = 0;
     for seed in 0..1024 {
         let mut mix = stream(seed, 0);
-        if IndoorLayout::PROFILES[mix.random_range(0..IndoorLayout::PROFILES.len())]
+        if IndoorLayout::sample_profile(seed, &IndoorLayout::PROFILES, &mut mix)
             != IndoorLayout::Conference
             || BoardroomPlan::sample(seed, IndoorLayout::Conference).is_none()
         {

@@ -1,7 +1,9 @@
 //! Walk surfaces and front faces are partitioned at actual material joints.
 //! An inlaid tread is flush with the support and has no underlying coplanar cap.
 use super::*;
+mod court;
 use crate::scene::procedural_indoor::envelope::steps::{StepInstallation, StepNosing};
+use crate::scene::procedural_indoor::program::court::VolleyballCourt;
 
 #[derive(Clone, Copy)]
 struct Band {
@@ -146,7 +148,12 @@ fn build_top(
     }
 }
 
-pub(super) fn build(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
+pub(super) fn build(
+    a: &mut Assembly,
+    e: &EnvelopeProgram,
+    size: Vec3,
+    volleyball: Option<VolleyballCourt>,
+) {
     let mut xs = vec![-size.x * 0.5, size.x * 0.5];
     let mut zs = vec![-size.z * 0.5, size.z * 0.5];
     for f in &e.floor_patches {
@@ -158,27 +165,31 @@ pub(super) fn build(a: &mut Assembly, e: &EnvelopeProgram, size: Vec3) {
         v.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
     }
     let triangles = polygon::triangles(&e.footprint);
-    let bands = tread_bands(e);
-    for x in xs.windows(2) {
-        for z in zs.windows(2) {
-            let rect = Rect::from_corners(Vec2::new(x[0], z[0]), Vec2::new(x[1], z[1]));
-            let patch = e.floor_patches.iter().find(|p| p.contains(rect.center()));
-            // Patch boundaries are grid cuts. An interior patch cell is a full
-            // rectangle inside the envelope, including on a concave floor.
-            let finish = e.step_installation.as_ref();
-            let clip = if patch.is_some() && finish.is_some() {
-                None
-            } else {
-                Some(triangles.as_slice())
-            };
-            build_top(
-                a,
-                clip,
-                rect,
-                patch.map_or(0., |p| p.height),
-                finish,
-                &bands,
-            );
+    if let Some(court) = volleyball {
+        court::top(a, court, size);
+    } else {
+        let bands = tread_bands(e);
+        for x in xs.windows(2) {
+            for z in zs.windows(2) {
+                let rect = Rect::from_corners(Vec2::new(x[0], z[0]), Vec2::new(x[1], z[1]));
+                let patch = e.floor_patches.iter().find(|p| p.contains(rect.center()));
+                // Patch boundaries are grid cuts. An interior patch cell is a full
+                // rectangle inside the envelope, including on a concave floor.
+                let finish = e.step_installation.as_ref();
+                let clip = if patch.is_some() && finish.is_some() {
+                    None
+                } else {
+                    Some(triangles.as_slice())
+                };
+                build_top(
+                    a,
+                    clip,
+                    rect,
+                    patch.map_or(0., |p| p.height),
+                    finish,
+                    &bands,
+                );
+            }
         }
     }
     let g = a.part(Surface::Floor, "floor");

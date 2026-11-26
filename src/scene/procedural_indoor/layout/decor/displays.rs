@@ -62,10 +62,13 @@ impl IndoorManifest {
             Classroom => (0.82, 0.38),
             Coworking | OpenOffice => (0.80, 0.42),
             Reception | Showroom | Breakroom => (0.64, 0.24),
-            Cafe | Cafeteria | PublicSuite => (0.56, 0.36),
+            Cafe | Cafeteria | PublicSuite | FitnessRoom | CyclingStudio | Gymnasium => {
+                (0.56, 0.36)
+            }
             Lounge | Studio | ElevatorLanding => (0.46, 0.20),
             Workshop | Library | Mixed => (0.34, 0.14),
-            Gallery | Kitchenette | Kitchen => (0.15, 0.08),
+            GroceryStore | ClothingStore | Hallway | StairHall | Courtyard => (0.30, 0.18),
+            Gallery | Kitchenette | Kitchen | Restaurant => (0.15, 0.08),
         };
         let mut rng = sampling::Domain::Displays.rng(self.seed);
         if !rng.random_bool(chance) {

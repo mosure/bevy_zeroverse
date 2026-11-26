@@ -12,7 +12,14 @@ use rand::Rng;
 use std::collections::{BTreeMap, BTreeSet};
 
 const FIRST: usize = 496;
-const LOTS: usize = 6;
+pub(crate) const LOTS: usize = 6;
+pub(crate) fn retail_finish(lot: usize) -> usize {
+    FIRST + lot % LOTS
+}
+/// Bounded print runs shared across neighboring product facings.
+pub(crate) fn retail_label(class: &str, lot: usize) -> String {
+    format!("{class}#finish{}#uv_local", retail_finish(lot))
+}
 const ALLOY: usize = 504;
 const CAP: usize = 505;
 const SODA: usize = 508;
@@ -61,7 +68,8 @@ pub(crate) fn cap(o: &IndoorObject) -> &'static str {
     ][cap_slot(o) - CAP]
 }
 pub(super) fn supports(s: Surface, i: usize) -> bool {
-    ((FIRST..FIRST + LOTS).contains(&i) && matches!(s, Surface::Metal | Surface::Plastic))
+    ((FIRST..FIRST + LOTS).contains(&i)
+        && matches!(s, Surface::Metal | Surface::Plastic | Surface::Paper))
         || (s == Surface::Metal && i == ALLOY)
         || (s == Surface::Drink && i == SODA)
         || (s == Surface::Plastic && (CAP..CAP + 3).contains(&i))
@@ -103,6 +111,15 @@ pub(super) fn install(
                 keys.insert((p.surface(), p.slot));
             }
         }
+        for o in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::GroceryDisplay && o.size.y >= 1.15)
+        {
+            keys.extend(
+                crate::scene::procedural_indoor::objects::public::retail::print_finishes(o),
+            );
+        }
         keys
     };
     for (s, i) in keys {
@@ -111,15 +128,22 @@ pub(super) fn install(
             u64::from_le_bytes(*b"PackCoat") ^ (s as u64).rotate_left(20) ^ i as u64,
         );
         let mat = if (FIRST..FIRST + LOTS).contains(&i) {
-            let bottle = s == Surface::Plastic;
-            let mut texture = mip_image(label_pixels(&mut r, bottle), 256, MapType::Color);
+            let mut texture = mip_image(label_pixels(&mut r, s), 256, MapType::Color);
             if let ImageSampler::Descriptor(sampler) = &mut texture.sampler {
                 sampler.address_mode_v = ImageAddressMode::ClampToEdge;
             }
             StandardMaterial {
                 base_color_texture: Some(images.add(texture)),
-                perceptual_roughness: r.random_range(if bottle { 0.37..0.64 } else { 0.27..0.50 }),
-                clearcoat: r.random_range(0.16..0.43),
+                perceptual_roughness: r.random_range(match s {
+                    Surface::Paper => 0.57..0.84,
+                    Surface::Plastic => 0.37..0.64,
+                    _ => 0.27..0.50,
+                }),
+                clearcoat: if s == Surface::Paper {
+                    r.random_range(0.02..0.11)
+                } else {
+                    r.random_range(0.16..0.43)
+                },
                 clearcoat_perceptual_roughness: r.random_range(0.19..0.43),
                 ..default()
             }

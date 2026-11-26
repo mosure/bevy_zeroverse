@@ -63,6 +63,27 @@ fn installed_packaging_matches_consumed_parts_and_replays_filtered_ink_per_lot()
     assert_eq!(full, bake(&scene, Some(&sel)));
     let unique: BTreeSet<_> = full.1.values().copied().collect();
     assert_eq!(unique.len(), 2 * LOTS);
+    let mut retail_finishes = BTreeSet::new();
+    scene.objects.clear();
+    for seed in 0..20 {
+        let mut fixture = audit::fixture(ObjectKind::GroceryDisplay, seed);
+        fixture.size.y = 1.48;
+        if seed % 2 == 1 {
+            fixture.variant |=
+                crate::scene::procedural_indoor::objects::public::retail::REFRIGERATED;
+        }
+        for (surface, label) in build_object(&fixture).parts.into_keys() {
+            if let Some(i) = finish_slot(surface, &label).filter(|i| supports(surface, *i)) {
+                retail_finishes.insert((surface, i));
+            }
+        }
+        scene.objects.push(fixture);
+    }
+    assert!(retail_finishes.iter().any(|(s, _)| *s == Surface::Paper));
+    sel.finishes = retail_finishes;
+    let retail = bake(&scene, None);
+    assert_eq!(retail.0, sel.finishes);
+    assert_eq!(retail, bake(&scene, Some(&sel)));
     let key = *full.1.keys().next().unwrap();
     sel.finishes = BTreeSet::from([key]);
     let single = bake(&scene, Some(&sel));

@@ -12,7 +12,10 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     let size = match kind {
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
         | Lectern | Locker | TeachingBoard | ExhibitPlinth | Sculpture | InformationStand
-        | ExhibitionPanel | ExtractionHood | Banquette => public::dimensions(kind, seed).to_array(),
+        | ExhibitionPanel | ExtractionHood | Banquette | WeightBench | DumbbellRack
+        | ExerciseMat | StationaryBike | Treadmill | GroceryDisplay | ApparelDisplay
+        | VolleyballNet | BleacherBank | FittingRoom | CheckoutCounter | PowerRack
+        | HotFoodWell => public::dimensions(kind, seed).to_array(),
         KitchenCounter | KitchenSink | KitchenCupboard | Pantry | Cooktop | Range | Oven
         | Microwave | Dishwasher | Refrigerator | DryingRack | SoapDispenser | Sponge
         | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
@@ -27,6 +30,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         Cabinet => [0.9, 0.85, 0.45],
         Bookcase => [0.95, 1.8, 0.38],
         Plant => [0.8, 1.2, 0.8],
+        PlantingBed => [2.8, 1.9, 1.35],
         TrashCan => [0.34, 0.48, 0.34],
         Whiteboard => [1.3, 0.85, 0.09],
         WallArt | NoticeBoard => [0.8, 0.6, 0.045],
@@ -129,6 +133,12 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     if kind == WallArt {
         presentation::artwork::select_installation(&mut o);
     }
+    if kind == GroceryDisplay
+        && o.size.y >= 1.15
+        && stream(seed, u64::from_le_bytes(*b"ShopDemo")).random_bool(0.4)
+    {
+        o.variant |= public::retail::REFRIGERATED;
+    }
     if kind == ProjectionScreen {
         o.variant |= presentation::projection::INSTALLED;
     }
@@ -140,6 +150,19 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
     }
     if kind == Notebook {
         o.variant |= literature::SPREAD_BINDING;
+    }
+    if kind == CheckoutCounter {
+        use public::CheckoutForm::*;
+        let form = [ConveyorLane, BasketRegister, ApparelWrap, SelfCheckout][(seed % 4) as usize];
+        o.variant = form.tag();
+        o.finish_seed = Some(seed);
+        if form == SelfCheckout {
+            o.variant = public::CheckoutForm::self_service_tag(seed % 8 == 7);
+            o.size = public::retail::checkout::self_checkout_size(&mut stream(seed, 8201));
+        }
+    }
+    if kind == FittingRoom {
+        o.finish_seed = Some(seed);
     }
     if kind == CeilingFan {
         o.variant = fans::installed_variant(seed, o.size.x);
@@ -333,6 +356,18 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         return serde_json::json!(public::signage::parameters(o));
     }
     let all = match o.kind {
+        VolleyballNet => return serde_json::json!(public::volleyball::Net::for_object(o)),
+        BleacherBank => return serde_json::json!(public::bleachers::BleacherBank::for_object(o)),
+        PowerRack => return serde_json::json!(public::strength::PowerRack::for_object(o)),
+        HotFoodWell => return serde_json::json!(public::hot_food::HotFoodWell::for_object(o)),
+        FittingRoom => return serde_json::json!(public::fitting_room(o)),
+        GroceryDisplay | ApparelDisplay | CheckoutCounter => {
+            return serde_json::json!(public::retail::parameters(o))
+        }
+        StationaryBike | Treadmill => return serde_json::json!(public::cardio::parameters(o)),
+        WeightBench | DumbbellRack | ExerciseMat => {
+            return serde_json::json!(public::fitness::parameters(o))
+        }
         BaseboardHeater => {
             let stock = services::heater::Installation::for_object(o);
             let mut fields =
@@ -404,6 +439,7 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             data
         }
         Bookcase => serde_json::json!(storage::bookcase::parameters(o)),
+        PlantingBed => serde_json::json!(super::super::plants::bed::Bed::sample(o)),
         Plant => {
             let growth = super::super::plants::Growth::sample(o.seed);
             let pot = super::super::plants::PotProfile::sample(o.seed);

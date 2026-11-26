@@ -6,8 +6,9 @@ fn hsl(h: f32, s: f32, l: f32) -> [u8; 3] {
     [c.red, c.green, c.blue].map(|v| (v * 255.).round() as u8)
 }
 
-pub(super) fn label_pixels(r: &mut impl Rng, bottle: bool) -> Vec<u8> {
+pub(super) fn label_pixels(r: &mut impl Rng, surface: Surface) -> Vec<u8> {
     use raster::Canvas;
+    let bottle = surface == Surface::Plastic;
     let hue = if bottle && r.random_bool(0.66) {
         r.random_range(152.0..237.)
     } else {
@@ -96,7 +97,9 @@ pub(super) fn label_pixels(r: &mut impl Rng, bottle: bool) -> Vec<u8> {
         );
     }
     c.lettering(&name, start, y, [sx, sy], ink);
-    let sub = if bottle {
+    let sub = if surface == Surface::Paper {
+        ["OATS", "RICE", "CEREAL", "TEA", "PASTA"][r.random_range(0..5)]
+    } else if bottle {
         ["WATER", "SPRING", "MINERAL"][r.random_range(0..3)]
     } else {
         ["SODA", "FIZZ", "TONIC", "POP"][r.random_range(0..4)]

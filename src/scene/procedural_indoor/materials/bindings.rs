@@ -35,7 +35,9 @@ pub(crate) struct MaterialSelection {
 impl MaterialSelection {
     pub(in super::super) fn select_finish(&mut self, surface: Surface, slot: usize) {
         self.finishes.insert((surface, slot));
-        if let Some(stock) = garment_stock::parent(surface, slot) {
+        if let Some(stock) =
+            garment_stock::parent(surface, slot).or_else(|| sport::stock_parent(surface, slot))
+        {
             self.finishes.insert((surface, stock));
         }
     }
@@ -53,11 +55,17 @@ impl MaterialSelection {
                 continue;
             }
             // The entry for the shared undyed stock determines its required maps.
-            if garment_stock::parent(surface, slot).is_some() {
+            if garment_stock::parent(surface, slot).is_some()
+                || sport::stock_parent(surface, slot).is_some()
+            {
                 continue;
             }
             // These stock programs supply their own complete optical response.
-            if coated_stock::supports(surface, slot)
+            if sport::supports(surface, slot)
+                || strength::supports(surface, slot)
+                || roast::supports(surface, slot)
+                || glass::mirror::supports(surface, slot)
+                || coated_stock::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
                 || speaker::supports(surface, slot)
                 || (scene.generator_version >= broth::INTRODUCED
@@ -70,9 +78,11 @@ impl MaterialSelection {
                 || potting::supports(surface, slot)
                 || sprinkler::supports(surface, slot)
                 || appliance_panel::supports(surface, slot)
+                || point_of_sale::supports(surface, slot)
                 || printer_lcd::supports(surface, slot)
                 || clock_face::supports(surface, slot)
                 || projection_cloth::supports(surface, slot)
+                || table_linen::supports(surface, slot)
                 || tissue_stock::supports(surface, slot)
                 || masonry::supports(surface, slot)
                 || cup_board::supports(surface, slot)
@@ -561,6 +571,10 @@ impl IndoorMaterials {
         ));
         variants.extend(signals::build(scene, materials, selection));
         sprinkler::install(scene, materials, selection, &mut variants);
+        sport::install(scene, materials, selection, &mut variants);
+        strength::install(scene, images, materials, selection, &mut variants);
+        roast::install(scene, images, materials, selection, &mut variants);
+        glass::mirror::install(scene, materials, selection, &mut variants);
         glass::display::install(scene, quality, materials, selection, &mut variants);
         glass::door::install(scene, quality, materials, selection, &mut variants);
         variants.extend(supplies::build(scene, &handles, materials, selection));
@@ -570,9 +584,11 @@ impl IndoorMaterials {
         cork::install(scene, images, materials, selection, &mut variants);
         potting::install(scene, images, materials, selection, &mut variants);
         appliance_panel::install(scene, images, materials, selection, &mut variants);
+        point_of_sale::install(scene, images, materials, selection, &mut variants);
         printer_lcd::install(scene, images, materials, selection, &mut variants);
         clock_face::install(scene, images, materials, selection, &mut variants);
         projection_cloth::install(scene, images, materials, selection, &mut variants);
+        table_linen::install(scene, images, materials, selection, &mut variants);
         tissue_stock::install(scene, images, materials, selection, &mut variants);
         masonry::install(scene, images, materials, selection, &mut variants);
         speaker::install(scene, images, materials, selection, &mut variants);
@@ -756,6 +772,10 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || exterior::supports(surface, slot)
         || signals::supports(surface, slot)
         || sprinkler::supports(surface, slot)
+        || sport::supports(surface, slot)
+        || strength::supports(surface, slot)
+        || roast::supports(surface, slot)
+        || glass::mirror::supports(surface, slot)
         || glass::display::supports(surface, slot)
         || glass::door::supports(surface, slot)
         || handset::supports(surface, slot)
@@ -772,9 +792,11 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || (surface == Surface::Ink && slot == produce_skin::SLOT)
         || cork::supports(surface, slot)
         || appliance_panel::supports(surface, slot)
+        || point_of_sale::supports(surface, slot)
         || printer_lcd::supports(surface, slot)
         || clock_face::supports(surface, slot)
         || projection_cloth::supports(surface, slot)
+        || table_linen::supports(surface, slot)
         || tissue_stock::supports(surface, slot)
         || potting::supports(surface, slot)
         || masonry::supports(surface, slot)

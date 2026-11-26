@@ -9,6 +9,8 @@ mod assembly;
 pub(crate) use assembly::GeometryTransport;
 mod bvh;
 mod probe_domain;
+mod probe_filter;
+mod relocation;
 use probe_domain::ProbeDomain;
 mod material;
 #[cfg(not(target_arch = "wasm32"))]
@@ -192,7 +194,8 @@ pub struct BakeStatistics {
     pub bake_ms: Option<f64>,
     pub mean_radiance: Option<[f32; 3]>,
     /// Transport input bytes. The GPU backend counts the bound uniform and
-    /// storage buffers, including the minimum binding for each empty array.
+    /// input buffers, including the minimum binding for each empty array.
+    /// GPU-only reconstruction scratch is counted in prefetch residency.
     pub transport_bytes: usize,
     pub prefetch_hit: bool,
     pub prefetch_wait_ms: f64,
@@ -814,7 +817,18 @@ impl BakeScene {
     /// Irradiance / π for six cardinal normals. One spherical sample contributes
     /// to three positive cosine lobes, preserving spectral energy without a fit.
     pub fn integrate(&self, position: Vec3, samples: u32, bounces: u32, seed: u64) -> [Vec3; 6] {
-        let mut result = [Vec3::ZERO; 6];
+        self.integrate_moments(position, samples, bounces, seed)
+            .map(Vec4::truncate)
+    }
+
+    fn integrate_moments(
+        &self,
+        position: Vec3,
+        samples: u32,
+        bounces: u32,
+        seed: u64,
+    ) -> probe_filter::Lobes {
+        let mut result = [Vec4::ZERO; 6];
         let mut rng = Rng(seed ^ 0x9e3779b97f4a7c15);
         let phase = rng.next() * TAU;
         for i in 0..samples {
@@ -828,11 +842,12 @@ impl BakeScene {
             // normals. Store world-oriented lobes even when the grid rotates.
             let direction = self.world_rotation * direction;
             for axis in 0..3 {
+                let contribution = light * direction[axis].abs();
                 result[axis * 2 + usize::from(direction[axis] < 0.0)] +=
-                    light * direction[axis].abs();
+                    contribution.extend(contribution.length_squared());
             }
         }
-        result
+        result.map(|sum| probe_filter::finish_moments(sum, samples))
     }
 
     pub(crate) fn inside_solid(&self, point: Vec3) -> bool {
@@ -885,17 +900,18 @@ impl BakeScene {
         let count = (resolution.x * resolution.y * resolution.z) as usize;
         assert!(count <= 100_000, "irradiance probe budget exceeded");
         let (points, valid) = self.probe_grid(resolution);
-        let mut values = vec![[Vec3::ZERO; 6]; count];
+        let links = self.probe_links(resolution, &points, &valid);
+        let mut raw = vec![[Vec4::ZERO; 6]; count];
         let calculate = |i: usize| {
             if valid[i] {
-                self.integrate(
+                self.integrate_moments(
                     points[i],
                     settings.rays_per_probe,
                     settings.diffuse_bounces,
                     seed.wrapping_add(i as u64 * 7919),
                 )
             } else {
-                [Vec3::ZERO; 6]
+                [Vec4::ZERO; 6]
             }
         };
         #[cfg(not(target_arch = "wasm32"))]
@@ -906,7 +922,7 @@ impl BakeScene {
                 .min(std::thread::available_parallelism().map_or(1, usize::from))
                 .min(count);
             std::thread::scope(|scope| {
-                for (chunk, output) in values.chunks_mut(count.div_ceil(workers)).enumerate() {
+                for (chunk, output) in raw.chunks_mut(count.div_ceil(workers)).enumerate() {
                     let calculate = &calculate;
                     let wanted = &wanted;
                     scope.spawn(move || {
@@ -921,27 +937,36 @@ impl BakeScene {
             });
         }
         #[cfg(target_arch = "wasm32")]
-        for (i, value) in values.iter_mut().enumerate() {
+        for (i, value) in raw.iter_mut().enumerate() {
             *value = calculate(i);
         }
+        if !wanted() {
+            return None;
+        }
+        let mut values: Vec<_> = (0..count)
+            .map(|i| probe_filter::reconstruct(&raw, i, &links, resolution))
+            .collect();
+        drop(raw);
         let mut relocated = 0;
         // Interior probes are never allowed to darken/emit from inside a solid.
         // A nearest valid sample is used at the original grid location; this is
         // bounded spatial extrapolation, not visibility-aware probe interpolation.
-        for i in 0..count {
-            if !wanted() {
-                return None;
-            }
-            if !valid[i] {
-                if let Some(nearest) = (0..count).filter(|&j| valid[j]).min_by(|&a, &b| {
-                    points[a]
-                        .distance_squared(points[i])
-                        .total_cmp(&points[b].distance_squared(points[i]))
-                }) {
-                    values[i] = values[nearest];
-                    relocated += 1;
+        if valid.contains(&false) {
+            let sources = relocation::ProbeSources::new(&points, &valid);
+            for (i, &inside) in valid.iter().enumerate() {
+                if !wanted() {
+                    return None;
+                }
+                if !inside {
+                    if let Some(nearest) = sources.nearest(points[i]) {
+                        values[i] = values[nearest];
+                        relocated += 1;
+                    }
                 }
             }
+        }
+        if !wanted() {
+            return None;
         }
         let mean = values.iter().flatten().copied().sum::<Vec3>() / (count * 6) as f32;
         Some(ProbeData {

@@ -9,7 +9,20 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::FireDetector
         | ObjectKind::FirePullStation
         | ObjectKind::StringLights => equipment::signals::build(a, o),
-        ObjectKind::Elevator
+        ObjectKind::WeightBench
+        | ObjectKind::HotFoodWell
+        | ObjectKind::PowerRack
+        | ObjectKind::DumbbellRack
+        | ObjectKind::GroceryDisplay
+        | ObjectKind::BleacherBank
+        | ObjectKind::VolleyballNet
+        | ObjectKind::FittingRoom
+        | ObjectKind::ApparelDisplay
+        | ObjectKind::CheckoutCounter
+        | ObjectKind::StationaryBike
+        | ObjectKind::Treadmill
+        | ObjectKind::ExerciseMat
+        | ObjectKind::Elevator
         | ObjectKind::ServiceCounter
         | ObjectKind::DisplayCase
         | ObjectKind::TrayReturn
@@ -101,7 +114,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::PenHolder => {
             super::super::clutter::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
-        ObjectKind::Plant => super::super::plants::build(a, o),
+        ObjectKind::Plant | ObjectKind::PlantingBed => super::super::plants::build(a, o),
         ObjectKind::TrashCan => containers::bin(a, o),
         ObjectKind::Display | ObjectKind::Monitor => {
             computers::display(a, o, super::super::layout::GENERATOR_VERSION)

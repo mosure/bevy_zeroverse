@@ -2,6 +2,8 @@
 mod anatomy;
 pub mod appearance;
 pub(crate) mod body;
+mod clearance;
+pub(crate) use clearance::supported_prop_clear;
 pub mod contact;
 pub mod eyes;
 pub mod eyewear;
@@ -968,62 +970,9 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         .into_iter()
         .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
         .collect();
-    // The chest is broad across the shoulders, not equally deep front-to-back.
-    // Five overlapping longitudinal capsules bound that elliptical volume and
-    // let an abdomen approach a desk edge without shrinking the lateral envelope.
-    let mut table_capsules: Vec<_> = collision_capsules_inner(person, true)
-        .into_iter()
-        .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
-        .collect();
-    let (waist, chest, width) = table_capsules.remove(1);
-    // Anny's weight anchor does not shrink the chest/bust linearly with `build`.
-    // Draped cloth also bridges the chest-to-waist profile instead of following
-    // the abdomen inward. Retain an adult torso-depth floor scaled by stature.
-    let depth = (0.145 * person.build.max(person.stature / 1.75)
-        + person.appearance.as_ref().map_or(0.028, |a| {
-            // The fitted shell and buttons project beyond the rest body's
-            // ease. Reserve that construction before admitting a seated pose.
-            a.garment_ease + a.garment.torso_ease_m * (person.stature / 1.75) + 0.005
-        }))
-    .min(width);
-    let right = tf.rotation * (person.joints[9] - person.joints[5]).normalize_or(Vec3::X);
-    // Discrete capsule centres leave scalloped gaps between neighbouring ribs.
-    // Bound the continuous elliptical torso with the half-spacing hypotenuse,
-    // rather than admitting cuffs/abdomen into one of those small gaps at a
-    // curved or oblique tabletop. No body mesh/model is needed during placement.
-    let half_spacing = (width - depth) * 0.25;
-    let radius = depth.hypot(half_spacing);
-    for fraction in [-1., -0.5, 0., 0.5, 1.] {
-        let offset = (width - depth) * fraction;
-        table_capsules.push((waist + right * offset, chest + right * offset, radius));
-    }
-    // The wider circulation skeleton is not a superset of the anatomical arm
-    // positions: it moves wrists sideways. Include the actual limbs at close
-    // worktops, with room for the skin's sole-grounding offset and finger tips.
+    let table_capsules = clearance::worktop_capsules(person, tf);
     let s = person.stature / 1.75;
     let ground = Vec3::Y * (0.025 * s);
-    for base in [5, 9] {
-        if person
-            .worktop_contact
-            .as_ref()
-            .is_some_and(|c| c.palms[(base - 5) / 4])
-        {
-            continue;
-        }
-        let p = &person.joints;
-        let tip = p[base + 3] + (p[base + 3] - p[base + 2]).normalize_or(Vec3::NEG_Y) * 0.095 * s;
-        for (a, b, r) in [
-            (p[base], p[base + 1], 0.095 * person.build + 0.025 * s),
-            (p[base + 1], p[base + 2], 0.065 * person.build + 0.025 * s),
-            (p[base + 2], tip, 0.080 * s),
-        ] {
-            table_capsules.push((
-                tf.transform_point(a - ground),
-                tf.transform_point(b - ground),
-                r,
-            ));
-        }
-    }
     let columns = scene.columns();
     if capsules
         .iter()
@@ -1142,9 +1091,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
             }
         }
         let size = object.size;
-        let prep_furniture = person
-            .workstation
-            .is_some_and(|id| object.id == id || object.support == Some(id));
+        let prep_furniture = clearance::at_workstation(person, object);
         for &(a, b, r) in if prep_furniture
             || table.is_some() && (person.worktop_contact.is_none() || supported)
         {

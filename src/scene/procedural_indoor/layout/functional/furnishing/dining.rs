@@ -1,24 +1,29 @@
 use super::super::super::assemblies::SeatPath;
 use super::*;
 use crate::scene::procedural_indoor::{
-    layout::dining_places::booth_places,
+    layout::{dining_places::booth_places, refreshments::CounterService},
     objects::{chairs, tables},
 };
 use rand::seq::SliceRandom;
 
 mod bays;
+mod hot_service;
+mod station;
+pub(super) use station::staff_access;
 #[cfg(test)]
 mod tests;
 impl IndoorManifest {
     pub(super) fn dining_program(&mut self, index: usize, r: &mut ChaCha8Rng) {
-        let p = self.assembly_diagnostics.programs[index].clone();
-        let communal = p.activity == IndoorLayout::Cafeteria;
+        let p = &self.assembly_diagnostics.programs[index];
+        let (activity, min, max) = (p.activity, p.min, p.max);
+        let communal = activity == IndoorLayout::Cafeteria;
+        let rows = communal && p.parameters.table_rows.cafeteria_rows;
         // Service circulation is a first-class relationship. Reserve it before
         // seating; adding it afterward almost always loses to occupied furniture.
-        self.serving_queue(index, r);
-        let table_rows = communal
-            && p.parameters.table_rows.cafeteria_rows
-            && self.table_row_program(index, true, r) > 0;
+        if activity != IndoorLayout::Restaurant {
+            self.serving_queue(index, r);
+        }
+        let table_rows = rows && self.table_row_program(index, true, r) > 0;
         if !table_rows {
             self.dining_clusters(index, communal, r);
         }
@@ -27,32 +32,75 @@ impl IndoorManifest {
             .iter()
             .filter(|o| {
                 o.kind == ObjectKind::ServiceCounter
-                    && o.position.x >= p.min.x
-                    && o.position.x <= p.max.x
-                    && o.position.z >= p.min.y
-                    && o.position.z <= p.max.y
+                    && o.position.x >= min.x
+                    && o.position.x <= max.x
+                    && o.position.z >= min.y
+                    && o.position.z <= max.y
             })
             .cloned()
             .collect();
         for counter in counters {
-            let required = if communal {
-                ObjectKind::DrinkDispenser
+            if activity == IndoorLayout::Restaurant {
+                self.stock_waiter_station(&counter, r);
+                continue;
+            }
+            let service = if communal {
+                CounterService::Cafeteria
             } else {
-                ObjectKind::CoffeeMaker
+                CounterService::Drinks(Some(ObjectKind::CoffeeMaker))
             };
-            self.dress_refreshment_counter(&counter, Some(required));
+            self.dress_refreshment_counter(&counter, service);
+        }
+    }
+
+    /// Reserve the public-facing edge for handing off dishes. Loose service
+    /// stock is independently admitted on the back half of the actual counter.
+    fn stock_waiter_station(&mut self, counter: &IndoorObject, r: &mut ChaCha8Rng) {
+        let bins = r.random_range(2..=5);
+        for i in 0..bins {
+            let x = counter.size.x * ((i as f32 + r.random_range(0.37..0.63)) / bins as f32 - 0.5);
+            let span = r.random_range(0.16..0.27);
+            let pos = Vec3::new(x, 0., counter.size.z * r.random_range(-0.24..0.04));
+            let yaw = r.random_range(-0.5..0.5);
+            self.program_prop(
+                counter,
+                ObjectKind::Dishware,
+                pos,
+                Vec3::new(span, r.random_range(0.065..0.16), span),
+                yaw,
+                r,
+            );
         }
     }
 
     fn dining_clusters(&mut self, index: usize, communal: bool, r: &mut ChaCha8Rng) {
         let p = &self.assembly_diagnostics.programs[index];
         let plan = bays::DiningPlan::sample(p, &self.objects, self.seed, communal);
+        let linens = self.dining_linens(index);
         for site in plan.tables {
-            self.dining_table(index, site.position, site.width, site.yaw, r);
+            self.dining_table(
+                index,
+                site.position,
+                site.width,
+                site.yaw,
+                linens.as_ref(),
+                r,
+            );
         }
         if let Some(bench) = plan.perimeter_bench {
             let x = bench.position.x;
             self.public_fit_with(index, bench, r, |o| (o.position.x - x).abs() < 0.16);
+        }
+    }
+
+    pub(super) fn dining_linens(&self, index: usize) -> Option<tables::DiningService> {
+        if self.generator_version < tables::LINEN_VERSION {
+            return None;
+        }
+        match self.assembly_diagnostics.programs[index].activity {
+            IndoorLayout::Restaurant => Some(tables::DiningService::sample(self.seed, index)),
+            IndoorLayout::Cafe => Some(tables::DiningService::for_cafe(self.seed, index)),
+            _ => None,
         }
     }
 
@@ -62,6 +110,7 @@ impl IndoorManifest {
         pos: Vec3,
         width: f32,
         yaw: f32,
+        linens: Option<&tables::DiningService>,
         r: &mut ChaCha8Rng,
     ) {
         let collection = variation::Collection::sample(self.seed, index);
@@ -76,10 +125,14 @@ impl IndoorManifest {
             self.assembly_diagnostics.programs[index].requested_capacity += 2;
             return;
         };
+        if let Some(service) = linens {
+            service.lay(&mut self.objects[id]);
+        }
         let table = self.objects[id].clone();
         // Capacity follows usable tabletop perimeter, not the longer offset
         // chair path. This keeps small cafe tops from becoming six-seat tables.
-        let perimeter = SeatPath::new(&table, 0.).length;
+        let outline = tables::outline(&table);
+        let perimeter = tables::perimeter(&outline);
         let occupancy = self.assembly_diagnostics.programs[index]
             .parameters
             .occupancy;
@@ -88,37 +141,38 @@ impl IndoorManifest {
                 .round()
                 .clamp(2., 8.) as usize;
         self.assembly_diagnostics.programs[index].requested_capacity += capacity;
-        let bench_side =
-            if high_top.is_none() && activity == IndoorLayout::Cafe && r.random_bool(0.48) {
-                self.assembly_diagnostics.programs[index].requested_capacity += 1;
-                let side = if r.random_bool(0.5) { -1. } else { 1. };
-                let depth = r.random_range(0.63..0.76);
-                let offset = Vec3::new(
-                    r.random_range(-0.10..0.10),
-                    0.,
-                    side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
-                );
-                let outline = tables::outline(&table);
-                self.public_fit_with(
-                    index,
-                    FloorProposal {
-                        kind: ObjectKind::Banquette,
-                        position: table.transform().transform_point(offset),
-                        size: Vec3::new(table.size.x.max(1.15), r.random_range(0.96..1.17), depth),
-                        yaw: yaw + if side > 0. { PI } else { 0. },
-                    },
-                    r,
-                    |o| {
-                        o.interaction_target = Some(id);
-                        station_clear(&table, o, offset.xz())
-                            && booth_places(&table, o, &outline).next().is_some()
-                    },
-                )
-                .map(|_| side)
-            } else {
-                None
-            };
-        let path = SeatPath::new(&table, r.random_range(0.46..0.57));
+        let bench_side = if high_top.is_none()
+            && matches!(activity, IndoorLayout::Cafe | IndoorLayout::Restaurant)
+            && r.random_bool(0.48)
+        {
+            self.assembly_diagnostics.programs[index].requested_capacity += 1;
+            let side = if r.random_bool(0.5) { -1. } else { 1. };
+            let depth = r.random_range(0.63..0.76);
+            let offset = Vec3::new(
+                r.random_range(-0.10..0.10),
+                0.,
+                side * (table.size.z * 0.5 + depth * 0.5 + r.random_range(0.14..0.26)),
+            );
+            self.public_fit_with(
+                index,
+                FloorProposal {
+                    kind: ObjectKind::Banquette,
+                    position: table.transform().transform_point(offset),
+                    size: Vec3::new(table.size.x.max(1.15), r.random_range(0.96..1.17), depth),
+                    yaw: yaw + if side > 0. { PI } else { 0. },
+                },
+                r,
+                |o| {
+                    o.interaction_target = Some(id);
+                    station_clear(&table, o, offset.xz())
+                        && booth_places(&table, o, &outline).next().is_some()
+                },
+            )
+            .map(|_| side)
+        } else {
+            None
+        };
+        let path = SeatPath::from_outline(&outline, r.random_range(0.46..0.57));
         let phase = r.random_range(0.0..1.0);
         let mut stations: Vec<_> = (0..capacity).collect();
         // Neither a world axis nor the outline's first edge gets first refusal
@@ -188,6 +242,7 @@ fn high_top(seed: u64, zone: usize, pos: Vec3, activity: IndoorLayout) -> Option
     let prevalence = match activity {
         IndoorLayout::Cafe => 0.55,
         IndoorLayout::Cafeteria => 0.29,
+        IndoorLayout::Restaurant => 0.17,
         _ => return None,
     };
     let mut venue = stream(seed, 0x4849_544f_5053 + zone as u64);

@@ -51,6 +51,20 @@ pub(super) fn record(
             numeric.push("kettle_lid_rise_m", f64::from(hw.lid_rise_m))?;
             numeric.push("kettle_wall_m", f64::from(hw.wall_m))?;
         }
+    } else if o.kind == ObjectKind::HotFoodWell {
+        let plan =
+            crate::scene::procedural_indoor::objects::public::hot_food::HotFoodWell::for_object(o);
+        numeric.push("hot_food_well_count", plan.wells as f64)?;
+        numeric.push("hot_food_pan_count", plan.pans.len() as f64)?;
+        category(categories, "hot_food_glass_guard", plan.guard.is_some());
+        for pan in plan.pans {
+            category(
+                categories,
+                "hot_food_pan_contents",
+                format!("{:?}", pan.contents),
+            );
+            numeric.push("hot_food_pan_depth_m", pan.depth.into())?;
+        }
     } else if o.kind == ObjectKind::DrinkDispenser {
         let p = dispenser::parameters(o);
         category(categories, "dispenser_construction", p.construction);

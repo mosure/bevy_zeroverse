@@ -33,10 +33,10 @@ fn refreshment_equipment_mix_is_not_a_fixed_pair_or_fixed_left_right_template() 
         } else {
             ObjectKind::DrinkDispenser
         };
-        scene.dress_refreshment_counter(&counter, Some(required));
+        scene.dress_refreshment_counter(&counter, CounterService::Drinks(Some(required)));
         let mut replay = base.clone();
         replay.objects.push(counter.clone());
-        replay.dress_refreshment_counter(&counter, Some(required));
+        replay.dress_refreshment_counter(&counter, CounterService::Drinks(Some(required)));
         assert_eq!(scene.objects, replay.objects);
         let primary = scene
             .objects
@@ -189,7 +189,7 @@ fn kettle_parking_varies_handle_reach_and_preserves_worktop_clearance() {
         counter.size = Vec3::new(1.65, 0.93, 0.69);
         counter.yaw = 0.63;
         scene.objects.push(counter.clone());
-        scene.dress_refreshment_counter(&counter, Some(ObjectKind::Kettle));
+        scene.dress_refreshment_counter(&counter, CounterService::Drinks(Some(ObjectKind::Kettle)));
         let k = scene
             .objects
             .iter()

@@ -7,7 +7,7 @@ pub(super) fn admissible(
     r: &super::super::sampling::Reservations,
 ) -> bool {
     let (lo, hi) = m.bounds();
-    lo.y >= super::super::highest_floor(scene, lo.xz(), hi.xz()) + MIN_HEADROOM_M
+    super::super::sampling::clears_underside(scene, lo, hi)
         && scene.envelope.as_ref().is_none_or(|e| {
             polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), 0.16)
                 && !e.soffits.iter().any(|p| {
@@ -87,7 +87,7 @@ pub(super) fn sample(
         let axis = usize::from(r.random_bool(0.5));
         let across = 1 - axis;
         let roof = scene.minimum_ceiling_height(lo, hi);
-        let available = roof - super::super::highest_floor(scene, lo, hi) - 2.39;
+        let available = super::super::sampling::available_drop(scene, roof, lo, hi, 2.39);
         if available < 0.22 {
             continue;
         }

@@ -119,7 +119,10 @@ impl Housing {
         ["graphite", "gray", "pearl", "tinted"][self.case_slot - CASE]
     }
     pub(crate) fn case_label(&self, o: &IndoorObject) -> String {
-        format!("{}#finish{}", o.kind.class_name(), self.case_slot)
+        self.component_case_label(o.kind.class_name())
+    }
+    pub(crate) fn component_case_label(&self, class: &str) -> String {
+        format!("{class}#finish{}", self.case_slot)
     }
     pub(crate) fn case_slot_for(&self, surface: Surface) -> Option<usize> {
         matches!(surface, Surface::Plastic | Surface::Metal).then_some(self.case_slot)
@@ -173,6 +176,14 @@ pub(super) fn install(
     } else {
         let mut keys = BTreeSet::new();
         for o in &scene.objects {
+            if o.kind == ObjectKind::CheckoutCounter
+                && crate::scene::procedural_indoor::objects::public::CheckoutForm::for_object(o)
+                    .is_some()
+            {
+                let h = Housing::for_object(o);
+                keys.insert((h.surface, h.case_slot));
+                continue;
+            }
             if scene.generator_version >= FINISH_VERSION
                 && matches!(o.kind, ObjectKind::Monitor | ObjectKind::Display)
             {

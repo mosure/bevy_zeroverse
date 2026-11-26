@@ -43,11 +43,12 @@ Native headless capture uses image targets and needs a working graphics adapter,
 but no window or display server. The CPU audit does not require a graphics adapter.
 
 The viewer starts inside the generated room. The existing regeneration control
-advances the scene seed. `--indoor-layout mixed` (alias `all`) samples all 20
+advances the scene seed. `--indoor-layout mixed` (alias `all`) samples all 29
 concrete programs uniformly. Explicit choices are `conference`, `open-office`,
 `lounge`, `training`, `coworking`, `breakroom`, `reception`, `library`, `workshop`,
 `studio`, `kitchenette`, `kitchen`, `elevator-landing`, `cafe`, `cafeteria`,
-`classroom`, `lecture-hall`, `showroom`, `gallery`, and `public-suite`.
+`classroom`, `lecture-hall`, `showroom`, `gallery`, `public-suite`, `restaurant`,
+`fitness-room`, `cycling-studio` (alias `spin-studio`), `gymnasium` (alias `sports-hall` or `volleyball-hall`), `grocery-store`, `clothing-store`, `hallway` (alias `corridor`), `stair-hall` (aliases `stairway` and `stairwell`), and `courtyard`.
 
 Within `conference`, 55% of seeds draw an executive boardroom. General
 meeting and suite layouts also support small, nearly round tables. The same
@@ -234,6 +235,12 @@ support relationships, camera paths and optional world rotation.
   The irradiance bake samples the air inside the primary room and adjoining bay.
   Grid cells above sloping ceilings and outside cutouts inherit nearby indoor
   samples, keeping sunlit rooftop probes out of the interior interpolation.
+  CPU and native GPU bakes reconstruct each of the six directional irradiance
+  lobes from the probe and its visible grid neighbours. The weight uses linear
+  RGB sampling variance. A partition blocks the connection and a resolved light
+  or colour edge suppresses blending. Each connection exchanges equal amounts in
+  opposite directions to conserve the total of each RGB lobe. Relocated slots copy the completed source
+  estimate. This runs once per bake and only affects indirect diffuse lighting.
   RGB postprocessing is removed from annotation passes.
 - Solid furniture uses rotated footprint rejection, wall margins and a clear
   doorway approach. Props have explicit supporting surfaces. Cameras use continuous

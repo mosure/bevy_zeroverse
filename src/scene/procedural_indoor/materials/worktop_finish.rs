@@ -232,6 +232,14 @@ pub(super) fn install(
         let mut keys = std::collections::BTreeSet::new();
         for o in &scene.objects {
             match o.kind {
+                ObjectKind::HotFoodWell => {
+                    keys.insert((Surface::Metal, BASIN));
+                }
+                ObjectKind::GroceryDisplay
+                    if super::super::objects::public::retail::is_refrigerated(o) =>
+                {
+                    keys.insert((Surface::Metal, BASIN));
+                }
                 ObjectKind::Elevator
                     if scene.generator_version
                         >= super::super::objects::public::elevator::LANDING_VERSION =>
@@ -293,6 +301,59 @@ pub(super) fn install(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retail_cold_grilles_share_one_stainless_roughness_map_in_both_material_paths() {
+        use crate::scene::procedural_indoor::{
+            layout::IndoorLayout,
+            objects::{audit, public::retail},
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(56100, IndoorLayout::GroceryStore, 0.65, 0, 0.)
+                .unwrap();
+        scene.objects = (0..4)
+            .map(|seed| {
+                let mut o = audit::fixture(ObjectKind::GroceryDisplay, seed);
+                o.size.y = 1.6;
+                o.variant |= retail::REFRIGERATED;
+                o
+            })
+            .collect();
+        let selected = MaterialSelection {
+            finishes: [(Surface::Metal, BASIN)].into(),
+            surfaces: Default::default(),
+            direct_surfaces: Default::default(),
+        };
+        for selection in [None, Some(&selected)] {
+            let mut images = Assets::default();
+            let mut materials = Assets::default();
+            let mut variants = BTreeMap::new();
+            install(
+                &scene,
+                &mut images,
+                &mut materials,
+                selection,
+                &mut variants,
+            );
+            assert_eq!(variants.len(), 1);
+            assert_eq!(images.len(), 1);
+            let steel = materials.get(&variants[&(Surface::Metal, BASIN)]).unwrap();
+            assert_eq!(steel.metallic, 1.);
+            assert!(steel.metallic_roughness_texture.is_some());
+        }
+        for o in &mut scene.objects {
+            o.variant &= !retail::REFRIGERATED;
+        }
+        let mut images = Assets::default();
+        install(
+            &scene,
+            &mut images,
+            &mut Assets::default(),
+            None,
+            &mut BTreeMap::new(),
+        );
+        assert!(images.is_empty());
+    }
 
     #[test]
     fn elevator_sill_stock_is_conductive_and_shares_one_filtered_roughness_map() {

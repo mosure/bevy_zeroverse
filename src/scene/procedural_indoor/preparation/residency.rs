@@ -243,7 +243,7 @@ impl FutureAssets {
         let Some((_, image)) = staged.entries.get(&request.image.id()) else {
             return false;
         };
-        let upload_bytes = image_upload_bytes(image) + request.gpu_buffer_bytes();
+        let upload_bytes = image_upload_bytes(image) + request.resident_buffer_bytes();
         if !fits_budget(self.full_upload_bytes, upload_bytes) {
             return false;
         }
@@ -357,7 +357,10 @@ mod tests {
         );
         assert_eq!(promoted.image.id(), request.image.id());
         assert!(images.get(&promoted.image).is_some());
-        assert_eq!(promoted.gpu_buffer_bytes(), request.gpu_buffer_bytes());
+        assert_eq!(
+            promoted.resident_buffer_bytes(),
+            request.resident_buffer_bytes()
+        );
     }
 
     fn probe_assets(
@@ -483,8 +486,8 @@ mod tests {
         let key = Request::new(17, &default(), &default(), default());
         let mut future = first_slot(&mut images, &key);
         let (mut staged, request) = probe_assets(&images);
-        let bytes =
-            image_upload_bytes(&staged.entries[&request.image.id()].1) + request.gpu_buffer_bytes();
+        let bytes = image_upload_bytes(&staged.entries[&request.image.id()].1)
+            + request.resident_buffer_bytes();
         future.full_upload_bytes = MAX_FUTURE_UPLOAD_BYTES - bytes + 1;
         assert!(!future.stage_probe(&mut staged, &key.successor(), &request, &mut images));
         assert!(staged.entries.contains_key(&request.image.id()));
@@ -553,7 +556,7 @@ impl PreparedIndoor {
             .sum();
         #[cfg(not(target_arch = "wasm32"))]
         let gi = self.gpu_request.as_ref().map_or(0, |r| {
-            r.gpu_buffer_bytes()
+            r.resident_buffer_bytes()
                 + if self.images.entries.contains_key(&r.image.id()) {
                     0
                 } else {

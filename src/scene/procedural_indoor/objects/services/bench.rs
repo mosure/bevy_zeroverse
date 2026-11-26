@@ -21,6 +21,16 @@ pub struct BenchProgram {
     pub roundness: f32,
 }
 
+/// Slatted timber, cast stone or coated metal for outdoor installations.
+pub(crate) const OUTDOOR: u32 = 0x4245_4e43;
+
+pub(crate) fn fit_height(o: &mut IndoorObject) {
+    let p = parameters(o);
+    if !p.backed && !p.arms {
+        o.size.y = p.seat_height;
+    }
+}
+
 pub fn parameters(o: &IndoorObject) -> BenchProgram {
     let mut r = stream(o.seed, 0x42454e4348505247);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4245_4e43_4649_4e49);
@@ -57,6 +67,12 @@ pub fn parameters(o: &IndoorObject) -> BenchProgram {
         },
         seat: if slats {
             Surface::Wood
+        } else if o.variant == OUTDOOR {
+            if f.random_bool(0.55) {
+                Surface::Concrete
+            } else {
+                Surface::Metal
+            }
         } else if f.random_bool(0.28) {
             Surface::Leather
         } else {

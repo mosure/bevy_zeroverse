@@ -160,7 +160,16 @@ impl IndoorManifest {
                 | IndoorLayout::LectureHall
                 | IndoorLayout::Gallery
                 | IndoorLayout::Showroom
-                | IndoorLayout::PublicSuite => unreachable!(),
+                | IndoorLayout::PublicSuite
+                | IndoorLayout::Restaurant
+                | IndoorLayout::FitnessRoom
+                | IndoorLayout::CyclingStudio
+                | IndoorLayout::GroceryStore
+                | IndoorLayout::ClothingStore
+                | IndoorLayout::Hallway
+                | IndoorLayout::StairHall
+                | IndoorLayout::Courtyard
+                | IndoorLayout::Gymnasium => unreachable!(),
             }
         }
         let w = self.room_size.x;

@@ -176,6 +176,22 @@ impl IndoorManifest {
                 max: center.xz() + Vec2::new(0.43, 0.35),
             };
             let p = &self.functional_programs()[index];
+            if self.layout == IndoorLayout::StairHall
+                && (self.columns().iter().any(|&(lo, hi)| {
+                    lo.y < o.position.y + 1.90
+                        && hi.y > o.position.y + 0.001
+                        && route.overlaps(lo, hi)
+                }) || !self.envelope.as_ref().is_some_and(|e| {
+                    crate::scene::procedural_indoor::envelope::polygon::box_inside(
+                        &e.footprint,
+                        route.min,
+                        route.max,
+                        0.06,
+                    )
+                }))
+            {
+                continue;
+            }
             if route.min.cmpge(p.min).all()
                 && route.max.cmple(p.max).all()
                 && self.objects.iter().filter(|o| o.solid).all(|o| {

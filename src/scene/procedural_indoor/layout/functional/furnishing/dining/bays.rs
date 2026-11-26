@@ -30,10 +30,11 @@ pub(super) fn dining_bays(p: &ProgramAssembly, objects: &[IndoorObject]) -> Opti
             }
             if r.role == ReservationRole::Circulation && r.max.y >= p.max.y {
                 bay.max.y = bay.max.y.min(r.min.y);
-            } else if matches!(
-                r.role,
-                ReservationRole::Queue | ReservationRole::StaffAccess
-            ) && r.min.y < front_limit
+            } else if (r.role == ReservationRole::Circulation && r.min.y <= p.min.y)
+                || (matches!(
+                    r.role,
+                    ReservationRole::Queue | ReservationRole::StaffAccess
+                ) && r.min.y < front_limit)
             {
                 bay.min.y = bay.min.y.max(r.max.y);
             }
@@ -74,7 +75,9 @@ impl DiningPlan {
         let looseness = venue.random_range(0.06..0.97);
         let along_aisle = venue.random_bool(0.45);
         // Denser venues use shorter gaps. Even their small tables need space for seats.
-        let pitch = venue.random_range(2.95..3.65) - (p.parameters.occupancy - 0.6) * 1.30
+        let restaurant = p.activity == IndoorLayout::Restaurant;
+        let pitch = venue.random_range(if restaurant { 2.58..3.27 } else { 2.95..3.65 })
+            - (p.parameters.occupancy - 0.6) * 1.30
             + if communal { 0.18 } else { 0. };
         for bay in bays {
             let mut bank = ChaCha8Rng::seed_from_u64(venue.random());
@@ -91,7 +94,7 @@ impl DiningPlan {
                 pitch,
                 heading,
                 looseness,
-                communal,
+                p.activity,
                 &mut bank,
             );
         }
@@ -100,11 +103,12 @@ impl DiningPlan {
         plan.tables.shuffle(&mut venue);
         // A venue need not install a table at every usable station. Keep quieter
         // and fully furnished rooms possible at the same requested density.
-        let fill = (venue.random_range(0.37..1.02) + 0.78 * (p.parameters.occupancy - 0.80))
+        let fill = (venue.random_range(if restaurant { 0.72..1.05 } else { 0.37..1.02 })
+            + 0.78 * (p.parameters.occupancy - 0.80))
             .clamp(0.30, 1.0);
         let count = (plan.tables.len() as f32 * fill + venue.random::<f32>()) as usize;
         plan.tables.truncate(count.max(1));
-        if !communal {
+        if p.activity == IndoorLayout::Cafe {
             plan.perimeter_bench = perimeter_bench(bays, &mut venue);
         }
         plan
@@ -117,14 +121,19 @@ fn sample_bank(
     pitch: f32,
     heading: f32,
     looseness: f32,
-    communal: bool,
+    activity: IndoorLayout,
     bank: &mut ChaCha8Rng,
 ) {
     let usable = bay.size();
     if usable.x < 1.25 || usable.y < 1.6 {
         return;
     }
-    let lanes = if usable.x >= bank.random_range(5.85..7.20) {
+    let lanes = if usable.x
+        >= bank.random_range(if activity == IndoorLayout::Restaurant {
+            4.7..5.8
+        } else {
+            5.85..7.20
+        }) {
         2
     } else {
         1
@@ -143,10 +152,14 @@ fn sample_bank(
         let first = start + slack * bank.random_range(0.07..0.93);
         let line = bank.random_range(0.05..0.95);
         for row in 0..n {
-            let width = if communal {
-                bank.random_range(1.35..1.95)
-            } else {
-                bank.random_range(0.78..1.20)
+            let width = match activity {
+                IndoorLayout::Cafeteria => bank.random_range(1.35..1.95),
+                IndoorLayout::Restaurant => match bank.random_range(0..10) {
+                    0..=3 => bank.random_range(0.74..1.0),
+                    4..=7 => bank.random_range(1.06..1.55),
+                    _ => bank.random_range(1.58..2.22),
+                },
+                _ => bank.random_range(0.78..1.20),
             };
             let yaw = heading + bank.random_range(-0.36..0.36) * looseness;
             let (sin, cos) = yaw.sin_cos();

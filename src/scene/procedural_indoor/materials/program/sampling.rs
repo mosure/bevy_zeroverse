@@ -297,6 +297,23 @@ pub(crate) fn floor_finish(recipes: &mut [MaterialRecipe], style: u32) {
     }
 }
 
+pub(crate) fn room_floor_finish(
+    recipes: &mut [MaterialRecipe],
+    style: u32,
+    layout: crate::scene::procedural_indoor::layout::IndoorLayout,
+) {
+    floor_finish(recipes, style);
+    if style == 0 && layout == crate::scene::procedural_indoor::layout::IndoorLayout::Gymnasium {
+        materials::flooring::sampling::sports_timber(&mut recipes[Surface::Floor as usize]);
+    } else if style == 2 && layout.is_exercise() {
+        materials::flooring::sampling::exercise_floor(&mut recipes[Surface::Floor as usize]);
+    } else if style == 2
+        && layout == crate::scene::procedural_indoor::layout::IndoorLayout::Courtyard
+    {
+        materials::flooring::sampling::courtyard_paving(&mut recipes[Surface::Floor as usize]);
+    }
+}
+
 pub(in crate::scene::procedural_indoor::materials) fn floor_finish_base(
     recipes: &mut [MaterialRecipe],
     style: u32,

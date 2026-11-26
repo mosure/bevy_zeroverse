@@ -8,6 +8,7 @@ use crate::scene::procedural_indoor::{
 };
 
 pub(super) struct ProbeDomain {
+    pub(super) filter_irradiance: bool,
     size: Vec3,
     envelope: EnvelopeProgram,
     adjoining: AdjoiningSpace,
@@ -19,6 +20,7 @@ impl ProbeDomain {
             return None;
         }
         Some(Box::new(Self {
+            filter_irradiance: scene.generator_version >= 289,
             size: scene.room_size,
             envelope: scene.envelope.as_ref()?.clone(),
             adjoining: scene.adjoining_space(),

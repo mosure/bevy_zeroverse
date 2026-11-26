@@ -105,3 +105,36 @@ fn moving_mounts_cannot_bridge_even_a_thin_support_gap() {
         "2 mm unsupported rail gap between checkpoints"
     );
 }
+
+#[test]
+fn courtyard_camera_base_and_entire_rail_need_a_covered_walk() {
+    let mut s =
+        IndoorManifest::generate_with_humans(19, IndoorLayout::Courtyard, 0.50, 0, 0.).unwrap();
+    s.camera_settings.ceiling_mount = Some(CeilingCameraSettings {
+        probability: 1.,
+        motion_fraction: 0.,
+        ..default()
+    });
+    let roof = s.envelope.as_ref().unwrap().courtyard.unwrap();
+    let mid = (roof.max + roof.min) * 0.5;
+    let proto = super::super::proposal::Prototype::sample(
+        &s,
+        0,
+        s.camera_settings.ceiling_mount.as_ref().unwrap(),
+    );
+    let hole = proto.mounted_at(&s, 0, mid, &mut stream(19, 1));
+    let space = super::super::placement::MountSpace::new(&s);
+    assert!(!space.clear(&s, &hole));
+    let mut rail = proto.mounted_at(
+        &s,
+        0,
+        Vec2::new(roof.min.x - 0.72, mid.y),
+        &mut stream(19, 2),
+    );
+    super::super::trajectory::set_rail(&mut rail, Vec3::Z * 0.70);
+    assert!(super::super::trajectory::plane_clear(&s, &rail));
+    super::super::trajectory::set_rail(&mut rail, Vec3::X * (roof.max.x - roof.min.x + 1.44));
+    assert!(!super::super::trajectory::plane_clear(&s, &rail));
+    let tunnel = Vec2::new(roof.max.x + 0.03, mid.y);
+    assert!(!roof.supports_rail(tunnel, tunnel, 0.06));
+}

@@ -12,6 +12,9 @@ struct Args {
     output: PathBuf,
     #[arg(long, default_value_t = 64)]
     samples: usize,
+    /// Keep the catalog's sampled metric sizes for public fixtures.
+    #[arg(long)]
+    sample_dimensions: bool,
     /// Restrict this qualification to the new public-space catalog.
     #[arg(long)]
     public_only: bool,
@@ -50,7 +53,7 @@ fn main() -> anyhow::Result<()> {
                 o.variant = WASTE_STATION | if seed % 4 == 3 { RECYCLING } else { 0 };
             }
             // Construction variety is measured independently of metric scale.
-            if kind.is_program_item() {
+            if kind.is_program_item() && !args.sample_dimensions {
                 o.size = objects::public::dimensions(kind, 0);
             }
             let start = Instant::now();
@@ -102,7 +105,7 @@ fn main() -> anyhow::Result<()> {
     fs::write(
         args.output.join("audit.json"),
         serde_json::to_vec(
-            &json!({"schema_version":1,"audit_scope":scope,"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"method":"six fixed-envelope orthographic depth maps; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
+            &json!({"schema_version":1,"audit_scope":scope,"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"envelope_policy":if args.sample_dimensions {"sampled catalog fixture dimensions"} else {"common envelope per public fixture category"}, "method":"six orthographic depth maps normalized to the admitted object envelope; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
         )?,
     )?;
     anyhow::ensure!(

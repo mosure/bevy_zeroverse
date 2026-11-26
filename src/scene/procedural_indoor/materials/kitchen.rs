@@ -29,10 +29,11 @@ pub(super) fn build(
     if scene.generator_version >= super::super::objects::kitchen::produce::INTRODUCED
         && used.map_or_else(
             || {
-                scene
-                    .objects
-                    .iter()
-                    .any(|o| o.kind == super::super::layout::ObjectKind::FruitBowl)
+                scene.objects.iter().any(|o| {
+                    o.kind == super::super::layout::ObjectKind::FruitBowl
+                        || (o.kind == super::super::layout::ObjectKind::GroceryDisplay
+                            && o.size.y < 1.15)
+                })
             },
             |u| u.contains(&skin),
         )
@@ -42,7 +43,11 @@ pub(super) fn build(
             materials.add(produce_skin::material(scene.material_seed(), images)),
         );
     }
-    if !scene.objects.iter().any(|o| o.kind.is_kitchen()) {
+    if !scene
+        .objects
+        .iter()
+        .any(|o| o.kind.is_kitchen() || o.kind == super::super::layout::ObjectKind::HotFoodWell)
+    {
         return result;
     }
     let current_soup = scene.generator_version >= broth::INTRODUCED;
@@ -50,8 +55,12 @@ pub(super) fn build(
         used.map_or_else(
             || {
                 scene.objects.iter().any(|o| {
-                    super::super::objects::kitchen::serving_for_object(o)
-                        == Some(super::super::objects::kitchen::Serving::Soup)
+                    o.kind == super::super::layout::ObjectKind::HotFoodWell
+                        && slot == broth::SLOT
+                        && super::super::objects::public::hot_food::HotFoodWell::for_object(o)
+                            .has_soup()
+                        || super::super::objects::kitchen::serving_for_object(o)
+                            == Some(super::super::objects::kitchen::Serving::Soup)
                 })
             },
             |u| u.contains(&(surface, slot)),

@@ -14,17 +14,42 @@ pub(super) fn append_ceiling(scene: &IndoorManifest, colliders: &mut Vec<Collide
         .chain(framing)
     {
         for geometry in assembly.parts.into_values() {
-            for indices in geometry.indices.as_chunks::<3>().0 {
-                let p = indices.map(|i| Vec3::from_array(geometry.positions[i as usize]));
-                colliders.push(Collider {
-                    center: (p[0].min(p[1]).min(p[2]) + p[0].max(p[1]).max(p[2])) * 0.5,
-                    half: (p[0].max(p[1]).max(p[2]) - p[0].min(p[1]).min(p[2])) * 0.5,
-                    inverse: Quat::IDENTITY,
-                    label: "ceiling",
-                    triangle: Some(p),
-                });
-            }
+            append_geometry(&geometry, "ceiling", colliders);
         }
+    }
+}
+
+pub(super) fn append_stair(
+    stair: &crate::scene::procedural_indoor::envelope::Mezzanine,
+    colliders: &mut Vec<Collider>,
+) {
+    use crate::scene::procedural_indoor::{envelope::mezzanine, objects::Assembly};
+    let mut assembly = Assembly::default();
+    mezzanine::build(&mut assembly, stair);
+    for ((_, part), geometry) in assembly.parts {
+        let label = if part == "floor" {
+            "floor"
+        } else {
+            "other_structure"
+        };
+        append_geometry(&geometry, label, colliders);
+    }
+}
+
+fn append_geometry(
+    geometry: &crate::scene::procedural_indoor::geometry::Geometry,
+    label: &'static str,
+    colliders: &mut Vec<Collider>,
+) {
+    for indices in geometry.indices.as_chunks::<3>().0 {
+        let p = indices.map(|i| Vec3::from_array(geometry.positions[i as usize]));
+        colliders.push(Collider {
+            center: (p[0].min(p[1]).min(p[2]) + p[0].max(p[1]).max(p[2])) * 0.5,
+            half: (p[0].max(p[1]).max(p[2]) - p[0].min(p[1]).min(p[2])) * 0.5,
+            inverse: Quat::IDENTITY,
+            label,
+            triangle: Some(p),
+        });
     }
 }
 
@@ -65,6 +90,41 @@ mod tests {
         },
         layout::IndoorLayout,
     };
+
+    #[test]
+    fn stair_hall_coverage_sees_open_air_below_treads_and_their_actual_top() {
+        use crate::scene::procedural_indoor::envelope::mezzanine::{
+            stair_hall::Section, StairStructure,
+        };
+        let stair = (0..64)
+            .map(|s| Section::sample(s).flight(s))
+            .find(|m| {
+                m.construction.as_ref().unwrap().stair_structure == StairStructure::OpenStringer
+            })
+            .unwrap();
+        let mut colliders = vec![];
+        append_stair(&stair, &mut colliders);
+        let (lo, hi) = stair.treads().nth(3).unwrap();
+        let middle = (lo + hi) * 0.5;
+        let mut cross = Vec3::X;
+        if stair.stair_axis == 0 {
+            cross = Vec3::Z;
+        }
+        // Same vertical half-space the collision prisms deliberately reserve.
+        // A horizontal ray between landing columns and well below the tread is open.
+        let start = middle.with_y(0.16) - cross * (stair.stair_width() * 0.5 + 0.25);
+        assert!(colliders.iter().all(|c| c
+            .hit(start, cross)
+            .is_none_or(|d| d > stair.stair_width() + 0.5)));
+        let origin = middle.with_y(hi.y + 0.50);
+        let (distance, label) = colliders
+            .iter()
+            .filter_map(|c| c.hit(origin, Vec3::NEG_Y).map(|d| (d, c.label)))
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .unwrap();
+        assert_eq!(label, "floor");
+        assert!((distance - 0.50).abs() < 1e-4);
+    }
 
     #[test]
     fn actual_ceiling_geometry_occludes_but_empty_reservation_space_does_not() {

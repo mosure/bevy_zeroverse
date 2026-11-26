@@ -134,6 +134,7 @@ pub(crate) fn power_port(o: &IndoorObject, low_voltage: bool) -> Option<Vec3> {
     let s = o.size;
     let local = match o.kind {
         ObjectKind::Laptop => super::computers::io::charge_port(o),
+        ObjectKind::HotFoodWell if !low_voltage => super::public::hot_food::power_port(o),
         ObjectKind::DrinkDispenser if !low_voltage => super::public::dispenser::power_port(o)?,
         ObjectKind::Printer if !low_voltage => super::utilities::printer::power_port(o),
         ObjectKind::CoffeeMaker if !low_voltage => Vec3::new(0., s.y * 0.10, -s.z * 0.5 - 0.001),
@@ -161,7 +162,7 @@ pub(crate) fn power_port_normal(o: &IndoorObject, low_voltage: bool) -> Option<V
             Vec3::NEG_Z
         }
         ObjectKind::Projector => projector::parameters(o).port_normal(),
-        ObjectKind::Printer if !low_voltage => Vec3::NEG_Z,
+        ObjectKind::Printer | ObjectKind::HotFoodWell if !low_voltage => Vec3::NEG_Z,
         ObjectKind::CoffeeMaker | ObjectKind::PcTower => Vec3::NEG_Z,
         ObjectKind::WallOutlet if !low_voltage => Vec3::Z,
         ObjectKind::FloorOutlet if !low_voltage && super::floor::is_open(o) => Vec3::Y,

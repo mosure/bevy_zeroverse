@@ -43,7 +43,7 @@ impl IndoorManifest {
         {
             return;
         }
-        self.dress_refreshment_counter(support, None);
+        self.dress_refreshment_counter(support, super::refreshments::CounterService::Drinks(None));
     }
 
     pub(super) fn attachment_wall(&self, rng: &mut ChaCha8Rng) -> (Transform, f32) {
@@ -167,7 +167,10 @@ impl IndoorManifest {
                 self.layout,
                 IndoorLayout::Classroom | IndoorLayout::LectureHall
             );
-        let dining = matches!(self.layout, IndoorLayout::Cafe | IndoorLayout::Cafeteria);
+        let dining = matches!(
+            self.layout,
+            IndoorLayout::Cafe | IndoorLayout::Cafeteria | IndoorLayout::Restaurant
+        );
         let (domain, probability) = match kind {
             ObjectKind::WallArt => (
                 sampling::Domain::WallArt,
