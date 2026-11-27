@@ -1,5 +1,4 @@
-//! A continuous baked surface with an optional spooned-away edge. The crust
-//! follows the tapered inner pan section at its local height.
+//! A continuous baked surface with an optional spooned-away edge.
 use super::*;
 use crate::scene::procedural_indoor::materials::roast::Stock;
 
@@ -21,6 +20,12 @@ pub(super) fn build(a: &mut Assembly, pan: &Pan, deck: f32, outline: &[Vec2; 32]
     const RINGS: usize = 9;
     let count = outline.len();
     let idx = |ring: usize, col: usize| (base + 1 + (ring - 1) * count + col % count) as u32;
+    // A baked crust pulls away from the tapered wall. Fit its footprint at
+    // the lowest possible fill, so a deep scoop cannot fold the height field
+    // horizontally or push it through the steel in a quarter-size pan.
+    let low_fill = (pan.fill_fraction * (1. - served) - 0.037 - 0.035).clamp(0.06, 0.92);
+    let taper = (deck - floor) / (deck + mesh::LIP - floor);
+    let cross = pan.bottom().lerp(pan.inner(), low_fill * taper) - Vec2::splat(0.0012);
     let point = |uv: Vec2| {
         let parting = ((uv - scoop) / width).length_squared();
         let t = parting.clamp(0., 1.);
@@ -31,11 +36,6 @@ pub(super) fn build(a: &mut Assembly, pan: &Pan, deck: f32, outline: &[Vec2; 32]
             + 0.035 * (uv.x * 6.4 + phase).sin() * (uv.y * 7.5 - phase).cos())
         .clamp(0.06, 0.92);
         let y = floor + (deck - floor) * fraction;
-        // The steel side extends to the top of its rolled lip.
-        let cross = pan
-            .bottom()
-            .lerp(pan.inner(), (y - floor) / (deck + mesh::LIP - floor))
-            - Vec2::splat(0.0012);
         let pos = pan.center + cross * uv;
         Vec3::new(pos.x, y, pos.y)
     };
@@ -64,7 +64,9 @@ pub(super) fn build(a: &mut Assembly, pan: &Pan, deck: f32, outline: &[Vec2; 32]
     }
     for tri in mesh.indices[start..].as_chunks::<3>().0 {
         let [a, b, c] = tri.map(|i| Vec3::from_array(mesh.positions[i as usize]));
-        let n = (b - a).cross(c - a);
+        // Large rim sectors and narrow corner sectors both contribute to the
+        // shading of a scoop. Weight by direction, independently of area.
+        let n = (b - a).cross(c - a).normalize();
         for &k in tri {
             let normal = &mut mesh.normals[k as usize];
             *normal = (Vec3::from_array(*normal) + n).to_array();
@@ -72,6 +74,21 @@ pub(super) fn build(a: &mut Assembly, pan: &Pan, deck: f32, outline: &[Vec2; 32]
     }
     for n in &mut mesh.normals[base..] {
         *n = Vec3::from_array(*n).normalize().to_array();
+    }
+    // At a steep spoon cut, one smooth normal can face away from an incident
+    // triangle. Give that corner its own face normal at the same position/UV.
+    for tri in mesh.indices[start..].as_chunks_mut::<3>().0 {
+        let [a, b, c] = tri.map(|i| Vec3::from_array(mesh.positions[i as usize]));
+        let face = (b - a).cross(c - a);
+        for index in tri {
+            let i = *index as usize;
+            if face.dot(Vec3::from_array(mesh.normals[i])) <= 0. {
+                *index = mesh.positions.len() as u32;
+                mesh.positions.push(mesh.positions[i]);
+                mesh.uvs.push(mesh.uvs[i]);
+                mesh.normals.push(face.normalize().to_array());
+            }
+        }
     }
     let bottom = |v: Vec2| {
         let p = pan.center + (pan.bottom() - Vec2::splat(0.0012)) * v;

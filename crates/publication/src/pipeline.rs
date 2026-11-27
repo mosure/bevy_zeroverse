@@ -620,7 +620,8 @@ pub fn refresh(root: &Path, recapture: bool) -> Result<()> {
     refresh_locked(&root, recapture, None)
 }
 
-/// Caller owns the shared publication lock, including preparation of evidence.
+/// Caller owns the shared publication lock. Automatic sync supplies a work
+/// directory with its qualified object atlas. Both paths verify it on install.
 pub(crate) fn refresh_locked(
     root: &Path,
     recapture: bool,
@@ -661,13 +662,15 @@ pub(crate) fn refresh_locked(
             .context("remeasure the paper timing study before publication refresh")?;
     }
     let before = publication_inputs(root, &config)?;
+    let object_cache = work.join("objects");
+    if prepared_work.is_none() {
+        objects::refresh_cache(root, &object_cache, &current)?;
+    }
     let dataset = capture_dataset(root, &config, recapture)?;
     let qualification_cache = work.join("qualification");
     qualification::refresh_cache(root, &qualification_cache, &current)?;
     let door_cache = work.join("doors");
     doors::refresh_cache(root, &door_cache, &current)?;
-    let object_cache = work.join("objects");
-    objects::refresh_cache(root, &object_cache, &current)?;
     let material_cache = work.join("materials");
     materials::refresh_cache(root, &material_cache, &current)?;
     let staging = tempfile::Builder::new()
