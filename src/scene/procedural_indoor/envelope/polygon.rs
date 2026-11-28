@@ -29,10 +29,9 @@ fn signed_area(p: &[Vec2]) -> f64 {
 }
 
 pub fn edges(p: &[Vec2]) -> impl Iterator<Item = (Vec2, Vec2)> + '_ {
-    p.iter()
-        .copied()
-        .zip(p.iter().copied().cycle().skip(1))
-        .take(p.len())
+    p.windows(2)
+        .map(|pair| (pair[0], pair[1]))
+        .chain(p.last().zip(p.first()).map(|(&last, &first)| (last, first)))
 }
 
 /// Offset from a CCW vertex which is one metre inside both incident wall
@@ -72,13 +71,22 @@ fn point_segment(p: Vec2, a: Vec2, b: Vec2) -> f32 {
 
 pub fn contains(poly: &[Vec2], p: Vec2, margin: f32) -> bool {
     let mut inside = false;
+    // On an axis-aligned wall the projected point has exactly the wall's
+    // constant coordinate. Its perpendicular distance bounds the segment
+    // distance even beyond either endpoint. Keep a guard at the comparison.
+    let band = (margin.max(1e-6) + 1e-6).next_up();
     for (a, b) in edges(poly) {
-        let distance = point_segment(p, a, b);
-        if distance < margin - 1e-6 {
-            return false;
+        if a.y == b.y && (p.y - a.y).abs() > band {
+            continue; // Horizontal edges also contribute zero winding.
         }
-        if distance < 1e-6 && margin <= 0. {
-            return true;
+        if a.x != b.x || (p.x - a.x).abs() <= band {
+            let distance = point_segment(p, a, b);
+            if distance < margin - 1e-6 {
+                return false;
+            }
+            if distance < 1e-6 && margin <= 0. {
+                return true;
+            }
         }
         if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y) {
             inside = !inside;
@@ -109,19 +117,38 @@ fn intersects(a: Vec2, b: Vec2, c: Vec2, d: Vec2) -> bool {
 
 /// Continuous capsule containment, including concave boundaries and tangencies.
 pub fn segment_inside(poly: &[Vec2], a: Vec2, b: Vec2, margin: f32) -> bool {
-    contains(poly, a, margin)
-        && contains(poly, b, margin)
-        && edges(poly).all(|(c, d)| {
-            !intersects(a, b, c, d)
-                && [
-                    point_segment(a, c, d),
-                    point_segment(b, c, d),
-                    point_segment(c, a, b),
-                    point_segment(d, a, b),
-                ]
-                .into_iter()
-                .all(|x| x + 1e-6 >= margin)
-        })
+    contains(poly, a, margin) && segment_from_inside(poly, a, b, margin)
+}
+
+/// The preceding chord has already qualified `a` at this same margin.
+pub(super) fn segment_from_inside(poly: &[Vec2], a: Vec2, b: Vec2, margin: f32) -> bool {
+    if margin.is_nan() || !contains(poly, b, margin) {
+        return false;
+    }
+    // point_segment reconstructs a + (b-a)*t for clamped t. Include its
+    // rounded endpoint as well as b, so even a grazing chord uses the oracle.
+    let end = a + (b - a);
+    let lo = a.min(b).min(end);
+    let hi = a.max(b).max(end);
+    let band = (margin.max(0.) + 1e-6).next_up();
+    edges(poly).all(|(c, d)| {
+        if intersects(a, b, c, d) {
+            return false;
+        }
+        if (c.x == d.x && (lo.x - c.x > band || c.x - hi.x > band))
+            || (c.y == d.y && (lo.y - c.y > band || c.y - hi.y > band))
+        {
+            return true;
+        }
+        [
+            point_segment(a, c, d),
+            point_segment(b, c, d),
+            point_segment(c, a, b),
+            point_segment(d, a, b),
+        ]
+        .into_iter()
+        .all(|x| x + 1e-6 >= margin)
+    })
 }
 
 pub fn box_inside(poly: &[Vec2], lo: Vec2, hi: Vec2, margin: f32) -> bool {
@@ -294,4 +321,87 @@ pub fn validate(poly: &[Vec2]) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod clearance_tests {
+    use super::*;
+    use rand::{Rng, SeedableRng};
+
+    fn scalar_contains(poly: &[Vec2], p: Vec2, margin: f32) -> bool {
+        let mut inside = false;
+        for (a, b) in edges(poly) {
+            let distance = point_segment(p, a, b);
+            if distance < margin - 1e-6 {
+                return false;
+            }
+            if distance < 1e-6 && margin <= 0. {
+                return true;
+            }
+            if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y) {
+                inside = !inside;
+            }
+        }
+        inside
+    }
+
+    fn scalar_segment(poly: &[Vec2], a: Vec2, b: Vec2, margin: f32) -> bool {
+        scalar_contains(poly, a, margin)
+            && scalar_contains(poly, b, margin)
+            && edges(poly).all(|(c, d)| {
+                !intersects(a, b, c, d)
+                    && [
+                        point_segment(a, c, d),
+                        point_segment(b, c, d),
+                        point_segment(c, a, b),
+                        point_segment(d, a, b),
+                    ]
+                    .into_iter()
+                    .all(|v| v + 1e-6 >= margin)
+            })
+    }
+
+    #[test]
+    fn axis_aligned_clearance_matches_scalar_for_tangencies_and_concave_rooms() {
+        let outline = [
+            Vec2::ZERO,
+            Vec2::new(7., 0.),
+            Vec2::new(7., 3.),
+            Vec2::new(4., 3.),
+            Vec2::new(4., 6.),
+            Vec2::new(2., 7.),
+            Vec2::new(0., 7.),
+        ];
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(614449169);
+        for offset in [Vec2::ZERO, Vec2::splat(1000.)] {
+            let poly = outline.map(|p| p + offset);
+            let check = |a: Vec2, b: Vec2, margin: f32| {
+                assert_eq!(
+                    contains(&poly, a, margin),
+                    scalar_contains(&poly, a, margin)
+                );
+                assert_eq!(
+                    segment_inside(&poly, a, b, margin),
+                    scalar_segment(&poly, a, b, margin)
+                );
+            };
+            check(offset + Vec2::ONE, offset + Vec2::splat(2.), f32::NAN);
+            for (c, d) in edges(&poly) {
+                for margin in [0.0_f32, 1e-6, 0.2, 0.7] {
+                    for delta in [margin.next_down(), margin, margin.next_up(), margin - 1e-6] {
+                        let a = c.lerp(d, 0.3) + (d - c).normalize().perp() * delta;
+                        for b in [a, c, d, a + Vec2::splat(1e-7), a.lerp(d, 0.6)] {
+                            check(a, b, margin);
+                        }
+                    }
+                }
+            }
+            for _ in 0..2048 {
+                let mut point =
+                    || offset + Vec2::new(rng.random_range(-2.0..9.), rng.random_range(-2.0..9.));
+                let (a, b) = (point(), point());
+                check(a, b, rng.random_range(0.0..0.85));
+            }
+        }
+    }
 }

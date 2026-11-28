@@ -11,12 +11,14 @@ use bevy::{
     },
 };
 use std::{collections::HashMap, num::NonZeroU64, sync::atomic::Ordering};
+mod face_poses;
+use face_poses::FacePoses;
 const SHADER: Handle<Shader> = uuid_handle!("c43e1c96-d9f3-408a-9477-c815481747f0");
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemSet)]
 pub(crate) struct LensResolveLabel;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Uniform {
+struct Projection {
     lens: [[f32; 4]; 4],
     views: [[[f32; 4]; 4]; 6],
     regions: [[f32; 4]; 6],
@@ -24,6 +26,11 @@ struct Uniform {
     bounds_min: [f32; 4],
     bounds_max: [f32; 4],
     preview: [f32; 4],
+}
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct Uniform {
+    projection: Projection,
     colors: [[f32; 4]; 128],
     turbo: [[f32; 4]; 6],
 }
@@ -45,10 +52,11 @@ struct State {
     bindings: HashMap<bevy::asset::AssetId<Image>, Binding>,
 }
 struct Binding {
-    key: Vec<TextureId>,
+    key: ([TextureId; 6], [TextureId; 4]),
     group: BindGroup,
     uniform: Buffer,
-    contents: Uniform,
+    contents: Projection,
+    present: bool,
 }
 pub(super) fn install(app: &mut App) {
     load_internal_asset!(app, SHADER, "resolve.wgsl", |source: &str, path| {
@@ -180,22 +188,19 @@ fn prepare(
         });
         state.pipeline = Some((id, cache.get_bind_group_layout(&layout)));
     }
-    state
-        .bindings
-        .retain(|key, _| jobs.0.iter().any(|j| j.lens.output.id() == *key));
     for job in &jobs.0 {
+        if let Some(binding) = state.bindings.get_mut(&job.lens.output.id()) {
+            binding.present = true;
+        }
         if !job.active {
             continue;
         }
-        let Some(faces) = job
-            .lens
-            .faces
-            .iter()
-            .map(|h| images.get(h))
-            .collect::<Option<Vec<_>>>()
+        let [Some(f0), Some(f1), Some(f2), Some(f3), Some(f4), Some(f5)] =
+            job.lens.faces.each_ref().map(|h| images.get(h))
         else {
             continue;
         };
+        let faces = [f0, f1, f2, f3, f4, f5];
         let Some(output) = images.get(&job.lens.output) else {
             continue;
         };
@@ -215,16 +220,15 @@ fn prepare(
             .and_then(|g| g.flow.as_ref())
             .and_then(|h| images.get(h))
             .unwrap_or(a);
-        let key: Vec<_> = faces
-            .iter()
-            .map(|i| i.texture.id())
-            .chain([
+        let key = (
+            faces.map(|i| i.texture.id()),
+            [
                 a.texture.id(),
                 b.texture.id(),
                 flow.texture.id(),
                 output.texture.id(),
-            ])
-            .collect();
+            ],
+        );
         let mut calibration = job.lens.calibration.clone();
         if job.mode == 0 {
             let factor =
@@ -236,9 +240,11 @@ fn prepare(
                 output.texture_descriptor.size.height,
             ];
         }
-        let uniform = Uniform {
+        let projection = Projection {
             lens: calibration.shader_parameters(),
-            views: orientations().map(|r| Mat4::from_quat(r.inverse()).to_cols_array_2d()),
+            views: *FACE_VIEWS.get_or_init(|| {
+                orientations().map(|r| Mat4::from_quat(r.inverse()).to_cols_array_2d())
+            }),
             regions: job.lens.regions.map(|r| {
                 [
                     r.min.x as f32,
@@ -256,15 +262,18 @@ fn prepare(
             bounds_min: job.bounds[0].extend(0.).to_array(),
             bounds_max: job.bounds[1].extend(0.).to_array(),
             preview: preview_parameters(job.mode, job.preview),
-            turbo: bevy_zeroverse_capture::depth::TURBO_COEFFICIENTS
-                .map(|c| [c[0], c[1], c[2], 0.]),
-            colors: *semantic_colors(),
         };
         if state
             .bindings
             .get(&job.lens.output.id())
             .is_none_or(|b| b.key != key)
         {
+            let uniform = Uniform {
+                projection,
+                turbo: bevy_zeroverse_capture::depth::TURBO_COEFFICIENTS
+                    .map(|c| [c[0], c[1], c[2], 0.]),
+                colors: *semantic_colors(),
+            };
             let buffer = device.create_buffer_with_data(&BufferInitDescriptor {
                 label: Some("angular_rgb_uniform"),
                 contents: bytemuck::bytes_of(&uniform),
@@ -292,7 +301,8 @@ fn prepare(
                     key,
                     uniform: buffer,
                     group,
-                    contents: uniform,
+                    contents: projection,
+                    present: true,
                 },
             );
         } else {
@@ -300,13 +310,20 @@ fn prepare(
             // Camera/world motion changes the rendered faces, not the lens
             // projection. Keep its calibration buffer resident across frames.
             // Byte equality also preserves signed zero and NaN payloads.
-            if bytemuck::bytes_of(&binding.contents) != bytemuck::bytes_of(&uniform) {
-                queue.write_buffer(&binding.uniform, 0, bytemuck::bytes_of(&uniform));
-                binding.contents = uniform;
+            if bytemuck::bytes_of(&binding.contents) != bytemuck::bytes_of(&projection) {
+                queue.write_buffer(&binding.uniform, 0, bytemuck::bytes_of(&projection));
+                binding.contents = projection;
             }
         }
     }
+    // Keep temporarily inactive or uploading cameras. Release the resources
+    // of removed cameras in this frame, including same-seed regeneration.
+    state
+        .bindings
+        .retain(|_, binding| std::mem::take(&mut binding.present));
 }
+
+static FACE_VIEWS: std::sync::OnceLock<[[[f32; 4]; 4]; 6]> = std::sync::OnceLock::new();
 
 fn preview_parameters(mode: u32, preview: [f32; 4]) -> [f32; 4] {
     match mode {
@@ -336,6 +353,7 @@ fn semantic_colors() -> &'static [[f32; 4]; 128] {
 fn resolve(
     world: &World,
     mut context: RenderContext,
+    mut face_poses: Local<FacePoses>,
     cameras: Query<(
         &bevy::render::camera::ExtractedCamera,
         &bevy::render::view::ExtractedView,
@@ -358,7 +376,23 @@ fn resolve(
         return;
     };
     let images = world.resource::<RenderAssets<GpuImage>>();
-    for job in &world.resource::<Jobs>().0 {
+    let jobs = &world.resource::<Jobs>().0;
+    // At small rig sizes a direct scan costs less than constructing the index.
+    // Count only active optical resolves, including in mixed projection rigs.
+    let indexed = jobs
+        .iter()
+        .filter(|job| job.active && job.mode == 0)
+        .nth(8)
+        .is_some();
+    if indexed {
+        face_poses.rebuild(cameras.iter().filter_map(|(camera, view, _)| {
+            let Some(bevy::camera::NormalizedRenderTarget::Image(image)) = &camera.target else {
+                return None;
+            };
+            Some((image.handle.id(), view.world_from_view.to_matrix()))
+        }));
+    }
+    for job in jobs {
         if !job.active {
             continue;
         }
@@ -376,14 +410,25 @@ fn resolve(
         }
         // All source faces must belong to this exact logical pose and frame.
         // A newly extracted logical camera cannot release incomplete cube faces.
-        if job.mode == 0 && job.lens.faces.iter().enumerate().any(|(i,h)| {
-            if i>0 && h==&job.lens.faces[0] {return false;}
-            let expected = job.world * Mat4::from_quat(orientations()[i]);
-            !cameras.iter().any(|(c,v,_)| {
-                matches!(&c.target,Some(bevy::camera::NormalizedRenderTarget::Image(t)) if t.handle==*h)
-                && v.world_from_view.to_matrix().abs_diff_eq(expected,1e-5)
-            })
-        }) { continue; }
+        if job.mode == 0
+            && !face_poses::ready(
+                &job.lens.faces,
+                job.world,
+                orientations(),
+                |id, expected| {
+                    if indexed {
+                        face_poses.matches(id, expected)
+                    } else {
+                        cameras.iter().any(|(camera, view, _)| {
+                    matches!(&camera.target, Some(bevy::camera::NormalizedRenderTarget::Image(image)) if image.handle.id() == id)
+                        && view.world_from_view.to_matrix().abs_diff_eq(expected, 1e-5)
+                })
+                    }
+                },
+            )
+        {
+            continue;
+        }
         if job.mode != 0
             && job
                 .gt
@@ -443,6 +488,25 @@ mod tests {
     fn filtered_lens_resolve_validates_without_optional_shader_features() {
         let source = crate::camera::lens::shader(include_str!("resolve.wgsl"), "");
         let shader = wgpu::naga::front::wgsl::parse_str(&source).unwrap();
+        let params = shader
+            .types
+            .iter()
+            .find(|(_, ty)| ty.name.as_deref() == Some("Params"))
+            .unwrap()
+            .1;
+        let wgpu::naga::TypeInner::Struct { members, span } = &params.inner else {
+            panic!("expected the lens uniform structure");
+        };
+        assert_eq!(*span as usize, size_of::<Uniform>());
+        let palette = members
+            .iter()
+            .find(|m| m.name.as_deref() == Some("colors"))
+            .unwrap();
+        assert_eq!(palette.offset as usize, size_of::<Projection>());
+        assert_eq!(
+            palette.offset as usize,
+            std::mem::offset_of!(Uniform, colors)
+        );
         wgpu::naga::valid::Validator::new(
             wgpu::naga::valid::ValidationFlags::all(),
             wgpu::naga::valid::Capabilities::empty(),

@@ -348,7 +348,7 @@ pub fn validate_gen_config(config: &GenConfig) -> Result<()> {
             "procedural_indoor requires one capture worker per app to preserve seed/index ordering; use CLI --per-process=true for parallel generation"
         );
         anyhow::ensure!(
-            config.cameras <= 256
+            config.cameras <= bevy_zeroverse::scene::procedural_indoor::cameras::MAX_INDOOR_CAMERAS
                 && config.indoor_density.is_finite()
                 && (0.0..=1.0).contains(&config.indoor_density)
                 && config.indoor_human_density.is_finite()

@@ -8,11 +8,7 @@ pub const PATH_SAMPLES: usize = 33;
 pub(super) struct Track(pub [Vec3; PATH_SAMPLES]);
 impl Track {
     pub fn new(camera: &IndoorCamera) -> Self {
-        let mut path = camera.runtime_trajectory();
-        Self(std::array::from_fn(|i| {
-            path.sample(i as f32 / (PATH_SAMPLES - 1) as f32)
-                .translation
-        }))
+        Self(camera.runtime_trajectory().translations())
     }
 }
 

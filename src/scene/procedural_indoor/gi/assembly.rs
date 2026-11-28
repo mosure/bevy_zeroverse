@@ -81,6 +81,7 @@ impl GeometryTransport {
         geometry: &super::super::preparation::SceneGeometry,
     ) -> GeometryInput {
         let started = Instant::now();
+        let (bounds_min, bounds_max) = super::probe_bounds(scene);
         let mut result = Self {
             scene: BakeScene {
                 triangles: Vec::new(),
@@ -93,16 +94,8 @@ impl GeometryTransport {
                 sun: linear(architecture::sun_color(scene)) * architecture::sun_illuminance(scene),
                 sky: scene.sky_radiance(),
                 sky_field: default(),
-                bounds_min: Vec3::new(
-                    -scene.room_size.x * 0.5 - 0.10,
-                    scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
-                    -scene.room_size.z * 0.5 - 0.10,
-                ),
-                bounds_max: Vec3::new(
-                    scene.room_size.x * 0.5 + 0.10,
-                    scene.room_size.y + 0.10,
-                    scene.room_size.z * 0.5 + scene.adjoining_space().max_depth() + 0.10,
-                ),
+                bounds_min,
+                bounds_max,
                 preparation_ms: 0.0,
                 world_rotation: Quat::from_rotation_y(scene.world_yaw),
                 probe_domain: ProbeDomain::from_manifest(scene),

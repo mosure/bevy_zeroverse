@@ -209,21 +209,20 @@ pub fn prepare(
     seed: u64,
     images: &mut impl super::super::preparation::AssetStore<Image>,
 ) -> (GpuBakeRequest, Transform, BakeStatistics) {
-    assert!(settings.spacing >= 0.2 && settings.spacing.is_finite());
-    assert!(
-        (16..=65536).contains(&settings.rays_per_probe)
-            && (1..=32).contains(&settings.diffuse_bounces)
-    );
+    try_prepare(scene, settings, seed, images).expect("valid GPU irradiance settings and volume")
+}
+
+pub(in crate::scene::procedural_indoor) fn try_prepare(
+    scene: &BakeScene,
+    settings: BakeSettings,
+    seed: u64,
+    images: &mut impl super::super::preparation::AssetStore<Image>,
+) -> Result<(GpuBakeRequest, Transform, BakeStatistics), String> {
+    settings.validate_capture()?;
     let started = Instant::now();
-    let resolution = ((scene.bounds_max - scene.bounds_min) / settings.spacing)
-        .ceil()
-        .as_uvec3()
-        .max(UVec3::splat(2));
-    let count = (resolution.x * resolution.y * resolution.z) as usize;
-    assert!(
-        count <= 65535,
-        "GPU GI probe budget exceeds a dispatch dimension"
-    );
+    let resolution =
+        settings.resolution(scene.bounds_min, scene.bounds_max, super::GPU_PROBE_LIMIT)?;
+    let count = resolution.element_product() as usize;
     let (points, valid) = scene.probe_grid(resolution);
     let links = scene.probe_links(resolution, &points, &valid);
     let origins = probes::ProbeDispatch::new(&points, &valid, &links);
@@ -346,11 +345,11 @@ pub fn prepare(
         transport_bytes: request.gpu_buffer_bytes() as usize,
         ..default()
     };
-    (
+    Ok((
         request,
         probe_transform(scene.bounds_min, scene.bounds_max),
         stats,
-    )
+    ))
 }
 
 pub struct GpuGiPlugin;
@@ -743,6 +742,31 @@ fn encode_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn oversized_irradiance_grids_fail_before_allocating_probe_or_image_data() {
+        let settings = BakeSettings {
+            spacing: 1.,
+            ..default()
+        };
+        let mut scene = super::super::tests::empty();
+        scene.bounds_min = Vec3::ZERO;
+        let mut images = Assets::<Image>::default();
+        // 65,536 fits the CPU volume but collides with the GPU's relocation sentinel.
+        scene.bounds_max = Vec3::new(64., 16., 64.);
+        assert_eq!(
+            settings
+                .resolution(Vec3::ZERO, scene.bounds_max, super::super::CPU_PROBE_LIMIT)
+                .unwrap(),
+            UVec3::new(64, 16, 64)
+        );
+        let error = try_prepare(&scene, settings, 0, &mut images).err().unwrap();
+        assert!(error.contains("65535-probe"), "{error}");
+        assert!(images.is_empty());
+        scene.bounds_max = Vec3::splat(65_536.);
+        assert!(settings
+            .resolution(Vec3::ZERO, scene.bounds_max, super::super::CPU_PROBE_LIMIT)
+            .is_err());
+    }
     #[test]
     fn each_future_binding_promotes_by_reserved_image_identity_exactly_once() {
         let mut images = Assets::<Image>::default();

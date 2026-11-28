@@ -225,7 +225,15 @@ impl Clearance {
             .max(8.05)
             .to_radians()
             .tan();
-        let mut previous = runtime.sample(0.0).translation;
+        let first = runtime.sample(0.0);
+        let mut previous = first.translation;
+        if scene
+            .envelope
+            .as_ref()
+            .is_some_and(|e| !e.volume_clear(scene.room_size, previous, clearance + error))
+        {
+            return false;
+        }
         let mut nearby = CurveObstacles::default();
         // The static sampler returns its cached pose at every time.
         let last = if matches!(runtime, TrajectorySampler::Static { .. }) {
@@ -234,13 +242,17 @@ impl Clearance {
             64
         };
         for i in 0..=last {
-            let pose = runtime.sample(i as f32 / 64.0);
+            let pose = if i == 0 {
+                first
+            } else {
+                runtime.sample(i as f32 / 64.0)
+            };
             let ahead = pose.translation + pose.rotation * Vec3::NEG_Z;
             if pose.translation.y
                 < scene.floor_height(pose.translation.xz()) + 0.70_f32.max(clearance)
                 || !pose.rotation.is_finite()
                 || scene.envelope.as_ref().is_some_and(|e| {
-                    !e.segment_clear(
+                    !e.segment_from_clear_start(
                         scene.room_size,
                         previous,
                         pose.translation,

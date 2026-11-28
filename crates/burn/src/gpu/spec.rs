@@ -1,6 +1,7 @@
 //! Resolved scene/output policy, independent of transport and queue scheduling.
 use super::*;
 use bevy_zeroverse::render::{RenderMode, depth::DepthFormat, lighting::PreviewLighting};
+use bevy_zeroverse::scene::procedural_indoor::cameras::MAX_INDOOR_CAMERAS;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -110,8 +111,8 @@ impl CaptureSpec {
             "capture dimensions must be integral in 1..=16384"
         );
         ensure!(
-            config.num_cameras > 0 && config.playback_steps > 0,
-            "capture requires cameras and timesteps"
+            (1..=MAX_INDOOR_CAMERAS).contains(&config.num_cameras) && config.playback_steps > 0,
+            "capture requires 1..={MAX_INDOOR_CAMERAS} indoor cameras and at least one timestep"
         );
         ensure!(config.ssaa_factor <= 4, "SSAA factor must be 0..=4");
         ensure!(
@@ -394,6 +395,12 @@ mod tests {
     }
     #[test]
     fn invalid_policy_and_budget_fail_before_gpu_initialization() {
+        let mut excessive = scene();
+        excessive.width = 1.;
+        excessive.height = 1.;
+        excessive.num_cameras = MAX_INDOOR_CAMERAS + 1;
+        let error = CaptureSpec::from_scene(excessive).resolve().err().unwrap();
+        assert!(error.to_string().contains("1..=256 indoor cameras"));
         let mut config = scene();
         config.width = 256.5;
         assert!(CaptureSpec::from_scene(config).resolve().is_err());

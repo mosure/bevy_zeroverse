@@ -166,6 +166,34 @@ pub(crate) struct ResolveParams {
     sensor: [f32; 4],
 }
 
+impl ResolveParams {
+    /// Size of the optional exact highlight lattice. Tiny frames, extreme aspect
+    /// ratios and ghosts with little on-sensor coverage use the direct shader.
+    pub(crate) fn flare_grid(&self, size: bevy::math::UVec2) -> Option<bevy::math::UVec2> {
+        use bevy::math::Vec2;
+        let scale = self.ghost[2];
+        if size.min_element() < 128 || self.tint[3] <= 0. || !scale.is_finite() || scale <= 0. {
+            return None;
+        }
+        let size = size.as_vec2();
+        let radius = (14. + self.sensor[2]) * (size.min_element() / 512.);
+        if !radius.is_finite() || radius < 2. {
+            return None;
+        }
+        // src is accepted on [-radius, size+radius); floor(src/radius-.5)
+        // can start at -2. Two border cells per side cover rounding at the far edge.
+        let grid = (size / radius).ceil() + 4.;
+        if grid.max_element() > 256. {
+            return None;
+        }
+        let center = Vec2::new(self.ghost[0], self.ghost[1]) * size;
+        let first = (center + (center - size - radius) * scale).clamp(Vec2::ZERO, size);
+        let last = (center + (center + radius) * scale).clamp(Vec2::ZERO, size);
+        // Amortize the extra small pass only when many pixels share its cells.
+        ((last - first).element_product() >= 32. * grid.element_product()).then(|| grid.as_uvec2())
+    }
+}
+
 pub fn captures_rgb(config: &crate::app::BevyZeroverseConfig) -> bool {
     if config.render_modes.is_empty() {
         config.render_mode == super::RenderMode::Color
@@ -205,6 +233,39 @@ pub(crate) fn metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn flare_grid_covers_admitted_border_cells_and_skips_unprofitable_views() {
+        use bevy::math::UVec2;
+        let profile = SensorArtifactSettings {
+            probability: 1.,
+            ..Default::default()
+        }
+        .profile(42, 0)
+        .unwrap();
+        let mut params = profile.uniform(2, [0.46, 0.54], 0.);
+        params.ghost[2] = 1.;
+        for size in [
+            UVec2::splat(512),
+            UVec2::new(577, 391),
+            UVec2::new(379, 803),
+        ] {
+            let grid = params.flare_grid(size).unwrap();
+            let r = (14. + params.sensor[2]) * (size.min_element() as f32 / 512.);
+            for (extent, cells) in [(size.x, grid.x), (size.y, grid.y)] {
+                for source in [-r, 0., extent as f32, (extent as f32 + r).next_down()] {
+                    let slot = (source / r - 0.5).floor() as i32 + 2;
+                    assert!((0..cells as i32).contains(&slot));
+                }
+            }
+        }
+        assert!(params.flare_grid(UVec2::new(64, 64)).is_none());
+        assert!(params.flare_grid(UVec2::new(16_384, 128)).is_none());
+        params.ghost[0] = 5.;
+        assert!(params.flare_grid(UVec2::splat(512)).is_none());
+        params.ghost[0] = 0.5;
+        params.tint[3] = 0.;
+        assert!(params.flare_grid(UVec2::splat(512)).is_none());
+    }
     #[test]
     fn independent_replayable_cameras_and_factors() {
         let mut s = SensorArtifactSettings {

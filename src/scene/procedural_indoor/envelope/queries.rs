@@ -91,9 +91,19 @@ impl EnvelopeProgram {
             && p.y <= self.ceiling_height(size, p.xz()) - radius
     }
     pub fn segment_clear(&self, size: Vec3, a: Vec3, b: Vec3, radius: f32) -> bool {
-        // segment_inside already tests both endpoints with this same wall margin.
-        if !polygon::segment_inside(&self.footprint, a.xz(), b.xz(), radius + 0.20)
-            || !self.height_clear(size, a, radius)
+        self.volume_clear(size, a, radius) && self.segment_from_clear_start(size, a, b, radius)
+    }
+
+    /// Continuous clearance when the preceding chord already verified the
+    /// start volume against this envelope with the identical swept radius.
+    pub(in crate::scene::procedural_indoor) fn segment_from_clear_start(
+        &self,
+        size: Vec3,
+        a: Vec3,
+        b: Vec3,
+        radius: f32,
+    ) -> bool {
+        if !polygon::segment_from_inside(&self.footprint, a.xz(), b.xz(), radius + 0.20)
             || !self.height_clear(size, b, radius)
         {
             return false;

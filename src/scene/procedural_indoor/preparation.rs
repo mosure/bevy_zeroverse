@@ -187,6 +187,30 @@ impl PreparedIndoor {
         materials: StagedAssets<StandardMaterial>,
         meshes: StagedAssets<Mesh>,
     ) -> Self {
+        Self::try_build(
+            manifest,
+            quality,
+            settings,
+            moving_humans,
+            images,
+            materials,
+            meshes,
+        )
+        .await
+        .expect("valid indoor preparation settings and volume")
+    }
+
+    /// Prepare a supplied manifest, returning irradiance configuration and
+    /// volume errors before submitting a bake or publishing any room assets.
+    pub async fn try_build(
+        manifest: IndoorManifest,
+        quality: IndoorQuality,
+        settings: gi::IndoorGiSettings,
+        moving_humans: Vec<usize>,
+        images: StagedAssets<Image>,
+        materials: StagedAssets<StandardMaterial>,
+        meshes: StagedAssets<Mesh>,
+    ) -> Result<Self, String> {
         Self::build_with_materials(
             manifest,
             quality,
@@ -209,7 +233,11 @@ impl PreparedIndoor {
         mut materials: StagedAssets<StandardMaterial>,
         mut meshes: StagedAssets<Mesh>,
         gpu_materials: bool,
-    ) -> Self {
+    ) -> Result<Self, String> {
+        if quality.diffuse_gi() && settings.enabled {
+            settings.bake.validate_capture()?;
+            settings.bake.validate_room(&manifest)?;
+        }
         let build_started = bevy::platform::time::Instant::now();
         let started = bevy::platform::time::Instant::now();
         let (mut geometry, geometry_jobs) = SceneGeometry::build(&manifest).await;
@@ -444,7 +472,7 @@ impl PreparedIndoor {
             if settings.gpu && gi::gpu::fits_portable_bindings(&transport) {
                 let gpu_started = bevy::platform::time::Instant::now();
                 let (request, transform, statistics) =
-                    gi::gpu::prepare(&transport, settings.bake, manifest.seed, &mut images);
+                    gi::gpu::try_prepare(&transport, settings.bake, manifest.seed, &mut images)?;
                 gpu_gi_setup_seconds = gpu_started.elapsed().as_secs_f64();
                 probes = Some((request.image.clone(), transform, statistics));
                 gpu_request = Some(request);
@@ -498,7 +526,7 @@ impl PreparedIndoor {
             wall.serial_meshes_seconds = planning_seconds + meshes_seconds;
         }
         wall.finish(build_started.elapsed().as_secs_f64());
-        Self {
+        Ok(Self {
             timings: PreparationTimings {
                 wall,
                 geometry_jobs,
@@ -526,7 +554,7 @@ impl PreparedIndoor {
             gpu_request,
             #[cfg(not(target_arch = "wasm32"))]
             cpu_bake,
-        }
+        })
     }
     pub fn spawn_groups(&mut self, parent: Entity, commands: &mut Commands) {
         if let Some(playback) = self.appearance.take() {

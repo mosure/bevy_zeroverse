@@ -333,7 +333,7 @@ impl Request {
             meshes,
             request.gpu_materials,
         )
-        .await;
+        .await?;
         prepared.timings.layout_seconds = layout_seconds;
         prepared.timings.cameras_seconds = cameras_seconds;
         let wall = &mut prepared.timings.wall;

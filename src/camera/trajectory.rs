@@ -49,7 +49,64 @@ impl Default for TrajectorySampler {
     }
 }
 
+fn bezier_position(p: &[Vec3; 4], t: f32) -> Vec3 {
+    let middle = p[1].lerp(p[2], t);
+    let a = p[0].lerp(p[1], t).lerp(middle, t);
+    let b = middle.lerp(p[2].lerp(p[3], t), t);
+    a.lerp(b, t)
+}
+
+/// Uses the same metric distance and subtraction order at route knots for
+/// both rendered poses and the camera admission oracle.
+fn waypoint_segment(positions: &[Vec3], length: f32, progress: f32) -> (usize, f32) {
+    let mut distance = progress.clamp(0.0, 1.0) * length;
+    for (i, p) in positions.windows(2).enumerate() {
+        let segment = p[0].distance(p[1]);
+        if distance <= segment || i + 2 == positions.len() {
+            let t = if segment > 1e-6 {
+                (distance / segment).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            return (i, t);
+        }
+        distance -= segment;
+    }
+    unreachable!("waypoint sampling requires at least two positions");
+}
+
 impl TrajectorySampler {
+    /// Synchronized positions for baseline, path length and spread checks.
+    /// Camera-space rotations are independent of these metric quantities.
+    pub(crate) fn translations<const N: usize>(&mut self) -> [Vec3; N] {
+        let time = |i| i as f32 / N.saturating_sub(1).max(1) as f32;
+        match self {
+            Self::Static { start } => [start.sample_cache().translation; N],
+            Self::Linear { start, end } => {
+                let start = start.sample_cache().translation;
+                let end = end.sample_cache().translation;
+                std::array::from_fn(|i| start.lerp(end, time(i)))
+            }
+            Self::CubicBezier { positions, .. } => {
+                std::array::from_fn(|i| bezier_position(positions, time(i)))
+            }
+            Self::WaypointPath {
+                positions,
+                rotations,
+            } => {
+                if positions.len() < 2 || rotations.len() != positions.len() {
+                    return [Vec3::ZERO; N];
+                }
+                let length = positions.windows(2).map(|p| p[0].distance(p[1])).sum();
+                std::array::from_fn(|i| {
+                    let (k, t) = waypoint_segment(positions, length, time(i));
+                    positions[k].lerp(positions[k + 1], t)
+                })
+            }
+            _ => std::array::from_fn(|i| self.sample(time(i)).translation),
+        }
+    }
+
     pub fn sample(&mut self, progress: f32) -> Transform {
         match self {
             TrajectorySampler::WaypointPath {
@@ -60,30 +117,17 @@ impl TrajectorySampler {
                     return Transform::IDENTITY;
                 }
                 let length: f32 = positions.windows(2).map(|p| p[0].distance(p[1])).sum();
-                let mut distance = progress.clamp(0.0, 1.0) * length;
-                for (i, p) in positions.windows(2).enumerate() {
-                    let segment = p[0].distance(p[1]);
-                    if distance <= segment || i + 2 == positions.len() {
-                        let t = if segment > 1e-6 {
-                            (distance / segment).clamp(0.0, 1.0)
-                        } else {
-                            0.0
-                        };
-                        return Transform::from_translation(p[0].lerp(p[1], t))
-                            .with_rotation(rotations[i].slerp(rotations[i + 1], t));
-                    }
-                    distance -= segment;
-                }
-                Transform::IDENTITY
+                let (i, t) = waypoint_segment(positions, length, progress);
+                Transform::from_translation(positions[i].lerp(positions[i + 1], t))
+                    .with_rotation(rotations[i].slerp(rotations[i + 1], t))
             }
             TrajectorySampler::CubicBezier {
                 positions: p,
                 rotations: r,
             } => {
                 let t = progress.clamp(0.0, 1.0);
-                let a = p[0].lerp(p[1], t).lerp(p[1].lerp(p[2], t), t);
-                let b = p[1].lerp(p[2], t).lerp(p[2].lerp(p[3], t), t);
-                Transform::from_translation(a.lerp(b, t)).with_rotation(r[0].slerp(r[1], t))
+                Transform::from_translation(bezier_position(p, t))
+                    .with_rotation(r[0].slerp(r[1], t))
             }
             TrajectorySampler::Static { start } => start.sample_cache(),
             TrajectorySampler::Linear { start, end } => {
@@ -422,6 +466,63 @@ impl TrajectorySampler {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn metric_samples_match_rendered_translations_bit_for_bit() {
+        let p = [
+            Vec3::new(-1.2, 1.8, 3.7),
+            Vec3::new(0.3, 1.25, -2.1),
+            Vec3::new(0.3, 1.25, -2.1),
+            Vec3::new(2.8, 1.21, 4.2),
+        ];
+        let r = [Quat::from_rotation_x(-0.27), Quat::from_rotation_y(1.2)];
+        let sampler = |i: usize| ExtrinsicsSampler {
+            cache: Some(Transform::from_translation(p[i]).with_rotation(r[i % 2])),
+            ..default()
+        };
+        let paths = [
+            TrajectorySampler::Static { start: sampler(0) },
+            TrajectorySampler::Linear {
+                start: sampler(0),
+                end: sampler(3),
+            },
+            TrajectorySampler::CubicBezier {
+                positions: p,
+                rotations: r,
+            },
+            TrajectorySampler::WaypointPath {
+                positions: p.to_vec(),
+                rotations: r.repeat(2),
+            },
+            TrajectorySampler::WaypointPath {
+                positions: vec![p[0]; 2],
+                rotations: r.to_vec(),
+            },
+            TrajectorySampler::WaypointPath {
+                positions: vec![],
+                rotations: vec![],
+            },
+            TrajectorySampler::WaypointPath {
+                positions: p.to_vec(),
+                rotations: r.to_vec(),
+            },
+        ];
+        for mut path in paths {
+            let actual = path.translations::<33>();
+            for (i, position) in actual.iter().enumerate() {
+                let expected = path.sample(i as f32 / 32.).translation;
+                assert_eq!(
+                    position.to_array().map(f32::to_bits),
+                    expected.to_array().map(f32::to_bits)
+                );
+            }
         }
     }
 }

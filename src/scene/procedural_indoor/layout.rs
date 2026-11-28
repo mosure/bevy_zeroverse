@@ -643,7 +643,7 @@ impl IndoorManifest {
         if !density.is_finite() || !(0.0..=1.0).contains(&density) {
             return Err("indoor density must be finite and between 0 and 1".into());
         }
-        if cameras > 256 {
+        if cameras > super::cameras::MAX_INDOOR_CAMERAS {
             return Err("at most 256 indoor cameras are supported per scene".into());
         }
         let mut rng = stream(seed, 0);

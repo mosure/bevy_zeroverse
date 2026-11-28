@@ -59,12 +59,13 @@ pub(super) struct VisibilityView {
     pub(super) pose: Transform,
     scale: Vec2,
     offset: Vec2,
-    points: Vec<Option<Vec3>>,
+    points: Vec<Vec3>,
+    pixel_count: usize,
 }
 
 impl VisibilityView {
     pub(super) fn surfaces(&self) -> impl Iterator<Item = Vec3> + '_ {
-        self.points.iter().flatten().copied()
+        self.points.iter().copied()
     }
 }
 
@@ -101,6 +102,18 @@ impl Coverage {
             .or(object)
     }
 
+    fn content_label(&self, origin: Vec3, ray: Vec3) -> &'static str {
+        let shell = self
+            .shell_hit(origin, ray, f32::INFINITY)
+            .unwrap_or((f32::INFINITY, "background"));
+        if let Some(index) = &self.index {
+            index.first_label(&self.colliders, origin, ray, shell)
+        } else {
+            self.closest_collider(origin, ray, shell.0, false)
+                .map_or(shell.1, |(id, _)| self.colliders[id].label)
+        }
+    }
+
     fn closest_collider(
         &self,
         origin: Vec3,
@@ -126,37 +139,47 @@ impl Coverage {
     }
 
     pub(super) fn view(&self, camera: &IndoorCamera, aspect: f32, t: f32) -> VisibilityView {
-        let pose = camera.transform_at(t);
+        self.view_at_pose(camera, aspect, camera.transform_at(t))
+    }
+
+    pub(super) fn view_at_pose(
+        &self,
+        camera: &IndoorCamera,
+        aspect: f32,
+        pose: Transform,
+    ) -> VisibilityView {
         let scale = Vec2::new(aspect, 1.0) * (camera.fov_degrees.to_radians() * 0.5).tan();
         let offset = self.optical_center(camera);
         let lens = self.angular_grid(camera, offset);
         let directions = lens.as_ref().map(|grid| grid.coverage());
-        let mut points = Vec::with_capacity(117);
-        for y in 0..9 {
-            for x in 0..13 {
+        const WIDTH: usize = 13;
+        const HEIGHT: usize = 9;
+        let mut points = Vec::with_capacity(WIDTH * HEIGHT);
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
                 let local = if let Some(directions) = directions {
-                    let Some(ray) = directions[y * 13 + x] else {
-                        points.push(None);
+                    let Some(ray) = directions[y * WIDTH + x] else {
                         continue;
                     };
                     ray
                 } else {
                     Vec3::new(
-                        (2.0 * (x as f32 + 0.5) / 13.0 - 1.0 - 2. * offset.x) * scale.x,
-                        (2.0 * (y as f32 + 0.5) / 9.0 - 1.0 + 2. * offset.y) * scale.y,
+                        (2.0 * (x as f32 + 0.5) / WIDTH as f32 - 1.0 - 2. * offset.x) * scale.x,
+                        (2.0 * (y as f32 + 0.5) / HEIGHT as f32 - 1.0 + 2. * offset.y) * scale.y,
                         -1.0,
                     )
                     .normalize()
                 };
                 let ray = pose.rotation * local;
-                points.push(
-                    self.first_hit(pose.translation, ray, f32::INFINITY)
-                        .filter(|&d| {
-                            let depth = if lens.is_some() { d } else { -local.z * d };
-                            (0.1..=50.).contains(&depth)
-                        })
-                        .map(|d| pose.translation + ray * d),
-                );
+                if let Some(d) = self
+                    .first_hit(pose.translation, ray, f32::INFINITY)
+                    .filter(|&d| {
+                        let depth = if lens.is_some() { d } else { -local.z * d };
+                        (0.1..=50.).contains(&depth)
+                    })
+                {
+                    points.push(pose.translation + ray * d);
+                }
             }
         }
         VisibilityView {
@@ -165,6 +188,7 @@ impl Coverage {
             scale,
             offset,
             points,
+            pixel_count: WIDTH * HEIGHT,
         }
     }
 
@@ -207,9 +231,9 @@ impl Coverage {
     // denominator and the original integer-to-f32 division at threshold boundaries.
     fn overlap_denominator(view: &VisibilityView) -> f32 {
         if view.lens.is_some() {
-            view.points.iter().flatten().count().max(1) as f32
+            view.points.len().max(1) as f32
         } else {
-            view.points.len() as f32
+            view.pixel_count as f32
         }
     }
 
@@ -221,21 +245,31 @@ impl Coverage {
         target: &VisibilityView,
         floor: f32,
     ) -> bool {
+        if floor <= 0. {
+            return true;
+        }
+        if floor > 1. || floor.is_nan() {
+            return false;
+        }
         let denominator = Self::overlap_denominator(source);
+        // At most 117 samples. Multiplication can round onto the adjacent
+        // integer. Compare its ratio using the reporting path's division.
+        let lower = (floor * denominator) as usize;
+        let required = lower + usize::from((lower as f32 / denominator) < floor);
         let inverse = target.pose.rotation.inverse();
         let mut hits = 0;
-        for (i, point) in source.points.iter().enumerate() {
-            if hits as f32 / denominator >= floor {
-                return true;
+        for (i, &point) in source.points.iter().enumerate() {
+            if hits + source.points.len() - i < required {
+                break;
             }
-            if (hits + source.points.len() - i) as f32 / denominator < floor {
-                return false;
-            }
-            if let Some(point) = point {
-                hits += usize::from(self.visible_direction(*point, target, inverse).is_some());
+            if self.visible_direction(point, target, inverse).is_some() {
+                hits += 1;
+                if hits >= required {
+                    return true;
+                }
             }
         }
-        hits as f32 / denominator >= floor
+        false
     }
 
     /// Fraction of source pixels whose first surface is also visible in target,
@@ -244,7 +278,7 @@ impl Coverage {
         let mut visible = 0;
         let mut angle = 0.;
         let inverse = target.pose.rotation.inverse();
-        for point in source.points.iter().flatten() {
+        for point in &source.points {
             if let Some(delta) = self.visible_direction(*point, target, inverse) {
                 visible += 1;
                 angle += (delta
@@ -531,11 +565,15 @@ impl Coverage {
             let displacement = *point - pose.translation;
             let distance = displacement.length();
             let ray = displacement / distance;
-            self.shell_hit(pose.translation, ray, distance - 0.06)
-                .is_none()
-                && self
-                    .closest_collider(pose.translation, ray, distance - 0.06, true)
-                    .is_none()
+            let limit = distance - 0.06;
+            self.shell_hit(pose.translation, ray, limit).is_none()
+                && !self.index.as_ref().map_or_else(
+                    || {
+                        self.closest_collider(pose.translation, ray, limit, true)
+                            .is_some()
+                    },
+                    |index| index.occluded(&self.colliders, pose.translation, ray, limit),
+                )
         })
     }
 
@@ -601,14 +639,7 @@ impl Coverage {
                         .normalize()
                     };
                     let ray = pose.rotation * local;
-                    let (nearest, mut label) = self
-                        .shell_hit(pose.translation, ray, f32::INFINITY)
-                        .unwrap_or((f32::INFINITY, "background"));
-                    if let Some((index, _)) =
-                        self.closest_collider(pose.translation, ray, nearest, false)
-                    {
-                        label = self.colliders[index].label;
-                    }
+                    let label = self.content_label(pose.translation, ray);
                     let count = counts.entry(label).or_insert(0usize);
                     *count += 1;
                     if *count > MAX_DOMINANT_CONTENT_RAYS {
@@ -707,7 +738,8 @@ mod tests {
             pose: Transform::IDENTITY,
             scale: Vec2::ONE,
             offset: Vec2::ZERO,
-            points: vec![Some(Vec3::new(0., 0., -2.)), None, None, None],
+            points: vec![Vec3::new(0., 0., -2.)],
+            pixel_count: 4,
         };
         assert_eq!(coverage.shared(&view, &view).0, 1.);
         view.lens = None;
@@ -740,9 +772,12 @@ mod tests {
         .unwrap();
         let mut partial = views[0].clone();
         partial.lens = Some(circular);
-        for i in (0..partial.points.len()).step_by(3) {
-            partial.points[i] = None;
-        }
+        partial.points = partial
+            .points
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, p)| (i % 3 != 0).then_some(p))
+            .collect();
         views.push(partial);
         for a in &views {
             for b in &views {
@@ -770,14 +805,16 @@ mod tests {
             offset: Vec2::ZERO,
             pose: Transform::IDENTITY,
             scale: Vec2::ONE,
-            points: vec![Some(point)],
+            points: vec![point],
+            pixel_count: 1,
         };
         let mut b = VisibilityView {
             lens: None,
             offset: Vec2::ZERO,
             pose: Transform::from_xyz(2.0, 0.0, 0.0).looking_at(point, Vec3::Y),
             scale: Vec2::ONE,
-            points: vec![Some(point)],
+            points: vec![point],
+            pixel_count: 1,
         };
         let mut coverage = Coverage {
             seed: 0,

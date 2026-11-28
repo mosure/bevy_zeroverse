@@ -16,6 +16,9 @@ mod program;
 pub mod rig;
 mod roll;
 pub use roll::{horizon_roll_radians, RollDistribution};
+/// Maximum number of logical cameras supported by one procedural indoor room.
+pub const MAX_INDOOR_CAMERAS: usize = 256;
+
 mod sampling;
 #[cfg(test)]
 mod stage41_tests;
@@ -362,7 +365,7 @@ impl IndoorManifest {
         aspect_ratio: f32,
     ) -> Result<(), crate::sample::failure::CaptureError> {
         settings.validate()?;
-        if count > 256 || !aspect_ratio.is_finite() || aspect_ratio <= 0.0 {
+        if count > MAX_INDOOR_CAMERAS || !aspect_ratio.is_finite() || aspect_ratio <= 0.0 {
             return Err(
                 "camera sampling requires at most 256 cameras and a positive finite aspect ratio"
                     .into(),

@@ -46,13 +46,21 @@ fn source_cell(center: vec2<f32>, step_px: f32, size: vec2<f32>) -> f32 {
     let surround = select(mean,outer.x / max(outer.y,1e-6),outer.y>0.);
     return max(mean-surround,0.) * (near.y/6.);
 }
-fn defocused_highlight(pos: vec2<f32>, step_px: f32, size: vec2<f32>) -> f32 {
-    let q = pos / step_px - 0.5;
-    let corner = (floor(q)+0.5)*step_px;
+fn cell_highlights(cell: vec2<f32>, step_px: f32, size: vec2<f32>) -> vec4<f32> {
+    let corner = (cell+0.5)*step_px;
     let d = vec2(step_px,0.);
-    let t = smoothstep(vec2(0.),vec2(1.),fract(q));
-    return mix(mix(source_cell(corner,step_px,size),source_cell(corner+d,step_px,size),t.x),
-        mix(source_cell(corner+d.yx,step_px,size),source_cell(corner+d+d.yx,step_px,size),t.x),t.y);
+    return vec4(source_cell(corner,step_px,size),source_cell(corner+d,step_px,size),
+        source_cell(corner+d.yx,step_px,size),source_cell(corner+d+d.yx,step_px,size));
+}
+
+// Each texel stores the four original cell samples in their original floating
+// point order. Computing a neighbor as a new cell center can round differently.
+@group(1) @binding(0) var flare_grid: texture_2d<f32>;
+@fragment
+fn flare_cells(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let size = vec2<f32>(textureDimensions(image)) / f32(p.header.x);
+    let radius = max(2.,(14.+p.sensor.z)*(min(size.x,size.y)/512.));
+    return cell_highlights(floor(pos.xy)-2.,radius,size);
 }
 fn hash(key: u32) -> u32 {
     var h = key;
@@ -66,12 +74,7 @@ fn unit_noise(key: u32) -> f32 {
     // Four uniform bytes; zero mean and unit variance.
     return (f32(sum) - 510.) * 0.006765875;
 }
-@fragment
-fn sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let px = pos.xy;
-    let base = area_average(image, vec2<i32>(px), p.header.x);
-    if base.a <= 0. { return base; }
-    let size = vec2<f32>(textureDimensions(image)) / f32(p.header.x);
+fn sensor_color(px: vec2<f32>, light: f32, base: vec4<f32>, size: vec2<f32>) -> vec4<f32> {
     let short_edge = min(size.x, size.y);
     let scale = short_edge / 512.;
     var rgb = color(base, vec3(0.));
@@ -97,14 +100,8 @@ fn sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> 
             rgb = mix(rgb, color(veil,rgb), mask);
         }
     }
-    if p.tint.w > 0. {
-        let center = p.ghost.xy * size;
-        let src = center + (center-px) / p.ghost.z;
-        let radius = max(2.,(14.+p.sensor.z)*scale);
-        if all(src >= vec2(-radius)) && all(src < size+radius) {
-            let light = defocused_highlight(src,radius,size);
-            rgb += (vec3(1.)-clamp(rgb,vec3(0.),vec3(1.))) * p.tint.rgb * (light*p.tint.w);
-        }
+    if light > 0. {
+        rgb += (vec3(1.)-clamp(rgb,vec3(0.),vec3(1.))) * p.tint.rgb * (light*p.tint.w);
     }
     if p.sensor.x+p.sensor.y > 0. {
         let key = hash(p.header.y ^ (u32(px.x)*0x9e3779b9u) ^ (u32(px.y)*0x85ebca6bu));
@@ -112,4 +109,42 @@ fn sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> 
         rgb += n * sqrt(vec3(p.sensor.x*p.sensor.x) + p.sensor.y*p.sensor.y * max(rgb,vec3(0.)));
     }
     return vec4(select(clamp(rgb,vec3(0.),vec3(1.)), max(rgb,vec3(0.)), p.header.z != 0u)*base.a,base.a);
+}
+
+// Both paths use the exact same footprint, boundary tests and smooth weights.
+// The two entry points have independent resource interfaces: a direct resolve
+// does not require a grid texture or a second bind group.
+fn flare_sample(px: vec2<f32>, size: vec2<f32>) -> vec3<f32> {
+    let center = p.ghost.xy * size;
+    let src = center + (center-px) / p.ghost.z;
+    let radius = max(2.,(14.+p.sensor.z)*(min(size.x,size.y)/512.));
+    return vec3(src/radius-0.5,select(0.,radius,all(src >= vec2(-radius)) && all(src < size+radius)));
+}
+fn interpolate_light(q:vec2<f32>, values:vec4<f32>) -> f32 {
+    let t = smoothstep(vec2(0.),vec2(1.),fract(q));
+    return mix(mix(values.x,values.y,t.x),mix(values.z,values.w,t.x),t.y);
+}
+@fragment
+fn sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let base = area_average(image,vec2<i32>(pos.xy),p.header.x);
+    if base.a <= 0. { return base; }
+    let size = vec2<f32>(textureDimensions(image)) / f32(p.header.x);
+    var light = 0.;
+    if p.tint.w > 0. {
+        let q = flare_sample(pos.xy,size);
+        if q.z > 0. { light = interpolate_light(q.xy, cell_highlights(floor(q.xy),q.z,size)); }
+    }
+    return sensor_color(pos.xy,light,base,size);
+}
+@fragment
+fn cached_sensor_fragment(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let base = area_average(image,vec2<i32>(pos.xy),p.header.x);
+    if base.a <= 0. { return base; }
+    let size = vec2<f32>(textureDimensions(image)) / f32(p.header.x);
+    let q = flare_sample(pos.xy,size);
+    var light = 0.;
+    if q.z > 0. {
+        light = interpolate_light(q.xy,textureLoad(flare_grid,vec2<i32>(floor(q.xy))+2,0));
+    }
+    return sensor_color(pos.xy,light,base,size);
 }

@@ -144,8 +144,9 @@ impl IndoorManifest {
         attempts: usize,
         fixed_fov: Option<f32>,
     ) -> Result<(), String> {
+        // The room or mounted sampler validates the policy before entering its
+        // proposal loop. Retries may select a primary room or a fixed pose.
         let half = self.room_size * 0.5;
-        self.camera_settings.validate()?;
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
         let (primary_lo, primary_hi) = self.primary_room_bounds();
         let stairs = self
