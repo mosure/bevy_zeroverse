@@ -8,13 +8,22 @@ use bevy::render::{
 use std::{sync::OnceLock, time::Duration};
 
 fn bake_lobes(app: &mut App, scene: &BakeScene, rays_per_probe: u32) -> Vec<Vec3> {
+    bake_with_index_width(app, scene, rays_per_probe, None)
+}
+
+fn bake_with_index_width(
+    app: &mut App,
+    scene: &BakeScene,
+    rays_per_probe: u32,
+    rank_bits: Option<u32>,
+) -> Vec<Vec3> {
     let settings = BakeSettings {
         spacing: 4.,
         rays_per_probe,
         diffuse_bounces: 1,
         ..default()
     };
-    let (request, _, stats) = prepare(
+    let (mut request, _, stats) = prepare(
         scene,
         settings,
         17,
@@ -22,6 +31,15 @@ fn bake_lobes(app: &mut App, scene: &BakeScene, rays_per_probe: u32) -> Vec<Vec3
     );
     assert_eq!(stats.probes, 8);
     assert_eq!(stats.transport_bytes as u64, request.gpu_buffer_bytes());
+    if let Some(bits) = rank_bits {
+        let input = Arc::get_mut(&mut request.input).unwrap();
+        (input.triangles, input.params.table_offsets) =
+            triangles::encode(scene.gpu_transport(), scene, &input.materials, bits);
+        assert_eq!(
+            input.params.table_offsets[1] != input.params.table_offsets[2],
+            scene.triangles.len() > (1usize << bits)
+        );
+    }
     assert_eq!(request.input.params.budget[3] as usize, scene.lights.len());
     let ready = request.readiness.clone();
     let image = request.image.clone();
@@ -344,4 +362,31 @@ fn gpu_bakes_sky_unlit_and_locally_lit_geometry() {
             );
         }
     }
+
+    // Force the large-population index representation on a small enclosure.
+    // Vary the sampled texels and leave gaps in the UV table's triangle order.
+    indexed.materials[0].uv_transform = Affine2::IDENTITY;
+    indexed.materials[0].emission = Vec3::ONE;
+    indexed.materials.push(DiffuseMaterial {
+        albedo: Vec3::ZERO,
+        emission: Vec3::ZERO,
+        base_map: None,
+        emission_map: EmissionMap::Uniform,
+        uv_transform: Affine2::IDENTITY,
+    });
+    for (i, triangle) in indexed.triangles.iter_mut().enumerate() {
+        triangle.material = usize::from(i % 3 == 0);
+        triangle.uv = [Vec2::new(
+            0.25 + 0.5 * (i & 1) as f32,
+            0.25 + 0.5 * ((i >> 1) & 1) as f32,
+        ); 3];
+    }
+    let dense = bake_lobes(&mut app, &indexed, 512);
+    let direct = bake_with_index_width(&mut app, &indexed, 512, Some(16));
+    let blocked = bake_with_index_width(&mut app, &indexed, 512, Some(1));
+    assert!(direct
+        .windows(2)
+        .any(|pair| pair[0].distance(pair[1]) > 0.1));
+    assert_eq!(dense, direct);
+    assert_eq!(dense, blocked);
 }

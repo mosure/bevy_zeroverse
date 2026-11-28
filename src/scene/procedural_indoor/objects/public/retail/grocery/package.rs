@@ -1,10 +1,13 @@
 use super::*;
 
+mod paper_bag;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Pack {
     Gable,
     Tub,
     Carton,
+    PaperBag,
     Can,
     Bottle,
 }
@@ -14,7 +17,7 @@ impl Pack {
         match self {
             Self::Gable => (Surface::Paper, "drink_container"),
             Self::Tub => (Surface::Plastic, "food"),
-            Self::Carton => (Surface::Paper, "food"),
+            Self::Carton | Self::PaperBag => (Surface::Paper, "food"),
             Self::Can => (Surface::Metal, "drink_container"),
             Self::Bottle => (Surface::Plastic, "drink_container"),
         }
@@ -33,6 +36,11 @@ impl Pack {
                 r.random_range(0.105_f32..0.208),
                 r.random_range(0.15_f32..0.294),
                 r.random_range(0.052..0.117),
+            ),
+            Self::PaperBag => (
+                r.random_range(0.093..0.166),
+                r.random_range(0.143..0.25),
+                r.random_range(0.052..0.103),
             ),
             Self::Can => {
                 let d = r.random_range(0.061..0.082);
@@ -54,6 +62,9 @@ impl Pack {
         }
         if matches!(self, Self::Tub) {
             return tub(a, size, tf, print);
+        }
+        if matches!(self, Self::PaperBag) {
+            return paper_bag::build(a, size, tf, print);
         }
         if matches!(self, Self::Carton) {
             a.part(surface, print).mapped_cuboid(

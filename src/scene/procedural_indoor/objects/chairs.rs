@@ -2,6 +2,8 @@
 use super::*;
 
 pub const FAMILIES: u32 = 10;
+/// Freestanding armless rehearsal chair with a full-width seat and no writing tablet.
+pub(crate) const ENSEMBLE_CHAIR: u32 = 12;
 mod armrests;
 pub use armrests::{ArmPad, ArmPadStock};
 mod audience;

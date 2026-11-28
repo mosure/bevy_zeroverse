@@ -3,6 +3,7 @@ use super::*;
 pub(crate) mod bottle;
 pub mod can;
 mod end_plate;
+pub(crate) mod glassware;
 mod wrap;
 use crate::scene::procedural_indoor::geometry::{ProfileJoints, RevolvedOutline};
 use std::sync::OnceLock;

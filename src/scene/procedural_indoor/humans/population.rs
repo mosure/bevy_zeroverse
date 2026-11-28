@@ -1,8 +1,10 @@
 //! Support-aware population placement. Activity context biases continuous
 //! candidates; no person is anchored to a fixed normalized room coordinate.
 use super::*;
+use crate::scene::procedural_indoor::{layout::IndoorLayout, objects::public::furnishing::lectern};
 use rand::seq::{IteratorRandom, SliceRandom};
 use rand_chacha::ChaCha8Rng;
+pub(super) mod waiting;
 pub(super) mod workstation;
 
 fn seated_pose(
@@ -78,6 +80,33 @@ fn standing_candidate(
     pose: HumanPoseKind,
     rng: &mut ChaCha8Rng,
 ) -> (Vec3, f32) {
+    if pose == HumanPoseKind::StandingPresenting
+        && matches!(
+            scene.layout,
+            IndoorLayout::Classroom | IndoorLayout::LectureHall | IndoorLayout::PublicSuite
+        )
+    {
+        if let Some(desk) = scene
+            .objects
+            .iter()
+            .find(|o| !o.neighbor && lectern::installed(o))
+        {
+            if rng.random_bool(0.58) {
+                let width = desk.size.x.min(0.70);
+                let depth = lectern::standing_depth(desk);
+                let local = Vec3::new(
+                    width * rng.random_range(-0.16..0.16),
+                    0.,
+                    desk.size.z * 0.5 + depth * rng.random_range(0.43..0.70),
+                );
+                let position = desk.transform().transform_point(local);
+                return (
+                    position.with_y(scene.floor_height(position.xz())),
+                    desk.yaw + rng.random_range(-0.24..0.24),
+                );
+            }
+        }
+    }
     if pose == HumanPoseKind::StandingPresenting && rng.random_bool(0.75) {
         if let Some(board) = scene
             .objects
@@ -253,6 +282,9 @@ pub fn populate(scene: &mut IndoorManifest, density: f32) {
     }
     if first_standing < scene.humans.len() && !scene.assembly_diagnostics.kitchens.is_empty() {
         workstation::stage(scene, first_standing);
+    }
+    if first_standing < scene.humans.len() && scene.generator_version >= waiting::VERSION {
+        waiting::stage(scene, first_standing);
     }
 }
 

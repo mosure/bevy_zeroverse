@@ -7,6 +7,18 @@ use cudarc::driver::{CudaContext, CudaStream, sys};
 use std::ffi::c_void;
 type CudaServer = <CudaRuntime as cubecl_runtime::runtime::Runtime>::Server;
 
+/// Coalesce adjacent reads only in logical timestep/camera order. The caller
+/// has already validated that every range fits in the shared allocation.
+fn copy_runs(ranges: &[wire::ViewRange]) -> impl Iterator<Item = (u64, u64)> + '_ {
+    ranges
+        .chunk_by(|a, b| a.offset.checked_add(a.bytes) == Some(b.offset))
+        .map(|run| {
+            let first = &run[0];
+            let last = &run[run.len() - 1];
+            (first.offset, last.offset - first.offset + last.bytes)
+        })
+}
+
 pub(super) struct Importer {
     device: Device,
     context: Arc<CudaContext>,
@@ -164,17 +176,22 @@ impl Importer {
         let enqueue_started = Instant::now();
         // Ready is accepted only after the exporter completed this signal.
         self.ready.wait(&self.stream)?;
-        for (index, range) in ranges.iter().enumerate() {
+        let mut written = 0;
+        let mut submissions = 0;
+        for (offset, bytes) in copy_runs(ranges) {
             unsafe {
                 sys::cuMemcpyDtoDAsync_v2(
-                    ptr + index as u64 * spec.view_bytes,
-                    self.mapping.ptr + range.offset,
-                    range.bytes as usize,
+                    ptr + written,
+                    self.mapping.ptr + offset,
+                    bytes as usize,
                     self.stream.cu_stream(),
                 )
                 .result()?;
             }
+            written += bytes;
+            submissions += 1;
         }
+        debug_assert_eq!(written, spec.room_bytes);
         timings.copy_enqueue_seconds = enqueue_started.elapsed().as_secs_f64();
         let start = Instant::now();
         loop {
@@ -193,10 +210,14 @@ impl Importer {
             thread::sleep(Duration::from_millis(1));
         }
         timings.transfer_fence_seconds = start.elapsed().as_secs_f64();
+        bevy::log::debug!(
+            target: "bevy_zeroverse_burn::gpu::ipc",
+            views = ranges.len(), copy_submissions = submissions, bytes = written,
+            "CUDA room transfer completed"
+        );
         self.reservations.clear();
         let pack_started = Instant::now();
         let planes = spec.plan.copied.len();
-        let height = spec.scene().height as usize;
         let color_batch = spec
             .plan
             .index(Plane::Color)
@@ -210,16 +231,7 @@ impl Importer {
                 )
             })
             .transpose()?;
-        let tensors = (0..spec.views)
-            .map(|i| {
-                storage.clone().slice([
-                    i * planes..(i + 1) * planes,
-                    0..height,
-                    0..spec.row_pixels,
-                    0..4,
-                ])
-            })
-            .collect();
+        let tensors = (0..spec.views).map(|i| (&storage, i * planes));
         let mut sample = pack_sample(spec, &self.device, metadata, tensors, color_batch)?;
         if let Some(contract) = sample
             .metadata
@@ -228,7 +240,19 @@ impl Importer {
             .and_then(|v| v.get_mut("gpu_tensor_contract"))
             .and_then(|v| v.as_object_mut())
         {
-            contract.insert("transport".into(),serde_json::json!({"backend":"vulkan_cuda_ipc","host_image_bytes":0,"registered_arenas":1,"registered_bytes":self.allocation.allocation_bytes,"base_gpu_copies_per_attachment":2,"owned_burn_outputs":true,"shared_physical_device_verified_by_uuid":true,"producer_completion_fence":true}));
+            contract.insert(
+                "transport".into(),
+                serde_json::json!({
+                    "backend": "vulkan_cuda_ipc",
+                    "host_image_bytes": 0,
+                    "registered_arenas": 1,
+                    "registered_bytes": self.allocation.allocation_bytes,
+                    "base_gpu_copies_per_attachment": 2,
+                    "owned_burn_outputs": true,
+                    "shared_physical_device_verified_by_uuid": true,
+                    "producer_completion_fence": true
+                }),
+            );
         }
         timings.tensor_pack_seconds = pack_started.elapsed().as_secs_f64();
         timings.import_seconds = import_started.elapsed().as_secs_f64();
@@ -242,5 +266,46 @@ impl Drop for Importer {
         // Runs on the ingress thread. Never free a mapping/managed reservation
         // while a timed-out copy might still read it. Caller shutdown is bounded.
         let _ = self.stream.synchronize();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{copy_runs, wire};
+
+    #[test]
+    fn contiguous_copy_runs_preserve_logical_order_across_gaps_and_permutations() {
+        let source: Vec<_> = (0..1024).map(|i| (i % 251) as u8).collect();
+        for offsets in [
+            (0..48).map(|i| (i + 1) * 16).collect::<Vec<_>>(),
+            vec![80, 96, 16, 32, 144, 64],
+            vec![128, 112, 96, 80, 64, 48],
+        ] {
+            let ranges: Vec<_> = offsets
+                .iter()
+                .enumerate()
+                .map(|(i, &offset)| wire::ViewRange {
+                    timestep: (i / 2) as u32,
+                    camera: (i % 2) as u32,
+                    offset,
+                    bytes: 16,
+                })
+                .collect();
+            wire::validate_views(&ranges, 2, offsets.len() / 2, 16, source.len() as u64).unwrap();
+            let runs: Vec<_> = copy_runs(&ranges).collect();
+            assert_eq!(
+                runs.len(),
+                1 + offsets.windows(2).filter(|v| v[1] != v[0] + 16).count()
+            );
+            let gathered: Vec<_> = runs
+                .iter()
+                .flat_map(|&(at, n)| &source[at as usize..(at + n) as usize])
+                .collect();
+            let expected: Vec<_> = offsets
+                .iter()
+                .flat_map(|&at| &source[at as usize..at as usize + 16])
+                .collect();
+            assert_eq!(gathered, expected);
+        }
     }
 }

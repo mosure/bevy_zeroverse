@@ -48,7 +48,7 @@ or independent rendering path.
 | Cooking | Gas burners with pan supports or electric rings, front/rear/side cooktop controls, independent worktop cooktops and integrated ranges |
 | Ovens | Under-counter or elevated built-in tower installation, single/double ovens, left/right/top controls, solid/glazed doors, downward-open doors, racks and trays |
 | Microwaves | Left/right/bottom control panels, corresponding door apertures, open/closed doors, solid/glazed windows, turntable and optional dish |
-| Dishwashers | Full cavity, loaded/empty racks, downward-open/closed door, predominantly solid fronts with occasional glazing |
+| Dishwashers | Two open wire baskets with fitted plate slots, optional shallow third tray with individually seated spoons and forks, empty or stocked interiors, downward-opening door with a steel inner face and optional glazing |
 | Refrigerators | Single/paired doors, solid/glazed fronts, open/closed state and opening angle, stocked/empty shelves, bottles/cartons, attached notes/pictures/magnets |
 | Cupboards and pantry | Solid/glazed/open doors or open shelving; independently populated shelves, plates/bowls/mugs/cups/glasses, pantry jars/cartons/tins; lower cabinets and supported upper cupboards |
 | Utensils | Knife block with varying knife count, hollow utensil crock with spoons/spatulas, cutting board, folded and handle-hung towels |

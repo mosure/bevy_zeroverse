@@ -1,6 +1,6 @@
 //! Persistent-renderer studio qualification for the fixed-envelope object audit.
 //! Selects six farthest-spread samples per category, without changing dimensions,
-//! camera, finish seed or illumination within a category. Selection is illustrative.
+//! camera, recorded finish assignments or illumination within a category. Selection is illustrative.
 #![recursion_limit = "256"]
 use anyhow::{ensure, Result};
 use bevy::prelude::*;
@@ -40,6 +40,9 @@ struct Args {
     /// Review all three exit legends across four mounting modes.
     #[arg(long)]
     exit_matrix: bool,
+    /// Frame the fullest stocked tray inside each bakery display case.
+    #[arg(long, conflicts_with = "rear")]
+    bakery_detail: bool,
     /// Inspect rear housings, mounting hardware and connection surfaces.
     #[arg(long)]
     rear: bool,
@@ -52,6 +55,7 @@ struct Batch {
     attachments: Vec<IndoorObject>,
     install: bool,
     rear: bool,
+    bakery_detail: bool,
 }
 #[derive(Component)]
 struct ReviewRoot;
@@ -84,17 +88,27 @@ fn install(
     }
     for (i, o) in batch.objects.iter().enumerate() {
         objects::spawn_object(o, root, &mut commands, &mut meshes, &materials.0);
-        if matches!(o.kind, ObjectKind::ExitSign | ObjectKind::WallSconce) {
+        let wall_equipment = matches!(
+            o.kind,
+            ObjectKind::BasketballGoal | ObjectKind::DrinkingFountain
+        );
+        if matches!(o.kind, ObjectKind::ExitSign | ObjectKind::WallSconce)
+            || (wall_equipment && !batch.rear)
+        {
             // A neutral wall/ceiling section makes the fixture's actual contact
             // plane visible in the review. It is context, not another instance.
-            let wall = o.kind == ObjectKind::WallSconce || o.variant % 4 == 0;
-            let size = if wall {
+            let wall = wall_equipment || o.kind == ObjectKind::WallSconce || o.variant % 4 == 0;
+            let size = if wall_equipment {
+                Vec3::new(o.size.x * 2.5, o.position.y + o.size.y + 0.45, 0.05)
+            } else if wall {
                 Vec3::new(o.size.x * 1.6, o.size.y * 1.8, 0.05)
             } else {
                 Vec3::new(o.size.x * 1.45, 0.05, o.size.z + 0.16)
             };
             let center = o.position
-                + if wall {
+                + if wall_equipment {
+                    Vec3::new(0., size.y * 0.5 - o.position.y, -o.size.z * 0.5 - 0.026)
+                } else if wall {
                     Vec3::new(0., o.size.y * 0.5, -o.size.z * 0.5 - 0.026)
                 } else {
                     Vec3::new(0., o.size.y + 0.026, 0.)
@@ -115,7 +129,12 @@ fn install(
                 ChildOf(root),
             ));
         }
-        let target = o.position + Vec3::Y * o.size.y * 0.48;
+        let folded_table =
+            objects::public::folded_apparel(o, bevy_zeroverse_capture::GENERATOR_VERSION);
+        let target_height = folded_table
+            .as_ref()
+            .map_or(o.size.y * 0.48, |table| table.deck_y_m * 0.85);
+        let target = o.position + Vec3::Y * target_height;
         let scale = o.size.max_element();
         let forward = if batch.rear
             || matches!(o.kind, ObjectKind::Chair | ObjectKind::Sofa)
@@ -139,8 +158,45 @@ fn install(
         // Show a floor covering's cut and bound perimeter at a useful scale.
         let from = if o.kind == ObjectKind::Rug {
             target + scale * Vec3::new(0.44, 1.42, 0.70 * forward)
+        } else if o.kind == ObjectKind::LaundryCart
+            && objects::public::laundry::cart::LaundryCart::for_object(o).basket
+                == objects::public::laundry::cart::Basket::Canvas
+        {
+            // Look over the opaque bag's lip to show its liner and any linen inside.
+            target + scale * Vec3::new(0.42, 1.66, 0.49 * forward)
+        } else if folded_table.is_some()
+            || (o.kind == ObjectKind::GroceryDisplay && o.size.y < 1.15)
+        {
+            // Look over the crate rims or across the top garment's folds.
+            target + scale * Vec3::new(0.45, 1.15, 1.15 * forward)
         } else {
             target + Vec3::new(scale * 0.85, scale * vertical, scale * 1.55 * forward)
+        };
+        let (from, target) = if batch.bakery_detail {
+            let case = objects::public::casework::parameters(o);
+            let stock = case
+                .bakery_batches(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+                .into_iter()
+                .max_by_key(|b| b.portions.len());
+            stock.map_or((from, target), |b| {
+                let orientation = Quat::from_rotation_y(o.yaw);
+                let z = b.tray.center_m.y;
+                let y = b.shelf_y_m + b.tray.deck_m;
+                let focus = Vec3::new(b.tray.center_m.x, y + 0.02, z);
+                let distance = (b.tray.size_m.x * 1.34).max(o.size.z * 0.5 - z + 0.07);
+                let ceiling = case
+                    .levels
+                    .get(b.level + 1)
+                    .map_or(o.size.y, |level| o.size.y * level);
+                let rise = ((ceiling - y) * 0.55).clamp(0.04, 0.21);
+                let target = o.position + orientation * focus;
+                (
+                    target + orientation * Vec3::new(distance * 0.12, rise, distance),
+                    target,
+                )
+            })
+        } else {
+            (from, target)
         };
         commands.spawn((
             CaptureCameraIndex(i),
@@ -193,6 +249,10 @@ fn main() -> Result<()> {
         if args.category.as_ref().is_some_and(|s| s != name) {
             continue;
         }
+        ensure!(
+            !args.bakery_detail || name == "DisplayCase",
+            "--bakery-detail requires --category DisplayCase"
+        );
         ensure!(
             category["failures"]
                 .as_array()
@@ -251,7 +311,7 @@ fn main() -> Result<()> {
             .iter()
             .map(|&i| category["samples"][i].clone())
             .collect();
-        let objects: Vec<IndoorObject> = rows
+        let mut objects: Vec<IndoorObject> = rows
             .iter()
             .enumerate()
             .map(|(i, r)| {
@@ -264,6 +324,13 @@ fn main() -> Result<()> {
                     audit::check(&o, &objects::build_object(&o)).unwrap();
                 }
                 o.position = Vec3::X * i as f32 * 8.;
+                if o.kind == ObjectKind::DrinkingFountain {
+                    o.position.y = objects::public::fountain::mount_height_m(o.seed);
+                }
+                if o.kind == ObjectKind::BasketballGoal {
+                    let goal = objects::public::basketball::BasketballGoal::for_object(&o);
+                    o.position.y = 3.05 - goal.rim_height();
+                }
                 if matches!(
                     o.kind,
                     ObjectKind::FireDetector | ObjectKind::ExtractionHood
@@ -305,6 +372,19 @@ fn main() -> Result<()> {
                 attachments.push(child);
             }
         }
+        // A real tabletop shows the glass refraction and the linen contact shadow.
+        let first_attachment_id = instance_base + objects.len();
+        for prop in objects
+            .iter_mut()
+            .filter(|o| matches!(o.kind, ObjectKind::DrinkingGlass | ObjectKind::TableNapkin))
+        {
+            let mut table = audit::fixture(ObjectKind::Table, 0);
+            table.id = first_attachment_id + attachments.len();
+            table.position = prop.position;
+            prop.position.y += table.size.y;
+            prop.support = Some(table.id);
+            attachments.push(table);
+        }
         instance_base += objects.len() + attachments.len();
         groups.push((name.to_string(), objects, attachments, rows));
     }
@@ -315,11 +395,26 @@ fn main() -> Result<()> {
         .iter()
         .flat_map(|(_, objects, children, _)| objects.iter().chain(children).cloned())
         .collect();
+    // A shop-only review uses the same seasonal dye lots as installed stock.
+    let palette_layout = if review_objects
+        .iter()
+        .all(|o| o.kind == ObjectKind::ApparelDisplay)
+    {
+        IndoorLayout::ClothingStore
+    } else {
+        IndoorLayout::Conference
+    };
+    let annotation_glass = if args.bakery_detail {
+        bevy_zeroverse::render::glass::AnnotationGlass::Through
+    } else {
+        Default::default()
+    };
     let mut app = create_app(
         None,
         Some(BevyZeroverseConfig {
             scene_type: ZeroverseSceneType::Custom,
             initialize_scene: false,
+            annotation_glass,
             headless: true,
             editor: false,
             gizmos: false,
@@ -341,8 +436,7 @@ fn main() -> Result<()> {
               mut images: ResMut<Assets<Image>>,
               mut materials: ResMut<Assets<StandardMaterial>>| {
             let mut scene =
-                IndoorManifest::generate_with_humans(0, IndoorLayout::Conference, 0.5, 0, 0.)
-                    .unwrap();
+                IndoorManifest::generate_with_humans(0, palette_layout, 0.5, 0, 0.).unwrap();
             scene.objects = review_objects.clone();
             scene.humans.clear();
             // Exercise the normal generator's consumed-map path. A six-product
@@ -390,6 +484,7 @@ fn main() -> Result<()> {
         attachments: groups[0].2.clone(),
         install: true,
         rear: args.rear,
+        bakery_detail: args.bakery_detail,
     });
     app.add_systems(PreUpdate, install);
     app.finish();
@@ -402,6 +497,7 @@ fn main() -> Result<()> {
                 attachments: attachments.clone(),
                 install: true,
                 rear: args.rear,
+                bakery_detail: args.bakery_detail,
             };
         }
         let start = Instant::now();
@@ -448,7 +544,7 @@ fn main() -> Result<()> {
                     }
                     ensure!(!v.semantic.is_empty(), "missing semantics");
                 }
-                manifest.push(json!({"kind":name,"selected":rows,"rendered_objects":objects,"selection":"farthest-spread geometry representatives from the recorded audit; correlated samples, not isolated parameter interventions","elapsed_seconds":start.elapsed().as_secs_f64()}));
+                manifest.push(json!({"kind":name,"selected":rows,"rendered_objects":objects,"attachments":attachments,"selection":"farthest-spread geometry representatives from the recorded audit; correlated samples, not isolated parameter interventions","elapsed_seconds":start.elapsed().as_secs_f64()}));
                 println!(
                     "Captured {name}: {} matched studio views in {:.2}s",
                     objects.len(),
@@ -461,7 +557,7 @@ fn main() -> Result<()> {
     fs::write(
         args.output.join("renders.json"),
         serde_json::to_vec_pretty(
-            &json!({"schema_version":1,"build_provenance":provenance,"image_size":[320,320],"rear_view":args.rear,"lighting":"fixed 1400/250 lux directional studio lights with shadows and shared procedural PBR environment","categories":manifest}),
+            &json!({"schema_version":1,"build_provenance":provenance,"image_size":[320,320],"rear_view":args.rear,"bakery_detail":args.bakery_detail,"annotation_glass":annotation_glass,"material_palette_layout":palette_layout,"lighting":"fixed 1400/250 lux directional studio lights with shadows and shared procedural PBR environment","categories":manifest}),
         )?,
     )?;
     Ok(())

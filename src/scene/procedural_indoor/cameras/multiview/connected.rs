@@ -183,7 +183,7 @@ pub(super) fn sample(
                     rng,
                 );
                 let track = Track::new(&candidate);
-                let reason = if !scene.camera_clear(candidate.start) {
+                let reason = if !coverage.clearance.point_clear(scene, candidate.start) {
                     Some(0)
                 } else if !geometry(&tracks, Some(&track)).unwrap().accepts(policy) {
                     Some(1)
@@ -193,7 +193,7 @@ pub(super) fn sample(
                     &candidate,
                 ) {
                     Some(2)
-                } else if !scene.camera_curve_clear(&candidate) {
+                } else if !coverage.clearance.curve_clear(scene, &candidate) {
                     Some(3)
                 } else if !coverage.suitable(&candidate, false) {
                     Some(4)

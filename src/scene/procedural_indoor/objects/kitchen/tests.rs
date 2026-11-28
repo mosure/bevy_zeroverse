@@ -223,7 +223,7 @@ fn bread_crust_markings_follow_the_actual_loaf_surface() {
         let key = a
             .parts
             .keys()
-            .find(|(_, label)| label == "food#finish104")
+            .find(|(s, _)| *s == Surface::Paper)
             .unwrap()
             .clone();
         let scoring = a.parts.remove(&key).unwrap();

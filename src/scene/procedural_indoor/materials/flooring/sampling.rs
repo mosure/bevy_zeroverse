@@ -50,6 +50,70 @@ pub(in super::super) fn exercise_floor(r: &mut MaterialRecipe) {
     }
 }
 
+/// Washable dry changing-room finishes use the existing filtered floor atlas.
+pub(in super::super) fn changing_floor(r: &mut MaterialRecipe) {
+    let mut rng = stream(r.seed, u64::from_le_bytes(*b"LockFlrs"));
+    let product = rng.random::<f32>();
+    if product < 0.32 {
+        exercise_floor(r);
+        return;
+    }
+    let terrazzo = product < 0.57;
+    let m = r.mineral.as_mut().expect("mineral floor substrate");
+    let f = r.flooring.as_mut().expect("floor installation");
+    m.casting = None;
+    m.marble_mix = 0.;
+    m.vein_strength = 0.;
+    m.porosity = rng.random_range(0.025..0.16);
+    m.polish = rng.random_range(0.09..0.31);
+    r.color = super::pigment::hsl(
+        rng.random_range(0.0..360.),
+        rng.random_range(0.025..0.20),
+        rng.random_range(0.32..0.74),
+    );
+    r.roughness = rng.random_range(0.48..0.77);
+    r.relief_m = rng.random_range(0.00006..0.00024);
+    f.accent_fraction = 0.;
+    if terrazzo {
+        f.layout = FloorLayout::Seamless;
+        f.cells = [2; 2];
+        r.period_m = rng.random_range(0.90..1.75);
+        m.aggregate_exposure = rng.random_range(0.40..0.76);
+        m.aggregate_cells = [rng.random_range(52..=93); 2];
+        m.aggregate_radius = rng.random_range(0.18..0.38);
+        m.aggregate_color = [0.56, 1.32].map(|v| r.color.map(|c| (c * v).min(0.92)));
+    } else {
+        let small = rng.random_bool(0.47);
+        f.layout = if small && rng.random_bool(0.48) {
+            FloorLayout::Hexagonal
+        } else if rng.random_bool(0.37) {
+            FloorLayout::BrokenBond
+        } else {
+            FloorLayout::Straight
+        };
+        let n = rng.random_range(4..=10);
+        f.cells = if f.layout == FloorLayout::Hexagonal {
+            [2 * n, ((2 * n) as f32 / 3_f32.sqrt()).round() as u32]
+        } else {
+            [n, n]
+        };
+        r.period_m = f.cells[0] as f32
+            * if small {
+                rng.random_range(0.09..0.17)
+            } else {
+                rng.random_range(0.22..0.50)
+            };
+        r.joint_width = rng.random_range(0.0022..0.0054);
+        m.aggregate_exposure = rng.random_range(0.015..0.12);
+        f.piece_tone = rng.random_range(0.02..0.105);
+        if let Some(cut) = &mut f.stock {
+            cut.cut_jitter = [0.; 2];
+            cut.joint_color = r.color.map(|v| 0.13 + v * 0.49);
+            cut.joint_roughness = rng.random_range(0.72..0.91);
+        }
+    }
+}
+
 /// Narrow strip hardwood with close joints and a sealed sports-floor finish.
 pub(in super::super) fn sports_timber(r: &mut MaterialRecipe) {
     let mut rng = stream(r.seed, u64::from_le_bytes(*b"VBMaple "));

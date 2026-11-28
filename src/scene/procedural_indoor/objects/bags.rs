@@ -2,6 +2,7 @@
 //! and pockets vary together; all parts retain the Bag semantic/instance owner.
 use super::*;
 mod details;
+pub(super) use details::strap as webbing_strap;
 mod tote;
 pub(crate) use tote::ToteCut;
 pub(crate) const OPEN_TOTE_VERSION: u32 = 246;

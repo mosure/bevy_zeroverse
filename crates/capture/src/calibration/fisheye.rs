@@ -137,7 +137,13 @@ impl Fisheye {
         ])
     }
 
-    pub(super) fn ray(&self, c: &CameraCalibration, pixel: [f32; 2]) -> Option<[f32; 3]> {
+    /// The same radial gate serves masks and inverse projection. Testing
+    /// visibility never needs to solve the inverse angular polynomial.
+    pub(super) fn sensor_coordinates(
+        &self,
+        c: &CameraCalibration,
+        pixel: [f32; 2],
+    ) -> Option<(f64, f64, f64)> {
         if pixel.iter().any(|v| !v.is_finite()) {
             return None;
         }
@@ -148,6 +154,11 @@ impl Fisheye {
         if r > max + 1e-7 {
             return None;
         }
+        Some((x, y, r))
+    }
+
+    pub(super) fn ray(&self, c: &CameraCalibration, pixel: [f32; 2]) -> Option<[f32; 3]> {
+        let (x, y, r) = self.sensor_coordinates(c, pixel)?;
         if r < 1e-12 {
             return Some([0., 0., -1.]);
         }
@@ -261,6 +272,46 @@ impl CameraCalibration {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sensor_membership_matches_unprojection_on_distorted_and_shifted_contours() {
+        let lens = Fisheye {
+            coefficients: [0.02, -0.002, 0.0001, 0.],
+            max_angle: 1.8,
+        };
+        for (fit, a) in [
+            (FisheyeFit::Circular, 1.),
+            (FisheyeFit::Diagonal, 1.09),
+            (FisheyeFit::Elliptical, 0.91),
+        ] {
+            let mut c = lens.calibration([83, 61], fit, [-0.10, 0.06], a).unwrap();
+            c.k[0][1] = 0.4;
+            let check = |p: [f32; 2]| {
+                let expected = (0.0..83.0).contains(&p[0])
+                    && (0.0..61.0).contains(&p[1])
+                    && c.unproject(p, 1.).is_some();
+                assert_eq!(c.in_image(p), expected, "{fit:?}, {p:?}");
+            };
+            for y in -1..=61 {
+                for x in -1..=83 {
+                    check([x as f32 + 0.5, y as f32 + 0.5]);
+                }
+            }
+            let radius = lens.radius(lens.max_angle as f64);
+            for i in 0..40 {
+                let (dy, dx) = (i as f64 * std::f64::consts::TAU / 40.).sin_cos();
+                let edge = (c.k[0][2] as f64
+                    + (c.k[0][0] as f64 * dx + c.k[0][1] as f64 * dy) * radius)
+                    as f32;
+                let y = (c.k[1][2] as f64 + c.k[1][1] as f64 * dy * radius) as f32;
+                for x in [edge.next_down(), edge, edge.next_up()] {
+                    check([x, y]);
+                }
+            }
+            check([f32::NAN, 2.]);
+            check([2., f32::INFINITY]);
+        }
+    }
     #[test]
     fn canonical_sensor_fits_survive_aspect_ratio_offsets_and_anisotropy() {
         let lens = Fisheye {

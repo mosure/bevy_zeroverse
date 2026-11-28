@@ -83,13 +83,18 @@ impl EnvelopeProgram {
     /// Lens clearance includes the maximum inward sill/shade projection (20 cm).
     pub fn volume_clear(&self, size: Vec3, p: Vec3, radius: f32) -> bool {
         polygon::contains(&self.footprint, p.xz(), radius + 0.20)
-            && p.y >= self.floor_height(p.xz()) + radius
+            && self.height_clear(size, p, radius)
+    }
+
+    fn height_clear(&self, size: Vec3, p: Vec3, radius: f32) -> bool {
+        p.y >= self.floor_height(p.xz()) + radius
             && p.y <= self.ceiling_height(size, p.xz()) - radius
     }
     pub fn segment_clear(&self, size: Vec3, a: Vec3, b: Vec3, radius: f32) -> bool {
+        // segment_inside already tests both endpoints with this same wall margin.
         if !polygon::segment_inside(&self.footprint, a.xz(), b.xz(), radius + 0.20)
-            || !self.volume_clear(size, a, radius)
-            || !self.volume_clear(size, b, radius)
+            || !self.height_clear(size, a, radius)
+            || !self.height_clear(size, b, radius)
         {
             return false;
         }
@@ -139,20 +144,37 @@ impl EnvelopeProgram {
         origin: Vec3,
         ray: Vec3,
     ) -> Option<(f32, &'static str)> {
-        let mut hit: Option<(f32, &'static str)> = None;
-        let mut accept = |t: f32, label| {
-            if t > 1e-5 && hit.is_none_or(|h| t < h.0) {
-                hit = Some((t, label));
-            }
-        };
+        self.ray_hit_before(
+            size,
+            [door_x, door_width, door_height],
+            origin,
+            ray,
+            f32::INFINITY,
+        )
+    }
+
+    pub(crate) fn ray_hit_before(
+        &self,
+        size: Vec3,
+        [door_x, door_width, door_height]: [f32; 3],
+        origin: Vec3,
+        ray: Vec3,
+        max_distance: f32,
+    ) -> Option<(f32, &'static str)> {
+        // A nearer object or shell surface rules out farther intersections
+        // before the relatively expensive floor and footprint queries.
+        let mut nearest = (max_distance, None);
         if ray.y.abs() > 1e-8 {
             for y in std::iter::once(0.).chain(self.floor_patches.iter().map(|p| p.height)) {
                 let t = (y - origin.y) / ray.y;
+                if !(t > 1e-5 && t < nearest.0) {
+                    continue;
+                }
                 let p = (origin + ray * t).xz();
                 if polygon::contains(&self.footprint, p, 0.)
                     && (self.floor_height(p) - y).abs() < 1e-5
                 {
-                    accept(t, "floor");
+                    nearest = (t, Some("floor"));
                 }
             }
         }
@@ -161,12 +183,17 @@ impl EnvelopeProgram {
         let denominator = ray.y - slope.dot(ray.xz());
         if let Some(roof) = &self.courtyard {
             if let Some(t) = roof.ray_hit(size, origin, ray) {
-                accept(t, "ceiling");
+                if t > 1e-5 && t < nearest.0 {
+                    nearest = (t, Some("ceiling"));
+                }
             }
         } else if denominator.abs() > 1e-8 {
             let t = (h - origin.y) / denominator;
-            if polygon::contains(&self.footprint, (origin + ray * t).xz(), 0.) {
-                accept(t, "ceiling");
+            if t > 1e-5
+                && t < nearest.0
+                && polygon::contains(&self.footprint, (origin + ray * t).xz(), 0.)
+            {
+                nearest = (t, Some("ceiling"));
             }
         }
         for patch in &self.soffits {
@@ -187,7 +214,10 @@ impl EnvelopeProgram {
                 }
             }
             if enter <= exit {
-                accept(if enter > 0. { enter } else { exit }, "ceiling");
+                let t = if enter > 0. { enter } else { exit };
+                if t > 1e-5 && t < nearest.0 {
+                    nearest = (t, Some("ceiling"));
+                }
             }
         }
         for (i, (a, b)) in polygon::edges(&self.footprint).enumerate() {
@@ -197,6 +227,9 @@ impl EnvelopeProgram {
                 continue;
             }
             let t = (a - origin.xz()).perp_dot(d) / denominator;
+            if !(t > 1e-5 && t < nearest.0) {
+                continue;
+            }
             let p = origin + ray * t;
             let u = (p.xz() - a).dot(d) / d.length_squared();
             if (0.0..=1.0).contains(&u)
@@ -206,7 +239,7 @@ impl EnvelopeProgram {
                     && (p.x - door_x).abs() < door_width * 0.5 - 0.022
                     && p.y < door_height - 0.025)
             {
-                accept(t, "wall");
+                nearest = (t, Some("wall"));
             }
         }
         for patch in &self.floor_patches {
@@ -223,9 +256,12 @@ impl EnvelopeProgram {
                     continue;
                 }
                 let t = (a - origin.xz()).perp_dot(d) / denominator;
+                if !(t > 1e-5 && t < nearest.0) {
+                    continue;
+                }
                 let p = origin + ray * t;
                 let u = (p.xz() - a).dot(d) / d.length_squared();
-                if !(0.0..=1.0).contains(&u) || t <= 1e-5 {
+                if !(0.0..=1.0).contains(&u) {
                     continue;
                 }
                 // Adjacent support can change partway along this same edge
@@ -235,11 +271,11 @@ impl EnvelopeProgram {
                     && p.y <= patch.height.max(other)
                     && (patch.height - other).abs() > 1e-5
                 {
-                    accept(t, "floor");
+                    nearest = (t, Some("floor"));
                 }
             }
         }
-        hit
+        nearest.1.map(|label| (nearest.0, label))
     }
 
     /// Conservative motion-planning barriers for a model whose root support is

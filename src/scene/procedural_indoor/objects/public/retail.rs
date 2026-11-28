@@ -4,12 +4,26 @@ use super::*;
 use rand_chacha::ChaCha8Rng;
 
 mod apparel;
+pub use apparel::folded::{
+    folded_apparel, DisplayTableStand, FoldedCut, FoldedDisplay, FoldedGarment, FoldedLayer,
+    FoldedPile,
+};
+pub(crate) use apparel::folded::{
+    wants_opposite_face, FOLDED_APPAREL_VERSION, SINGLE_BROWSING_FACE,
+};
+const RAIL_MIN_HEIGHT: f32 = 1.22;
+pub use apparel::rail::{apparel_rail, ApparelRail, RailForm, DISPLAY_RAIL_VERSION};
 pub(crate) mod checkout;
 mod cold;
 pub(crate) use cold::{is_refrigerated, REFRIGERATED};
 pub use cold::{refrigerated_case, CaseStock, RefrigeratedCase};
 mod grocery;
+pub use grocery::gondola::{gondola_stock, GondolaRow, GondolaStock};
 pub(crate) use grocery::print_finishes;
+pub use grocery::produce::{
+    produce_stand, CrateStyle, ProduceBase, ProduceBin, ProducePiece, ProduceStand,
+};
+pub(crate) use grocery::produce::{resin_slot as produce_resin, VERSION as PRODUCE_VERSION};
 
 #[derive(Debug, Clone, Copy, serde::Serialize)]
 pub(crate) enum Installation {
@@ -87,7 +101,7 @@ pub(crate) fn parameters(o: &IndoorObject) -> Installation {
             stock: r.random_range(0.55..0.99),
             frame,
         },
-        ObjectKind::ApparelDisplay if o.size.y < 1.22 => Installation::Folded {
+        ObjectKind::ApparelDisplay if o.size.y < RAIL_MIN_HEIGHT => Installation::Folded {
             piles: (o.size.x / r.random_range(0.33..0.48))
                 .floor()
                 .clamp(2., 6.) as usize,
@@ -111,7 +125,7 @@ pub(crate) fn parameters(o: &IndoorObject) -> Installation {
     }
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let mut r = stream(o.seed, u64::from_le_bytes(*b"ShopLoad"));
     let s = o.size;
     match parameters(o) {
@@ -121,22 +135,51 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             facings,
             stock,
             frame,
-        } => grocery::shelves(a, o, levels, facings, stock, frame, &mut r),
+        } if version >= grocery::gondola::VERSION => {
+            grocery::gondola::build(a, o, levels, facings, stock, frame);
+        }
+        Installation::Gondola {
+            levels,
+            facings,
+            stock,
+            frame,
+        } => grocery::legacy_shelves(a, o, levels, facings, stock, frame, &mut r),
         Installation::Produce {
             crates,
             fill,
             frame,
-        } => grocery::produce(a, s, crates, fill, frame, &mut r),
+        } if version >= grocery::produce::VERSION => {
+            ProduceStand::sample(o, crates, fill).build(a, o, frame);
+        }
+        Installation::Produce {
+            crates,
+            fill,
+            frame,
+        } => grocery::legacy_produce(a, s, crates, fill, frame, &mut r),
         Installation::Rail {
             hangers,
             length,
             frame,
-        } => apparel::rail(a, s, hangers, length, frame, &mut r),
+        } if version >= DISPLAY_RAIL_VERSION => {
+            ApparelRail::sample(o, hangers, length, frame).build(a, o.size)
+        }
+        Installation::Rail {
+            hangers,
+            length,
+            frame,
+        } => apparel::legacy_rail(a, s, hangers, length, frame, &mut r),
         Installation::Folded {
             piles,
             layers,
             frame,
-        } => apparel::folded(a, s, piles, layers, frame, &mut r),
+        } if version >= FOLDED_APPAREL_VERSION => {
+            FoldedDisplay::sample(o, piles, layers, frame).build(a, s)
+        }
+        Installation::Folded {
+            piles,
+            layers,
+            frame,
+        } => apparel::legacy_folded(a, s, piles, layers, frame, &mut r),
         Installation::Register(spec) => checkout::build(a, o, spec),
         Installation::Checkout {
             top_m,
@@ -175,4 +218,31 @@ fn table_base(a: &mut Assembly, s: Vec3, top: f32, frame: Surface) {
             );
         }
     }
+}
+
+/// Install an upright copy from one product lot. Apparel sizes scale uniformly,
+/// so the normals only turn and the metric weave chart follows the cut size.
+fn append_facing(
+    dest: &mut Geometry,
+    g: &Geometry,
+    base: Vec3,
+    (sin, cos): (f32, f32),
+    scale: f32,
+) {
+    let turn = |[x, y, z]: [f32; 3]| Vec3::new(cos * x + sin * z, y, cos * z - sin * x);
+    let offset = dest.positions.len() as u32;
+    dest.positions.extend(
+        g.positions
+            .iter()
+            .map(|&p| (base + scale * turn(p)).to_array()),
+    );
+    dest.normals
+        .extend(g.normals.iter().map(|&n| turn(n).to_array()));
+    if scale == 1. {
+        dest.uvs.extend_from_slice(&g.uvs);
+    } else {
+        dest.uvs
+            .extend(g.uvs.iter().map(|&[u, v]| [u * scale, v * scale]));
+    }
+    dest.indices.extend(g.indices.iter().map(|i| i + offset));
 }

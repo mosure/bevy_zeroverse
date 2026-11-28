@@ -6,7 +6,7 @@ use crate::scene::procedural_indoor::{
     cameras::{
         coverage::{Coverage, VisibilityView},
         diversity::Track,
-        multiview::{pair_samples_cached, OverlapGraph, CHECK_TIMES},
+        multiview::{accepts_metric_edge, pair_samples_cached, OverlapGraph, CHECK_TIMES},
         program::ViewSummary,
         rig::{self, MixedRigContract},
     },
@@ -256,7 +256,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                             .accepts_motion(scene.seed, index, &camera)
                         {
                             Some(0)
-                        } else if !scene.camera_curve_clear(&camera) {
+                        } else if !coverage.clearance.curve_clear(scene, &camera) {
                             Some(1)
                         } else if !coverage.suitable(&camera, require_person) {
                             Some(2)
@@ -341,6 +341,14 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                 }
                 let track = Track::new(&camera);
                 if policy.is_some_and(|p| {
+                    if contract.is_none() {
+                        return !super::super::diversity::accepts_extension(
+                            p,
+                            &tracks,
+                            &track,
+                            stage + 1 == count,
+                        );
+                    }
                     !rig::accepts_geometry(
                         p,
                         contract,
@@ -374,6 +382,25 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                 }
                 if let Some(policy) = policy.filter(|_| index > 0) {
                     let mut accepts = |parent: usize| {
+                        // Connected graphs use an ordinary parent edge, also for
+                        // pair mixtures. Reference mixtures have an upper bound
+                        // as well and use the full policy below.
+                        if contract.filter(|_| targets.is_empty()).is_none()
+                            && (policy.graph == OverlapGraph::Connected
+                                || targets.get(index - 1).is_none())
+                        {
+                            let reference = &scene.cameras[parent];
+                            let static_pair = [reference, &camera]
+                                .iter()
+                                .all(|c| c.motion.is_none() && c.start == c.end);
+                            return accepts_metric_edge(
+                                &coverage,
+                                &views[parent],
+                                &candidate_views,
+                                policy,
+                                static_pair,
+                            );
+                        }
                         let samples = pair_samples_cached(
                             &coverage,
                             &scene.cameras[parent],
@@ -397,10 +424,6 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                                 &samples,
                                 floor,
                             )
-                        } else if policy.graph == OverlapGraph::Connected {
-                            let mut edge = policy.clone();
-                            edge.min_reference_baseline = 0.;
-                            edge.accepts(&samples)
                         } else {
                             targets.get(index - 1).map_or_else(
                                 || policy.accepts(&samples),

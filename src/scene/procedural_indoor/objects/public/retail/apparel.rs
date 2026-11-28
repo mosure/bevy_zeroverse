@@ -4,7 +4,10 @@ use crate::scene::procedural_indoor::{
     objects::utilities::racks::dressing::{Garment, GarmentKind},
 };
 
-pub(super) fn rail(
+pub(super) mod folded;
+pub(super) mod rail;
+
+pub(super) fn legacy_rail(
     a: &mut Assembly,
     s: Vec3,
     count: usize,
@@ -107,7 +110,7 @@ pub(super) fn rail(
     }
 }
 
-pub(super) fn folded(
+pub(super) fn legacy_folded(
     a: &mut Assembly,
     s: Vec3,
     piles: usize,

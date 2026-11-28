@@ -118,6 +118,11 @@ impl BackFit {
 }
 
 impl BanquetteProgram {
+    /// Front of the backrest and front of the cushion in bench-local metres.
+    pub(crate) fn seat_depth_range(&self, o: &IndoorObject) -> (f32, f32) {
+        (BackFit::new(o, self).seat_rear, o.size.z * 0.44)
+    }
+
     /// Installed upholstery cut in the current generator. Separate pads and
     /// timber slats have no sewn cover spanning the full back.
     pub fn sewn_back(&self, o: &IndoorObject) -> Option<SewnBack> {

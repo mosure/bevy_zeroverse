@@ -150,15 +150,24 @@ fn refinement_preserves_paths_calibration_reference_and_existing_support() {
 
 #[test]
 fn preferred_peer_search_is_bounded_and_never_rejects_previously_feasible_rooms() {
-    for seed in [65832633, 65832620, 65573956, 65565210] {
+    let rooms = [65832633, 65832620, 65565210]
+        .into_iter()
+        .map(|seed| {
+            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap()
+        })
+        .chain(std::iter::once_with(super::super::training_studio_fixture));
+    for mut scene in rooms {
+        let seed = scene.seed;
         let settings = CameraSettings::parse(include_str!(
             "../ceiling/tests/mixed_training_camera_settings.json"
         ))
         .unwrap();
-        let mut scene =
-            IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
         scene.resample_cameras(8, settings.clone(), 1.).unwrap();
-        validate_layout(&scene).unwrap();
+        crate::scene::procedural_indoor::validation::validate_layout_for_generator(
+            &scene,
+            scene.generator_version,
+        )
+        .unwrap();
         let d = &scene.camera_diagnostics;
         assert!(d.peer_search_succeeded || d.peer_search_fallbacks == 1);
         assert!(d.peer_search_discarded_proposals <= 1536);

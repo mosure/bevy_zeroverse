@@ -16,6 +16,8 @@ pub fn is_folded(o: &IndoorObject) -> bool {
 pub(crate) struct TeachingSeat {
     pub family: &'static str,
     pub folded: bool,
+    #[serde(skip)]
+    floor_mounted: bool,
     pub seat_height_metres: f32,
     pub width_metres: f32,
     pub height_metres: f32,
@@ -37,6 +39,7 @@ pub(crate) struct TeachingSeat {
 impl TeachingSeat {
     pub(crate) fn sample(o: &IndoorObject) -> Self {
         let fixed = o.variant == 11;
+        let ensemble = o.variant == super::ENSEMBLE_CHAIR;
         let mut r = stream(o.seed, u64::from_le_bytes(*b"TeachFit"));
         let mut finish = stream(
             o.finish_seed.unwrap_or(o.seed),
@@ -47,7 +50,7 @@ impl TeachingSeat {
         } else {
             Surface::Plastic
         };
-        let face_stock = if fixed {
+        let face_stock = if fixed || (ensemble && finish.random_bool(0.62)) {
             if finish.random_bool(0.64) {
                 Surface::Fabric
             } else {
@@ -69,11 +72,21 @@ impl TeachingSeat {
         let seat_height_metres = 0.47;
         let dish = if fixed { 0.006 } else { 0.003 };
         let seat_y = seat_height_metres - pad * 0.5 + dish;
-        let seat_width = (o.size.x * r.random_range(0.64..0.73)).min(0.59);
+        let seat_width = if ensemble {
+            o.size.x - r.random_range(0.082..0.101)
+        } else {
+            (o.size.x * r.random_range(0.64..0.73)).min(0.59)
+        };
         let fraction = r.random_range(0.29..0.39);
         let fold_angle: f32 = r.random_range(1.16..1.39);
         let (sin, cos) = fold_angle.sin_cos();
-        let mut seat_depth = (o.size.z * r.random_range(0.60..0.70)).min(0.51);
+        let mut seat_depth = (o.size.z
+            * if ensemble {
+                r.random_range(0.74..0.83)
+            } else {
+                r.random_range(0.60..0.70)
+            })
+        .min(0.51);
         if fixed {
             // The same physical seat fits in either state, including short
             // rows. The upholstered front edge reaches highest when folded.
@@ -83,11 +96,24 @@ impl TeachingSeat {
         let hinge = Vec3::new(0., seat_y, fraction * seat_depth);
         // The rear seat corner initially swings slightly behind its open
         // position. Clear the complete circular sweep, not just the end poses.
-        let back_z = hinge.z + (0.5 * seat_depth - hinge.z).hypot(0.5 * pad) + 0.008;
+        let back_z = if ensemble {
+            // This stationary pan can extend under the shell. Leave room behind
+            // its shell for the stay plate, bend and tube radius at every seat depth.
+            (0.5 * seat_depth - 0.006).min(0.5 * o.size.z - 0.074)
+        } else {
+            hinge.z + (0.5 * seat_depth - hinge.z).hypot(0.5 * pad) + 0.008
+        };
         let back = backrest::Backrest::sample(o, seat_width, back_z, fixed, &mut r);
-        let tablet = (!fixed).then(|| Tablet::sample(o, shell_stock, &mut r));
+        let tablet = (!fixed && !ensemble).then(|| Tablet::sample(o, shell_stock, &mut r));
         Self {
-            family: if fixed { "auditorium" } else { "tablet_arm" },
+            family: if fixed {
+                "auditorium"
+            } else if ensemble {
+                "ensemble"
+            } else {
+                "tablet_arm"
+            },
+            floor_mounted: fixed,
             folded: is_folded(o),
             seat_height_metres,
             width_metres: o.size.x,

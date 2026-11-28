@@ -3,7 +3,7 @@
 use super::*;
 mod court;
 use crate::scene::procedural_indoor::envelope::steps::{StepInstallation, StepNosing};
-use crate::scene::procedural_indoor::program::court::VolleyballCourt;
+use crate::scene::procedural_indoor::program::court::{FreeThrowMark, VolleyballCourt};
 
 #[derive(Clone, Copy)]
 struct Band {
@@ -148,12 +148,8 @@ fn build_top(
     }
 }
 
-pub(super) fn build(
-    a: &mut Assembly,
-    e: &EnvelopeProgram,
-    size: Vec3,
-    volleyball: Option<VolleyballCourt>,
-) {
+pub(super) fn build(a: &mut Assembly, e: &EnvelopeProgram, scene: &IndoorManifest) {
+    let size = scene.room_size;
     let mut xs = vec![-size.x * 0.5, size.x * 0.5];
     let mut zs = vec![-size.z * 0.5, size.z * 0.5];
     for f in &e.floor_patches {
@@ -165,8 +161,13 @@ pub(super) fn build(
         v.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
     }
     let triangles = polygon::triangles(&e.footprint);
-    if let Some(court) = volleyball {
-        court::top(a, court, size);
+    if let Some((court, marks)) = scene
+        .program
+        .as_ref()
+        .and_then(|p| p.volleyball.map(|c| (c, p.free_throw_marks.as_slice())))
+    {
+        let marks = (scene.generator_version >= FreeThrowMark::FIRST_GENERATOR).then_some(marks);
+        court::top(a, court, size, marks);
     } else {
         let bands = tread_bands(e);
         for x in xs.windows(2) {

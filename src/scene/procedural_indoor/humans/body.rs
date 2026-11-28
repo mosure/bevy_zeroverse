@@ -5,6 +5,7 @@ use super::{HumanAssembly, HumanSurface, IndoorHuman};
 use bevy::prelude::*;
 use burn_human::{AnnyBody, AnnyInput};
 use std::sync::{Mutex, OnceLock};
+mod waiting;
 
 #[cfg(feature = "human_motion")]
 pub(crate) use crate::procedural_human::reference::installed;
@@ -297,37 +298,47 @@ fn build_impl(
     let mut transforms = make_transforms(&resolved_joints);
     let (bone_ids, weights) = body.skinning_bindings();
     let influences = *bone_ids.shape.last().unwrap();
-    let skin = |transforms: &[Mat4]| {
-        let torso = transforms[0];
-        let mut posed = Vec::with_capacity(vertices.len());
-        let mut dominant = Vec::with_capacity(vertices.len());
-        for (i, &v) in vertices.iter().enumerate() {
-            let mut q = Vec3::ZERO;
-            let mut total = 0.0;
-            let mut strongest = (0.0, 0);
-            for influence in 0..influences {
-                let at = i * influences + influence;
-                let w = weights.data[at] as f32;
-                let bone = bone_ids.data[at];
-                if bone < 0 || w <= 0.0 {
-                    continue;
-                }
-                q += transforms[bone as usize].transform_point3(v) * w;
-                total += w;
-                if w > strongest.0 {
-                    strongest = (w, bone as usize);
-                }
+    let skin_vertex = |i: usize, transforms: &[Mat4]| {
+        let mut q = Vec3::ZERO;
+        let mut total = 0.0;
+        let mut strongest = (0.0, 0);
+        for influence in 0..influences {
+            let at = i * influences + influence;
+            let w = weights.data[at] as f32;
+            let bone = bone_ids.data[at];
+            if bone < 0 || w <= 0.0 {
+                continue;
             }
-            posed.push(if total > 0.0 {
-                q / total
-            } else {
-                torso.transform_point3(v)
-            });
-            dominant.push(strongest.1);
+            q += transforms[bone as usize].transform_point3(vertices[i]) * w;
+            total += w;
+            if w > strongest.0 {
+                strongest = (w, bone as usize);
+            }
         }
-        (posed, dominant)
+        let point = if total > 0.0 {
+            q / total
+        } else {
+            transforms[0].transform_point3(vertices[i])
+        };
+        (point, strongest.1)
     };
-    let (mut posed, dominant) = skin(&transforms);
+    if !motion_rest {
+        if let Some(seat) = h.waiting_seat() {
+            // Only probe the rest mesh near the pelvis and feet. Resolve both
+            // knees before the full-body skinning pass used by every person.
+            let probes = vertices.iter().enumerate().filter_map(|(i, v)| {
+                let foot = (v.y - lo.y) * scale < 0.18;
+                (foot || ((v.y - rest_pelvis.y) * scale).abs() < 0.26)
+                    .then(|| (foot, skin_vertex(i, &transforms).0))
+            });
+            if waiting::fit(h, seat, &mut resolved_joints, probes) {
+                transforms = make_transforms(&resolved_joints);
+            }
+        }
+    }
+    let (mut posed, dominant): (Vec<_>, Vec<_>) = (0..vertices.len())
+        .map(|i| skin_vertex(i, &transforms))
+        .unzip();
     let foot_support = if motion_rest {
         0.
     } else {
@@ -374,7 +385,9 @@ fn build_impl(
                     );
                 }
                 transforms = make_transforms(&resolved_joints);
-                posed = skin(&transforms).0;
+                for (i, point) in posed.iter_mut().enumerate() {
+                    *point = skin_vertex(i, &transforms).0;
+                }
                 if max_error < 0.0002 {
                     break;
                 }

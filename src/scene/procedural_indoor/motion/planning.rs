@@ -28,7 +28,7 @@ struct Node {
 struct RestingContact {
     support: usize,
     height: f32,
-    slides_on_shelf: bool,
+    slides_on_lower_plane: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -263,7 +263,7 @@ impl Tree {
                         t.owner == Some(contact.support)
                             && t.p.iter().all(|p| {
                                 (p.y - contact.height).abs() < 0.0002
-                                    || (contact.slides_on_shelf && p.y <= contact.height)
+                                    || (contact.slides_on_lower_plane && p.y <= contact.height)
                             })
                     })
                     || (t.owner == owner && t.joint.is_some_and(|j| ids.contains(&j)))
@@ -756,10 +756,16 @@ pub(crate) fn prepare(scene: &mut IndoorManifest, geometry: &mut SceneGeometry) 
                     Some(RestingContact {
                         support: o.support?,
                         height: tf.translation.y,
-                        slides_on_shelf: j.translation.y == 0.
+                        slides_on_lower_plane: j.translation.y == 0.
                             && j.axis.xz() == Vec2::ZERO
-                            && scene.support_plane(o)
-                                == Some(super::super::layout::SupportPlane::LowerShelf),
+                            && matches!(
+                                scene.support_plane(o),
+                                Some(
+                                    super::super::layout::SupportPlane::LowerShelf
+                                        | super::super::layout::SupportPlane::Vise
+                                        | super::super::layout::SupportPlane::Worktop
+                                )
+                            ),
                     })
                 });
             let choices =

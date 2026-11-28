@@ -4,6 +4,8 @@ use wgpu::util::DeviceExt;
 
 #[path = "minification_tests.rs"]
 mod minification_tests;
+#[path = "mip_tail_tests.rs"]
+mod mip_tail_tests;
 #[path = "web_fixtures.rs"]
 mod web_fixtures;
 
@@ -51,14 +53,93 @@ fn chrome_bakes_retain_only_the_maps_its_material_samples() {
         let mut requests = Requests::default();
         let handles =
             Maps::prepare(&recipes[surface as usize], 0, true).insert(&mut images, &mut requests);
-        assert_eq!(requests.0.len(), 1);
+        assert_eq!(requests.materials().len(), 1);
         let normal_output = surface != Surface::Chrome;
-        assert_eq!(requests.0[0].normal_output, normal_output);
+        assert_eq!(requests.materials()[0].normal_output, normal_output);
         assert_eq!(images.len(), if normal_output { 3 } else { 2 });
         assert!(images.get(&handles[0]).is_some());
         assert!(images.get(&handles[2]).is_some());
         assert_eq!(images.get(&handles[1]).is_some(), normal_output);
         assert_eq!(requests.albedo(handles[0].id()).unwrap().len(), 1024);
+    }
+}
+
+#[test]
+fn extracted_and_staged_recipes_share_data_but_keep_their_own_visible_prefix() {
+    let recipes = program::sample_with_floor(3, 0).unwrap();
+    let mut images = Assets::<Image>::default();
+    let mut room = Requests::default();
+    for surface in [Surface::Chrome, Surface::Fabric] {
+        Maps::prepare(&recipes[surface as usize], 0, true).insert(&mut images, &mut room);
+    }
+    super::super::environment::gpu::prepare(vec![Vec3::ONE; 6 * 64 * 64], &mut images, &mut room);
+
+    let extracted = room.clone();
+    assert!(room.prefix(0, 0).batch.is_none());
+    let mut staged = room.prefix(1, 0);
+    assert!(std::ptr::eq(
+        staged.materials(),
+        &extracted.materials()[..1]
+    ));
+    assert!(staged.reflections().is_empty());
+    assert!(!staged.ready());
+    room.materials()[0]
+        .status
+        .encoded
+        .store(true, Ordering::Release);
+    assert!(staged.ready());
+    assert!(!extracted.ready());
+
+    // Extending a snapshot preserves its prefix and leaves the old room intact.
+    let extra = room.materials()[0].clone();
+    staged.push_material(extra);
+    assert_eq!(staged.materials().len(), 2);
+    assert!(staged.ready());
+    assert_eq!(room.reflections().len(), 1);
+    assert!(std::ptr::eq(room.reflections(), extracted.reflections()));
+    room.clear();
+    assert!(room.ready() && room.batch.is_none());
+    assert_eq!(extracted.materials().len(), 2);
+    assert_eq!(extracted.reflections().len(), 1);
+}
+
+#[test]
+#[ignore = "CPU timing of render extraction for an active and a prefetched 30-material room"]
+fn benchmark_room_material_request_extraction() {
+    use std::{hint::black_box, time::Instant};
+    let recipes = program::sample_with_floor(3, 0).unwrap();
+    let rooms = [Surface::Fabric, Surface::Chrome].map(|surface| {
+        let mut room = Requests::default();
+        let mut images = Assets::<Image>::default();
+        Maps::prepare(&recipes[surface as usize], 0, true).insert(&mut images, &mut room);
+        while room.materials().len() < 30 {
+            room.push_material(room.materials()[0].clone());
+        }
+        room
+    });
+    for round in 0..5 {
+        for control in [round % 2 == 0, round % 2 != 0] {
+            let started = Instant::now();
+            for _ in 0..4000 {
+                if control {
+                    black_box(
+                        rooms
+                            .each_ref()
+                            .map(|room| black_box(room).materials().to_vec()),
+                    );
+                } else {
+                    black_box(
+                        rooms
+                            .each_ref()
+                            .map(|room| Requests::clone(black_box(room))),
+                    );
+                }
+            }
+            eprintln!(
+                "material extraction control={control} ns/tick={}",
+                started.elapsed().as_nanos() / 4000
+            );
+        }
     }
 }
 #[test]
@@ -104,6 +185,19 @@ fn recipe_abi_and_bounded_mip_layout() {
             moments += l.size * l.size;
         }
         assert_eq!(moments, (size * size * 4 - 1) / 3);
+        let passes: Vec<_> = kernel::mip_passes(&levels).collect();
+        assert_eq!(passes.len() + 3, levels.len() - 1);
+        let (tail, first) = *passes.last().unwrap();
+        assert_eq!(first.size, 8);
+        // Independent of base resolution, the workgroup's next-level address
+        // must equal the normal texture-copy layout at each step down to 1x1.
+        for pair in levels[tail..].windows(2) {
+            let [src, dst] = pair else { unreachable!() };
+            assert_eq!(dst.size, src.size / 2);
+            assert_eq!(dst.stride, src.stride);
+            assert_eq!(dst.offset, src.offset + u64::from(src.size * src.stride));
+            assert_eq!(dst.moment_offset, src.moment_offset + src.size * src.size);
+        }
     }
     for floor in 0..3 {
         for r in program::sample_with_floor(202, floor).unwrap() {
@@ -313,10 +407,12 @@ fn device() -> (wgpu::Device, wgpu::Queue) {
     .unwrap()
 }
 
-#[test]
-#[ignore = "requires a native GPU; compares all base maps and every normal/GGX mip against the CPU oracle"]
-fn gpu_maps_match_cpu_material_programs_and_mips() {
-    let (device, queue) = device();
+fn bake_pipelines(
+    device: &wgpu::Device,
+) -> (
+    wgpu::BindGroupLayout,
+    [wgpu::ComputePipeline; kernel::ENTRIES.len()],
+) {
     let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &kernel::layout_entries(),
@@ -340,6 +436,14 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
             cache: None,
         })
     });
+    (layout, pipelines)
+}
+
+#[test]
+#[ignore = "requires a native GPU; compares all base maps and every normal/GGX mip against the CPU oracle"]
+fn gpu_maps_match_cpu_material_programs_and_mips() {
+    let (device, queue) = device();
+    let (layout, pipelines) = bake_pipelines(&device);
     let scratch = kernel::Workspace::new(&device);
     let queries = device.create_query_set(&wgpu::QuerySetDescriptor {
         label: Some("material bake timing"),
@@ -477,7 +581,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                     d.usage |= wgpu::TextureUsages::COPY_SRC;
                     device.create_texture(&d)
                 });
-                let bind = scratch.bindings(&device, &layout, &params);
+                let bind = scratch.binding(&device, &layout, &params);
                 let bytes = kernel::plane_bytes(n) * 3;
                 let read = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
@@ -492,6 +596,7 @@ fn gpu_maps_match_cpu_material_programs_and_mips() {
                         &pipelines[params.meta[0] as usize],
                         &pipelines[kernel::NORMALS],
                         &pipelines[kernel::MIPS],
+                        &pipelines[kernel::MIP_TAIL],
                     ],
                     &bind,
                     n,

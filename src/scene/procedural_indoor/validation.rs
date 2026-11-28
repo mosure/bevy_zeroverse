@@ -214,6 +214,11 @@ fn validate_layout_integrity(
                 });
             }
         }
+        if object.kind == super::layout::ObjectKind::CoffeeGrinder
+            && object.interaction_target.is_none()
+        {
+            return fail("espresso grinder missing its brewing station");
+        }
         if let Some(target) = object.interaction_target {
             let other = scene
                 .objects
@@ -225,7 +230,22 @@ fn validate_layout_integrity(
                     super::layout::ObjectKind::Desk
                         | super::layout::ObjectKind::Table
                         | super::layout::ObjectKind::CoffeeTable
+                        | super::layout::ObjectKind::ReceptionDesk
                 )
+            } else if object.kind == super::layout::ObjectKind::Locker
+                && object.variant == super::objects::public::education::ISLAND_BANK
+            {
+                scene.layout == super::layout::IndoorLayout::LockerRoom
+                    && other.kind == object.kind
+                    && other.variant == object.variant
+                    && other.interaction_target == Some(object.id)
+            } else if object.kind == super::layout::ObjectKind::Bench
+                && object.variant == super::objects::services::bench::CHANGING
+            {
+                scene.layout == super::layout::IndoorLayout::LockerRoom
+                    && other.kind == super::layout::ObjectKind::Locker
+                    && object.support.is_none()
+                    && other.support.is_none()
             } else if object.kind == super::layout::ObjectKind::Banquette {
                 other.kind == super::layout::ObjectKind::Table
                     && object.support.is_none()
@@ -237,8 +257,34 @@ fn validate_layout_integrity(
                     )
                     .next()
                     .is_some()
-            } else if object.kind == super::layout::ObjectKind::Dishware {
-                scene.valid_served_dish(object, other)
+            } else if object.kind == super::layout::ObjectKind::CoffeeGrinder {
+                other.kind == super::layout::ObjectKind::EspressoMachine
+                    && object.support == other.support
+                    && object
+                        .support
+                        .and_then(|id| scene.objects.get(id))
+                        .is_some_and(|counter| {
+                            counter.kind == super::layout::ObjectKind::ServiceCounter
+                                && [object, other]
+                                    .iter()
+                                    .all(|o| (o.yaw - counter.yaw).cos() < -0.95)
+                        })
+            } else if matches!(
+                object.kind,
+                super::layout::ObjectKind::MusicStand | super::layout::ObjectKind::StagePiano
+            ) {
+                object.support.is_none()
+                    && other.support.is_none()
+                    && super::objects::public::music::faces_player(object, other)
+            } else if object.kind == super::layout::ObjectKind::LaundryCart {
+                scene.valid_laundry_cart(object)
+            } else if object.kind == super::layout::ObjectKind::ArtistEasel {
+                scene.valid_easel_subject(object, other)
+            } else if matches!(
+                object.kind,
+                super::layout::ObjectKind::Dishware | super::layout::ObjectKind::TableNapkin
+            ) {
+                scene.valid_place_setting(object, other)
             } else if object.kind == super::layout::ObjectKind::PcTower {
                 other.kind == super::layout::ObjectKind::Monitor
                     && other.support.is_some()
@@ -318,9 +364,9 @@ fn validate_layout_integrity(
             {
                 return fail("furniture intersects room boundary");
             }
-            if !scene.floor_support_clear(lo, hi) {
+            if !scene.installation_supported(object, lo, hi) {
                 return fail(&format!(
-                    "unsupported floor furniture: {:?} {}",
+                    "unsupported furniture: {:?} {}",
                     object.kind, object.id
                 ));
             }
@@ -348,7 +394,7 @@ fn validate_layout_integrity(
             let (lo, hi) = object.bounds();
             let ceiling = scene.minimum_ceiling_height(lo.xz(), hi.xz());
             if (object.neighbor && lo.y.abs() > 1e-5)
-                || (!object.neighbor && !scene.floor_support_clear(lo, hi))
+                || (!object.neighbor && !scene.installation_supported(object, lo, hi))
                 || hi.y > ceiling - object.overhead_clearance()
             {
                 placement_rejection.get_or_insert_with(|| {
@@ -388,7 +434,7 @@ fn validate_layout_integrity(
             let Some(parent) = scene.objects.get(support) else {
                 return fail("missing prop support");
             };
-            if !parent.kind.is_surface() {
+            if !parent.supports_item(object.kind) {
                 return fail("prop support is not a surface");
             }
             if parent.neighbor != object.neighbor || parent.id >= object.id {
@@ -431,17 +477,7 @@ fn validate_layout_integrity(
     // must not be masked by a secondary activity-furniture shortfall.
     if !scene.layout.is_public()
         && !scene.missing_kitchen_program()
-        && !scene.objects.iter().any(|o| {
-            !o.neighbor
-                && (super::layout::ObjectKind::KitchenCounter == o.kind
-                    && scene.layout.is_kitchen()
-                    || matches!(
-                        o.kind,
-                        super::layout::ObjectKind::Desk
-                            | super::layout::ObjectKind::Table
-                            | super::layout::ObjectKind::CoffeeTable
-                    ))
-        })
+        && scene.primary_activity_surface_missing()
     {
         return fail("missing primary activity furniture");
     }
@@ -451,6 +487,7 @@ fn validate_layout_integrity(
     {
         return fail("insufficient main room furniture");
     }
+    let clearance = super::cameras::clearance::Clearance::default();
     for (index, camera) in scene.cameras.iter().enumerate() {
         if let Some(lens) = camera.fisheye {
             if lens
@@ -509,12 +546,15 @@ fn validate_layout_integrity(
         {
             return fail("invalid camera intrinsics or target");
         }
-        if !scene.camera_curve_clear(camera) {
+        if !clearance.curve_clear(scene, camera) {
             return fail("camera path intersects geometry");
         }
         // Explicit samples guard the continuous sweep implementation independently.
-        for step in (0..=32).filter(|_| camera.ceiling_mount.is_none()) {
-            if !scene.camera_clear(camera.transform_at(step as f32 / 32.0).translation) {
+        if camera.ceiling_mount.is_none() {
+            let mut path = camera.runtime_trajectory();
+            if (0..=32).any(|step| {
+                !clearance.point_clear(scene, path.sample(step as f32 / 32.0).translation)
+            }) {
                 return fail("unsafe sampled camera path");
             }
         }

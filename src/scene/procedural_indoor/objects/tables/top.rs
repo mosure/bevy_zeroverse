@@ -72,7 +72,9 @@ impl TopStock {
                         |v| rotation * (v + tf.translation.xz()) + origin,
                     );
                 }
-                let edge = if cut.edge == SheetEdge::TimberLip {
+                let edge = if let Some(table) = p.classroom {
+                    a.part(table.band, o.kind.class_name())
+                } else if cut.edge == SheetEdge::TimberLip {
                     a.part(Surface::Wood, o.kind.class_name())
                 } else {
                     slab

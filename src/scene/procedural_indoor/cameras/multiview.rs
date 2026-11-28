@@ -186,6 +186,35 @@ pub(super) fn pair_samples_cached(
         .collect()
 }
 
+/// Boolean equivalent of the ordinary metric edge test for a connected or
+/// reference graph. Test both directed floors at each synchronized instant.
+pub(super) fn accepts_metric_edge(
+    coverage: &Coverage,
+    reference: &[VisibilityView],
+    candidate: &[VisibilityView],
+    policy: &MultiViewSettings,
+    static_pair: bool,
+) -> bool {
+    debug_assert_eq!(reference.len(), CHECK_TIMES.len());
+    debug_assert_eq!(candidate.len(), CHECK_TIMES.len());
+    let min = if policy.graph == OverlapGraph::Connected {
+        policy.min_baseline
+    } else {
+        policy.min_baseline.max(policy.min_reference_baseline)
+    };
+    reference
+        .iter()
+        .zip(candidate)
+        .take(if static_pair { 1 } else { CHECK_TIMES.len() })
+        .all(|(a, b)| {
+            let d = a.pose.translation.distance(b.pose.translation);
+            d + 1e-5 >= min
+                && d <= policy.max_baseline + 1e-5
+                && coverage.reaches_overlap(a, b, policy.min_overlap)
+                && coverage.reaches_overlap(b, a, policy.min_overlap)
+        })
+}
+
 /// Each reference-edge constraint must hold at every checkpoint. A failed
 /// checkpoint decides this candidate before later views need to be ray cast.
 fn qualifying_peer_views(
@@ -579,7 +608,7 @@ impl IndoorManifest {
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
-                    let rejection = if !self.camera_clear(candidate.start) {
+                    let rejection = if !coverage.clearance.point_clear(self, candidate.start) {
                         Some(0)
                     } else if !super::rig::accepts_geometry(
                         &policy,
@@ -596,7 +625,7 @@ impl IndoorManifest {
                         &candidate,
                     ) {
                         Some(2)
-                    } else if !self.camera_curve_clear(&candidate) {
+                    } else if !coverage.clearance.curve_clear(self, &candidate) {
                         Some(3)
                     } else if !coverage.suitable(&candidate, false) {
                         Some(4)
@@ -757,7 +786,7 @@ impl IndoorManifest {
                     .all(|(index, camera)| {
                         self.camera_settings
                             .bind_room_roll(self.seed, index, camera);
-                        self.camera_curve_clear(camera)
+                        coverage.clearance.curve_clear(self, camera)
                             && coverage.suitable(camera, false)
                             && policy.accepts(&pair_samples(
                                 &coverage,

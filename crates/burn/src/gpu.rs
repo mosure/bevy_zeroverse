@@ -158,6 +158,8 @@ impl GpuView {
 /// allocation are automatic; consumers retain samples for as long as needed.
 struct Renderer {
     app: App,
+    copiers: QueryState<&'static ImageCopier>,
+    copy_indices: Vec<usize>,
     device: Option<Device>,
     #[cfg(all(feature = "cuda_ipc", target_os = "linux"))]
     export: Option<ipc::pool::ExportPool>,
@@ -267,8 +269,12 @@ impl Renderer {
         app.world_mut()
             .resource_mut::<procedural_indoor::preparation::IndoorPrefetch>()
             .depth = runtime.preparation_depth;
+        let copiers = app.world_mut().query::<&ImageCopier>();
+        let copy_indices = spec.plan.binding_indices();
         Ok(Self {
             app,
+            copiers,
+            copy_indices,
             device,
             queued_seed: None,
             config,
@@ -283,6 +289,55 @@ impl Renderer {
             export,
         })
     }
+    fn bind_targets(&mut self, expected_views: usize) -> Result<()> {
+        // A metadata-only final update never needs more storage. The ECS query
+        // follows new camera archetypes across regenerations and borrows each
+        // copier directly, including on idle updates while a room is preparing.
+        if self.app.world().resource::<GpuSampleSink>().images.len() >= expected_views {
+            return Ok(());
+        }
+        let mut copiers = self
+            .copiers
+            .iter(self.app.world())
+            .filter(|copier| !copier.gpu_target_armed())
+            .peekable();
+        while let Some(copier) = copiers.next() {
+            let mut shape = copier.gpu_shape();
+            ensure!(
+                shape[0] == self.spec.plan.rendered.len(),
+                "renderer attachments differ from resolved policy"
+            );
+            shape[0] = self.spec.plan.copied.len();
+            self.next_token = self
+                .next_token
+                .checked_add(1)
+                .context("GPU capture token overflow")?;
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
+            if let Some(bridge) = &mut self.cuda {
+                let mut target = bridge.allocate(shape, self.next_token)?;
+                target.source_indices.clone_from(&self.copy_indices);
+                copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
+                continue;
+            }
+            #[cfg(all(feature = "cuda_ipc", target_os = "linux"))]
+            if let Some(export) = &mut self.export {
+                let mut target = export.allocate(shape, self.next_token)?;
+                target.source_indices.clone_from(&self.copy_indices);
+                copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
+                continue;
+            }
+            let tensor =
+                Tensor::<4>::empty(shape, self.device.as_ref().expect("WGPU capture device"));
+            // All allocations are resolved on this producer stream. Flush
+            // it once before Bevy submits copies, rather than once per view.
+            let mut target = target(tensor.clone(), self.next_token, copiers.peek().is_none())?;
+            target.source_indices.clone_from(&self.copy_indices);
+            copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
+            self.tensors.insert(self.next_token, tensor);
+        }
+        Ok(())
+    }
+
     pub fn device(&self) -> &Device {
         self.device
             .as_ref()
@@ -307,7 +362,13 @@ impl Renderer {
                     .context("unknown GPU target")
             })
             .collect::<Result<Vec<_>>>()?;
-        let sample = pack_sample(&self.spec, self.device(), metadata, tensors, None)?;
+        let sample = pack_sample(
+            &self.spec,
+            self.device(),
+            metadata,
+            tensors.into_iter().map(|tensor| (tensor, 0)),
+            None,
+        )?;
         self.tensors.clear();
         if let Some(timing) = &mut self.last_capture_timings {
             timing.tensor_pack_seconds += start.elapsed().as_secs_f64();
@@ -375,56 +436,7 @@ impl Renderer {
                 diagnostics::timeout_context(self.app.world())
             );
             let binding_started = Instant::now();
-            // The sampler has a final metadata update after taking the last
-            // planes. Do not allocate another set of targets for that update.
-            let copiers: Vec<_> =
-                if self.app.world().resource::<GpuSampleSink>().images.len() >= expected_views {
-                    Vec::new()
-                } else {
-                    self.app
-                        .world_mut()
-                        .query::<&ImageCopier>()
-                        .iter(self.app.world())
-                        .cloned()
-                        .collect()
-                };
-            let mut copiers = copiers
-                .into_iter()
-                .filter(|copier| !copier.gpu_target_armed())
-                .peekable();
-            while let Some(copier) = copiers.next() {
-                let mut shape = copier.gpu_shape();
-                ensure!(
-                    shape[0] == self.spec.plan.rendered.len(),
-                    "renderer attachments differ from resolved policy"
-                );
-                shape[0] = self.spec.plan.copied.len();
-                self.next_token = self
-                    .next_token
-                    .checked_add(1)
-                    .context("GPU capture token overflow")?;
-                #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
-                if let Some(bridge) = &mut self.cuda {
-                    let mut target = bridge.allocate(shape, self.next_token)?;
-                    target.source_indices = self.spec.plan.source_indices();
-                    copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
-                    continue;
-                }
-                #[cfg(all(feature = "cuda_ipc", target_os = "linux"))]
-                if let Some(export) = &mut self.export {
-                    let mut target = export.allocate(shape, self.next_token)?;
-                    target.source_indices = self.spec.plan.source_indices();
-                    copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
-                    continue;
-                }
-                let tensor = Tensor::<4>::empty(shape, self.device());
-                // All allocations are resolved on this producer stream. Flush
-                // it once before Bevy submits copies, rather than once per view.
-                let mut target = target(tensor.clone(), self.next_token, copiers.peek().is_none())?;
-                target.source_indices = self.spec.plan.source_indices();
-                copier.bind_gpu_target(target).map_err(anyhow::Error::msg)?;
-                self.tensors.insert(self.next_token, tensor);
-            }
+            self.bind_targets(expected_views)?;
             target_binding_seconds += binding_started.elapsed().as_secs_f64();
             let update_started = Instant::now();
             self.app.update();
@@ -455,12 +467,7 @@ impl Renderer {
         }
         bevy::log::debug!(target: "bevy_zeroverse_burn::gpu", seed, updates, target_binding_seconds, app_update_seconds, waiting_updates = self.app.world().resource::<bevy_zeroverse::sample::CaptureProgress>().waiting_updates - waiting_before, seconds = start.elapsed().as_secs_f64(), "GPU capture submitted");
         let mut sink = std::mem::take(&mut *self.app.world_mut().resource_mut::<GpuSampleSink>());
-        for copier in self
-            .app
-            .world_mut()
-            .query::<&ImageCopier>()
-            .iter(self.app.world())
-        {
+        for copier in self.copiers.iter(self.app.world()) {
             copier.unbind_idle_gpu_target();
         }
         let interop_started = Instant::now();
@@ -485,7 +492,7 @@ impl Renderer {
                 "base_gpu_copies_per_attachment": 1,
                 "shared_device_and_queue": true,
                 "producer_completion_fence": false,
-                "allocated_host_readback_bytes": self.app.world_mut().query::<&ImageCopier>().iter(self.app.world()).map(ImageCopier::allocated_readback_bytes).sum::<u64>(),
+                "allocated_host_readback_bytes": self.copiers.iter(self.app.world()).map(ImageCopier::allocated_readback_bytes).sum::<u64>(),
                 "padding_removal": "GPU only, if required by image width"
             });
             #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
@@ -570,19 +577,24 @@ impl Renderer {
     }
 }
 
-fn pack_sample(
+/// Each input identifies its first copied plane. The IPC path holds the entire
+/// room in one tensor and supplies the converted color batch when RGB is requested.
+fn pack_sample<T: std::borrow::Borrow<Tensor<4>>>(
     spec: &ResolvedCaptureSpec,
     device: &Device,
     mut metadata: bevy_zeroverse::sample::Sample,
-    tensors: Vec<Tensor<4>>,
+    tensors: impl ExactSizeIterator<Item = (T, usize)>,
     color_batch: Option<Tensor<4>>,
 ) -> Result<GpuSample> {
     ensure!(
-        tensors.len() == spec.views && metadata.views.len() == spec.views,
-        "GPU view count mismatch"
+        tensors.len() == spec.views
+            && metadata.views.len() == spec.views
+            && metadata.view_dim as usize == spec.scene().num_cameras,
+        "GPU view count or camera order stride mismatch"
     );
     let width = spec.spec.scene.width as usize;
     let height = spec.spec.scene.height as usize;
+    let cameras = metadata.view_dim as usize;
     let flow = spec
         .spec
         .scene
@@ -590,8 +602,10 @@ fn pack_sample(
         .iter()
         .any(bevy_zeroverse::render::RenderMode::is_flow);
     let mut views = Vec::with_capacity(tensors.len());
-    for (index, tensor) in tensors.into_iter().enumerate() {
-        let plane = |i| {
+    for (index, (tensor, first_plane)) in tensors.enumerate() {
+        let tensor = tensor.borrow();
+        let plane = |offset: usize| {
+            let i = first_plane + offset;
             tensor
                 .clone()
                 .slice([i..i + 1, 0..height, 0..width, 0..4])
@@ -613,57 +627,64 @@ fn pack_sample(
         } else {
             spec.plan
                 .index(Plane::Color)
-                .map(|i| color::convert(tensor.clone(), i, width, spec.color_output()))
+                .map(|i| {
+                    color::convert(tensor.clone(), first_plane + i, width, spec.color_output())
+                })
                 .transpose()?
         };
         views.push(GpuView {
             color,
             world_depth: optional(Plane::WorldDepth),
             normal_semantic: optional(Plane::NormalSemantic),
-            optical_flow: optional(Plane::OpticalFlow),
+            // Target zero has no preceding source. Its flow is never exported.
+            optical_flow: if index >= cameras {
+                optional(Plane::OpticalFlow)
+            } else {
+                None
+            },
             motion_vectors: None,
             co_visibility: optional(Plane::CoVisibility),
         });
     }
     if flow {
-        let cameras = metadata.view_dim as usize;
+        let output_flow = spec
+            .scene()
+            .render_modes
+            .contains(&bevy_zeroverse::render::RenderMode::OpticalFlow);
+        let output_vectors = spec
+            .scene()
+            .render_modes
+            .contains(&bevy_zeroverse::render::RenderMode::MotionVectors);
+        // All terminal flows are invalid zeros. Share that immutable device
+        // allocation across cameras and normalized-vector aliases.
+        let terminal = Tensor::zeros([height, width, 4], device);
         // The raster writes source N-1 when target N is rendered. Shift by
         // one timestep exactly like CPU export; terminal sources are invalid.
         for source in 0..views.len() {
-            views[source].optical_flow = if source + cameras < views.len() {
-                views[source + cameras].optical_flow.take()
+            let next = source + cameras;
+            let pixels = if next < views.len() {
+                views[next]
+                    .optical_flow
+                    .take()
+                    .context("optical flow dependency missing")?
             } else {
-                Some(Tensor::zeros([height, width, 4], device))
+                terminal.clone()
             };
-        }
-    }
-    if spec
-        .scene()
-        .render_modes
-        .contains(&bevy_zeroverse::render::RenderMode::MotionVectors)
-    {
-        for view in &mut views {
-            let source = view
-                .optical_flow
-                .as_ref()
-                .context("motion-vector dependency missing")?;
-            view.motion_vectors = Some(Tensor::cat(
-                vec![
-                    source.clone().slice([0..height, 0..width, 0..1]) / width as f32,
-                    source.clone().slice([0..height, 0..width, 1..2]) / height as f32,
-                    source.clone().slice([0..height, 0..width, 2..4]),
-                ],
-                2,
-            ));
-        }
-    }
-    if !spec
-        .scene()
-        .render_modes
-        .contains(&bevy_zeroverse::render::RenderMode::OpticalFlow)
-    {
-        for view in &mut views {
-            view.optical_flow = None;
+            if output_vectors {
+                views[source].motion_vectors = Some(if next < views.len() {
+                    Tensor::cat(
+                        vec![
+                            pixels.clone().slice([0..height, 0..width, 0..1]) / width as f32,
+                            pixels.clone().slice([0..height, 0..width, 1..2]) / height as f32,
+                            pixels.clone().slice([0..height, 0..width, 2..4]),
+                        ],
+                        2,
+                    )
+                } else {
+                    terminal.clone()
+                });
+            }
+            views[source].optical_flow = output_flow.then_some(pixels);
         }
     }
     metadata.color_encoding = if spec.color_output().is_srgb() {
@@ -741,6 +762,7 @@ fn primitive(tensor: Tensor<4>) -> Result<CubeTensor> {
 #[cfg(test)]
 mod tests {
     mod eligibility;
+    mod packing;
     use super::*;
     use bevy_zeroverse::{
         headless::update_capture,
@@ -1146,8 +1168,11 @@ mod tests {
     #[test]
     #[ignore = "native GPU: aligned 512x512 planes share the capture allocation without GPU slicing copies"]
     fn gpu_aligned_planes_share_capture_allocation() -> Result<()> {
-        let device = Device::wgpu(Default::default());
-        let tensor = Tensor::<4>::empty([5, 512, 512, 4], &device);
+        // Capture tensors live on the Bevy device registered with Burn. A
+        // standalone default device can select a different adapter or limits.
+        setup_test_assets();
+        let dataset = GpuLiveDataset::indoor()?;
+        let tensor = Tensor::<4>::empty([5, 512, 512, 4], dataset.device());
         let allocation = target(tensor.clone(), 0, true)?;
         for plane in 0..5 {
             let view = tensor
@@ -1192,6 +1217,7 @@ mod tests {
             Transport::Wgpu => GpuLiveDataset::new(config)?,
             #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
             Transport::Cuda => GpuLiveDataset::new_cuda(config)?,
+            #[cfg(all(feature = "cuda_interop", target_os = "linux"))]
             _ => unreachable!(),
         };
         let retained = dataset.next_sample()?;

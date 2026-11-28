@@ -1,11 +1,11 @@
 //! Conservative broad phase only: camera decisions retain the scalar OBB test,
 //! original collider order for ties, and the complete candidate/ray population.
 use super::Collider;
-use bevy::prelude::*;
+use bevy::{math::Vec3A, prelude::*};
 
 struct Bounds {
-    lo: Vec3,
-    hi: Vec3,
+    lo: Vec3A,
+    hi: Vec3A,
 }
 impl Bounds {
     fn collider(c: &Collider) -> Self {
@@ -17,11 +17,26 @@ impl Bounds {
         // thin boxes and rays on a face; never change narrow-phase clearances.
         let padding = (c.center.abs() + extent + Vec3::ONE) * 0.0001;
         Self {
-            lo: c.center - extent - padding,
-            hi: c.center + extent + padding,
+            lo: (c.center - extent - padding).into(),
+            hi: (c.center + extent + padding).into(),
         }
     }
-    fn intersects(&self, origin: Vec3, ray: Vec3, limit: f32) -> bool {
+    #[inline]
+    fn intersects(&self, ray: &SlabRay, limit: f32) -> bool {
+        if ray.finite_inverse {
+            let a = (self.lo - ray.origin) * ray.inverse;
+            let b = (self.hi - ray.origin) * ray.inverse;
+            let near = a.min(b).max_element().max(0.0);
+            let far = a.max(b).min_element().min(limit);
+            // Multiplication by a rounded reciprocal can disagree with division
+            // at touching slabs. Widen only broad-phase comparisons. Triangle
+            // and OBB hits retain the original division and exclusive limit.
+            return near <= far + far.abs() * (4. * f32::EPSILON) + f32::MIN_POSITIVE;
+        }
+        // Parallel rays can start on a slab face; avoid 0 * infinity. This
+        // also handles tiny, nonzero components whose reciprocal overflows.
+        let origin = ray.origin;
+        let ray = ray.direction;
         let mut near = 0.0_f32;
         let mut far = limit;
         for axis in 0..3 {
@@ -43,11 +58,19 @@ impl Bounds {
     }
 }
 
+struct SlabRay {
+    origin: Vec3A,
+    direction: Vec3,
+    inverse: Vec3A,
+    finite_inverse: bool,
+}
+
 struct Node {
     bounds: Bounds,
     start: usize,
     count: usize,
     right: usize,
+    axis: usize,
 }
 
 pub(super) struct Index {
@@ -65,8 +88,8 @@ impl Index {
         Self { nodes, order }
     }
     fn build(order: &mut [usize], start: usize, bounds: &[Bounds], nodes: &mut Vec<Node>) {
-        let mut lo = Vec3::splat(f32::INFINITY);
-        let mut hi = Vec3::splat(f32::NEG_INFINITY);
+        let mut lo = Vec3A::splat(f32::INFINITY);
+        let mut hi = Vec3A::splat(f32::NEG_INFINITY);
         for &i in order.iter() {
             lo = lo.min(bounds[i].lo);
             hi = hi.max(bounds[i].hi);
@@ -77,8 +100,9 @@ impl Index {
             start,
             count: order.len(),
             right: 0,
+            axis: 0,
         });
-        if order.len() <= 8 {
+        if order.len() <= 4 {
             return;
         }
         let extent = hi - lo;
@@ -89,6 +113,7 @@ impl Index {
         } else {
             2
         };
+        nodes[node].axis = axis;
         let middle = order.len() / 2;
         order.select_nth_unstable_by(middle, |&a, &b| {
             (bounds[a].lo[axis] + bounds[a].hi[axis])
@@ -110,60 +135,53 @@ impl Index {
         limit: f32,
         skip_people: bool,
     ) -> Option<(usize, f32)> {
-        struct Query<'a> {
-            index: &'a Index,
-            colliders: &'a [Collider],
-            origin: Vec3,
-            ray: Vec3,
-            limit: f32,
-            skip_people: bool,
-            best: Option<(usize, f32)>,
+        if self.nodes.is_empty() {
+            return None;
         }
-        impl Query<'_> {
-            fn visit(&mut self, node: usize) {
-                let n = &self.index.nodes[node];
-                if !n.bounds.intersects(
-                    self.origin,
-                    self.ray,
-                    self.best.map_or(self.limit, |v| v.1),
-                ) {
-                    return;
+        let inverse = Vec3A::from(ray).recip();
+        let slabs = SlabRay {
+            origin: origin.into(),
+            direction: ray,
+            inverse,
+            finite_inverse: inverse.is_finite(),
+        };
+        let mut best: Option<(usize, f32)> = None;
+        // Median splits halve the population at each branch. One pending far
+        // child per level fits even the largest addressable slice.
+        let mut stack = [0usize; usize::BITS as usize];
+        let mut pending = 1;
+        while pending > 0 {
+            pending -= 1;
+            let node = stack[pending];
+            let n = &self.nodes[node];
+            if !n.bounds.intersects(&slabs, best.map_or(limit, |v| v.1)) {
+                continue;
+            }
+            if n.count == 0 {
+                let (near, far) = if ray[n.axis] >= 0. {
+                    (node + 1, n.right)
+                } else {
+                    (n.right, node + 1)
+                };
+                stack[pending] = far;
+                stack[pending + 1] = near;
+                pending += 2;
+                continue;
+            }
+            for &id in &self.order[n.start..n.start + n.count] {
+                let c = &colliders[id];
+                if skip_people && c.label == "person" {
+                    continue;
                 }
-                if n.count == 0 {
-                    let right = n.right;
-                    self.visit(node + 1);
-                    self.visit(right);
-                    return;
-                }
-                for &id in &self.index.order[n.start..n.start + n.count] {
-                    let c = &self.colliders[id];
-                    if self.skip_people && c.label == "person" {
-                        continue;
-                    }
-                    if let Some(distance) = c.hit(self.origin, self.ray).filter(|&d| d < self.limit)
+                if let Some(distance) = c.hit(origin, ray).filter(|&d| d < limit) {
+                    if best.is_none_or(|(old, d)| distance.total_cmp(&d).then(id.cmp(&old)).is_lt())
                     {
-                        if self.best.is_none_or(|(old, d)| {
-                            distance.total_cmp(&d).then(id.cmp(&old)).is_lt()
-                        }) {
-                            self.best = Some((id, distance));
-                        }
+                        best = Some((id, distance));
                     }
                 }
             }
         }
-        let mut query = Query {
-            index: self,
-            colliders,
-            origin,
-            ray,
-            limit,
-            skip_people,
-            best: None,
-        };
-        if !self.nodes.is_empty() {
-            query.visit(0);
-        }
-        query.best
+        best
     }
 }
 
@@ -219,6 +237,7 @@ mod tests {
                 1 => -Vec3::Y,
                 2 => Vec3::Z,
                 3 => Vec3::new(1e-8, -0.0, -1.0),
+                4 => Vec3::new(f32::from_bits(1), f32::MIN_POSITIVE, 1.0),
                 _ => Vec3::new(
                     rng.random_range(-1.0..1.0),
                     rng.random_range(-1.0..1.0),

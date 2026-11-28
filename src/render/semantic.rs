@@ -125,11 +125,19 @@ pub enum SemanticLabel {
     RetailFixture,
     SportsEquipment,
     Bleacher,
+    Easel,
+    Workbench,
+    Workpiece,
+    ShoppingBasket,
+    WashingMachine,
+    TumbleDryer,
+    MusicStand,
+    MusicalInstrument,
 }
 
 impl SemanticLabel {
     /// Versioned, authoritative vocabulary for rendered colors and exports.
-    pub const TAXONOMY_VERSION: u32 = 15;
+    pub const TAXONOMY_VERSION: u32 = 20;
     pub const ALL: &[Self] = &[
         Self::Wall,
         Self::Floor,
@@ -239,6 +247,14 @@ impl SemanticLabel {
         Self::RetailFixture,
         Self::SportsEquipment,
         Self::Bleacher,
+        Self::Easel,
+        Self::Workbench,
+        Self::Workpiece,
+        Self::ShoppingBasket,
+        Self::WashingMachine,
+        Self::TumbleDryer,
+        Self::MusicStand,
+        Self::MusicalInstrument,
     ];
 
     pub fn color(&self) -> Color {
@@ -246,6 +262,14 @@ impl SemanticLabel {
         match self {
             SemanticLabel::CeilingFan => Color::srgb_u8(92, 164, 211),
             SemanticLabel::ExitSign => Color::srgb_u8(48, 218, 173),
+            SemanticLabel::Workbench => Color::srgb_u8(119, 88, 160),
+            SemanticLabel::WashingMachine => Color::srgb_u8(101, 168, 221),
+            SemanticLabel::MusicStand => Color::srgb_u8(67, 136, 155),
+            SemanticLabel::MusicalInstrument => Color::srgb_u8(171, 98, 56),
+            SemanticLabel::TumbleDryer => Color::srgb_u8(218, 150, 93),
+            SemanticLabel::ShoppingBasket => Color::srgb_u8(42, 158, 205),
+            SemanticLabel::Workpiece => Color::srgb_u8(222, 174, 88),
+            SemanticLabel::Easel => Color::srgb_u8(96, 148, 55),
             SemanticLabel::Bleacher => Color::srgb_u8(152, 119, 207),
             SemanticLabel::SportsEquipment => Color::srgb_u8(223, 95, 137),
             SemanticLabel::RetailFixture => Color::srgb_u8(82, 169, 148),
@@ -359,6 +383,14 @@ impl SemanticLabel {
         match name {
             "ceiling_fan" => Some(SemanticLabel::CeilingFan),
             "exit_sign" => Some(SemanticLabel::ExitSign),
+            "workbench" => Some(SemanticLabel::Workbench),
+            "washing_machine" => Some(Self::WashingMachine),
+            "music_stand" => Some(Self::MusicStand),
+            "musical_instrument" => Some(Self::MusicalInstrument),
+            "tumble_dryer" => Some(Self::TumbleDryer),
+            "shopping_basket" => Some(SemanticLabel::ShoppingBasket),
+            "workpiece" => Some(SemanticLabel::Workpiece),
+            "easel" => Some(SemanticLabel::Easel),
             "bleacher" => Some(SemanticLabel::Bleacher),
             "sports_equipment" => Some(SemanticLabel::SportsEquipment),
             "retail_fixture" => Some(SemanticLabel::RetailFixture),
@@ -507,6 +539,14 @@ impl SemanticLabel {
             SemanticLabel::RetailFixture => "retail_fixture",
             SemanticLabel::SportsEquipment => "sports_equipment",
             SemanticLabel::Bleacher => "bleacher",
+            SemanticLabel::Easel => "easel",
+            SemanticLabel::Workbench => "workbench",
+            SemanticLabel::Workpiece => "workpiece",
+            SemanticLabel::ShoppingBasket => "shopping_basket",
+            Self::WashingMachine => "washing_machine",
+            Self::MusicStand => "music_stand",
+            Self::MusicalInstrument => "musical_instrument",
+            Self::TumbleDryer => "tumble_dryer",
             SemanticLabel::FireAlarm => "fire_alarm",
             SemanticLabel::StringLights => "string_lights",
             SemanticLabel::FireDetector => "fire_detector",

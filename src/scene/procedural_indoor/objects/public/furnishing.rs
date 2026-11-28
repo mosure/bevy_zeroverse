@@ -1,5 +1,6 @@
 //! Lecterns and teaching stations: independent structure, ergonomics and finish.
 use super::*;
+pub mod lectern;
 pub mod teaching_board;
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -24,6 +25,8 @@ pub struct TeachingProgram {
     pub crossbar_height: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub writing_board: Option<teaching_board::Installation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reading_desk: Option<lectern::ReadingDesk>,
 }
 pub fn parameters(o: &IndoorObject) -> TeachingProgram {
     parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
@@ -55,12 +58,15 @@ pub(crate) fn parameters_at(o: &IndoorObject, version: u32) -> TeachingProgram {
         foot_depth: r.random_range(0.65..0.95),
         crossbar_height: r.random_range(0.20..0.72),
         writing_board: None,
+        reading_desk: None,
     };
     if o.kind == ObjectKind::TeachingBoard && version >= teaching_board::INTRODUCED {
         let (size, pose) = board_section(o, &p);
         let installation = teaching_board::Installation::fit(o, &p, size, pose);
         p.panels = installation.leaves.len();
         p.writing_board = Some(installation);
+    } else if o.kind == ObjectKind::Lectern && version >= lectern::VERSION {
+        p.reading_desk = Some(lectern::ReadingDesk::fit(o, &p));
     }
     p
 }
@@ -78,17 +84,19 @@ fn lectern(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
     let width = s.x * p.board_fraction.x;
     let depth = s.z * 0.88;
     let thickness = p.thickness.min(s.y * 0.035);
-    let top_y = s.y * 0.97 - depth * p.desk_angle.sin() * 0.5 - thickness;
+    let top_y = s.y * 0.97
+        - depth * p.desk_angle.sin() * 0.5
+        - thickness
+        - p.reading_desk.as_ref().map_or(0., |desk| desk.deck_drop_m);
     let tf = Transform::from_xyz(s.x * p.panel_offset * 0.2, top_y, 0.)
         .with_rotation(Quat::from_rotation_x(p.desk_angle));
     if p.structure < 2 {
-        supports::build(
-            a,
-            o,
-            &p.support,
-            p.finish,
-            tf.translation - Vec3::Y * thickness * 0.5,
-        );
+        let joint = if p.reading_desk.is_some() {
+            lectern::mount(a, o, p, tf, thickness)
+        } else {
+            tf.translation - Vec3::Y * thickness * 0.5
+        };
+        supports::build(a, o, &p.support, p.finish, joint);
     } else {
         let foot = s.y * 0.035;
         for x in [-0.32, 0.32] {
@@ -139,6 +147,10 @@ fn lectern(a: &mut Assembly, o: &IndoorObject, p: &TeachingProgram) {
                 s.x.min(s.z) * 0.022,
             );
         }
+    }
+    if let Some(desk) = &p.reading_desk {
+        desk.build(a, o, p.finish, Vec3::new(width, thickness, depth), tf);
+        return;
     }
     a.part(p.finish, l)
         .cuboid(Vec3::new(width, thickness, depth), 0.005, tf);

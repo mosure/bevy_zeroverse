@@ -1,6 +1,7 @@
 //! The manifest, runtime, camera heatmaps and collision validation share one path.
 mod baseline;
 pub mod ceiling;
+pub(super) mod clearance;
 pub mod coherence;
 pub(crate) mod coverage;
 pub mod diagnostics;
@@ -16,6 +17,8 @@ pub mod rig;
 mod roll;
 pub use roll::{horizon_roll_radians, RollDistribution};
 mod sampling;
+#[cfg(test)]
+mod stage41_tests;
 pub mod viewpoint;
 use super::layout::{IndoorCamera, IndoorManifest};
 use crate::camera::{
@@ -387,139 +390,19 @@ impl IndoorManifest {
         self.primary_region().contains_projection(p.xz(), clearance)
     }
     pub fn camera_curve_clear(&self, camera: &IndoorCamera) -> bool {
-        if camera.ceiling_mount.is_some() {
-            return ceiling::mount_clear(self, camera);
-        }
-        use super::layout::{segment_hits_box, CAMERA_CLEARANCE};
-        // Fisheye clips radially at 10 cm. Its independent pinhole FOV draw is
-        // not its projection, and must not inflate the swept lens volume.
-        let clearance = CAMERA_CLEARANCE.max(if camera.fisheye.is_some() {
-            0.101
-        } else {
-            intrinsics::near_clearance(
-                camera.fov_degrees,
-                self.camera_aspect_ratio,
-                camera
-                    .principal_point_offset
-                    .unwrap_or(self.camera_settings.principal_point_jitter),
-            )
-        });
-        if !clearance.is_finite() {
-            return false;
-        }
-        let mut runtime = camera.runtime_trajectory();
-        let (control, error) = if let TrajectorySampler::CubicBezier { positions, .. } = &runtime {
-            // The linear interpolation error on a subinterval is <= max|P''| h²/8.
-            // Inflate each swept chord by that bound, not just sampled positions.
-            let second = 6.0
-                * (positions[0] - 2.0 * positions[1] + positions[2])
-                    .length()
-                    .max((positions[1] - 2.0 * positions[2] + positions[3]).length());
-            (positions.to_vec(), second / (8.0 * 64.0 * 64.0))
-        } else if let TrajectorySampler::WaypointPath { positions, .. } = &runtime {
-            if positions.len() < 2 {
-                return false;
-            }
-            (positions.clone(), 0.0)
-        } else {
-            (vec![camera.start, camera.end], 0.0)
-        };
-        let ceiling = self.room_size.y
-            - self
-                .program
-                .as_ref()
-                .map_or([0.10, 0.42, 0.06][self.lighting_design as usize % 3], |p| {
-                    p.light_drop
-                })
-            - 0.04
-            - clearance;
-        // A Bezier stays inside the convex hull of its control points.
-        if control.iter().any(|p| {
-            !p.is_finite()
-                || p.x.abs() > self.room_size.x * 0.5 - 0.50_f32.max(clearance)
-                || p.z.abs() > self.room_size.z * 0.5 - 0.50_f32.max(clearance)
-                || p.y < 0.70_f32.max(clearance)
-                || p.y > ceiling
-                || (self.camera_settings.primary_room && !self.in_primary_room(*p, clearance))
-        }) {
-            return false;
-        }
-        let obstacles: Vec<_> = self
-            .camera_obstacles()
-            .into_iter()
-            .chain(
-                self.objects
-                    .iter()
-                    .flat_map(super::layout::IndoorObject::obstacle_bounds),
-            )
-            .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
-            .collect();
-        let pad = Vec3::splat(clearance + error);
-        // Check every routed segment at the actual lens clearance; a temporal
-        // sample grid can straddle a short corner and miss the original route.
-        if matches!(runtime, TrajectorySampler::WaypointPath { .. })
-            && control.windows(2).any(|p| {
-                self.envelope
-                    .as_ref()
-                    .is_some_and(|e| !e.segment_clear(self.room_size, p[0], p[1], clearance))
-                    || obstacles
-                        .iter()
-                        .any(|(lo, hi)| segment_hits_box(p[0], p[1], *lo - pad, *hi + pad))
-            })
-        {
-            return false;
-        }
-        // The upright prior belongs to automatic look-at paths. A handheld
-        // request may intentionally bank farther while clearing the same swept lens volume.
-        let limit_automatic_bank = camera
-            .motion
-            .as_ref()
-            .is_none_or(|m| m.orientations.is_none());
-        // Interpolation can add a little bank between independently aimed knots.
-        let max_slope = self
-            .camera_settings
-            .roll
-            .support_degrees()
-            .max(8.05)
-            .to_radians()
-            .tan();
-        let mut previous = runtime.sample(0.0).translation;
-        for i in 0..=64 {
-            let pose = runtime.sample(i as f32 / 64.0);
-            if pose.translation.y
-                < self.floor_height(pose.translation.xz()) + 0.70_f32.max(clearance)
-                || !pose.rotation.is_finite()
-                || self.envelope.as_ref().is_some_and(|e| {
-                    !e.segment_clear(
-                        self.room_size,
-                        previous,
-                        pose.translation,
-                        clearance + error,
-                    )
-                })
-                || pose.translation.y
-                    > self.ceiling_height(pose.translation.xz()) - (self.room_size.y - ceiling)
-                || (limit_automatic_bank && {
-                    let gravity_up = pose.rotation.inverse() * Vec3::Y;
-                    gravity_up.x.abs() > max_slope * gravity_up.y + 1e-5
-                })
-                || pose.translation.distance(camera.target) < 1.5
-                || obstacles.iter().any(|(lo, hi)| {
-                    segment_hits_box(previous, pose.translation, *lo - pad, *hi + pad)
-                        || segment_hits_box(
-                            pose.translation,
-                            pose.translation + pose.rotation * Vec3::NEG_Z,
-                            *lo - Vec3::splat(0.01),
-                            *hi + Vec3::splat(0.01),
-                        )
-                })
-            {
-                return false;
-            }
-            previous = pose.translation;
-        }
-        true
+        clearance::Clearance::default().curve_clear(self, camera)
     }
+}
+
+/// Camera-free regression room from the 0.75.0 generator. Its furnishing and
+/// the fixed eight-camera policy form the previously admitted training fixture.
+#[cfg(test)]
+fn training_studio_fixture() -> IndoorManifest {
+    let archive = include_bytes!("../../../tests/fixtures/studio_65573956_g293.json.zst");
+    let reader = ruzstd::decoding::StreamingDecoder::new(&archive[..]).unwrap();
+    let scene: IndoorManifest = serde_json::from_reader(reader).unwrap();
+    assert_eq!((scene.seed, scene.generator_version), (65_573_956, 293));
+    scene
 }
 
 #[cfg(test)]
@@ -574,7 +457,8 @@ mod tests {
         let b = Vec3::new(3.0, 1.5, 0.0);
         assert!(scene.camera_path_clear(a, a) && scene.camera_path_clear(b, b));
         assert!(!scene.camera_path_clear(a, b));
-        let route = super::navigation::route(&scene, a, b).expect("route around central obstacle");
+        let route = super::navigation::route(&scene, &Default::default(), a, b)
+            .expect("route around central obstacle");
         assert!(route.len() > 2);
         assert!(route
             .windows(2)

@@ -7,6 +7,7 @@ use crate::scene::procedural_indoor::{
 use rand::seq::SliceRandom;
 
 mod bays;
+mod espresso;
 mod hot_service;
 mod station;
 pub(super) use station::staff_access;
@@ -42,6 +43,9 @@ impl IndoorManifest {
         for counter in counters {
             if activity == IndoorLayout::Restaurant {
                 self.stock_waiter_station(&counter, r);
+                continue;
+            }
+            if activity == IndoorLayout::Cafe && self.fit_espresso_bar(&counter) {
                 continue;
             }
             let service = if communal {

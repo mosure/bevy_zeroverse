@@ -536,7 +536,7 @@ fn late_upload_releases_staged_handles_and_cpu_fallback_shares_the_seed_deadline
             .world()
             .resource::<preparation::residency::FutureAssets>()
             .material_bakes
-            .1
+            .reflections()
             .is_empty());
     }
     tick(&mut app, 1000);

@@ -3,6 +3,10 @@ use crate::{app::BevyZeroverseConfig, headless::create_app, io::image_copy::Imag
 use std::time::{Duration, Instant};
 
 fn test_app() -> App {
+    test_app_with(|_| {})
+}
+
+fn test_app_with(configure: impl FnOnce(&mut App)) -> App {
     let mut app = create_app(
         None,
         Some(BevyZeroverseConfig {
@@ -16,6 +20,7 @@ fn test_app() -> App {
         }),
         false,
     );
+    configure(&mut app);
     app.finish();
     app.cleanup();
     app
@@ -70,8 +75,12 @@ fn fixture(
 }
 
 fn wait(app: &mut App, copiers: &[&ImageCopier]) {
+    wait_for(app, copiers, 1);
+}
+
+fn wait_for(app: &mut App, copiers: &[&ImageCopier], request: u64) {
     let start = Instant::now();
-    while copiers.iter().any(|c| !c.ready(1)) {
+    while copiers.iter().any(|c| !c.ready(request)) {
         app.update();
         for copier in copiers {
             assert!(copier.failure().is_none(), "{:?}", copier.failure());
@@ -229,4 +238,70 @@ fn gpu_sensor_preserves_masks_and_obeys_image_formation() {
             "{mean}, {observed}, {expected}"
         );
     }
+}
+
+#[test]
+#[ignore = "requires native Vulkan: logical sensor eligibility switches on one live view"]
+fn alternating_sensor_roles_reuse_one_binding_and_keep_clean_pixels_exact() {
+    use std::sync::Mutex;
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let record = observed.clone();
+    let mut app = test_app_with(|app| {
+        app.sub_app_mut(RenderApp).add_systems(
+            Render,
+            (move |bindings: Res<Bindings>| {
+                let mut seen = record.lock().unwrap();
+                for b in bindings.0.values() {
+                    let observation = (b.group.id(), matches!(b.params, Uniform::Sensor(_)));
+                    if seen.last() != Some(&observation) {
+                        seen.push(observation);
+                    }
+                }
+            })
+            .after(prepare)
+            .in_set(RenderSystems::PrepareResources),
+        );
+    });
+    let size = UVec2::new(15, 7);
+    let chart = [0.25, 0.50, 0.75, 1.].repeat((size.x * size.y * 4) as usize);
+    let expected = [0.25_f32, 0.50, 0.75, 1.].repeat((size.x * size.y) as usize);
+    let device = app.world().resource::<RenderDevice>().clone();
+    let sensor = super::super::sensor::SensorArtifactSettings {
+        probability: 1.,
+        ..default()
+    }
+    .profile(99, 2)
+    .unwrap();
+    let copier = fixture(&mut app, &device, size, 2, &chart, Some(sensor));
+    let camera = app
+        .world_mut()
+        .query_filtered::<Entity, With<SsaaCamera>>()
+        .single(app.world())
+        .unwrap();
+    app.world_mut()
+        .entity_mut(camera)
+        .insert(crate::camera::CaptureCameraIndex(0));
+    let mut state = app
+        .world_mut()
+        .resource_mut::<crate::sample::SamplerState>();
+    state.rgb_artifact_eligible_cameras_by_timestep = Some(vec![vec![], vec![0], vec![]]);
+    for (step, eligible) in [false, true, false].into_iter().enumerate() {
+        app.world_mut()
+            .resource_mut::<crate::sample::SamplerState>()
+            .step = step as u32;
+        let request = step as u64 + 1;
+        copier.request(request);
+        wait_for(&mut app, &[&copier], request);
+        let pixels = copier.take(request).unwrap();
+        assert_eq!(
+            pixels.planes[0] != bytemuck::cast_slice::<_, u8>(&expected),
+            eligible
+        );
+    }
+    let seen = observed.lock().unwrap();
+    assert_eq!(
+        seen.iter().map(|x| x.1).collect::<Vec<_>>(),
+        [false, true, false]
+    );
+    assert!(seen.iter().all(|x| x.0 == seen[0].0));
 }

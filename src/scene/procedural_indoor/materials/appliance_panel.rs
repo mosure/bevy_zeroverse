@@ -227,6 +227,8 @@ pub(super) fn install(
                 films.extend(p.readout.map(|d| d.film));
             } else if matches!(o.kind, ObjectKind::StationaryBike | ObjectKind::Treadmill) {
                 films.extend(super::super::objects::public::cardio::display_film(o));
+            } else if matches!(o.kind, ObjectKind::WashingMachine | ObjectKind::TumbleDryer) {
+                films.insert(super::super::objects::public::laundry::Machine::for_object(o).film);
             } else if o.kind == ObjectKind::Thermostat {
                 films.insert(super::super::objects::wall::thermostat::parameters(o).film);
             } else if scene.generator_version >= elevator::LANDING_VERSION

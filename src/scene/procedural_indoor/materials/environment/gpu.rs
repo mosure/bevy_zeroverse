@@ -50,7 +50,7 @@ pub(crate) fn prepare(
         image.texture_descriptor.usage |= bevy::render::render_resource::TextureUsages::COPY_SRC;
         images.add(image)
     });
-    requests.1.push(Request {
+    requests.push_reflection(Request {
         images: handles.clone(),
         source: Arc::new(source),
         status: Arc::default(),

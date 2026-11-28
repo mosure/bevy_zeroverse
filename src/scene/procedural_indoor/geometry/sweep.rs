@@ -36,6 +36,23 @@ impl Geometry {
         tip_radius: f32,
         sides: u32,
     ) {
+        self.sweep_tube::<false>(points, root_radius, tip_radius, sides, Vec3::ZERO);
+    }
+
+    /// Bent stock in a known plane. Its unit plane normal fixes the same
+    /// angular seam on every ring, including across tight return bends.
+    pub(crate) fn planar_tube(&mut self, points: &[Vec3], radius: f32, sides: u32, normal: Vec3) {
+        self.sweep_tube::<true>(points, radius, radius, sides, normal);
+    }
+
+    fn sweep_tube<const PLANAR: bool>(
+        &mut self,
+        points: &[Vec3],
+        root_radius: f32,
+        tip_radius: f32,
+        sides: u32,
+        plane_normal: Vec3,
+    ) {
         if points.len() < 2 || sides < 3 || root_radius <= 0. || tip_radius <= 0. {
             return;
         }
@@ -69,15 +86,18 @@ impl Geometry {
             }];
             // At a tapered branch elbow a long incoming segment must not tip
             // the cross-section backwards over its shorter outgoing segment.
-            let direction = if root_radius != tip_radius && i > 0 && i + 1 < points.len() {
-                (p - before).normalize_or_zero() + (after - p).normalize_or_zero()
-            } else {
-                after - before
-            };
+            let direction =
+                if (PLANAR || root_radius != tip_radius) && i > 0 && i + 1 < points.len() {
+                    (p - before).normalize_or_zero() + (after - p).normalize_or_zero()
+                } else {
+                    after - before
+                };
             let Some(tangent) = direction.try_normalize() else {
                 return;
             };
-            frame = if root_radius != tip_radius && i > 0 && points.len() > 2 {
+            frame = if PLANAR {
+                plane_normal
+            } else if root_radius != tip_radius && i > 0 && points.len() > 2 {
                 Quat::from_rotation_arc(frames[i - 1].0, tangent) * frame
             } else {
                 (frame - tangent * frame.dot(tangent))

@@ -8,6 +8,7 @@ mod fields;
 mod finish;
 mod frame;
 mod poster;
+pub(crate) mod studies;
 use super::{
     raster::{Canvas, N},
     *,
@@ -309,7 +310,14 @@ pub(super) fn apply_prepared(
     mat: &mut StandardMaterial,
     images: &mut impl AssetStore<Image>,
 ) {
-    let p = parameters(seed);
+    bind(&parameters(seed).finish, maps, mat, images);
+}
+fn bind(
+    finish: &ArtFinish,
+    maps: [Image; 3],
+    mat: &mut StandardMaterial,
+    images: &mut impl AssetStore<Image>,
+) {
     let [color, normal, data] = maps.map(|image| images.add(image));
     mat.base_color = Color::WHITE;
     mat.base_color_texture = Some(color);
@@ -318,8 +326,8 @@ pub(super) fn apply_prepared(
     mat.occlusion_texture = Some(data);
     mat.perceptual_roughness = 1.;
     mat.metallic = 0.;
-    mat.clearcoat = p.finish.varnish;
-    mat.clearcoat_perceptual_roughness = p.finish.varnish_roughness;
+    mat.clearcoat = finish.varnish;
+    mat.clearcoat_perceptual_roughness = finish.varnish_roughness;
     response::conformal_coat(mat);
     mat.emissive = LinearRgba::BLACK;
     mat.emissive_texture = None;

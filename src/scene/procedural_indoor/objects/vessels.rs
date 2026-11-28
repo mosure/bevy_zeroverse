@@ -57,34 +57,48 @@ pub fn parameters(o: &IndoorObject) -> VesselProgram {
         bowl_mouth: r.random_range(0.76..1.0),
     }
 }
+impl VesselProgram {
+    pub(crate) fn knots(&self) -> [(f32, f32); 6] {
+        let neck = if self.profile == 1 {
+            self.belly * 0.94
+        } else {
+            self.neck
+        };
+        let belly = if self.profile == 2 {
+            neck * 1.10
+        } else {
+            self.belly
+        };
+        let waist = if self.profile == 3 {
+            neck * 0.85
+        } else {
+            belly
+        };
+        [
+            (0., self.foot),
+            (0.1, self.foot * 1.05),
+            (self.belly_height, belly),
+            ((self.belly_height + self.shoulder_height) * 0.5, waist),
+            (self.shoulder_height, neck),
+            (1., (neck * self.mouth).min(0.98)),
+        ]
+    }
+    pub(crate) fn radius_fraction(&self, bowl: bool, knots: &[(f32, f32); 6], t: f32) -> f32 {
+        if bowl {
+            let rise = ((t - 0.06) / 0.94).clamp(0., 1.);
+            self.foot + (self.bowl_mouth - self.foot) * (1. - (1. - rise).powf(self.bowl_rise))
+        } else {
+            profile_radius(knots, t)
+        }
+    }
+}
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
     let p = parameters(o);
     let s = o.size;
     let bowl = o.kind == ObjectKind::Bowl;
     let r = s.x.min(s.z) * 0.47;
-    let neck = if p.profile == 1 {
-        p.belly * 0.94
-    } else {
-        p.neck
-    };
-    let belly = if p.profile == 2 { neck * 1.10 } else { p.belly };
-    let waist = if p.profile == 3 { neck * 0.85 } else { belly };
-    let knots = [
-        (0., p.foot),
-        (0.1, p.foot * 1.05),
-        (p.belly_height, belly),
-        ((p.belly_height + p.shoulder_height) * 0.5, waist),
-        (p.shoulder_height, neck),
-        (1., (neck * p.mouth).min(0.98)),
-    ];
-    let radius_at = |t: f32| {
-        r * if bowl {
-            let rise = ((t - 0.06) / 0.94).clamp(0., 1.);
-            p.foot + (p.bowl_mouth - p.foot) * (1. - (1. - rise).powf(p.bowl_rise))
-        } else {
-            profile_radius(&knots, t)
-        }
-    };
+    let knots = p.knots();
+    let radius_at = |t| r * p.radius_fraction(bowl, &knots, t);
     let wall = r * p.wall_fraction;
     let lip_rise = (wall * p.lip_rounding).min(0.048 * s.y);
     let wall_top = s.y - lip_rise;

@@ -64,8 +64,12 @@ impl CeilingGrid {
             IndoorLayout::OpenOffice
             | IndoorLayout::Training
             | IndoorLayout::Classroom
+            | IndoorLayout::LockerRoom
+            | IndoorLayout::RehearsalRoom
+            | IndoorLayout::Laundromat
             | IndoorLayout::GroceryStore
             | IndoorLayout::FitnessRoom
+            | IndoorLayout::YogaStudio
             | IndoorLayout::CyclingStudio
             | IndoorLayout::Cafeteria
             | IndoorLayout::Conference

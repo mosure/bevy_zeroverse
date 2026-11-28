@@ -217,10 +217,12 @@ fn alternate_reference(
         scene
             .camera_settings
             .prepare_motion(scene.seed, 0, &mut camera, rng);
-        if !scene.camera_clear(camera.start)
-            || !scene.camera_view_clear(camera.start, camera.target)
+        if !coverage.clearance.point_clear(scene, camera.start)
+            || !coverage
+                .clearance
+                .view_clear(scene, camera.start, camera.target)
             || !scene.camera_settings.accepts_motion(scene.seed, 0, &camera)
-            || !scene.camera_curve_clear(&camera)
+            || !coverage.clearance.curve_clear(scene, &camera)
             || !coverage.suitable(&camera, true)
         {
             continue;
@@ -427,7 +429,7 @@ pub(super) fn complete(
                             )
                         };
                         let origin = template.start + direction * radius;
-                        if !scene.camera_clear(origin) {
+                        if !coverage.clearance.point_clear(scene, origin) {
                             rejected[0] += 1;
                             continue;
                         }
@@ -609,7 +611,7 @@ pub(super) fn complete(
                             (template.start.y + rng.random_range(-0.3..0.3)).clamp(low, high)
                         };
                         let origin = Vec3::new(xz.x, height, xz.y);
-                        if !scene.camera_clear(origin) {
+                        if !coverage.clearance.point_clear(scene, origin) {
                             rejected[0] += 1;
                             continue;
                         }
@@ -738,7 +740,7 @@ pub(super) fn complete(
                         .as_ref()
                         .and_then(|prior| prior.sample(scene.seed, camera_index));
                     let track = Track::new(&camera);
-                    let rejection = if !scene.camera_clear(camera.start) {
+                    let rejection = if !coverage.clearance.point_clear(scene, camera.start) {
                         Some(0)
                     } else if !super::super::rig::accepts_geometry(
                         policy,
@@ -755,7 +757,7 @@ pub(super) fn complete(
                         &camera,
                     ) {
                         Some(2)
-                    } else if !scene.camera_curve_clear(&camera) {
+                    } else if !coverage.clearance.curve_clear(scene, &camera) {
                         Some(3)
                     } else if !coverage.suitable(&camera, false) {
                         Some(4)

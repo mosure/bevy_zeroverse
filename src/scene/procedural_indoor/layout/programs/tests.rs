@@ -302,7 +302,7 @@ fn constrained_library_seed_49981871_retains_sufficient_activity_furniture() {
     assert!(scene
         .objects
         .iter()
-        .any(|o| !o.neighbor && o.kind == ObjectKind::Bookcase));
+        .any(|o| !o.neighbor && matches!(o.kind, ObjectKind::Bookcase | ObjectKind::LibraryStack)));
     let mut recovered = scene.clone();
     recovered.complete_underfilled_activity_groups();
     assert_eq!(scene, recovered, "recovery must be idempotent");

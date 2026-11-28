@@ -19,7 +19,11 @@ struct SurfaceBudget {
 fn is_drink(kind: ObjectKind) -> bool {
     matches!(
         kind,
-        ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan
+        ObjectKind::Mug
+            | ObjectKind::CoffeeCup
+            | ObjectKind::WaterBottle
+            | ObjectKind::SodaCan
+            | ObjectKind::DrinkingGlass
     )
 }
 
@@ -44,17 +48,19 @@ impl IndoorManifest {
             .objects
             .iter()
             .filter(|o| {
-                matches!(
-                    o.kind,
-                    ObjectKind::Desk
-                        | ObjectKind::Table
-                        | ObjectKind::CoffeeTable
-                        | ObjectKind::SideTable
-                        | ObjectKind::Cabinet
-                        | ObjectKind::MobileCart
-                        | ObjectKind::DrawerUnit
-                        | ObjectKind::WallShelf
-                )
+                // Each student place receives its own study materials and personal effects.
+                !super::super::objects::tables::is_classroom_table(o)
+                    && matches!(
+                        o.kind,
+                        ObjectKind::Desk
+                            | ObjectKind::Table
+                            | ObjectKind::CoffeeTable
+                            | ObjectKind::SideTable
+                            | ObjectKind::Cabinet
+                            | ObjectKind::MobileCart
+                            | ObjectKind::DrawerUnit
+                            | ObjectKind::WallShelf
+                    )
             })
             .cloned()
             .collect();
@@ -87,9 +93,9 @@ impl IndoorManifest {
         {
             budget.record(o.kind, o.size);
         }
-        let dining = self.is_dining_table(support);
-        if dining {
-            self.dress_meal(support, &composition, &mut budget);
+        let mut service = self.table_service(support);
+        if let Some(service) = &mut service {
+            self.dress_meal(support, &composition, &mut budget, service);
         }
         for _ in 0..composition.max_attempts {
             if budget.full() {
@@ -102,7 +108,7 @@ impl IndoorManifest {
             task.task_weights.iter_mut().for_each(|w| *w *= 0.35);
             task.task_weights[cluster.task] += 0.65;
             let (mut kind, mut size) = task.item(support, &mut rng);
-            if dining
+            if service.is_some()
                 && !matches!(
                     kind,
                     ObjectKind::Mug
@@ -120,6 +126,20 @@ impl IndoorManifest {
             {
                 (kind, size) = decor::drink(&mut rng);
             }
+            let mut glass = None;
+            if is_drink(kind) {
+                if !budget.permits(kind) {
+                    continue;
+                }
+                glass = service.as_mut().and_then(dining::TableService::offer_glass);
+                if let Some(sku) = glass {
+                    kind = ObjectKind::DrinkingGlass;
+                    size = sku.size;
+                    if budget.area + size.x * size.z > budget.limit {
+                        continue;
+                    }
+                }
+            }
             let singleton = matches!(
                 kind,
                 ObjectKind::CoffeeMaker
@@ -134,7 +154,7 @@ impl IndoorManifest {
                     | ObjectKind::DeskOrganizer
                     | ObjectKind::DocumentTray
             );
-            if !budget.permits(kind) || (singleton && budget.kinds.contains(&kind)) {
+            if singleton && budget.kinds.contains(&kind) {
                 continue;
             }
             let Some((offset, yaw)) =
@@ -142,11 +162,14 @@ impl IndoorManifest {
             else {
                 continue;
             };
-            let count = self.objects.len();
-            // Density was already sampled into the target. Re-thinning here
-            // would square the clutter control and disproportionately empty tops.
-            self.supported_prop(support, kind, offset, size, yaw, &mut rng);
-            if self.objects.len() > count {
+            let world = support
+                .transform()
+                .transform_point(offset + Vec3::Y * support.size.y);
+            let mut prop = self.candidate(kind, world, size, support.yaw + yaw, &mut rng);
+            if let Some(sku) = glass {
+                sku.apply(&mut prop);
+            }
+            if self.admit_supported_prop(support, prop) {
                 budget.record(kind, size);
             }
         }

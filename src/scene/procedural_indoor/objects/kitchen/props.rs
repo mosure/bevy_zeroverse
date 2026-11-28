@@ -58,7 +58,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         ObjectKind::UtensilHolder => supplies::utensils::build(a, o),
         ObjectKind::PaperTowel => supplies::paper_towel::build(a, o),
         ObjectKind::FruitBowl => produce::build(a, o, version),
-        ObjectKind::Bread => super::supplies::bread::build(a, o),
+        ObjectKind::Bread => super::supplies::bread::build(a, o, version),
         _ => unreachable!("non kitchen prop"),
     }
 }

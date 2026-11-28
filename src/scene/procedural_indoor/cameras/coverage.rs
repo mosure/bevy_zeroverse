@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use std::collections::BTreeMap;
 mod index;
 mod partitions;
+mod rays;
 mod subjects;
 mod triangles;
 
@@ -39,6 +40,8 @@ struct Collider {
 }
 
 pub(crate) struct Coverage {
+    rays: rays::LensRays,
+    pub(super) clearance: super::clearance::Clearance,
     seed: u64,
     subjects: std::sync::OnceLock<Vec<Vec<usize>>>,
     jitter: Vec2,
@@ -82,19 +85,20 @@ impl Coverage {
         })
     }
 
-    fn shell_hit(&self, origin: Vec3, ray: Vec3) -> Option<(f32, &'static str)> {
+    fn shell_hit(&self, origin: Vec3, ray: Vec3, limit: f32) -> Option<(f32, &'static str)> {
         self.shell
             .as_ref()
             .and_then(|(e, size, door, width, height)| {
-                e.ray_hit(*size, *door, *width, *height, origin, ray)
+                e.ray_hit_before(*size, [*door, *width, *height], origin, ray, limit)
             })
     }
-    fn first_hit(&self, origin: Vec3, ray: Vec3) -> Option<f32> {
-        self.closest_collider(origin, ray, f32::INFINITY, false)
-            .map(|(_, distance)| distance)
-            .into_iter()
-            .chain(self.shell_hit(origin, ray).map(|hit| hit.0))
-            .min_by(f32::total_cmp)
+    fn first_hit(&self, origin: Vec3, ray: Vec3, limit: f32) -> Option<f32> {
+        let object = self
+            .closest_collider(origin, ray, limit, false)
+            .map(|(_, d)| d);
+        self.shell_hit(origin, ray, object.unwrap_or(limit))
+            .map(|h| h.0)
+            .or(object)
     }
 
     fn closest_collider(
@@ -125,20 +129,17 @@ impl Coverage {
         let pose = camera.transform_at(t);
         let scale = Vec2::new(aspect, 1.0) * (camera.fov_degrees.to_radians() * 0.5).tan();
         let offset = self.optical_center(camera);
-        let lens = self.calibration(camera);
+        let lens = self.angular_grid(camera, offset);
+        let directions = lens.as_ref().map(|grid| grid.coverage());
         let mut points = Vec::with_capacity(117);
         for y in 0..9 {
             for x in 0..13 {
-                let local = if let Some(lens) = &lens {
-                    let pixel = [
-                        (x as f32 + 0.5) / 13. * lens.image_size[0] as f32,
-                        (8.5 - y as f32) / 9. * lens.image_size[1] as f32,
-                    ];
-                    let Some(ray) = lens.ray(pixel) else {
+                let local = if let Some(directions) = directions {
+                    let Some(ray) = directions[y * 13 + x] else {
                         points.push(None);
                         continue;
                     };
-                    Vec3::from_array(ray)
+                    ray
                 } else {
                     Vec3::new(
                         (2.0 * (x as f32 + 0.5) / 13.0 - 1.0 - 2. * offset.x) * scale.x,
@@ -149,7 +150,7 @@ impl Coverage {
                 };
                 let ray = pose.rotation * local;
                 points.push(
-                    self.first_hit(pose.translation, ray)
+                    self.first_hit(pose.translation, ray, f32::INFINITY)
                         .filter(|&d| {
                             let depth = if lens.is_some() { d } else { -local.z * d };
                             (0.1..=50.).contains(&depth)
@@ -159,7 +160,7 @@ impl Coverage {
             }
         }
         VisibilityView {
-            lens,
+            lens: lens.map(|grid| grid.calibration.clone()),
             pose,
             scale,
             offset,
@@ -167,52 +168,95 @@ impl Coverage {
         }
     }
 
+    fn visible_direction(
+        &self,
+        point: Vec3,
+        target: &VisibilityView,
+        inverse: Quat,
+    ) -> Option<Vec3> {
+        let delta = point - target.pose.translation;
+        let local = inverse * delta;
+        let in_frame = if let Some(lens) = &target.lens {
+            (0.1..=50.).contains(&lens.depth(local.to_array()))
+                && lens
+                    .project(local.to_array())
+                    .is_some_and(|p| lens.in_image(p))
+        } else {
+            -local.z >= 0.1
+                && -local.z <= 50.
+                && (local.x / (-local.z * target.scale.x) + 2. * target.offset.x).abs() < 1.
+                && (local.y / (-local.z * target.scale.y) - 2. * target.offset.y).abs() < 1.
+        };
+        if !in_frame {
+            return None;
+        }
+        let distance = delta.length();
+        let tolerance = 0.002 * distance + 0.005;
+        // closest_collider uses an exclusive upper bound. Include the rounded
+        // edge of the agreement interval, then apply the original exact test.
+        self.first_hit(
+            target.pose.translation,
+            delta / distance,
+            (distance + tolerance).next_up(),
+        )
+        .filter(|hit| (*hit - distance).abs() <= tolerance)
+        .map(|_| delta)
+    }
+
+    // Angular cameras exclude the invalid sensor border. Preserve the calibrated
+    // denominator and the original integer-to-f32 division at threshold boundaries.
+    fn overlap_denominator(view: &VisibilityView) -> f32 {
+        if view.lens.is_some() {
+            view.points.iter().flatten().count().max(1) as f32
+        } else {
+            view.points.len() as f32
+        }
+    }
+
+    /// Admission only needs a yes/no decision. Stop when even the unanswered
+    /// rays cannot change it. The reporting path below still measures every ray.
+    pub(super) fn reaches_overlap(
+        &self,
+        source: &VisibilityView,
+        target: &VisibilityView,
+        floor: f32,
+    ) -> bool {
+        let denominator = Self::overlap_denominator(source);
+        let inverse = target.pose.rotation.inverse();
+        let mut hits = 0;
+        for (i, point) in source.points.iter().enumerate() {
+            if hits as f32 / denominator >= floor {
+                return true;
+            }
+            if (hits + source.points.len() - i) as f32 / denominator < floor {
+                return false;
+            }
+            if let Some(point) = point {
+                hits += usize::from(self.visible_direction(*point, target, inverse).is_some());
+            }
+        }
+        hits as f32 / denominator >= floor
+    }
+
     /// Fraction of source pixels whose first surface is also visible in target,
     /// and the mean triangulation angle of those correspondences (degrees).
     pub(super) fn shared(&self, source: &VisibilityView, target: &VisibilityView) -> (f32, f32) {
         let mut visible = 0;
-        let mut angle = 0.0;
+        let mut angle = 0.;
+        let inverse = target.pose.rotation.inverse();
         for point in source.points.iter().flatten() {
-            let delta = *point - target.pose.translation;
-            let local = target.pose.rotation.inverse() * delta;
-            if if let Some(lens) = &target.lens {
-                let depth = lens.depth(local.to_array());
-                !(0.1..=50.).contains(&depth)
-                    || !lens
-                        .project(local.to_array())
-                        .is_some_and(|p| lens.in_image(p))
-            } else {
-                -local.z < 0.1
-                    || -local.z > 50.0
-                    || (local.x / (-local.z * target.scale.x) + 2. * target.offset.x).abs() >= 1.
-                    || (local.y / (-local.z * target.scale.y) - 2. * target.offset.y).abs() >= 1.
-            } {
-                continue;
-            }
-            let distance = delta.length();
-            if self
-                .first_hit(target.pose.translation, delta / distance)
-                .is_some_and(|hit| (hit - distance).abs() <= 0.002 * distance + 0.005)
-            {
+            if let Some(delta) = self.visible_direction(*point, target, inverse) {
                 visible += 1;
                 angle += (delta
                     .normalize()
                     .dot((*point - source.pose.translation).normalize()))
-                .clamp(-1.0, 1.0)
+                .clamp(-1., 1.)
                 .acos()
                 .to_degrees();
             }
         }
         (
-            // Circular sensor borders have no rays and must not cap the
-            // attainable overlap. Match the rendered valid-surface denominator
-            // for angular cameras; retain legacy pinhole admission exactly.
-            visible as f32
-                / if source.lens.is_some() {
-                    source.points.iter().flatten().count().max(1) as f32
-                } else {
-                    source.points.len() as f32
-                },
+            visible as f32 / Self::overlap_denominator(source),
             angle / visible.max(1) as f32,
         )
     }
@@ -328,7 +372,10 @@ impl Coverage {
             if matches!(
                 o.kind,
                 super::super::layout::ObjectKind::VolleyballNet
+                    | super::super::layout::ObjectKind::BasketballGoal
+                    | super::super::layout::ObjectKind::BasketStack
                     | super::super::layout::ObjectKind::BleacherBank
+                    | super::super::layout::ObjectKind::ExerciseMatRack
                     | super::super::layout::ObjectKind::PowerRack
             ) || till.is_some()
             {
@@ -346,9 +393,18 @@ impl Coverage {
                 };
                 if let Some(till) = till {
                     till.view_boxes(o.size, emit);
+                } else if o.kind == super::super::layout::ObjectKind::BasketStack {
+                    super::super::objects::public::baskets::BasketStack::for_object(o)
+                        .view_boxes(o.size, emit);
+                } else if o.kind == super::super::layout::ObjectKind::ExerciseMatRack {
+                    super::super::objects::public::mats::MatRack::for_object(o)
+                        .view_boxes(o.size, emit);
                 } else if o.kind == super::super::layout::ObjectKind::PowerRack {
                     super::super::objects::public::strength::PowerRack::for_object(o)
                         .view_boxes(emit);
+                } else if o.kind == super::super::layout::ObjectKind::BasketballGoal {
+                    super::super::objects::public::basketball::BasketballGoal::for_object(o)
+                        .view_boxes(o.size, emit);
                 } else if o.kind == super::super::layout::ObjectKind::VolleyballNet {
                     Net::for_object(o).view_boxes(emit);
                 } else {
@@ -438,6 +494,8 @@ impl Coverage {
         Self {
             seed: scene.seed,
             subjects: Default::default(),
+            rays: Default::default(),
+            clearance: Default::default(),
             jitter: scene.camera_settings.principal_point_jitter,
             aspect: scene.camera_aspect_ratio,
             index: Some(index::Index::new(&colliders)),
@@ -473,25 +531,25 @@ impl Coverage {
             let displacement = *point - pose.translation;
             let distance = displacement.length();
             let ray = displacement / distance;
-            !self
-                .shell_hit(pose.translation, ray)
-                .is_some_and(|hit| hit.0 < distance - 0.06)
+            self.shell_hit(pose.translation, ray, distance - 0.06)
+                .is_none()
                 && self
                     .closest_collider(pose.translation, ray, distance - 0.06, true)
                     .is_none()
         })
     }
 
-    fn calibration(
+    fn angular_grid(
         &self,
         camera: &IndoorCamera,
-    ) -> Option<bevy_zeroverse_capture::calibration::CameraCalibration> {
+        offset: Vec2,
+    ) -> Option<std::sync::Arc<rays::AngularGrid>> {
         camera.fisheye.map(|lens| {
-            lens.calibration(
+            self.rays.get(
+                lens,
                 [(1000. * self.aspect).round() as u32, 1000],
-                self.optical_center(camera).to_array(),
+                offset.to_array(),
             )
-            .expect("validated lens prior")
         })
     }
     pub fn suitable(&self, camera: &IndoorCamera, require_person: bool) -> bool {
@@ -506,9 +564,9 @@ impl Coverage {
         require_person: bool,
         subject: Option<fn(&str) -> bool>,
     ) -> bool {
-        let lens = self.calibration(camera);
         let scale = (camera.fov_degrees.to_radians() * 0.5).tan();
         let offset = self.optical_center(camera);
+        let lens = self.angular_grid(camera, offset);
         let times: &[f32] = if camera.motion.is_none() && camera.start == camera.end {
             &[0.]
         } else {
@@ -525,16 +583,13 @@ impl Coverage {
             // Central square stays within standard landscape captures, so the
             // policy does not rely on peripheral content just outside the frame.
             for y in 0..5 {
+                let row = lens.as_ref().map(|grid| grid.content_row(y));
                 for x in 0..7 {
-                    let local = if let Some(lens) = &lens {
-                        let pixel = [
-                            (0.1 + x as f32 / 6. * 0.8) * lens.image_size[0] as f32,
-                            (0.9 - y as f32 / 4. * 0.8) * lens.image_size[1] as f32,
-                        ];
-                        let Some(ray) = lens.ray(pixel) else {
+                    let local = if let Some(row) = row {
+                        let Some(ray) = row[x] else {
                             continue;
                         };
-                        Vec3::from_array(ray)
+                        ray
                     } else {
                         Vec3::new(
                             ((x as f32 / 6.0 - 0.5) * 1.6 * self.aspect.min(1.)
@@ -547,7 +602,7 @@ impl Coverage {
                     };
                     let ray = pose.rotation * local;
                     let (nearest, mut label) = self
-                        .shell_hit(pose.translation, ray)
+                        .shell_hit(pose.translation, ray, f32::INFINITY)
                         .unwrap_or((f32::INFINITY, "background"));
                     if let Some((index, _)) =
                         self.closest_collider(pose.translation, ray, nearest, false)
@@ -625,6 +680,8 @@ mod tests {
         let coverage = super::Coverage {
             seed: 0,
             subjects: Default::default(),
+            rays: Default::default(),
+            clearance: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,
@@ -659,6 +716,53 @@ mod tests {
 
     use super::*;
     #[test]
+    fn admission_rays_match_reported_directed_overlap_at_exact_float_boundaries() {
+        use crate::calibration::{Fisheye, FisheyeFit};
+        let scene = IndoorManifest::generate_with_humans(
+            17,
+            crate::scene::procedural_indoor::layout::IndoorLayout::Conference,
+            0.65,
+            3,
+            0.,
+        )
+        .unwrap();
+        let coverage = Coverage::new(&scene);
+        let mut views: Vec<_> = scene
+            .cameras
+            .iter()
+            .flat_map(|c| [0., 0.5, 1.].map(|t| coverage.view(c, 1., t)))
+            .collect();
+        let circular = Fisheye {
+            coefficients: [0.; 4],
+            max_angle: 1.8,
+        }
+        .calibration([300; 2], FisheyeFit::Circular, [0.; 2], 1.)
+        .unwrap();
+        let mut partial = views[0].clone();
+        partial.lens = Some(circular);
+        for i in (0..partial.points.len()).step_by(3) {
+            partial.points[i] = None;
+        }
+        views.push(partial);
+        for a in &views {
+            for b in &views {
+                let fraction = coverage.shared(a, b).0;
+                for floor in [
+                    0.,
+                    0.15,
+                    0.8,
+                    1.,
+                    fraction,
+                    fraction.next_down(),
+                    fraction.next_up(),
+                ] {
+                    assert_eq!(coverage.reaches_overlap(a, b, floor), fraction >= floor);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn shared_surfaces_require_visibility_and_actual_frustum() {
         let point = Vec3::new(0.0, 0.0, -4.0);
         let a = VisibilityView {
@@ -678,6 +782,8 @@ mod tests {
         let mut coverage = Coverage {
             seed: 0,
             subjects: Default::default(),
+            rays: Default::default(),
+            clearance: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,
@@ -721,6 +827,8 @@ mod tests {
         let mut coverage = Coverage {
             seed: 0,
             subjects: Default::default(),
+            rays: Default::default(),
+            clearance: Default::default(),
             jitter: Vec2::ZERO,
             aspect: 1.,
             index: None,

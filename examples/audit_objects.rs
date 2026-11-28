@@ -12,9 +12,12 @@ struct Args {
     output: PathBuf,
     #[arg(long, default_value_t = 64)]
     samples: usize,
-    /// Keep the catalog's sampled metric sizes for public fixtures.
+    /// Keep the sampled metric sizes for public fixtures and library stacks.
     #[arg(long)]
     sample_dimensions: bool,
+    /// Draw the finish seed for each sample, independently of the envelope policy.
+    #[arg(long)]
+    sample_finishes: bool,
     /// Restrict this qualification to the new public-space catalog.
     #[arg(long)]
     public_only: bool,
@@ -48,6 +51,9 @@ fn main() -> anyhow::Result<()> {
         let mut failures = Vec::new();
         for seed in 0..args.samples as u64 {
             let mut o = audit::fixture(kind, seed);
+            if args.sample_finishes {
+                o.finish_seed = Some(seed);
+            }
             if kind == ObjectKind::TrashCan && seed % 4 >= 2 {
                 use objects::containers::bins::{RECYCLING, WASTE_STATION};
                 o.variant = WASTE_STATION | if seed % 4 == 3 { RECYCLING } else { 0 };
@@ -55,6 +61,8 @@ fn main() -> anyhow::Result<()> {
             // Construction variety is measured independently of metric scale.
             if kind.is_program_item() && !args.sample_dimensions {
                 o.size = objects::public::dimensions(kind, 0);
+            } else if kind == ObjectKind::LibraryStack && !args.sample_dimensions {
+                o.size = objects::storage::library_stack::dimensions(0);
             }
             let start = Instant::now();
             let a = objects::build_object(&o);
@@ -105,7 +113,7 @@ fn main() -> anyhow::Result<()> {
     fs::write(
         args.output.join("audit.json"),
         serde_json::to_vec(
-            &json!({"schema_version":1,"audit_scope":scope,"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"envelope_policy":if args.sample_dimensions {"sampled catalog fixture dimensions"} else {"common envelope per public fixture category"}, "method":"six orthographic depth maps normalized to the admitted object envelope; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
+            &json!({"schema_version":1,"audit_scope":scope,"catalog_total_count":ObjectKind::ALL.len(),"build_provenance":bevy_zeroverse::provenance::capture_provenance(),"sample_count_per_category":args.samples,"resolution":audit::RESOLUTION,"finish_policy":if args.sample_finishes {"per-sample finish seed"} else {"catalog fixture finish seed"},"envelope_policy":if args.sample_dimensions {"sampled catalog fixture dimensions"} else {"common envelope per public fixture category"}, "method":"six orthographic depth maps normalized to the admitted object envelope; ordered greedy coverage; union-pixel normalized depth L1; no material/UV contribution","categories":categories}),
         )?,
     )?;
     anyhow::ensure!(

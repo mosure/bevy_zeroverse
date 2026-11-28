@@ -211,15 +211,31 @@ pub struct ProbeData {
     pub statistics: BakeStatistics,
 }
 
-impl ProbeData {
-    pub fn image(&self) -> Image {
-        let n = self.resolution;
-        let extent = Extent3d {
+fn probe_image(n: UVec3) -> Image {
+    let mut image = Image::new_uninit(
+        Extent3d {
             width: n.x,
             height: n.y * 2,
             depth_or_array_layers: n.z * 3,
-        };
-        let mut pixels = vec![[0u16; 4]; (n.x * n.y * n.z * 6) as usize];
+        },
+        TextureDimension::D3,
+        TextureFormat::Rgba16Float,
+        RenderAssetUsages::default(),
+    );
+    image.sampler = ImageSampler::linear();
+    image
+}
+
+fn probe_transform(min: Vec3, max: Vec3) -> Transform {
+    Transform::from_translation((min + max) * 0.5).with_scale(max - min)
+}
+
+impl ProbeData {
+    pub fn image(&self) -> Image {
+        let n = self.resolution;
+        let mut image = probe_image(n);
+        let mut bytes = vec![0; (n.x * n.y * n.z * 6) as usize * 8];
+        let (pixels, _) = bytes.as_chunks_mut::<8>();
         for z in 0..n.z {
             for y in 0..n.y {
                 for x in 0..n.x {
@@ -229,30 +245,22 @@ impl ProbeData {
                         // module docs: positive lobes first, negative at y + Ry.
                         let yy = y + (face as u32 % 2) * n.y;
                         let zz = z + (face as u32 / 2) * n.z;
-                        pixels[((zz * n.y * 2 + yy) * n.x + x) as usize] = [
+                        pixels[((zz * n.y * 2 + yy) * n.x + x) as usize] = bytemuck::cast([
                             half::f16::from_f32(value.x).to_bits(),
                             half::f16::from_f32(value.y).to_bits(),
                             half::f16::from_f32(value.z).to_bits(),
                             half::f16::ONE.to_bits(),
-                        ];
+                        ]);
                     }
                 }
             }
         }
-        let mut image = Image::new(
-            extent,
-            TextureDimension::D3,
-            bytemuck::cast_slice(&pixels).to_vec(),
-            TextureFormat::Rgba16Float,
-            RenderAssetUsages::default(),
-        );
-        image.sampler = ImageSampler::linear();
+        image.data = Some(bytes);
         image
     }
 
     pub fn transform(&self) -> Transform {
-        Transform::from_translation((self.bounds_min + self.bounds_max) * 0.5)
-            .with_scale(self.bounds_max - self.bounds_min)
+        probe_transform(self.bounds_min, self.bounds_max)
     }
 
     pub fn sample(&self, point: Vec3, normal: Vec3) -> Vec3 {

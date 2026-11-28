@@ -1,8 +1,10 @@
 //! Equipment stock. The coating, machined steel and pigmented discs have
 //! separate dielectric/metal responses even when their base hues are similar.
+pub(crate) mod end_marks;
 use super::*;
 use crate::scene::procedural_indoor::{
     layout::{stream, ObjectKind},
+    objects::public::dumbbells,
     preparation::AssetStore,
 };
 use rand::Rng;
@@ -88,6 +90,7 @@ pub(super) fn supports(surface: Surface, slot: usize) -> bool {
     slot.checked_sub(990)
         .and_then(|i| STOCK.get(i))
         .is_some_and(|f| f.key().0 == surface)
+        || end_marks::supports(surface, slot)
 }
 
 fn knurl() -> Image {
@@ -126,10 +129,11 @@ pub(super) fn install(
     variants: &mut BTreeMap<(Surface, usize), Handle<StandardMaterial>>,
 ) {
     if selection.is_none()
-        && !scene
-            .objects
-            .iter()
-            .any(|o| o.kind == ObjectKind::PowerRack)
+        && !scene.objects.iter().any(|o| {
+            o.kind == ObjectKind::PowerRack
+                || (o.kind == ObjectKind::DumbbellRack
+                    && scene.generator_version >= dumbbells::VERSION)
+        })
     {
         return;
     }
@@ -146,6 +150,7 @@ pub(super) fn install(
         }
         variants.insert(key, materials.add(mat));
     }
+    end_marks::install(scene, images, materials, selection, variants);
 }
 
 #[cfg(test)]

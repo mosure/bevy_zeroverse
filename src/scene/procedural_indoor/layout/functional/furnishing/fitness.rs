@@ -25,6 +25,7 @@ impl AccessEnvelope {
             ObjectKind::PowerRack => strength::ACCESS,
             ObjectKind::DumbbellRack => (0., 0., DUMBBELL_ACCESS),
             ObjectKind::WeightBench => (0.49, 0.30, 0.30),
+            ObjectKind::ExerciseMatRack => (0., 0., 0.69),
             ObjectKind::ExerciseMat => (0.29, 0.21, 0.21),
             _ => return None,
         };

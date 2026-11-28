@@ -6,9 +6,9 @@ impl IndoorManifest {
             .map_err(|e| e.to_string())
     }
 
-    fn validate_retail_routes(&self, p: &ProgramAssembly) -> Result<(), &'static str> {
+    fn validate_service_routes(&self, p: &ProgramAssembly) -> Result<(), &'static str> {
         let [spine, cross, fronts @ ..] = p.reservations.as_slice() else {
-            return Err("missing retail cross-aisles");
+            return Err("missing service cross-aisles");
         };
         if spine.role != ReservationRole::Circulation
             || cross.role != ReservationRole::Circulation
@@ -17,8 +17,43 @@ impl IndoorManifest {
             || cross.min.x != p.min.x
             || cross.max.x != p.max.x
         {
-            return Err("disconnected retail cross-aisles");
+            return Err("disconnected service cross-aisles");
         }
+        if p.activity.is_retail() {
+            self.validate_retail_fronts(p, fronts)?;
+        }
+        let structure = self.columns();
+        for r in &p.reservations {
+            if r.min.cmplt(p.min - 0.001).any()
+                || r.max.cmpgt(p.max + 0.001).any()
+                || structure
+                    .iter()
+                    .any(|&(l, h)| l.y < 1.90 && h.y > 0.001 && r.overlaps(l, h))
+            {
+                return Err("service aisle obstructed by architecture");
+            }
+            let touches = |s: &Reservation| {
+                r.min.cmple(s.max + 0.001).all() && r.max.cmpge(s.min - 0.001).all()
+            };
+            if matches!(
+                r.role,
+                ReservationRole::Browsing
+                    | ReservationRole::FittingAccess
+                    | ReservationRole::EquipmentAccess
+            ) && !touches(spine)
+                && !touches(cross)
+            {
+                return Err("working front is isolated from the cross-aisles");
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_retail_fronts(
+        &self,
+        p: &ProgramAssembly,
+        fronts: &[Reservation],
+    ) -> Result<(), &'static str> {
         use crate::scene::procedural_indoor::objects::public::{retail::checkout, CheckoutForm};
         let tills = p
             .members
@@ -91,28 +126,6 @@ impl IndoorManifest {
         {
             return Err("missing fitting room approach");
         }
-        let structure = self.columns();
-        for r in &p.reservations {
-            if r.min.cmplt(p.min - 0.001).any()
-                || r.max.cmpgt(p.max + 0.001).any()
-                || structure
-                    .iter()
-                    .any(|&(l, h)| l.y < 1.90 && h.y > 0.001 && r.overlaps(l, h))
-            {
-                return Err("retail aisle obstructed by architecture");
-            }
-            let touches = |s: &Reservation| {
-                r.min.cmple(s.max + 0.001).all() && r.max.cmpge(s.min - 0.001).all()
-            };
-            if matches!(
-                r.role,
-                ReservationRole::Browsing | ReservationRole::FittingAccess
-            ) && !touches(spine)
-                && !touches(cross)
-            {
-                return Err("sales front is isolated from the cross-aisles");
-            }
-        }
         Ok(())
     }
 
@@ -163,6 +176,7 @@ impl IndoorManifest {
             if matches!(
                 p.activity,
                 IndoorLayout::Classroom
+                    | IndoorLayout::RehearsalRoom
                     | IndoorLayout::LectureHall
                     | IndoorLayout::Cafe
                     | IndoorLayout::Cafeteria
@@ -177,33 +191,30 @@ impl IndoorManifest {
                     )
                 });
             }
-            if p.activity == IndoorLayout::CyclingStudio {
+            if matches!(
+                p.activity,
+                IndoorLayout::CyclingStudio | IndoorLayout::YogaStudio
+            ) {
                 if p.accepted_capacity < 2 {
                     rejection.get_or_insert_with(|| {
                         CaptureError::rejected(
                             self.seed,
                             SceneRejectionKind::InsufficientProgramCapacity,
-                            reason("cycling class needs an instructor and a rider"),
+                            reason("class needs an instructor and a participant"),
                         )
                     });
                 } else {
                     let instructor = p
-                        .cycling_instructor(&self.objects)
-                        .ok_or_else(|| fail("cycling class focus misses the instructor bike"))?;
-                    let heading = |yaw: f32| Vec2::new(yaw.sin(), yaw.cos());
-                    for rider in p
+                        .class_instructor(&self.objects)
+                        .ok_or_else(|| fail("class focus misses its instructor station"))?;
+                    for participant in p
                         .members
                         .iter()
                         .filter_map(|&id| self.objects.get(id))
-                        .filter(|o| o.kind == ObjectKind::StationaryBike && o.id != instructor.id)
+                        .filter(|o| o.kind == instructor.kind && o.id != instructor.id)
                     {
-                        let toward = (instructor.position - rider.position)
-                            .xz()
-                            .normalize_or_zero();
-                        if toward.dot(heading(rider.yaw)) < 0.55
-                            || (-toward).dot(heading(instructor.yaw)) < 0.18
-                        {
-                            return Err(fail("cycling class stations face away from each other"));
+                        if !class_stations_face(p.activity, instructor, participant) {
+                            return Err(fail("class stations face away from each other"));
                         }
                     }
                 }
@@ -217,12 +228,85 @@ impl IndoorManifest {
                     )
                 });
             }
+            if p.activity == IndoorLayout::LockerRoom {
+                furnishing::changing::validate(self, p).map_err(fail)?;
+            }
+            if p.activity == IndoorLayout::RehearsalRoom {
+                furnishing::rehearsal::percussion::validate(self, p).map_err(fail)?;
+            }
             for &id in &p.members {
                 let o = self
                     .objects
                     .get(id)
                     .ok_or_else(|| fail("dangling assembly member"))?;
+                if o.kind == ObjectKind::Lectern
+                    && self.generator_version >= crate::scene::procedural_indoor::objects::public::furnishing::lectern::VERSION
+                    && !furnishing::presenter::faces_class(o, p)
+                {
+                    return Err(fail("presenter at the reading edge faces away from the class"));
+                }
+                if matches!(o.kind, ObjectKind::MusicStand | ObjectKind::StagePiano)
+                    && !o.interaction_target.and_then(|id| self.objects.get(id)).is_some_and(|chair| {
+                        p.activity == IndoorLayout::RehearsalRoom
+                            && p.members.contains(&chair.id)
+                            && crate::scene::procedural_indoor::objects::public::music::faces_player(o, chair)
+                    })
+                {
+                    return Err(fail("ensemble equipment lacks a facing player station"));
+                }
                 let (lo, hi) = o.bounds();
+                if matches!(
+                    o.kind,
+                    ObjectKind::WashingMachine
+                        | ObjectKind::TumbleDryer
+                        | ObjectKind::LaundryFoldingTable
+                ) && (p.activity != IndoorLayout::Laundromat
+                    || !furnishing::laundry::front_is_served(p, o))
+                {
+                    return Err(fail(
+                        "laundry station lacks a connected loading or folding aisle",
+                    ));
+                }
+                if o.kind == ObjectKind::LaundryCart
+                    && !furnishing::laundry_carts::valid_site(self, p, o)
+                {
+                    return Err(fail(
+                        "laundry cart lacks its station or clear aisle approach",
+                    ));
+                }
+                if o.kind == ObjectKind::BasketStack
+                    && (!matches!(
+                        p.activity,
+                        IndoorLayout::GroceryStore | IndoorLayout::ClothingStore
+                    ) || !furnishing::retail::baskets::valid_site(self, p, o))
+                {
+                    return Err(fail(
+                        "shopping baskets lack a reachable entrance or checkout aisle",
+                    ));
+                }
+                if o.kind == ObjectKind::EspressoMachine
+                    && (p.activity != IndoorLayout::Cafe
+                        || !p
+                            .members
+                            .iter()
+                            .filter_map(|&i| self.objects.get(i))
+                            .any(|g| {
+                                g.kind == ObjectKind::CoffeeGrinder
+                                    && g.interaction_target == Some(id)
+                                    && g.support == o.support
+                            })
+                        || !o.support.is_some_and(|id| {
+                            p.members.contains(&id)
+                                && self
+                                    .objects
+                                    .get(id)
+                                    .is_some_and(|c| c.kind == ObjectKind::ServiceCounter)
+                        }))
+                {
+                    return Err(fail(
+                        "espresso machine lacks its grinder or service counter",
+                    ));
+                }
                 if o.kind == ObjectKind::HotFoodWell
                     && (p.activity != IndoorLayout::Cafeteria
                         || !o.support.is_some_and(|id| {
@@ -239,6 +323,20 @@ impl IndoorManifest {
                     && !self.objects.iter().any(|child| child.support == Some(id))
                 {
                     return Err(fail("exhibit plinth has no supported exhibit"));
+                }
+                if matches!(o.kind, ObjectKind::YogaBlock | ObjectKind::YogaBolster)
+                    && (!matches!(
+                        p.activity,
+                        IndoorLayout::YogaStudio | IndoorLayout::FitnessRoom
+                    ) || !o.support.is_some_and(|id| {
+                        p.members.contains(&id)
+                            && self
+                                .objects
+                                .get(id)
+                                .is_some_and(|mat| mat.kind == ObjectKind::ExerciseMat)
+                    }))
+                {
+                    return Err(fail("practice prop lacks a mat in its exercise zone"));
                 }
                 if o.kind == ObjectKind::PowerRack
                     && !furnishing::fitness::rack_access_present(self, p, o)
@@ -315,8 +413,22 @@ impl IndoorManifest {
                         ));
                     }
                 }
+                for goal in self
+                    .objects
+                    .iter()
+                    .filter(|o| !o.neighbor && o.kind == ObjectKind::BasketballGoal)
+                {
+                    if !p.members.contains(&goal.id)
+                        || !furnishing::gymnasium::valid_goal(self, goal, court)
+                        || accesses.next() != Some(&furnishing::gymnasium::goal_access(goal))
+                    {
+                        return Err(fail(
+                            "basketball goal misses its backing, run-off or shooting approach",
+                        ));
+                    }
+                }
                 if accesses.next().is_some() {
-                    return Err(fail("unexpected spectator access route"));
+                    return Err(fail("unexpected gymnasium access route"));
                 }
                 if self.minimum_ceiling_height(lo, hi) < clear_height
                     || columns.iter().any(|&(a, b)| {
@@ -396,21 +508,33 @@ impl IndoorManifest {
                     }
                 }
             }
+            if self.generator_version >= super::super::super::objects::public::beam_seating::VERSION
+                && matches!(
+                    p.activity,
+                    IndoorLayout::Hallway | IndoorLayout::ElevatorLanding
+                )
+            {
+                furnishing::waiting::validate(self, p).map_err(fail)?;
+            }
             if p.activity == IndoorLayout::Hallway {
                 let zone = &zones[p.zone];
                 if p.zone != 0
                     || p.role != SpaceRole::Transit
                     || p.min != zone.min
                     || p.max != zone.max
-                    || p.reservations != furnishing::hallway::routes(self, zone, &p.parameters)
+                    || !p
+                        .reservations
+                        .iter()
+                        .filter(|r| r.role != ReservationRole::SeatingAccess)
+                        .eq(furnishing::hallway::routes(self, zone, &p.parameters).iter())
                 {
                     return Err(fail(
                         "hallway circulation must connect the entrance and every suite frontage",
                     ));
                 }
             }
-            if p.activity.is_retail() {
-                self.validate_retail_routes(p).map_err(fail)?;
+            if p.activity.is_retail() || p.activity == IndoorLayout::Laundromat {
+                self.validate_service_routes(p).map_err(fail)?;
             }
             for service in &p.services {
                 if self.objects.get(service.source).is_none()

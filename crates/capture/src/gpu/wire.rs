@@ -58,7 +58,8 @@ pub fn validate_views(
     if cameras.checked_mul(steps) != Some(views.len()) || views.is_empty() {
         return Err("view count mismatch");
     }
-    let mut ranges = Vec::with_capacity(views.len());
+    let mut previous_end = 0;
+    let mut ordered = true;
     for (index, view) in views.iter().enumerate() {
         if view.camera as usize != index % cameras
             || view.timestep as usize != index / cameras
@@ -74,8 +75,16 @@ pub fn validate_views(
         if end > allocation {
             return Err("view outside allocation");
         }
-        ranges.push((view.offset, end));
+        ordered &= previous_end <= view.offset;
+        previous_end = end;
     }
+    if ordered {
+        return Ok(());
+    }
+    let mut ranges: Vec<_> = views
+        .iter()
+        .map(|v| (v.offset, v.offset + v.bytes))
+        .collect();
     ranges.sort_unstable();
     if ranges.windows(2).any(|w| w[0].1 > w[1].0) {
         return Err("overlapping view ranges");
@@ -182,9 +191,17 @@ mod tests {
                 .collect();
             let size = views.len() as u64 * bytes;
             assert!(validate_views(&views, cameras, steps, bytes, size).is_ok());
+            let mut reversed = views.clone();
+            for (slot, original) in reversed.iter_mut().zip(views.iter().rev()) {
+                slot.offset = original.offset;
+            }
+            assert!(validate_views(&reversed, cameras, steps, bytes, size).is_ok());
             let mut bad = views.clone();
-            bad[0].offset = u64::MAX;
-            assert!(validate_views(&bad, cameras, steps, bytes, size).is_err());
+            bad[0].offset = u64::MAX - 15;
+            assert_eq!(
+                validate_views(&bad, cameras, steps, bytes, u64::MAX),
+                Err("view range overflow")
+            );
             if views.len() > 1 {
                 let mut bad = views.clone();
                 bad[1].offset = 0;

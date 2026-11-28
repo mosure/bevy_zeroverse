@@ -297,6 +297,10 @@ enum Uniform {
     Sensor(ResolveParams),
 }
 impl Uniform {
+    // Both fragment pipelines use binding 0 for the same source texture and
+    // binding 1 for uniforms. A clean frame reads only the first 16 bytes.
+    // Identical layout descriptors let an eligibility switch reuse the group.
+    const BUFFER_SIZE: u64 = std::mem::size_of::<ResolveParams>() as u64;
     fn bytes(&self) -> &[u8] {
         match self {
             Self::Box(v) => bytemuck::bytes_of(v),
@@ -351,10 +355,7 @@ fn prepare(
                     ShaderStages::FRAGMENT,
                     (
                         texture_2d(TextureSampleType::Float { filterable: false }),
-                        uniform_buffer_sized(
-                            false,
-                            NonZeroU64::new(job.params.bytes().len() as u64),
-                        ),
+                        uniform_buffer_sized(false, NonZeroU64::new(Uniform::BUFFER_SIZE)),
                     ),
                 ),
             );
@@ -399,11 +400,11 @@ fn prepare(
         if bindings
             .0
             .get(&key)
-            .is_none_or(|b| b.source != source.texture.id() || b.id != *id)
+            .is_none_or(|b| b.source != source.texture.id())
         {
             let uniform = device.create_buffer(&BufferDescriptor {
                 label: Some("ssaa_box_params"),
-                size: job.params.bytes().len() as u64,
+                size: Uniform::BUFFER_SIZE,
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
@@ -426,6 +427,7 @@ fn prepare(
         } else if let Some(binding) = bindings.0.get_mut(&key).filter(|b| b.params != job.params) {
             queue.write_buffer(&binding.uniform, 0, job.params.bytes());
             binding.params = job.params;
+            binding.id = *id;
         }
     }
     bindings.0.retain(|key, _| live.contains(key));

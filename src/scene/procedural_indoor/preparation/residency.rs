@@ -568,7 +568,7 @@ impl PreparedIndoor {
         let reflections: u64 = self
             .material_set
             .gpu_bakes
-            .1
+            .reflections()
             .iter()
             .map(|r| r.upload_bytes())
             .sum();

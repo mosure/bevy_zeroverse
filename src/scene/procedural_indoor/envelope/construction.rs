@@ -371,12 +371,7 @@ pub(crate) async fn build_with_yields<F: std::future::Future<Output = ()>>(
         motion_policy: scene.indoor_motion.as_ref().map(|m| m.policy.clone()),
         ..default()
     };
-    floors::build(
-        &mut a,
-        e,
-        size,
-        scene.program.as_ref().and_then(|p| p.volleyball),
-    );
+    floors::build(&mut a, e, scene);
     yield_if_due().await;
     let mut guard_posts = Vec::new();
     for (start, end) in e.tier_guards() {

@@ -473,7 +473,13 @@ pub(crate) fn sample_entry(scene: &mut IndoorManifest) -> Result<(), String> {
             | IndoorLayout::Gallery
             | IndoorLayout::PublicSuite
     );
-    let mechanism = if lobby && r.random_bool(0.16) {
+    let mechanism = if scene.layout == IndoorLayout::LockerRoom {
+        match r.random_range(0..100) {
+            0..=76 => DoorMechanism::Hinged,
+            77..=90 => DoorMechanism::Sliding,
+            _ => DoorMechanism::Paired,
+        }
+    } else if lobby && r.random_bool(0.16) {
         DoorMechanism::Revolving
     } else {
         DoorMechanism::ALL[r.random_range(0..4)]
@@ -484,6 +490,20 @@ pub(crate) fn sample_entry(scene: &mut IndoorManifest) -> Result<(), String> {
         _ => r.random_range(0.96..1.35),
     };
     let mut program = DoorProgram::sample(scene.seed, mechanism);
+    if scene.layout == IndoorLayout::LockerRoom
+        && matches!(program.panel, DoorPanel::Glazed | DoorPanel::VisionLite)
+    {
+        program.panel = if r.random_bool(0.6) {
+            DoorPanel::Flush
+        } else {
+            DoorPanel::Recessed
+        };
+        program.vision_light = None;
+        program.sample_faces(scene.seed);
+    }
+    if scene.layout == IndoorLayout::LockerRoom && r.random_bool(0.72) {
+        program.opening = 0.;
+    }
     // The exterior face is the neighboring volume. This keeps entry hardware
     // away from nearby ceiling details and primary-room circulation.
     program.swing_side = 1.;

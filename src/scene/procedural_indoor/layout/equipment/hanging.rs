@@ -15,6 +15,7 @@ impl IndoorManifest {
                             ObjectKind::PowerStrip
                                 | ObjectKind::PcTower
                                 | ObjectKind::HotFoodWell
+                                | ObjectKind::CoffeeGrinder
                                 | ObjectKind::Printer
                                 | ObjectKind::Monitor
                                 | ObjectKind::Projector

@@ -1,5 +1,5 @@
-//! A draining tray with real slots. Plate poses fit between the wire uprights;
-//! the same program is used by loose racks, sinks and dishwasher baskets.
+//! A draining tray with fitted plate slots. Dishwasher baskets share the slot
+//! and dish sampler and supply their own open bed and tines.
 use super::*;
 use crate::scene::procedural_indoor::geometry::RevolvedOutline;
 use rand::seq::SliceRandom;

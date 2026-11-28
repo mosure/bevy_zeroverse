@@ -58,11 +58,19 @@ impl Garment {
     }
 
     pub(in crate::scene::procedural_indoor::objects) fn build(&self, a: &mut Assembly) {
+        self.build_with_sleeve_dye(a, None);
+    }
+
+    pub(in crate::scene::procedural_indoor::objects) fn build_with_sleeve_dye(
+        &self,
+        a: &mut Assembly,
+        sleeve_finish_slot: Option<usize>,
+    ) {
         let label = format!("clothes#finish{}", self.finish_slot);
         if self.kind == GarmentKind::Scarf {
             super::scarf::build(a.part(self.surface, &label), self);
         } else {
-            super::outerwear::build(a, self, &label);
+            super::outerwear::build(a, self, &label, sleeve_finish_slot);
         }
     }
 }

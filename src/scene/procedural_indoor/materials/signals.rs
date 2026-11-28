@@ -9,6 +9,11 @@ use crate::scene::procedural_indoor::{
 };
 use rand::Rng;
 
+// These neutral dielectric enamels are shared by appliance and signal housings.
+pub(crate) const WHITE_ENAMEL: usize = FINISH_BASE + 1;
+pub(crate) const ALMOND_ENAMEL: usize = FINISH_BASE + 2;
+pub(crate) const GRAPHITE_ENAMEL: usize = FINISH_BASE + 3;
+
 /// Translucent-colored indicator resin shared by manufactured signal hardware.
 pub(crate) fn indicator_lens_finish(amber: bool) -> usize {
     if amber {

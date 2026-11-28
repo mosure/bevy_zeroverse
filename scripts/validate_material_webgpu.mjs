@@ -16,10 +16,13 @@ const shader = (await Promise.all(['synthesis.wgsl', 'paint.wgsl', 'flooring.wgs
 const kernel = await readFile(new URL('../src/scene/procedural_indoor/materials/gpu/kernel.rs', import.meta.url), 'utf8');
 const entries = [...kernel.match(/const ENTRIES:[\s\S]*?= \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 if (!entries.length) throw Error('Material compute entry points were not found');
-const profile = await mkdtemp(join(tmpdir(), 'zeroverse-material-webgpu-'));
 const fixtureArgument = process.argv.find(arg => arg.startsWith('--fixtures='));
 const fixtureDirectory = fixtureArgument && resolve(fixtureArgument.slice('--fixtures='.length));
 const fixtures = fixtureDirectory && JSON.parse(await readFile(join(fixtureDirectory, 'manifest.json'), 'utf8'));
+if (fixtures && (fixtures.schema !== 2 || JSON.stringify(fixtures.entries) !== JSON.stringify(entries))) {
+  throw Error('Material fixtures do not match this shader. Regenerate them with export_webgpu_material_fixtures.');
+}
+const profile = await mkdtemp(join(tmpdir(), 'zeroverse-material-webgpu-'));
 const allowed = new Set(fixtures ? ['srgb.bin', ...fixtures.cases.flatMap(c => c.expected)] : []);
 const server = createServer(async (req, res) => {
   const name = req.url.slice(1);
@@ -137,7 +140,8 @@ async function qualify(code, entries, fixtures, verifyMaps) {
   if (!messages.some(m => m.type === 'error')) {
     const layout = device.createBindGroupLayout({ entries: Array.from({ length: 6 }, (_, binding) => ({
       binding, visibility: GPUShaderStage.COMPUTE,
-      buffer: { type: binding === 0 || binding === 5 ? 'uniform' : binding === 4 ? 'read-only-storage' : 'storage' },
+      buffer: { type: binding === 0 || binding === 5 ? 'uniform' : binding === 4 ? 'read-only-storage' : 'storage',
+        hasDynamicOffset: binding === 5 },
     })) });
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
     const compiled = [];

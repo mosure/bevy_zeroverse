@@ -397,6 +397,12 @@ fn reported_sunken_room_props_remain_on_their_supports() {
             }
             let height = match scene.support_plane(prop).unwrap() {
                 SupportPlane::Top => support.size.y,
+                SupportPlane::Vise => {
+                    super::super::objects::public::workbench::Bench::clamped_bottom(support)
+                }
+                SupportPlane::Worktop => {
+                    super::super::objects::public::reception::Counter::sample(support).worktop_m
+                }
                 SupportPlane::LowerShelf => {
                     super::super::objects::tables::parameters(support)
                         .lounge_shelf(support, scene.generator_version)

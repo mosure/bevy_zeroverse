@@ -13,7 +13,7 @@ fn quad(g: &mut Geometry, p: [Vec3; 4], uv: [Vec2; 4]) {
 }
 
 /// Flat webbing, with real thickness and capped ends. No cylindrical rope handles.
-pub(super) fn strap(
+pub(in super::super) fn strap(
     g: &mut Geometry,
     points: &[Vec3],
     width: f32,

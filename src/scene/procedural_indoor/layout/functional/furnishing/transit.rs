@@ -1,5 +1,39 @@
 use super::*;
 
+/// Resolve the landing after admission. Program member IDs are finalized after furnishing.
+pub(super) fn identify_landing(scene: &IndoorManifest, index: usize, o: &mut IndoorObject) {
+    use geometry::signage::floor_guide::FloorGuide;
+    let p = &scene.assembly_diagnostics.programs[index];
+    let guide = match p.activity {
+        IndoorLayout::ElevatorLanding => scene
+            .objects
+            .iter()
+            .filter(|car| {
+                car.kind == ObjectKind::Elevator
+                    && !car.neighbor
+                    && car.position.xz().cmpge(p.min).all()
+                    && car.position.xz().cmple(p.max).all()
+            })
+            .find_map(|car| geometry::elevator::Levels::decode(car.variant))
+            .map(|l| FloorGuide::lift(l.floor, l.highest)),
+        IndoorLayout::StairHall => scene
+            .envelope
+            .as_ref()
+            .and_then(|e| e.mezzanine.as_ref())
+            .and_then(|m| {
+                FloorGuide::stair(
+                    o.position.y,
+                    scene.floor_height(o.position.xz()),
+                    m.deck.height,
+                )
+            }),
+        _ => None,
+    };
+    if let Some(guide) = guide {
+        guide.identify(o);
+    }
+}
+
 pub(super) fn door_approach(o: &IndoorObject) -> Reservation {
     // Keep the established unrotated bank's exact arithmetic. A recovered bank
     // must reserve the space in front of its actual doors, not world +Z.
@@ -208,32 +242,68 @@ impl IndoorManifest {
                     r,
                 );
             }
-            let size = geometry::dimensions(ObjectKind::Banquette, r.random());
-            self.public_fit(
-                index,
-                ObjectKind::Banquette,
-                Vec3::new(
-                    if side < 0. {
-                        p.min.x + 0.5
-                    } else {
-                        p.max.x - 0.5
-                    },
+        }
+        let mut seats = stream(self.seed, u64::from_le_bytes(*b"LobbyUse") + index as u64);
+        let occupied = seats.random_bool(0.84 + 0.10 * f64::from(self.density));
+        if occupied {
+            let count = 1 + usize::from(seats.random_bool(0.30 + 0.40 * f64::from(self.density)));
+            self.waiting_seats(index, 0, count);
+        }
+        self.lobby_directories(index);
+    }
+
+    fn lobby_directories(&mut self, index: usize) {
+        let mut r = stream(self.seed, u64::from_le_bytes(*b"LiftSign") + index as u64);
+        if !r.random_bool(0.56 + 0.22 * f64::from(self.density)) {
+            return;
+        }
+        let p = &self.functional_programs()[index];
+        let spine = p.reservations[0].clone();
+        let mut banks: Vec<_> = self
+            .objects
+            .iter()
+            .filter(|o| {
+                o.kind == ObjectKind::Elevator
+                    && !o.neighbor
+                    && o.position.xz().cmpge(p.min).all()
+                    && o.position.xz().cmple(p.max).all()
+            })
+            .map(|o| (o.transform(), o.size))
+            .collect();
+        let two =
+            banks.len() >= 3 && (p.max - p.min).element_product() > 60. && r.random_bool(0.30);
+        use rand::seq::SliceRandom;
+        banks.shuffle(&mut r);
+        let structure = PlacementStructure::new();
+        for (bank, cabinet) in banks.into_iter().take(if two { 2 } else { 1 }) {
+            let kind = ObjectKind::InformationStand;
+            let size = geometry::dimensions(kind, r.random());
+            let side = if r.random_bool(0.5) { 1. } else { -1. };
+            for flank in [side, -side] {
+                let pos = bank.transform_point(Vec3::new(
+                    flank * (cabinet.x * 0.5 + size.x * 0.5 + r.random_range(0.12..0.48)),
                     0.,
-                    center.y + 0.8,
-                ),
-                size,
-                side * FRAC_PI_2,
-                r,
-            );
-            let size = geometry::dimensions(ObjectKind::InformationStand, r.random());
-            self.public_fit(
-                index,
-                ObjectKind::InformationStand,
-                Vec3::new(center.x + side * 1.25, 0., center.y),
-                size,
-                side * 0.25,
-                r,
-            );
+                    cabinet.z * 0.5 + r.random_range(0.10..0.96),
+                ));
+                // A visitor reads the face from the public route to the car.
+                let approach = pos.xz().clamp(spine.min, spine.max) - pos.xz();
+                if approach.length_squared() < 0.25 {
+                    continue;
+                }
+                let yaw = approach.x.atan2(approach.y) + r.random_range(-0.18..0.18);
+                let site = FloorProposal {
+                    kind,
+                    size,
+                    position: pos,
+                    yaw,
+                };
+                if self
+                    .public_fit_at_offsets(index, site, &mut r, &structure, &[Vec2::ZERO], |_| true)
+                    .is_some()
+                {
+                    break;
+                }
+            }
         }
     }
 }

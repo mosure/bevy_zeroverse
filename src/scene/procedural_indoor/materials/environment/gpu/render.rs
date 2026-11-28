@@ -1,3 +1,4 @@
+use super::super::super::gpu::ExtractedBakes;
 use super::*;
 use bevy::{
     asset::{load_internal_asset, uuid_handle},
@@ -7,8 +8,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems},
         texture::GpuImage,
-        Extract, ExtractSchedule, GpuResourceAppExt, Render, RenderApp, RenderStartup,
-        RenderSystems,
+        GpuResourceAppExt, Render, RenderApp, RenderStartup, RenderSystems,
     },
     shader::ShaderCacheError,
 };
@@ -18,9 +18,7 @@ impl Plugin for ReflectionBakePlugin {
     fn build(&self, app: &mut App) {
         load_internal_asset!(app, SHADER, "convolve.wgsl", Shader::from_wgsl);
         if let Some(render) = app.get_sub_app_mut(RenderApp) {
-            render
-                .init_resource::<Extracted>()
-                .init_resource::<Scratch>();
+            render.init_resource::<Scratch>();
         }
     }
     fn finish(&self, app: &mut App) {
@@ -34,8 +32,9 @@ impl Plugin for ReflectionBakePlugin {
         if !available {
             return;
         }
-        app.sub_app_mut(RenderApp)
-            .add_systems(ExtractSchedule, extract)
+        let render = app.sub_app_mut(RenderApp);
+        ExtractedBakes::install(render);
+        render
             .init_gpu_resource::<Pipeline>()
             .add_systems(RenderStartup, reset)
             .add_systems(Render, queue.in_set(RenderSystems::PrepareResources))
@@ -45,19 +44,6 @@ impl Plugin for ReflectionBakePlugin {
                     .in_set(RenderGraphSystems::Render),
             );
     }
-}
-#[derive(Resource, Default)]
-struct Extracted(Vec<Request>);
-fn extract(
-    mut out: ResMut<Extracted>,
-    current: Extract<Option<Res<super::super::super::gpu::Requests>>>,
-    future: Extract<Res<crate::scene::procedural_indoor::preparation::residency::FutureAssets>>,
-) {
-    out.0.clear();
-    if let Some(current) = current.as_deref() {
-        out.0.extend(current.1.iter().cloned());
-    }
-    out.0.extend(future.material_bakes.1.iter().cloned());
 }
 #[derive(Resource)]
 struct Pipeline {
@@ -78,8 +64,8 @@ impl FromWorld for Pipeline {
         }
     }
 }
-fn queue(requests: Res<Extracted>, mut pipeline: ResMut<Pipeline>, cache: Res<PipelineCache>) {
-    if pipeline.id.is_none() && !requests.0.is_empty() {
+fn queue(requests: Res<ExtractedBakes>, mut pipeline: ResMut<Pipeline>, cache: Res<PipelineCache>) {
+    if pipeline.id.is_none() && requests.reflections().next().is_some() {
         pipeline.id = Some(cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some("indoor IBL convolution".into()),
             layout: vec![pipeline.descriptor.clone()],
@@ -91,16 +77,16 @@ fn queue(requests: Res<Extracted>, mut pipeline: ResMut<Pipeline>, cache: Res<Pi
 }
 #[derive(Resource, Default)]
 struct Scratch(Mutex<Option<Workspace>>);
-fn reset(mut scratch: ResMut<Scratch>, requests: Res<Extracted>) {
+fn reset(mut scratch: ResMut<Scratch>, requests: Res<ExtractedBakes>) {
     *scratch.0.get_mut().unwrap() = None;
-    for r in &requests.0 {
+    for r in requests.reflections() {
         r.status.encoded.store(false, Ordering::Release);
         *r.status.error.lock().unwrap() = None;
     }
 }
 fn bake(world: &World, mut context: RenderContext) {
-    let requests = world.resource::<Extracted>();
-    if requests.0.iter().all(Request::ready) {
+    let requests = world.resource::<ExtractedBakes>();
+    if requests.reflections().all(Request::ready) {
         return;
     }
     let pipeline = world.resource::<Pipeline>();
@@ -113,7 +99,7 @@ fn bake(world: &World, mut context: RenderContext) {
             error,
             ShaderCacheError::ShaderNotLoaded(_) | ShaderCacheError::ShaderImportNotYetAvailable
         ) {
-            for r in &requests.0 {
+            for r in requests.reflections() {
                 *r.status.error.lock().unwrap() = Some(format!("IBL compute pipeline: {error}"));
             }
         }
@@ -129,7 +115,7 @@ fn bake(world: &World, mut context: RenderContext) {
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
     let span = diagnostics.time_span(context.command_encoder(), "indoor_reflection_convolution");
-    for r in &requests.0 {
+    for r in requests.reflections() {
         if r.ready() {
             continue;
         }

@@ -100,7 +100,7 @@ fn propose_inner(
             return (scene
                 .camera_settings
                 .accepts_motion(scene.seed, index, &camera)
-                && scene.camera_curve_clear(&camera)
+                && coverage.clearance.curve_clear(scene, &camera)
                 && coverage.suitable(&camera, require_person))
             .then_some(camera);
         }

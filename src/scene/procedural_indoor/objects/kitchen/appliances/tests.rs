@@ -316,3 +316,120 @@ fn cast_grates_have_seated_feet_clear_centers_and_a_level_pot_plane() {
     assert_eq!(counts, BTreeSet::from([3, 4, 5]));
     assert_eq!(frames, BTreeSet::from([2, 8]));
 }
+
+#[test]
+fn wash_door_skin_partitions_existing_triangles_and_leaves_the_glass_open() {
+    use crate::scene::procedural_indoor::envelope::ray_triangle;
+    fn triangles(a: &Assembly) -> Vec<[[u32; 8]; 3]> {
+        let mut list: Vec<_> = a
+            .parts
+            .values()
+            .flat_map(|g| {
+                g.indices.as_chunks::<3>().0.iter().map(|t| {
+                    t.map(|i| {
+                        let i = i as usize;
+                        let [x, y, z] = g.positions[i];
+                        let [nx, ny, nz] = g.normals[i];
+                        let [u, v] = g.uvs[i];
+                        [x, y, z, nx, ny, nz, u, v].map(f32::to_bits)
+                    })
+                })
+            })
+            .collect();
+        list.sort_unstable();
+        list
+    }
+    let size = Vec2::new(0.56, 0.63);
+    for glass in [false, true] {
+        for angle in [0., 0.69, 1.35] {
+            let tf =
+                Transform::from_xyz(0.19, 0.6, -0.27).with_rotation(Quat::from_rotation_x(angle));
+            let mut old = Assembly::default();
+            cabinet::panel(&mut old, size, tf, Surface::Wood, "dishwasher", glass);
+            let mut fitted = Assembly::default();
+            cabinet::panel_with_back(
+                &mut fitted,
+                size,
+                tf,
+                Surface::Wood,
+                Surface::Metal,
+                "dishwasher",
+                glass,
+            );
+            assert_eq!(triangles(&old), triangles(&fitted));
+            for (x, z, expected) in [
+                (0.26, -0.06, Surface::Metal),
+                (0.26, 0.06, Surface::Wood),
+                (
+                    0.,
+                    -0.06,
+                    if glass {
+                        Surface::GlassInterior
+                    } else {
+                        Surface::Metal
+                    },
+                ),
+            ] {
+                let origin = tf.transform_point(Vec3::new(x, 0., z));
+                let dir = tf.rotation * (Vec3::Z * -z.signum());
+                let hit = fitted
+                    .parts
+                    .iter()
+                    .flat_map(|((s, _), g)| {
+                        g.indices.as_chunks::<3>().0.iter().filter_map(move |t| {
+                            ray_triangle(
+                                origin,
+                                dir,
+                                t.map(|i| Vec3::from(g.positions[i as usize])),
+                            )
+                            .map(|d| (d, s))
+                        })
+                    })
+                    .min_by(|a, b| a.0.total_cmp(&b.0));
+                assert_eq!(hit.map(|(_, s)| *s), Some(expected));
+            }
+        }
+    }
+    let motion = crate::scene::procedural_indoor::motion::IndoorMotionConfig {
+        appliance_fraction: 1.,
+        ..default()
+    };
+    let mut solids = 0;
+    let mut glazed = 0;
+    for seed in 0..96 {
+        let o = audit::fixture(ObjectKind::Dishwasher, seed);
+        if program::finishes(&o).1 == Surface::Metal {
+            continue;
+        }
+        let current = crate::scene::procedural_indoor::objects::build_object_at_version(
+            &o,
+            Some(&motion),
+            baskets::INTRODUCED,
+        );
+        let [hinge] = current.joints.as_slice() else {
+            panic!("missing door {seed}")
+        };
+        let local = hinge.frame.compute_affine().inverse();
+        let inward = hinge.frame.rotation * Vec3::NEG_Z;
+        let mut span = (f32::INFINITY, f32::NEG_INFINITY);
+        for key in hinge.parts.iter().filter(|(s, _)| *s == Surface::Metal) {
+            let skin = &current.parts[key];
+            for (point, normal) in skin.positions.iter().zip(&skin.normals) {
+                let face = local.transform_point3(Vec3::from(*point));
+                if (face.z + 0.011).abs() < 2e-6 && Vec3::from(*normal).dot(inward) > 0.999 {
+                    span = (span.0.min(face.x), span.1.max(face.x));
+                }
+            }
+        }
+        assert!(
+            span.1 - span.0 > o.size.x * 0.85,
+            "wet face detached from hinge in seed {seed}"
+        );
+        if parameters(&o).viewport {
+            glazed += 1;
+        } else {
+            solids += 1;
+        }
+    }
+    assert!(solids > 0 && glazed > 0);
+}

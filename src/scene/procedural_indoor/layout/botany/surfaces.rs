@@ -37,7 +37,11 @@ impl IndoorManifest {
         let supports: Vec<_> = self
             .objects
             .iter()
-            .filter(|o| !o.neighbor && support_weight(o.kind).is_some())
+            .filter(|o| {
+                !o.neighbor
+                    && support_weight(o.kind).is_some()
+                    && !crate::scene::procedural_indoor::objects::tables::is_classroom_table(o)
+            })
             .cloned()
             .collect();
         for support in supports {

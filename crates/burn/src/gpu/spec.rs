@@ -50,6 +50,15 @@ impl AttachmentPlan {
             .map(|p| self.rendered.iter().position(|r| r == p).unwrap())
             .collect()
     }
+    /// The copier already interprets an empty selection as all planes in order.
+    /// RGB-only and full-attachment captures can use that allocation-free path.
+    pub(super) fn binding_indices(&self) -> Vec<usize> {
+        if self.copied == self.rendered {
+            Vec::new()
+        } else {
+            self.source_indices()
+        }
+    }
     pub fn index(&self, plane: Plane) -> Option<usize> {
         self.copied.iter().position(|p| *p == plane)
     }
@@ -370,6 +379,13 @@ mod tests {
                 config.render_modes.contains(&RenderMode::Color)
             );
             let indices = spec.plan.source_indices();
+            let selection = spec.plan.binding_indices();
+            if selection.is_empty() {
+                assert_eq!(spec.plan.copied, spec.plan.rendered);
+                assert!(indices.iter().copied().eq(0..spec.plan.rendered.len()));
+            } else {
+                assert_eq!(selection, indices);
+            }
             assert!(indices.windows(2).all(|w| w[0] < w[1]));
             for (i, plane) in indices.iter().zip(&spec.plan.copied) {
                 assert_eq!(spec.plan.rendered[*i], *plane);

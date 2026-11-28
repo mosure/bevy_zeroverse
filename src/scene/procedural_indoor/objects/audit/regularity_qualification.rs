@@ -203,12 +203,12 @@ fn expanded_object_sampling_preserves_room_supports_semantics_and_collections() 
             path.join("storage-room-placement.json"),
             serde_json::to_vec_pretty(&json!({
                 "scope":"accepted non-neighbor scene objects; not image visibility weighted",
-                "rooms":times.len(),"profiles":IndoorLayout::PROFILES,"seeds":[0,1],
+                "rooms":times.len(),"profiles":IndoorLayout::PROFILES.as_slice(),"seeds":[0,1],
                 "geometry_and_layout_validated":true,"items":storage_placements,
             }))
             .unwrap(),
         )
         .unwrap();
-        std::fs::write(path.join("rooms.json"), serde_json::to_vec_pretty(&json!({"provenance":crate::provenance::capture_provenance(),"rooms":times.len(),"profiles":IndoorLayout::PROFILES,"seeds":[0,1],"density":0.75,"cameras":3,"human_density":0.25,"accepted_objects":seen,"collection_finish_groups":{"all_independent":group_counts[0],"mixed":group_counts[1],"all_matching":group_counts[2]},"manifest_cpu_ms":times,"full_geometry_and_layout_validation":true})).unwrap()).unwrap();
+        std::fs::write(path.join("rooms.json"), serde_json::to_vec_pretty(&json!({"provenance":crate::provenance::capture_provenance(),"rooms":times.len(),"profiles":IndoorLayout::PROFILES.as_slice(),"seeds":[0,1],"density":0.75,"cameras":3,"human_density":0.25,"accepted_objects":seen,"collection_finish_groups":{"all_independent":group_counts[0],"mixed":group_counts[1],"all_matching":group_counts[2]},"manifest_cpu_ms":times,"full_geometry_and_layout_validation":true})).unwrap()).unwrap();
     }
 }

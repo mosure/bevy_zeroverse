@@ -70,11 +70,8 @@ impl IndoorManifest {
         });
         // Site-compatible collections, with independent plant size, crown and
         // container manufacture. Leave negative space between distinct groups.
-        let collection: &[u32] = match rng.random_range(0..3) {
-            0 => &[6, 13, 10, 4],
-            1 => &[15, 1, 14, 13, 3],
-            _ => &[8, 9, 7, 13, 15],
-        };
+        let planting = plants::bed::Collection::sample(&mut rng);
+        let collection = planting.specimens();
         let groups = (rng.random_range(1.4..2.7) + self.density * 1.8).round() as usize;
         let first = self.objects.len();
         let mut planted = Vec::new();
@@ -86,6 +83,7 @@ impl IndoorManifest {
                 bed_rng.random_range(1.08..1.85),
             );
             let species = collection[bed_rng.random_range(0..collection.len())];
+            let variant = planting.bed_variant(species, self.generator_version);
             for _ in 0..8 {
                 let at = center
                     + opening
@@ -100,7 +98,7 @@ impl IndoorManifest {
                     yaw: bed_rng.random_range(-PI..PI),
                 };
                 if let Some(id) = self.public_fit_with(0, proposal, &mut bed_rng, |o| {
-                    o.variant = species;
+                    o.variant = variant;
                     let (lo, hi) = o.bounds();
                     lo.xz().cmpge(roof.min).all() && hi.xz().cmple(roof.max).all()
                 }) {

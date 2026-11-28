@@ -1,6 +1,7 @@
 //! Metric locker compartments, manufactured fronts and individually sampled use states.
 use super::*;
 use rand_chacha::ChaCha8Rng;
+mod changing;
 mod contents;
 mod fronts;
 mod sheet;
@@ -9,8 +10,17 @@ pub use sheet::VentStock;
 pub const FITTED_VERSION: u32 = 219;
 pub(crate) const WALL_BANK: u32 = 16;
 pub(crate) const FREESTANDING_BANK: u32 = 17;
+pub(crate) const CHANGING: u32 = 1 << 8;
+pub(crate) const ISLAND_BANK: u32 = CHANGING | 18;
+
+pub(crate) fn wall_bank(o: &IndoorObject) -> bool {
+    o.variant & !CHANGING == WALL_BANK
+}
 pub fn installation(o: &IndoorObject) -> Option<&'static str> {
-    match o.variant {
+    if o.variant == ISLAND_BANK {
+        return Some("back_to_back");
+    }
+    match o.variant & !CHANGING {
         WALL_BANK => Some("wall_backed"),
         FREESTANDING_BANK => Some("freestanding"),
         _ => None,
@@ -43,6 +53,16 @@ pub struct LockerProgram {
     pub accent: Surface,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fittings: Option<Fittings>,
+}
+
+impl LockerProgram {
+    /// Number of independently accessible compartments on this bank's front.
+    pub fn compartments(&self) -> usize {
+        self.bays
+            .iter()
+            .map(|bay| bay.levels.len().saturating_sub(1))
+            .sum()
+    }
 }
 
 pub fn parameters(o: &IndoorObject) -> LockerProgram {
@@ -192,7 +212,11 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
             let hi = top - if row + 1 < b.open.len() { t * 0.5 } else { 0. };
             if let Some(fittings) = &p.fittings {
                 if matches!(p.front, 2 | 3) || b.open[row] {
-                    contents::build(a, o, &p, bay_index, row, (lo, hi), version);
+                    if o.variant & CHANGING != 0 {
+                        changing::fittings(a, o, &p, bay_index, row, (lo, hi), l);
+                    } else {
+                        contents::build(a, o, &p, bay_index, row, (lo, hi), version);
+                    }
                 }
                 if p.front != 3 {
                     fittings.door(a, o, &p, bay_index, row, (lo, hi), l);

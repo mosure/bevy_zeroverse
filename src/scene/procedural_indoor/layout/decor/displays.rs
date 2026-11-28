@@ -57,6 +57,7 @@ impl IndoorManifest {
     pub(in crate::scene::procedural_indoor::layout) fn display_demand(&self) -> usize {
         use IndoorLayout::*;
         let (chance, repeater) = match self.layout {
+            LockerRoom => return 0,
             Conference => (0.89, 0.47),
             LectureHall | Training => (0.92, 0.70),
             Classroom => (0.82, 0.38),
@@ -66,9 +67,11 @@ impl IndoorManifest {
                 (0.56, 0.36)
             }
             Lounge | Studio | ElevatorLanding => (0.46, 0.20),
-            Workshop | Library | Mixed => (0.34, 0.14),
-            GroceryStore | ClothingStore | Hallway | StairHall | Courtyard => (0.30, 0.18),
-            Gallery | Kitchenette | Kitchen | Restaurant => (0.15, 0.08),
+            Workshop | Library | RehearsalRoom | Mixed => (0.34, 0.14),
+            Laundromat | GroceryStore | ClothingStore | Hallway | StairHall | Courtyard => {
+                (0.30, 0.18)
+            }
+            Gallery | Kitchenette | Kitchen | Restaurant | YogaStudio => (0.15, 0.08),
         };
         let mut rng = sampling::Domain::Displays.rng(self.seed);
         if !rng.random_bool(chance) {

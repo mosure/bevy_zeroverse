@@ -1,7 +1,13 @@
 //! Bound CPU-task polling without extracting/submitting another idle frame.
 //! Only the current requested room can wait; uploads and GPU/model readiness
 //! retain their ordinary app updates after this CPU task completes.
-use std::time::{Duration, Instant};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{mpsc, Arc},
+    task::{Context, Poll, Wake, Waker},
+    time::{Duration, Instant},
+};
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct WaitPolicy {
@@ -27,33 +33,54 @@ impl WaitPolicy {
     }
 }
 
-const MAX_WINDOW: Duration = Duration::from_millis(10);
-const INTERVAL: Duration = Duration::from_millis(1);
+// Service cancellation, deadlines and other app systems periodically even if
+// a CPU job is exceptionally slow. Completion wakes the worker immediately.
+const MAX_WINDOW: Duration = Duration::from_millis(50);
 
-pub(crate) fn poll_current<T>(policy: WaitPolicy, poll: impl FnMut() -> Option<T>) -> Option<T> {
-    let start = Instant::now();
-    poll_window(policy, poll, || start.elapsed(), std::thread::sleep)
+struct TaskWake(mpsc::SyncSender<()>);
+impl Wake for TaskWake {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        // One outstanding signal suffices. A late wake after timeout is benign.
+        let _ = self.0.try_send(());
+    }
 }
 
-fn poll_window<T>(
+pub(super) fn poll_current<F: Future + Unpin>(
     policy: WaitPolicy,
-    mut poll: impl FnMut() -> Option<T>,
-    mut elapsed: impl FnMut() -> Duration,
-    mut sleep: impl FnMut(Duration),
-) -> Option<T> {
-    // Match the ordinary once-per-update poll for every ineligible caller.
-    let ready = poll();
-    if ready.is_some() || !policy.enabled() {
-        return ready;
+    task: &mut F,
+) -> Option<F::Output> {
+    poll_with_window(policy, task, MAX_WINDOW)
+}
+
+fn poll_with_window<F: Future + Unpin>(
+    policy: WaitPolicy,
+    task: &mut F,
+    window: Duration,
+) -> Option<F::Output> {
+    let mut task = Pin::new(task);
+    if let Poll::Ready(value) = task.as_mut().poll(&mut Context::from_waker(Waker::noop())) {
+        return Some(value);
     }
+    if !policy.enabled() {
+        return None;
+    }
+    let deadline = Instant::now() + window;
+    let (notify, notified) = mpsc::sync_channel(1);
+    let waker = Waker::from(Arc::new(TaskWake(notify)));
+    let mut cx = Context::from_waker(&waker);
     loop {
-        let remaining = MAX_WINDOW.saturating_sub(elapsed());
-        if remaining.is_zero() {
-            return None;
+        // Register before waiting. A task that completed during registration
+        // either returns Ready here or leaves a notification in the channel.
+        if let Poll::Ready(value) = task.as_mut().poll(&mut cx) {
+            return Some(value);
         }
-        sleep(INTERVAL.min(remaining));
-        if let Some(ready) = poll() {
-            return Some(ready);
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() || notified.recv_timeout(remaining).is_err() {
+            return None;
         }
     }
 }
@@ -77,61 +104,77 @@ mod tests {
     }
 
     #[test]
-    fn completed_tasks_and_errors_return_without_sleeping() {
+    fn completed_tasks_and_errors_return_immediately() {
         for result in [Ok(17), Err("requested room rejected")] {
             assert_eq!(
-                poll_window(
-                    eligible(),
-                    || Some(result),
-                    || panic!("completed task needs no deadline"),
-                    |_| panic!("completed task must not sleep"),
-                ),
+                poll_current(eligible(), &mut std::future::ready(result)),
                 Some(result)
             );
         }
     }
 
     #[test]
-    fn current_task_finishing_during_wait_stops_immediately() {
-        let elapsed = Cell::new(Duration::ZERO);
+    fn wake_between_poll_and_wait_is_retained() {
         let polls = Cell::new(0);
-        let result = poll_window(
-            eligible(),
-            || {
-                polls.set(polls.get() + 1);
-                (polls.get() == 4).then_some(Ok::<_, String>(31))
-            },
-            || elapsed.get(),
-            |duration| elapsed.set(elapsed.get() + duration),
-        );
-        assert_eq!(result, Some(Ok(31)));
-        assert_eq!(elapsed.get(), Duration::from_millis(3));
-        assert_eq!(polls.get(), 4);
+        let mut task = std::future::poll_fn(|cx| {
+            polls.set(polls.get() + 1);
+            if polls.get() == 2 {
+                cx.waker().wake_by_ref();
+                cx.waker().wake_by_ref();
+            }
+            if polls.get() == 3 {
+                Poll::Ready(31)
+            } else {
+                Poll::Pending
+            }
+        });
+        assert_eq!(poll_current(eligible(), &mut task), Some(31));
+        assert_eq!(polls.get(), 3);
     }
 
     #[test]
-    fn unfinished_task_returns_at_deadline_and_last_sleep_is_truncated() {
-        let elapsed = Cell::new(Duration::ZERO);
-        let sleeps = Cell::new(0);
-        let result = poll_window(
-            eligible(),
-            || {
-                // Simulate 0.3 ms of polling work before every sleep.
-                elapsed.set(elapsed.get() + Duration::from_micros(300));
-                None::<()>
-            },
-            || elapsed.get(),
-            |duration| {
-                assert!(duration <= INTERVAL);
-                assert!(elapsed.get() + duration <= MAX_WINDOW);
-                sleeps.set(sleeps.get() + 1);
-                elapsed.set(elapsed.get() + duration);
-            },
+    fn unfinished_task_yields_at_deadline_without_periodic_polling() {
+        let polls = Cell::new(0);
+        let mut pending = std::future::poll_fn(|_| {
+            polls.set(polls.get() + 1);
+            Poll::<()>::Pending
+        });
+        assert_eq!(
+            poll_with_window(eligible(), &mut pending, Duration::from_millis(5)),
+            None
         );
-        assert_eq!(result, None);
-        assert!(sleeps.get() > 0);
-        assert!(elapsed.get() >= MAX_WINDOW);
-        assert!(elapsed.get() <= MAX_WINDOW + Duration::from_micros(300));
+        assert_eq!(polls.get(), 2);
+    }
+
+    #[test]
+    fn completion_on_another_thread_wakes_the_waiter() {
+        let (sender, receiver) = mpsc::channel::<Waker>();
+        let done = std::sync::atomic::AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            let done = &done;
+            scope.spawn(move || {
+                let waker = receiver.recv().unwrap();
+                done.store(true, std::sync::atomic::Ordering::Release);
+                waker.wake();
+            });
+            let mut polls = 0;
+            let mut task = std::future::poll_fn(|cx| {
+                polls += 1;
+                if done.load(std::sync::atomic::Ordering::Acquire) {
+                    return Poll::Ready(42);
+                }
+                // The first poll is the immediate, nonblocking check. Hand
+                // the completing thread the waker registered for the wait.
+                if polls == 2 {
+                    sender.send(cx.waker().clone()).unwrap();
+                }
+                Poll::Pending
+            });
+            assert_eq!(
+                poll_with_window(eligible(), &mut task, Duration::from_secs(2)),
+                Some(42)
+            );
+        });
     }
 
     #[test]
@@ -179,14 +222,12 @@ mod tests {
         ] {
             let polls = Cell::new(0);
             assert_eq!(
-                poll_window(
+                poll_current(
                     policy,
-                    || {
+                    &mut std::future::poll_fn(|_| {
                         polls.set(polls.get() + 1);
-                        None::<()>
-                    },
-                    || panic!("ineligible request needs no deadline"),
-                    |_| panic!("ineligible request must not sleep"),
+                        Poll::<()>::Pending
+                    })
                 ),
                 None
             );

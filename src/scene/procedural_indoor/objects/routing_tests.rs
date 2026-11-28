@@ -10,18 +10,39 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         | ObjectKind::FirePullStation
         | ObjectKind::StringLights => equipment::signals::build(a, o),
         ObjectKind::WeightBench
+        | ObjectKind::WashingMachine
+        | ObjectKind::TumbleDryer
+        | ObjectKind::MusicStand
+        | ObjectKind::StagePiano
+        | ObjectKind::Timpani
+        | ObjectKind::BeamSeating
+        | ObjectKind::YogaBlock
+        | ObjectKind::YogaBolster
+        | ObjectKind::LaundryCart
+        | ObjectKind::LaundryFoldingTable
+        | ObjectKind::BasketStack
+        | ObjectKind::DrinkingFountain
+        | ObjectKind::WaterCooler
+        | ObjectKind::CoffeeGrinder
+        | ObjectKind::EspressoMachine
+        | ObjectKind::Workbench
+        | ObjectKind::TimberOffcut
+        | ObjectKind::ArtistEasel
+        | ObjectKind::ReceptionDesk
         | ObjectKind::HotFoodWell
         | ObjectKind::PowerRack
         | ObjectKind::DumbbellRack
         | ObjectKind::GroceryDisplay
         | ObjectKind::BleacherBank
         | ObjectKind::VolleyballNet
+        | ObjectKind::BasketballGoal
         | ObjectKind::FittingRoom
         | ObjectKind::ApparelDisplay
         | ObjectKind::CheckoutCounter
         | ObjectKind::StationaryBike
         | ObjectKind::Treadmill
         | ObjectKind::ExerciseMat
+        | ObjectKind::ExerciseMatRack
         | ObjectKind::Elevator
         | ObjectKind::ServiceCounter
         | ObjectKind::DisplayCase
@@ -95,7 +116,7 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         }
         ObjectKind::Chair => chairs::build(a, o, super::super::layout::GENERATOR_VERSION),
         ObjectKind::Sofa => seating::build(a, o, super::super::layout::GENERATOR_VERSION),
-        ObjectKind::Cabinet | ObjectKind::Bookcase => {
+        ObjectKind::Cabinet | ObjectKind::Bookcase | ObjectKind::LibraryStack => {
             storage::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
         ObjectKind::Thermostat => wall::thermostat::build(a, o),
@@ -103,7 +124,9 @@ fn original_route(a: &mut Assembly, o: &IndoorObject) {
         ObjectKind::Keyboard | ObjectKind::Mouse | ObjectKind::PcTower => {
             desktop::build(a, o, super::super::layout::GENERATOR_VERSION)
         }
-        ObjectKind::WaterBottle
+        ObjectKind::TableNapkin
+        | ObjectKind::DrinkingGlass
+        | ObjectKind::WaterBottle
         | ObjectKind::Mug
         | ObjectKind::CoffeeCup
         | ObjectKind::SodaCan
@@ -181,4 +204,39 @@ fn catalog_preserves_ordinals_names_semantics_and_placement_capabilities() {
         assert_eq!(kind.is_kitchen(), row["kitchen"]);
         assert_eq!(kind.is_program_item(), row["program"]);
     }
+}
+
+#[test]
+fn merging_transformed_parts_reuses_the_first_mesh_and_offsets_subsequent_indices() {
+    let mut dest = Assembly::default();
+    let mut child = Assembly::default();
+    child.box_part(Surface::Concrete, "plant", Vec3::Y, Vec3::ONE, 0.);
+    let key = (Surface::Concrete, String::from("plant"));
+    let source = child.parts[&key].clone();
+    let vertices = child.parts[&key].positions.as_ptr();
+    let transform = Transform::from_xyz(0.5, 0.3, 0.9).with_rotation(Quat::from_rotation_y(0.76));
+    append_at(&mut dest, child, transform);
+    assert_eq!(dest.parts[&key].positions.as_ptr(), vertices);
+    let mut second = Assembly::default();
+    second.parts.insert(key.clone(), source.clone());
+    append_at(&mut dest, second, Transform::IDENTITY);
+    let merged = &dest.parts[&key];
+    let n = source.positions.len();
+    for (i, p) in source.positions.iter().enumerate() {
+        assert_eq!(
+            merged.positions[i],
+            transform.transform_point(Vec3::from_array(*p)).to_array()
+        );
+        assert_eq!(
+            merged.normals[i],
+            (transform.rotation * Vec3::from_array(source.normals[i])).to_array()
+        );
+    }
+    assert_eq!(merged.positions[n..], source.positions);
+    assert_eq!(merged.uvs, [&source.uvs[..], &source.uvs[..]].concat());
+    assert_eq!(merged.indices[..source.indices.len()], source.indices);
+    assert!(merged.indices[source.indices.len()..]
+        .iter()
+        .zip(&source.indices)
+        .all(|(a, b)| *a == *b + n as u32));
 }

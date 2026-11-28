@@ -47,6 +47,10 @@ impl CasterSet {
         Self::fit(o, p.foot_span * o.size.xz(), p.foot / 2.65, Some(p.foot))
     }
 
+    pub(in super::super) fn laundry_cart(o: &IndoorObject, span: Vec2, radius: f32) -> Self {
+        Self::fit(o, span, radius, None)
+    }
+
     fn fit(o: &IndoorObject, span: Vec2, requested: f32, cabinet_floor: Option<f32>) -> Self {
         let mut r = stream(o.seed, u64::from_le_bytes(*b"CastrSet"));
         let mut f = stream(
@@ -155,7 +159,7 @@ impl CasterSet {
 
     /// Insert the upright into the bearing so its bottom cap lies inside
     /// the housing, even when both components have the same nominal radius.
-    pub(super) fn post_bottom_m(&self) -> f32 {
+    pub(in super::super) fn post_bottom_m(&self) -> f32 {
         self.mount_height_m - 0.05 * self.radius_m
     }
 

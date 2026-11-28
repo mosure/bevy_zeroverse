@@ -157,7 +157,7 @@ pub fn shared_facade(scene: &IndoorManifest, height: f32) -> Facade {
             });
         }
     }
-    Facade {
+    let mut facade = Facade {
         joinery: p.map(|p| p.joinery.clone()),
         side: FacadeSide::Rear,
         openings,
@@ -170,7 +170,11 @@ pub fn shared_facade(scene: &IndoorManifest, height: f32) -> Facade {
         shade: Shade::None,
         shade_coverage: 0.,
         shade_tilt: 0.,
+    };
+    if scene.layout == super::super::layout::IndoorLayout::LockerRoom {
+        facade.fit_clerestory(scene.window_sill, height);
     }
+    facade
 }
 
 /// Both rough openings and wall-mounted equipment use the same limiting roof height.

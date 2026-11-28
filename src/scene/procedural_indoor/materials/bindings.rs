@@ -35,8 +35,9 @@ pub(crate) struct MaterialSelection {
 impl MaterialSelection {
     pub(in super::super) fn select_finish(&mut self, surface: Surface, slot: usize) {
         self.finishes.insert((surface, slot));
-        if let Some(stock) =
-            garment_stock::parent(surface, slot).or_else(|| sport::stock_parent(surface, slot))
+        if let Some(stock) = garment_stock::parent(surface, slot)
+            .or_else(|| sport::stock_parent(surface, slot))
+            .or_else(|| basket_resin::parent(surface, slot))
         {
             self.finishes.insert((surface, stock));
         }
@@ -57,15 +58,24 @@ impl MaterialSelection {
             // The entry for the shared undyed stock determines its required maps.
             if garment_stock::parent(surface, slot).is_some()
                 || sport::stock_parent(surface, slot).is_some()
+                || basket_resin::parent(surface, slot).is_some()
             {
                 continue;
             }
             // These stock programs supply their own complete optical response.
             if sport::supports(surface, slot)
+                || art::studies::supports(surface, slot)
+                || canvas_stock::supports(surface, slot)
+                || cutting_mat::supports(surface, slot)
+                || mat_stock::supports(surface, slot)
                 || strength::supports(surface, slot)
                 || roast::supports(surface, slot)
+                || baking::supports(surface, slot)
+                || glass::carboy::supports(surface, slot)
+                || glass::tableware::supports(surface, slot)
                 || glass::mirror::supports(surface, slot)
                 || coated_stock::supports(surface, slot)
+                || drum_stock::supports(surface, slot)
                 || acoustic_tile::supports(surface, slot)
                 || speaker::supports(surface, slot)
                 || (scene.generator_version >= broth::INTRODUCED
@@ -74,12 +84,14 @@ impl MaterialSelection {
                         (Surface::Ceramic, broth::SLOT) | (Surface::Paper, broth::HERB_SLOT)
                     ))
                 || (surface == Surface::Ink && slot == produce_skin::SLOT)
+                || coffee_beans::supports(surface, slot)
                 || cork::supports(surface, slot)
                 || potting::supports(surface, slot)
                 || sprinkler::supports(surface, slot)
                 || appliance_panel::supports(surface, slot)
                 || point_of_sale::supports(surface, slot)
                 || printer_lcd::supports(surface, slot)
+                || paper::floor_guide::supports(surface, slot)
                 || clock_face::supports(surface, slot)
                 || projection_cloth::supports(surface, slot)
                 || table_linen::supports(surface, slot)
@@ -549,6 +561,7 @@ impl IndoorMaterials {
             cooperative,
         )
         .await;
+        basket_resin::install(scene, materials, selection, &mut variants);
         garment_stock::install(scene, materials, selection, &mut variants);
         drinkware::install(scene, &handles, materials, selection, &mut variants);
         variants.extend(kitchen::build(
@@ -572,19 +585,35 @@ impl IndoorMaterials {
         variants.extend(signals::build(scene, materials, selection));
         sprinkler::install(scene, materials, selection, &mut variants);
         sport::install(scene, materials, selection, &mut variants);
+        art::studies::install(
+            scene,
+            images,
+            materials,
+            selection,
+            &mut variants,
+            cooperative,
+        )
+        .await;
+        canvas_stock::install(scene, images, materials, selection, &mut variants);
+        cutting_mat::install(scene, images, materials, selection, &mut variants);
+        mat_stock::install(scene, images, materials, selection, &mut variants);
         strength::install(scene, images, materials, selection, &mut variants);
         roast::install(scene, images, materials, selection, &mut variants);
         glass::mirror::install(scene, materials, selection, &mut variants);
+        glass::carboy::install(scene, quality, materials, selection, &mut variants);
+        glass::tableware::install(scene, quality, materials, selection, &mut variants);
         glass::display::install(scene, quality, materials, selection, &mut variants);
         glass::door::install(scene, quality, materials, selection, &mut variants);
         variants.extend(supplies::build(scene, &handles, materials, selection));
         coated_stock::install(scene, materials, selection, &mut variants);
         package_print::install(scene, images, materials, selection, &mut variants);
         cup_board::install(scene, images, materials, selection, &mut variants);
+        coffee_beans::install(scene, images, materials, selection, &mut variants);
         cork::install(scene, images, materials, selection, &mut variants);
         potting::install(scene, images, materials, selection, &mut variants);
         appliance_panel::install(scene, images, materials, selection, &mut variants);
         point_of_sale::install(scene, images, materials, selection, &mut variants);
+        paper::floor_guide::install(scene, images, materials, selection, &mut variants);
         printer_lcd::install(scene, images, materials, selection, &mut variants);
         clock_face::install(scene, images, materials, selection, &mut variants);
         projection_cloth::install(scene, images, materials, selection, &mut variants);
@@ -592,6 +621,7 @@ impl IndoorMaterials {
         tissue_stock::install(scene, images, materials, selection, &mut variants);
         masonry::install(scene, images, materials, selection, &mut variants);
         speaker::install(scene, images, materials, selection, &mut variants);
+        drum_stock::install(scene, images, materials, selection, &mut variants);
         acoustic_tile::install(scene, images, materials, selection, &mut variants);
         bin_film::install(scene, materials, selection, &mut variants);
         window_textile::install(scene, &handles, materials, selection, &mut variants);
@@ -773,9 +803,16 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || signals::supports(surface, slot)
         || sprinkler::supports(surface, slot)
         || sport::supports(surface, slot)
+        || art::studies::supports(surface, slot)
+        || canvas_stock::supports(surface, slot)
+        || cutting_mat::supports(surface, slot)
+        || mat_stock::supports(surface, slot)
         || strength::supports(surface, slot)
         || roast::supports(surface, slot)
+        || baking::supports(surface, slot)
         || glass::mirror::supports(surface, slot)
+        || glass::carboy::supports(surface, slot)
+        || glass::tableware::supports(surface, slot)
         || glass::display::supports(surface, slot)
         || glass::door::supports(surface, slot)
         || handset::supports(surface, slot)
@@ -787,13 +824,16 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || window_textile::supports(surface, slot)
         || drinkware::supports(surface, slot)
         || coated_stock::supports(surface, slot)
+        || drum_stock::supports(surface, slot)
         || acoustic_tile::supports(surface, slot)
         || speaker::supports(surface, slot)
         || (surface == Surface::Ink && slot == produce_skin::SLOT)
+        || coffee_beans::supports(surface, slot)
         || cork::supports(surface, slot)
         || appliance_panel::supports(surface, slot)
         || point_of_sale::supports(surface, slot)
         || printer_lcd::supports(surface, slot)
+        || paper::floor_guide::supports(surface, slot)
         || clock_face::supports(surface, slot)
         || projection_cloth::supports(surface, slot)
         || table_linen::supports(surface, slot)
@@ -802,6 +842,7 @@ pub fn registered_finish(surface: Surface, slot: usize) -> bool {
         || masonry::supports(surface, slot)
         || cup_board::supports(surface, slot)
         || package_print::supports(surface, slot)
+        || basket_resin::parent(surface, slot).is_some()
         || bin_film::supports(surface, slot)
         || matches!(
             (surface, slot),

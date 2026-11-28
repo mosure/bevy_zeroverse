@@ -119,7 +119,7 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
                     *r *= 1. + weight * (drift_scale - 1.);
                 }
             }
-            if !scene.camera_curve_clear(&candidate)
+            if !coverage.clearance.curve_clear(scene, &candidate)
                 || !coverage.suitable(&candidate, requires_person(scene, index))
             {
                 continue;

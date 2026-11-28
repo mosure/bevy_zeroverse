@@ -20,8 +20,7 @@ struct Recipe {
     wood_finish: vec4<f32>, wood_base: vec4<f32>, wood_stain: vec4<f32>,
 }
 struct Level { size: u32, offset: u32, stride: u32, moment_offset: u32 }
-// Offsets/strides share the host's padded texture-copy layout. No dynamic mip
-// address reconstruction inside a storage read/write kernel.
+// Dispatches start at host-provided offsets in the padded texture-copy layout.
 struct Dispatch { destination: Level, source: Level, plane: vec4<u32> }
 @group(0) @binding(0) var<uniform> r: Recipe;
 @group(0) @binding(1) var<storage, read_write> heights: array<f32>;
@@ -324,12 +323,10 @@ fn to_srgb(v: f32) -> u32 {
     loop { if lo+1u>=hi {break;} let mid=(lo+hi)/2u; if v>=srgb[256u+mid] {lo=mid;}else{hi=mid;} }
     return lo;
 }
-@compute @workgroup_size(8,8)
-fn mips(@builtin(global_invocation_id) id: vec3<u32>) {
-    let dst=dispatch.destination;if id.x>=dst.size || id.y>=dst.size{return;}
-    let src=dispatch.source;let plane=dispatch.plane.x;var m=vec4(0.);var sums=vec2(0u);var color=vec3(0.);
+fn filter_mip(id: vec2<u32>, src: Level, dst: Level) {
+    let plane=dispatch.plane.x;var m=vec4(0.);var sums=vec2(0u);var color=vec3(0.);
     let offsets=array<vec2<u32>,4>(vec2(0u,0u),vec2(1u,0u),vec2(0u,1u),vec2(1u,1u));
-    for(var k=0u;k<4u;k+=1u){let xy=id.xy*2u+offsets[k];let i=src.offset+xy.y*src.stride+xy.x;
+    for(var k=0u;k<4u;k+=1u){let xy=id*2u+offsets[k];let i=src.offset+xy.y*src.stride+xy.x;
         m+=moments[src.moment_offset+xy.y*src.size+xy.x]*0.25;
         let data=pixels[2u*plane+i];sums+=vec2(data&255u,(data>>16u)&255u);
         let c=pixels[i];color+=vec3(srgb[c&255u],srgb[(c>>8u)&255u],srgb[(c>>16u)&255u]);
@@ -340,4 +337,31 @@ fn mips(@builtin(global_invocation_id) id: vec3<u32>) {
     pixels[plane+i]=encode_normal(m.xyz/len);
     pixels[2u*plane+i]=pack(vec3(sums.x/4u,u32(floor(rough*255.+0.5)),sums.y/4u));
     moments[dst.moment_offset+id.y*dst.size+id.x]=m;
+}
+
+@compute @workgroup_size(8,8)
+fn mips(@builtin(global_invocation_id) id: vec3<u32>) {
+    if all(id.xy < vec2(dispatch.destination.size)) {
+        filter_mip(id.xy, dispatch.source, dispatch.destination);
+    }
+}
+
+// Dispatched once at 8x8. All producers and consumers are in this workgroup.
+// Every lane participates in all three storage barriers.
+@compute @workgroup_size(8,8)
+fn mip_tail(@builtin(local_invocation_id) id: vec3<u32>) {
+    var src = dispatch.source;
+    var dst = dispatch.destination;
+    for (var level = 0u; level < 4u; level++) {
+        if all(id.xy < vec2(dst.size)) {
+            filter_mip(id.xy, src, dst);
+        }
+        if level == 3u { break; }
+        storageBarrier();
+        src = dst;
+        // Copy rows remain padded to 256 bytes throughout this tail. GGX
+        // moments occupy a separate tightly packed array of full-precision vec4s.
+        dst = Level(src.size / 2u, src.offset + src.size * src.stride,
+                    src.stride, src.moment_offset + src.size * src.size);
+    }
 }

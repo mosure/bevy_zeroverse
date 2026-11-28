@@ -10,6 +10,7 @@ use std::{
 /// Bounded endpoint candidates still pass full swept-path and overlap checks.
 pub(super) fn fit_endpoint(
     scene: &IndoorManifest,
+    clearance: &super::clearance::Clearance,
     start: Vec3,
     end: Vec3,
     min: f32,
@@ -37,13 +38,18 @@ pub(super) fn fit_endpoint(
         start.lerp(reflected, 0.70),
     ]
     .into_iter()
-    .find(|p| p.distance(start) + 1e-4 >= min && scene.camera_clear(*p))
+    .find(|p| p.distance(start) + 1e-4 >= min && clearance.point_clear(scene, *p))
 }
-pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Vec<Vec3>> {
-    if scene.camera_path_clear(start, end) {
+pub(super) fn route(
+    scene: &IndoorManifest,
+    clearance: &super::clearance::Clearance,
+    start: Vec3,
+    end: Vec3,
+) -> Option<Vec<Vec3>> {
+    if clearance.path_clear(scene, start, end) {
         return Some(vec![start, end]);
     }
-    if !scene.camera_clear(end) {
+    if !clearance.point_clear(scene, end) {
         return None;
     }
     let step = 0.28;
@@ -55,21 +61,10 @@ pub(super) fn route(scene: &IndoorManifest, start: Vec3, end: Vec3) -> Option<Ve
         .camera_settings
         .primary_room
         .then(|| scene.primary_region());
-    let obstacles: Vec<_> = scene
-        .camera_obstacles()
-        .into_iter()
-        .chain(
-            scene
-                .objects
-                .iter()
-                .flat_map(super::super::layout::IndoorObject::obstacle_bounds),
-        )
-        .chain(
-            scene
-                .humans
-                .iter()
-                .map(super::super::humans::IndoorHuman::bounds),
-        )
+    let obstacles: Vec<_> = clearance
+        .bounds(scene)
+        .iter()
+        .copied()
         .map(|(lo, hi)| (lo - pad, hi + pad))
         // Every grid edge has lens height; the two end connectors and rounded
         // corners also stay within the start/end height interval.

@@ -166,3 +166,48 @@ fn cycling_classes_face_an_admitted_instructor_share_a_fleet_and_leave_an_aisle(
     assert_eq!(directions.len(), 2);
     assert!(capacities.len() > 5 && headings.len() > 16);
 }
+
+#[test]
+fn yoga_class_has_supported_mats_clear_practice_space_and_replayable_stations() {
+    let mut capacities = BTreeSet::new();
+    let mut front_ends = BTreeSet::new();
+    let mut floors = BTreeSet::new();
+    let mut rack_rooms = 0;
+    let mut headings = BTreeSet::new();
+    for seed in 0..48 {
+        let yoga = IndoorLayout::YogaStudio;
+        let s = IndoorManifest::generate_with_humans(seed, yoga, 0.65, 0, 0.).unwrap();
+        validate_layout(&s).unwrap();
+        let p = &s.functional_programs()[0];
+        let lead = p.class_instructor(&s.objects).unwrap();
+        let aisle = &p.reservations[0];
+        assert_eq!((aisle.min.y, aisle.max.y), (p.min.y, p.max.y));
+        let members = || p.members.iter().map(|&id| &s.objects[id]);
+        let mats = members().filter(|o| o.kind == ObjectKind::ExerciseMat);
+        let count = mats.clone().count();
+        assert!(count >= 2);
+        assert_eq!(count, p.accepted_capacity);
+        capacities.insert(count);
+        floors.insert(s.floor_style);
+        front_ends.insert(lead.position.z < (p.min.y + p.max.y) * 0.5);
+        rack_rooms += usize::from(members().any(|o| o.kind == ObjectKind::ExerciseMatRack));
+        for mat in mats {
+            let (lo, hi) = mat.bounds();
+            assert!(!aisle.overlaps(lo, hi));
+            assert!((mat.position.y - s.floor_height(mat.position.xz())).abs() < 0.002);
+            assert!(furnishing::fitness::rack_access_present(&s, p, mat));
+            headings.insert((mat.yaw.to_degrees() / 3.).round() as i32);
+        }
+        if seed == 0 {
+            assert_eq!(
+                s,
+                IndoorManifest::generate_with_humans(seed, yoga, 0.65, 0, 0.).unwrap()
+            );
+            let mut invalid = s.clone();
+            invalid.assembly_diagnostics.programs[0].focus.x += 1.;
+            assert!(invalid.validate_public_programs().is_err());
+        }
+    }
+    assert!(capacities.len() >= 5 && headings.len() > 20 && (16..48).contains(&rack_rooms));
+    assert_eq!((front_ends.len(), floors.len()), (2, 2));
+}
