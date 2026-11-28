@@ -244,3 +244,19 @@ fn tablet_seat_stays_bear_on_rear_plates_without_breaking_through_the_front() {
         assert!(samples > 32, "missed rear mounting plates on chair {seed}");
     }
 }
+
+#[test]
+fn rehearsal_chairs_fit_the_rear_stays_inside_the_reserved_depth() {
+    for seed in 0..96 {
+        for (w, d) in [(0.475, 0.465), (0.61, 0.60)] {
+            let mut o = audit::fixture(ObjectKind::Chair, seed);
+            o.variant = super::super::ENSEMBLE_CHAIR;
+            o.size = Vec3::new(w, 0.86, d);
+            let seat = TeachingSeat::sample(&o);
+            assert!(!seat.floor_mounted && !seat.folded && seat.tablet.is_none());
+            let mut a = Assembly::default();
+            seat.build(&mut a);
+            audit::check(&o, &a).unwrap();
+        }
+    }
+}

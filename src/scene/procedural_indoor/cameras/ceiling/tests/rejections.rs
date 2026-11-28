@@ -253,7 +253,11 @@ fn production_65573964_mixed_baseline() {
 
 #[test]
 fn production_65573956_mixed_baseline() {
-    qualify_mixed_training_replay(65_573_956);
+    let historical = super::super::super::training_studio_fixture();
+    check_replay_budget(qualify_furnished_training_room(historical), 8_192, 32_768);
+    // The same seed now furnishes a different room. Check deterministic
+    // admission/retirement on that room as well as the historical success.
+    qualify_or_reject_training_seed(65_573_956);
 }
 
 #[test]
@@ -294,7 +298,14 @@ fn qualify_training_replay_with_reference_budget(
     peer_budget: usize,
     reference_budget: usize,
 ) {
-    let scene = qualify_mixed_training_seed(seed);
+    check_replay_budget(
+        qualify_mixed_training_seed(seed),
+        peer_budget,
+        reference_budget,
+    );
+}
+
+fn check_replay_budget(scene: IndoorManifest, peer_budget: usize, reference_budget: usize) {
     // Ordinary rigs have 64 anchor attempts; joint mixed rigs use a different
     // bounded search. Assert their proposal counters rather than wall-clock time
     // on shared CI machines. Recovery also has a fixed per-view budget.
@@ -338,10 +349,15 @@ fn reported_training_neighbor_cohort() {
 }
 
 fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
+    let scene =
+        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
+    qualify_furnished_training_room(scene)
+}
+
+fn qualify_furnished_training_room(mut scene: IndoorManifest) -> IndoorManifest {
+    let seed = scene.seed;
     let policy =
         CameraSettings::parse(include_str!("mixed_training_camera_settings.json")).unwrap();
-    let mut scene =
-        IndoorManifest::generate_with_humans(seed, IndoorLayout::Mixed, 0.65, 0, 0.).unwrap();
     let before = scene.clone();
     let started = std::time::Instant::now();
     scene.resample_cameras(8, policy.clone(), 1.).unwrap();
@@ -354,7 +370,11 @@ fn qualify_mixed_training_seed(seed: u64) -> IndoorManifest {
         started.elapsed().as_secs_f64(),
         scene.camera_diagnostics
     );
-    validate_layout(&scene).unwrap();
+    crate::scene::procedural_indoor::validation::validate_layout_for_generator(
+        &scene,
+        scene.generator_version,
+    )
+    .unwrap();
     assert_eq!(scene.cameras.len(), 8);
     let coverage = crate::scene::procedural_indoor::cameras::coverage::Coverage::new(&scene);
     for (slot, camera) in scene.cameras.iter().enumerate() {

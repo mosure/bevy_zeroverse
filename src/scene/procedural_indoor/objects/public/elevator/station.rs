@@ -32,7 +32,7 @@ impl Levels {
     pub(crate) fn core_variant(self) -> u32 {
         Self::TAG | 20 | (u32::from(self.floor) << 5) | (u32::from(self.highest) << 10)
     }
-    pub(super) fn decode(variant: u32) -> Option<Self> {
+    pub(crate) fn decode(variant: u32) -> Option<Self> {
         let levels = Self {
             floor: ((variant >> 5) & 31) as u8,
             highest: ((variant >> 10) & 31) as u8,

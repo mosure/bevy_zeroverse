@@ -22,7 +22,7 @@ pub(super) fn requires_person(scene: &IndoorManifest, index: usize) -> bool {
         })
 }
 
-/// Exercise apparatus is often below eye level. Vary the admitted station and
+/// Facility equipment is often below eye level. Vary the admitted station and
 /// point on its body while retaining the general room and person proposals.
 fn program_focus(
     scene: &IndoorManifest,
@@ -33,25 +33,51 @@ fn program_focus(
 ) -> Vec3 {
     use super::super::layout::ObjectKind;
     use rand::seq::IndexedRandom;
-    if program.activity.is_exercise() && !require_person {
+    let laundry = program.activity == super::super::layout::IndoorLayout::Laundromat;
+    let rehearsal = program.activity == super::super::layout::IndoorLayout::RehearsalRoom;
+    let changing = program.activity == super::super::layout::IndoorLayout::LockerRoom;
+    if (program.activity.is_exercise() || laundry || rehearsal || changing) && !require_person {
         for _ in 0..3 {
             let Some(&id) = program.members.choose(rng) else {
                 break;
             };
             let o = &scene.objects[id];
-            if matches!(
-                o.kind,
-                ObjectKind::StationaryBike
-                    | ObjectKind::Treadmill
-                    | ObjectKind::PowerRack
-                    | ObjectKind::WeightBench
-                    | ObjectKind::DumbbellRack
-            ) && origin.xz().distance_squared(o.position.xz()) > 2.25
+            let practice_mat = program.activity == super::super::layout::IndoorLayout::YogaStudio
+                && o.kind == ObjectKind::ExerciseMat;
+            if (practice_mat
+                || (changing && matches!(o.kind, ObjectKind::Locker | ObjectKind::Bench))
+                || matches!(
+                    o.kind,
+                    ObjectKind::ExerciseMatRack
+                        | ObjectKind::StationaryBike
+                        | ObjectKind::Treadmill
+                        | ObjectKind::PowerRack
+                        | ObjectKind::WeightBench
+                        | ObjectKind::DumbbellRack
+                        | ObjectKind::LaundryCart
+                        | ObjectKind::WashingMachine
+                        | ObjectKind::TumbleDryer
+                        | ObjectKind::MusicStand
+                        | ObjectKind::StagePiano
+                        | ObjectKind::Timpani
+                        | ObjectKind::LaundryFoldingTable
+                ))
+                && origin.xz().distance_squared(o.position.xz()) > 2.25
             {
                 return o.transform().transform_point(Vec3::new(
                     rng.random_range(-0.15..0.15) * o.size.x,
-                    rng.random_range(0.40..0.80) * o.size.y,
-                    rng.random_range(-0.20..0.20) * o.size.z,
+                    if practice_mat {
+                        // Frame the working space above the pad, including floor landmarks.
+                        rng.random_range(0.12..0.62)
+                    } else {
+                        rng.random_range(0.40..0.80) * o.size.y
+                    },
+                    if laundry || (changing && o.kind == ObjectKind::Locker) {
+                        // Aim at the working face of the bank.
+                        o.size.z * 0.48
+                    } else {
+                        rng.random_range(-0.20..0.20) * o.size.z
+                    },
                 ));
             }
         }
@@ -118,8 +144,9 @@ impl IndoorManifest {
         attempts: usize,
         fixed_fov: Option<f32>,
     ) -> Result<(), String> {
+        // The room or mounted sampler validates the policy before entering its
+        // proposal loop. Retries may select a primary room or a fixed pose.
         let half = self.room_size * 0.5;
-        self.camera_settings.validate()?;
         let viewpoint = super::viewpoint::ViewpointProgram::sample(self.seed);
         let (primary_lo, primary_hi) = self.primary_room_bounds();
         let stairs = self
@@ -265,7 +292,7 @@ impl IndoorManifest {
                 } else {
                     height
                 };
-                if !self.camera_clear(p) {
+                if !coverage.clearance.point_clear(self, p) {
                     rejected[0] += 1;
                     continue;
                 }
@@ -353,7 +380,7 @@ impl IndoorManifest {
                 let target = level_pitch.map_or(target, |pitch| {
                     super::viewpoint::ViewpointProgram::aim_at_pitch(p, target, pitch)
                 });
-                if !self.camera_view_clear(p, target) {
+                if !coverage.clearance.view_clear(self, p, target) {
                     rejected[1] += 1;
                     continue;
                 }
@@ -386,16 +413,21 @@ impl IndoorManifest {
                         } else {
                             rng.random_range(-0.25..0.25)
                         };
-                if long_path && attempt < 256 && !self.camera_clear(end) {
-                    if let Some(adjusted) =
-                        super::navigation::fit_endpoint(self, p, end, desired_min)
-                    {
+                if long_path && attempt < 256 && !coverage.clearance.point_clear(self, end) {
+                    if let Some(adjusted) = super::navigation::fit_endpoint(
+                        self,
+                        &coverage.clearance,
+                        p,
+                        end,
+                        desired_min,
+                    ) {
                         end = adjusted;
                         self.camera_diagnostics.endpoint_adjustments += 1;
                     }
                 }
                 let route = if long_path && attempt < 256 {
-                    let Some(path) = super::navigation::route(self, p, end) else {
+                    let Some(path) = super::navigation::route(self, &coverage.clearance, p, end)
+                    else {
                         rejected[2] += 1;
                         continue;
                     };
@@ -436,7 +468,7 @@ impl IndoorManifest {
                 if !self
                     .camera_settings
                     .accepts_motion(self.seed, index, &camera)
-                    || !self.camera_curve_clear(&camera)
+                    || !coverage.clearance.curve_clear(self, &camera)
                 {
                     rejected[3] += 1;
                     continue;
@@ -531,7 +563,9 @@ impl IndoorManifest {
                 continue;
             }
             start.y = (target.y + height_offset).clamp(low, high);
-            if !self.camera_clear(start) || !self.camera_view_clear(start, target) {
+            if !coverage.clearance.point_clear(self, start)
+                || !coverage.clearance.view_clear(self, start, target)
+            {
                 continue;
             }
             let distance = if !self.camera_settings.camera_moves(self.seed, 0)
@@ -565,7 +599,7 @@ impl IndoorManifest {
             self.camera_settings
                 .prepare_motion(self.seed, 0, &mut camera, rng);
             if !self.camera_settings.accepts_motion(self.seed, 0, &camera)
-                || !self.camera_curve_clear(&camera)
+                || !coverage.clearance.curve_clear(self, &camera)
                 || !coverage.suitable(&camera, true)
                 || self.cameras.iter().any(|existing| {
                     existing.start.distance(start) < 0.18

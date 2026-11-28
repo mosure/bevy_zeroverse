@@ -1,9 +1,14 @@
 use super::*;
 mod capacity;
 mod cardio;
+mod changing;
+mod classroom;
 mod courtyard;
 mod gymnasium;
 mod hallway;
+mod laundry;
+mod presenter;
+mod rehearsal;
 mod retail;
 mod stair_hall;
 mod venues;

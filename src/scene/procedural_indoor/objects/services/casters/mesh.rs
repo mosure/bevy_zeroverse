@@ -1,7 +1,11 @@
 use super::*;
 
 impl CasterSet {
-    pub(in super::super) fn build(&self, a: &mut Assembly, label: &'static str) {
+    pub(in crate::scene::procedural_indoor::objects) fn build(
+        &self,
+        a: &mut Assembly,
+        label: &'static str,
+    ) {
         let r = self.radius_m;
         let w = self.tread_width_m;
         for m in self.mounts {

@@ -69,7 +69,9 @@ impl IndoorManifest {
                     ObjectKind::Chair | ObjectKind::Banquette => {
                         add(Object(o.id), SeatsAt, Object(target))
                     }
-                    ObjectKind::Dishware => add(Object(o.id), Serves, Object(target)),
+                    ObjectKind::Dishware | ObjectKind::TableNapkin => {
+                        add(Object(o.id), Serves, Object(target))
+                    }
                     _ => {}
                 }
             }

@@ -32,9 +32,7 @@ impl Plugin for MaterialBakePlugin {
         });
 
         if let Some(render) = app.get_sub_app_mut(RenderApp) {
-            render
-                .init_resource::<Extracted>()
-                .init_resource::<Scratch>();
+            render.init_resource::<Scratch>();
         }
     }
     fn finish(&self, app: &mut App) {
@@ -45,6 +43,7 @@ impl Plugin for MaterialBakePlugin {
                 let l = d.limits();
                 l.max_compute_workgroups_per_dimension >= 64
                     && l.max_storage_buffers_per_shader_stage >= 4
+                    && l.max_dynamic_uniform_buffers_per_pipeline_layout >= 1
                     && l.max_storage_buffer_binding_size
                         >= kernel::plane_bytes(kernel::MAX_SIZE) * 3
                     && l.max_storage_buffer_binding_size >= 32 * 1024 * 1024
@@ -54,8 +53,8 @@ impl Plugin for MaterialBakePlugin {
             return;
         }
         let render = app.sub_app_mut(RenderApp);
+        ExtractedBakes::install(render);
         render
-            .add_systems(ExtractSchedule, extract)
             .init_gpu_resource::<Pipeline>()
             .add_systems(RenderStartup, reset_device)
             .add_systems(Render, queue.in_set(RenderSystems::PrepareResources));
@@ -67,12 +66,35 @@ impl Plugin for MaterialBakePlugin {
     }
 }
 #[derive(Resource, Default)]
-struct Extracted {
+pub(crate) struct ExtractedBakes {
     current: Requests,
     future: Requests,
 }
+impl ExtractedBakes {
+    pub(crate) fn install(render: &mut bevy::app::SubApp) {
+        if !render.world().contains_resource::<Self>() {
+            render
+                .init_resource::<Self>()
+                .add_systems(ExtractSchedule, extract);
+        }
+    }
+    fn materials(&self) -> impl Iterator<Item = &Request> {
+        self.current
+            .materials()
+            .iter()
+            .chain(self.future.materials())
+    }
+    pub(crate) fn reflections(
+        &self,
+    ) -> impl Iterator<Item = &super::super::environment::gpu::Request> {
+        self.current
+            .reflections()
+            .iter()
+            .chain(self.future.reflections())
+    }
+}
 fn extract(
-    mut out: ResMut<Extracted>,
+    mut out: ResMut<ExtractedBakes>,
     current: Extract<Option<Res<Requests>>>,
     future: Extract<Res<crate::scene::procedural_indoor::preparation::residency::FutureAssets>>,
 ) {
@@ -100,8 +122,8 @@ impl FromWorld for Pipeline {
         }
     }
 }
-fn queue(requests: Res<Extracted>, mut pipeline: ResMut<Pipeline>, cache: Res<PipelineCache>) {
-    if pipeline.ids.is_some() || requests.current.0.is_empty() && requests.future.0.is_empty() {
+fn queue(requests: Res<ExtractedBakes>, mut pipeline: ResMut<Pipeline>, cache: Res<PipelineCache>) {
+    if pipeline.ids.is_some() || requests.materials().next().is_none() {
         return;
     }
     // Compile only when a room actually requests GPU maps. CPU-only callers do
@@ -116,9 +138,9 @@ fn queue(requests: Res<Extracted>, mut pipeline: ResMut<Pipeline>, cache: Res<Pi
         })
     }));
 }
-fn reset_device(mut scratch: ResMut<Scratch>, requests: Res<Extracted>) {
+fn reset_device(mut scratch: ResMut<Scratch>, requests: Res<ExtractedBakes>) {
     *scratch.0.get_mut().unwrap() = None;
-    for r in requests.current.0.iter().chain(&requests.future.0) {
+    for r in requests.materials() {
         r.status.encoded.store(false, Ordering::Release);
         *r.status.error.lock().unwrap() = None;
     }
@@ -127,8 +149,11 @@ fn reset_device(mut scratch: ResMut<Scratch>, requests: Res<Extracted>) {
 #[derive(Resource, Default)]
 struct Scratch(Mutex<Option<kernel::Workspace>>);
 fn bake(world: &World, mut context: RenderContext) {
-    let requests = world.resource::<Extracted>();
-    if requests.current.ready() && requests.future.ready() {
+    let requests = world.resource::<ExtractedBakes>();
+    if requests
+        .materials()
+        .all(|r| r.status.encoded.load(Ordering::Acquire))
+    {
         return;
     }
     let pipeline = world.resource::<Pipeline>();
@@ -145,7 +170,7 @@ fn bake(world: &World, mut context: RenderContext) {
             ) {
                 return;
             }
-            for r in requests.current.0.iter().chain(&requests.future.0) {
+            for r in requests.materials() {
                 *r.status.error.lock().unwrap() =
                     Some(format!("indoor material compute pipeline: {error}"));
             }
@@ -166,7 +191,7 @@ fn bake(world: &World, mut context: RenderContext) {
     let span = diagnostics.time_span(context.command_encoder(), "indoor_material_bake");
     let mut encoders = Vec::new();
     // Current first; future requests exist only for the single bounded resident successor.
-    for r in requests.current.0.iter().chain(&requests.future.0) {
+    for r in requests.materials() {
         if r.status.encoded.load(Ordering::Acquire) {
             continue;
         }
@@ -181,7 +206,7 @@ fn bake(world: &World, mut context: RenderContext) {
         } else {
             None
         };
-        let bindings = workspace.bindings(device, &pipeline.layout, &r.recipe);
+        let binding = workspace.binding(device, &pipeline.layout, &r.recipe);
         // Keep one recipe per encoder. WGPU recycles native command pools across
         // unrelated encoders; a room-sized bake would eventually inflate every
         // pool to hundreds of passes, retaining gigabytes of driver memory.
@@ -195,8 +220,9 @@ fn bake(world: &World, mut context: RenderContext) {
                 pipelines[r.recipe.meta[0] as usize],
                 pipelines[kernel::NORMALS],
                 pipelines[kernel::MIPS],
+                pipelines[kernel::MIP_TAIL],
             ],
-            &bindings,
+            &binding,
             r.recipe.meta[1],
             [Some(&color.texture), normal, Some(&data.texture)],
         );

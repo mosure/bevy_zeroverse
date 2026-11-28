@@ -50,6 +50,19 @@ impl PreparationJob {
             }
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn take_for_capture(
+        &mut self,
+        policy: super::wait::WaitPolicy,
+    ) -> Option<Result<PreparedIndoor, CaptureError>> {
+        if let Some(task) = &mut self.task {
+            let value = super::wait::poll_current(policy, task)?;
+            self.task = None;
+            return Some(value);
+        }
+        self.ready.take()
+    }
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub(crate) fn take_ready(&mut self) -> Option<Result<PreparedIndoor, CaptureError>> {
         self.poll();
         self.ready.take()
@@ -320,7 +333,7 @@ impl Request {
             meshes,
             request.gpu_materials,
         )
-        .await;
+        .await?;
         prepared.timings.layout_seconds = layout_seconds;
         prepared.timings.cameras_seconds = cameras_seconds;
         let wall = &mut prepared.timings.wall;

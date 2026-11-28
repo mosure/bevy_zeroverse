@@ -1,8 +1,24 @@
 //! Paint and varnished timber share an edge, a height and the floor semantic.
 use super::*;
 use crate::scene::procedural_indoor::{materials::sport, program::court::LINE};
+mod practice;
+mod seams;
 
-pub(super) fn top(a: &mut Assembly, c: VolleyballCourt, size: Vec3) {
+pub(super) fn top(
+    a: &mut Assembly,
+    c: VolleyballCourt,
+    size: Vec3,
+    marks: Option<&[FreeThrowMark]>,
+) {
+    // A missing specification replays the original volleyball mesh in archived rooms.
+    // Current unpainted gyms also need shared edges along the primary court lines.
+    let shared_edges = marks.is_some();
+    let marks: Vec<_> = marks
+        .unwrap_or_default()
+        .iter()
+        .copied()
+        .map(practice::Stencil::new)
+        .collect();
     let local = |p: Vec2| if c.long_x { Vec2::new(p.y, p.x) } else { p };
     let lo = local(-size.xz() * 0.5 - c.center);
     let hi = local(size.xz() * 0.5 - c.center);
@@ -27,7 +43,7 @@ pub(super) fn top(a: &mut Assembly, c: VolleyballCourt, size: Vec3) {
     ];
     for (ix, x) in xs.windows(2).enumerate() {
         // Consecutive cells of one finish form one quad. Keep the painted
-        // ribbons in two batched meshes for the entire hall, including run-off.
+        // ribbons batched for the entire hall, including run-off.
         let mut first = 0;
         let ink =
             |iz: usize| (1..=3).contains(&ix) && (1..=9).contains(&iz) && (ix != 2 || iz % 2 == 1);
@@ -35,18 +51,20 @@ pub(super) fn top(a: &mut Assembly, c: VolleyballCourt, size: Vec3) {
             if iz + 2 < zs.len() && ink(iz) == ink(iz + 1) {
                 continue;
             }
-            let g = if ink(iz) {
-                a.part(Surface::Paint, sport::LINE)
-            } else {
-                a.part(Surface::Floor, "floor")
-            };
             let rect = Rect::from_corners(
                 c.world(Vec2::new(x[0], zs[first])),
                 c.world(Vec2::new(x[1], zs[iz + 1])),
             );
-            horizontal_quad(g, rect, 0.);
+            if ink(iz) {
+                horizontal_quad(a.part(Surface::Paint, sport::LINE), rect, 0.);
+            } else {
+                practice::timber(a, rect, &marks);
+            }
             first = iz + 1;
         }
+    }
+    if shared_edges {
+        seams::join(a);
     }
 }
 
@@ -61,7 +79,7 @@ mod tests {
             let size = room_size(seed);
             let c = VolleyballCourt::fit(seed, size).unwrap();
             let mut a = Assembly::default();
-            top(&mut a, c, size);
+            top(&mut a, c, size, None);
             assert_eq!(a.parts.len(), 2);
             let mut total = 0.;
             let mut painted = 0.;

@@ -43,12 +43,46 @@ pub(super) fn build(
             materials.add(produce_skin::material(scene.material_seed(), images)),
         );
     }
-    if !scene
-        .objects
-        .iter()
-        .any(|o| o.kind.is_kitchen() || o.kind == super::super::layout::ObjectKind::HotFoodWell)
+    use super::super::{
+        layout::ObjectKind,
+        objects::{
+            kitchen::{serving_for_object, Serving},
+            public::casework::bakery::VERSION,
+        },
+    };
+    let embedded = scene.generator_version >= VERSION;
+    let food_case = |o: &super::super::layout::IndoorObject| {
+        o.kind == ObjectKind::DisplayCase && o.variant < 16
+    };
+    // Selected geometry also describes the children of composite furnishings.
+    // Older manifests retain their original kitchen-root palette gate.
+    if (!embedded || used.is_none())
+        && !scene.objects.iter().any(|o| {
+            o.kind.is_kitchen() || o.kind == ObjectKind::HotFoodWell || (embedded && food_case(o))
+        })
     {
         return result;
+    }
+    if embedded {
+        let needs_bread = || {
+            scene.objects.iter().any(|o| {
+                food_case(o)
+                    || o.kind == ObjectKind::Bread
+                    || matches!(
+                        serving_for_object(o),
+                        Some(Serving::Toast | Serving::Biscuit)
+                    )
+            })
+        };
+        for finish in baking::Finish::ALL {
+            let key = (finish.surface(), finish.slot());
+            if used.map_or_else(needs_bread, |set| set.contains(&key)) {
+                result.insert(
+                    key,
+                    materials.add(finish.material(scene.material_seed(), images)),
+                );
+            }
+        }
     }
     let current_soup = scene.generator_version >= broth::INTRODUCED;
     let requests = |surface, slot| {
@@ -72,16 +106,13 @@ pub(super) fn build(
             materials.add(broth::herb(scene.material_seed())),
         );
     }
-    let mut menu = super::super::layout::stream(scene.material_seed(), 0x534f555050414c);
-    let soup =
-        [[0.70, 0.24, 0.095], [0.83, 0.47, 0.12], [0.43, 0.48, 0.19]][menu.random_range(0..3)];
     for (slot, surface, color) in [
         (100, Surface::Ceramic, [0.68, 0.12, 0.055]),
         (101, Surface::Ceramic, [0.42, 0.55, 0.13]),
         (102, Surface::Ceramic, [0.88, 0.64, 0.13]),
         (103, Surface::Terracotta, [0.53, 0.27, 0.085]),
         (104, Surface::Paper, [0.85, 0.69, 0.43]),
-        (105, Surface::Ceramic, soup),
+        (105, Surface::Ceramic, [0.70, 0.24, 0.095]),
         (106, Surface::Terracotta, [0.27, 0.14, 0.08]),
     ] {
         if used.is_some_and(|u| !u.contains(&(surface, slot))) {
@@ -97,6 +128,12 @@ pub(super) fn build(
             continue;
         }
         let mut mat = materials.get(&base[surface as usize]).unwrap().clone();
+        let color = if slot == broth::SLOT {
+            let mut menu = super::super::layout::stream(scene.material_seed(), 0x534f555050414c);
+            [color, [0.83, 0.47, 0.12], [0.43, 0.48, 0.19]][menu.random_range(0..3)]
+        } else {
+            color
+        };
         let color = pigment(scene.material_seed(), slot, color);
         let n = 64;
         let mut pixels = Vec::with_capacity(n * n * 4);
@@ -148,5 +185,50 @@ mod tests {
             colors.insert(c.map(|v| (v * 255.).round() as u8));
         }
         assert!(colors.len() > 100);
+    }
+    #[test]
+    fn selected_composite_food_finishes_are_bound_without_a_kitchen_root() {
+        use super::super::super::{
+            layout::ObjectKind,
+            objects::{audit, public::casework::bakery::VERSION},
+        };
+        let mut scene =
+            IndoorManifest::generate_with_humans(0, Default::default(), 0.5, 0, 0.).unwrap();
+        let mut cabinet = audit::fixture(ObjectKind::DisplayCase, 31);
+        cabinet.variant = 0;
+        scene.objects = vec![cabinet];
+        let (mut images, mut mats) = (Assets::default(), Assets::<StandardMaterial>::default());
+        let base = vec![mats.add(StandardMaterial::default()); Surface::ALL.len()];
+        let requested = std::collections::BTreeSet::from([
+            (Surface::Terracotta, 106),
+            (Surface::Terracotta, 1170),
+            (Surface::Paper, 1171),
+        ]);
+        scene.generator_version = VERSION;
+        let bound = build(&scene, &base, &mut images, &mut mats, Some(&requested));
+        assert_eq!(
+            bound
+                .keys()
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>(),
+            requested
+        );
+        for handle in bound.values() {
+            assert!(mats.get(handle).unwrap().base_color_texture.is_some());
+        }
+        let before = images.len();
+        let empty = build(
+            &scene,
+            &base,
+            &mut images,
+            &mut mats,
+            Some(&Default::default()),
+        );
+        assert!(empty.is_empty());
+        assert_eq!(before, images.len());
+        let full = build(&scene, &base, &mut images, &mut mats, None);
+        assert!(requested.iter().all(|key| full.contains_key(key)));
+        scene.generator_version -= 1;
+        assert!(build(&scene, &base, &mut images, &mut mats, Some(&requested)).is_empty());
     }
 }

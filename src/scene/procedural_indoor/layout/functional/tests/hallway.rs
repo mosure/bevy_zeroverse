@@ -70,7 +70,14 @@ fn hallway_ports_routes_camera_paths_and_furniture_describe_one_building() {
         let receipt = &scene.functional_programs()[0];
         let spine = &receipt.reservations[0];
         assert!((spine.max - spine.min)[a] >= 1.33);
-        assert_eq!(receipt.reservations.len(), reached.len() + 2);
+        assert_eq!(
+            receipt
+                .reservations
+                .iter()
+                .filter(|r| r.role != ReservationRole::SeatingAccess)
+                .count(),
+            reached.len() + 2
+        );
         let structure = scene.columns();
         for route in &receipt.reservations {
             assert!(
@@ -80,7 +87,11 @@ fn hallway_ports_routes_camera_paths_and_furniture_describe_one_building() {
                 "{seed}: architectural obstruction on {route:?}"
             );
         }
-        for branch in &receipt.reservations[1..] {
+        for branch in receipt
+            .reservations
+            .iter()
+            .filter(|r| r.role == ReservationRole::DoorApproach)
+        {
             assert!(branch.min.cmplt(spine.max).all() && branch.max.cmpgt(spine.min).all());
             let mid = (branch.min + branch.max) * 0.5;
             assert!(scene.ceiling_height(mid) - scene.floor_height(mid) > 2.0);

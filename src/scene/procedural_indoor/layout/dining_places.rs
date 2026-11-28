@@ -16,11 +16,11 @@ pub(crate) struct DiningPlace {
 }
 
 impl IndoorManifest {
-    pub(crate) fn valid_served_dish(&self, dish: &IndoorObject, seat: &IndoorObject) -> bool {
-        let Some(table) = dish.support.and_then(|id| self.objects.get(id)) else {
+    pub(crate) fn valid_place_setting(&self, item: &IndoorObject, seat: &IndoorObject) -> bool {
+        let Some(table) = item.support.and_then(|id| self.objects.get(id)) else {
             return false;
         };
-        if dishware::served_style(dish).is_none()
+        if (item.kind != ObjectKind::TableNapkin && dishware::served_style(item).is_none())
             || table.kind != ObjectKind::Table
             || seat.interaction_target != Some(table.id)
         {
@@ -28,13 +28,13 @@ impl IndoorManifest {
         }
         let reach = MAX_DINING_REACH_M + 1e-4;
         match seat.kind {
-            ObjectKind::Chair => seat.position.xz().distance(dish.position.xz()) <= reach,
+            ObjectKind::Chair => seat.position.xz().distance(item.position.xz()) <= reach,
             ObjectKind::Banquette => {
                 let pos = table
                     .transform()
                     .compute_affine()
                     .inverse()
-                    .transform_point3(dish.position)
+                    .transform_point3(item.position)
                     .xz();
                 booth_places(table, seat, &tables::outline(table))
                     .any(|place| place.position.distance(pos) <= reach)

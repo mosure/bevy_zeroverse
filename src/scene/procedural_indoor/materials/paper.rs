@@ -3,9 +3,25 @@ use super::{raster::Canvas, *};
 use crate::scene::procedural_indoor::{layout::stream, preparation::AssetStore};
 use rand::Rng;
 
+pub(crate) mod floor_guide;
 pub(crate) mod jacket;
+mod lettering;
+pub(crate) mod score;
 mod spread;
 pub(crate) use spread::slot as spread_slot;
+
+/// A whole printed sheet has physical edges. Clamp an oblique footprint to its own stock.
+fn texture(data: Vec<u8>, side: u32, kind: MapType) -> Image {
+    let mut image = match kind {
+        MapType::Color => mipmaps::printed_mip_image(data, side),
+        _ => mip_image(data, side, kind),
+    };
+    if let ImageSampler::Descriptor(s) = &mut image.sampler {
+        s.address_mode_u = ImageAddressMode::ClampToEdge;
+        s.address_mode_v = ImageAddressMode::ClampToEdge;
+    }
+    image
+}
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaperProgram {
@@ -162,7 +178,9 @@ fn draw_page(c: &mut Canvas, p: &PaperProgram, seed: u64, x0: i32, width: i32) {
 }
 
 pub(super) fn prepare_slot(seed: u64, slot: usize) -> Image {
-    let rgba = if slot < variants::COUNT {
+    let rgba = if (score::FIRST..score::END).contains(&slot) {
+        score::pixels(seed)
+    } else if slot < variants::COUNT {
         pixels(seed)
     } else {
         spread::pixels(seed)

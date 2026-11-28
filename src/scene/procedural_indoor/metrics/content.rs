@@ -960,6 +960,84 @@ pub(super) fn record_object(
     numeric: &mut NumericCollector,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use super::super::objects::desktop::tower;
+    if let Some(table) = super::super::objects::tables::classroom_table(o) {
+        category(
+            categories,
+            "classroom_table_band",
+            format!("{:?}", table.band),
+        );
+        numeric.push(
+            "classroom_table_short_edge_fraction",
+            table.short_edge_fraction.into(),
+        )?;
+        numeric.push("classroom_table_width_m", o.size.x.into())?;
+        numeric.push("classroom_table_height_m", o.size.y.into())?;
+    }
+    if o.kind == ObjectKind::Workbench {
+        let p = super::super::objects::public::workbench::Bench::sample(o);
+        category(categories, "workbench_surface", format!("{:?}", p.surface));
+        numeric.push("workbench_height_m", o.size.y.into())?;
+        numeric.push("workbench_clear_deck_depth_m", p.deck(o).height().into())?;
+        if let Some(v) = p.vise {
+            numeric.push("workbench_vise_opening_m", v.opening_m.into())?;
+            numeric.push("workbench_bore_pitch_m", p.bore_pitch_m.into())?;
+        }
+    }
+    if o.kind == ObjectKind::ArtistEasel {
+        use super::super::objects::public::easel::{Canvas, Easel};
+        let p = Easel::sample(o);
+        category(categories, "easel_frame", format!("{:?}", p.stand));
+        category(categories, "easel_canvas_stage", format!("{:?}", p.canvas));
+        category(
+            categories,
+            "easel_subject",
+            if o.interaction_target.is_some() {
+                "still_life"
+            } else {
+                "independent"
+            },
+        );
+        numeric.push("easel_lean_degrees", f64::from(p.lean_radians.to_degrees()))?;
+        if p.canvas != Canvas::Empty {
+            numeric.push("easel_canvas_width_m", f64::from(p.canvas_width_m))?;
+            numeric.push("easel_canvas_height_m", f64::from(p.canvas_height_m))?;
+        }
+    }
+    if o.kind == ObjectKind::ReceptionDesk {
+        let p = super::super::objects::public::reception::Counter::sample(o);
+        numeric.push("reception_worktop_height_m", p.worktop_m.into())?;
+        numeric.push("reception_transaction_height_m", o.size.y.into())?;
+        numeric.push(
+            "reception_signing_wing_width_m",
+            p.signing_wing_m.abs().into(),
+        )?;
+        category(categories, "reception_fascia", format!("{:?}", p.fascia));
+    }
+    if o.kind == ObjectKind::LibraryStack {
+        use super::super::objects::storage::library_stack;
+        let p = library_stack::Stack::sample(o);
+        numeric.push(
+            "library_stack_browsing_depth_m",
+            library_stack::browsing_depth_m(o).into(),
+        )?;
+        numeric.push("library_stack_bays", p.bays as f64)?;
+        numeric.push("library_stack_levels", p.levels as f64)?;
+        numeric.push("library_stack_fill_target", p.fill.into())?;
+        category(categories, "library_stack_frame", format!("{:?}", p.frame));
+        let featured = p.featured_books(o, scene.generator_version);
+        numeric.push("library_stack_face_out_titles", featured.len() as f64)?;
+        for book in featured {
+            category(
+                categories,
+                "library_display_rest",
+                format!("{:?}", book.rest),
+            );
+            numeric.push(
+                "library_display_recline_degrees",
+                book.recline_rad.to_degrees().into(),
+            )?;
+        }
+    }
     if o.kind == ObjectKind::Bookcase {
         let p = super::super::objects::storage::bookcase::parameters_at(o, scene.generator_version);
         let (rear, front) = p.deck_limits(o.size.z);
@@ -1446,6 +1524,25 @@ pub(super) fn record_object(
             numeric.push("writing_length_m", p.length as f64)?;
             numeric.push("writing_radius_m", p.radius as f64)?;
         }
+        ObjectKind::Sculpture => {
+            let p =
+                super::super::objects::public::sculpture::parameters_at(o, scene.generator_version);
+            category(categories, "sculpture_form", p.form);
+            category(
+                categories,
+                "sculpture_body_material",
+                format!("{:?}", p.surface),
+            );
+            if let Some(c) = p.carving {
+                numeric.push("carving_through_bores", c.apertures.len() as f64)?;
+                numeric.push("carving_body_height_m", c.height_m.into())?;
+                numeric.push("carving_mount_yaw_rad", c.mount_yaw_radians.into())?;
+                category(categories, "carving_axis", format!("{:?}", c.axis));
+                for eye in &c.apertures {
+                    numeric.push("carving_bore_span_m", c.bore_span_m(eye).into())?;
+                }
+            }
+        }
         ObjectKind::ExhibitPlinth => {
             let p = super::super::objects::public::casework::plinth::parameters(o);
             category(categories, "plinth_structure", p.structure);
@@ -1631,6 +1728,13 @@ pub(super) fn record_object(
         }
         ObjectKind::Mug | ObjectKind::CoffeeCup => {
             drinkware::cup(o, scene.generator_version, categories, numeric)?
+        }
+        ObjectKind::DrinkingGlass => drinkware::glass(o, categories, numeric)?,
+        ObjectKind::TableNapkin => {
+            let p = super::super::clutter::napkin::Napkin::for_object(o);
+            category(categories, "table_napkin_fold", format!("{:?}", p.fold));
+            category(categories, "table_napkin_weave", format!("{:?}", p.weave));
+            numeric.push("table_napkin_height_m", f64::from(o.size.y))?;
         }
         ObjectKind::SodaCan => drinkware::can(o, categories, numeric)?,
         ObjectKind::WaterBottle => drinkware::bottle(o, categories, numeric)?,

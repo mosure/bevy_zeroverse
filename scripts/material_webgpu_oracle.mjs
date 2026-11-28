@@ -55,21 +55,28 @@ export async function verifyMaterialMaps(device, layout, pipelines, fixtures) {
       const expected = await Promise.all(c.expected.map(load));
       oracles.push(expected);
       const recipe = initialized(new Uint32Array(c.recipe), GPUBufferUsage.UNIFORM);
-      const levels = c.dispatches.map(d => initialized(new Uint32Array(d), GPUBufferUsage.UNIFORM));
-      owned.push(recipe, ...levels);
-      const bindings = c.levels.map((_, level) => device.createBindGroup({ layout,
-        entries: [recipe, heights, moments, pixels, srgb, levels[level]].map((buffer, binding) => ({ binding, resource: { buffer } })),
-      }));
+      const addressBytes = c.dispatches[0].length * 4;
+      const align = device.limits.minUniformBufferOffsetAlignment;
+      const stride = Math.ceil(addressBytes / align) * align;
+      const addresses = new Uint32Array(stride / 4 * c.dispatches.length);
+      c.dispatches.forEach((d, level) => addresses.set(d, level * stride / 4));
+      const levels = initialized(addresses, GPUBufferUsage.UNIFORM);
+      owned.push(recipe, levels);
+      const binding = device.createBindGroup({ layout,
+        entries: [recipe, heights, moments, pixels, srgb, levels].map((buffer, i) => ({
+          binding: i, resource: i === 5 ? { buffer, size: addressBytes } : { buffer },
+        })),
+      });
       for (const pipeline of [pipelines[c.recipe[0]], pipelines[fixtures.entries.indexOf('normals')]]) {
         const pass = encoder.beginComputePass();
-        pass.setBindGroup(0, bindings[0]);
+        pass.setBindGroup(0, binding, [0]);
         pass.setPipeline(pipeline); pass.dispatchWorkgroups(Math.ceil(c.size / 8), Math.ceil(c.size / 8));
         pass.end();
       }
-      for (let mip = 1; mip < c.levels.length; mip++) {
+      for (const [mip, pipeline] of c.mip_passes) {
         const pass = encoder.beginComputePass();
-        pass.setPipeline(pipelines[fixtures.entries.indexOf('mips')]);
-        pass.setBindGroup(0, bindings[mip]);
+        pass.setPipeline(pipelines[pipeline]);
+        pass.setBindGroup(0, binding, [mip * stride]);
         pass.dispatchWorkgroups(Math.ceil(c.levels[mip].size / 8), Math.ceil(c.levels[mip].size / 8));
         pass.end();
       }

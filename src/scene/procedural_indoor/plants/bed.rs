@@ -1,186 +1,140 @@
-//! A raised garden island with a recessed growing bed. The fitted object includes
-//! the entire planting so people, camera paths and entrance aisles clear it.
+//! The island, its growing surface and its crowns share one fitted footprint.
 use super::*;
 use crate::scene::procedural_indoor::{
-    geometry::{ProfileJoints, RevolvedOutline},
+    geometry::{Geometry, ProfileJoints, RevolvedOutline},
     layout::ObjectKind,
     objects::append_at,
 };
 
+mod collection;
+pub(crate) use collection::Collection;
+mod edge;
+mod ground;
+mod legacy;
+#[cfg(test)]
+mod tests;
+use edge::Edging;
+use ground::Ground;
+
+const VERSION: u32 = 311;
+const SIDES: usize = 32;
+
 #[derive(serde::Serialize)]
-pub(crate) struct Bed {
-    pub rim_height_m: f32,
-    pub soil_height_m: f32,
-    rim_width_m: f32,
-    exponent: f32,
-    edge: Surface,
-    medium: soil::Medium,
+struct Crown {
+    species: u32,
+    seed: u64,
+    root_m: Vec3,
+    yaw_radians: f32,
+    width_m: f32,
+    height_m: f32,
 }
 
-impl Bed {
+#[derive(serde::Serialize)]
+pub(crate) struct Garden {
+    collection: Collection,
+    edging: Edging,
+    ground: Ground,
+    crowns: Vec<Crown>,
+}
+
+impl Garden {
     pub(crate) fn sample(o: &IndoorObject) -> Self {
-        let mut r = stream(o.seed, u64::from_le_bytes(*b"YardSoil"));
-        let edge = [Surface::Concrete, Surface::Terracotta, Surface::Metal][r.random_range(0..3)];
-        // Taller specimens need more growing medium in the above-grade trough.
-        let rim_height_m = (o.size.y * r.random_range(0.10..0.22) + 0.04).min(o.size.y * 0.36);
-        Self {
-            rim_height_m,
-            soil_height_m: rim_height_m - r.random_range(0.025..0.065_f32).min(rim_height_m * 0.4),
-            rim_width_m: if edge == Surface::Metal {
-                r.random_range(0.012..0.029)
+        let collection = Collection::from_bed(o.variant);
+        let edging = Edging::sample(o);
+        let ground = Ground::sample(o, &edging, collection);
+        let mut placement = stream(o.seed, u64::from_le_bytes(*b"YardSite"));
+        let aspect = o.size.x.max(o.size.z) / o.size.x.min(o.size.z);
+        let count = match placement.random_range(0.0..1.0) {
+            p if p < 0.16 => 1,
+            p if p < (0.47 + (aspect - 1.) * 0.12).min(0.79) => 3,
+            _ => 2,
+        };
+        let phase = placement.random_range(-PI..PI);
+        let mut crowns = Vec::with_capacity(count);
+        for i in 0..count {
+            // Each group can face any side of the bed. Stagger both azimuth
+            // and radius, while keeping separate root balls even in a narrow trough.
+            let separation = match (count, i) {
+                (_, 0) => 0.,
+                (2, _) => PI + placement.random_range(-0.55..0.55),
+                (_, 1) => placement.random_range(1.63..2.42),
+                _ => -placement.random_range(1.63..2.42),
+            };
+            let radius = if i == 0 {
+                placement.random_range(0.0..0.61)
             } else {
-                r.random_range(0.055..0.13)
-            },
-            exponent: r.random_range(1.85..6.2),
-            edge,
-            medium: [
-                soil::Medium::Loam,
-                soil::Medium::BarkChips,
-                soil::Medium::MineralGravel,
-            ][r.random_range(0..3)],
+                placement.random_range(0.42..0.73)
+            };
+            let at = Vec2::from_angle(phase + separation) * radius * ground.radii_m;
+            let grade = ground.at(at);
+            let mut growth = stream(o.seed, u64::from_le_bytes(*b"YardGrow") + i as u64);
+            let species = if i == 0 {
+                o.variant % SPECIES
+            } else {
+                let companions = collection.companions();
+                companions[growth.random_range(0..companions.len())]
+            };
+            let headroom = o.size.y - grade.height_m;
+            let fraction = if i == 0 {
+                1.
+            } else {
+                growth.random_range(0.20..0.64)
+            };
+            // Fit one species-shaped envelope into the available space. A
+            // rosette planted in a tall reserve must still grow as a rosette.
+            let habit = sample_size(species, false, &mut growth);
+            let aspect = habit.y / habit.xz().min_element();
+            let width_m = (headroom * fraction / aspect)
+                .min(grade.clearance_m * growth.random_range(1.55..1.95));
+            crowns.push(Crown {
+                species,
+                seed: growth.random(),
+                root_m: Vec3::new(at.x, grade.height_m, at.y),
+                yaw_radians: growth.random_range(-PI..PI),
+                width_m,
+                height_m: width_m * aspect,
+            });
+        }
+        Self {
+            collection,
+            edging,
+            ground,
+            crowns,
+        }
+    }
+
+    fn build(self, a: &mut Assembly, o: &IndoorObject, version: u32) {
+        self.edging.mesh(a, o.size.xz() * 0.5, &self.ground);
+        self.ground.mesh(a);
+        let mut child = o.clone();
+        child.kind = ObjectKind::Plant;
+        for crown in self.crowns {
+            child.variant = crown.species;
+            child.seed = crown.seed;
+            child.size = Vec3::new(crown.width_m, crown.height_m, crown.width_m);
+            let mut plant = Assembly::default();
+            build_plant(&mut plant, &child, version, Roots::Bed);
+            let bottom = 0.008 - crown.root_m.y;
+            for g in plant.parts.values_mut() {
+                if g.positions.iter().any(|v| v[1] < bottom) {
+                    g.clip_half_space(|p| f64::from(p.y) - f64::from(bottom));
+                }
+            }
+            let tf = Transform::from_translation(crown.root_m)
+                .with_rotation(Quat::from_rotation_y(crown.yaw_radians));
+            append_at(a, plant, tf);
         }
     }
 }
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
-    let bed = Bed::sample(o);
-    let radius = o.size.xz() * 0.5;
-    let lip = Vec2::splat(bed.rim_width_m).min(radius * 0.20);
-    let inner = radius - lip;
-    let outside = RevolvedOutline::superellipse(32, bed.exponent, radius);
-    let inside = RevolvedOutline::superellipse(32, bed.exponent, inner);
-    let rim = a.part(bed.edge, "plant");
-    let at = |p: Vec2, y| Vec3::new(p.x, y, p.y);
-    outside.sweep(
-        rim,
-        &[(1., 0.), (1., bed.rim_height_m)],
-        ProfileJoints::Creased,
-        Transform::IDENTITY,
-    );
-    inside.sweep(
-        rim,
-        &[(1., bed.rim_height_m), (1., bed.soil_height_m)],
-        ProfileJoints::Creased,
-        Transform::IDENTITY,
-    );
-    for i in 0..32 {
-        let p = i as f32 / 32.;
-        let q = (i + 1) as f32 / 32.;
-        rim.metric_quad(
-            [
-                outside.perimeter_point(p),
-                outside.perimeter_point(q),
-                inside.perimeter_point(q),
-                inside.perimeter_point(p),
-            ]
-            .map(|point| at(point, bed.rim_height_m)),
-            Vec3::Y,
-        );
-    }
-    inside.sweep(
-        a.part(Surface::Soil, &bed.medium.label(soil::Layer::Bed)),
-        &[(1., bed.soil_height_m), (0., bed.soil_height_m)],
-        ProfileJoints::Creased,
-        Transform::IDENTITY,
-    );
-
-    let mut r = stream(o.seed, u64::from_le_bytes(*b"YardRoot"));
-    let sign = if r.random_bool(0.5) { 1. } else { -1. };
-    // One dominant crown and one or two lower, staggered companions. Bound
-    // each crown before meshing. Every stem starts at the finished soil level.
-    let count = if o.size.x / o.size.z > 1.72 && r.random_bool(0.63) {
-        3
+    if version < VERSION {
+        legacy::build(a, o, version);
     } else {
-        2
-    };
-    let mut child = o.clone();
-    child.kind = ObjectKind::Plant;
-    for i in 0..count {
-        let x = sign * ((i as f32 + r.random_range(0.36..0.64)) / count as f32 - 0.5) * 1.55;
-        let z: f32 = r.random_range(-0.20..0.20);
-        let spread =
-            (inner.x * (1. - x.abs())).min(inner.y * (1. - z.abs())) * r.random_range(1.35..1.76);
-        let height = (o.size.y - bed.soil_height_m)
-            * if i == 0 {
-                1.
-            } else {
-                r.random_range(0.27..0.62)
-            };
-        child.variant = if i == 0 {
-            o.variant
-        } else {
-            [4, 9, 13][r.random_range(0..3)]
-        };
-        child.seed = r.random();
-        child.size = Vec3::new(spread, height, spread);
-        let mut crown = Assembly::default();
-        build_plant(&mut crown, &child, version, Roots::Bed);
-        // Some stems and lower leaves turn down through grade. Cut only
-        // geometry reaching the bottom plate, below the opaque soil surface.
-        let bottom = 0.008 - bed.soil_height_m;
-        for g in crown.parts.values_mut() {
-            if g.positions.iter().any(|v| v[1] < bottom) {
-                g.clip_half_space(|p| f64::from(p.y) - f64::from(bottom));
-            }
-        }
-        let tf = Transform::from_xyz(x * inner.x, bed.soil_height_m, z * inner.y)
-            .with_rotation(Quat::from_rotation_y(r.random_range(-PI..PI)));
-        append_at(a, crown, tf);
+        Garden::sample(o).build(a, o, version);
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn courtyard_bed_has_buried_roots_recessed_soil_and_bounded_crowns() {
-        for seed in 0..48 {
-            let mut o = crate::scene::procedural_indoor::objects::audit::fixture(
-                ObjectKind::PlantingBed,
-                seed,
-            );
-            o.variant = [6, 13, 10, 4, 15, 1, 14, 3, 8, 9, 7][seed as usize % 11];
-            let p = Bed::sample(&o);
-            let mut a = Assembly::default();
-            build(
-                &mut a,
-                &o,
-                crate::scene::procedural_indoor::layout::GENERATOR_VERSION,
-            );
-            let (lo, hi) = a.bounds();
-            assert!(
-                lo.y.abs() < 1e-4 && hi.y <= o.size.y + 0.002,
-                "{seed}: {lo} {hi}"
-            );
-            assert!(
-                lo.xz()
-                    .abs()
-                    .max(hi.xz().abs())
-                    .cmple(o.size.xz() * 0.5 + Vec2::splat(0.002))
-                    .all(),
-                "{seed}"
-            );
-            let fill = &a.parts[&(Surface::Soil, p.medium.label(soil::Layer::Bed).into_owned())];
-            assert!(fill
-                .positions
-                .iter()
-                .all(|pos| (pos[1] - p.soil_height_m).abs() < 1e-5));
-            assert!(p.soil_height_m < p.rim_height_m - 0.02);
-            // Ferns and succulents have green rachises or fleshy stems. A real
-            // planted triangle must reach the soil with any such tissue.
-            let rooted = a
-                .parts
-                .iter()
-                .filter(|((s, _), _)| *s != p.edge && *s != Surface::Soil)
-                .any(|(_, g)| {
-                    g.indices.as_chunks::<3>().0.iter().any(|tri| {
-                        let y = tri.map(|i| g.positions[i as usize][1]);
-                        y.iter().any(|v| *v <= p.soil_height_m + 0.002)
-                            && y.iter().any(|v| *v >= p.soil_height_m - 0.002)
-                    })
-                });
-            assert!(rooted, "{seed}: floating planting at {}", p.soil_height_m);
-        }
-    }
+fn at_height(point: Vec2, height: f32) -> Vec3 {
+    Vec3::new(point.x, height, point.y)
 }

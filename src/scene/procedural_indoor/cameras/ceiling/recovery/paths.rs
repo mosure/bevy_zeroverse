@@ -291,7 +291,7 @@ pub(super) fn acceptable(
         && scene
             .camera_settings
             .accepts_motion(scene.seed, index, camera)
-        && scene.camera_curve_clear(camera)
+        && coverage.clearance.curve_clear(scene, camera)
         && coverage.suitable(
             camera,
             super::super::super::sampling::requires_person(scene, index),

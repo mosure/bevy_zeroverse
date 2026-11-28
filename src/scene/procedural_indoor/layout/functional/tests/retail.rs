@@ -53,7 +53,14 @@ fn retail_stock_fits_both_display_formats_and_replays_with_registered_finishes()
                 retail::Installation::Gondola { .. } | retail::Installation::Refrigerated(_) => {
                     assert_eq!(prints, retail::print_finishes(&o).into_iter().collect())
                 }
-                retail::Installation::Produce { .. } => assert!(classes.contains("food")),
+                retail::Installation::Produce { .. } => {
+                    let stand = retail::produce_stand(&o, GENERATOR_VERSION).unwrap();
+                    assert!(classes.contains("retail_fixture"));
+                    assert_eq!(
+                        classes.contains("food"),
+                        stand.bins.iter().any(|b| !b.stock.is_empty())
+                    );
+                }
                 retail::Installation::Rail { .. } | retail::Installation::Folded { .. } => {
                     assert!(classes.contains("clothes"))
                 }
@@ -343,5 +350,41 @@ fn retail_checkout_banks_serve_their_own_shop_and_keep_attendant_access() {
         } else {
             assert_eq!(staffed_forms, BTreeSet::from([ApparelWrap.tag()]));
         }
+    }
+}
+
+#[test]
+fn basket_stacks_leave_merchandise_and_travel_routes_accessible() {
+    for profile in [IndoorLayout::GroceryStore, IndoorLayout::ClothingStore] {
+        let mut sites = [0; 2];
+        for seed in 0..96 {
+            let scene = IndoorManifest::generate_with_humans(
+                seed,
+                profile,
+                [0., 0.65, 1.][seed as usize % 3],
+                0,
+                0.25,
+            )
+            .unwrap();
+            validate_layout(&scene).unwrap();
+            let p = &scene.functional_programs()[0];
+            let baskets: Vec<_> = p
+                .members
+                .iter()
+                .map(|&i| &scene.objects[i])
+                .filter(|o| o.kind == ObjectKind::BasketStack)
+                .collect();
+            assert!(baskets.len() <= 1);
+            let Some(o) = baskets.first() else { continue };
+            assert!(!p.counts_toward_capacity(o) && o.solid && o.support.is_none());
+            assert!((scene.floor_height(o.position.xz()) - o.position.y).abs() < 0.002);
+            let (lo, hi) = o.bounds();
+            assert!(
+                p.reservations.iter().all(|r| !r.overlaps(lo, hi))
+                    && super::super::furnishing::retail::baskets::valid_site(&scene, p, o)
+            );
+            sites[o.variant as usize] += 1;
+        }
+        assert!(sites.iter().all(|&n| n > 0), "{profile:?}: {sites:?}");
     }
 }

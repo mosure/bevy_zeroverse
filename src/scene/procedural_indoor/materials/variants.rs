@@ -26,7 +26,7 @@ pub fn count(surface: Surface) -> usize {
         CONTENT_COUNT
     } else if surface == Surface::PrintedPaper {
         // Pads, facing-page spreads and unfolded binding prints have separate charts.
-        paper::jacket::END
+        paper::score::END
     } else {
         COUNT
     }
@@ -127,12 +127,36 @@ pub(super) async fn build(
     let seed = scene.material_seed();
     // Native jobs own their pixels and use the existing worker budget. Wasm
     // retains one cooperative atlas at a time. Unused slots are never queued.
-    let mut content = content::queue(seed, used);
+    // The broad palette builder also serves rooms without a mesh selection.
+    // Sheet music is optional even there; instantiate only the admitted player parts.
+    let mut scores = 0u8;
+    if used.is_none() {
+        for o in scene
+            .objects
+            .iter()
+            .filter(|o| o.kind == super::super::layout::ObjectKind::MusicStand)
+        {
+            if let Some(slot) = super::super::objects::public::music::Stand::sample(o).score_slot {
+                scores |= 1 << (slot - paper::score::FIRST);
+            }
+        }
+    }
+    let wants = |surface, slot: usize| {
+        used.map_or_else(
+            || {
+                surface != Surface::PrintedPaper
+                    || slot < paper::score::FIRST
+                    || scores & (1 << (slot - paper::score::FIRST)) != 0
+            },
+            |keys| keys.contains(&(surface, slot)),
+        )
+    };
+    let mut content = content::queue(seed, wants);
     let structures = structures(scene, images, used, gpu, requests, cooperative).await;
     let mut result = BTreeMap::new();
     for surface in SURFACES {
         for index in 0..count(surface) {
-            if used.is_some_and(|keys| !keys.contains(&(surface, index))) {
+            if !wants(surface, index) {
                 continue;
             }
             let mut rng = stream(

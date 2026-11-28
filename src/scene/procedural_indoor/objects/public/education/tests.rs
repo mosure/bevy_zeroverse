@@ -163,3 +163,43 @@ fn bound_volumes_and_stacks_stay_inside_their_own_shelf() {
     }
     assert!(filled > 80);
 }
+
+#[test]
+fn changing_locker_fittings_stay_inside_their_own_compartment_and_keep_its_label() {
+    let mut furnished = 0;
+    let mut empty = 0;
+    for seed in 0..40 {
+        let mut o = audit::fixture(ObjectKind::Locker, seed);
+        o.size = super::super::dimensions(ObjectKind::Locker, seed);
+        o.variant = CHANGING | WALL_BANK;
+        let p = parameters(&o);
+        audit::check(&o, &build_object(&o)).unwrap();
+        for (bay, b) in p.bays.iter().enumerate() {
+            for (row, edges) in b.levels.windows(2).enumerate() {
+                let bounds = (edges[0] + p.panel_m * 0.5, edges[1] - p.panel_m * 0.5);
+                let mut a = Assembly::default();
+                changing::fittings(&mut a, &o, &p, bay, row, bounds, "locker");
+                if a.parts.is_empty() {
+                    empty += 1;
+                    continue;
+                }
+                furnished += 1;
+                let rear = -o.size.z * 0.5 + p.panel_m;
+                for ((_, label), g) in a.parts {
+                    assert_eq!(label, "locker");
+                    for point in g.positions {
+                        assert!(
+                            point[0] >= b.left - 0.0002
+                                && point[0] <= b.left + b.width + 0.0002
+                                && point[1] >= bounds.0
+                                && point[1] <= bounds.1
+                                && point[2] >= rear - 0.0002
+                                && point[2] < rear + p.body_depth_m - p.panel_m
+                        );
+                    }
+                }
+            }
+        }
+    }
+    assert!(furnished > 10 && empty > 10);
+}

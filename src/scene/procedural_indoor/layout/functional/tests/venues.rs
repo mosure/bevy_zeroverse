@@ -72,18 +72,19 @@ fn workout_products_fit_their_metric_reservations_and_replay() {
                     assert_eq!(g.indices, repeated.indices);
                 }
             }
-            let fit = serde_json::to_value(
-                crate::scene::procedural_indoor::objects::public::fitness::parameters(&o),
-            )
-            .unwrap();
             if kind == ObjectKind::WeightBench {
+                let fit = serde_json::to_value(
+                    crate::scene::procedural_indoor::objects::public::fitness::parameters(&o),
+                )
+                .unwrap();
                 let angle = fit["tilt"].as_f64().unwrap();
                 inclined += usize::from(angle > 0.15);
                 assert!((hi.y - o.size.y).abs() < 0.02);
                 assert!((0.40..0.48).contains(&fit["seat_y"].as_f64().unwrap()));
             } else if kind == ObjectKind::DumbbellRack {
-                levels.insert(fit["tiers"].as_u64().unwrap());
-                head_shapes.insert(fit["segments"].as_u64().unwrap());
+                let rack = crate::scene::procedural_indoor::objects::public::dumbbells::FreeWeightRack::for_object(&o);
+                levels.insert(rack.tiers.len());
+                head_shapes.insert(rack.head);
             }
             for (surface, _) in mesh.parts.keys() {
                 finishes.insert(*surface);
@@ -93,7 +94,7 @@ fn workout_products_fit_their_metric_reservations_and_replay() {
     assert!(
         (32..83).contains(&inclined)
             && levels.len() == 2
-            && head_shapes.len() == 2
+            && head_shapes.len() == 3
             && finishes.len() >= 4
     );
 }

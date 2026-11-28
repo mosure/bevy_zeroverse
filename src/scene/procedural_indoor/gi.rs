@@ -63,6 +63,76 @@ impl Default for BakeSettings {
     }
 }
 
+const CPU_PROBE_LIMIT: u32 = 100_000;
+#[cfg(not(target_arch = "wasm32"))]
+const GPU_PROBE_LIMIT: u32 = u16::MAX as u32; // packed relocation slots
+
+impl BakeSettings {
+    // Use the GPU transport's existing ray ceiling for live capture on either
+    // backend. A standalone CPU bake can still request its full offline budget.
+    pub(super) fn validate_capture(&self) -> Result<(), String> {
+        self.validate_budget(65_536)
+    }
+
+    fn validate_budget(&self, max_rays: u32) -> Result<(), String> {
+        if !self.spacing.is_finite() || self.spacing < 0.2 {
+            return Err("irradiance probe spacing must be finite and at least 0.2 m".into());
+        }
+        if !(16..=max_rays).contains(&self.rays_per_probe) {
+            return Err(format!(
+                "irradiance rays per probe must be in 16..={max_rays} (got {})",
+                self.rays_per_probe
+            ));
+        }
+        if !(1..=32).contains(&self.diffuse_bounces) {
+            return Err("irradiance diffuse bounces must be in 1..=32".into());
+        }
+        Ok(())
+    }
+
+    fn resolution(&self, min: Vec3, max: Vec3, limit: u32) -> Result<UVec3, String> {
+        let extent = max - min;
+        if !extent.is_finite() || extent.min_element() <= 0. {
+            return Err("irradiance volume bounds must have finite positive extent".into());
+        }
+        let n = (extent / self.spacing)
+            .ceil()
+            .as_uvec3()
+            .max(UVec3::splat(2));
+        if n.x
+            .checked_mul(n.y)
+            .and_then(|xy| xy.checked_mul(n.z))
+            .is_none_or(|count| count > limit)
+        {
+            return Err(format!(
+                "irradiance grid {} × {} × {} at spacing {} m exceeds the {limit}-probe budget",
+                n.x, n.y, n.z, self.spacing
+            ));
+        }
+        Ok(n)
+    }
+
+    pub(super) fn validate_room(&self, scene: &IndoorManifest) -> Result<(), String> {
+        let (min, max) = probe_bounds(scene);
+        self.resolution(min, max, CPU_PROBE_LIMIT).map(|_| ())
+    }
+}
+
+fn probe_bounds(scene: &IndoorManifest) -> (Vec3, Vec3) {
+    (
+        Vec3::new(
+            -scene.room_size.x * 0.5 - 0.10,
+            scene.envelope.as_ref().map_or(0., |e| e.minimum_floor()) - 0.10,
+            -scene.room_size.z * 0.5 - 0.10,
+        ),
+        Vec3::new(
+            scene.room_size.x * 0.5 + 0.10,
+            scene.room_size.y + 0.10,
+            scene.room_size.z * 0.5 + scene.adjoining_space().max_depth() + 0.10,
+        ),
+    )
+}
+
 /// Runtime override for controlled experiments or a larger offline bake budget.
 /// Portable and Wasm still omit irradiance volumes regardless of this resource.
 #[derive(Resource, Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
@@ -211,15 +281,31 @@ pub struct ProbeData {
     pub statistics: BakeStatistics,
 }
 
-impl ProbeData {
-    pub fn image(&self) -> Image {
-        let n = self.resolution;
-        let extent = Extent3d {
+fn probe_image(n: UVec3) -> Image {
+    let mut image = Image::new_uninit(
+        Extent3d {
             width: n.x,
             height: n.y * 2,
             depth_or_array_layers: n.z * 3,
-        };
-        let mut pixels = vec![[0u16; 4]; (n.x * n.y * n.z * 6) as usize];
+        },
+        TextureDimension::D3,
+        TextureFormat::Rgba16Float,
+        RenderAssetUsages::default(),
+    );
+    image.sampler = ImageSampler::linear();
+    image
+}
+
+fn probe_transform(min: Vec3, max: Vec3) -> Transform {
+    Transform::from_translation((min + max) * 0.5).with_scale(max - min)
+}
+
+impl ProbeData {
+    pub fn image(&self) -> Image {
+        let n = self.resolution;
+        let mut image = probe_image(n);
+        let mut bytes = vec![0; (n.x * n.y * n.z * 6) as usize * 8];
+        let (pixels, _) = bytes.as_chunks_mut::<8>();
         for z in 0..n.z {
             for y in 0..n.y {
                 for x in 0..n.x {
@@ -229,30 +315,22 @@ impl ProbeData {
                         // module docs: positive lobes first, negative at y + Ry.
                         let yy = y + (face as u32 % 2) * n.y;
                         let zz = z + (face as u32 / 2) * n.z;
-                        pixels[((zz * n.y * 2 + yy) * n.x + x) as usize] = [
+                        pixels[((zz * n.y * 2 + yy) * n.x + x) as usize] = bytemuck::cast([
                             half::f16::from_f32(value.x).to_bits(),
                             half::f16::from_f32(value.y).to_bits(),
                             half::f16::from_f32(value.z).to_bits(),
                             half::f16::ONE.to_bits(),
-                        ];
+                        ]);
                     }
                 }
             }
         }
-        let mut image = Image::new(
-            extent,
-            TextureDimension::D3,
-            bytemuck::cast_slice(&pixels).to_vec(),
-            TextureFormat::Rgba16Float,
-            RenderAssetUsages::default(),
-        );
-        image.sampler = ImageSampler::linear();
+        image.data = Some(bytes);
         image
     }
 
     pub fn transform(&self) -> Transform {
-        Transform::from_translation((self.bounds_min + self.bounds_max) * 0.5)
-            .with_scale(self.bounds_max - self.bounds_min)
+        probe_transform(self.bounds_min, self.bounds_max)
     }
 
     pub fn sample(&self, point: Vec3, normal: Vec3) -> Vec3 {
@@ -890,15 +968,14 @@ impl BakeScene {
         if !wanted() {
             return None;
         }
-        assert!(settings.spacing.is_finite() && settings.spacing >= 0.2);
-        assert!(settings.rays_per_probe >= 16 && (1..=32).contains(&settings.diffuse_bounces));
+        settings
+            .validate_budget(u32::MAX)
+            .expect("valid CPU irradiance settings");
         let started = Instant::now();
-        let resolution = ((self.bounds_max - self.bounds_min) / settings.spacing)
-            .ceil()
-            .as_uvec3()
-            .max(UVec3::splat(2));
-        let count = (resolution.x * resolution.y * resolution.z) as usize;
-        assert!(count <= 100_000, "irradiance probe budget exceeded");
+        let resolution = settings
+            .resolution(self.bounds_min, self.bounds_max, CPU_PROBE_LIMIT)
+            .expect("validated CPU irradiance volume");
+        let count = resolution.element_product() as usize;
         let (points, valid) = self.probe_grid(resolution);
         let links = self.probe_links(resolution, &points, &valid);
         let mut raw = vec![[Vec4::ZERO; 6]; count];

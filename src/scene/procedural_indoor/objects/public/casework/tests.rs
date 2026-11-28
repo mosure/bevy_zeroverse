@@ -93,7 +93,7 @@ fn bakery_stock_is_supported_inside_the_reserved_tray_and_clear_of_the_next_shel
         let o = audit::fixture(ObjectKind::DisplayCase, seed);
         let headroom = if seed % 2 == 0 { 0.06 } else { 0.12 };
         let mut a = Assembly::default();
-        let Some(f) = stocking::bakery_tray(&mut a, &o, 0, y, headroom, bounds) else {
+        let Some(f) = stocking::legacy_bakery_tray(&mut a, &o, 0, y, headroom, bounds) else {
             continue;
         };
         assert!(f.inside(bounds.0, bounds.1, 0.014));

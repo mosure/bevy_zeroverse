@@ -71,6 +71,47 @@ impl Geometry {
         self.indices
             .extend(other.indices.into_iter().map(|i| i + offset));
     }
+    /// Place another copy of a manufactured part. Rigid placement preserves
+    /// the unit normals and the metric texture coordinates of the blank.
+    pub(crate) fn append_rigid(&mut self, blank: &Self, rotation: Quat, translation: Vec3) {
+        let offset = self.positions.len() as u32;
+        self.positions.extend(
+            blank
+                .positions
+                .iter()
+                .map(|&p| (rotation * Vec3::from_array(p) + translation).to_array()),
+        );
+        self.normals.extend(
+            blank
+                .normals
+                .iter()
+                .map(|&n| (rotation * Vec3::from_array(n)).to_array()),
+        );
+        self.uvs.extend_from_slice(&blank.uvs);
+        self.indices
+            .extend(blank.indices.iter().map(|&i| i + offset));
+    }
+
+    /// Translate a duplicate part cut from another position on the same material sheet.
+    pub(crate) fn append_translated(&mut self, blank: &Self, translation: Vec3, uv_offset: Vec2) {
+        let offset = self.positions.len() as u32;
+        self.positions.extend(
+            blank
+                .positions
+                .iter()
+                .map(|&p| (Vec3::from_array(p) + translation).to_array()),
+        );
+        self.normals.extend_from_slice(&blank.normals);
+        self.uvs.extend(
+            blank
+                .uvs
+                .iter()
+                .map(|&uv| (Vec2::from_array(uv) + uv_offset).to_array()),
+        );
+        self.indices
+            .extend(blank.indices.iter().map(|&i| i + offset));
+    }
+
     fn vertex(&mut self, p: Vec3, n: Vec3, uv: Vec2, tf: &Transform) {
         self.positions.push(tf.transform_point(p).to_array());
         self.normals.push(
@@ -83,13 +124,38 @@ impl Geometry {
 
     /// Rounded edges catch highlights without requiring a high-poly imported mesh.
     pub fn cuboid(&mut self, size: Vec3, bevel: f32, tf: Transform) {
-        self.mapped_cuboid(size, bevel, tf, |_, _, _, du, dv, _| {
+        self.cuboid_faces(size, bevel, tf, |_| true);
+    }
+
+    /// Partition a beveled blank between finishes without adding a second skin.
+    pub(crate) fn cuboid_faces(
+        &mut self,
+        size: Vec3,
+        bevel: f32,
+        tf: Transform,
+        include: impl Fn(Vec3) -> bool,
+    ) {
+        self.mapped_cuboid_faces(size, bevel, tf, include, |_, _, _, du, dv, _| {
             move |x, y| Vec2::new(x + du, dv - y)
         });
     }
 
     pub(crate) fn mapped_cuboid<F, Chart>(&mut self, size: Vec3, bevel: f32, tf: Transform, face: F)
     where
+        F: Fn(Vec3, Vec3, Vec3, f32, f32, f32) -> Chart,
+        Chart: Fn(f32, f32) -> Vec2,
+    {
+        self.mapped_cuboid_faces(size, bevel, tf, |_| true, face);
+    }
+
+    fn mapped_cuboid_faces<F, Chart>(
+        &mut self,
+        size: Vec3,
+        bevel: f32,
+        tf: Transform,
+        include: impl Fn(Vec3) -> bool,
+        face: F,
+    ) where
         F: Fn(Vec3, Vec3, Vec3, f32, f32, f32) -> Chart,
         Chart: Fn(f32, f32) -> Vec2,
     {
@@ -104,6 +170,9 @@ impl Geometry {
             (Vec3::Z, Vec3::X, Vec3::Y),
             (-Vec3::Z, -Vec3::X, Vec3::Y),
         ] {
+            if !include(n) {
+                continue;
+            }
             let du = half.dot(u.abs());
             let dv = half.dot(v.abs());
             let dn = half.dot(n.abs());

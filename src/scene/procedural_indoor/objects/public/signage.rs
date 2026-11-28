@@ -1,5 +1,6 @@
 //! Poster stands and exhibition pinups share admitted bounds, not a fixed layout.
 use super::*;
+pub mod floor_guide;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct SignageProgram {
@@ -36,7 +37,7 @@ pub fn parameters(o: &IndoorObject) -> SignageProgram {
     }
 }
 
-pub(super) fn stand(a: &mut Assembly, o: &IndoorObject) {
+pub(super) fn stand(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let label = o.kind.class_name();
@@ -46,6 +47,7 @@ pub(super) fn stand(a: &mut Assembly, o: &IndoorObject) {
     let tilt = p.tilt.min((s.z * 0.34 / h).min(0.95).asin());
     let cy = s.y - h * tilt.cos() * 0.5 - d * tilt.sin() * 0.5 - s.y * p.top_gap;
     let sides: &[f32] = if p.support == 1 { &[-1., 1.] } else { &[1.] };
+    let sheet = floor_guide::Sheet::for_stand(o, version, &p);
     let mut tops = Vec::new();
     for (i, &side) in sides.iter().enumerate() {
         let z = if p.support == 1 {
@@ -59,30 +61,34 @@ pub(super) fn stand(a: &mut Assembly, o: &IndoorObject) {
             Quat::from_rotation_y(if side < 0. { PI } else { 0. }) * Quat::from_rotation_x(-tilt),
         );
         let mut board = Assembly::default();
-        board
-            .part(p.finish, label)
-            .cuboid(Vec3::new(w, h, d), d * 0.15, Transform::IDENTITY);
-        let b = w.min(h) * p.border_fraction;
-        let slot = super::super::super::materials::variants::object_slot(
-            Surface::Art,
-            o.seed.wrapping_add(i as u64 * 7001),
-            o.finish_seed,
-        );
-        super::super::presentation::face(
-            &mut board,
-            Surface::Art,
-            &format!("{label}#finish{slot}"),
-            Vec3::new(
-                -w * 0.5 + b + w * p.margins[0],
-                -h * 0.5 + b + h * p.margins[2],
-                d * 0.5 + 0.0005,
-            ),
-            Vec3::new(
-                w * 0.5 - b - w * p.margins[1],
-                h * 0.5 - b - h * p.margins[3],
-                d * 0.5 + 0.0005,
-            ),
-        );
+        if let Some(sheet) = sheet {
+            sheet.panel(&mut board, p.finish, label, Vec3::new(w, h, d));
+        } else {
+            board
+                .part(p.finish, label)
+                .cuboid(Vec3::new(w, h, d), d * 0.15, Transform::IDENTITY);
+            let b = w.min(h) * p.border_fraction;
+            let slot = super::super::super::materials::variants::object_slot(
+                Surface::Art,
+                o.seed.wrapping_add(i as u64 * 7001),
+                o.finish_seed,
+            );
+            super::super::presentation::face(
+                &mut board,
+                Surface::Art,
+                &format!("{label}#finish{slot}"),
+                Vec3::new(
+                    -w * 0.5 + b + w * p.margins[0],
+                    -h * 0.5 + b + h * p.margins[2],
+                    d * 0.5 + 0.0005,
+                ),
+                Vec3::new(
+                    w * 0.5 - b - w * p.margins[1],
+                    h * 0.5 - b - h * p.margins[3],
+                    d * 0.5 + 0.0005,
+                ),
+            );
+        }
         append_at(a, board, tf);
         let radius = s.x.min(s.z) * 0.018;
         if p.support == 0 || p.support == 3 {

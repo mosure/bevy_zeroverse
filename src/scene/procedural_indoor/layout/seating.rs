@@ -12,6 +12,8 @@ pub(super) fn furniture_margin(a: &IndoorObject, b: &IndoorObject, margin: f32) 
     if super::super::objects::kitchen::is_island(a) || super::super::objects::kitchen::is_island(b)
     {
         margin.max(0.90)
+    } else if tables::classroom_mates(a, b) {
+        margin.min(0.001)
     } else if a.kind == ObjectKind::Plant || b.kind == ObjectKind::Plant {
         margin.max(0.06)
     } else {

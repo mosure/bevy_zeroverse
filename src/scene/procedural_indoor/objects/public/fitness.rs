@@ -314,17 +314,7 @@ fn rack(a: &mut Assembly, o: &IndoorObject, fit: RackFit) {
 fn mat(a: &mut Assembly, o: &IndoorObject, radius: f32, face: Surface) {
     let s = o.size;
     let half = s.xz() * 0.5;
-    let corners: [Vec2; 16] = std::array::from_fn(|i| {
-        let quadrant = i / 4;
-        let dir = Vec2::from_angle((quadrant as f32 + (i % 4) as f32 / 3.) * FRAC_PI_2);
-        let sign = [
-            Vec2::ONE,
-            Vec2::new(-1., 1.),
-            Vec2::NEG_ONE,
-            Vec2::new(1., -1.),
-        ][quadrant];
-        sign * (half - Vec2::splat(radius)) + radius * dir
-    });
+    let corners = super::mats::rounded_outline(half, radius);
     let label = o.kind.class_name();
     let tf = Transform::from_xyz(0., s.y * 0.5, 0.);
     let profile = Geometry::slab_profile(&corners, s.y, 0.002);

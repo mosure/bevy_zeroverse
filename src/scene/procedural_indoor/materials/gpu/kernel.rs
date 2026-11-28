@@ -13,7 +13,7 @@ pub(super) const SHADER: &str = concat!(
     include_str!("timber.wgsl")
 );
 pub(super) const MAX_SIZE: u32 = 512;
-pub(super) const ENTRIES: [&str; 9] = [
+pub(super) const ENTRIES: [&str; 10] = [
     "woven_map",
     "leather_map",
     "knit_map",
@@ -23,9 +23,13 @@ pub(super) const ENTRIES: [&str; 9] = [
     "timber_map",
     "normals",
     "mips",
+    "mip_tail",
 ];
 pub(super) const NORMALS: usize = 7;
 pub(super) const MIPS: usize = 8;
+pub(super) const MIP_TAIL: usize = 9;
+/// One 8×8 workgroup covers every texel from this level down to 1×1.
+pub(super) const TAIL_SIZE: u32 = 8;
 pub(super) fn layout_entries() -> Vec<wgpu::BindGroupLayoutEntry> {
     (0..6)
         .map(|binding| wgpu::BindGroupLayoutEntry {
@@ -39,7 +43,7 @@ pub(super) fn layout_entries() -> Vec<wgpu::BindGroupLayoutEntry> {
                         read_only: binding == 4,
                     }
                 },
-                has_dynamic_offset: false,
+                has_dynamic_offset: binding == 5,
                 min_binding_size: match binding {
                     0 => wgpu::BufferSize::new(std::mem::size_of::<Recipe>() as u64),
                     5 => wgpu::BufferSize::new(std::mem::size_of::<Dispatch>() as u64),
@@ -81,8 +85,17 @@ pub(super) fn levels(size: u32) -> Vec<Level> {
     result
 }
 
-/// Shared copy/shader addressing, in u32 elements. Compute it once on the host
-/// rather than reconstructing padded mip offsets with per-invocation loops.
+/// Launch ordinary reductions up to the single-workgroup tail, inclusive.
+pub(super) fn mip_passes(levels: &[Level]) -> impl Iterator<Item = (usize, &Level)> {
+    levels
+        .iter()
+        .enumerate()
+        .skip(1)
+        .take_while(|(_, mip)| mip.size >= TAIL_SIZE)
+}
+
+/// Shared copy/shader addressing, in u32 elements. Each dispatch starts at a
+/// precomputed pair of levels; the final four levels share a fixed row stride.
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct Dispatch {
@@ -109,14 +122,48 @@ pub(super) fn plane_bytes(size: u32) -> u64 {
     last.offset + u64::from(last.stride)
 }
 
+struct MipChain {
+    levels: Vec<Level>,
+    plane_bytes: u64,
+    uniform: wgpu::Buffer,
+    uniform_stride: u32,
+}
+
+impl MipChain {
+    fn new(device: &wgpu::Device, size: u32) -> Self {
+        let dispatch_size = std::mem::size_of::<Dispatch>() as u32;
+        let alignment = device.limits().min_uniform_buffer_offset_alignment;
+        let uniform_stride = dispatch_size.next_multiple_of(alignment);
+        let addresses = dispatches(size);
+        let mut data = vec![0; uniform_stride as usize * addresses.len()];
+        for (slot, address) in data
+            .chunks_exact_mut(uniform_stride as usize)
+            .zip(addresses)
+        {
+            slot[..dispatch_size as usize].copy_from_slice(bytemuck::bytes_of(&address));
+        }
+        let uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("material mip addresses"),
+            contents: &data,
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
+        Self {
+            levels: levels(size),
+            plane_bytes: plane_bytes(size),
+            uniform,
+            uniform_stride,
+        }
+    }
+}
+
 /// Reused sequentially across materials/rooms on the same queue. No per-map scratch allocation.
-/// Immutable bind groups hold recipe buffers; each dispatch's copies precede scratch reuse.
+/// One immutable bind group per recipe addresses the whole mip chain.
 pub(super) struct Workspace {
     pub pixels: wgpu::Buffer,
     heights: wgpu::Buffer,
     moments: wgpu::Buffer,
     srgb: wgpu::Buffer,
-    levels: [Vec<wgpu::Buffer>; 2],
+    chains: [MipChain; 2],
 }
 impl Workspace {
     pub(super) fn new(device: &wgpu::Device) -> Self {
@@ -149,106 +196,90 @@ impl Workspace {
                 contents: bytemuck::cast_slice(color_table()),
                 usage: wgpu::BufferUsages::STORAGE,
             }),
-            levels: [256, 512].map(|size| {
-                dispatches(size)
-                    .iter()
-                    .map(|dispatch| {
-                        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("material mip addresses"),
-                            contents: bytemuck::bytes_of(dispatch),
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        })
-                    })
-                    .collect()
-            }),
+            chains: [256, 512].map(|size| MipChain::new(device, size)),
         }
     }
-    pub(super) fn bindings(
+
+    fn chain(&self, size: u32) -> &MipChain {
+        match size {
+            256 => &self.chains[0],
+            512 => &self.chains[1],
+            _ => unreachable!("GPU material recipes only use 256 or 512 texels"),
+        }
+    }
+
+    pub(super) fn binding(
         &self,
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
         recipe: &Recipe,
-    ) -> Vec<wgpu::BindGroup> {
+    ) -> wgpu::BindGroup {
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("material recipe v1"),
             contents: bytemuck::bytes_of(recipe),
             usage: wgpu::BufferUsages::UNIFORM,
         });
-        let level_set = match recipe.meta[1] {
-            256 => 0,
-            512 => 1,
-            _ => unreachable!("GPU material recipes only use 256 or 512 texels"),
-        };
-        self.levels[level_set]
-            .iter()
-            .map(|level| {
-                let buffers = [
-                    &params,
-                    &self.heights,
-                    &self.moments,
-                    &self.pixels,
-                    &self.srgb,
-                    level,
-                ];
-                let entries: Vec<_> = buffers
-                    .iter()
-                    .enumerate()
-                    .map(|(binding, b)| wgpu::BindGroupEntry {
-                        binding: binding as u32,
-                        resource: b.as_entire_binding(),
-                    })
-                    .collect();
-                device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("material bake"),
-                    layout,
-                    entries: &entries,
-                })
-            })
-            .collect()
+        let addresses = wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+            buffer: &self.chain(recipe.meta[1]).uniform,
+            offset: 0,
+            size: wgpu::BufferSize::new(std::mem::size_of::<Dispatch>() as u64),
+        });
+        let entries = [
+            (0, params.as_entire_binding()),
+            (1, self.heights.as_entire_binding()),
+            (2, self.moments.as_entire_binding()),
+            (3, self.pixels.as_entire_binding()),
+            (4, self.srgb.as_entire_binding()),
+            (5, addresses),
+        ]
+        .map(|(binding, resource)| wgpu::BindGroupEntry { binding, resource });
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("material bake"),
+            layout,
+            entries: &entries,
+        })
     }
     pub(super) fn encode(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        pipelines: [&wgpu::ComputePipeline; 3],
-        bindings: &[wgpu::BindGroup],
+        pipelines: [&wgpu::ComputePipeline; 4],
+        binding: &wgpu::BindGroup,
         size: u32,
         textures: [Option<&wgpu::Texture>; 3],
     ) {
-        // Each phase reads storage written by the preceding dispatch. Separate
-        // passes make these dependencies explicit on tiled/mobile backends,
-        // without queue submissions, host fences, or extra texture allocations.
+        let chain = self.chain(size);
+        // Between workgroups, dependent writes are visible at pass boundaries.
         for pipeline in &pipelines[..2] {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("indoor material base/normal stage"),
                 timestamp_writes: None,
             });
-            pass.set_bind_group(0, &bindings[0], &[]);
+            pass.set_bind_group(0, binding, &[0]);
             pass.set_pipeline(pipeline);
             pass.dispatch_workgroups(size.div_ceil(8), size.div_ceil(8), 1);
         }
-        for (level, binding) in bindings.iter().enumerate().skip(1) {
+        for (level, mip) in mip_passes(&chain.levels) {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("indoor material GGX mip stage"),
                 timestamp_writes: None,
             });
-            pass.set_pipeline(pipelines[2]);
-            pass.set_bind_group(0, binding, &[]);
-            let n = size >> level;
-            pass.dispatch_workgroups(n.div_ceil(8), n.div_ceil(8), 1);
+            let tail = mip.size == TAIL_SIZE;
+            pass.set_pipeline(if tail { pipelines[3] } else { pipelines[2] });
+            pass.set_bind_group(0, binding, &[level as u32 * chain.uniform_stride]);
+            pass.dispatch_workgroups(mip.size.div_ceil(8), mip.size.div_ceil(8), 1);
         }
-        let plane = plane_bytes(size);
         for (map, texture) in textures.into_iter().enumerate() {
             // Normal moments still contribute to GGX mips even when the final
             // material omits a normal map. Skip only its allocation and copies.
             let Some(texture) = texture else {
                 continue;
             };
-            for (mip, l) in levels(size).into_iter().enumerate() {
+            for (mip, l) in chain.levels.iter().enumerate() {
                 encoder.copy_buffer_to_texture(
                     wgpu::TexelCopyBufferInfo {
                         buffer: &self.pixels,
                         layout: wgpu::TexelCopyBufferLayout {
-                            offset: map as u64 * plane + l.offset,
+                            offset: map as u64 * chain.plane_bytes + l.offset,
                             bytes_per_row: Some(l.stride),
                             rows_per_image: Some(l.size),
                         },

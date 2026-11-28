@@ -80,6 +80,8 @@ fn new_props_are_sampled_on_valid_supports_across_room_programs() {
                         assert!((o.position.y - parent.position.y - parent.size.y).abs() < 1e-5);
                     }
                     SupportPlane::LowerShelf => assert_eq!(o.kind, ObjectKind::Notepad),
+                    SupportPlane::Vise => panic!("paper cannot be held in a workbench vise"),
+                    SupportPlane::Worktop => assert_eq!(parent.kind, ObjectKind::ReceptionDesk),
                 }
             }
         }

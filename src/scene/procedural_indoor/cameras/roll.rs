@@ -1,7 +1,9 @@
 //! Sensor bank is independent of where the rig can find free space and a common view.
 use super::{
-    coverage::{Coverage, VisibilityView},
-    multiview::{pair_samples_cached, CameraPairOverlap, OverlapGraph, CHECK_TIMES},
+    coverage::Coverage,
+    multiview::{
+        checkpoint_views, pair_samples_cached, CameraPairOverlap, OverlapGraph, SpanningTree,
+    },
     sampling::requires_person,
     CameraMotion, CameraSettings, IndoorCamera, IndoorManifest,
 };
@@ -87,15 +89,7 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
     }
     let coverage = Coverage::new(scene);
     let aspect = scene.camera_aspect_ratio;
-    let observed = |c: &IndoorCamera| -> Vec<VisibilityView> {
-        if c.start == c.end && c.motion.is_none() {
-            return vec![coverage.view(c, aspect, 0.); CHECK_TIMES.len()];
-        }
-        CHECK_TIMES
-            .into_iter()
-            .map(|t| coverage.view(c, aspect, t))
-            .collect()
-    };
+    let observed = |c: &IndoorCamera| checkpoint_views(&coverage, c, aspect);
     let mut views: Vec<_> = scene.cameras.iter().map(observed).collect();
     let peers = scene
         .camera_coherence_policy()
@@ -103,7 +97,8 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
     let connected = settings
         .multiview
         .as_ref()
-        .is_some_and(|p| p.graph == OverlapGraph::Connected);
+        .filter(|p| p.graph == OverlapGraph::Connected);
+    let mut tree = SpanningTree::default();
     let drift_scale = settings.roll.drift() / support.min(SEARCH_BANK);
     for index in 0..scene.cameras.len() {
         let source = scene.cameras[index].clone();
@@ -119,7 +114,7 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
                     *r *= 1. + weight * (drift_scale - 1.);
                 }
             }
-            if !scene.camera_curve_clear(&candidate)
+            if !coverage.clearance.curve_clear(scene, &candidate)
                 || !coverage.suitable(&candidate, requires_person(scene, index))
             {
                 continue;
@@ -138,16 +133,17 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
                 }
             }
             scene.cameras[index] = candidate;
-            let accepted = if connected {
-                scene.accepts_camera_visibility()
+            let incumbent_views = std::mem::replace(&mut views[index], candidate_views);
+            let accepted = if let Some(policy) = connected {
+                tree.accepts(&scene.cameras, &views, &coverage, policy, Some(index))
             } else {
                 // Only edges incident on this slot changed. Each test uses the
                 // actual calibrated frame, including fisheye and shifted centers.
                 let accepts = |peer: usize| {
                     let (a, b) = if index == 0 {
-                        (&candidate_views, &views[peer])
+                        (&views[index], &views[peer])
                     } else {
-                        (&views[0], &candidate_views)
+                        (&views[0], &views[index])
                     };
                     scene.accepts_camera_pair(&CameraPairOverlap {
                         reference: 0,
@@ -168,9 +164,9 @@ pub(super) fn fit_to_rig(scene: &mut IndoorManifest) {
                 }
             };
             if accepted {
-                views[index] = candidate_views;
                 break;
             }
+            views[index] = incumbent_views;
             scene.cameras[index] = source.clone();
         }
     }

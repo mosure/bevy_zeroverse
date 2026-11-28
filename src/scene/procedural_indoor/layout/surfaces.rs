@@ -106,7 +106,12 @@ impl IndoorManifest {
         &self,
         prop: &mut IndoorObject,
         support: &IndoorObject,
+        tabletop: Option<&[Vec2]>,
     ) -> bool {
+        let clear = |prop: &IndoorObject| match tabletop {
+            Some(poly) => self.prop_clear_on(prop, support, 0.012, PropSurface::Top(Some(poly))),
+            None => self.prop_clear(prop, support, 0.012),
+        };
         if prop.kind == ObjectKind::DeskLamp
             && matches!(
                 support.kind,
@@ -131,13 +136,13 @@ impl IndoorManifest {
                 let proposed = prop.yaw;
                 prop.yaw = toward.x.atan2(toward.z) - lamp.head_swivel_radians
                     + r.random_range(-0.21..0.21);
-                if self.prop_clear(prop, support, 0.012) {
+                if clear(prop) {
                     return true;
                 }
                 prop.yaw = proposed;
             }
         }
-        self.prop_clear(prop, support, 0.012)
+        clear(prop)
     }
 
     /// Functional work areas vary within every room activity, rather than
@@ -515,7 +520,7 @@ mod tests {
             if accessories::lamp_parameters(&lamp).head_tilt_radians < 0.08 {
                 continue;
             }
-            assert!(room.orient_and_check_prop(&mut lamp, &desk));
+            assert!(room.orient_and_check_prop(&mut lamp, &desk, None));
             assert!(room.prop_clear(&lamp, &desk, 0.012));
             let beam = accessories::lamps::beam(&lamp);
             let intercept = beam.position
@@ -544,7 +549,7 @@ mod tests {
         lamp.size = Vec3::new(0.32, 0.44, 0.14);
         lamp.position = desk.transform().transform_point(Vec3::new(0.38, 0.75, 0.));
         lamp.yaw = desk.yaw;
-        assert!(room.orient_and_check_prop(&mut lamp, &desk));
+        assert!(room.orient_and_check_prop(&mut lamp, &desk, None));
         assert_eq!(lamp.yaw, desk.yaw);
     }
 

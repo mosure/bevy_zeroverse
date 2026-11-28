@@ -1,5 +1,10 @@
 //! Continuous convex top outlines and independent structural support programs.
 use super::*;
+mod classroom;
+pub use classroom::{classroom_mates, classroom_table, ClassroomTable};
+pub(crate) use classroom::{
+    is_classroom_table, INTRODUCED as CLASSROOM_VERSION, VARIANT as CLASSROOM_VARIANT,
+};
 mod clearance;
 mod conference;
 mod linen;
@@ -33,7 +38,7 @@ pub(crate) const SHARED_ROW_VARIANT: u32 = 32;
 /// Installed row furniture carries its manufacturer's stock identity in the
 /// archived finish seed. Individual timber cuts and sheet offsets use the object seed.
 pub(crate) fn product_seed(o: &IndoorObject) -> u64 {
-    if o.variant == SHARED_ROW_VARIANT {
+    if matches!(o.variant, SHARED_ROW_VARIANT | CLASSROOM_VARIANT) {
         o.finish_seed.unwrap_or(o.seed)
     } else {
         o.seed
@@ -83,6 +88,8 @@ pub struct TableProgram {
     pub bay_rake: f32,
     pub bay_style: u8,
     pub workstation: Option<DeskFrame>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub classroom: Option<ClassroomTable>,
 }
 pub fn parameters(o: &IndoorObject) -> TableProgram {
     let product = product_seed(o);
@@ -177,7 +184,17 @@ pub fn parameters(o: &IndoorObject) -> TableProgram {
         bay_rake: conference.random_range(0.0..0.14),
         bay_style: conference.random_range(0..6),
         workstation: DeskFrame::sample(o),
+        classroom: classroom_table(o),
     };
+    if let Some(table) = program.classroom {
+        program.top_surface = Surface::Plastic;
+        program.frame_surface = table.frame;
+        program.top_thickness = table.top_thickness;
+        program.edge_bevel = 0.002;
+        program.leg_radius = table.tube_radius;
+        program.leg_inset = table.leg_inset;
+        program.support = 11;
+    }
     if let Some(desk) = &program.workstation {
         program.support = 10;
         program.frame_surface = desk.metal;
@@ -263,6 +280,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         let tf = Transform::from_xyz(0., s.y - p.top_thickness * 0.5, 0.);
         stock.build(a, o, &p, &outline, tf, 0);
     }
+    if p.classroom.is_some() {
+        build_structure(a, o, &p, &outline, version);
+        return;
+    }
     let edge: Vec<_> = outline.iter().map(|p| *p * 0.985).collect();
     stock.backing(a, o, &edge, underside, p.top_surface, version);
     build_structure(a, o, &p, &outline, version);
@@ -278,6 +299,10 @@ fn build_structure(
 ) {
     let s = o.size;
     let label = o.kind.class_name();
+    if let Some(table) = p.classroom {
+        table.frame(a, o, s.y - p.top_thickness);
+        return;
+    }
     let underside = s.y - p.top_thickness - 0.012;
     let frame = p.frame_surface;
     if let Some(desk) = &p.workstation {

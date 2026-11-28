@@ -197,11 +197,11 @@ impl Fruit {
             },
         }
     }
-    pub(super) fn total_height(&self) -> f32 {
+    pub(in crate::scene::procedural_indoor::objects) fn total_height(&self) -> f32 {
         self.height_m
             .max(self.variety.profile()[8].1 * self.height_m + self.stem_m)
     }
-    pub(super) fn clearance_radius(&self) -> f32 {
+    pub(in crate::scene::procedural_indoor::objects) fn clearance_radius(&self) -> f32 {
         self.axes_m.max_element() + self.lean_m.abs()
     }
     pub(super) fn center_limit(&self, v: &Vessel) -> f32 {
@@ -217,7 +217,7 @@ impl Fruit {
             .fold(f32::INFINITY, f32::min)
     }
 
-    pub(super) fn build(&self, a: &mut Assembly, floor: f32) {
+    pub(in crate::scene::procedural_indoor::objects) fn build(&self, a: &mut Assembly, floor: f32) {
         const SIDES: usize = 24;
         static CIRCLE: OnceLock<[(f32, f32); SIDES + 1]> = OnceLock::new();
         let angles = CIRCLE.get_or_init(|| {

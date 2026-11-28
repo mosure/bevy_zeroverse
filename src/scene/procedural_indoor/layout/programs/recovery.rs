@@ -111,13 +111,17 @@ impl IndoorManifest {
         }
     }
 
-    fn primary_activity_surface_missing(&self) -> bool {
+    pub(in crate::scene::procedural_indoor) fn primary_activity_surface_missing(&self) -> bool {
         !self.objects.iter().any(|o| {
             !o.neighbor
-                && (matches!(
-                    o.kind,
-                    ObjectKind::Desk | ObjectKind::Table | ObjectKind::CoffeeTable
-                ) || self.layout.is_kitchen() && o.kind == ObjectKind::KitchenCounter)
+                && match o.kind {
+                    ObjectKind::Desk | ObjectKind::Table | ObjectKind::CoffeeTable => true,
+                    ObjectKind::KitchenCounter => self.layout.is_kitchen(),
+                    ObjectKind::ReceptionDesk => self.layout == IndoorLayout::Reception,
+                    ObjectKind::Workbench => self.layout == IndoorLayout::Workshop,
+                    ObjectKind::ArtistEasel => self.layout == IndoorLayout::Studio,
+                    _ => false,
+                }
         })
     }
 
@@ -125,10 +129,9 @@ impl IndoorManifest {
     // storage first; adding another footprint can obstruct constrained rooms.
     fn complete_library_storage(&mut self) {
         if self.layout != IndoorLayout::Library
-            || self
-                .objects
-                .iter()
-                .any(|o| !o.neighbor && o.kind == ObjectKind::Bookcase)
+            || self.objects.iter().any(|o| {
+                !o.neighbor && matches!(o.kind, ObjectKind::Bookcase | ObjectKind::LibraryStack)
+            })
         {
             return;
         }

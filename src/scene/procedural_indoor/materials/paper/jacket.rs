@@ -2,7 +2,6 @@
 use super::*;
 
 mod artwork;
-mod lettering;
 
 pub(crate) const INTRODUCED: u32 = 272;
 pub(crate) const FIRST: usize = 2 * variants::COUNT;
@@ -30,18 +29,6 @@ pub(crate) struct Prepared {
     varnish: Option<Image>,
     roughness: f32,
     coat: f32,
-}
-
-fn texture(data: Vec<u8>, side: u32, kind: MapType) -> Image {
-    let mut image = match kind {
-        MapType::Color => mipmaps::printed_mip_image(data, side),
-        _ => mip_image(data, side, kind),
-    };
-    if let ImageSampler::Descriptor(s) = &mut image.sampler {
-        s.address_mode_u = ImageAddressMode::ClampToEdge;
-        s.address_mode_v = ImageAddressMode::ClampToEdge;
-    }
-    image
 }
 
 pub(crate) fn prepare(seed: u64, slot: usize) -> Prepared {

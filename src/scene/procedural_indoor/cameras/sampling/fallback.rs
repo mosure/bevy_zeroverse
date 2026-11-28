@@ -25,13 +25,13 @@ impl IndoorManifest {
                 let floor = self.floor_height(p);
                 for height in [0.78, 1.10, 1.55, 2.0] {
                     let start = Vec3::new(p.x, floor + height, p.y);
-                    if !self.camera_clear(start) {
+                    if !coverage.clearance.point_clear(self, start) {
                         continue;
                     }
                     for human in people {
                         for joint in [2, 4] {
                             let target = human.transform().transform_point(human.joints[joint]);
-                            if !self.camera_view_clear(start, target) {
+                            if !coverage.clearance.view_clear(self, start, target) {
                                 continue;
                             }
                             for fov_degrees in [84., 96., 106.]
@@ -80,7 +80,7 @@ impl IndoorManifest {
                                         rng,
                                     );
                                     if self.camera_settings.accepts_motion(self.seed, 0, &camera)
-                                        && self.camera_curve_clear(&camera)
+                                        && coverage.clearance.curve_clear(self, &camera)
                                         && coverage.suitable(&camera, true)
                                         && !self.cameras.iter().any(|c| {
                                             c.start.distance(camera.start) < 0.18

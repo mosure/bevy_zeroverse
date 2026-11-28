@@ -16,9 +16,11 @@ fn demand(scene: &IndoorManifest) -> usize {
         Studio | Showroom | PublicSuite => 0.30,
         Library | Workshop | Coworking => 0.25,
         OpenOffice | Gallery | Cafeteria => 0.16,
-        Lounge | Breakroom | Cafe | Reception | Mixed => 0.085,
+        Lounge | Breakroom | Cafe | Reception | RehearsalRoom | Mixed => 0.085,
+        Laundromat | LockerRoom => 0.,
         Kitchen | Kitchenette | ElevatorLanding | Restaurant | FitnessRoom | CyclingStudio
-        | Gymnasium | GroceryStore | ClothingStore | Hallway | StairHall | Courtyard => 0.012,
+        | YogaStudio | Gymnasium | GroceryStore | ClothingStore | Hallway | StairHall
+        | Courtyard => 0.012,
     };
     let mut rng = sampling::Domain::ProjectionScreens.rng(scene.seed);
     if !rng.random_bool(f64::from(

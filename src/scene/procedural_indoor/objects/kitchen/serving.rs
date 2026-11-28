@@ -50,8 +50,8 @@ pub(super) fn build(
     let floor = d.interior_floor();
     match meal {
         Serving::Empty => {}
-        Serving::Toast => bakery::toast(a, flat, floor, o.size.y, &mut r),
-        Serving::Biscuit => bakery::biscuit(a, flat, floor, o.size.y, &mut r),
+        Serving::Toast => bakery::toast(a, flat, floor, o.size.y, &mut r, version),
+        Serving::Biscuit => bakery::biscuit(a, flat, floor, o.size.y, &mut r, version),
         Serving::Fruit => {
             let count = r.random_range(3..=7);
             let stock_radius = (flat * r.random_range(0.18..0.25)).min(0.0145);

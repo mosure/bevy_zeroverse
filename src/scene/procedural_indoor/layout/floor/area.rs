@@ -289,7 +289,7 @@ impl IndoorManifest {
                     || self.objects.iter().any(|o| {
                         o.solid
                             && !o.neighbor
-                            && !self.floor_support_clear(o.bounds().0, o.bounds().1)
+                            && !self.installation_supported(o, o.bounds().0, o.bounds().1)
                     })
                 {
                     self.objects.pop();

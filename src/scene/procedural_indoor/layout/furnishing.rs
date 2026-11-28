@@ -163,7 +163,11 @@ impl IndoorManifest {
                 | IndoorLayout::PublicSuite
                 | IndoorLayout::Restaurant
                 | IndoorLayout::FitnessRoom
+                | IndoorLayout::YogaStudio
                 | IndoorLayout::CyclingStudio
+                | IndoorLayout::Laundromat
+                | IndoorLayout::LockerRoom
+                | IndoorLayout::RehearsalRoom
                 | IndoorLayout::GroceryStore
                 | IndoorLayout::ClothingStore
                 | IndoorLayout::Hallway

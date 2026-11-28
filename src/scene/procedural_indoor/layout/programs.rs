@@ -1,13 +1,18 @@
 //! Compose sized furniture groups into the leaves of the spatial program.
 use super::*;
+pub(super) mod access;
+mod atelier;
 mod belongings;
 #[cfg(test)]
 mod diversity_tests;
+pub(super) mod library;
 mod lounge;
 mod primary;
+mod reception;
 mod recovery;
 #[cfg(test)]
 mod tests;
+mod workshop;
 
 /// Position on a rectangular activity-zone edge and heading of its inward normal.
 /// Shelf openings and cabinet handles are on local +Z.
@@ -26,6 +31,23 @@ fn zone_edge(min: Vec2, max: Vec2, side: usize, along: f32, setback: f32) -> (Ve
 impl IndoorManifest {
     pub(super) fn furnish_program(&mut self, rng: &mut ChaCha8Rng) {
         let zones = self.program.as_ref().unwrap().zones.clone();
+        if self.layout == IndoorLayout::Library && self.generator_version >= library::INTRODUCED {
+            self.furnish_library_stacks(&zones);
+        }
+        if self.layout == IndoorLayout::Reception && self.generator_version >= reception::INTRODUCED
+        {
+            self.furnish_reception();
+        }
+        if self.layout == IndoorLayout::Studio && self.generator_version >= atelier::INTRODUCED {
+            self.furnish_artist_studio();
+        }
+        let workshop_zone = if self.layout == IndoorLayout::Workshop
+            && self.generator_version >= super::super::objects::public::workbench::VERSION
+        {
+            self.furnish_workshop(&zones)
+        } else {
+            None
+        };
         let boardroom = self.program.as_ref().unwrap().executive_boardroom;
         let mut dimension_rng = stream(self.seed, 0x5245_5041_4952_5349);
         for (zone_index, zone) in zones.into_iter().enumerate() {
@@ -59,7 +81,9 @@ impl IndoorManifest {
                 (usable.x, usable.y)
             };
             let point = |x, y, z| tf.transform_point(Vec3::new(x, y, z));
-            if let Some(plan) = boardroom {
+            if workshop_zone == Some(zone_index) {
+                self.shop_storage(&zone);
+            } else if let Some(plan) = boardroom {
                 self.furnish_boardroom(plan);
             } else if activity == IndoorLayout::Lounge && w > 2.7 && d > 3.0 {
                 self.furnish_lounge(tf, Vec2::new(w, d), zone_index);
@@ -134,7 +158,7 @@ impl IndoorManifest {
                     }
                 }
             }
-            if boardroom.is_none() {
+            if boardroom.is_none() && workshop_zone != Some(zone_index) {
                 self.fill_functional_zone(&zone, zone_index, rng);
             }
             // Sample perimeter service objects by free space, not fixed global
@@ -278,6 +302,12 @@ impl IndoorManifest {
                 && self.objects.iter().any(|o| {
                     !o.neighbor
                         && (matches!(o.kind, ObjectKind::Desk | ObjectKind::Table)
+                            || self.layout == IndoorLayout::Reception
+                                && o.kind == ObjectKind::ReceptionDesk
+                            || self.layout == IndoorLayout::Workshop
+                                && o.kind == ObjectKind::Workbench
+                            || self.layout == IndoorLayout::Studio
+                                && o.kind == ObjectKind::ArtistEasel
                             || self.layout.is_kitchen() && o.kind == ObjectKind::KitchenCounter
                             || self.layout.prefers_soft_seating()
                                 && o.kind == ObjectKind::CoffeeTable)

@@ -15,12 +15,16 @@ const PLACEMENT_MARGIN_M: f32 = 0.012;
 pub enum SupportPlane {
     Top,
     LowerShelf,
+    Worktop,
+    Vise,
 }
 
 impl SupportPlane {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Top => "top",
+            Self::Vise => "vise",
+            Self::Worktop => "worktop",
             Self::LowerShelf => "lower_shelf",
         }
     }
@@ -31,12 +35,19 @@ impl IndoorManifest {
     /// metric transform and generator version. Routed cables have no flat base.
     pub fn support_plane(&self, object: &IndoorObject) -> Option<SupportPlane> {
         let parent = self.objects.get(object.support?)?;
-        if object.kind == ObjectKind::Cable || !parent.kind.is_surface() {
+        if object.kind == ObjectKind::Cable || !parent.supports_item(object.kind) {
             return None;
         }
         let local_y = object.position.y - parent.position.y;
         if (local_y - parent.size.y).abs() <= CONTACT_M {
             Some(SupportPlane::Top)
+        } else if parent.kind == ObjectKind::Workbench {
+            super::super::objects::public::workbench::Bench::sample(parent)
+                .grips(parent, object)
+                .then_some(SupportPlane::Vise)
+        } else if parent.kind == ObjectKind::ReceptionDesk {
+            let p = super::super::objects::public::reception::Counter::sample(parent);
+            ((local_y - p.worktop_m).abs() <= CONTACT_M).then_some(SupportPlane::Worktop)
         } else {
             self.lower_shelf_contact(object, parent)
                 .map(|_| SupportPlane::LowerShelf)

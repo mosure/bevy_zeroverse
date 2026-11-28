@@ -1,6 +1,24 @@
 //! Continuous end-effector programs, solved with fixed-length two-bone IK.
 //! Activity labels describe the support context; they are not pose lookup tables.
 use super::*;
+/// A zero-based place in an installed waiting bank. The height is measured
+/// from its supporting floor to the top of the seat, in metres.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WaitingSeat {
+    pub bay: usize,
+    pub seat_height_m: f32,
+}
+
+impl WaitingSeat {
+    pub(super) const FIT_TRAVEL_M: f32 = 0.045;
+
+    /// Initial skeletal estimate. Skinning fits the actual seated body while
+    /// both ankles remain planted on the floor.
+    pub(super) fn pelvis_height(self, stature: f32) -> f32 {
+        self.seat_height_m + 0.12 * (stature / 1.75)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PoseProgram {
     #[serde(default)]
@@ -8,6 +26,8 @@ pub struct PoseProgram {
     /// Installed stool and its front footrest, in actor-local metres.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stool_support: Option<super::super::objects::chairs::stool::SeatedSupport>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting_seat: Option<WaitingSeat>,
     pub lean: Vec2,
     pub torso_twist: f32,
     pub weight_shift: f32,
@@ -91,6 +111,7 @@ impl PoseProgram {
         Self {
             limb_proportions: morphology::LimbProportions::sample(seed),
             stool_support: None,
+            waiting_seat: None,
             lean: Vec2::new(
                 rng.random_range(-0.065..0.065),
                 rng.random_range(-0.14..0.045),
@@ -155,7 +176,11 @@ impl PoseProgram {
         let support = self.stool_support.filter(|_| seated);
         let mut pelvis = Vec3::new(
             self.weight_shift,
-            support.map_or(0.585, |p| p.seat_height_m + 0.115),
+            if let Some(place) = self.waiting_seat.filter(|_| seated) {
+                place.pelvis_height(stature)
+            } else {
+                support.map_or(0.585, |p| p.seat_height_m + 0.115)
+            },
             0.015,
         );
         if !seated {

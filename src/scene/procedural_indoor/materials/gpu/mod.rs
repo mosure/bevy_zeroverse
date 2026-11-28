@@ -7,6 +7,7 @@ mod render;
 mod tests;
 use super::{program::MaterialRecipe, MapType};
 use bevy::prelude::*;
+pub(super) use render::ExtractedBakes;
 pub(crate) use render::MaterialBakePlugin;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -30,27 +31,73 @@ pub(crate) struct Request {
     albedo: Arc<Vec<[u8; 3]>>,
     status: Arc<Status>,
 }
+#[derive(Clone, Default)]
+struct Batch {
+    materials: Vec<Request>,
+    reflections: Vec<super::environment::gpu::Request>,
+}
+
+/// The main world, render world and prefetched room share the recipes and completion flags.
+/// Studio can reveal a prefix of each list as the corresponding images become resident.
 #[derive(Resource, Clone, Default)]
-pub(crate) struct Requests(pub Vec<Request>, pub Vec<super::environment::gpu::Request>);
+pub(crate) struct Requests {
+    batch: Option<Arc<Batch>>,
+    materials: usize,
+    reflections: usize,
+}
 impl Requests {
+    pub(crate) fn materials(&self) -> &[Request] {
+        self.batch
+            .as_ref()
+            .map_or(&[], |b| &b.materials[..self.materials])
+    }
+    pub(crate) fn reflections(&self) -> &[super::environment::gpu::Request] {
+        self.batch
+            .as_ref()
+            .map_or(&[], |b| &b.reflections[..self.reflections])
+    }
+    fn edit(&mut self) -> &mut Batch {
+        let batch = Arc::make_mut(self.batch.get_or_insert_with(Arc::default));
+        batch.materials.truncate(self.materials);
+        batch.reflections.truncate(self.reflections);
+        batch
+    }
+    fn push_material(&mut self, request: Request) {
+        self.edit().materials.push(request);
+        self.materials += 1;
+    }
+    pub(super) fn push_reflection(&mut self, request: super::environment::gpu::Request) {
+        self.edit().reflections.push(request);
+        self.reflections += 1;
+    }
+    pub(crate) fn prefix(&self, materials: usize, reflections: usize) -> Self {
+        assert!(materials <= self.materials && reflections <= self.reflections);
+        if materials == 0 && reflections == 0 {
+            return Self::default();
+        }
+        Self {
+            batch: self.batch.clone(),
+            materials,
+            reflections,
+        }
+    }
     pub(crate) fn clear(&mut self) {
-        self.0.clear();
-        self.1.clear();
+        *self = Self::default();
     }
     pub(crate) fn ready(&self) -> bool {
-        self.0
+        self.materials()
             .iter()
             .all(|r| r.status.encoded.load(Ordering::Acquire))
-            && self.1.iter().all(|r| r.ready())
+            && self.reflections().iter().all(|r| r.ready())
     }
     pub(crate) fn failure(&self) -> Option<String> {
-        self.0
+        self.materials()
             .iter()
             .find_map(|r| r.status.error.lock().unwrap().clone())
-            .or_else(|| self.1.iter().find_map(|r| r.failure()))
+            .or_else(|| self.reflections().iter().find_map(|r| r.failure()))
     }
     pub(crate) fn albedo(&self, id: AssetId<Image>) -> Option<&[[u8; 3]]> {
-        self.0
+        self.materials()
             .iter()
             .find(|r| r.images[0].id() == id)
             .map(|r| r.albedo.as_slice())
@@ -141,7 +188,7 @@ impl Maps {
                         bevy::render::render_resource::TextureUsages::COPY_SRC;
                     images.add(image)
                 });
-                requests.0.push(Request {
+                requests.push_material(Request {
                     images: handles.clone(),
                     normal_output: plan.normal_output,
                     recipe: plan.recipe,
@@ -163,9 +210,9 @@ pub struct MaterialBakeStatistics {
 impl Requests {
     pub(crate) fn statistics(&self) -> MaterialBakeStatistics {
         MaterialBakeStatistics {
-            gpu_materials: self.0.len(),
+            gpu_materials: self.materials,
             synthesized_base_texels: self
-                .0
+                .materials()
                 .iter()
                 .map(|r| u64::from(r.recipe.meta[1]).pow(2))
                 .sum(),

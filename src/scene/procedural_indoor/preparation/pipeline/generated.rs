@@ -13,13 +13,20 @@ pub(super) struct Inputs {
 }
 impl Inputs {
     pub fn parse(request: &Request) -> Result<Self, CaptureError> {
+        if request.quality.diffuse_gi() && request.gi_enabled {
+            request.gi.validate_capture()?;
+        }
         for bits in [request.density, request.humans] {
             if !(0.0..=1.0).contains(&f32::from_bits(bits)) {
                 return Err("indoor densities must be finite and in [0,1]".into());
             }
         }
         let aspect = f32::from_bits(request.aspect);
-        if request.cameras == 0 || request.cameras > 256 || !aspect.is_finite() || aspect <= 0. {
+        if request.cameras == 0
+            || request.cameras > cameras::MAX_INDOOR_CAMERAS
+            || !aspect.is_finite()
+            || aspect <= 0.
+        {
             return Err("indoor capture needs 1..=256 cameras and a finite positive aspect".into());
         }
         Ok(Self {
@@ -96,6 +103,9 @@ pub(super) fn plan(request: &Request) -> Result<Plan, CaptureError> {
         inputs.clutter,
     )
     .map_err(|error| failure(request.seed, "layout", error.into()))?;
+    if request.quality.diffuse_gi() && request.gi_enabled {
+        request.gi.validate_room(&scene)?;
+    }
     if let Some(appearance) = inputs.appearance {
         scene
             .apply_appearance(appearance)
@@ -158,6 +168,46 @@ mod tests {
             num_cameras: 3,
             ..default()
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn invalid_active_irradiance_settings_fail_before_scene_generation() {
+        let mut request = Request::new(614440199, &default(), &settings(), default());
+        request.gi_gpu = true;
+        for (spacing, rays, bounces) in [
+            (0.0, 256, 3),
+            (f32::NAN, 256, 3),
+            (0.85, 15, 3),
+            (0.85, 65_537, 3),
+            (0.85, 256, 33),
+        ] {
+            request.gi.spacing = spacing;
+            request.gi.rays_per_probe = rays;
+            request.gi.diffuse_bounces = bounces;
+            assert!(matches!(plan(&request), Err(CaptureError::Failed(_))));
+        }
+        request.gi_gpu = false;
+        request.gi.rays_per_probe = u32::MAX;
+        request.gi.diffuse_bounces = 3;
+        assert!(matches!(plan(&request), Err(CaptureError::Failed(_))));
+        request.gi_enabled = false;
+        assert!(Inputs::parse(&request).is_ok());
+        request.gi_enabled = true;
+        request.quality = IndoorQuality::Portable;
+        assert!(Inputs::parse(&request).is_ok());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn oversized_gym_irradiance_grid_returns_a_configuration_error() {
+        let mut request = Request::new(400, &default(), &settings(), default());
+        request.layout = layout::IndoorLayout::Gymnasium;
+        request.gi.spacing = 0.2;
+        let Err(CaptureError::Failed(error)) = plan(&request) else {
+            panic!("an oversized irradiance volume must fail the request");
+        };
+        assert!(error.contains("100000-probe budget"), "{error}");
     }
 
     #[test]

@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 mod connected;
+pub(super) use connected::SpanningTree;
 mod recovery;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +85,23 @@ impl MultiViewSettings {
         }
         Ok(())
     }
+    /// Necessary packing bound at the first instant of an exact metric rig.
+    /// Balls of radius half the all-pairs separation have disjoint interiors.
+    /// All lie inside the reference ball enlarged by that radius.
+    fn exceeds_metric_packing_bound(&self, count: usize) -> bool {
+        // R >= d, so the volume bound can never reject 27 or fewer centers.
+        if count <= 27 || self.mixed_rig {
+            return false;
+        }
+        let min = f64::from(self.min_baseline);
+        let max = f64::from(self.max_baseline);
+        // Relax both comparisons beyond their f32 measurement and admission
+        // tolerances. Near a boundary, leave the decision to the sampler.
+        let guard = 1e-5 + 16. * f64::from(f32::EPSILON) * max.max(1.);
+        let diameter = min - guard;
+        diameter > 0. && count as f64 > (1. + 2. * (max + guard) / diameter).powi(3)
+    }
+
     pub fn accepts(&self, samples: &[OverlapSample]) -> bool {
         samples.iter().all(|s| {
             s.reference_to_view.min(s.view_to_reference) >= self.min_overlap
@@ -142,6 +160,21 @@ fn measure_pair(
     }
 }
 
+pub(super) fn checkpoint_views(
+    coverage: &Coverage,
+    camera: &IndoorCamera,
+    aspect: f32,
+) -> Vec<VisibilityView> {
+    if camera.motion.is_none() && camera.start == camera.end {
+        return vec![coverage.view(camera, aspect, 0.); CHECK_TIMES.len()];
+    }
+    let mut trajectory = camera.runtime_trajectory();
+    CHECK_TIMES
+        .into_iter()
+        .map(|time| coverage.view_at_pose(camera, aspect, trajectory.sample(time)))
+        .collect()
+}
+
 fn pair_samples(
     coverage: &Coverage,
     reference: &IndoorCamera,
@@ -149,10 +182,7 @@ fn pair_samples(
     camera: &IndoorCamera,
     aspect: f32,
 ) -> Vec<OverlapSample> {
-    let camera_views: Vec<_> = CHECK_TIMES
-        .into_iter()
-        .map(|t| coverage.view(camera, aspect, t))
-        .collect();
+    let camera_views = checkpoint_views(coverage, camera, aspect);
     pair_samples_cached(coverage, reference, reference_views, camera, &camera_views)
 }
 
@@ -186,6 +216,39 @@ pub(super) fn pair_samples_cached(
         .collect()
 }
 
+/// Boolean equivalent of the ordinary metric edge test for a connected or
+/// reference graph. Test both directed floors at each synchronized instant.
+pub(super) fn accepts_metric_edge(
+    coverage: &Coverage,
+    reference_camera: &IndoorCamera,
+    reference: &[VisibilityView],
+    candidate_camera: &IndoorCamera,
+    candidate: &[VisibilityView],
+    policy: &MultiViewSettings,
+) -> bool {
+    let static_pair = [reference_camera, candidate_camera]
+        .iter()
+        .all(|c| c.motion.is_none() && c.start == c.end);
+    debug_assert_eq!(reference.len(), CHECK_TIMES.len());
+    debug_assert_eq!(candidate.len(), CHECK_TIMES.len());
+    let min = if policy.graph == OverlapGraph::Connected {
+        policy.min_baseline
+    } else {
+        policy.min_baseline.max(policy.min_reference_baseline)
+    };
+    reference
+        .iter()
+        .zip(candidate)
+        .take(if static_pair { 1 } else { CHECK_TIMES.len() })
+        .all(|(a, b)| {
+            let d = a.pose.translation.distance(b.pose.translation);
+            d + 1e-5 >= min
+                && d <= policy.max_baseline + 1e-5
+                && coverage.reaches_overlap(a, b, policy.min_overlap)
+                && coverage.reaches_overlap(b, a, policy.min_overlap)
+        })
+}
+
 /// Each reference-edge constraint must hold at every checkpoint. A failed
 /// checkpoint decides this candidate before later views need to be ray cast.
 fn qualifying_peer_views(
@@ -201,11 +264,12 @@ fn qualifying_peer_views(
     }
     let fixed = camera.motion.is_none() && camera.start == camera.end;
     let mut views: Vec<VisibilityView> = Vec::with_capacity(CHECK_TIMES.len());
+    let mut trajectory = camera.runtime_trajectory();
     for (&time, anchor) in CHECK_TIMES.iter().zip(reference_views) {
         let view = if fixed && !views.is_empty() {
             views[0].clone()
         } else {
-            coverage.view(camera, aspect, time)
+            coverage.view_at_pose(camera, aspect, trajectory.sample(time))
         };
         let mut sample = measure_pair(coverage, anchor, &view, time);
         if !accepts(&sample) {
@@ -253,10 +317,7 @@ impl IndoorManifest {
             return connected::all_pairs(self);
         }
         let coverage = Coverage::new(self);
-        let reference_views: Vec<_> = CHECK_TIMES
-            .into_iter()
-            .map(|t| coverage.view(reference, self.camera_aspect_ratio, t))
-            .collect();
+        let reference_views = checkpoint_views(&coverage, reference, self.camera_aspect_ratio);
         self.cameras
             .iter()
             .enumerate()
@@ -276,6 +337,23 @@ impl IndoorManifest {
     }
 
     pub(crate) fn sample_cameras(&mut self, count: usize) -> Result<(), String> {
+        if count == 0 {
+            self.camera_settings.validate()?;
+            self.cameras.clear();
+            self.camera_diagnostics = default();
+            return Ok(());
+        }
+        if self.camera_settings.overlap_mixture.is_none() {
+            if let Some(policy) = self
+                .camera_settings
+                .multiview
+                .as_ref()
+                .filter(|p| p.exceeds_metric_packing_bound(count))
+            {
+                self.camera_settings.validate()?;
+                return Err(format!("seed {}: {count} cameras with minimum pair spacing {} m cannot fit within the {} m reference radius", self.seed, policy.min_baseline, policy.max_baseline));
+            }
+        }
         if super::coherence::CameraCoherencePolicy::new(&self.camera_settings, count).is_some()
             && (1..count).any(|i| !self.camera_settings.ceiling_mounted(self.seed, i))
         {
@@ -427,10 +505,7 @@ impl IndoorManifest {
                 .max(reference.path_length() * 0.5)
                 .max(0.001);
             let mut tracks = vec![Track::new(&reference)];
-            let views: Vec<_> = CHECK_TIMES
-                .into_iter()
-                .map(|t| coverage.view(&reference, self.camera_aspect_ratio, t))
-                .collect();
+            let views = checkpoint_views(&coverage, &reference, self.camera_aspect_ratio);
             let mut peer_views = if peers {
                 vec![views.clone()]
             } else {
@@ -579,7 +654,7 @@ impl IndoorManifest {
                     let track = Track::new(&candidate);
                     // Cheap rejection before casts: swept collision checks still
                     // cover the complete paths, including route segments/curves.
-                    let rejection = if !self.camera_clear(candidate.start) {
+                    let rejection = if !coverage.clearance.point_clear(self, candidate.start) {
                         Some(0)
                     } else if !super::rig::accepts_geometry(
                         &policy,
@@ -596,7 +671,7 @@ impl IndoorManifest {
                         &candidate,
                     ) {
                         Some(2)
-                    } else if !self.camera_curve_clear(&candidate) {
+                    } else if !coverage.clearance.curve_clear(self, &candidate) {
                         Some(3)
                     } else if !coverage.suitable(&candidate, false) {
                         Some(4)
@@ -757,7 +832,7 @@ impl IndoorManifest {
                     .all(|(index, camera)| {
                         self.camera_settings
                             .bind_room_roll(self.seed, index, camera);
-                        self.camera_curve_clear(camera)
+                        coverage.clearance.curve_clear(self, camera)
                             && coverage.suitable(camera, false)
                             && policy.accepts(&pair_samples(
                                 &coverage,
@@ -778,7 +853,17 @@ impl IndoorManifest {
             }
         }
         self.cameras.clear();
-        Err(format!("seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view and bounded room-space recovery; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used", self.seed, self.layout, policy.min_overlap, policy.min_baseline, policy.min_reference_baseline, policy.max_baseline, policy.min_spread, policy.trajectory_variation))
+        Err(format!(
+            "seed {} ({:?}): unable to sample {count} multi-view cameras after {GROUP_ATTEMPTS} anchors x {VIEW_ATTEMPTS} proposals/view and bounded room-space recovery; most_placed={most_placed}, rejections clearance/rig/length/curve/coverage/overlap={rejected:?}; requested_pairs={targets:?}; min_overlap={}, pair_min={}m, reference={}..{}m, min_spread={}, trajectory_variation={}. Lower overlap/separation/spread bounds, reduce trajectory variation, or shorten paths; no unconstrained fallback was used",
+            self.seed,
+            self.layout,
+            policy.min_overlap,
+            policy.min_baseline,
+            policy.min_reference_baseline,
+            policy.max_baseline,
+            policy.min_spread,
+            policy.trajectory_variation
+        ))
     }
 }
 
@@ -868,6 +953,41 @@ mod tests {
     use crate::scene::procedural_indoor::{
         cameras::CameraSettings, layout::IndoorLayout, validation::validate_layout,
     };
+
+    #[test]
+    fn impossible_metric_packings_reject_before_search_and_preserve_the_previous_rig() {
+        use crate::scene::procedural_indoor::{cameras::CameraSettings, layout::IndoorLayout};
+        let mut room = IndoorManifest::generate(23, IndoorLayout::Mixed, 0.65, 2).unwrap();
+        let saved = (
+            room.cameras.clone(),
+            room.camera_settings.clone(),
+            room.camera_diagnostics.clone(),
+        );
+        let settings = CameraSettings::parse(r#"{"multiview":{"graph":"connected","min_baseline":2,"max_baseline":2,"min_reference_baseline":0}}"#).unwrap();
+        let policy = settings.multiview.as_ref().unwrap();
+        assert!(!policy.exceeds_metric_packing_bound(27));
+        assert!(policy.exceeds_metric_packing_bound(28));
+        let mut relaxed = policy.clone();
+        relaxed.max_baseline = 20.;
+        assert!(!relaxed.exceeds_metric_packing_bound(256));
+        relaxed.max_baseline = 2.;
+        relaxed.mixed_rig = true;
+        assert!(!relaxed.exceeds_metric_packing_bound(256));
+        let failure = room.resample_cameras(256, settings, 1.).unwrap_err();
+        assert!(failure.contains("cannot fit") && failure.contains("256 cameras"));
+        assert_eq!(
+            (
+                room.cameras.clone(),
+                room.camera_settings.clone(),
+                room.camera_diagnostics.clone()
+            ),
+            saved
+        );
+        room.resample_cameras(0, CameraSettings::default(), 1.)
+            .unwrap();
+        assert!(room.cameras.is_empty());
+        assert_eq!(room.camera_diagnostics, Default::default());
+    }
 
     #[test]
     fn reference_admission_matches_complete_time_samples() {

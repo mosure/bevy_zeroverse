@@ -63,6 +63,10 @@ impl IndoorManifest {
             .collect();
         for support in surfaces {
             let mut r = super::super::super::sampling::Domain::PublicDressing.rng(support.seed);
+            if crate::scene::procedural_indoor::objects::tables::is_classroom_table(&support) {
+                self.dress_classroom_table(&support, &mut r);
+                continue;
+            }
             let kind = match support.kind {
                 ObjectKind::ExhibitPlinth => {
                     if self.assembly_diagnostics.programs.iter().any(|p| {

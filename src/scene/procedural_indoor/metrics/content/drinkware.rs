@@ -2,6 +2,25 @@
 use super::*;
 use crate::scene::procedural_indoor::clutter::beverages::{self, bottle::Closure, cups::CupForm};
 
+pub(super) fn glass(
+    o: &IndoorObject,
+    categories: &mut Categories,
+    numeric: &mut NumericCollector,
+) -> io::Result<()> {
+    let p = beverages::glassware::Glass::for_object(o);
+    category(
+        categories,
+        "DrinkingGlass_construction",
+        format!("{:?}", p.form),
+    );
+    category(categories, "table_glass_tint", format!("{:?}", p.tint));
+    numeric.push("table_glass_wall_m", f64::from(p.wall_m))?;
+    numeric.push(
+        "table_glass_water_depth_fraction",
+        f64::from(p.water_depth_fraction.unwrap_or(0.)),
+    )
+}
+
 pub(super) fn cup(
     o: &IndoorObject,
     version: u32,

@@ -1,5 +1,6 @@
 //! Loaf construction and crust cuts follow the same realized mesh.
 use super::*;
+use crate::scene::procedural_indoor::materials::baking::Finish;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct LoafProgram {
@@ -33,12 +34,12 @@ pub fn parameters(o: &IndoorObject) -> LoafProgram {
         cut_phase: r.random_range(-0.045..0.045),
     }
 }
-pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
+pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters(o);
     let s = o.size;
     let half = s.xz() * 0.49;
     let h = s.y * p.height;
-    let loaf = a.part(Surface::Terracotta, "food#finish103");
+    let loaf = a.part(Surface::Terracotta, Finish::Crust.label(version));
     let crown = 4. * (p.shoulder_height - p.belly_height) / (1. - p.belly_height);
     let rings: Vec<_> = (0..=12)
         .map(|i| {
@@ -54,7 +55,8 @@ pub(in super::super) fn build(a: &mut Assembly, o: &IndoorObject) {
         .collect();
     loaf.housing(&rings, p.roundness, Transform::IDENTITY);
     let scoring = bread_scoring(loaf, s, &p);
-    a.part(Surface::Paper, "food#finish104").append(scoring);
+    a.part(Surface::Paper, Finish::Crumb.label(version))
+        .append(scoring);
 }
 
 /// Clip thin crust markings from the real loaf triangles. Analytic ellipsoid
@@ -65,19 +67,28 @@ fn bread_scoring(loaf: &Geometry, size: Vec3, p: &LoafProgram) -> Geometry {
     let mut out = Geometry::default();
     let (sine, cosine) = p.cut_angle.sin_cos();
     for triangle in loaf.indices.as_chunks::<3>().0 {
-        let vertices: Vec<_> = triangle
-            .iter()
-            .map(|&i| Vec3::from_array(loaf.positions[i as usize]))
-            .collect();
+        let vertices = triangle.map(|i| Vec3::from_array(loaf.positions[i as usize]));
         if vertices.iter().any(|v| v.y < size.y * 0.60) {
             continue;
         }
         let normal = (vertices[1] - vertices[0])
             .cross(vertices[2] - vertices[0])
             .normalize();
+        let section =
+            vertices.map(|v| Vec2::new(v.x * cosine + v.z * sine, v.z * cosine - v.x * sine));
+        let lo = section[0].min(section[1]).min(section[2]);
+        let hi = section[0].max(section[1]).max(section[2]);
+        let reach = size.z * p.cut_reach;
+        if hi.y < -reach || lo.y > reach {
+            continue;
+        }
         for i in 0..p.cuts {
             let x = ((i as f32 - (p.cuts - 1) as f32 * 0.5) * p.cut_pitch + p.cut_phase) * size.x;
-            let mut polygon = vertices.clone();
+            let half_width = size.x * p.cut_width;
+            if hi.x < x - half_width || lo.x > x + half_width {
+                continue;
+            }
+            let mut polygon = vertices.to_vec();
             for (axis, bound, sign) in [
                 (0, x - size.x * p.cut_width, 1.),
                 (0, x + size.x * p.cut_width, -1.),

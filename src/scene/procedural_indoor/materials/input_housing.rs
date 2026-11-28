@@ -14,6 +14,8 @@ pub(crate) const FINISH_VERSION: u32 = 256;
 
 const CASE: usize = 126;
 const PAD: usize = 130;
+pub(crate) const PIANO_NATURALS: usize = CASE + 2;
+pub(crate) const PIANO_ACCIDENTALS: usize = CASE;
 const LOTS: usize = 4;
 const BALL: usize = 801;
 
@@ -176,6 +178,14 @@ pub(super) fn install(
     } else {
         let mut keys = BTreeSet::new();
         for o in &scene.objects {
+            if o.kind == ObjectKind::StagePiano {
+                // The naturals and accidentals reuse pearl and graphite molded-polymer stocks.
+                keys.extend([
+                    (Surface::Plastic, PIANO_NATURALS),
+                    (Surface::Plastic, PIANO_ACCIDENTALS),
+                ]);
+                continue;
+            }
             if o.kind == ObjectKind::CheckoutCounter
                 && crate::scene::procedural_indoor::objects::public::CheckoutForm::for_object(o)
                     .is_some()

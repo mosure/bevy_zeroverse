@@ -90,13 +90,29 @@ pub(in crate::scene::procedural_indoor::objects) fn crate_lot(
 ) -> [(f32, Assembly); 3] {
     let kind = Variety::draw(r);
     let mut finish = stream(r.random(), u64::from_le_bytes(*b"ShopPeel"));
-    let mut cultivar = None;
-    std::array::from_fn(|_| {
-        let mut piece = Fruit::sample(kind, r, &mut finish);
-        piece.skin = *cultivar.get_or_insert(piece.skin);
+    lot_pieces(kind, r, &mut finish).map(|piece| {
         let mut mesh = Assembly::default();
         piece.build(&mut mesh, 0.);
         (piece.clearance_radius() + 0.001, mesh)
+    })
+}
+
+pub(in crate::scene::procedural_indoor::objects) fn market_lot(
+    seed: u64,
+    finish_seed: u64,
+    lot: usize,
+) -> [Fruit; 3] {
+    let mut shape = stream(seed, u64::from_le_bytes(*b"BinFruit") ^ lot as u64);
+    let mut finish = stream(finish_seed, u64::from_le_bytes(*b"BinGrade") ^ lot as u64);
+    lot_pieces(Variety::draw(&mut shape), &mut shape, &mut finish)
+}
+
+fn lot_pieces(kind: Variety, r: &mut impl Rng, finish: &mut impl Rng) -> [Fruit; 3] {
+    let mut cultivar = None;
+    std::array::from_fn(|_| {
+        let mut piece = Fruit::sample(kind, r, finish);
+        piece.skin = *cultivar.get_or_insert(piece.skin);
+        piece
     })
 }
 

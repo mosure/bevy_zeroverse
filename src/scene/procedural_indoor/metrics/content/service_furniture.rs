@@ -10,6 +10,98 @@ pub(super) fn record(
 ) -> io::Result<()> {
     use ObjectKind::*;
     let finishes = match o.kind {
+        BeamSeating => {
+            let p = crate::scene::procedural_indoor::objects::public::beam_seating::BeamSeating::for_object(o);
+            category(categories, "waiting_seat_stock", format!("{:?}", p.stock));
+            category(categories, "waiting_armrests", format!("{:?}", p.armrests));
+            numeric.push("waiting_seats_per_beam", p.seat_count() as f64)?;
+            numeric.push("waiting_seat_pitch_m", p.pitch_m.into())?;
+            return Ok(());
+        }
+        LaundryCart => {
+            let p = crate::scene::procedural_indoor::objects::public::laundry::cart::LaundryCart::for_object(o);
+            category(categories, "laundry_cart_basket", format!("{:?}", p.basket));
+            category(categories, "laundry_cart_load", format!("{:?}", p.load));
+            numeric.push("laundry_cart_rim_m", p.rim_height_m.into())?;
+            numeric.push("laundry_cart_fill_fraction", p.fill_fraction.into())?;
+            return Ok(());
+        }
+        Timpani => {
+            let drum = crate::scene::procedural_indoor::objects::public::music::Timpani::sample(o);
+            category(
+                categories,
+                "timpani_bowl_stock",
+                format!("{:?}", drum.bowl_stock),
+            );
+            numeric.push("timpani_nominal_inches", drum.nominal_inches.into())?;
+            numeric.push("timpani_head_height_m", drum.head_height_m.into())?;
+            return Ok(());
+        }
+        WashingMachine | TumbleDryer => {
+            let machine =
+                crate::scene::procedural_indoor::objects::public::laundry::Machine::for_object(o);
+            category(categories, "laundry_cabinet", format!("{:?}", o.kind));
+            category(
+                categories,
+                "laundry_finish",
+                format!("{:?}", machine.finish),
+            );
+            numeric.push("laundry_pockets_per_cabinet", machine.pockets.len() as f64)?;
+            for pocket in machine.pockets {
+                numeric.push("laundry_door_radius_m", pocket.radius_m.into())?;
+                numeric.push("laundry_load_fraction", pocket.load_fraction.into())?;
+            }
+            return Ok(());
+        }
+        ApparelDisplay => {
+            if let Some(rail) =
+                crate::scene::procedural_indoor::objects::public::apparel_rail(o, version)
+            {
+                category(categories, "apparel_rail_form", format!("{:?}", rail.form));
+                numeric.push("apparel_stocked_hangers", rail.hangers.len() as f64)?;
+                for line in &rail.collections {
+                    category(
+                        categories,
+                        "apparel_sleeve_dye",
+                        if line.sleeve_finish_slot.is_some() {
+                            "contrast"
+                        } else {
+                            "matching"
+                        },
+                    );
+                }
+                numeric.push("apparel_stock_arms", rail.arms.len() as f64)?;
+                numeric.push(
+                    "apparel_collections_per_rail",
+                    rail.collections.len() as f64,
+                )?;
+                for pair in rail.hangers.windows(2).filter(|p| p[0].arm == p[1].arm) {
+                    numeric.push(
+                        "apparel_hanger_spacing_m",
+                        (pair[1].along_m - pair[0].along_m).into(),
+                    )?;
+                }
+            }
+            return Ok(());
+        }
+        BasketStack => {
+            use crate::scene::procedural_indoor::objects::public::baskets::BasketStack;
+            let p = BasketStack::for_object(o);
+            category(categories, "handbasket_shell", format!("{:?}", p.shell));
+            category(categories, "handbasket_carrier", format!("{:?}", p.carrier));
+            category(
+                categories,
+                "handbasket_site",
+                if o.variant == 0 {
+                    "entrance"
+                } else {
+                    "checkout"
+                },
+            );
+            numeric.push("handbaskets_per_stack", p.count as f64)?;
+            numeric.push("handbasket_nesting_pitch_m", p.nesting_pitch_m.into())?;
+            return Ok(());
+        }
         QueueBarrier
             if version
                 >= crate::scene::procedural_indoor::objects::public::barrier::FITTED_VERSION =>

@@ -278,7 +278,10 @@ impl EnvelopeProgram {
                     f.shade_coverage = 0.;
                     f.shade_tilt = 0.;
                 }
-                Some(f)
+                if scene.layout == super::super::layout::IndoorLayout::LockerRoom {
+                    f.fit_clerestory(scene.window_sill, height);
+                }
+                (!f.openings.is_empty()).then_some(f)
             } else {
                 None
             };

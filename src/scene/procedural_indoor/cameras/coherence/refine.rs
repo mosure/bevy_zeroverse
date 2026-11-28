@@ -271,7 +271,7 @@ pub(crate) fn refine(scene: &mut IndoorManifest) {
                 let score = next.iter().sum::<f32>();
                 if acceptable
                     && score + 0.001 < best_score
-                    && scene.camera_curve_clear(&candidate)
+                    && coverage.clearance.curve_clear(scene, &candidate)
                     && coverage.suitable(
                         &candidate,
                         super::super::sampling::requires_person(scene, i),

@@ -23,6 +23,8 @@ pub struct BenchProgram {
 
 /// Slatted timber, cast stone or coated metal for outdoor installations.
 pub(crate) const OUTDOOR: u32 = 0x4245_4e43;
+/// Backless changing bench with a rigid, cleanable seat and a floor-mounted frame.
+pub(crate) const CHANGING: u32 = 0x4348_4e47;
 
 pub(crate) fn fit_height(o: &mut IndoorObject) {
     let p = parameters(o);
@@ -34,15 +36,52 @@ pub(crate) fn fit_height(o: &mut IndoorObject) {
 pub fn parameters(o: &IndoorObject) -> BenchProgram {
     let mut r = stream(o.seed, 0x42454e4348505247);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 0x4245_4e43_4649_4e49);
-    let seat_height = o.size.y.min(r.random_range(0.41..0.52));
-    let slats = r.random_bool(0.52);
-    let longitudinal = r.random_bool(0.58);
+    let changing = o.variant == CHANGING;
+    let seat_height = if changing {
+        o.size.y
+    } else {
+        o.size.y.min(r.random_range(0.41..0.52))
+    };
+    let slats = r.random_bool(if changing { 0.76 } else { 0.52 });
+    let longitudinal = r.random_bool(if changing { 0.84 } else { 0.58 });
     let wants_back = r.random_bool(0.72);
     let wants_arms = r.random_bool(0.38);
     let backed = o.size.y > seat_height + 0.14 && wants_back;
+    let frame = if f.random_bool(if changing { 0.20 } else { 0.55 }) {
+        Surface::Wood
+    } else {
+        Surface::Metal
+    };
+    let seat = if changing {
+        if f.random_bool(if slats { 0.78 } else { 0.38 }) {
+            Surface::Wood
+        } else {
+            Surface::Plastic
+        }
+    } else if slats {
+        Surface::Wood
+    } else if o.variant == OUTDOOR {
+        if f.random_bool(0.55) {
+            Surface::Concrete
+        } else {
+            Surface::Metal
+        }
+    } else if f.random_bool(0.28) {
+        Surface::Leather
+    } else {
+        Surface::FabricAlt
+    };
     BenchProgram {
         seat_height,
-        seat_thickness: (seat_height * r.random_range(0.085..0.19)).min(0.085),
+        seat_thickness: if changing {
+            if seat == Surface::Plastic {
+                r.random_range(0.012..0.022)
+            } else {
+                r.random_range(0.021..0.036)
+            }
+        } else {
+            (seat_height * r.random_range(0.085..0.19)).min(0.085)
+        },
         base: r.random_range(0..4),
         span: Vec2::new(r.random_range(0.27..0.40), r.random_range(0.24..0.37)),
         splay: r.random_range(0.01..0.055),
@@ -53,31 +92,21 @@ pub fn parameters(o: &IndoorObject) -> BenchProgram {
             ((if longitudinal { o.size.z } else { o.size.x }) / r.random_range(0.045..0.095_f32))
                 .round()
                 .clamp(3., 22.) as usize
+        } else if changing {
+            1
         } else {
             r.random_range(1..=3)
         },
-        gap_fraction: r.random_range(0.025..0.13),
+        gap_fraction: if changing && !slats {
+            0.
+        } else {
+            r.random_range(0.025..0.13)
+        },
         backed,
         back_tilt: r.random_range(0.035..0.16),
         arms: o.size.y > seat_height + 0.14 && wants_arms,
-        frame: if f.random_bool(0.55) {
-            Surface::Wood
-        } else {
-            Surface::Metal
-        },
-        seat: if slats {
-            Surface::Wood
-        } else if o.variant == OUTDOOR {
-            if f.random_bool(0.55) {
-                Surface::Concrete
-            } else {
-                Surface::Metal
-            }
-        } else if f.random_bool(0.28) {
-            Surface::Leather
-        } else {
-            Surface::FabricAlt
-        },
+        frame,
+        seat,
         roundness: r.random_range(2.6..7.5),
     }
 }
@@ -193,7 +222,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
             p.seat_height - p.seat_thickness * 0.5,
             if across_depth { offset } else { 0. },
         );
-        if p.slats {
+        if p.slats || o.variant == CHANGING {
             a.board(
                 &mut cuts,
                 (p.seat, label),

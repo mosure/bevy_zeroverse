@@ -21,7 +21,11 @@ pub fn size_room(seed: u64, activity: IndoorLayout, size: &mut Vec3) {
     let mut r = stream(seed, 8220);
     let (w, d) = match activity {
         IndoorLayout::Courtyard => ((10.5, 16.0), (11.5, 17.5)),
+        IndoorLayout::LockerRoom => ((7.1, 10.5), (7.8, 13.4)),
+        IndoorLayout::RehearsalRoom => ((8.6, 13.5), (8.8, 14.5)),
+        IndoorLayout::Laundromat => ((6.6, 10.2), (7.8, 13.2)),
         IndoorLayout::Restaurant => ((9.0, 15.5), (10.0, 18.0)),
+        IndoorLayout::YogaStudio => ((8.2, 13.6), (9.5, 16.5)),
         IndoorLayout::CyclingStudio => ((10.4, 14.6), (11.0, 16.5)),
         IndoorLayout::FitnessRoom => ((8.2, 13.6), (9.5, 16.8)),
         IndoorLayout::GroceryStore => ((10.8, 16.2), (12.0, 18.7)),
@@ -36,6 +40,13 @@ pub fn size_room(seed: u64, activity: IndoorLayout, size: &mut Vec3) {
         r.random_range(w.0..w.1),
         if activity == IndoorLayout::Courtyard {
             r.random_range(3.15..4.35)
+        } else if activity == IndoorLayout::RehearsalRoom {
+            r.random_range(3.4..4.8)
+        } else if matches!(
+            activity,
+            IndoorLayout::Laundromat | IndoorLayout::LockerRoom
+        ) {
+            r.random_range(2.9..3.85)
         } else if activity == IndoorLayout::LectureHall {
             r.random_range(5.5..6.2)
         } else {
@@ -157,17 +168,23 @@ pub fn prepare_architecture(scene: &mut IndoorManifest) {
         }
     }
     // Raised teaching platform with a full-width single step, clear of side access.
-    let stage_half = (hi.x - lo.x) * 0.38;
+    let stage = teaching_platform(lo, hi);
     steps.walk_edges.push(StepEdge {
-        coordinate_m: lo.y + 2.1,
-        span_m: Vec2::new(center - stage_half, center + stage_half),
+        coordinate_m: stage.max.y,
+        span_m: Vec2::new(stage.min.x, stage.max.x),
     });
     e.step_installation = Some(steps);
-    e.floor_patches.push(FloorPatch {
+    e.floor_patches.push(stage);
+}
+
+pub(super) fn teaching_platform(lo: Vec2, hi: Vec2) -> FloorPatch {
+    let center = (lo.x + hi.x) * 0.5;
+    let stage_half = (hi.x - lo.x) * 0.38;
+    FloorPatch {
         min: Vec2::new(center - stage_half, lo.y),
         max: Vec2::new(center + stage_half, lo.y + 2.1),
         height: 0.14,
-    });
+    }
 }
 
 /// Compatible public adjacencies, with both orientations and continuous room

@@ -118,7 +118,7 @@ impl IndoorManifest {
 /// Both corners of the customer (or cashier) work area must actually be served.
 /// Merely counting reservations cannot detect a reversed station.
 pub(in super::super::super) fn serves(route: &Reservation, o: &IndoorObject, staff: bool) -> bool {
-    let depth = super::access_depth(ObjectKind::CheckoutCounter).unwrap();
+    let depth = super::super::frontage::access_depth(ObjectKind::CheckoutCounter).unwrap();
     let sign = if staff { -1. } else { 1. };
     let transform = o.transform();
     [-1., 1.].into_iter().all(|side| {

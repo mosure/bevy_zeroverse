@@ -6,12 +6,13 @@ use crate::scene::procedural_indoor::{
     cameras::{
         coverage::{Coverage, VisibilityView},
         diversity::Track,
-        multiview::{pair_samples_cached, OverlapGraph, CHECK_TIMES},
+        multiview::{accepts_metric_edge, checkpoint_views, pair_samples_cached, OverlapGraph},
         program::ViewSummary,
         rig::{self, MixedRigContract},
     },
     layout::{stream, IndoorManifest},
 };
+use bevy::platform::collections::HashMap;
 use rand::{seq::SliceRandom, Rng};
 
 struct Candidate {
@@ -61,7 +62,10 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
             mounting.standoff_m[1],
             p.max_baseline,
         ) {
-            return Err(format!("seed {} needs at least {gap:.4} m of vertical separation between ceiling and room cameras, exceeding the maximum reference baseline of {:.4} m", scene.seed, p.max_baseline));
+            return Err(format!(
+                "seed {} needs at least {gap:.4} m of vertical separation between ceiling and room cameras, exceeding the maximum reference baseline of {:.4} m",
+                scene.seed, p.max_baseline
+            ));
         }
     }
     let coverage = if mounted {
@@ -101,8 +105,10 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
     let mut room_rejected = [0usize; 3];
     // Peer intrinsics are fixed per slot. Caps do not depend on positions;
     // changing the content-conditioned reference invalidates the cache below.
-    let mut overlap_floors = vec![vec![None; count]; count];
-    let mut peer_floors = vec![vec![None; count]; count];
+    // Exact metric and typed overlap policies don't use these floors. Cache
+    // only the directed slot pairs the search actually compares.
+    let mut overlap_floors = HashMap::new();
+    let mut peer_floors = HashMap::new();
     // The baseline program uses informed proposals. Keep failures bounded rather
     // than spending the legacy exact-policy budget on an infeasible mixed rig.
     let restarts = if peers {
@@ -256,7 +262,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                             .accepts_motion(scene.seed, index, &camera)
                         {
                             Some(0)
-                        } else if !scene.camera_curve_clear(&camera) {
+                        } else if !coverage.clearance.curve_clear(scene, &camera) {
                             Some(1)
                         } else if !coverage.suitable(&camera, require_person) {
                             Some(2)
@@ -341,6 +347,14 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                 }
                 let track = Track::new(&camera);
                 if policy.is_some_and(|p| {
+                    if contract.is_none() {
+                        return !super::super::diversity::accepts_extension(
+                            p,
+                            &tracks,
+                            &track,
+                            stage + 1 == count,
+                        );
+                    }
                     !rig::accepts_geometry(
                         p,
                         contract,
@@ -353,16 +367,8 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                     rejected[1] += 1;
                     continue;
                 }
-                let candidate_views: Vec<_> = if camera.motion.is_none()
-                    && camera.start == camera.end
-                {
-                    vec![coverage.view(&camera, scene.camera_aspect_ratio, 0.); CHECK_TIMES.len()]
-                } else {
-                    CHECK_TIMES
-                        .into_iter()
-                        .map(|t| coverage.view(&camera, scene.camera_aspect_ratio, t))
-                        .collect()
-                };
+                let candidate_views =
+                    checkpoint_views(&coverage, &camera, scene.camera_aspect_ratio);
                 // Qualify the downward overview independently of peripheral
                 // ceiling context in >180-degree lenses. Pair visibility below
                 // still uses the complete calibrated sensor at every time.
@@ -374,6 +380,23 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                 }
                 if let Some(policy) = policy.filter(|_| index > 0) {
                     let mut accepts = |parent: usize| {
+                        // Connected graphs use an ordinary parent edge, also for
+                        // pair mixtures. Reference mixtures have an upper bound
+                        // as well and use the full policy below.
+                        if contract.filter(|_| targets.is_empty()).is_none()
+                            && (policy.graph == OverlapGraph::Connected
+                                || targets.get(index - 1).is_none())
+                        {
+                            let reference = &scene.cameras[parent];
+                            return accepts_metric_edge(
+                                &coverage,
+                                reference,
+                                &views[parent],
+                                &camera,
+                                &candidate_views,
+                                policy,
+                            );
+                        }
                         let samples = pair_samples_cached(
                             &coverage,
                             &scene.cameras[parent],
@@ -382,8 +405,9 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                             &candidate_views,
                         );
                         if let Some(contract) = contract.filter(|_| targets.is_empty()) {
-                            let floor =
-                                *overlap_floors[order[parent]][index].get_or_insert_with(|| {
+                            let floor = *overlap_floors
+                                .entry((order[parent], index))
+                                .or_insert_with(|| {
                                     contract.pair_overlap_floor(
                                         &scene.cameras[parent],
                                         &camera,
@@ -397,10 +421,6 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                                 &samples,
                                 floor,
                             )
-                        } else if policy.graph == OverlapGraph::Connected {
-                            let mut edge = policy.clone();
-                            edge.min_reference_baseline = 0.;
-                            edge.accepts(&samples)
                         } else {
                             targets.get(index - 1).map_or_else(
                                 || policy.accepts(&samples),
@@ -419,13 +439,16 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
                 }
                 if let Some(coherence) = coherence {
                     if !(1..stage).all(|parent| {
-                        let floor = *peer_floors[order[parent]][index].get_or_insert_with(|| {
-                            coherence.preferred_floor(
-                                &scene.cameras[parent],
-                                &camera,
-                                scene.camera_aspect_ratio,
-                            )
-                        });
+                        let floor =
+                            *peer_floors
+                                .entry((order[parent], index))
+                                .or_insert_with(|| {
+                                    coherence.preferred_floor(
+                                        &scene.cameras[parent],
+                                        &camera,
+                                        scene.camera_aspect_ratio,
+                                    )
+                                });
                         coherence.supports(&coverage, &views[parent], &candidate_views, floor)
                     }) {
                         rejected[3] += 1;
@@ -494,9 +517,7 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
             if scene.cameras.is_empty() {
                 // An alternate reference may have a different admitted pinhole
                 // focal length. Never reuse caps from the previous calibration.
-                for row in &mut overlap_floors {
-                    row.fill(None);
-                }
+                overlap_floors.clear();
             }
             scene.cameras.push(candidate.camera);
             tracks.push(candidate.track);
@@ -515,5 +536,8 @@ pub(crate) fn sample(scene: &mut IndoorManifest, count: usize, peers: bool) -> R
         most = most.max(scene.cameras.len());
         scene.camera_diagnostics.group_restarts += 1;
     }
-    Err(format!("seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections proposal_or_clearance/spacing/overview/overlap={rejected:?}, room_motion/clearance/content={room_rejected:?}; mounting clearance, lens assignments and overlap constraints were retained", scene.seed))
+    Err(format!(
+        "seed {}: mixed mounting rig placed {most}/{count} cameras within the search budget; rejections proposal_or_clearance/spacing/overview/overlap={rejected:?}, room_motion/clearance/content={room_rejected:?}; mounting clearance, lens assignments and overlap constraints were retained",
+        scene.seed
+    ))
 }

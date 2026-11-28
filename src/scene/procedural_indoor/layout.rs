@@ -65,6 +65,7 @@ pub enum IndoorLayout {
     Coworking,
     Breakroom,
     Reception,
+    /// Reading rooms with browsable two-sided stacks, perimeter shelving and study seats.
     Library,
     Workshop,
     Studio,
@@ -101,15 +102,25 @@ pub enum IndoorLayout {
     #[value(alias = "spin-studio")]
     #[serde(alias = "SpinStudio")]
     CyclingStudio,
-    /// Clear-span indoor volleyball court with sideline seating.
+    /// Clear-span volleyball hall with optional spectator seating and basketball practice goals.
     #[value(alias = "sports-hall", alias = "volleyball-hall")]
     Gymnasium,
+    /// Mat-based movement classes with an instructor station and accessible equipment storage.
+    YogaStudio,
+    /// Self-service laundry with washer and dryer banks and accessible loading aisles.
+    Laundromat,
+    /// Chamber ensemble with player-facing music desks and an optional accompanist.
+    RehearsalRoom,
+    /// Dry changing room with fitted locker banks, paired benches and privacy glazing.
+    #[value(alias = "changing-room")]
+    #[serde(alias = "ChangingRoom")]
+    LockerRoom,
 }
 
 impl IndoorLayout {
     const INITIAL_MIXED_COUNT: usize = 20;
     /// Every concrete whole-room program eligible for `Mixed` (`all`).
-    pub const PROFILES: [Self; 29] = [
+    pub const PROFILES: [Self; 33] = [
         Self::Conference,
         Self::OpenOffice,
         Self::Lounge,
@@ -139,6 +150,10 @@ impl IndoorLayout {
         Self::Courtyard,
         Self::CyclingStudio,
         Self::Gymnasium,
+        Self::YogaStudio,
+        Self::Laundromat,
+        Self::RehearsalRoom,
+        Self::LockerRoom,
     ];
     /// Compatible secondary activities inside an office's partitioned zones.
     /// Service/teaching/exhibition programs need their whole-room reservations.
@@ -155,7 +170,7 @@ impl IndoorLayout {
         Self::Studio,
     ];
     /// Individual service, teaching, exhibition and other public room programs.
-    pub const PUBLIC_PROFILES: [Self; 18] = [
+    pub const PUBLIC_PROFILES: [Self; 22] = [
         Self::Kitchenette,
         Self::Kitchen,
         Self::Cafe,
@@ -174,6 +189,10 @@ impl IndoorLayout {
         Self::Courtyard,
         Self::CyclingStudio,
         Self::Gymnasium,
+        Self::YogaStudio,
+        Self::Laundromat,
+        Self::RehearsalRoom,
+        Self::LockerRoom,
     ];
     fn sample_profile(seed: u64, profiles: &[Self], rng: &mut ChaCha8Rng) -> Self {
         // Keep the original draw (and downstream RNG position) for established
@@ -208,10 +227,17 @@ impl IndoorLayout {
                 | Self::Courtyard
                 | Self::CyclingStudio
                 | Self::Gymnasium
+                | Self::YogaStudio
+                | Self::Laundromat
+                | Self::RehearsalRoom
+                | Self::LockerRoom
         )
     }
     pub fn is_exercise(self) -> bool {
-        matches!(self, Self::FitnessRoom | Self::CyclingStudio)
+        matches!(
+            self,
+            Self::FitnessRoom | Self::CyclingStudio | Self::YogaStudio
+        )
     }
     pub fn is_retail(self) -> bool {
         matches!(self, Self::GroceryStore | Self::ClothingStore)
@@ -251,12 +277,13 @@ pub struct IndoorObject {
     pub seed: u64,
     /// Furniture blocks placement and the complete camera path.
     pub solid: bool,
-    /// Stable instance id of a supporting table/desk/cabinet.
+    /// Stable instance ID of the furnishing that physically supports this item.
     pub support: Option<usize>,
     pub neighbor: bool,
     /// Chair or dining banquette -> table/work surface. Served dish -> its seat.
-    /// Display/laptop or aimed desk fan -> work chair.
-    /// Recycling bin -> its coordinated general-waste partner.
+    /// Display/laptop or aimed desk fan -> work chair. Music desk or piano -> player chair.
+    /// Recycling bin -> its general-waste partner. Changing bench -> its locker bank.
+    /// Each side of a back-to-back locker island identifies the opposing bank.
     #[serde(default)]
     pub interaction_target: Option<usize>,
     /// Seeded local centreline of a routed wire. Non-cables never carry a path.
@@ -272,6 +299,17 @@ pub struct IndoorObject {
 }
 
 impl IndoorObject {
+    /// The backless changing bench supports loose belongings on its flat seat.
+    /// General work surfaces also participate in the room's clutter sampler.
+    pub(crate) fn supports_item(&self, kind: ObjectKind) -> bool {
+        self.kind.is_surface()
+            || (self.kind == ObjectKind::ExerciseMat
+                && matches!(kind, ObjectKind::YogaBlock | ObjectKind::YogaBolster))
+            || (self.kind == ObjectKind::Bench
+                && self.variant == super::objects::services::bench::CHANGING
+                && matches!(kind, ObjectKind::Bag | ObjectKind::KitchenTowel))
+    }
+
     /// Physical cable segments leave the empty space inside a hanging route
     /// navigable. Ordinary objects retain their allocation-free boxes; decorative
     /// strands reserve bounded cable, hanger and bulb segments.
@@ -354,10 +392,12 @@ impl IndoorObject {
     }
 
     pub(crate) fn wall_clearance(&self, generator: u32) -> f32 {
-        if self.kind == ObjectKind::BaseboardHeater {
+        if self.kind == ObjectKind::DrinkingFountain {
+            0.0
+        } else if self.kind == ObjectKind::BaseboardHeater {
             0.006
         } else if self.kind == ObjectKind::Locker
-            && self.variant == super::objects::public::education::WALL_BANK
+            && super::objects::public::education::wall_bank(self)
             && generator >= super::objects::public::education::FITTED_VERSION
         {
             0.045
@@ -603,7 +643,7 @@ impl IndoorManifest {
         if !density.is_finite() || !(0.0..=1.0).contains(&density) {
             return Err("indoor density must be finite and between 0 and 1".into());
         }
-        if cameras > 256 {
+        if cameras > super::cameras::MAX_INDOOR_CAMERAS {
             return Err("at most 256 indoor cameras are supported per scene".into());
         }
         let mut rng = stream(seed, 0);
@@ -708,13 +748,34 @@ impl IndoorManifest {
                 IndoorLayout::ClothingStore if roll < 0.60 => 1,
                 _ => 2,
             };
-        } else if layout.is_exercise() {
-            scene.floor_style = if stream(seed, u64::from_le_bytes(*b"GymCover")).random_bool(0.35)
-            {
+        } else if layout == IndoorLayout::RehearsalRoom {
+            // Finished timber, low-pile carpet and resilient institutional floors.
+            let roll = stream(seed, u64::from_le_bytes(*b"MuscFlrs")).random::<f32>();
+            scene.floor_style = if roll < 0.54 {
                 0
+            } else if roll < 0.81 {
+                1
             } else {
                 2
             };
+        } else if layout == IndoorLayout::LockerRoom {
+            scene.floor_style = 2;
+            scene.window_sill =
+                stream(seed, u64::from_le_bytes(*b"LockSill")).random_range(1.94..2.16);
+        } else if layout == IndoorLayout::Laundromat {
+            scene.floor_style = 2; // Washable tile, terrazzo, concrete or resilient stock.
+        } else if layout.is_exercise() {
+            let timber_share = if layout == IndoorLayout::YogaStudio {
+                0.81
+            } else {
+                0.35
+            };
+            scene.floor_style =
+                if stream(seed, u64::from_le_bytes(*b"GymCover")).random_bool(timber_share) {
+                    0
+                } else {
+                    2
+                };
         } else if layout.is_kitchen() || layout == IndoorLayout::Restaurant {
             scene.floor_style =
                 if stream(seed, 8061).random_bool(if layout == IndoorLayout::Restaurant {
@@ -742,6 +803,11 @@ impl IndoorManifest {
             room_size,
             scene.column_width,
         ));
+        if layout == IndoorLayout::LockerRoom {
+            for facade in &mut scene.exterior.as_mut().unwrap().facades {
+                facade.fit_clerestory(scene.window_sill, room_size.y);
+            }
+        }
         super::architecture::doors::sample_entry(&mut scene)?;
         scene.envelope = Some(super::envelope::EnvelopeProgram::sample(&mut scene));
         functional::prepare_architecture(&mut scene);
@@ -767,6 +833,15 @@ impl IndoorManifest {
         }
         scene.record_program_services();
         scene.assign_assembly_finishes();
+        if scene.layout == IndoorLayout::Gymnasium {
+            super::program::court::FreeThrowMark::install(&mut scene);
+        }
+        scene.settle_folded_table_fronts();
+        if scene.layout == IndoorLayout::Studio
+            && scene.generator_version >= super::objects::public::easel::VERSION
+        {
+            scene.settle_studio_sightlines();
+        }
         // Routing depends on settled people, but may append new object instances.
         // Assign the final disjoint human ID range before camera/annotation export.
         for (index, human) in scene.humans.iter_mut().enumerate() {
@@ -938,6 +1013,18 @@ impl IndoorManifest {
         self.objects.push(obj);
     }
 
+    pub(crate) fn installation_supported(&self, object: &IndoorObject, lo: Vec3, hi: Vec3) -> bool {
+        if object.kind == ObjectKind::DrinkingFountain {
+            let floor = self
+                .envelope
+                .as_ref()
+                .map_or(0., |e| e.floor_height(object.position.xz()));
+            let mount = super::objects::public::fountain::mount_height_m(object.seed);
+            return (lo.y - floor - mount).abs() < 0.002 && self.wall_attachment_clear(object);
+        }
+        self.floor_support_clear(lo, hi)
+    }
+
     pub fn placement_clear(&self, object: &IndoorObject, margin: f32) -> bool {
         self.placement_clear_internal(object, margin, false)
     }
@@ -964,13 +1051,23 @@ impl IndoorManifest {
         structure: &PlacementStructure,
     ) -> bool {
         use super::footprint::Footprint;
-        let footprint = Footprint::object(object);
-        let (lo, hi) = object.bounds();
+        let access = programs::access::envelope(object);
+        let structural_extent = access.as_ref().unwrap_or(object);
+        let footprint = Footprint::object(structural_extent);
+        let (lo, hi) = structural_extent.bounds();
         let half = self.room_size * 0.5;
         let wall_clearance = object.wall_clearance(self.generator_version);
         if self.envelope.as_ref().is_some_and(|e| {
             !super::envelope::polygon::box_inside(&e.footprint, lo.xz(), hi.xz(), wall_clearance)
-                || !self.floor_support_clear(lo, hi)
+                || if access.is_some() {
+                    // A low-pile rug can cross a browsing aisle. The carcass needs
+                    // full support and the underlying slab must span the entire aisle.
+                    let (base, top) = object.bounds();
+                    !self.installation_supported(object, base, top)
+                        || !e.support_clear(lo.with_y(e.support_height(object.position)), hi)
+                } else {
+                    !self.floor_support_clear(lo, hi)
+                }
         }) || hi.y > self.minimum_ceiling_height(lo.xz(), hi.xz()) - object.overhead_clearance()
         {
             return false;
@@ -1057,11 +1154,12 @@ impl IndoorManifest {
                     && o.id != object.id
             })
             .any(|other| {
-                seating::furniture_overlap(
-                    object,
-                    other,
-                    seating::furniture_margin(object, other, margin),
-                )
+                programs::access::blocks(object, other)
+                    || seating::furniture_overlap(
+                        object,
+                        other,
+                        seating::furniture_margin(object, other, margin),
+                    )
             })
     }
 
@@ -1082,7 +1180,9 @@ impl IndoorManifest {
         {
             // An accepted functional group owns this relationship. Nearest
             // surface assignment is only for independently placed seating.
-            if chair.interaction_target.is_some() {
+            if chair.interaction_target.is_some()
+                || (self.layout == IndoorLayout::RehearsalRoom && !chair.neighbor)
+            {
                 continue;
             }
             let forward = Quat::from_rotation_y(chair.yaw) * Vec3::NEG_Z;
@@ -1156,6 +1256,14 @@ impl IndoorManifest {
             .cloned()
             .collect();
         for surface in surfaces {
+            if surface.kind == ObjectKind::Workbench {
+                self.dress_workbench(&surface);
+                continue;
+            }
+            if surface.kind == ObjectKind::ReceptionDesk {
+                self.dress_reception(&surface);
+                continue;
+            }
             let mut local = sampling::Domain::SurfaceDressing.rng(surface.seed);
             let rng = &mut local;
             // Refreshment carts, personal drawers and lounge side tables use
@@ -1261,7 +1369,18 @@ impl IndoorManifest {
         self.admit_supported_prop(support, obj);
     }
 
-    fn admit_supported_prop(&mut self, support: &IndoorObject, mut obj: IndoorObject) -> bool {
+    fn admit_supported_prop(&mut self, support: &IndoorObject, obj: IndoorObject) -> bool {
+        self.admit_supported_prop_with_outline(support, obj, None)
+    }
+
+    /// Dining service already has the outline used to locate the diner. The
+    /// same immutable polygon can qualify each proposal on that tabletop.
+    fn admit_supported_prop_with_outline(
+        &mut self,
+        support: &IndoorObject,
+        mut obj: IndoorObject,
+        outline: Option<&[Vec2]>,
+    ) -> bool {
         let kind = obj.kind;
         let pos = obj.position;
         // Consume the candidate's small fixed draw even when the table is
@@ -1291,7 +1410,7 @@ impl IndoorManifest {
                 obj.interaction_target = Some(chair.id);
             }
         }
-        if !self.orient_and_check_prop(&mut obj, support) {
+        if !self.orient_and_check_prop(&mut obj, support, outline) {
             self.rejected_placements += 1;
             return false;
         }
@@ -1355,6 +1474,38 @@ impl IndoorManifest {
         let (lo, hi) = local_bounds(object);
         let half = Vec2::new(support.size.x, support.size.z) * 0.5;
         if lo.cmplt(-half + Vec2::splat(margin)).any() || hi.cmpgt(half - Vec2::splat(margin)).any()
+        {
+            return false;
+        }
+        if support.kind == ObjectKind::Workbench {
+            let p = super::objects::public::workbench::Bench::sample(support);
+            if (object.position.y - support.position.y - support.size.y).abs() <= 0.002 {
+                if !p.supports_top(support, lo, hi, margin) {
+                    return false;
+                }
+            } else if !p.grips(support, object) {
+                return false;
+            }
+        }
+        if support.kind == ObjectKind::ExerciseMat
+            && (!support.supports_item(object.kind)
+                || !super::objects::public::mats::PracticeMat::for_object(support).supports_prop(
+                    support.size,
+                    lo,
+                    hi,
+                    margin,
+                ))
+        {
+            return false;
+        }
+        if support.kind == ObjectKind::ReceptionDesk
+            && !super::objects::public::reception::Counter::sample(support).supports(
+                support,
+                object.position.y - support.position.y,
+                lo,
+                hi,
+                margin,
+            )
         {
             return false;
         }
@@ -1483,86 +1634,16 @@ impl IndoorManifest {
     }
 
     pub fn camera_clear(&self, p: Vec3) -> bool {
-        let half = self.room_size * 0.5;
-        if !p.is_finite()
-            || (self.camera_settings.primary_room && !self.in_primary_room(p, CAMERA_CLEARANCE))
-            || p.x.abs() > half.x - 0.50
-            || p.z.abs() > half.z - 0.50
-            || p.y < self.floor_height(p.xz()) + 0.70
-            || self.envelope.as_ref().is_some_and(|e| !e.volume_clear(self.room_size,p,CAMERA_CLEARANCE))
-            // Include the deepest sampled fixture and continuous lens clearance.
-            || p.y > self.ceiling_height(p.xz()) - self.program.as_ref().map_or([0.10, 0.42, 0.06][self.lighting_design as usize % 3], |p| p.light_drop) - 0.04 - CAMERA_CLEARANCE
-        {
-            return false;
-        }
-        if self.camera_obstacles().iter().any(|(a, b)| {
-            p.cmpge(*a - Vec3::splat(CAMERA_CLEARANCE)).all()
-                && p.cmple(*b + Vec3::splat(CAMERA_CLEARANCE)).all()
-        }) {
-            return false;
-        }
-        !self
-            .objects
-            .iter()
-            .flat_map(IndoorObject::obstacle_bounds)
-            .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
-            .any(|(a, b)| {
-                p.cmpge(a - Vec3::splat(CAMERA_CLEARANCE)).all()
-                    && p.cmple(b + Vec3::splat(CAMERA_CLEARANCE)).all()
-            })
+        super::cameras::clearance::Clearance::default().point_clear(self, p)
     }
 
     pub fn camera_path_clear(&self, start: Vec3, end: Vec3) -> bool {
-        self.camera_clear(start)
-            && self.camera_clear(end)
-            && self
-                .envelope
-                .as_ref()
-                .is_none_or(|e| e.segment_clear(self.room_size, start, end, CAMERA_CLEARANCE))
-            && !self.camera_obstacles().iter().any(|(a, b)| {
-                segment_hits_box(
-                    start,
-                    end,
-                    *a - Vec3::splat(CAMERA_CLEARANCE),
-                    *b + Vec3::splat(CAMERA_CLEARANCE),
-                )
-            })
-            && !self
-                .objects
-                .iter()
-                .flat_map(IndoorObject::obstacle_bounds)
-                .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
-                .any(|(a, b)| {
-                    segment_hits_box(
-                        start,
-                        end,
-                        a - Vec3::splat(CAMERA_CLEARANCE),
-                        b + Vec3::splat(CAMERA_CLEARANCE),
-                    )
-                })
+        super::cameras::clearance::Clearance::default().path_clear(self, start, end)
     }
 
     /// Reject a foreground obstruction along the optical axis, including props.
     pub fn camera_view_clear(&self, position: Vec3, target: Vec3) -> bool {
-        let distance = position.distance(target);
-        if !target.is_finite() || distance < 1.5 {
-            return false;
-        }
-        let near_target = position.lerp(target, 1.0 / distance);
-        !self
-            .objects
-            .iter()
-            .flat_map(IndoorObject::obstacle_bounds)
-            .chain(self.humans.iter().map(super::humans::IndoorHuman::bounds))
-            .chain(self.camera_obstacles())
-            .any(|(lo, hi)| {
-                segment_hits_box(
-                    position,
-                    near_target,
-                    lo - Vec3::splat(0.01),
-                    hi + Vec3::splat(0.01),
-                )
-            })
+        super::cameras::clearance::Clearance::default().view_clear(self, position, target)
     }
 
     /// Lens clearance is continuous; view suitability is checked over the path.
@@ -1578,11 +1659,13 @@ impl IndoorManifest {
             fov_degrees: 60.0,
             motion: None,
         };
-        self.camera_path_clear(start, end)
+        let clearance = super::cameras::clearance::Clearance::default();
+        clearance.path_clear(self, start, end)
             && (0..=32).all(|step| {
                 let pose = camera.transform_at(step as f32 / 32.0);
                 pose.translation.distance(target) >= 1.5
-                    && self.camera_view_clear(
+                    && clearance.view_clear(
+                        self,
                         pose.translation,
                         pose.translation + pose.rotation * Vec3::NEG_Z * 2.0,
                     )

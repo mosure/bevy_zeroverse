@@ -232,7 +232,30 @@ pub(super) fn install(
         let mut keys = std::collections::BTreeSet::new();
         for o in &scene.objects {
             match o.kind {
-                ObjectKind::HotFoodWell => {
+                ObjectKind::DrinkingFountain => {
+                    let f = super::super::objects::public::fountain::Fountain::for_object(o);
+                    keys.insert((f.bowl, BASIN));
+                    keys.insert((Surface::Chrome, TAP));
+                    if f.cabinet == Surface::Metal
+                        || f.form == super::super::objects::public::fountain::Form::Bracket
+                    {
+                        keys.insert((Surface::Metal, BASIN));
+                    }
+                }
+                ObjectKind::LaundryFoldingTable => {
+                    keys.insert((Surface::Metal, BASIN));
+                    let top =
+                        super::super::objects::public::laundry::FoldingTable::for_object(o).top;
+                    if sheet_surface(top) {
+                        keys.insert((top, FIRST + stock(o)));
+                    }
+                }
+                ObjectKind::WashingMachine
+                | ObjectKind::TumbleDryer
+                | ObjectKind::HotFoodWell
+                | ObjectKind::WaterCooler
+                | ObjectKind::CoffeeGrinder
+                | ObjectKind::EspressoMachine => {
                     keys.insert((Surface::Metal, BASIN));
                 }
                 ObjectKind::GroceryDisplay

@@ -58,6 +58,7 @@ fn rest_vertices(a: &Assembly) -> Vec<[u32; 8]> {
 }
 
 mod desk_fan;
+mod practice_props;
 mod projection_screen;
 mod teaching_board;
 
@@ -281,6 +282,8 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
         FruitBowl,
         Vase,
         Microphone,
+        DrinkingGlass,
+        TableNapkin,
     ];
     for (i, kind) in kinds.into_iter().enumerate() {
         let mut o = fixture(kind, i as u64 + 1);
@@ -290,6 +293,13 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
             0.75,
             (i / 6) as f32 * 1.3 - 3.25,
         );
+        if kind == DrinkingGlass {
+            // The existing six-column assortment leaves the centre open.
+            o.position = Vec3::new(0., 0.75, 0.);
+        }
+        if kind == TableNapkin {
+            o.position = Vec3::new(0., 0.75, 1.30);
+        }
         add(&mut scene, &mut g, o);
     }
     prepare(&mut scene, &mut g);
@@ -317,6 +327,15 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
             >= 32,
         "{report:#?}"
     );
+    for kind in [DrinkingGlass, TableNapkin] {
+        let prop = scene.objects.iter().find(|o| o.kind == kind).unwrap();
+        let pickup = report
+            .mechanisms
+            .iter()
+            .find(|m| m.object_id == Some(prop.id) && m.rejection.is_none())
+            .unwrap();
+        assert!(pickup.lift_m > 0.);
+    }
     for m in &report.mechanisms {
         if m.rejection.is_some() {
             continue;
@@ -337,6 +356,42 @@ fn maximum_policy_moves_many_supported_props_without_overhang_or_peer_clipping()
     let old = report.clone();
     prepare(&mut scene, &mut g);
     assert_eq!(&old, scene.indoor_motion.as_ref().unwrap());
+}
+
+#[test]
+fn laundry_cart_motion_keeps_cloth_and_running_gear_in_one_annotated_instance() {
+    let (mut scene, mut g) = room();
+    let cart = (0..32)
+        .map(|s| fixture(ObjectKind::LaundryCart, s))
+        .find(|o| {
+            use objects::public::laundry::cart::{LaundryCart, Load};
+            LaundryCart::for_object(o).load == Load::LooseLaundry
+        })
+        .unwrap();
+    add(&mut scene, &mut g, cart);
+    prepare(&mut scene, &mut g);
+    let m = &scene.indoor_motion.as_ref().unwrap().mechanisms[0];
+    assert_eq!(m.kind, MotionKind::Cart);
+    assert!(m.rejection.is_none() && m.carried_object_ids.is_empty());
+    for class in ["mobile_cart", "clothes"] {
+        assert!(m.semantic_labels.iter().any(|s| s == class));
+    }
+    let body = &g.objects[0];
+    let joint = &body.joints[0];
+    assert_eq!(joint.parts.len(), body.parts.len());
+    for t in [0., 0.25, 0.61, 1.] {
+        let reported = m.rigid_transform_at(t).unwrap();
+        let actual = joint.transform(joint.amount(t));
+        for part in &joint.parts {
+            let v = Vec3::from(body.parts[part].positions[0]);
+            assert!(
+                reported
+                    .transform_point(v)
+                    .distance(actual.transform_point(v))
+                    < 1e-5
+            );
+        }
+    }
 }
 
 #[test]

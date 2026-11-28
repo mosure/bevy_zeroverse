@@ -3,6 +3,7 @@
 use super::{pots::Fill, *};
 use std::borrow::Cow;
 
+pub(super) mod garden;
 pub(super) mod legacy;
 mod mesh;
 #[cfg(test)]

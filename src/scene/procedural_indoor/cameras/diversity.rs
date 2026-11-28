@@ -8,11 +8,7 @@ pub const PATH_SAMPLES: usize = 33;
 pub(super) struct Track(pub [Vec3; PATH_SAMPLES]);
 impl Track {
     pub fn new(camera: &IndoorCamera) -> Self {
-        let mut path = camera.runtime_trajectory();
-        Self(std::array::from_fn(|i| {
-            path.sample(i as f32 / (PATH_SAMPLES - 1) as f32)
-                .translation
-        }))
+        Self(camera.runtime_trajectory().translations())
     }
 }
 
@@ -117,6 +113,41 @@ pub(super) fn geometry(tracks: &[Track], extra: Option<&Track>) -> Option<Camera
     Some(result)
 }
 
+/// Extend a prefix already admitted under this exact metric policy. Each old
+/// pair is certified, including after backtracking. Only candidate edges are
+/// new; group covariance is a constraint only on a complete rig.
+pub(super) fn accepts_extension(
+    policy: &MultiViewSettings,
+    prefix: &[Track],
+    extra: &Track,
+    complete: bool,
+) -> bool {
+    for (i, track) in prefix.iter().enumerate() {
+        let min = if i == 0 {
+            policy.min_reference_baseline.max(policy.min_baseline)
+        } else {
+            policy.min_baseline
+        };
+        for (a, b) in track.0.iter().zip(extra.0) {
+            let d = a.distance(b);
+            if d + 1e-5 < min || (i == 0 && d > policy.max_baseline + 1e-5) {
+                return false;
+            }
+        }
+        if relative_motion(track, extra)
+            .is_some_and(|s| s + 1e-5 < 0.15 * policy.trajectory_variation)
+        {
+            return false;
+        }
+    }
+    !complete
+        || prefix.len() < 2
+        || (0..PATH_SAMPLES).all(|i| {
+            horizontal_spread(prefix.iter().map(|track| track.0[i]).chain([extra.0[i]])) + 1e-5
+                >= policy.min_spread
+        })
+}
+
 impl IndoorManifest {
     pub fn camera_group_geometry(&self) -> Option<CameraGroupGeometry> {
         geometry(
@@ -132,6 +163,49 @@ mod tests {
 
     fn line(start: Vec3, end: Vec3) -> Track {
         Track(std::array::from_fn(|i| start.lerp(end, i as f32 / 32.0)))
+    }
+
+    #[test]
+    fn incremental_metric_admission_matches_full_pair_and_covariance_oracle() {
+        use rand::Rng;
+        let mut rng = crate::scene::procedural_indoor::layout::stream(41, 273);
+        for _ in 0..64 {
+            let mut prefix = Vec::new();
+            let policy = MultiViewSettings {
+                min_baseline: rng.random_range(0.05..0.7),
+                min_reference_baseline: rng.random_range(0.25..1.3),
+                max_baseline: rng.random_range(1.8..6.8),
+                min_spread: rng.random_range(0.1..0.6),
+                trajectory_variation: rng.random_range(0.0..1.0),
+                ..Default::default()
+            };
+            for _ in 0..32 {
+                let p = Vec3::new(
+                    rng.random_range(-2.5..2.5),
+                    1.6,
+                    rng.random_range(-2.5..2.5),
+                );
+                let extra = line(
+                    p,
+                    p + Vec3::new(rng.random_range(-0.7..0.7), 0., rng.random_range(-0.7..0.7)),
+                );
+                for complete in [true, false] {
+                    let full = geometry(&prefix, Some(&extra)).is_none_or(|mut g| {
+                        if !complete {
+                            g.min_horizontal_spread = None;
+                        }
+                        g.accepts(&policy)
+                    });
+                    assert_eq!(accepts_extension(&policy, &prefix, &extra, complete), full);
+                }
+                if accepts_extension(&policy, &prefix, &extra, false) {
+                    prefix.push(extra);
+                }
+                if prefix.len() >= 8 {
+                    prefix.truncate(3);
+                }
+            }
+        }
     }
 
     #[test]

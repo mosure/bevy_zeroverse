@@ -12,6 +12,8 @@ pub(crate) fn mount_offset(o: &IndoorObject) -> Option<f32> {
         | ObjectKind::WallShelf
         | ObjectKind::NoticeBoard
         | ObjectKind::WallSconce
+        | ObjectKind::DrinkingFountain
+        | ObjectKind::BasketballGoal
         | ObjectKind::FirePullStation
         | ObjectKind::Thermostat => 0.5,
         ObjectKind::ExitSign

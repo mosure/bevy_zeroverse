@@ -1,5 +1,6 @@
 //! Vitrines, tray stations and plinths with shared load-bearing geometry.
 use super::*;
+pub mod bakery;
 pub mod plinth;
 mod service_glazing;
 mod stocking;
@@ -7,6 +8,7 @@ mod stocking;
 mod tests;
 pub mod tray_return;
 pub use service_glazing::{CaseDoor, ServiceGlazing, ShelfEdge};
+pub use stocking::BakeryTray;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct CaseProgram {
@@ -92,7 +94,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     }
     let p = parameters_at(o, version);
     match o.kind {
-        ObjectKind::DisplayCase => display(a, o, &p),
+        ObjectKind::DisplayCase => display(a, o, &p, version),
         ObjectKind::TrayReturn => match &p.tray_station {
             Some(station) => station.build(a, o, &p),
             None => legacy_trays(a, o, &p),
@@ -117,7 +119,7 @@ fn feet(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram, top: f32) {
         }
     }
 }
-fn display(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
+fn display(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram, version: u32) {
     let s = o.size;
     let l = o.kind.class_name();
     let base = s.y * p.base_fraction;
@@ -165,29 +167,76 @@ fn display(a: &mut Assembly, o: &IndoorObject, p: &CaseProgram) {
             Vec3::new(hi.x - lo.x, cabinet.shelf_thickness, glass_end - lo.y),
             0.001,
         );
-        let support_y = shelf + cabinet.shelf_thickness * 0.5;
-        let above = p.levels.get(i + 1).map_or(cabinet.head, |next| {
-            cabinet.shelf_height(*next, s.y) - cabinet.shelf_thickness * 0.5
-        });
         if p.contents {
-            contents(a, o, i, support_y, above - support_y - 0.012, cabinet.shelf);
+            contents(a, o, cabinet.stock_space(o, p, i), version);
         }
     }
 }
-fn contents(
-    a: &mut Assembly,
-    o: &IndoorObject,
+#[derive(Clone, Copy)]
+struct ShelfSpace {
     level: usize,
     y: f32,
     headroom: f32,
     bounds: (Vec2, Vec2),
-) {
+}
+impl service_glazing::Cabinet {
+    fn stock_space(&self, o: &IndoorObject, p: &CaseProgram, level: usize) -> ShelfSpace {
+        let y = self.shelf_height(p.levels[level], o.size.y) + self.shelf_thickness * 0.5;
+        let above = p.levels.get(level + 1).map_or(self.head, |next| {
+            self.shelf_height(*next, o.size.y) - self.shelf_thickness * 0.5
+        });
+        ShelfSpace {
+            level,
+            y,
+            headroom: above - y - 0.012,
+            bounds: self.shelf,
+        }
+    }
+}
+impl CaseProgram {
+    /// Fitted bakery merchandise on the actual shelves, in case-local metres.
+    pub fn bakery_batches(&self, o: &IndoorObject, version: u32) -> Vec<bakery::BakeryBatch> {
+        if version < bakery::VERSION
+            || o.kind != ObjectKind::DisplayCase
+            || o.variant >= 16
+            || !self.contents
+        {
+            return Vec::new();
+        }
+        let Some(glazing) = self.service_glazing else {
+            return Vec::new();
+        };
+        let cabinet = service_glazing::Cabinet::new(o.size, self, glazing);
+        (0..self.levels.len())
+            .filter_map(|i| {
+                let s = cabinet.stock_space(o, self, i);
+                bakery::BakeryBatch::fit(o, i, s.y, s.headroom, s.bounds)
+            })
+            .collect()
+    }
+}
+fn contents(a: &mut Assembly, o: &IndoorObject, shelf: ShelfSpace, version: u32) {
     use crate::scene::procedural_indoor::placement::{Footprint, SurfacePattern};
+    let ShelfSpace {
+        level,
+        y,
+        headroom,
+        bounds,
+    } = shelf;
     let mut r = stream(o.seed, 0x43415345434f4e54 + level as u64);
     let pattern = SurfacePattern::sample(&mut r);
     let mut occupied: Vec<Footprint> = Vec::new();
     if o.variant < 16 {
-        occupied.extend(stocking::bakery_tray(a, o, level, y, headroom, bounds));
+        if version >= bakery::VERSION {
+            if let Some(batch) = bakery::BakeryBatch::fit(o, level, y, headroom, bounds) {
+                occupied.push(batch.tray.footprint());
+                batch.build(a);
+            }
+        } else {
+            occupied.extend(stocking::legacy_bakery_tray(
+                a, o, level, y, headroom, bounds,
+            ));
+        }
     }
     for _ in 0..r.random_range(1..=5) {
         let mut child = o.clone();
@@ -217,7 +266,7 @@ fn contents(
             occupied.push(proposal);
             append_at(
                 a,
-                super::super::build_object(&child),
+                super::super::build_object_at_version(&child, None, version),
                 Transform::from_xyz(proposal.center.x, y, proposal.center.y)
                     .with_rotation(Quat::from_rotation_y(yaw)),
             );

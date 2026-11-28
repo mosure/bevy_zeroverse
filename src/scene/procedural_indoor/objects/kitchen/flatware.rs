@@ -57,6 +57,10 @@ pub(super) fn parameters_at(o: &IndoorObject, version: u32) -> FlatwareProgram {
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     let p = parameters_at(o, version);
+    build_sampled(a, o, &p);
+}
+
+pub(super) fn build_sampled(a: &mut Assembly, o: &IndoorObject, p: &FlatwareProgram) {
     let s = o.size;
     let slot = super::super::super::materials::variants::object_slot(
         p.metal,
@@ -85,7 +89,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
         grip.build(
             a,
             o,
-            &p,
+            p,
             &metal_label,
             tail..tail + run,
             half_height + rise * 0.92,

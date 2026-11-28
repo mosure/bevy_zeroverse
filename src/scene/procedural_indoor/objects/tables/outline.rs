@@ -2,6 +2,9 @@
 use super::*;
 
 pub(super) fn sample(half: Vec2, p: &TableProgram) -> Vec<Vec2> {
+    if let Some(table) = p.classroom {
+        return table.outline(half);
+    }
     let mut polygon = [Vec2::ZERO; 8];
     if p.polygon_blend > 0. {
         for (i, point) in polygon

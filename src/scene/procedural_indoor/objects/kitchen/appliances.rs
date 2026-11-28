@@ -1,6 +1,7 @@
 //! Appliance cavities, doors, controls and supported interior contents.
 use super::super::super::motion::{construction as motion, MotionKind};
 use super::*;
+mod baskets;
 pub mod controls;
 pub mod cooktop;
 pub mod interior;
@@ -77,6 +78,7 @@ fn oven_leaf(
     seed: u64,
     o: &IndoorObject,
     console: Option<&controls::Controls>,
+    lining: Option<Surface>,
 ) {
     let label = o.kind.class_name();
     let finish = program::finishes(o).1;
@@ -98,7 +100,15 @@ fn oven_leaf(
         joint
     };
     motion::hinged(a, MotionKind::Appliance, seed, joint, |a| {
-        cabinet::panel(a, Vec2::new(width, height), tf, finish, label, p.viewport);
+        cabinet::panel_with_back(
+            a,
+            Vec2::new(width, height),
+            tf,
+            finish,
+            lining.unwrap_or(finish),
+            label,
+            p.viewport,
+        );
         cabinet::handle(a, tf, 0., height * 0.36, p, true, label);
         if let Some(console) = console {
             console.build(a, o, finish);
@@ -342,6 +352,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, vers
                 o.seed,
                 o,
                 moving,
+                (version >= baskets::INTRODUCED).then_some(Surface::Metal),
             );
             if let Some(panel) = panel {
                 if panel.fascia.mount == controls::Mount::Chassis {
@@ -367,34 +378,34 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, vers
                 );
             }
             for basket in interior::dishwasher_baskets_for_version(o, p, version) {
-                let mut rack = supplies::rack::parameters(
-                    basket.size,
-                    if p.contents && !basket.cutlery { 6 } else { 0 },
-                    basket.seed,
-                );
-                // Stainless or coated-steel structure belongs to the appliance;
-                // plates retain dishware semantics.
-                rack.finish = Surface::Metal;
-                rack.hardware = Surface::Metal;
-                supplies::rack::build_with_label(
-                    a,
-                    Transform::from_translation(basket.position),
-                    &rack,
-                    basket.seed,
-                    label,
-                );
+                let mut rack = baskets::slots(&basket, p.contents);
+                let rack_size = rack.size;
+                if version >= baskets::INTRODUCED {
+                    let loaded = baskets::WashBasket::sample(rack, &basket, p.contents);
+                    loaded.build(a, o, &basket, version);
+                } else {
+                    rack.finish = Surface::Metal;
+                    rack.hardware = Surface::Metal;
+                    supplies::rack::build_with_label(
+                        a,
+                        Transform::from_translation(basket.position),
+                        &rack,
+                        basket.seed,
+                        label,
+                    );
+                }
                 for side in [-1., 1.] {
-                    let pos = basket.position + Vec3::new(side * rack.size.x * 0.43, -0.006, 0.);
+                    let pos = basket.position + Vec3::new(side * rack_size.x * 0.43, -0.006, 0.);
                     a.box_part(
                         Surface::Metal,
                         label,
                         pos,
-                        Vec3::new(0.018, 0.012, rack.size.z * 0.96),
+                        Vec3::new(0.018, 0.012, rack_size.z * 0.96),
                         0.002,
                     );
                     let wall = side * (w * 0.5 - 0.018);
                     for depth_side in [-1., 1.] {
-                        let end = pos + Vec3::Z * depth_side * rack.size.z * 0.38;
+                        let end = pos + Vec3::Z * depth_side * rack_size.z * 0.38;
                         a.part(Surface::Metal, label)
                             .rod(end, end.with_x(wall), 0.004);
                     }
@@ -427,6 +438,7 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject, p: &KitchenProgram, vers
                     &q,
                     o.seed ^ level as u64,
                     o,
+                    None,
                     None,
                 );
                 for y in [bottom + 0.008, bottom + dh - 0.008] {
@@ -578,8 +590,24 @@ pub(super) fn metadata_for_version(
         }
         ObjectKind::Dishwasher => {
             value["fascia_fraction"] = serde_json::json!(plan.fascia_fraction);
-            value["baskets"] =
-                serde_json::json!(interior::dishwasher_baskets_for_version(o, p, version));
+            let baskets = interior::dishwasher_baskets_for_version(o, p, version);
+            value["baskets"] = serde_json::json!(baskets);
+            if version >= baskets::INTRODUCED {
+                value["door_inner_finish"] = serde_json::json!(Surface::Metal);
+                for (entry, basket) in value["baskets"]
+                    .as_array_mut()
+                    .unwrap()
+                    .iter_mut()
+                    .zip(&baskets)
+                {
+                    entry["wash_grid"] = baskets::WashBasket::sample(
+                        baskets::slots(basket, p.contents),
+                        basket,
+                        p.contents,
+                    )
+                    .metadata();
+                }
+            }
         }
         ObjectKind::Microwave => {
             value["control_fraction"] = serde_json::json!(plan.control_fraction);

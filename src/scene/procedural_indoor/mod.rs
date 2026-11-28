@@ -525,7 +525,7 @@ fn regenerate(
     };
     let job = pending.task.as_mut().unwrap();
     #[cfg(not(target_arch = "wasm32"))]
-    let result = preparation::wait::poll_current(policy, || job.take_ready());
+    let result = job.take_for_capture(policy);
     #[cfg(target_arch = "wasm32")]
     let result = job.take_ready();
     let Some(result) = result else {

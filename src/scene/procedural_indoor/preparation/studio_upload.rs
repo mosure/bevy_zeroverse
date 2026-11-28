@@ -26,10 +26,10 @@ impl Uploads {
         let bakes = &room.material_set.gpu_bakes;
         let mut seen = std::collections::HashSet::new();
         let destinations: Vec<_> = bakes
-            .1
+            .reflections()
             .iter()
             .flat_map(|r| &r.images)
-            .chain(bakes.0.iter().flat_map(|r| &r.images))
+            .chain(bakes.materials().iter().flat_map(|r| &r.images))
             .map(Handle::id)
             .filter(|id| room.images.entries.contains_key(id) && seen.insert(*id))
             .collect();
@@ -132,28 +132,21 @@ impl Uploads {
         // Supply a small batch per rendered frame. Each recipe shares its original
         // completion flag with the room, so promotion cannot bake it twice.
         let staged = |handle: &Handle<Image>| !room.images.entries.contains_key(&handle.id());
-        let end = self.recipes
-            + requested.0[self.recipes..]
-                .iter()
-                .take(slices)
-                .take_while(|r| r.images.iter().all(staged))
-                .count();
-        bakes.0.extend_from_slice(&requested.0[self.recipes..end]);
-        self.recipes = end;
-        let end = self.reflection_recipes
-            + usize::from(
-                requested
-                    .1
-                    .get(self.reflection_recipes)
-                    .is_some_and(|r| r.images.iter().all(staged)),
-            );
-        bakes
-            .1
-            .extend_from_slice(&requested.1[self.reflection_recipes..end]);
-        self.reflection_recipes = end;
+        self.recipes += requested.materials()[self.recipes..]
+            .iter()
+            .take(slices)
+            .take_while(|r| r.images.iter().all(staged))
+            .count();
+        self.reflection_recipes += usize::from(
+            requested
+                .reflections()
+                .get(self.reflection_recipes)
+                .is_some_and(|r| r.images.iter().all(staged)),
+        );
+        *bakes = requested.prefix(self.recipes, self.reflection_recipes);
         self.remaining.is_empty()
-            && self.recipes == requested.0.len()
-            && self.reflection_recipes == requested.1.len()
+            && self.recipes == requested.materials().len()
+            && self.reflection_recipes == requested.reflections().len()
     }
 }
 

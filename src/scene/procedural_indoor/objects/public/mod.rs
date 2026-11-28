@@ -2,27 +2,44 @@
 //! admission; construction, collision envelopes and catalog receipts share them.
 pub mod banquette;
 pub mod barrier;
+pub mod basketball;
+pub mod baskets;
+pub mod beam_seating;
 pub mod bleachers;
 pub(crate) mod cardio;
 pub mod casework;
+pub mod cooler;
 pub mod dispenser;
 #[cfg(test)]
 mod diversity_tests;
+pub mod dumbbells;
+pub mod easel;
 pub mod education;
 pub mod elevator;
-mod exhibits;
+pub mod espresso;
 pub(crate) mod fitness;
 mod fitting;
+pub mod fountain;
 pub mod volleyball;
+pub mod workbench;
 pub use fitting::{fitting_room, CurtainBay, FittingRoomSpec};
 pub mod furnishing;
 mod hospitality;
 pub mod hot_food;
+pub mod laundry;
+pub mod mats;
+pub mod music;
+pub mod reception;
 #[cfg(test)]
 mod repetition_tests;
 pub(crate) mod retail;
 pub use retail::checkout::{checkout_station, CheckoutForm, CheckoutStation};
-pub use retail::{refrigerated_case, CaseStock, RefrigeratedCase};
+pub use retail::{
+    apparel_rail, folded_apparel, gondola_stock, produce_stand, refrigerated_case, ApparelRail,
+    CaseStock, CrateStyle, DisplayTableStand, FoldedCut, FoldedDisplay, FoldedGarment, FoldedLayer,
+    FoldedPile, GondolaRow, GondolaStock, ProduceBase, ProduceBin, ProducePiece, ProduceStand,
+    RailForm, RefrigeratedCase,
+};
 pub mod sculpture;
 pub mod service;
 pub mod signage;
@@ -70,8 +87,21 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
     // Metric product ranges, not one XYZ multiplier for unrelated categories.
     // Sample before admission: support areas, navigation and labels see these sizes.
     let (x, y, z) = match kind {
+        WashingMachine | TumbleDryer | LaundryFoldingTable => {
+            return laundry::dimensions(kind, seed)
+        }
+        BeamSeating => return beam_seating::dimensions(&mut r),
+        YogaBlock | YogaBolster => return mats::props::dimensions(kind, seed),
+        LaundryCart => return laundry::cart::dimensions(seed),
+        Timpani => return music::timpani::catalog_dimensions(&mut r),
+        MusicStand | StagePiano => return music::dimensions(kind, &mut r),
+        BasketStack => return baskets::dimensions(seed),
+        WaterCooler => return cooler::dimensions(seed),
+        DrinkingFountain => return fountain::dimensions(seed),
+        EspressoMachine | CoffeeGrinder => return espresso::dimensions(kind, seed),
         BleacherBank => return bleachers::catalog_dimensions(&mut r),
         VolleyballNet => return volleyball::dimensions(seed),
+        BasketballGoal => return basketball::dimensions(&mut r),
         FittingRoom => return fitting::dimensions(&mut r),
         Elevator => (
             (elevator::MIN_FOOTPRINT.x, 2.90),
@@ -100,7 +130,12 @@ pub fn dimensions(kind: ObjectKind, seed: u64) -> Vec3 {
         GroceryDisplay | ApparelDisplay | CheckoutCounter => {
             return retail::dimensions(kind, &mut r)
         }
-        ExerciseMat => ((0.59, 0.83), (0.008, 0.022), (1.58, 2.02)),
+        Workbench => ((1.34, 2.46), (0.82, 0.97), (0.70, 0.97)),
+        TimberOffcut => ((0.18, 0.75), (0.019, 0.065), (0.075, 0.205)),
+        ArtistEasel => ((0.54, 1.09), (1.39, 2.05), (0.51, 0.84)),
+        ReceptionDesk => ((1.55, 3.42), (0.99, 1.16), (0.80, 1.08)),
+        ExerciseMat => return mats::dimensions(&mut r),
+        ExerciseMatRack => ((0.77, 1.56), (0.80, 1.43), (0.64, 0.86)),
         Banquette => ((1.30, 3.0), (0.88, 1.25), (0.60, 0.85)),
         _ => unreachable!("public program item"),
     };
@@ -116,7 +151,25 @@ pub fn build(a: &mut Assembly, o: &IndoorObject) {
 
 pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
+        ObjectKind::WashingMachine | ObjectKind::TumbleDryer | ObjectKind::LaundryFoldingTable => {
+            laundry::build(a, o)
+        }
+        ObjectKind::MusicStand => music::stand(a, o),
+        ObjectKind::BeamSeating => beam_seating::build(a, o, version),
+        ObjectKind::LaundryCart => laundry::cart::build(a, o),
+        ObjectKind::Timpani => music::timpani::build(a, o),
+        ObjectKind::StagePiano => music::piano(a, o),
+        ObjectKind::BasketStack => baskets::build(a, o),
+        ObjectKind::WaterCooler => cooler::build(a, o),
+        ObjectKind::DrinkingFountain => fountain::build(a, o),
+        ObjectKind::EspressoMachine => espresso::build_machine(a, o),
+        ObjectKind::CoffeeGrinder => espresso::build_grinder(a, o),
+        ObjectKind::Workbench => workbench::build(a, o),
+        ObjectKind::TimberOffcut => workbench::offcut(a, o),
+        ObjectKind::ArtistEasel => easel::build(a, o),
+        ObjectKind::ReceptionDesk => reception::build(a, o),
         ObjectKind::VolleyballNet => volleyball::build(a, o),
+        ObjectKind::BasketballGoal => basketball::build(a, o),
         ObjectKind::BleacherBank => bleachers::build(a, o),
         ObjectKind::PowerRack => strength::build(a, o),
         ObjectKind::HotFoodWell => hot_food::build(a, o),
@@ -130,18 +183,22 @@ pub(super) fn build_at_version(a: &mut Assembly, o: &IndoorObject, version: u32)
         ObjectKind::ServiceCounter => service::counter(a, o),
         ObjectKind::ExtractionHood => service::hood::build(a, o, version),
         ObjectKind::StationaryBike | ObjectKind::Treadmill => cardio::build(a, o),
+        ObjectKind::DumbbellRack if version >= dumbbells::VERSION => dumbbells::build(a, o),
+        ObjectKind::ExerciseMat if version >= mats::VERSION => mats::build(a, o),
+        ObjectKind::ExerciseMatRack => mats::build_rack(a, o),
+        ObjectKind::YogaBlock | ObjectKind::YogaBolster => mats::props::build(a, o),
         ObjectKind::WeightBench | ObjectKind::DumbbellRack | ObjectKind::ExerciseMat => {
             fitness::build(a, o)
         }
         ObjectKind::GroceryDisplay | ObjectKind::ApparelDisplay | ObjectKind::CheckoutCounter => {
-            retail::build(a, o)
+            retail::build(a, o, version)
         }
         ObjectKind::Banquette => banquette::build(a, o, version),
         ObjectKind::Locker => education::build(a, o, version),
         ObjectKind::Lectern | ObjectKind::TeachingBoard => furnishing::build(a, o, version),
-        ObjectKind::Sculpture | ObjectKind::InformationStand | ObjectKind::ExhibitionPanel => {
-            exhibits::build(a, o)
-        }
+        ObjectKind::Sculpture => sculpture::build(a, o, version),
+        ObjectKind::InformationStand => signage::stand(a, o, version),
+        ObjectKind::ExhibitionPanel => signage::exhibition(a, o),
         _ => unreachable!("public program item"),
     }
 }

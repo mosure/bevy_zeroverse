@@ -2,7 +2,7 @@
 use super::*;
 use crate::scene::procedural_indoor::objects::{
     hospitality::{coffee, kettle},
-    public::dispenser,
+    public::{cooler, dispenser, espresso, fountain},
 };
 
 pub(super) fn record(
@@ -11,7 +11,54 @@ pub(super) fn record(
     categories: &mut Categories,
     numeric: &mut NumericCollector,
 ) -> io::Result<()> {
-    if o.kind == ObjectKind::CoffeeMaker {
+    if o.kind == ObjectKind::DrinkingFountain {
+        let p = fountain::Fountain::for_object(o);
+        category(
+            categories,
+            "drinking_fountain_form",
+            format!("{:?}", p.form),
+        );
+        category(
+            categories,
+            "drinking_fountain_bowl",
+            format!("{:?}", p.bowl),
+        );
+        numeric.push(
+            "drinking_fountain_rim_above_floor_m",
+            (p.deck_m + fountain::mount_height_m(o.seed)).into(),
+        )?;
+        numeric.push("drinking_fountain_basin_depth_m", p.basin_depth_m.into())?;
+    } else if o.kind == ObjectKind::WaterCooler {
+        let p = cooler::Cooler::for_object(o);
+        category(
+            categories,
+            "water_cooler_loading",
+            format!("{:?}", p.loading),
+        );
+        category(categories, "water_cooler_finish", format!("{:?}", p.body));
+        category(categories, "water_cooler_push_buttons", p.buttons);
+        numeric.push("water_cooler_outlets", p.taps as f64)?;
+        numeric.push("water_cooler_cup_clearance_m", p.cup_clearance_m.into())?;
+        numeric.push("water_cooler_approach_m", cooler::approach_m(o.seed).into())?;
+        if let Some(b) = p.bottle {
+            numeric.push("water_cooler_bottle_capacity_l", b.capacity_l.into())?;
+            numeric.push(
+                "water_cooler_water_l",
+                (b.capacity_l * b.fill_fraction).into(),
+            )?;
+        }
+    } else if o.kind == ObjectKind::EspressoMachine {
+        let p = espresso::Machine::for_object(o);
+        numeric.push("espresso_groups", p.groups as f64)?;
+        numeric.push("espresso_group_pitch_m", p.group_pitch_m.into())?;
+        numeric.push("espresso_cup_clearance_m", p.cup_clearance_m.into())?;
+        category(categories, "espresso_manual_paddles", p.manual_paddles);
+        category(categories, "espresso_casing", format!("{:?}", p.body));
+    } else if o.kind == ObjectKind::CoffeeGrinder {
+        let p = espresso::Grinder::for_object(o);
+        numeric.push("grinder_fill_fraction", p.fill_fraction.into())?;
+        numeric.push("grinder_hopper_radius_m", p.hopper_radius_m.into())?;
+    } else if o.kind == ObjectKind::CoffeeMaker {
         let p = coffee::parameters(o);
         category(categories, "brewer_construction", format!("{:?}", p.brewer));
         category(categories, "brewer_finish", format!("{:?}", p.finish));

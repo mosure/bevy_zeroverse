@@ -304,3 +304,35 @@ fn malformed_openings_are_rejected_and_legacy_shell_still_builds() {
         .exterior
         .is_none());
 }
+
+#[test]
+fn changing_room_clerestories_preserve_horizontal_bays_and_clear_low_headers() {
+    let size = Vec3::new(8.7, 3.13, 9.2);
+    let sill = 2.09;
+    let mut stacked = false;
+    for seed in 0..32 {
+        let mut p = ExteriorProgram::sample(seed, size, 0.29);
+        for f in &mut p.facades {
+            let mut spans: Vec<_> = f.openings.iter().map(|o| (o.min.x, o.max.x)).collect();
+            let before = spans.len();
+            spans.dedup();
+            stacked |= before > spans.len();
+            f.fit_clerestory(sill, size.y);
+            assert_eq!(
+                spans,
+                f.openings
+                    .iter()
+                    .map(|o| (o.min.x, o.max.x))
+                    .collect::<Vec<_>>()
+            );
+            assert!(f
+                .openings
+                .iter()
+                .all(|o| o.min.y >= sill && o.max.y <= size.y - 0.07));
+            f.validate_span(f.side.span(size), size.y).unwrap();
+            f.fit_clerestory(sill, sill + 0.35);
+            assert!(f.openings.is_empty());
+        }
+    }
+    assert!(stacked);
+}

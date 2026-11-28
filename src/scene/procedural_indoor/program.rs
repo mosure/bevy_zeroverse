@@ -123,6 +123,9 @@ impl Partition {
 pub struct IndoorProgram {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volleyball: Option<court::VolleyballCourt>,
+    /// Floor paint belonging to installed practice baskets, in world metres.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub free_throw_marks: Vec<court::FreeThrowMark>,
     /// An executive meeting reserves its central table and perimeter seating before subdivision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub executive_boardroom: Option<boardroom::BoardroomPlan>,
@@ -270,6 +273,7 @@ impl IndoorProgram {
             })
             .collect();
         let mut program = Self {
+            free_throw_marks: Vec::new(),
             volleyball: (activity == IndoorLayout::Gymnasium)
                 .then(|| court::VolleyballCourt::fit(seed, size))
                 .flatten(),
@@ -327,6 +331,9 @@ pub fn primary_zone(scene: &IndoorManifest) -> Option<(Vec3, Vec2)> {
 
 impl IndoorProgram {
     pub fn validate(&self, scene: &IndoorManifest) -> Result<(), String> {
+        if !self.free_throw_marks.is_empty() {
+            court::FreeThrowMark::validate_set(scene, &self.free_throw_marks)?;
+        }
         if scene.layout == IndoorLayout::Gymnasium {
             if self.volleyball.is_none()
                 || self.volleyball != court::VolleyballCourt::fit(scene.seed, scene.room_size)

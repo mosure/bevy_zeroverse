@@ -1201,12 +1201,14 @@ pub fn sample_stream(
                     if let Some(flow) = flow {
                         // The pair rendered at step N describes pixels in source N-1.
                         // The terminal source has no successor and stays explicitly invalid.
-                        initialize_flow(view, flow.len(), &requested_modes);
+                        if state.timesteps.is_empty() {
+                            initialize_flow(view, flow.len(), &requested_modes);
+                        }
                         if state.step > 0 {
                             let previous = &mut buffered_sample.views[view_idx - camera_count];
                             if let Err(message) = unpack_flow(
                                 previous,
-                                &flow,
+                                flow,
                                 &requested_modes,
                                 args.width as u32,
                                 args.height as u32,
@@ -1526,17 +1528,25 @@ fn initialize_flow(view: &mut View, bytes: usize, modes: &[RenderMode]) {
 #[cfg(not(target_arch = "wasm32"))]
 fn unpack_flow(
     view: &mut View,
-    data: &[u8],
+    mut data: Vec<u8>,
     modes: &[RenderMode],
     width: u32,
     height: u32,
 ) -> Result<(), String> {
-    if data.len() != width as usize * height as usize * 16 {
+    if (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|n| n.checked_mul(16))
+        != Some(data.len())
+    {
         return Err("malformed flow attachment".into());
     }
-    let mut normalized = Vec::new();
-    for pixel in data.as_chunks::<16>().0.iter() {
-        let mut p: [f32; 4] = bytemuck::pod_read_unaligned(pixel);
+    let optical = modes.contains(&RenderMode::OpticalFlow);
+    let motion = modes.contains(&RenderMode::MotionVectors);
+    // Keep the incoming allocation as one requested output. Only a second
+    // representation needs separate storage. Publish both after validation.
+    let mut normalized = Vec::with_capacity(if motion && optical { data.len() } else { 0 });
+    for pixel in data.as_chunks_mut::<16>().0 {
+        let mut p: [f32; 4] = bytemuck::cast(*pixel);
         if p.iter().any(|v| !v.is_finite())
             || ![0.0, 1.0].contains(&p[2])
             || ![0.0, 1.0].contains(&p[3])
@@ -1544,16 +1554,22 @@ fn unpack_flow(
         {
             return Err("nonfinite flow or invalid correspondence masks".into());
         }
-        if modes.contains(&RenderMode::MotionVectors) {
+        if motion {
             p[0] /= width as f32;
             p[1] /= height as f32;
-            normalized.extend_from_slice(bytemuck::bytes_of(&p));
+            if optical {
+                normalized.extend_from_slice(bytemuck::bytes_of(&p));
+            } else {
+                *pixel = bytemuck::cast(p);
+            }
         }
     }
-    if modes.contains(&RenderMode::OpticalFlow) {
-        view.optical_flow = data.to_vec();
+    if optical {
+        view.optical_flow = data;
+    } else if motion {
+        view.motion_vectors = data;
     }
-    if modes.contains(&RenderMode::MotionVectors) {
+    if optical && motion {
         view.motion_vectors = normalized;
     }
     Ok(())
@@ -1787,7 +1803,10 @@ mod capture_motion_tests {
         let modes = [RenderMode::OpticalFlow, RenderMode::MotionVectors];
         let values = [[-2.5_f32, 3.25, 1.0, 0.0], [0.0, 0.0, 1.0, 1.0]];
         let mut view = View::default();
-        unpack_flow(&mut view, bytemuck::cast_slice(&values), &modes, 2, 1).unwrap();
+        let raw = bytemuck::cast_slice(&values).to_vec();
+        let base = raw.as_ptr();
+        unpack_flow(&mut view, raw, &modes, 2, 1).unwrap();
+        assert_eq!(view.optical_flow.as_ptr(), base);
         assert_eq!(view.optical_flow, bytemuck::cast_slice::<_, u8>(&values));
         assert_eq!(
             bytemuck::cast_slice::<u8, f32>(&view.motion_vectors),
@@ -1799,6 +1818,39 @@ mod capture_motion_tests {
             .iter()
             .chain(&view.motion_vectors)
             .all(|v| *v == 0));
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn single_flow_output_reuses_the_plane_and_invalid_packets_are_atomic() {
+        let values = [[-0.0f32, 0.375, 1.0, 0.0], [2.5, -1.25, 1.0, 1.0]];
+        for mode in [RenderMode::OpticalFlow, RenderMode::MotionVectors] {
+            let mut view = View::default();
+            let raw = bytemuck::cast_slice(&values).to_vec();
+            let base = raw.as_ptr();
+            unpack_flow(&mut view, raw, std::slice::from_ref(&mode), 1, 2).unwrap();
+            let mut expected = values;
+            let output = if mode == RenderMode::MotionVectors {
+                for pixel in &mut expected {
+                    pixel[1] /= 2.;
+                }
+                assert!(view.optical_flow.is_empty());
+                &view.motion_vectors
+            } else {
+                assert!(view.motion_vectors.is_empty());
+                &view.optical_flow
+            };
+            assert_eq!(output.as_ptr(), base);
+            assert_eq!(output.as_slice(), bytemuck::cast_slice::<_, u8>(&expected));
+            let original = (view.optical_flow.clone(), view.motion_vectors.clone());
+            for invalid in [[1., f32::NAN, 1., 0.], [0., 0., 0., 1.], [0., 0., 1., 0.5]] {
+                let bytes = bytemuck::cast_slice(&[values[0], invalid]).to_vec();
+                assert!(unpack_flow(&mut view, bytes, std::slice::from_ref(&mode), 1, 2).is_err());
+                assert_eq!(view.optical_flow, original.0);
+                assert_eq!(view.motion_vectors, original.1);
+            }
+            assert!(unpack_flow(&mut view, vec![0; 15], &[mode], 1, 1).is_err());
+        }
     }
 
     #[test]

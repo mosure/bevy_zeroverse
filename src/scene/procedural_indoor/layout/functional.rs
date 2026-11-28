@@ -29,6 +29,7 @@ pub enum SpaceRole {
     Exercise,
     Retail,
     Work,
+    Changing,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReservationRole {
@@ -41,6 +42,7 @@ pub enum ReservationRole {
     Browsing,
     FittingAccess,
     PlayingArea,
+    SeatingAccess,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reservation {
@@ -156,7 +158,30 @@ pub enum CapacityUnit {
     /// One stocked fixture accessible from the sales floor.
     MerchandisingFixtures,
     PlayingCourts,
+    /// One independently installed cabinet. Stacked dryers have two drum pockets.
+    LaundryMachines,
+    /// Installed, usable banks. Each bank can contain multiple individual compartments.
+    LockerBanks,
 }
+/// Both stations must face into the same class even after a local placement offset.
+fn class_stations_face(
+    activity: IndoorLayout,
+    instructor: &IndoorObject,
+    participant: &IndoorObject,
+) -> bool {
+    let heading = |yaw: f32| Vec2::new(yaw.sin(), yaw.cos());
+    let toward = (instructor.position - participant.position)
+        .xz()
+        .normalize_or_zero();
+    let alignment = if activity == IndoorLayout::YogaStudio {
+        0.22
+    } else {
+        0.55
+    };
+    toward.dot(heading(participant.yaw)) >= alignment
+        && (-toward).dot(heading(instructor.yaw)) >= 0.18
+}
+
 impl ProgramAssembly {
     /// The accepted instructor bike at the focus of an instructor-led class.
     /// Its local +Z faces the participants. Capacity includes this station.
@@ -164,13 +189,20 @@ impl ProgramAssembly {
         if self.activity != IndoorLayout::CyclingStudio {
             return None;
         }
+        self.class_instructor(objects)
+    }
+
+    /// Instructor station at the class focus, facing the participants along local +Z.
+    pub fn class_instructor<'a>(&self, objects: &'a [IndoorObject]) -> Option<&'a IndoorObject> {
+        let kind = match self.activity {
+            IndoorLayout::CyclingStudio => ObjectKind::StationaryBike,
+            IndoorLayout::YogaStudio => ObjectKind::ExerciseMat,
+            _ => return None,
+        };
         self.members
             .iter()
             .filter_map(|&id| objects.get(id))
-            .find(|o| {
-                o.kind == ObjectKind::StationaryBike
-                    && o.position.xz().distance_squared(self.focus.xz()) < 1e-6
-            })
+            .find(|o| o.kind == kind && o.position.xz().distance_squared(self.focus.xz()) < 1e-6)
     }
 
     /// The longitudinal public aisle separates the two dining areas. A suite
@@ -189,14 +221,21 @@ impl ProgramAssembly {
 
     fn counts_toward_capacity(&self, object: &IndoorObject) -> bool {
         match self.capacity_unit {
+            CapacityUnit::LockerBanks => object.kind == ObjectKind::Locker,
+            CapacityUnit::LaundryMachines => matches!(
+                object.kind,
+                ObjectKind::WashingMachine | ObjectKind::TumbleDryer
+            ),
             CapacityUnit::PlayingCourts => object.kind == ObjectKind::VolleyballNet,
             CapacityUnit::ChairStations => object.kind == ObjectKind::Chair,
             CapacityUnit::SeatingStations => {
-                matches!(object.kind, ObjectKind::Chair | ObjectKind::Banquette)
-                    || (matches!(
-                        self.activity,
-                        IndoorLayout::StairHall | IndoorLayout::Courtyard
-                    ) && object.kind == ObjectKind::Bench)
+                matches!(
+                    object.kind,
+                    ObjectKind::Chair | ObjectKind::Banquette | ObjectKind::BeamSeating
+                ) || (matches!(
+                    self.activity,
+                    IndoorLayout::StairHall | IndoorLayout::Courtyard
+                ) && object.kind == ObjectKind::Bench)
             }
             CapacityUnit::DisplayStations => matches!(
                 object.kind,
@@ -218,17 +257,18 @@ impl ProgramAssembly {
         }
     }
 
-    /// A fitted locker belongs to the teaching zone's perimeter. Its teaching
-    /// floor rectangle is inset for desks and rows and need not reach that wall.
+    /// Fitted wall equipment can occupy the perimeter of its architectural zone.
+    /// The interior rectangle for loose furnishings may be inset from that wall.
     pub(crate) fn member_region(
         &self,
         scene: &IndoorManifest,
         object: &IndoorObject,
     ) -> (Vec2, Vec2) {
         use super::super::objects::public::education;
-        if object.kind == ObjectKind::Locker
-            && object.variant == education::WALL_BANK
-            && scene.generator_version >= education::FITTED_VERSION
+        if object.kind == ObjectKind::DrinkingFountain
+            || (object.kind == ObjectKind::Locker
+                && education::wall_bank(object)
+                && scene.generator_version >= education::FITTED_VERSION)
         {
             if let Some(z) = scene.program.as_ref().and_then(|p| p.zones.get(self.zone)) {
                 return (z.min, z.max);

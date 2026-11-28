@@ -101,6 +101,9 @@ struct Args {
     /// Add lossless same-time camera membership to the measured capture modes.
     #[arg(long)]
     co_visibility: bool,
+    /// Choose the first glass surface or the geometry visible behind it for annotations.
+    #[arg(long, value_enum, default_value_t=bevy_zeroverse::render::glass::AnnotationGlass::Surface)]
+    annotation_glass: bevy_zeroverse::render::glass::AnnotationGlass,
     /// Include forward optical flow and normalized displacements for a temporal comparison.
     #[arg(long)]
     flow: bool,
@@ -246,6 +249,7 @@ fn main() -> Result<()> {
     let config = BevyZeroverseConfig {
         scene_type: ZeroverseSceneType::ProceduralIndoor,
         indoor_seed: Some(args.seed),
+        annotation_glass: args.annotation_glass,
         indoor_camera: args.indoor_camera.clone(),
         indoor_appearance: args.indoor_appearance.clone(),
         indoor_human_density: args.human_density,

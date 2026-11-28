@@ -79,3 +79,44 @@ fn lockers_face_open_floor_from_solid_wall_sections_across_classrooms() {
         "{count} banks, {normals:?}"
     );
 }
+
+#[test]
+fn locker_approach_cannot_take_a_presenters_standing_space() {
+    use crate::scene::procedural_indoor::objects::public::furnishing::lectern;
+    let s =
+        IndoorManifest::generate_with_humans(76243, IndoorLayout::Classroom, 0.65, 0, 0.).unwrap();
+    let zone = &s.functional_programs()[0];
+    let desk = s
+        .objects
+        .iter()
+        .find(|o| o.kind == ObjectKind::Lectern)
+        .unwrap();
+    let spot = lectern::presenter_position(desk).xz();
+    let route = Reservation {
+        role: ReservationRole::DoorApproach,
+        min: spot - 0.035,
+        max: spot + 0.035,
+    };
+    let (lo, hi) = desk.bounds();
+    assert!(!route.overlaps(lo, hi));
+    let (lo, hi) = access::bounds(desk);
+    assert!(route.overlaps(lo, hi));
+    // The existing board is outside this approach and stands on the same level.
+    let bank = s
+        .objects
+        .iter()
+        .find(|o| o.kind == ObjectKind::TeachingBoard)
+        .unwrap();
+    let clear = |s: &IndoorManifest| {
+        s.locker_approach_clear(
+            bank,
+            &route,
+            (zone.min, zone.max),
+            &PlacementStructure::new(),
+        )
+    };
+    assert!(!clear(&s));
+    let mut without = s.clone();
+    without.objects[desk.id].solid = false;
+    assert!(clear(&without));
+}

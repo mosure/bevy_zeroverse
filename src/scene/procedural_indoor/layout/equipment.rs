@@ -123,6 +123,7 @@ impl IndoorManifest {
             .iter()
             .filter(|o| {
                 !o.neighbor
+                    && !super::super::objects::tables::is_classroom_table(o)
                     && matches!(
                         o.kind,
                         ObjectKind::Desk

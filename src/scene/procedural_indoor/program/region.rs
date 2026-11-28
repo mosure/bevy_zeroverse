@@ -80,6 +80,12 @@ impl IndoorManifest {
                         // A suite can have a larger utility bay with bins, plants
                         // and cabinets. A work, meeting or lounge area makes a
                         // better reconstruction domain, even with few seats.
+                        office_activity |= self.layout == IndoorLayout::Reception
+                            && object.kind == ObjectKind::ReceptionDesk;
+                        office_activity |= self.layout == IndoorLayout::Workshop
+                            && object.kind == ObjectKind::Workbench;
+                        office_activity |= self.layout == IndoorLayout::Studio
+                            && object.kind == ObjectKind::ArtistEasel;
                         office_activity |= office
                             && matches!(
                                 object.kind,

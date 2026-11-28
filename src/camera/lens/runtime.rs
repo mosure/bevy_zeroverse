@@ -65,15 +65,18 @@ impl LensCamera {
 
 /// Co-located cube orientations with overlapping perspective guard bands.
 pub(super) fn orientations() -> [Quat; 6] {
-    [
-        (Vec3::NEG_Z, Vec3::Y),
-        (Vec3::X, Vec3::Y),
-        (Vec3::NEG_X, Vec3::Y),
-        (Vec3::Y, Vec3::Z),
-        (Vec3::NEG_Y, Vec3::NEG_Z),
-        (Vec3::Z, Vec3::Y),
-    ]
-    .map(|(forward, up)| Transform::IDENTITY.looking_to(forward, up).rotation)
+    static ORIENTATIONS: std::sync::OnceLock<[Quat; 6]> = std::sync::OnceLock::new();
+    *ORIENTATIONS.get_or_init(|| {
+        [
+            (Vec3::NEG_Z, Vec3::Y),
+            (Vec3::X, Vec3::Y),
+            (Vec3::NEG_X, Vec3::Y),
+            (Vec3::Y, Vec3::Z),
+            (Vec3::NEG_Y, Vec3::NEG_Z),
+            (Vec3::Z, Vec3::Y),
+        ]
+        .map(|(forward, up)| Transform::IDENTITY.looking_to(forward, up).rotation)
+    })
 }
 pub struct FisheyeCameraPlugin;
 impl Plugin for FisheyeCameraPlugin {

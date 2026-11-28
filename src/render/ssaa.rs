@@ -28,6 +28,9 @@ use std::{
 
 const SHADER: Handle<Shader> = uuid_handle!("e377b6c2-74c4-4306-a069-5c74d6f25aab");
 
+#[path = "ssaa_flare.rs"]
+mod flare;
+
 const SENSOR_SHADER: Handle<Shader> = uuid_handle!("89a2d957-69a1-4828-b722-c1136262ccef");
 
 pub use bevy_zeroverse_capture::sampling::CaptureSampling;
@@ -288,6 +291,7 @@ fn extract(
 
 #[derive(Resource, Default)]
 struct Pipeline {
+    flare: flare::Cache,
     clean: Option<(CachedRenderPipelineId, BindGroupLayout)>,
     sensor: Option<(CachedRenderPipelineId, BindGroupLayout)>,
 }
@@ -297,6 +301,10 @@ enum Uniform {
     Sensor(ResolveParams),
 }
 impl Uniform {
+    // Both fragment pipelines use binding 0 for the same source texture and
+    // binding 1 for uniforms. A clean frame reads only the first 16 bytes.
+    // Identical layout descriptors let an eligibility switch reuse the group.
+    const BUFFER_SIZE: u64 = std::mem::size_of::<ResolveParams>() as u64;
     fn bytes(&self) -> &[u8] {
         match self {
             Self::Box(v) => bytemuck::bytes_of(v),
@@ -315,11 +323,54 @@ impl Pipeline {
 #[derive(Resource, Default)]
 struct Bindings(HashMap<TextureId, Binding>);
 struct Binding {
+    flare_grid: Option<UVec2>,
     id: CachedRenderPipelineId,
     params: Uniform,
     source: TextureId,
     uniform: Buffer,
     group: BindGroup,
+}
+
+fn source_layout() -> BindGroupLayoutDescriptor {
+    BindGroupLayoutDescriptor::new(
+        "ssaa_box",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                texture_2d(TextureSampleType::Float { filterable: false }),
+                uniform_buffer_sized(false, NonZeroU64::new(Uniform::BUFFER_SIZE)),
+            ),
+        ),
+    )
+}
+
+fn queue_fragment(
+    cache: &PipelineCache,
+    name: &'static str,
+    shader: Handle<Shader>,
+    entry: &'static str,
+    layout: Vec<BindGroupLayoutDescriptor>,
+) -> CachedRenderPipelineId {
+    cache.queue_render_pipeline(RenderPipelineDescriptor {
+        label: Some(name.into()),
+        layout,
+        vertex: VertexState {
+            shader: SHADER,
+            entry_point: Some("vertex".into()),
+            ..default()
+        },
+        fragment: Some(FragmentState {
+            shader,
+            entry_point: Some(entry.into()),
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+            ..default()
+        }),
+        ..default()
+    })
 }
 
 fn prepare(
@@ -334,9 +385,11 @@ fn prepare(
     // No pipeline compilation, buffers or intermediate images while disabled.
     if jobs.0.is_empty() {
         bindings.0.clear();
+        pipeline.flare.release_image();
         return;
     }
     let mut live = std::collections::HashSet::new();
+    let mut max_grid = UVec2::ZERO;
     for job in &jobs.0 {
         let (Some(source), Some(output)) =
             (images.get(&job.source), images.get(&job.camera.output))
@@ -345,65 +398,38 @@ fn prepare(
         };
         let sensor = matches!(job.params, Uniform::Sensor(_));
         let (id, layout) = pipeline.slot(&job.params).get_or_insert_with(|| {
-            let layout = BindGroupLayoutDescriptor::new(
-                "ssaa_box",
-                &BindGroupLayoutEntries::sequential(
-                    ShaderStages::FRAGMENT,
-                    (
-                        texture_2d(TextureSampleType::Float { filterable: false }),
-                        uniform_buffer_sized(
-                            false,
-                            NonZeroU64::new(job.params.bytes().len() as u64),
-                        ),
-                    ),
-                ),
-            );
-            let id = cache.queue_render_pipeline(RenderPipelineDescriptor {
-                label: Some(
-                    if sensor {
-                        "rgb_sensor_resolve"
-                    } else {
-                        "ssaa_linear_box_resolve"
-                    }
-                    .into(),
-                ),
-                layout: vec![layout.clone()],
-                vertex: VertexState {
-                    shader: SHADER,
-                    entry_point: Some("vertex".into()),
-                    ..default()
-                },
-                fragment: Some(FragmentState {
-                    shader: if sensor { SENSOR_SHADER } else { SHADER },
-                    entry_point: Some(
-                        if sensor {
-                            "sensor_fragment"
-                        } else {
-                            "fragment"
-                        }
-                        .into(),
-                    ),
-                    targets: vec![Some(ColorTargetState {
-                        format: TextureFormat::Rgba32Float,
-                        blend: None,
-                        write_mask: ColorWrites::ALL,
-                    })],
-                    ..default()
-                }),
-                ..default()
-            });
+            let layout = source_layout();
+            let (label, shader, entry) = if sensor {
+                ("rgb_sensor_resolve", SENSOR_SHADER, "sensor_fragment")
+            } else {
+                ("ssaa_linear_box_resolve", SHADER, "fragment")
+            };
+            let id = queue_fragment(&cache, label, shader, entry, vec![layout.clone()]);
             (id, cache.get_bind_group_layout(&layout))
         });
+        let grid = match &job.params {
+            Uniform::Sensor(params) => {
+                let size = UVec2::new(output.texture.width(), output.texture.height());
+                let high = UVec2::new(source.texture.width(), source.texture.height());
+                (size * params.header[0] == high)
+                    .then(|| params.flare_grid(size))
+                    .flatten()
+            }
+            Uniform::Box(_) => None,
+        };
+        if job.active {
+            max_grid = max_grid.max(grid.unwrap_or_default());
+        }
         let key = output.texture.id();
         live.insert(key);
         if bindings
             .0
             .get(&key)
-            .is_none_or(|b| b.source != source.texture.id() || b.id != *id)
+            .is_none_or(|b| b.source != source.texture.id())
         {
             let uniform = device.create_buffer(&BufferDescriptor {
                 label: Some("ssaa_box_params"),
-                size: job.params.bytes().len() as u64,
+                size: Uniform::BUFFER_SIZE,
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
@@ -416,6 +442,7 @@ fn prepare(
             bindings.0.insert(
                 key,
                 Binding {
+                    flare_grid: grid,
                     id: *id,
                     params: job.params,
                     source: source.texture.id(),
@@ -426,9 +453,12 @@ fn prepare(
         } else if let Some(binding) = bindings.0.get_mut(&key).filter(|b| b.params != job.params) {
             queue.write_buffer(&binding.uniform, 0, job.params.bytes());
             binding.params = job.params;
+            binding.id = *id;
+            binding.flare_grid = grid;
         }
     }
     bindings.0.retain(|key, _| live.contains(key));
+    pipeline.flare.prepare(max_grid, &device, &cache);
 }
 
 fn resolve(world: &World, mut context: RenderContext) {
@@ -443,6 +473,7 @@ fn resolve(world: &World, mut context: RenderContext) {
     let cache = world.resource::<PipelineCache>();
     let images = world.resource::<RenderAssets<GpuImage>>();
     let bindings = world.resource::<Bindings>();
+    let flare = &world.resource::<Pipeline>().flare;
     let diagnostics = context.diagnostic_recorder();
     let diagnostics = diagnostics.as_deref();
     let mut span = None;
@@ -462,26 +493,21 @@ fn resolve(world: &World, mut context: RenderContext) {
         if span.is_none() {
             span = Some(diagnostics.time_span(context.command_encoder(), "ssaa_box_resolve"));
         }
-        {
-            let mut pass = context
-                .command_encoder()
-                .begin_render_pass(&RenderPassDescriptor {
-                    label: Some("ssaa_box_resolve"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &image.texture_view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: Operations {
-                            load: LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                            store: StoreOp::Store,
-                        },
-                    })],
-                    ..default()
-                });
-            pass.set_pipeline(pipeline);
-            pass.set_bind_group(0, &binding.group, &[]);
-            pass.draw(0..3, 0..1);
-        }
+        let cached = binding
+            .flare_grid
+            .and_then(|grid| flare.encode(context.command_encoder(), cache, &binding.group, grid));
+        let (pipeline, highlights) = cached.map_or((pipeline, None), |(pipeline, group)| {
+            (pipeline, Some(group))
+        });
+        draw(
+            context.command_encoder(),
+            "ssaa_box_resolve",
+            &image.texture_view,
+            pipeline,
+            &binding.group,
+            highlights,
+            None,
+        );
         // Copies run later in this same render graph/queue. No host fence.
         if let Some(frame) = world.get_resource::<crate::scene::capture_ready::render::Frame>() {
             frame.resolve(job.camera.output.id());
@@ -491,6 +517,39 @@ fn resolve(world: &World, mut context: RenderContext) {
     if let Some(span) = span {
         span.end(context.command_encoder());
     }
+}
+
+fn draw(
+    encoder: &mut CommandEncoder,
+    label: &'static str,
+    target: &TextureView,
+    pipeline: &RenderPipeline,
+    source: &BindGroup,
+    highlights: Option<&BindGroup>,
+    region: Option<UVec2>,
+) {
+    let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        label: Some(label),
+        color_attachments: &[Some(RenderPassColorAttachment {
+            view: target,
+            depth_slice: None,
+            resolve_target: None,
+            ops: Operations {
+                load: LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                store: StoreOp::Store,
+            },
+        })],
+        ..default()
+    });
+    if let Some(size) = region {
+        pass.set_scissor_rect(0, 0, size.x, size.y);
+    }
+    pass.set_pipeline(pipeline);
+    pass.set_bind_group(0, source, &[]);
+    if let Some(group) = highlights {
+        pass.set_bind_group(1, group, &[]);
+    }
+    pass.draw(0..3, 0..1);
 }
 
 #[cfg(test)]

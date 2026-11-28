@@ -185,3 +185,40 @@ fn overlong_walk_edges_and_invalid_stock_cannot_enter_the_mesh() {
     s.tread_band_m = f32::NAN;
     assert!(!s.valid(&e));
 }
+
+#[test]
+fn bounded_shell_hits_keep_the_first_surface_and_exclude_the_limit() {
+    use rand::Rng;
+    let mut rng = crate::scene::procedural_indoor::layout::stream(202, 934);
+    for layout in [
+        IndoorLayout::LectureHall,
+        IndoorLayout::StairHall,
+        IndoorLayout::Courtyard,
+    ] {
+        let room = IndoorManifest::generate_with_humans(75188, layout, 0.65, 0, 0.).unwrap();
+        let envelope = room.envelope.as_ref().unwrap();
+        let door = [room.door_x, room.entry_width(), room.entry_height()];
+        for _ in 0..256 {
+            let mut point = || {
+                Vec3::new(
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                )
+            };
+            let eye = point() * room.room_size * 0.45 + Vec3::Y * room.room_size.y * 0.5;
+            let ray = point().normalize_or_zero();
+            if let Some(hit) = envelope.ray_hit(room.room_size, door[0], door[1], door[2], eye, ray)
+            {
+                assert_eq!(
+                    envelope.ray_hit_before(room.room_size, door, eye, ray, hit.0),
+                    None
+                );
+                assert_eq!(
+                    envelope.ray_hit_before(room.room_size, door, eye, ray, hit.0.next_up()),
+                    Some(hit)
+                );
+            }
+        }
+    }
+}

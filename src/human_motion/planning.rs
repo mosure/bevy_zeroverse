@@ -1,7 +1,8 @@
 //! Reproducible affordance-aware requests and swept navigation through real doors.
 use super::{prompts, HumanMotionConfig, MotionPlan, MotionRejection};
+use crate::scene::procedural_indoor::humans::IndoorHuman;
 use crate::scene::procedural_indoor::layout::{
-    segment_hits_box, stream, IndoorManifest, ObjectKind,
+    segment_hits_box, stream, IndoorManifest, IndoorObject, ObjectKind,
 };
 use bevy::prelude::*;
 use burn_human_motion::Waypoint;
@@ -12,6 +13,13 @@ use std::{
 };
 
 pub const BODY_CLEARANCE: f32 = 0.34;
+
+fn supports_actor(object: &IndoorObject, person: &IndoorHuman) -> bool {
+    object.kind == ObjectKind::Chair
+        || (person.chair == Some(object.id)
+            && person.waiting_seat().is_some()
+            && matches!(object.kind, ObjectKind::BeamSeating | ObjectKind::Banquette))
+}
 
 /// Independent ARDY noise for a scene/actor pair, separate from appearance and
 /// prompt sampling. Replaying the pair repeats the seed; regenerating the scene
@@ -465,8 +473,8 @@ pub fn plan(
         if let Some(id) = support {
             if !scene
                 .objects
-                .iter()
-                .any(|o| o.id == id && o.kind == ObjectKind::Chair)
+                .get(id)
+                .is_some_and(|o| o.id == id && supports_actor(o, person))
             {
                 return Err(format!(
                     "motion actor {} references a missing support chair",
@@ -540,6 +548,15 @@ pub fn plan(
         // easiest stationary gestures, especially in furnished rooms.
         let preferred_family = config.prompt_sampling.sample_family(&mut rng);
         let support = person.chair;
+        if let Some(id) = support {
+            if !scene
+                .objects
+                .get(id)
+                .is_some_and(|o| o.id == id && supports_actor(o, person))
+            {
+                return Err("missing support chair".into());
+            }
+        }
         let boxes = obstacles(scene, person.id, support);
         for attempt in 0..48 {
             // Dense furnishings deserve most of the fixed search budget for
@@ -553,17 +570,16 @@ pub fn plan(
                 (scene.ceiling_height(person.position.xz()) - person.stature - 0.05).max(0.0);
             let mut points;
             let mut navigation = None;
-            let mut draft = if let Some(id) = support {
-                let chair = scene
-                    .objects
-                    .iter()
-                    .find(|o| o.id == id && o.kind == ObjectKind::Chair)
-                    .ok_or("missing support chair")?;
-                let seated_pelvis = person
-                    .pose_program
-                    .as_ref()
-                    .and_then(|p| p.stool_support)
-                    .map_or(0.61, |p| p.seat_height_m + 0.14);
+            let mut draft = if support.is_some() {
+                let seated_pelvis = if person.waiting_seat().is_some() {
+                    person.joints[0].y
+                } else {
+                    person
+                        .pose_program
+                        .as_ref()
+                        .and_then(|p| p.stool_support)
+                        .map_or(0.61, |p| p.seat_height_m + 0.14)
+                };
                 if family == prompts::Family::Locomotion {
                     // A stool at a table often has no space directly ahead.
                     // Try side approaches in the existing search budget; keep
@@ -583,8 +599,8 @@ pub fn plan(
                     } else {
                         0.
                     };
-                    let front = chair.position
-                        + Quat::from_rotation_y(chair.yaw + turn) * Vec3::new(0.0, 0.0, -0.72);
+                    let front = person.position
+                        + Quat::from_rotation_y(person.yaw + turn) * Vec3::new(0.0, 0.0, -0.72);
                     let sit = rng.random_bool(0.5);
                     let path = if sit {
                         [front, person.position]

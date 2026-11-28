@@ -1,9 +1,12 @@
 //! Cut agglomerated cork. The same irregular chips drive pigment, binder seams
-//! and metric relief. A room bakes only the stock referenced by its boards.
+//! and metric relief. A room bakes only the stock referenced by its boards and mats.
 use super::*;
 use crate::scene::procedural_indoor::{
     layout::{stream, ObjectKind},
-    objects::equipment::board_section::{Facing, TACKBOARD_VERSION},
+    objects::{
+        equipment::board_section::{Facing, TACKBOARD_VERSION},
+        public::mats,
+    },
     preparation::AssetStore,
 };
 use rand::Rng;
@@ -79,8 +82,21 @@ pub(super) fn install(
         let used = match selection {
             Some(s) => s.finishes.contains(&key),
             None => scene.objects.iter().any(|o| {
-                o.kind == ObjectKind::NoticeBoard
-                    && Facing::for_board(o, scene.generator_version) == facing
+                let stock = match o.kind {
+                    ObjectKind::NoticeBoard => {
+                        return Facing::for_board(o, scene.generator_version) == facing
+                    }
+                    ObjectKind::ExerciseMat if scene.generator_version >= mats::VERSION => {
+                        mats::PracticeMat::for_object(o).facing
+                    }
+                    ObjectKind::YogaBlock => mats::props::Block::for_object(o).facing,
+                    _ => return false,
+                };
+                matches!(
+                    (stock, facing),
+                    (mat_stock::Stock::NaturalCork, Facing::NaturalCork)
+                        | (mat_stock::Stock::ToastedCork, Facing::ToastedCork)
+                )
             }),
         };
         if used {

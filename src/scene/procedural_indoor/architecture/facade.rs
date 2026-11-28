@@ -121,6 +121,25 @@ pub struct Facade {
 }
 
 impl Facade {
+    /// Convert each horizontal bay to one high daylight opening. Replace stacked
+    /// bands before moving the sill so formerly separate apertures cannot intersect.
+    pub(crate) fn fit_clerestory(&mut self, sill: f32, wall_height: f32) {
+        let head = wall_height - 0.075;
+        if head - sill < 0.40 {
+            self.openings.clear();
+            return;
+        }
+        self.openings
+            .dedup_by(|a, b| a.min.x == b.min.x && a.max.x == b.max.x);
+        for o in &mut self.openings {
+            let source_sill = o.min.y / wall_height;
+            o.min.y = sill + (head - sill - 0.40).min(0.26) * source_sill.clamp(0., 1.);
+            o.max.y = o.max.y.clamp(o.min.y + 0.38, head);
+            o.transom = 0.;
+            o.transoms.clear();
+        }
+    }
+
     pub fn wall_thickness_m(&self) -> f32 {
         self.joinery
             .as_ref()

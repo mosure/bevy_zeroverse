@@ -151,7 +151,9 @@ impl IndoorManifest {
                             rng.random_range(-0.25..0.25)
                         };
                 let route = if long_path && attempt < 256 {
-                    let Some(path) = super::super::navigation::route(self, p, end) else {
+                    let Some(path) =
+                        super::super::navigation::route(self, &Default::default(), p, end)
+                    else {
                         rejected[2] += 1;
                         continue;
                     };

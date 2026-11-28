@@ -2,6 +2,8 @@
 use super::*;
 use crate::scene::procedural_indoor::objects::public::bleachers;
 use crate::scene::procedural_indoor::program::court::VolleyballCourt;
+mod goals;
+pub(in super::super) use goals::{goal_access, valid_goal};
 
 const APPROACH: f32 = 0.70;
 
@@ -86,6 +88,7 @@ impl IndoorManifest {
                 );
             }
         }
+        self.install_practice_goals(c);
         let p = &mut self.assembly_diagnostics.programs[0];
         p.members = (first..self.objects.len()).collect();
         p.accepted_capacity = p.realized_capacity(&self.objects);

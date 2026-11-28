@@ -12,6 +12,11 @@ pub(crate) fn sample_slot(rng: &mut impl Rng) -> usize {
     FIRST + rng.random_range(0..variants::COUNT)
 }
 
+/// A second cut from the same store palette, guaranteed to use another dye lot.
+pub(crate) fn contrasting_slot(base: usize, rng: &mut impl Rng) -> usize {
+    FIRST + (base - FIRST + rng.random_range(1..variants::COUNT)) % variants::COUNT
+}
+
 pub(super) fn parent(surface: Surface, slot: usize) -> Option<usize> {
     if (FIRST..FIRST + variants::COUNT).contains(&slot) && STOCK.contains(&surface) {
         Some(slot - FIRST)

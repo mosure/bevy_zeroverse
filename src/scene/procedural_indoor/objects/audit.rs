@@ -13,9 +13,14 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         Elevator | ServiceCounter | DisplayCase | TrayReturn | DrinkDispenser | QueueBarrier
         | Lectern | Locker | TeachingBoard | ExhibitPlinth | Sculpture | InformationStand
         | ExhibitionPanel | ExtractionHood | Banquette | WeightBench | DumbbellRack
-        | ExerciseMat | StationaryBike | Treadmill | GroceryDisplay | ApparelDisplay
-        | VolleyballNet | BleacherBank | FittingRoom | CheckoutCounter | PowerRack
-        | HotFoodWell => public::dimensions(kind, seed).to_array(),
+        | ExerciseMat | YogaBlock | YogaBolster | StationaryBike | Treadmill | GroceryDisplay
+        | ApparelDisplay | VolleyballNet | BleacherBank | FittingRoom | CheckoutCounter
+        | PowerRack | HotFoodWell | ExerciseMatRack | BasketballGoal | ReceptionDesk
+        | ArtistEasel | Workbench | TimberOffcut | EspressoMachine | CoffeeGrinder
+        | WaterCooler | DrinkingFountain | BasketStack | WashingMachine | TumbleDryer
+        | LaundryFoldingTable | MusicStand | StagePiano | Timpani | LaundryCart | BeamSeating => {
+            public::dimensions(kind, seed).to_array()
+        }
         KitchenCounter | KitchenSink | KitchenCupboard | Pantry | Cooktop | Range | Oven
         | Microwave | Dishwasher | Refrigerator | DryingRack | SoapDispenser | Sponge
         | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel | Dishware | Flatware
@@ -29,6 +34,7 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         SideTable => [0.52, 0.55, 0.48],
         Cabinet => [0.9, 0.85, 0.45],
         Bookcase => [0.95, 1.8, 0.38],
+        LibraryStack => storage::library_stack::dimensions(seed).to_array(),
         Plant => [0.8, 1.2, 0.8],
         PlantingBed => [2.8, 1.9, 1.35],
         TrashCan => [0.34, 0.48, 0.34],
@@ -46,6 +52,10 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         Keyboard => [0.43, 0.03, 0.16],
         Mouse => [0.065, 0.038, 0.11],
         WaterBottle => [0.08, 0.25, 0.08],
+        TableNapkin => super::super::clutter::napkin::fixture(seed).1.to_array(),
+        DrinkingGlass => super::super::clutter::beverages::glassware::Stock::catalog(seed)
+            .size
+            .to_array(),
         PenHolder => [0.085, 0.16, 0.085],
         Printer => [0.43, 0.30, 0.35],
         StorageBox => [0.38, 0.27, 0.32],
@@ -123,8 +133,43 @@ pub fn fixture(kind: ObjectKind, seed: u64) -> IndoorObject {
         cable_target: None,
         cable_target_socket: None,
     };
+    if kind == DrinkingGlass {
+        super::super::clutter::beverages::glassware::Stock::catalog(seed).apply(&mut o);
+    }
+    if kind == Lectern {
+        let level = super::super::items::distribution::ClutterSettings::default().sample(seed);
+        public::furnishing::lectern::install(&mut o, level);
+    }
+    if kind == TableNapkin {
+        o.variant = super::super::clutter::napkin::fixture(seed).0;
+        o.solid = false;
+    }
     if kind == Thermostat {
         wall::thermostat::fit(&mut o);
+        o.solid = false;
+    }
+    if kind == YogaBlock && stream(seed, u64::from_le_bytes(*b"BlockSet")).random_bool(0.27) {
+        o.size = o.size.xzy();
+    }
+    if matches!(
+        kind,
+        LibraryStack
+            | ReceptionDesk
+            | ArtistEasel
+            | Workbench
+            | TimberOffcut
+            | MusicStand
+            | Timpani
+            | LaundryCart
+            | BeamSeating
+            | YogaBlock
+            | YogaBolster
+    ) {
+        o.finish_seed = Some(seed);
+    }
+    if kind == BasketballGoal {
+        // A matched pair shares a kit. A catalog sample represents a new kit.
+        o.finish_seed = Some(seed);
         o.solid = false;
     }
     if kind == Clock {
@@ -307,7 +352,14 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         }
         Lectern | TeachingBoard => return serde_json::json!(public::furnishing::parameters(o)),
         ExhibitPlinth => return serde_json::json!(public::casework::plinth::parameters(o)),
-        DisplayCase | TrayReturn => return serde_json::json!(public::casework::parameters(o)),
+        DisplayCase => {
+            let case = public::casework::parameters(o);
+            let batches = case.bakery_batches(o, super::super::layout::GENERATOR_VERSION);
+            let mut record = serde_json::json!(case);
+            record["bakery_batches"] = serde_json::json!(batches);
+            return record;
+        }
+        TrayReturn => return serde_json::json!(public::casework::parameters(o)),
         DrinkDispenser => return serde_json::json!(public::dispenser::parameters(o)),
         CoffeeMaker => return serde_json::json!(hospitality::coffee::parameters(o)),
         QueueBarrier => {
@@ -353,21 +405,50 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
         return serde_json::json!({"frame_fraction":p.board_frame_fraction, "divider_fraction":p.board_divider_fraction, "section":equipment::board_section::parameters(o), "facing":equipment::board_section::Facing::for_board(o, bevy_zeroverse_capture::GENERATOR_VERSION), "attachments":equipment::pinups::placements(o)});
     }
     if matches!(o.kind, InformationStand | ExhibitionPanel) {
-        return serde_json::json!(public::signage::parameters(o));
+        let params = public::signage::parameters(o);
+        let mut result = serde_json::json!(params);
+        if let Some(sheet) = public::signage::floor_guide::Sheet::for_stand(
+            o,
+            bevy_zeroverse_capture::GENERATOR_VERSION,
+            &params,
+        ) {
+            result["floor_guide"] = serde_json::json!(sheet);
+        }
+        return result;
     }
     let all = match o.kind {
         VolleyballNet => return serde_json::json!(public::volleyball::Net::for_object(o)),
+        BasketballGoal => {
+            return serde_json::json!(public::basketball::BasketballGoal::for_object(o))
+        }
         BleacherBank => return serde_json::json!(public::bleachers::BleacherBank::for_object(o)),
         PowerRack => return serde_json::json!(public::strength::PowerRack::for_object(o)),
         HotFoodWell => return serde_json::json!(public::hot_food::HotFoodWell::for_object(o)),
         FittingRoom => return serde_json::json!(public::fitting_room(o)),
         GroceryDisplay | ApparelDisplay | CheckoutCounter => {
-            return serde_json::json!(public::retail::parameters(o))
+            let mut spec = serde_json::json!(public::retail::parameters(o));
+            if let Some(rail) = public::apparel_rail(o, super::super::layout::GENERATOR_VERSION) {
+                spec["Rail"]["construction"] = serde_json::json!(rail);
+            }
+            if let Some(table) = public::folded_apparel(o, super::super::layout::GENERATOR_VERSION)
+            {
+                spec["Folded"]["merchandise"] = serde_json::json!(table);
+            }
+            if let Some(stand) = public::produce_stand(o, super::super::layout::GENERATOR_VERSION) {
+                spec["Produce"]["stand"] = serde_json::json!(stand);
+            }
+            if let Some(stock) = public::gondola_stock(o, super::super::layout::GENERATOR_VERSION) {
+                spec["Gondola"]["merchandise"] = serde_json::json!(stock);
+            }
+            return spec;
         }
         StationaryBike | Treadmill => return serde_json::json!(public::cardio::parameters(o)),
-        WeightBench | DumbbellRack | ExerciseMat => {
-            return serde_json::json!(public::fitness::parameters(o))
-        }
+        ExerciseMat => return serde_json::json!(public::mats::PracticeMat::for_object(o)),
+        ExerciseMatRack => return serde_json::json!(public::mats::MatRack::for_object(o)),
+        YogaBlock => return serde_json::json!(public::mats::props::Block::for_object(o)),
+        YogaBolster => return serde_json::json!(public::mats::props::Bolster::for_object(o)),
+        WeightBench => return serde_json::json!(public::fitness::parameters(o)),
+        DumbbellRack => return serde_json::json!(public::dumbbells::FreeWeightRack::for_object(o)),
         BaseboardHeater => {
             let stock = services::heater::Installation::for_object(o);
             let mut fields =
@@ -439,7 +520,31 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             data
         }
         Bookcase => serde_json::json!(storage::bookcase::parameters(o)),
-        PlantingBed => serde_json::json!(super::super::plants::bed::Bed::sample(o)),
+        WashingMachine | TumbleDryer => serde_json::json!(public::laundry::Machine::for_object(o)),
+        MusicStand => serde_json::json!(public::music::Stand::sample(o)),
+        StagePiano => serde_json::json!(public::music::Keyboard::sample(o)),
+        Timpani => serde_json::json!(public::music::Timpani::sample(o)),
+        BeamSeating => serde_json::json!(public::beam_seating::BeamSeating::for_object(o)),
+        LaundryCart => serde_json::json!(public::laundry::cart::LaundryCart::for_object(o)),
+        LaundryFoldingTable => serde_json::json!(public::laundry::FoldingTable::for_object(o)),
+        BasketStack => serde_json::json!(public::baskets::BasketStack::for_object(o)),
+        WaterCooler => serde_json::json!(public::cooler::Cooler::for_object(o)),
+        DrinkingFountain => serde_json::json!(public::fountain::Fountain::for_object(o)),
+        EspressoMachine => serde_json::json!(public::espresso::Machine::for_object(o)),
+        CoffeeGrinder => serde_json::json!(public::espresso::Grinder::for_object(o)),
+        Workbench => serde_json::json!(public::workbench::Bench::sample(o)),
+        TimberOffcut => serde_json::json!({"mitre_setback_m":public::workbench::mitre_setback(o)}),
+        ArtistEasel => serde_json::json!(public::easel::Easel::sample(o)),
+        ReceptionDesk => serde_json::json!(public::reception::Counter::sample(o)),
+        LibraryStack => {
+            let stack = storage::library_stack::Stack::sample(o);
+            let mut record = serde_json::json!(stack);
+            record["featured_books"] = serde_json::json!(
+                stack.featured_books(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+            );
+            record
+        }
+        PlantingBed => serde_json::json!(super::super::plants::bed::Garden::sample(o)),
         Plant => {
             let growth = super::super::plants::Growth::sample(o.seed);
             let pot = super::super::plants::PotProfile::sample(o.seed);
@@ -514,7 +619,15 @@ pub fn program(o: &IndoorObject) -> serde_json::Value {
             data
         }
         Whiteboard => serde_json::json!(presentation::parameters(o)),
+        TableNapkin => {
+            return serde_json::json!(super::super::clutter::napkin::Napkin::for_object(o))
+        }
         CoffeeMaker | Kettle | Vase | Bowl => serde_json::json!(hospitality::parameters(o)),
+        DrinkingGlass => {
+            return serde_json::json!(
+                super::super::clutter::beverages::glassware::Glass::for_object(o)
+            )
+        }
         Mug | CoffeeCup | WaterBottle | SodaCan => {
             serde_json::json!(super::super::clutter::beverages::parameters(o))
         }

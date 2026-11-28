@@ -66,27 +66,43 @@ pub(super) fn panel(
     label: &str,
     glass: bool,
 ) {
+    panel_with_back(a, size, tf, finish, finish, label, glass);
+}
+
+pub(super) fn panel_with_back(
+    a: &mut Assembly,
+    size: Vec2,
+    tf: Transform,
+    front: Surface,
+    back: Surface,
+    label: &str,
+    glass: bool,
+) {
     let t = 0.022;
+    let mut stock = |center: Vec3, dimensions: Vec3| {
+        if front == back {
+            box_at(a, front, label, center, dimensions, tf);
+            return;
+        }
+        let at = Transform::from_translation(tf.transform_point(center)).with_rotation(tf.rotation);
+        let bevel = dimensions.min_element().min(0.008) * 0.20;
+        a.part(front, label)
+            .cuboid_faces(dimensions, bevel, at, |n| n != Vec3::NEG_Z);
+        a.part(back, label)
+            .cuboid_faces(dimensions, bevel, at, |n| n == Vec3::NEG_Z);
+    };
     if glass {
         let edge = (size.min_element() * 0.12).clamp(0.018, 0.045);
         for x in [-1., 1.] {
-            box_at(
-                a,
-                finish,
-                label,
+            stock(
                 Vec3::new(x * (size.x - edge) * 0.5, 0., 0.),
                 Vec3::new(edge, size.y, t),
-                tf,
             );
         }
         for y in [-1., 1.] {
-            box_at(
-                a,
-                finish,
-                label,
+            stock(
                 Vec3::new(0., y * (size.y - edge) * 0.5, 0.),
                 Vec3::new(size.x - 2. * edge, edge, t),
-                tf,
             );
         }
         box_at(
@@ -102,18 +118,11 @@ pub(super) fn panel(
             tf,
         );
     } else {
-        box_at(
-            a,
-            finish,
-            label,
-            Vec3::ZERO,
-            Vec3::new(size.x, size.y, t),
-            tf,
-        );
+        stock(Vec3::ZERO, Vec3::new(size.x, size.y, t));
         // A raised centre field leaves a real reveal, without coincident faces.
         box_at(
             a,
-            finish,
+            front,
             label,
             Vec3::new(0., 0., 0.013),
             Vec3::new(size.x * 0.79, size.y * 0.83, 0.004),

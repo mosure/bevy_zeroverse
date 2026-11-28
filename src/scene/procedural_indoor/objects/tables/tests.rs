@@ -519,3 +519,77 @@ fn rounded_polygon_top_blends_keep_convex_supported_sampling_domains() {
     }
     assert_eq!(sides.len(), 6);
 }
+
+#[test]
+fn classroom_table_mesh_support_and_clearance_follow_the_same_trapezoid() {
+    let mut bands = std::collections::BTreeSet::new();
+    for seed in 0..64 {
+        let mut t = object(ObjectKind::Table, seed);
+        t.size = Vec3::new(1.45, 0.735, 0.72);
+        t.variant = CLASSROOM_VARIANT;
+        t.finish_seed = Some(seed);
+        let spec = classroom_table(&t).unwrap();
+        bands.insert(spec.band);
+        let poly = outline(&t);
+        assert_eq!(poly.len(), 20);
+        assert!((0..poly.len()).all(|i| {
+            let a = poly[i];
+            let b = poly[(i + 1) % poly.len()];
+            let c = poly[(i + 2) % poly.len()];
+            (b - a).perp_dot(c - b) > 0.
+        }));
+        let half = 0.5 * t.size.xz();
+        let lip = Vec2::new(half.x * 0.82, -half.y * 0.85);
+        let cut = Vec2::new(half.x * 0.89, half.y * 0.85);
+        assert!(supports(&t, lip, lip, 0.));
+        assert!(!supports(&t, cut, cut, 0.));
+        let solid = Clearance::new(&t);
+        for (point, expected) in [(lip, true), (cut, false)] {
+            let contact = Vec3::new(point.x, t.size.y - 0.008, point.y);
+            assert_eq!(solid.hits_box(contact, contact, 0.), expected);
+        }
+        let a = super::super::build_object(&t);
+        let check = super::super::audit::check(&t, &a).unwrap();
+        assert!(check.min_y_m.abs() < 1e-6 && check.triangles < 1800);
+        for ((_, label), mesh) in &a.parts {
+            assert_eq!(super::super::part_label(label), "table");
+            for &vertex in &mesh.positions {
+                let v = Vec3::from_array(vertex);
+                assert!(solid.hits_box(v, v, 0.001), "{v:?} in {}", t.seed);
+            }
+        }
+    }
+    assert_eq!(bands.len(), 4);
+}
+
+#[test]
+fn classroom_mates_require_a_real_coplanar_open_joint() {
+    let mut a = object(ObjectKind::Table, 17);
+    a.variant = CLASSROOM_VARIANT;
+    a.size = Vec3::new(1.52, 0.74, 0.76);
+    a.finish_seed = Some(812);
+    a.yaw = 1.27;
+    let back = Quat::from_rotation_y(a.yaw) * Vec3::NEG_Z;
+    let mut b = a.clone();
+    b.id = 7;
+    b.seed = 27;
+    b.yaw += PI;
+    b.position = a.position + back * (a.size.z + 0.012);
+    assert!(classroom_mates(&a, &b) && classroom_mates(&b, &a));
+    assert_eq!(outline(&a), outline(&b));
+    let mut skewed = b.clone();
+    skewed.yaw += 0.0042;
+    assert!(!classroom_mates(&a, &skewed) && !classroom_mates(&skewed, &a));
+    for d in [-0.021, 0.080] {
+        let mut wrong = b.clone();
+        wrong.position += back * d;
+        assert!(!classroom_mates(&a, &wrong));
+    }
+    for (rise, turn, stock) in [(0.035, 0., 812), (0., 0.25, 812), (0., 0., 811)] {
+        let mut wrong = b.clone();
+        wrong.position.y += rise;
+        wrong.yaw += turn;
+        wrong.finish_seed = Some(stock);
+        assert!(!classroom_mates(&a, &wrong));
+    }
+}

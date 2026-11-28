@@ -5,10 +5,12 @@ use crate::scene::procedural_indoor::{layout::stream, IndoorQuality};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+pub(crate) mod carboy;
 pub mod display;
 pub(crate) mod door;
 pub(crate) mod mirror;
 mod sheet;
+pub(crate) mod tableware;
 pub use sheet::SheetGauge;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

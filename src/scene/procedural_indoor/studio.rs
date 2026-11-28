@@ -295,7 +295,7 @@ pub(super) fn advance(
             debug!(
                 seed,
                 assets = uploads.remaining_assets(),
-                recipes = room.material_set.gpu_bakes.0.len(),
+                recipes = room.material_set.gpu_bakes.materials().len(),
                 elapsed_seconds = now.saturating_sub(work.started).as_secs_f32(),
                 "Studio room prepared, staging assets"
             );

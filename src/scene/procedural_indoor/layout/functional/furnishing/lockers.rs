@@ -1,22 +1,39 @@
-//! Install a classroom locker bank along a solid wall or a two-sided aisle.
+//! Fit locker banks to solid wall spans or freestanding sites with rear circulation.
 //! Sample the product once, then test alternative poses and their access strips.
 use super::*;
 use crate::scene::procedural_indoor::{
     architecture::{facade, interior_glazing, trim::TrimProgram},
     envelope::polygon,
+    layout::programs::access,
 };
 use rand::seq::SliceRandom;
 
+/// Object and route indices committed together. Extending a door approach
+/// must preserve the distinct rear circulation of a freestanding bank.
+pub(super) struct FittedLocker {
+    pub(super) object: usize,
+    pub(super) door_approach: usize,
+}
+
 impl IndoorManifest {
-    pub(super) fn fit_classroom_lockers(&mut self, index: usize, r: &mut ChaCha8Rng) {
-        let size = geometry::dimensions(ObjectKind::Locker, r.random());
+    pub(super) fn fit_locker_bank(
+        &mut self,
+        index: usize,
+        size: Vec3,
+        site_seed: u64,
+        structure: &PlacementStructure,
+        r: &mut ChaCha8Rng,
+    ) -> Option<FittedLocker> {
         let mut bank = self.floor_candidate(ObjectKind::Locker, Vec3::ZERO, size, 0., r);
-        bank.variant = geometry::education::WALL_BANK;
-        bank.finish_seed = Some(self.seed.wrapping_add(index as u64));
-        let mut placement = stream(self.seed, 0x4c4f_434b_5741_4c4c ^ index as u64);
-        let Some(envelope) = &self.envelope else {
-            return;
+        let use_flag = if self.layout == IndoorLayout::LockerRoom {
+            geometry::education::CHANGING
+        } else {
+            0
         };
+        bank.variant = use_flag | geometry::education::WALL_BANK;
+        bank.finish_seed = Some(self.seed.wrapping_add(index as u64));
+        let mut placement = stream(self.seed, 0x4c4f_434b_5741_4c4c ^ site_seed);
+        let envelope = self.envelope.as_ref()?;
         let mut walls: Vec<_> = envelope
             .walls
             .iter()
@@ -69,7 +86,7 @@ impl IndoorManifest {
                     let (a, b) = bank.bounds();
                     if !a.xz().cmpge(region.0).all()
                         || !b.xz().cmple(region.1).all()
-                        || !self.placement_clear(&bank, 0.035)
+                        || !self.placement_clear_with_structure(&bank, 0.035, false, structure)
                         || facade::overlaps_opening(self, a, b, 0.045)
                         || (at_entry
                             && facade.is_some_and(|f| {
@@ -88,20 +105,16 @@ impl IndoorManifest {
                     // The door swing is already inside the physical bounds.
                     // Keep usable standing space directly in front of the locks.
                     let access = access_strip(&bank, placement.random_range(0.48..0.66), true);
-                    if !self.locker_approach_clear(&bank, &access, region) {
+                    if !self.locker_approach_clear(&bank, &access, region, structure) {
                         continue;
                     }
-                    self.objects.push(bank);
-                    self.assembly_diagnostics.programs[index]
-                        .reservations
-                        .push(access);
-                    return;
+                    return Some(self.install_locker(index, bank, access, None));
                 }
             }
         }
         // A fully glazed or occupied perimeter can instead support a freestanding
         // bank. Only admit it when people can pass behind it and use the front.
-        bank.variant = geometry::education::FREESTANDING_BANK;
+        bank.variant = use_flag | geometry::education::FREESTANDING_BANK;
         let program = &self.assembly_diagnostics.programs[index];
         let (min, max) = (program.min, program.max);
         let mut sides = [Vec3::Z, Vec3::X, Vec3::NEG_Z, Vec3::NEG_X];
@@ -124,33 +137,57 @@ impl IndoorManifest {
                 let (lo, hi) = bank.bounds();
                 if !lo.xz().cmpge(min).all()
                     || !hi.xz().cmple(max).all()
-                    || !self.placement_clear(&bank, 0.06)
+                    || !self.placement_clear_with_structure(&bank, 0.06, false, structure)
                 {
                     continue;
                 }
                 let front = access_strip(&bank, placement.random_range(0.50..0.66), true);
                 let back = access_strip(&bank, placement.random_range(0.56..0.78), false);
-                if self.locker_approach_clear(&bank, &front, region)
-                    && self.locker_approach_clear(&bank, &back, region)
+                if self.locker_approach_clear(&bank, &front, region, structure)
+                    && self.locker_approach_clear(&bank, &back, region, structure)
                 {
-                    self.objects.push(bank);
-                    self.assembly_diagnostics.programs[index]
-                        .reservations
-                        .extend([front, back]);
-                    return;
+                    return Some(self.install_locker(index, bank, front, Some(back)));
                 }
             }
         }
+        None
     }
-    fn locker_approach_clear(
+
+    fn install_locker(
+        &mut self,
+        index: usize,
+        bank: IndoorObject,
+        front: Reservation,
+        back: Option<Reservation>,
+    ) -> FittedLocker {
+        let routes = &mut self.assembly_diagnostics.programs[index].reservations;
+        let installed = FittedLocker {
+            object: bank.id,
+            door_approach: routes.len(),
+        };
+        self.objects.push(bank);
+        routes.push(front);
+        routes.extend(back);
+        installed
+    }
+
+    pub(super) fn locker_approach_clear(
         &self,
         bank: &IndoorObject,
         access: &Reservation,
         (min, max): (Vec2, Vec2),
+        structure: &PlacementStructure,
     ) -> bool {
         let (lo, hi) = bank.bounds();
         let a = Vec3::new(access.min.x, bank.position.y, access.min.y);
-        let b = Vec3::new(access.max.x, bank.position.y + 1.60, access.max.y);
+        let changing = self.layout == IndoorLayout::LockerRoom;
+        let headroom = if changing { 1.90 } else { 1.60 };
+        let b = Vec3::new(access.max.x, bank.position.y + headroom, access.max.y);
+        // A ceiling grid or clerestory header can span the entire room in plan.
+        // At a changing station the clear volume ends above a standing user.
+        let obstructs = |(bottom, top): (Vec3, Vec3)| {
+            (!changing || (bottom.y < b.y && top.y > a.y + 0.001)) && access.overlaps(bottom, top)
+        };
         access.min.cmpge(min).all()
             && access.max.cmple(max).all()
             && !access.overlaps(lo, hi)
@@ -165,14 +202,13 @@ impl IndoorManifest {
                 .objects
                 .iter()
                 .filter(|o| o.solid && o.id != bank.id)
-                .any(|o| {
-                    let (lo, hi) = o.bounds();
-                    access.overlaps(lo, hi)
-                })
-            && !self
-                .columns()
+                .map(access::bounds)
+                .any(obstructs)
+            && !structure
+                .get_or_init(|| self.columns())
                 .iter()
-                .any(|(lo, hi)| access.overlaps(*lo, *hi))
+                .copied()
+                .any(obstructs)
     }
 }
 
@@ -212,7 +248,7 @@ fn wall_spans(
     spans
 }
 
-fn access_strip(o: &IndoorObject, depth: f32, front: bool) -> Reservation {
+pub(super) fn access_strip(o: &IndoorObject, depth: f32, front: bool) -> Reservation {
     let forward = if front { Vec3::Z } else { Vec3::NEG_Z };
     let f = o.transform();
     let center = f

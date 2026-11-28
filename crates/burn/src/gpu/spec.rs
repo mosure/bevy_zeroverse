@@ -1,6 +1,7 @@
 //! Resolved scene/output policy, independent of transport and queue scheduling.
 use super::*;
 use bevy_zeroverse::render::{RenderMode, depth::DepthFormat, lighting::PreviewLighting};
+use bevy_zeroverse::scene::procedural_indoor::cameras::MAX_INDOOR_CAMERAS;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -49,6 +50,15 @@ impl AttachmentPlan {
             .iter()
             .map(|p| self.rendered.iter().position(|r| r == p).unwrap())
             .collect()
+    }
+    /// The copier already interprets an empty selection as all planes in order.
+    /// RGB-only and full-attachment captures can use that allocation-free path.
+    pub(super) fn binding_indices(&self) -> Vec<usize> {
+        if self.copied == self.rendered {
+            Vec::new()
+        } else {
+            self.source_indices()
+        }
     }
     pub fn index(&self, plane: Plane) -> Option<usize> {
         self.copied.iter().position(|p| *p == plane)
@@ -101,8 +111,8 @@ impl CaptureSpec {
             "capture dimensions must be integral in 1..=16384"
         );
         ensure!(
-            config.num_cameras > 0 && config.playback_steps > 0,
-            "capture requires cameras and timesteps"
+            (1..=MAX_INDOOR_CAMERAS).contains(&config.num_cameras) && config.playback_steps > 0,
+            "capture requires 1..={MAX_INDOOR_CAMERAS} indoor cameras and at least one timestep"
         );
         ensure!(config.ssaa_factor <= 4, "SSAA factor must be 0..=4");
         ensure!(
@@ -370,6 +380,13 @@ mod tests {
                 config.render_modes.contains(&RenderMode::Color)
             );
             let indices = spec.plan.source_indices();
+            let selection = spec.plan.binding_indices();
+            if selection.is_empty() {
+                assert_eq!(spec.plan.copied, spec.plan.rendered);
+                assert!(indices.iter().copied().eq(0..spec.plan.rendered.len()));
+            } else {
+                assert_eq!(selection, indices);
+            }
             assert!(indices.windows(2).all(|w| w[0] < w[1]));
             for (i, plane) in indices.iter().zip(&spec.plan.copied) {
                 assert_eq!(spec.plan.rendered[*i], *plane);
@@ -378,6 +395,12 @@ mod tests {
     }
     #[test]
     fn invalid_policy_and_budget_fail_before_gpu_initialization() {
+        let mut excessive = scene();
+        excessive.width = 1.;
+        excessive.height = 1.;
+        excessive.num_cameras = MAX_INDOOR_CAMERAS + 1;
+        let error = CaptureSpec::from_scene(excessive).resolve().err().unwrap();
+        assert!(error.to_string().contains("1..=256 indoor cameras"));
         let mut config = scene();
         config.width = 256.5;
         assert!(CaptureSpec::from_scene(config).resolve().is_err());

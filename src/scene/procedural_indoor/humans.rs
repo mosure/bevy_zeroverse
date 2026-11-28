@@ -140,6 +140,8 @@ pub struct IndoorHuman {
     /// Installed preparation counter attended by this static standing person.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workstation: Option<usize>,
+    /// Supporting chair or waiting bank. A shared bank also records its
+    /// zero-based physical place in the pose program.
     pub chair: Option<usize>,
     pub neighbor: bool,
     pub outfit: HumanOutfit,
@@ -157,6 +159,10 @@ pub struct IndoorHuman {
 }
 
 impl IndoorHuman {
+    pub fn waiting_seat(&self) -> Option<poses::WaitingSeat> {
+        self.pose_program.as_ref()?.waiting_seat
+    }
+
     pub(crate) fn foot_support_height(&self) -> f32 {
         self.pose_program
             .as_ref()
@@ -754,7 +760,13 @@ pub(super) const WORKTOP_POSE_ATTEMPTS: u64 = 6;
 /// torso, limb lengths and handed asymmetry. Reach is solved by the same IK as
 /// ordinary poses; infeasible or obstructed results still fail placement.
 pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObject, proposal: u64) {
-    let top = table.position.y + table.size.y;
+    let reception = table.kind == super::layout::ObjectKind::ReceptionDesk;
+    let working_height = if reception {
+        super::objects::public::reception::Counter::sample(table).worktop_m
+    } else {
+        table.size.y
+    };
+    let top = table.position.y + working_height;
     h.worktop_contact = None;
     if !h.pose.seated() {
         return;
@@ -805,7 +817,9 @@ pub(super) fn fit_worktop(h: &mut IndoorHuman, table: &super::layout::IndoorObje
     }
     h.joints = pose.solve(h.stature, h.build, h.shoulder_width, true);
     // A mixture of contact and free gestures, independent of body morphology.
-    if h.pose == HumanPoseKind::SeatedWorking && proposal < 4 {
+    // The generic contact solver models one continuous tabletop. At a split-level
+    // reception desk the free wrist targets above already use the lower staff plane.
+    if h.pose == HumanPoseKind::SeatedWorking && proposal < 4 && !reception {
         contact::plan(h, table, proposal);
     }
     update_bounds(h);
@@ -903,6 +917,13 @@ fn collision_capsules_inner(human: &IndoorHuman, support: bool) -> Vec<(Vec3, Ve
             (p[base + 2].with_y(0.05), p[base + 3], 0.083 * s),
         ]);
     }
+    if human.waiting_seat().is_some() {
+        // Final meshing settles this body against the fitted seat. Reserve
+        // its entire adjustment before admitting people, props and cameras.
+        for (_, _, radius) in &mut result {
+            *radius += poses::WaitingSeat::FIT_TRAVEL_M;
+        }
+    }
     result
 }
 
@@ -970,7 +991,10 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         .into_iter()
         .map(|(a, b, r)| (tf.transform_point(a), tf.transform_point(b), r))
         .collect();
-    let table_capsules = clearance::worktop_capsules(person, tf);
+    // Most placement trials have no worktop inside the broad-phase bounds.
+    // Solve the wider seated skeleton only on the first furniture item that
+    // needs it, and reuse it for the remaining items in this trial.
+    let table_capsules = std::cell::OnceCell::new();
     let s = person.stature / 1.75;
     let ground = Vec3::Y * (0.025 * s);
     let columns = scene.columns();
@@ -1095,7 +1119,7 @@ pub fn placement_clear(scene: &IndoorManifest, person: &IndoorHuman) -> bool {
         for &(a, b, r) in if prep_furniture
             || table.is_some() && (person.worktop_contact.is_none() || supported)
         {
-            &table_capsules
+            table_capsules.get_or_init(|| clearance::worktop_capsules(person, tf))
         } else {
             &capsules
         } {
@@ -1189,14 +1213,23 @@ pub fn validate(scene: &IndoorManifest) -> Result<(), String> {
                 .chair
                 .and_then(|id| scene.objects.get(id))
                 .ok_or("seated human missing chair")?;
-            if chair.kind != ObjectKind::Chair
+            if let Some(place) = human.waiting_seat() {
+                if !population::waiting::valid(scene, chair, human, place)
+                    || scene.humans[..index].iter().any(|other| {
+                        other.chair == human.chair
+                            && other.waiting_seat().is_some_and(|p| p.bay == place.bay)
+                    })
+                {
+                    return Err("invalid occupied waiting seat".into());
+                }
+            } else if chair.kind != ObjectKind::Chair
                 || chair.neighbor != human.neighbor
                 || chair.position.distance(human.position) > 0.001
                 || (chair.yaw - human.yaw).abs() > 0.001
             {
                 return Err("invalid seated support relationship".into());
             }
-        } else if human.chair.is_some() {
+        } else if human.chair.is_some() || human.waiting_seat().is_some() {
             return Err("standing human has a chair support".into());
         }
         if !population::workstation::valid_relationship(scene, human) {

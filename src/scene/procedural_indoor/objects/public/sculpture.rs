@@ -1,5 +1,10 @@
 //! Connected sculptural constructions with independent form and finish streams.
 use super::*;
+mod carved_mesh;
+mod carving;
+pub use carving::{Aperture, Carving, CarvingAxis};
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct SculptureProgram {
@@ -15,11 +20,18 @@ pub struct SculptureProgram {
     pub base: Surface,
     pub base_width: Vec2,
     pub base_height: f32,
+    /// Forms 9 and 10 are single solids with one and two through-bores.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carving: Option<Carving>,
 }
 pub fn parameters(o: &IndoorObject) -> SculptureProgram {
+    parameters_at(o, bevy_zeroverse_capture::GENERATOR_VERSION)
+}
+
+pub fn parameters_at(o: &IndoorObject, version: u32) -> SculptureProgram {
     let mut r = stream(o.seed, 8250);
     let mut f = stream(o.finish_seed.unwrap_or(o.seed), 8251);
-    SculptureProgram {
+    let mut p = SculptureProgram {
         form: r.random_range(0..9),
         elements: r.random_range(2..=9),
         turns: r.random_range(0.65..1.8),
@@ -38,7 +50,14 @@ pub fn parameters(o: &IndoorObject) -> SculptureProgram {
         base_width: Vec2::new(r.random_range(0.64..0.94), r.random_range(0.64..0.94)),
         base_height: r.random_range(0.015..0.05),
         base: [Surface::Metal, Surface::Wood, Surface::Concrete][f.random_range(0..3)],
+        carving: None,
+    };
+    if let Some(carving) = Carving::sample(o, version, &mut p) {
+        p.form = 8 + carving.apertures.len() as u32;
+        p.elements = 1;
+        p.carving = Some(carving);
     }
+    p
 }
 
 /// Fit tube thickness to the realized bends, including the closed-loop seam.
@@ -82,8 +101,8 @@ fn sweep_radius(points: &[Vec3], desired: f32) -> f32 {
     radius
 }
 
-pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
-    let p = parameters(o);
+pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
+    let p = parameters_at(o, version);
     let s = o.size;
     let label = o.kind.class_name();
     let radius = s.min_element() * p.thickness;
@@ -95,6 +114,10 @@ pub(super) fn build(a: &mut Assembly, o: &IndoorObject) {
         [0., p.base_height * 0.5, 0.],
         [p.base_width.x, p.base_height, p.base_width.y],
     );
+    if let Some(carving) = &p.carving {
+        carving.build(a, p.surface);
+        return;
+    }
     match p.form {
         0 => {
             // Joined stone/ceramic totem: a visible spine supports each lobe.

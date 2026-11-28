@@ -1,8 +1,16 @@
 //! Baked portions sized to the flat serving surface of the plate.
 use super::*;
 use crate::scene::procedural_indoor::geometry::Geometry;
+use crate::scene::procedural_indoor::materials::baking::Finish;
 
-pub(super) fn toast(a: &mut Assembly, flat: f32, floor: f32, height_limit: f32, r: &mut impl Rng) {
+pub(super) fn toast(
+    a: &mut Assembly,
+    flat: f32,
+    floor: f32,
+    height_limit: f32,
+    r: &mut impl Rng,
+    version: u32,
+) {
     let half = flat * r.random_range(0.68..0.78);
     let thick = (half * r.random_range(0.19..0.33)).min((height_limit - floor) * 0.74);
     let outline = [
@@ -21,7 +29,7 @@ pub(super) fn toast(a: &mut Assembly, flat: f32, floor: f32, height_limit: f32, 
     )
     .with_rotation(Quat::from_rotation_y(r.random_range(-PI..PI)));
     let mut crumb = Geometry::default();
-    a.part(Surface::Terracotta, "food#finish103")
+    a.part(Surface::Terracotta, Finish::Crust.label(version))
         .profile_slab_with_top(
             &outline,
             thick,
@@ -32,7 +40,8 @@ pub(super) fn toast(a: &mut Assembly, flat: f32, floor: f32, height_limit: f32, 
                 crumb.slab_cap(poly, inset, center, y, tf, |p| p);
             },
         );
-    a.part(Surface::Paper, "food#finish104").append(crumb);
+    a.part(Surface::Paper, Finish::Crumb.label(version))
+        .append(crumb);
 }
 
 pub(crate) fn biscuit(
@@ -41,6 +50,7 @@ pub(crate) fn biscuit(
     floor: f32,
     height_limit: f32,
     r: &mut impl Rng,
+    version: u32,
 ) {
     let radius = flat * r.random_range(0.78..0.94);
     let h = (radius * r.random_range(0.22..0.41)).min((height_limit - floor) * 0.76);
@@ -48,7 +58,7 @@ pub(crate) fn biscuit(
         .with_rotation(Quat::from_rotation_y(r.random_range(-PI..PI)))
         .with_scale(Vec3::new(1., 1., r.random_range(0.80..1.)));
     // Rounded baked shoulder, flat foot and a broad crown for inclusions.
-    a.part(Surface::Paper, "food#finish104").lathe(
+    a.part(Surface::Paper, Finish::Crumb.label(version)).lathe(
         &[
             (0., 0.),
             (radius * 0.88, 0.),

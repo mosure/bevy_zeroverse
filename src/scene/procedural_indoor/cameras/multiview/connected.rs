@@ -8,15 +8,7 @@ pub(super) fn all_pairs(scene: &IndoorManifest) -> Vec<CameraPairOverlap> {
     let views: Vec<Vec<_>> = scene
         .cameras
         .iter()
-        .map(|c| {
-            if c.motion.is_none() && c.start == c.end {
-                return vec![coverage.view(c, scene.camera_aspect_ratio, 0.); CHECK_TIMES.len()];
-            }
-            CHECK_TIMES
-                .into_iter()
-                .map(|t| coverage.view(c, scene.camera_aspect_ratio, t))
-                .collect()
-        })
+        .map(|c| checkpoint_views(&coverage, c, scene.camera_aspect_ratio))
         .collect();
     let mut result = Vec::new();
     for i in 0..scene.cameras.len() {
@@ -37,6 +29,76 @@ pub(super) fn all_pairs(scene: &IndoorManifest) -> Vec<CameraPairOverlap> {
     result
 }
 
+/// A witness for connectivity of the last admitted rig. When one camera
+/// changes, only its incident witness edges can break. A failed witness
+/// triggers a fresh reachability search, including alternative paths.
+#[derive(Default)]
+pub(in super::super) struct SpanningTree(Vec<(usize, usize)>);
+
+impl SpanningTree {
+    fn update(
+        &mut self,
+        count: usize,
+        changed: Option<usize>,
+        mut edge: impl FnMut(usize, usize) -> bool,
+    ) -> bool {
+        if count < 2 {
+            return true;
+        }
+        if let Some(slot) = changed {
+            if self.0.len() == count - 1
+                && self
+                    .0
+                    .iter()
+                    .filter(|&&(a, b)| a == slot || b == slot)
+                    .all(|&(a, b)| edge(a, b))
+            {
+                return true;
+            }
+        }
+        let mut reached = vec![false; count];
+        reached[0] = true;
+        let mut pending = vec![0];
+        let mut tree = Vec::with_capacity(count - 1);
+        while let Some(a) = pending.pop() {
+            for (b, seen) in reached.iter_mut().enumerate() {
+                if !*seen && edge(a, b) {
+                    *seen = true;
+                    tree.push((a, b));
+                    if tree.len() == count - 1 {
+                        self.0 = tree;
+                        return true;
+                    }
+                    pending.push(b);
+                }
+            }
+        }
+        // The caller may retry a smaller roll against the same incumbent.
+        false
+    }
+
+    pub(in super::super) fn accepts(
+        &mut self,
+        cameras: &[IndoorCamera],
+        views: &[Vec<VisibilityView>],
+        coverage: &Coverage,
+        policy: &MultiViewSettings,
+        changed: Option<usize>,
+    ) -> bool {
+        self.update(cameras.len(), changed, |a, b| {
+            accepts_metric_edge(
+                coverage,
+                &cameras[a],
+                &views[a],
+                &cameras[b],
+                &views[b],
+                policy,
+            )
+        })
+    }
+}
+
+#[cfg(test)]
 pub(super) fn connected(
     count: usize,
     pairs: &[CameraPairOverlap],
@@ -95,10 +157,11 @@ pub(super) fn sample(
         if scene.sample_independent_cameras(1, rng, coverage).is_err() {
             continue;
         }
-        let mut views: Vec<Vec<_>> = vec![CHECK_TIMES
-            .into_iter()
-            .map(|t| coverage.view(&scene.cameras[0], scene.camera_aspect_ratio, t))
-            .collect()];
+        let mut views = vec![checkpoint_views(
+            coverage,
+            &scene.cameras[0],
+            scene.camera_aspect_ratio,
+        )];
         let mut tracks = vec![Track::new(&scene.cameras[0])];
         let mut summaries = vec![ViewSummary::new(&views[0][0], scene)];
         while scene.cameras.len() < count {
@@ -182,40 +245,43 @@ pub(super) fn sample(
                     &mut candidate,
                     rng,
                 );
+                if !coverage.clearance.point_clear(scene, candidate.start) {
+                    scene.camera_diagnostics.peer_rejections[0] += 1;
+                    continue;
+                }
                 let track = Track::new(&candidate);
-                let reason = if !scene.camera_clear(candidate.start) {
-                    Some(0)
-                } else if !geometry(&tracks, Some(&track)).unwrap().accepts(policy) {
-                    Some(1)
-                } else if !scene.camera_settings.accepts_motion(
-                    scene.seed,
-                    scene.cameras.len(),
-                    &candidate,
-                ) {
-                    Some(2)
-                } else if !scene.camera_curve_clear(&candidate) {
-                    Some(3)
-                } else if !coverage.suitable(&candidate, false) {
-                    Some(4)
-                } else {
-                    None
-                };
+                // Each existing pair was admitted under this same policy. The
+                // connected sampler enforces covariance on every prefix.
+                let reason =
+                    if !super::super::diversity::accepts_extension(policy, &tracks, &track, true) {
+                        Some(1)
+                    } else if !scene.camera_settings.accepts_motion(
+                        scene.seed,
+                        scene.cameras.len(),
+                        &candidate,
+                    ) {
+                        Some(2)
+                    } else if !coverage.clearance.curve_clear(scene, &candidate) {
+                        Some(3)
+                    } else if !coverage.suitable(&candidate, false) {
+                        Some(4)
+                    } else {
+                        None
+                    };
                 if let Some(reason) = reason {
                     scene.camera_diagnostics.peer_rejections[reason] += 1;
                     continue;
                 }
-                let candidate_views: Vec<_> = CHECK_TIMES
-                    .into_iter()
-                    .map(|t| coverage.view(&candidate, scene.camera_aspect_ratio, t))
-                    .collect();
-                let samples = pair_samples_cached(
+                let candidate_views =
+                    checkpoint_views(coverage, &candidate, scene.camera_aspect_ratio);
+                if !accepts_metric_edge(
                     coverage,
                     reference,
                     &views[parent],
                     &candidate,
                     &candidate_views,
-                );
-                if !edge.accepts(&samples) {
+                    policy,
+                ) {
                     scene.camera_diagnostics.peer_rejections[5] += 1;
                     continue;
                 }
@@ -267,7 +333,10 @@ pub(super) fn sample(
     }
     most = most.max(recovered);
     scene.cameras.clear();
-    Err(format!("seed {}: connected camera graph exhausted bounded search for {count} cameras (most_placed={most}); constraints were retained",scene.seed))
+    Err(format!(
+        "seed {}: connected camera graph exhausted bounded search for {count} cameras (most_placed={most}); constraints were retained",
+        scene.seed
+    ))
 }
 
 pub(super) fn candidate_links(
@@ -276,42 +345,63 @@ pub(super) fn candidate_links(
     camera: &IndoorCamera,
     policy: &MultiViewSettings,
 ) -> bool {
-    let mut edge = policy.clone();
-    edge.min_reference_baseline = 0.;
-    let views: Vec<_> = CHECK_TIMES
-        .into_iter()
-        .map(|t| coverage.view(camera, scene.camera_aspect_ratio, t))
-        .collect();
+    let views = checkpoint_views(coverage, camera, scene.camera_aspect_ratio);
     scene.cameras.iter().any(|peer| {
-        let peer_views: Vec<_> = CHECK_TIMES
-            .into_iter()
-            .map(|t| coverage.view(peer, scene.camera_aspect_ratio, t))
-            .collect();
-        edge.accepts(&pair_samples_cached(
-            coverage,
-            peer,
-            &peer_views,
-            camera,
-            &views,
-        ))
+        let peer_views = checkpoint_views(coverage, peer, scene.camera_aspect_ratio);
+        accepts_metric_edge(coverage, peer, &peer_views, camera, &views, policy)
     })
 }
 
 impl IndoorManifest {
     pub fn accepts_camera_visibility(&self) -> bool {
-        let pairs = self.camera_overlap();
-        match &self.camera_settings.multiview {
-            Some(policy) if policy.graph == OverlapGraph::Connected => {
-                connected(self.cameras.len(), &pairs, policy)
-            }
-            _ => pairs.iter().all(|pair| self.accepts_camera_pair(pair)),
+        let Some(policy) = self.camera_settings.multiview.as_ref() else {
+            return true;
+        };
+        if self.cameras.len() < 2 {
+            return true;
         }
+        if policy.graph != OverlapGraph::Connected {
+            return self
+                .camera_overlap()
+                .iter()
+                .all(|pair| self.accepts_camera_pair(pair));
+        }
+        let coverage = Coverage::new(self);
+        let views: Vec<_> = self
+            .cameras
+            .iter()
+            .map(|c| checkpoint_views(&coverage, c, self.camera_aspect_ratio))
+            .collect();
+        SpanningTree::default().accepts(&self.cameras, &views, &coverage, policy, None)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn changing_one_camera_rechecks_its_tree_edges_and_can_find_a_different_tree() {
+        let mut tree = SpanningTree::default();
+        let count = 16;
+        let mut calls = 0;
+        assert!(tree.update(count, None, |_, _| {
+            calls += 1;
+            true
+        }));
+        assert_eq!(calls, count - 1);
+        calls = 0;
+        assert!(tree.update(count, Some(7), |a, b| {
+            calls += 1;
+            assert!(a == 7 || b == 7);
+            true
+        }));
+        assert_eq!(calls, 1);
+        let alternate = |a, b| (a != 7 && b != 7) || (a == 7 && b == 2) || (b == 7 && a == 2);
+        assert!(tree.update(count, Some(7), alternate));
+        assert!(!tree.update(count, Some(2), |a, b| a != 2 && b != 2 && alternate(a, b)));
+        assert!(tree.update(count, Some(2), alternate));
+    }
+
     #[test]
     fn visibility_chain_accepts_edges_without_a_star() {
         let policy = MultiViewSettings {
@@ -354,6 +444,18 @@ mod tests {
             settings.multiview.as_mut().unwrap().graph = OverlapGraph::Connected;
             scene.resample_cameras(4, settings, 1.6).unwrap();
             assert_eq!(scene.objects, geometry);
+            let pairs = scene.camera_pair_overlaps();
+            for floor in [0., 0.12, 0.5, 1.] {
+                let mut trial = scene.clone();
+                let p = trial.camera_settings.multiview.as_mut().unwrap();
+                p.min_overlap = floor;
+                let expected = connected(trial.cameras.len(), &pairs, p);
+                assert_eq!(
+                    trial.accepts_camera_visibility(),
+                    expected,
+                    "seed {seed}, overlap {floor}"
+                );
+            }
             assert!(scene.accepts_camera_visibility());
             crate::scene::procedural_indoor::validation::validate_layout(&scene).unwrap();
         }

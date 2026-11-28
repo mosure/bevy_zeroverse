@@ -3,7 +3,7 @@
 //! preserve the original public camera API and reflected type identities.
 use bevy::{
     camera::{visibility::RenderLayers, Exposure, Hdr, ImageRenderTarget, RenderTarget},
-    core_pipeline::prepass::MotionVectorPrepass, // MOTION_VECTOR_PREPASS_FORMAT,
+    core_pipeline::prepass::MotionVectorPrepass,
     gizmos::config::{GizmoConfig, GizmoConfigGroup},
     pbr::{ScreenSpaceTransmission, ScreenSpaceTransmissionQuality},
     post_process::bloom::Bloom,
@@ -166,23 +166,34 @@ fn interactive_views_needed(args: &BevyZeroverseConfig, mode: &RenderMode, sampl
     sampling || (!args.room_schematic && (args.camera_grid || *mode == RenderMode::CoVisibility))
 }
 
-// Applications may finalize the sensor between Logical and Lens. Select the
-// default prepass only after that decision; explicitly attached components are
-// retained. Angular flow traces exact surface correspondences instead.
-#[allow(clippy::type_complexity)] // Select only newly finalized pinhole cameras.
+// The standalone RGB sampler never reads Bevy's screen-motion target. Keep
+// depth and normals for PBR/SSAO. TAA, motion blur and explicit plugin users
+// request their own MotionVectorPrepass independently of this default.
+#[allow(clippy::type_complexity)]
 fn default_motion_prepass(
     mut commands: Commands,
+    config: Option<Res<BevyZeroverseConfig>>,
+    mode: Option<Res<RenderMode>>,
     cameras: Query<
-        Entity,
+        (Entity, Ref<Camera>, Has<io::image_copy::ImageCopier>),
         (
             With<ZeroverseCamera>,
-            Added<Camera>,
             Without<lens::LensCamera>,
+            Without<MotionVectorPrepass>,
         ),
     >,
 ) {
-    for camera in &cameras {
-        commands.entity(camera).insert(MotionVectorPrepass);
+    let rgb_capture = config.as_deref().is_some_and(|c| {
+        c.headless
+            && c.image_copiers
+            && c.render_mode == RenderMode::Color
+            && c.render_modes.iter().all(|m| *m == RenderMode::Color)
+    }) && mode.as_deref().is_none_or(|m| *m == RenderMode::Color);
+    let entered_flow = mode.as_ref().is_some_and(|m| m.is_changed() && m.is_flow());
+    for (entity, camera, copier) in &cameras {
+        if (camera.is_added() && !(copier && rgb_capture)) || (copier && entered_flow) {
+            commands.entity(entity).insert(MotionVectorPrepass);
+        }
     }
 }
 
@@ -558,6 +569,67 @@ mod tests {
         assert!(app.world().get::<MotionVectorPrepass>(pinhole).is_some());
         assert!(app.world().get::<MotionVectorPrepass>(angular).is_none());
         assert!(app.world().get::<MotionVectorPrepass>(custom).is_some());
+    }
+
+    #[test]
+    fn headless_rgb_omits_only_unconsumed_screen_motion() {
+        use crate::io::image_copy::ImageCopier;
+        for (headless, outputs, needs_motion) in [
+            (true, vec![], false),
+            (true, vec![RenderMode::Color], false),
+            (false, vec![RenderMode::Color], true),
+            (true, vec![RenderMode::Color, RenderMode::OpticalFlow], true),
+        ] {
+            let mut app = App::new();
+            app.insert_resource(BevyZeroverseConfig {
+                headless,
+                image_copiers: true,
+                render_mode: RenderMode::Color,
+                render_modes: outputs,
+                ..default()
+            })
+            .insert_resource(RenderMode::Color)
+            .add_systems(Update, default_motion_prepass);
+            let captured = || {
+                (
+                    Camera::default(),
+                    ZeroverseCamera::default(),
+                    ImageCopier::test_idle(),
+                )
+            };
+            let ordinary = app.world_mut().spawn(captured()).id();
+            let custom = app
+                .world_mut()
+                .spawn((captured(), MotionVectorPrepass))
+                .id();
+            let temporal = app
+                .world_mut()
+                .spawn((
+                    captured(),
+                    bevy::post_process::motion_blur::MotionBlur::default(),
+                ))
+                .id();
+            let other = app
+                .world_mut()
+                .spawn((Camera::default(), ZeroverseCamera::default()))
+                .id();
+            app.update();
+            assert_eq!(
+                app.world()
+                    .entity(ordinary)
+                    .contains::<MotionVectorPrepass>(),
+                needs_motion
+            );
+            for entity in [custom, temporal, other] {
+                assert!(app.world().entity(entity).contains::<MotionVectorPrepass>());
+            }
+            app.insert_resource(RenderMode::OpticalFlow);
+            app.update();
+            assert!(app
+                .world()
+                .entity(ordinary)
+                .contains::<MotionVectorPrepass>());
+        }
     }
 
     #[test]

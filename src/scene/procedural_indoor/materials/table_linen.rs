@@ -2,7 +2,7 @@
 //! roughness share the same filtered stock in every eligible material path.
 use super::*;
 use crate::scene::procedural_indoor::{
-    layout::stream,
+    layout::{stream, ObjectKind},
     objects::tables::{self, LinenWeave},
     preparation::AssetStore,
 };
@@ -90,8 +90,12 @@ pub(super) fn install(
             used[weave as usize] = s.finishes.contains(&(Surface::Fabric, weave.slot()));
         }
     } else {
-        for linen in scene.objects.iter().filter_map(tables::dining_linen) {
-            used[linen.weave as usize] = true;
+        for o in &scene.objects {
+            if o.kind == ObjectKind::TableNapkin {
+                used[super::super::clutter::napkin::weave(o) as usize] = true;
+            } else if let Some(linen) = tables::dining_linen(o) {
+                used[linen.weave as usize] = true;
+            }
         }
     }
     for weave in LinenWeave::ALL {
@@ -199,7 +203,19 @@ mod selection_tests {
                 (mode != 0).then_some(&selection),
                 &mut variants,
             );
-            let expected = usize::from(mode != 2);
+            let expected = if mode == 0 {
+                let mut slots = std::collections::BTreeSet::from([key.1]);
+                slots.extend(
+                    scene
+                        .objects
+                        .iter()
+                        .filter(|o| o.kind == ObjectKind::TableNapkin)
+                        .map(|o| super::super::super::clutter::napkin::weave(o).slot()),
+                );
+                slots.len()
+            } else {
+                usize::from(mode == 1)
+            };
             assert_eq!(images.len(), 3 * expected);
             assert_eq!(materials.len(), expected);
             assert_eq!(variants.contains_key(&key), mode != 2);

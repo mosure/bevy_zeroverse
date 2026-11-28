@@ -1,5 +1,6 @@
 pub mod beverages;
 pub mod microphone;
+pub(crate) mod napkin;
 pub mod pen_holder;
 pub(crate) mod tabletop;
 #[cfg(test)]
@@ -14,6 +15,8 @@ use rand::Rng;
 
 pub(super) fn build(a: &mut Assembly, o: &IndoorObject, version: u32) {
     match o.kind {
+        ObjectKind::TableNapkin => napkin::Napkin::for_object(o).build(a, o.size),
+        ObjectKind::DrinkingGlass => beverages::glassware::build(a, o),
         ObjectKind::Mug | ObjectKind::CoffeeCup | ObjectKind::WaterBottle | ObjectKind::SodaCan => {
             beverages::build(a, o, version)
         }

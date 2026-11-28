@@ -305,6 +305,10 @@ pub(crate) fn room_floor_finish(
     floor_finish(recipes, style);
     if style == 0 && layout == crate::scene::procedural_indoor::layout::IndoorLayout::Gymnasium {
         materials::flooring::sampling::sports_timber(&mut recipes[Surface::Floor as usize]);
+    } else if style == 2
+        && layout == crate::scene::procedural_indoor::layout::IndoorLayout::LockerRoom
+    {
+        materials::flooring::sampling::changing_floor(&mut recipes[Surface::Floor as usize]);
     } else if style == 2 && layout.is_exercise() {
         materials::flooring::sampling::exercise_floor(&mut recipes[Surface::Floor as usize]);
     } else if style == 2

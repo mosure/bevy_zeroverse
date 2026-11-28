@@ -124,6 +124,9 @@ fn export_webgpu_material_fixtures() {
                 "dispatches": kernel::dispatches(n).iter().map(|d|
                     bytemuck::cast_slice::<kernel::Dispatch, u32>(std::slice::from_ref(d)).to_vec()
                 ).collect::<Vec<_>>(),
+                "mip_passes": kernel::mip_passes(&kernel::levels(n)).map(|(mip, level)| {
+                    [mip, if level.size == kernel::TAIL_SIZE { kernel::MIP_TAIL } else { kernel::MIPS }]
+                }).collect::<Vec<_>>(),
                 "plane_bytes": kernel::plane_bytes(n),
                 "expected": files,
                 "metalness": if material.surface == Surface::Chrome { 255 } else { 0 },
@@ -139,7 +142,7 @@ fn export_webgpu_material_fixtures() {
     std::fs::write(
         directory.join("manifest.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema": 1, "entries": kernel::ENTRIES, "max_size": kernel::MAX_SIZE,
+            "schema": 2, "entries": kernel::ENTRIES, "max_size": kernel::MAX_SIZE,
             "scratch_bytes": {
                 "pixels": kernel::plane_bytes(kernel::MAX_SIZE) * 3,
                 "heights": kernel::MAX_SIZE * kernel::MAX_SIZE * 4,

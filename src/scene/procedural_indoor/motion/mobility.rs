@@ -13,15 +13,22 @@ pub(super) fn construct(a: &mut Assembly, o: &IndoorObject, version: u32) {
     }
     use ObjectKind::*;
     let kind = match o.kind {
-        Chair if o.variant < 11 && !objects::seating::is_recliner(o) => MotionKind::Chair,
+        Chair
+            if (o.variant < 11 || o.variant == objects::chairs::ENSEMBLE_CHAIR)
+                && !objects::seating::is_recliner(o) =>
+        {
+            MotionKind::Chair
+        }
+        LaundryCart if o.support.is_none() => MotionKind::Cart,
         MobileCart if o.support.is_none() || version < ROTOR_CARGO_VERSION => MotionKind::Cart,
         // Fixed/mounted versions are excluded by requiring a surface relationship.
         Laptop | Monitor | Phone | Keyboard | Mouse | Notebook | Notepad | Pencil | Books
-        | WaterBottle | Mug | CoffeeCup | SodaCan | PenHolder | Microphone | Headphones
-        | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | TissueBox | Bowl | DeskLamp
-        | DeskFan | Speaker | Kettle | Printer | CoffeeMaker | Projector | DryingRack
-        | SoapDispenser | Sponge | KnifeBlock | UtensilHolder | PaperTowel | KitchenTowel
-        | Dishware | Flatware | CuttingBoard | FruitBowl | Bread | Vase
+        | DrinkingGlass | WaterBottle | Mug | CoffeeCup | SodaCan | PenHolder | Microphone
+        | Headphones | Stapler | TapeDispenser | DocumentTray | DeskOrganizer | TissueBox
+        | Bowl | DeskLamp | DeskFan | Speaker | Kettle | Printer | CoffeeMaker | Projector
+        | DryingRack | SoapDispenser | Sponge | KnifeBlock | UtensilHolder | PaperTowel
+        | KitchenTowel | TableNapkin | Dishware | Flatware | CuttingBoard | FruitBowl | Bread
+        | Vase | YogaBlock | YogaBolster
             if o.support.is_some() =>
         {
             MotionKind::Prop
@@ -58,14 +65,18 @@ pub(super) fn construct(a: &mut Assembly, o: &IndoorObject, version: u32) {
                 | Notepad
                 | CoffeeCup
                 | Mug
+                | DrinkingGlass
                 | WaterBottle
                 | SodaCan
                 | Flatware
+                | TableNapkin
                 | Sponge
                 | Stapler
                 | Headphones
                 | Microphone
                 | Bread
+                | YogaBlock
+                | YogaBolster
         )
     {
         let mut pick = stream(o.seed, u64::from_le_bytes(*b"PickLift"));

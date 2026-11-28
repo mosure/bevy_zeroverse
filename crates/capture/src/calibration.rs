@@ -128,7 +128,7 @@ impl CameraCalibration {
             && (0.0..self.image_size[1] as f32).contains(&pixel[1])
             && self
                 .fisheye
-                .is_none_or(|lens| lens.ray(self, pixel).is_some())
+                .is_none_or(|lens| lens.sensor_coordinates(self, pixel).is_some())
     }
 }
 

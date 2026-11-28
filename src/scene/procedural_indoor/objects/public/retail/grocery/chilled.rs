@@ -84,27 +84,7 @@ pub(in super::super) fn stock(a: &mut Assembly, o: &IndoorObject, case: Refriger
         let (sin, cos) = p.yaw.sin_cos();
         lots[sku].push((p.base, sin, cos));
     });
-    for ((sku, size), instances) in products.into_iter().zip(lots) {
-        let mut template = Assembly::default();
-        sku.pack.build(
-            &mut template,
-            Vec3::ZERO,
-            size,
-            0.,
-            &package_print::retail_label(sku.pack.face().1, sku.lot),
-        );
-        // One material lookup and allocation reservation per product part.
-        for ((surface, label), g) in template.parts {
-            let dest = a.part(surface, &label);
-            dest.positions.reserve(g.positions.len() * instances.len());
-            dest.normals.reserve(g.normals.len() * instances.len());
-            dest.uvs.reserve(g.uvs.len() * instances.len());
-            dest.indices.reserve(g.indices.len() * instances.len());
-            for &(base, sin, cos) in &instances {
-                append_facing(dest, &g, base, sin, cos);
-            }
-        }
-    }
+    build_lots(a, products, lots);
 }
 
 #[cfg(test)]

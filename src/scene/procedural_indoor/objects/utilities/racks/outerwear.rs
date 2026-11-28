@@ -76,7 +76,7 @@ impl Pattern<'_> {
         let center = self.0.anchor_m - Vec3::Y * self.0.length_m * 0.50;
         center + (p - center) * Vec3::new(0.91, 0.994, 0.991)
     }
-    fn skin(&self, g: &mut Geometry, inner: bool) {
+    fn skin(&self, g: &mut Geometry, inner: bool, mut sleeves: Option<&mut Geometry>) {
         let map = |x| if inner { self.lining(x) } else { x };
         let torso = |face: f32| -> [[Vec3; U]; 9] {
             std::array::from_fn(|j| std::array::from_fn(|i| map(self.panel(across(i), V[j], face))))
@@ -102,15 +102,16 @@ impl Pattern<'_> {
             let b = sleeve(-1.);
             // Reversed on the right/left according to the orientation of the cut.
             let flipped = (a[0][1] - a[0][0]).cross(a[1][0] - a[0][0]).x < 0.;
-            cloth::patch(g, a, flipped ^ inner);
-            cloth::patch(g, b, (!flipped) ^ inner);
+            let sleeve = sleeves.as_deref_mut().unwrap_or(g);
+            cloth::patch(sleeve, a, flipped ^ inner);
+            cloth::patch(sleeve, b, (!flipped) ^ inner);
             for j in [0, ARM] {
                 let outward = if j == 0 {
                     -side * Vec3::Z - Vec3::Y
                 } else {
                     side * Vec3::Z + Vec3::Y
                 };
-                cloth::band(g, a.map(|r| r[j]), b.map(|r| r[j]), outward * polarity);
+                cloth::band(sleeve, a.map(|r| r[j]), b.map(|r| r[j]), outward * polarity);
             }
             // Shoulder seam ends at the neckline, leaving a genuine opening.
             let first = if side < 0. { 0 } else { (U - 1) / 2 + NECK };
@@ -119,7 +120,7 @@ impl Pattern<'_> {
             cloth::band(g, shoulder(front), shoulder(back), Vec3::Y * polarity);
         }
     }
-    fn turn_edges(&self, g: &mut Geometry) {
+    fn turn_edges(&self, g: &mut Geometry, mut sleeves: Option<&mut Geometry>) {
         for face in [-1., 1.] {
             let hem: [Vec3; U] = std::array::from_fn(|i| self.panel(across(i), 0., face));
             cloth::band(g, hem, hem.map(|p| self.lining(p)), Vec3::NEG_Y);
@@ -128,7 +129,12 @@ impl Pattern<'_> {
             cloth::band(g, neck, neck.map(|p| self.lining(p)), Vec3::Y);
             for side in [-1., 1.] {
                 let cuff: [Vec3; ARM + 1] = std::array::from_fn(|j| self.sleeve(side, j, 1., face));
-                cloth::band(g, cuff, cuff.map(|p| self.lining(p)), Vec3::NEG_Y);
+                cloth::band(
+                    sleeves.as_deref_mut().unwrap_or(g),
+                    cuff,
+                    cuff.map(|p| self.lining(p)),
+                    Vec3::NEG_Y,
+                );
             }
         }
         // Close the turned thickness at the two edges of each sewn opening.
@@ -139,22 +145,34 @@ impl Pattern<'_> {
             }
             for j in [0, ARM] {
                 let p = [self.sleeve(side, j, 1., -1.), self.sleeve(side, j, 1., 1.)];
-                cloth::band(g, p, p.map(|q| self.lining(q)), Vec3::NEG_Y);
+                cloth::band(
+                    sleeves.as_deref_mut().unwrap_or(g),
+                    p,
+                    p.map(|q| self.lining(q)),
+                    Vec3::NEG_Y,
+                );
             }
         }
     }
 }
 
-pub(super) fn build(a: &mut Assembly, p: &Garment, label: &str) {
+pub(super) fn build(a: &mut Assembly, p: &Garment, label: &str, sleeve_finish_slot: Option<usize>) {
     let pattern = Pattern(p);
     let g = a.part(p.surface, label);
-    pattern.skin(g, false);
-    pattern.skin(g, true);
-    pattern.turn_edges(g);
+    let mut sleeves = sleeve_finish_slot.map(|_| Geometry::default());
+    pattern.skin(g, false, sleeves.as_mut());
+    pattern.skin(g, true, sleeves.as_mut());
+    pattern.turn_edges(g, sleeves.as_mut());
+    if !matches!(p.kind, GarmentKind::Shirt | GarmentKind::Dress) {
+        details::sew(g, &pattern);
+    }
+    if let Some((slot, mesh)) = sleeve_finish_slot.zip(sleeves) {
+        a.part(p.surface, &format!("clothes#finish{slot}"))
+            .append(mesh);
+    }
     if matches!(p.kind, GarmentKind::Shirt | GarmentKind::Dress) {
         return;
     }
-    details::sew(g, &pattern);
     if p.closure == 0 {
         // A zipper follows the actual front pattern, including its shallow folds.
         let points = std::array::from_fn::<_, 8, _>(|i| {

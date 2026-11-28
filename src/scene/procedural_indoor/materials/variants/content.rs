@@ -23,7 +23,7 @@ impl Prepared {
             }
             Surface::Whiteboard => Self::Board(Box::new(boards::prepare(seed))),
             Surface::Art => Self::Art(seed, Box::new(art::maps(seed))),
-            Surface::PrintedPaper if slot >= paper::jacket::FIRST => {
+            Surface::PrintedPaper if (paper::jacket::FIRST..paper::jacket::END).contains(&slot) => {
                 Self::Jacket(Box::new(paper::jacket::prepare(seed, slot)))
             }
             Surface::PrintedPaper => Self::Paper(seed, Box::new(paper::prepare_slot(seed, slot))),
@@ -65,7 +65,7 @@ impl Job {
 
 pub(super) fn queue(
     seed: u64,
-    used: Option<&std::collections::BTreeSet<(Surface, usize)>>,
+    wants: impl Fn(Surface, usize) -> bool + Copy,
 ) -> BTreeMap<(Surface, usize), Job> {
     let inputs: Vec<_> = [
         Surface::Screen,
@@ -78,7 +78,7 @@ pub(super) fn queue(
     .into_iter()
     .flat_map(|surface| {
         (0..count(surface))
-            .filter(move |&slot| used.is_none_or(|keys| keys.contains(&(surface, slot))))
+            .filter(move |&slot| wants(surface, slot))
             .map(move |slot| ((surface, slot), content_seed(seed, surface, slot)))
     })
     .collect();
@@ -166,16 +166,17 @@ mod tests {
                 Surface::Art,
                 Surface::PrintedPaper,
             ];
-            let used = surfaces
+            let used: std::collections::BTreeSet<_> = surfaces
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| (s, [0, 12, 51, 97, CONTENT_COUNT - 1, COUNT - 1][i]))
                 .chain([
                     (Surface::PrintedPaper, paper::spread_slot(seed)),
                     (Surface::PrintedPaper, paper::jacket::FIRST + 2),
+                    (Surface::PrintedPaper, paper::score::FIRST + 1),
                 ])
                 .collect();
-            let mut jobs = queue(seed, Some(&used));
+            let mut jobs = queue(seed, |surface, slot| used.contains(&(surface, slot)));
             assert_eq!(jobs.len(), used.len());
             for (surface, slot) in used {
                 let content_seed = content_seed(seed, surface, slot);
@@ -194,7 +195,9 @@ mod tests {
                     Surface::Television => screens::apply_tv(content_seed, &mut a, &mut ia),
                     Surface::Whiteboard => boards::apply(content_seed, &mut a, &mut ia),
                     Surface::Art => art::apply(content_seed, &mut a, &mut ia),
-                    Surface::PrintedPaper if slot >= paper::jacket::FIRST => {
+                    Surface::PrintedPaper
+                        if (paper::jacket::FIRST..paper::jacket::END).contains(&slot) =>
+                    {
                         paper::jacket::prepare(content_seed, slot).apply(&mut a, &mut ia)
                     }
                     Surface::PrintedPaper if slot >= COUNT => paper::apply_prepared(
@@ -214,7 +217,7 @@ mod tests {
                 assert_materials_equal(&a, &ia, &b, &ib);
             }
             assert!(jobs.is_empty());
-            assert!(queue(seed, Some(&Default::default())).is_empty());
+            assert!(queue(seed, |_, _| false).is_empty());
         }
     }
 }

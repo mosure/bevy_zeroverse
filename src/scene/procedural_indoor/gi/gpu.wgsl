@@ -7,7 +7,7 @@ struct Material {
 }
 struct Light {direction:vec4<f32>,position_range:vec4<f32>,color_candela:vec4<f32>,spot:vec4<u32>}
 @group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> triangles:array<vec4<f32>>;
+@group(0) @binding(1) var<storage,read> triangles:array<vec4<u32>>;
 @group(0) @binding(2) var<storage,read> nodes:array<Node>;
 @group(0) @binding(3) var<storage,read> materials:array<Material>;
 @group(0) @binding(4) var<storage,read> texels:array<vec4<f32>>;
@@ -58,6 +58,42 @@ fn random(state:ptr<function,u32>)->f32 {
     return f32(((word>>22u)^word)>>8u)/16777216.0;
 }
 struct Hit {index:u32,distance:f32,u:f32,v:f32}
+fn triangle_word(offset:u32, i:u32)->u32 {
+    return triangles[offset + i / 4u][i % 4u];
+}
+// Two consecutive UV triangles occupy three vec4s. Only a textured hit reads
+// its chart. The same barycentric operation order is used at both alignments.
+fn hit_uv(hit:Hit, tag:u32)->vec2<f32> {
+    let rank_bits=params.table_offsets.w;
+    var index=tag & ((1u << rank_bits)-1u);
+    if params.table_offsets.y!=params.table_offsets.z {
+        index+=triangle_word(params.table_offsets.y,hit.index >> rank_bits);
+    }
+    let at=params.table_offsets.z + (index * 3u) / 2u;
+    let a=bitcast<vec4<f32>>(triangles[at]);
+    let b=bitcast<vec4<f32>>(triangles[at+1u]);
+    let odd=(index & 1u)!=0u;
+    let uv0=select(a.xy,a.zw,odd);
+    let uv1=select(a.zw,b.xy,odd);
+    let uv2=select(b.xy,b.zw,odd);
+    return uv0*(1.0-hit.u-hit.v)+uv1*hit.u+uv2*hit.v;
+}
+struct ShadingSurface { material:Material, uv:vec2<f32> }
+fn shading_surface(hit:Hit)->ShadingSurface {
+    if params.table_offsets.w==0u {
+        let at=params.table_offsets.x+2u*hit.index;
+        let a=bitcast<vec4<f32>>(triangles[at]);
+        let b=bitcast<vec4<f32>>(triangles[at+1u]);
+        return ShadingSurface(materials[u32(b.z)], a.xy*(1.0-hit.u-hit.v)+a.zw*hit.u+b.xy*hit.v);
+    }
+    let tag=triangle_word(params.table_offsets.x,hit.index);
+    let material=materials[tag >> params.table_offsets.w];
+    var uv=vec2<f32>(0.0);
+    if material.base_map.y!=0u || material.emission_map.y!=0u {
+        uv=hit_uv(hit,tag);
+    }
+    return ShadingSurface(material,uv);
+}
 fn intersect(origin:vec3<f32>,direction:vec3<f32>,limit:f32,any_hit:bool)->Hit {
     var result=Hit(0xffffffffu,limit,0.0,0.0);
     var stack:array<u32,64>; stack[0]=0u; var count=1u;
@@ -77,7 +113,7 @@ fn intersect(origin:vec3<f32>,direction:vec3<f32>,limit:f32,any_hit:bool)->Hit {
         } else {
             let end=node.index+(node.tag & ~LEAF_BIT);
             for(var i=node.index;i<end;i+=1u) {
-                let base=i*3u;let a=triangles[base].xyz;let ab=triangles[base+1u].xyz;let ac=triangles[base+2u].xyz;
+                let base=i*3u;let a=bitcast<vec3<f32>>(triangles[base].xyz);let ab=bitcast<vec3<f32>>(triangles[base+1u].xyz);let ac=bitcast<vec3<f32>>(triangles[base+2u].xyz);
                 let p=cross(direction,ac); let det=dot(ab,p);
                 if abs(det)<1e-9 {continue;}
                 let inv=1.0/det;let t=origin-a;
@@ -121,19 +157,17 @@ fn radiance(start:vec3<f32>,initial:vec3<f32>,state:ptr<function,u32>)->vec3<f32
         let hit=intersect(origin,direction,1000.0,false);
         if hit.index==0xffffffffu {if direction.y>0.0 {result+=throughput*exterior_sky(direction);}return result;}
         let base=hit.index*3u;
-        let n=vec3(triangles[base].w,triangles[base+1u].w,triangles[base+2u].w);
+        let n=bitcast<vec3<f32>>(vec3(triangles[base].w,triangles[base+1u].w,triangles[base+2u].w));
         let normal=select(n,-n,dot(n,direction)>0.0);
         let position=origin+direction*hit.distance;
-        let attributes=params.table_offsets.x+hit.index*2u;
-        let uv01=triangles[attributes];let uv2_material=triangles[attributes+1u];
-        let material=materials[u32(uv2_material.z)];
-        let uv=uv01.xy*(1.0-hit.u-hit.v)+uv01.zw*hit.u+uv2_material.xy*hit.v;
+        let surface=shading_surface(hit);
+        let material=surface.material;
         var albedo=material.albedo_offset_u.xyz;
         var emission=material.emission_offset_v.xyz;
         if material.base_map.y!=0u || material.emission_map.y!=0u {
             let basis = mat2x2<f32>(material.uv_columns.xy, material.uv_columns.zw);
             let offset = vec2(material.albedo_offset_u.w, material.emission_offset_v.w);
-            let chart = basis * uv + offset;
+            let chart = basis * surface.uv + offset;
             var base_texel = vec3(1.0);
             if material.base_map.y!=0u {
                 base_texel = transport_texel(material.base_map, chart);

@@ -125,46 +125,13 @@ impl IndoorManifest {
 
     fn hall_seating(&mut self, hall: &Zone, r: &mut ChaCha8Rng) {
         let a = across(hall);
-        let t = 1 - a;
         let stations = if r.random_bool(0.26 + 0.48 * self.density as f64) {
             r.random_range(1..=3)
         } else {
             0
         };
         self.assembly_diagnostics.programs[0].requested_capacity = stations;
-        for _ in 0..stations {
-            let size = geometry::dimensions(ObjectKind::Banquette, r.random());
-            for _ in 0..6 {
-                let low = r.random_bool(0.5);
-                let yaw = match (a, low) {
-                    (0, true) => FRAC_PI_2,
-                    (0, false) => -FRAC_PI_2,
-                    (_, true) => 0.,
-                    (_, false) => PI,
-                };
-                let gap = size.z * 0.5 + r.random_range(0.12..0.32);
-                let mut p = Vec2::ZERO;
-                p[a] = if low {
-                    hall.min[a] + gap
-                } else {
-                    hall.max[a] - gap
-                };
-                p[t] = r.random_range(hall.min[t] + size.x * 0.55..hall.max[t] - size.x * 0.55);
-                if self
-                    .public_fit(
-                        0,
-                        ObjectKind::Banquette,
-                        Vec3::new(p.x, 0., p.y),
-                        size,
-                        yaw,
-                        r,
-                    )
-                    .is_some()
-                {
-                    break;
-                }
-            }
-        }
+        self.waiting_seats(0, a, stations);
     }
 
     fn hall_suite(&mut self, index: usize, zone: &Zone, r: &mut ChaCha8Rng) {

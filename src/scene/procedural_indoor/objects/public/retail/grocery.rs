@@ -6,7 +6,9 @@ use crate::scene::procedural_indoor::{
 };
 
 pub(super) mod chilled;
+pub(super) mod gondola;
 mod package;
+pub(super) mod produce;
 use package::Pack;
 
 /// The stocking layouts guarantee that all four sampled products appear.
@@ -55,24 +57,43 @@ pub(crate) fn print_finishes(o: &IndoorObject) -> [(Surface, usize); 4] {
 /// The four SKU meshes live only during construction of this fixture. Copies
 /// retain their source UVs, normals and indices in ordinary renderer batches.
 fn facing(a: &mut Assembly, template: &Assembly, base: Vec3, yaw: f32) {
-    let (sin, cos) = yaw.sin_cos();
+    let rotation = yaw.sin_cos();
     for ((surface, label), g) in &template.parts {
-        append_facing(a.part(*surface, label), g, base, sin, cos);
+        append_facing(a.part(*surface, label), g, base, rotation, 1.);
     }
 }
 
-fn append_facing(dest: &mut Geometry, g: &Geometry, base: Vec3, sin: f32, cos: f32) {
-    let turn = |[x, y, z]: [f32; 3]| Vec3::new(cos * x + sin * z, y, cos * z - sin * x);
-    let offset = dest.positions.len() as u32;
-    dest.positions
-        .extend(g.positions.iter().map(|&p| (base + turn(p)).to_array()));
-    dest.normals
-        .extend(g.normals.iter().map(|&n| turn(n).to_array()));
-    dest.uvs.extend_from_slice(&g.uvs);
-    dest.indices.extend(g.indices.iter().map(|i| i + offset));
+/// Material and geometry are constructed once per product lot, then appended
+/// directly to their annotation and material batches at the stocked positions.
+fn build_lots(a: &mut Assembly, products: [(Sku, Vec3); 4], lots: [Vec<(Vec3, f32, f32)>; 4]) {
+    for ((sku, size), instances) in products.into_iter().zip(lots) {
+        let mut template = Assembly::default();
+        sku.pack.build(
+            &mut template,
+            Vec3::ZERO,
+            size,
+            0.,
+            &package_print::retail_label(sku.pack.face().1, sku.lot),
+        );
+        append_stock(a, template, &instances);
+    }
 }
 
-pub(super) fn shelves(
+/// A stocked product has one mesh per shape/finish, irrespective of its facing count.
+fn append_stock(a: &mut Assembly, template: Assembly, instances: &[(Vec3, f32, f32)]) {
+    for ((surface, label), g) in template.parts {
+        let dest = a.part(surface, &label);
+        dest.positions.reserve(g.positions.len() * instances.len());
+        dest.normals.reserve(g.normals.len() * instances.len());
+        dest.uvs.reserve(g.uvs.len() * instances.len());
+        dest.indices.reserve(g.indices.len() * instances.len());
+        for &(base, sin, cos) in instances {
+            append_facing(dest, &g, base, (sin, cos), 1.);
+        }
+    }
+}
+
+pub(super) fn legacy_shelves(
     a: &mut Assembly,
     o: &IndoorObject,
     levels: usize,
@@ -175,7 +196,7 @@ pub(super) fn shelves(
     }
 }
 
-pub(super) fn produce(
+pub(super) fn legacy_produce(
     a: &mut Assembly,
     s: Vec3,
     crates: usize,

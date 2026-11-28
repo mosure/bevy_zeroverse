@@ -79,7 +79,14 @@ pub(super) fn append_at(a: &mut Assembly, child: Assembly, tf: Transform) {
         for n in &mut g.normals {
             *n = (tf.rotation * Vec3::from_array(*n)).to_array();
         }
-        a.part(surface, &label).append(g);
+        match a.parts.entry((surface, label)) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(g);
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                entry.get_mut().append(g);
+            }
+        }
     }
 }
 

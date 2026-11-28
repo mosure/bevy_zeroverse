@@ -8,6 +8,54 @@ use crate::scene::procedural_indoor::{
 use std::collections::BTreeSet;
 
 #[test]
+fn basketball_stations_have_wall_support_opposed_pairs_and_clear_approaches() {
+    use crate::scene::procedural_indoor::objects::public::basketball::BasketballGoal;
+    let mut counts = BTreeSet::new();
+    let mut heights = BTreeSet::new();
+    let mut directions = BTreeSet::new();
+    let mut tampered = false;
+    for seed in 0..192 {
+        let room = IndoorManifest::generate_with_humans(seed, IndoorLayout::Gymnasium, 0.65, 0, 0.)
+            .unwrap();
+        validate_layout(&room).unwrap();
+        let c = room.program.as_ref().unwrap().volleyball.unwrap();
+        let goals: Vec<_> = room
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::BasketballGoal)
+            .collect();
+        counts.insert(goals.len());
+        for o in &goals {
+            assert!(furnishing::gymnasium::valid_goal(&room, o, c));
+            let spec = BasketballGoal::for_object(o);
+            let rim = o.position.y + spec.rim_height();
+            heights.insert(rim < 3.);
+            let dir = o.transform().rotation * Vec3::Z;
+            directions.insert(dir.x.abs() > 0.99);
+            let access = furnishing::gymnasium::goal_access(o);
+            assert!(room.functional_programs()[0].reservations.contains(&access));
+            assert!(!room.camera_clear(o.position + Vec3::Y * (0.5 * o.size.y)));
+            if !tampered {
+                let mut bad = room.clone();
+                bad.objects[o.id].position += dir * 0.07;
+                assert!(bad.validate_public_programs().is_err());
+                tampered = true;
+            }
+        }
+        if let [a, b] = goals.as_slice() {
+            let axis = a.transform().rotation * Vec3::Z;
+            assert!(axis.dot(b.transform().rotation * Vec3::Z) < -0.99999);
+            assert!((b.position - a.position).dot(axis.cross(Vec3::Y)).abs() < 0.001);
+            assert_eq!(a.finish_seed, b.finish_seed);
+            assert_eq!(a.size, b.size);
+            assert!((a.position.y - b.position.y).abs() < 1e-6);
+        }
+    }
+    assert_eq!(counts, BTreeSet::from([0, 1, 2]));
+    assert_eq!((heights.len(), directions.len()), (2, 2));
+}
+
+#[test]
 fn gymnasium_courts_replay_across_densities_and_reserve_real_clearance() {
     let mut types = BTreeSet::new();
     let mut nets = BTreeSet::new();
@@ -236,4 +284,76 @@ fn bleacher_installations_face_the_court_and_preserve_sideline_and_portal_cleara
     }
     assert!(invalid_checked && clear_sidelines > 0);
     assert_eq!(axes.len(), 4);
+}
+
+#[test]
+fn gymnasium_free_throw_marks_follow_real_boards_and_survive_archive_replay() {
+    use crate::scene::procedural_indoor::{
+        objects::public::basketball::BasketballGoal,
+        program::{court::FreeThrowMark, IndoorProgram},
+    };
+    let mut forms = BTreeSet::new();
+    let mut directions = BTreeSet::new();
+    let mut heights = BTreeSet::new();
+    let mut unpainted_goals = 0;
+    let mut corrupted = false;
+    for seed in 72100..72210 {
+        let s = IndoorManifest::generate_with_humans(seed, IndoorLayout::Gymnasium, 0.65, 0, 0.)
+            .unwrap();
+        let p = s.program.as_ref().unwrap();
+        let marks = &p.free_throw_marks;
+        let goals = s
+            .objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::BasketballGoal && !o.neighbor)
+            .count();
+        unpainted_goals += goals - marks.len();
+        validate_layout(&s).unwrap();
+        for m in marks {
+            let goal = &s.objects[m.goal_id];
+            let kit = BasketballGoal::for_object(goal);
+            let board = goal
+                .transform()
+                .transform_point(Vec3::Z * kit.face_z(goal.size))
+                .xz();
+            let far = m.center + m.forward * 0.025;
+            assert!(far.abs_diff_eq(board + m.forward * m.backboard_distance_m, 0.00005));
+            let adult = goal.position.y + kit.rim_height() > 3.;
+            heights.insert(adult);
+            assert_eq!(m.backboard_distance_m == 4.60, adult);
+            forms.insert((m.semicircle, m.line_length_m == 3.60));
+            directions.insert((m.forward.x.abs() as u32, m.forward.y.abs() as u32));
+        }
+        if !marks.is_empty() && !corrupted {
+            let json = serde_json::to_value(p).unwrap();
+            let replay: IndoorProgram = serde_json::from_value(json.clone()).unwrap();
+            assert_eq!(replay.free_throw_marks, *marks);
+            let mut legacy = json;
+            legacy.as_object_mut().unwrap().remove("free_throw_marks");
+            assert!(serde_json::from_value::<IndoorProgram>(legacy)
+                .unwrap()
+                .free_throw_marks
+                .is_empty());
+            let mut bad = marks[0];
+            bad.center.y += 0.1;
+            assert!(FreeThrowMark::validate_set(&s, &[bad]).is_err());
+            bad = marks[0];
+            bad.goal_id = s.objects.len();
+            assert!(FreeThrowMark::validate_set(&s, &[bad]).is_err());
+            assert!(FreeThrowMark::validate_set(&s, &[marks[0], marks[0]]).is_err());
+            let mut old = s.clone();
+            old.generator_version = 319;
+            old.program.as_mut().unwrap().free_throw_marks.clear();
+            FreeThrowMark::install(&mut old);
+            assert!(old.program.as_ref().unwrap().free_throw_marks.is_empty());
+            corrupted = true;
+        }
+    }
+    assert_eq!(
+        forms,
+        BTreeSet::from([(false, false), (false, true), (true, true)])
+    );
+    assert_eq!(heights.len(), 2);
+    assert_eq!(directions.len(), 2);
+    assert!(unpainted_goals > 5 && corrupted);
 }
